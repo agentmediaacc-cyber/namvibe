@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Join Live | Namvibe{% endblock %}
+
+{% block content %}
+<section class="live-real-shell">
+    <div class="live-real-wrap">
+        <div class="live-real-topbar">
+            <div>
+                <span class="auth-badge">Join Live Room</span>
+                <h1>{{ room.title|default:"Live Room" }}</h1>
+                <p>{{ room.description|default:"Watch, comment, and send gifts." }}</p>
+            </div>
+            <div class="live-real-top-actions">
+                <a href="/" class="btn btn-dark">Back Home</a>
+            </div>
+        </div>
+
+        <div class="live-single-layout">
+            <div class="live-main-stage">
+                <div class="live-stage-frame {{ room.theme|default:'theme-purple' }} view-normal" id="joinLiveFrame">
+                    <div class="live-overlay-top">
+                        <span class="live-pill">{{ room.status|default:"live"|upper }}</span>
+                        <span class="live-room-tag">{{ room.audience|default:"Public" }} • {{ room.room_access|default:"Open Room" }}</span>
+                    </div>
+
+                    <div class="live-center-wrap">
+                        <div class="live-center-card">
+                            <div class="live-camera-avatar">{{ room.host_full_name|default:"E"|slice:":1"|upper }}</div>
+                            <h3>{{ room.title|default:"Live Room" }}</h3>
+                            <p>{{ room.description|default:"Welcome to this live room." }}</p>
+                            <div class="live-location-pill">{{ room.location_text|default:"Location not shared" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="live-comments-pop" id="viewerCommentsPop">
+                        {% for comment in comments|slice:":5" %}
+                            <div class="comment-bubble {% if comment.is_host %}host{% else %}user{% endif %} show">
+                                {{ comment.username }}: {{ comment.message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="live-overlay-bottom">
+                        <div class="live-host-row">
+                            <div class="pp-avatar">{{ room.host_full_name|default:"E"|slice:":1"|upper }}</div>
+                            <div>
+                                <strong>{{ room.host_full_name|default:"Host" }}</strong>
+                                <span>@{{ room.host_username|default:"host" }}</span>
+                            </div>
+                        </div>
+
+                        <div class="pp-badges">
+                            <span>{{ room.quality|default:"HD" }}</span>
+                            <span>{{ room.view_mode|default:"normal" }}</span>
+                        </div>
+
+                        <div class="live-chat-input-row">
+                            <input type="text" id="viewerCommentInput" placeholder="Write comment..." onkeydown="if(event.key==='Enter'){event.preventDefault(); sendViewerComment();}">
+                            <button type="button" onclick="sendViewerComment()">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-side-panel">
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Send Gift</h3>
+                    </div>
+                    <div class="live-tools-grid">
+                        <button onclick="sendGift('Star', 10)">⭐ Star 10</button>
+                        <button onclick="sendGift('Rose', 20)">🌹 Rose 20</button>
+                        <button onclick="sendGift('Fire', 50)">🔥 Fire 50</button>
+                        <button onclick="sendGift('Crown', 100)">👑 Crown 100</button>
+                    </div>
+                </div>
+
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Latest Gifts</h3>
+                    </div>
+                    <div id="giftList">
+                        {% for gift in gifts %}
+                            <div class="pd-list-item">{{ gift.sender_username }} sent {{ gift.gift_name }} ({{ gift.token_amount }})</div>
+                        {% empty %}
+                            <div class="pd-list-item">No gifts yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Comments</h3>
+                    </div>
+                    <div id="commentList">
+                        {% for comment in comments %}
+                            <div class="pd-list-item">{{ comment.username }}: {{ comment.message }}</div>
+                        {% empty %}
+                            <div class="pd-list-item">No comments yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+const roomId = "{{ room.id }}";
+
+async function sendViewerComment() {
+    const input = document.getElementById("viewerCommentInput");
+    const message = input.value.trim();
+    if (!message) return;
+
+    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/create/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({
+            message: message,
+            is_host: false
+        })
+    });
+
+    const data = await resp.json();
+    if (data.ok) {
+        input.value = "";
+        loadComments();
+    }
+}
+
+async function sendGift(name, amount) {
+    const resp = await fetch(`/livestream/api/rooms/${roomId}/gifts/create/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({
+            gift_name: name,
+            token_amount: amount
+        })
+    });
+
+    const data = await resp.json();
+    if (data.ok) {
+        loadGifts();
+    }
+}
+
+async function loadComments() {
+    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/`);
+    const data = await resp.json();
+    if (!data.ok) return;
+
+    const list = document.getElementById("commentList");
+    const pop = document.getElementById("viewerCommentsPop");
+    list.innerHTML = "";
+    pop.innerHTML = "";
+
+    data.comments.forEach((c, i) => {
+        const row = document.createElement("div");
+        row.className = "pd-list-item";
+        row.textContent = `${c.username}: ${c.message}`;
+        list.appendChild(row);
+
+        if (i < 5) {
+            const bubble = document.createElement("div");
+            bubble.className = `comment-bubble ${c.is_host ? 'host' : 'user'} show`;
+            bubble.textContent = `${c.username}: ${c.message}`;
+            pop.appendChild(bubble);
+        }
+    });
+}
+
+async function loadGifts() {
+    const resp = await fetch(`/livestream/api/rooms/${roomId}/gifts/`);
+    const data = await resp.json();
+    if (!data.ok) return;
+
+    const list = document.getElementById("giftList");
+    list.innerHTML = "";
+
+    data.gifts.forEach(g => {
+        const row = document.createElement("div");
+        row.className = "pd-list-item";
+        row.textContent = `${g.sender_username} sent ${g.gift_name} (${g.token_amount})`;
+        list.appendChild(row);
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+setInterval(loadComments, 4000);
+setInterval(loadGifts, 5000);
+</script>
+{% endblock %}

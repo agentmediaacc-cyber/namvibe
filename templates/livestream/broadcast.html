@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Namvibe | Live Broadcast{% endblock %}
+
+{% block content %}
+<section class="live-real-shell">
+    <div class="live-real-wrap">
+        <div class="live-real-topbar">
+            <div>
+                <span class="auth-badge">Step 2 of 2</span>
+                <h1>Live Broadcast Screen</h1>
+                <p>The camera stays centered while comments, users, gifts, and controls stay around the stream.</p>
+            </div>
+
+            <div class="live-real-top-actions">
+                <a href="/livestream/room/{{ room.id }}/" class="btn btn-dark">Open Viewer Room</a>
+            </div>
+        </div>
+
+        <div class="broadcast-layout">
+            <div class="broadcast-stage">
+                <div class="live-stage-frame {{ room.theme|default:'theme-purple' }} view-normal" id="broadcastFrame">
+                    <video id="broadcastVideo" class="live-video-preview" autoplay playsinline muted></video>
+
+                    <div class="live-overlay-top">
+                        <span class="live-pill" id="broadcastMode">LIVE</span>
+                        <span class="live-room-tag">{{ room.audience }} • {{ room.room_access }}</span>
+                    </div>
+
+                    <div class="live-center-wrap">
+                        <div class="live-center-card">
+                            <div class="live-camera-avatar">{{ room.host_full_name|default:"E"|slice:":1"|upper }}</div>
+                            <h3>{{ room.title }}</h3>
+                            <p>{{ room.description }}</p>
+                            <div class="live-location-pill">{{ room.location_text|default:"Location not shared" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="live-comments-pop" id="broadcastCommentsPop">
+                        {% for comment in comments|slice:":5" %}
+                            <div class="comment-bubble {% if comment.is_host %}host{% else %}user{% endif %} show">
+                                {{ comment.username }}: {{ comment.message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="broadcast-top-right-stats">
+                        <div class="stat-chip" id="viewerCountChip">12 viewers</div>
+                        <div class="stat-chip" id="giftCountChip">{{ gifts|length }} gifts</div>
+                    </div>
+
+                    <div class="broadcast-guest-grid" id="guestGrid">
+                        <div class="guest-box">User 1</div>
+                        <div class="guest-box">User 2</div>
+                        <div class="guest-box">User 3</div>
+                        <div class="guest-box">User 4</div>
+                    </div>
+
+                    <div class="live-overlay-bottom">
+                        <div class="live-host-row">
+                            <div class="pp-avatar">{{ room.host_full_name|default:"E"|slice:":1"|upper }}</div>
+                            <div>
+                                <strong>{{ room.host_full_name }}</strong>
+                                <span>@{{ room.host_username }}</span>
+                            </div>
+                        </div>
+
+                        <div class="pp-badges">
+                            <span>{{ room.quality }}</span>
+                            <span>{{ room.view_mode }}</span>
+                            {% if room.allow_comments %}<span>Comments</span>{% endif %}
+                            {% if room.allow_gifts %}<span>Gifts</span>{% endif %}
+                        </div>
+
+                        <div class="live-chat-input-row">
+                            <input type="text" id="hostReplyInput" placeholder="Host reply inside live..." onkeydown="if(event.key==='Enter'){event.preventDefault(); sendHostMessage();}">
+                            <button type="button" onclick="sendHostMessage()">Reply</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="broadcast-side">
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Host Controls</h3>
+                    </div>
+                    <div class="live-tools-grid">
+                        <button onclick="toggleFullscreenStage()">Full Screen</button>
+                        <button onclick="toggleGuestSlots()">Show 10 Users</button>
+                        <button onclick="togglePrivateMode()">Private Mode</button>
+                        <button onclick="toggleComments()">Comments On/Off</button>
+                        <button onclick="sendAutoReply()">Auto Reply</button>
+                        <button onclick="blockRandomUser()">Block User</button>
+                        <button onclick="forwardLive()">Forward Live</button>
+                        <button onclick="sendGiftNotice()">Gift Notice</button>
+                    </div>
+                </div>
+
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Live Chat Channel</h3>
+                    </div>
+                    <div id="broadcastCommentList">
+                        {% for comment in comments %}
+                            <div class="pd-list-item">{{ comment.username }}: {{ comment.message }}</div>
+                        {% empty %}
+                            <div class="pd-list-item">No comments yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Gift Activity</h3>
+                    </div>
+                    <div id="broadcastGiftList">
+                        {% for gift in gifts %}
+                            <div class="pd-list-item">{{ gift.sender_username }} sent {{ gift.gift_name }} ({{ gift.token_amount }})</div>
+                        {% empty %}
+                            <div class="pd-list-item">No gifts yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Broadcast Log</h3>
+                    </div>
+                    <div id="broadcastLog">
+                        <div class="pd-list-item">Broadcast screen ready.</div>
+                        <div class="pd-list-item">Use controls to manage viewers, comments, gifts, and privacy.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+const roomId = "{{ room.id }}";
+let userMediaStream = null;
+let commentsEnabled = true;
+let privateMode = false;
+let guestExpanded = false;
+
+function logBroadcast(text) {
+    const log = document.getElementById('broadcastLog');
+    const row = document.createElement('div');
+    row.className = 'pd-list-item';
+    row.textContent = text;
+    log.prepend(row);
+}
+
+async function prepareBroadcastCamera() {
+    try {
+        userMediaStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        const video = document.getElementById('broadcastVideo');
+        video.srcObject = userMediaStream;
+        video.style.objectPosition = 'center center';
+    } catch (error) {
+        console.error(error);
+        logBroadcast('Camera permission denied');
+    }
+}
+
+async function sendHostMessage() {
+    const input = document.getElementById("hostReplyInput");
+    const message = input.value.trim();
+    if (!message) return;
+
+    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/create/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({
+            message: message,
+            is_host: true
+        })
+    });
+
+    const data = await resp.json();
+    if (data.ok) {
+        input.value = "";
+        loadComments();
+        logBroadcast('Host replied in live chat');
+    }
+}
+
+async function loadComments() {
+    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/`);
+    const data = await resp.json();
+    if (!data.ok) return;
+
+    const list = document.getElementById("broadcastCommentList");
+    const pop = document.getElementById("broadcastCommentsPop");
+    list.innerHTML = "";
+    pop.innerHTML = "";
+
+    data.comments.forEach((c, i) => {
+        const row = document.createElement("div");
+        row.className = "pd-list-item";
+        row.textContent = `${c.username}: ${c.message}`;
+        list.appendChild(row);
+
+        if (commentsEnabled && i < 6) {
+            const bubble = document.createElement("div");
+            bubble.className = `comment-bubble ${c.is_host ? 'host' : 'user'} show`;
+            bubble.textContent = `${c.username}: ${c.message}`;
+            pop.appendChild(bubble);
+        }
+    });
+}
+
+async function loadGifts() {
+    const resp = await fetch(`/livestream/api/rooms/${roomId}/gifts/`);
+    const data = await resp.json();
+    if (!data.ok) return;
+
+    const list = document.getElementById("broadcastGiftList");
+    list.innerHTML = "";
+    document.getElementById("giftCountChip").textContent = `${data.gifts.length} gifts`;
+
+    data.gifts.forEach(g => {
+        const row = document.createElement("div");
+        row.className = "pd-list-item";
+        row.textContent = `${g.sender_username} sent ${g.gift_name} (${g.token_amount})`;
+        list.appendChild(row);
+    });
+}
+
+function toggleFullscreenStage() {
+    const el = document.getElementById('broadcastFrame');
+    if (document.fullscreenElement) {
+        document.exitFullscreen();
+    } else {
+        el.requestFullscreen();
+    }
+    logBroadcast('Fullscreen toggled');
+}
+
+function toggleGuestSlots() {
+    const grid = document.getElementById('guestGrid');
+    guestExpanded = !guestExpanded;
+    grid.innerHTML = '';
+
+    const count = guestExpanded ? 10 : 4;
+    for (let i = 1; i <= count; i++) {
+        const div = document.createElement('div');
+        div.className = 'guest-box';
+        div.textContent = `User ${i}`;
+        grid.appendChild(div);
+    }
+    logBroadcast(`Guest grid changed to ${count} users`);
+}
+
+function togglePrivateMode() {
+    privateMode = !privateMode;
+    logBroadcast(privateMode ? 'Live switched to private communication mode' : 'Live switched back from private mode');
+}
+
+function toggleComments() {
+    commentsEnabled = !commentsEnabled;
+    if (!commentsEnabled) {
+        document.getElementById('broadcastCommentsPop').innerHTML = '';
+    } else {
+        loadComments();
+    }
+    logBroadcast(commentsEnabled ? 'Comments enabled' : 'Comments disabled');
+}
+
+function sendAutoReply() {
+    document.getElementById('hostReplyInput').value = 'Welcome to the live stream. Thank you for joining.';
+    sendHostMessage();
+}
+
+function blockRandomUser() {
+    logBroadcast('A viewer was blocked from the live room');
+}
+
+function forwardLive() {
+    logBroadcast('Live page forwarded/shared');
+}
+
+function sendGiftNotice() {
+    logBroadcast('Gift notice sent to viewers');
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+setInterval(loadComments, 4000);
+setInterval(loadGifts, 5000);
+
+document.addEventListener('DOMContentLoaded', function() {
+    prepareBroadcastCamera();
+});
+</script>
+{% endblock %}

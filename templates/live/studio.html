@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Eharo | Live Studio{% endblock %}
+
+{% block content %}
+<section class="live-shell">
+    <div class="live-wrap">
+
+        <div class="live-topbar">
+            <div>
+                <span class="auth-badge">Broadcast Studio</span>
+                <h1>Live Studio</h1>
+                <p>Go live with premium controls, stream setup, audience mode, and live preview.</p>
+            </div>
+
+            <div class="live-top-actions">
+                <a href="/accounts/dashboard/" class="btn btn-dark">Back Dashboard</a>
+                <button class="btn btn-main" onclick="startLive()">Start Live</button>
+            </div>
+        </div>
+
+        <div class="live-grid">
+            <div class="live-left">
+                <div class="live-card">
+                    <div class="live-card-head">
+                        <h3>Studio Controls</h3>
+                        <span id="liveStatusBadge" class="live-status off">Offline</span>
+                    </div>
+
+                    <form class="live-form" onsubmit="event.preventDefault(); startLive();">
+                        <div class="pd-form-group">
+                            <label>Live Title</label>
+                            <input type="text" id="liveTitle" placeholder="Enter live title" oninput="syncLivePreview()">
+                        </div>
+
+                        <div class="pd-form-group">
+                            <label>Description</label>
+                            <textarea id="liveDescription" rows="4" placeholder="Tell viewers what this live is about" oninput="syncLivePreview()"></textarea>
+                        </div>
+
+                        <div class="pd-form-grid-2">
+                            <div class="pd-form-group">
+                                <label>Audience</label>
+                                <select id="liveAudience" onchange="syncLivePreview()">
+                                    <option value="Public">Public</option>
+                                    <option value="Followers">Followers</option>
+                                    <option value="Friends">Friends</option>
+                                    <option value="Premium">Premium Members</option>
+                                    <option value="VIP">VIP Only</option>
+                                    <option value="Private">Private Room</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Live Type</label>
+                                <select id="liveType" onchange="syncLivePreview()">
+                                    <option value="Video Live">Video Live</option>
+                                    <option value="Audio Live">Audio Live</option>
+                                    <option value="Private Live">Private Live</option>
+                                    <option value="Event Show">Event Show</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pd-form-grid-2">
+                            <div class="pd-form-group">
+                                <label>Camera Source</label>
+                                <select id="cameraMode">
+                                    <option value="Front Camera">Front Camera</option>
+                                    <option value="Back Camera">Back Camera</option>
+                                    <option value="Desktop Camera">Desktop Camera</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Mic Mode</label>
+                                <select id="micMode">
+                                    <option value="Mic On">Mic On</option>
+                                    <option value="Muted">Muted</option>
+                                    <option value="Studio Mic">Studio Mic</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pd-form-grid-3">
+                            <div class="pd-form-group">
+                                <label>Stream Quality</label>
+                                <select id="streamQuality">
+                                    <option value="HD">HD</option>
+                                    <option value="Full HD">Full HD</option>
+                                    <option value="Auto">Auto</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Theme</label>
+                                <select id="liveTheme" onchange="applyLiveTheme()">
+                                    <option value="theme-purple">Purple Glow</option>
+                                    <option value="theme-pink">Pink Shine</option>
+                                    <option value="theme-blue">Ocean Blue</option>
+                                    <option value="theme-gold">Golden VIP</option>
+                                    <option value="theme-dark">Dark Premium</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Room Access</label>
+                                <select id="roomAccess" onchange="syncLivePreview()">
+                                    <option value="Open Room">Open Room</option>
+                                    <option value="Invite Only">Invite Only</option>
+                                    <option value="Subscribers">Subscribers</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="live-toggle-grid">
+                            <label><input type="checkbox" id="giftToggle" checked onchange="syncLivePreview()"> Allow Gifts</label>
+                            <label><input type="checkbox" id="commentsToggle" checked onchange="syncLivePreview()"> Allow Comments</label>
+                            <label><input type="checkbox" id="recordToggle" onchange="syncLivePreview()"> Save Recording</label>
+                            <label><input type="checkbox" id="cohostToggle" onchange="syncLivePreview()"> Allow Co-host</label>
+                            <label><input type="checkbox" id="followersOnlyToggle" onchange="syncLivePreview()"> Followers First</label>
+                            <label><input type="checkbox" id="vipBadgeToggle" onchange="syncLivePreview()"> VIP Badge</label>
+                        </div>
+
+                        <div class="live-action-row">
+                            <button type="button" onclick="startLive()">Start Live</button>
+                            <button type="button" onclick="pauseLive()">Pause</button>
+                            <button type="button" onclick="endLive()">End Live</button>
+                            <button type="button" onclick="resetLiveStudio()">Reset</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="live-card">
+                    <div class="live-card-head">
+                        <h3>Live Tools</h3>
+                    </div>
+
+                    <div class="live-tools-grid">
+                        <button onclick="quickStudioAction('Camera switched')">📷 Switch Camera</button>
+                        <button onclick="quickStudioAction('Microphone muted')">🎙 Mute Mic</button>
+                        <button onclick="quickStudioAction('Screen share ready')">🖥 Share Screen</button>
+                        <button onclick="quickStudioAction('Guest request opened')">👥 Invite Guest</button>
+                        <button onclick="quickStudioAction('Live gifts enabled')">🎁 Gifts</button>
+                        <button onclick="quickStudioAction('Chat panel opened')">💬 Open Chat</button>
+                        <button onclick="quickStudioAction('Private room mode enabled')">🔒 Private Room</button>
+                        <button onclick="quickStudioAction('Studio effects opened')">✨ Effects</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-right">
+                <div class="live-card sticky-preview">
+                    <div class="live-preview-head">
+                        <h3>Live Preview</h3>
+                        <span id="liveViewerCount">0 watching</span>
+                    </div>
+
+                    <div class="live-preview-frame theme-purple" id="livePreviewCard">
+                        <div class="live-preview-overlay">
+                            <div class="live-preview-top">
+                                <span class="live-pill" id="liveModePill">OFFLINE</span>
+                                <span class="live-room-tag" id="liveAudienceText">Public • Video Live</span>
+                            </div>
+
+                            <div class="live-camera-box">
+                                <div class="live-camera-center">
+                                    <div class="live-camera-avatar">{{ full_name|slice:":1"|upper }}</div>
+                                    <h3 id="livePreviewTitle">Your live title will appear here</h3>
+                                    <p id="livePreviewDescription">Describe your live session and preview it here before going live.</p>
+                                </div>
+                            </div>
+
+                            <div class="live-preview-bottom">
+                                <div class="live-host-row">
+                                    <div class="pp-avatar">{{ full_name|slice:":1"|upper }}</div>
+                                    <div>
+                                        <strong>{{ full_name }}</strong>
+                                        <span>@{{ username }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="pp-badges" id="liveBadges">
+                                    <span>Public</span>
+                                    <span>Video Live</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="live-card">
+                    <div class="live-card-head">
+                        <h3>Studio Log</h3>
+                    </div>
+                    <div id="liveLog">
+                        <div class="pd-list-item">Live studio ready.</div>
+                        <div class="pd-list-item">Configure your stream before starting.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<script>
+let liveRunning = false;
+
+function syncLivePreview() {
+    const title = document.getElementById('liveTitle').value || 'Your live title will appear here';
+    const desc = document.getElementById('liveDescription').value || 'Describe your live session and preview it here before going live.';
+    const audience = document.getElementById('liveAudience').value;
+    const type = document.getElementById('liveType').value;
+    const room = document.getElementById('roomAccess').value;
+
+    document.getElementById('livePreviewTitle').textContent = title;
+    document.getElementById('livePreviewDescription').textContent = desc;
+    document.getElementById('liveAudienceText').textContent = audience + ' • ' + type;
+    syncLiveBadges();
+}
+
+function syncLiveBadges() {
+    const badges = [];
+    badges.push(document.getElementById('liveAudience').value);
+    badges.push(document.getElementById('liveType').value);
+    badges.push(document.getElementById('roomAccess').value);
+
+    if (document.getElementById('giftToggle').checked) badges.push('Gifts');
+    if (document.getElementById('commentsToggle').checked) badges.push('Comments');
+    if (document.getElementById('recordToggle').checked) badges.push('Recording');
+    if (document.getElementById('cohostToggle').checked) badges.push('Co-host');
+    if (document.getElementById('followersOnlyToggle').checked) badges.push('Followers First');
+    if (document.getElementById('vipBadgeToggle').checked) badges.push('VIP');
+
+    document.getElementById('liveBadges').innerHTML = badges.map(b => `<span>${b}</span>`).join('');
+}
+
+function applyLiveTheme() {
+    const card = document.getElementById('livePreviewCard');
+    card.classList.remove('theme-purple', 'theme-pink', 'theme-blue', 'theme-gold', 'theme-dark');
+    card.classList.add(document.getElementById('liveTheme').value);
+}
+
+function addLiveLog(text) {
+    const log = document.getElementById('liveLog');
+    const div = document.createElement('div');
+    div.className = 'pd-list-item';
+    div.textContent = text;
+    log.prepend(div);
+}
+
+function startLive() {
+    liveRunning = true;
+    document.getElementById('liveStatusBadge').textContent = 'Live Now';
+    document.getElementById('liveStatusBadge').className = 'live-status on';
+    document.getElementById('liveModePill').textContent = 'LIVE';
+    document.getElementById('liveViewerCount').textContent = '12 watching';
+    addLiveLog('Live broadcast started.');
+}
+
+function pauseLive() {
+    if (!liveRunning) return;
+    document.getElementById('liveStatusBadge').textContent = 'Paused';
+    document.getElementById('liveStatusBadge').className = 'live-status pause';
+    document.getElementById('liveModePill').textContent = 'PAUSED';
+    addLiveLog('Live broadcast paused.');
+}
+
+function endLive() {
+    liveRunning = false;
+    document.getElementById('liveStatusBadge').textContent = 'Offline';
+    document.getElementById('liveStatusBadge').className = 'live-status off';
+    document.getElementById('liveModePill').textContent = 'OFFLINE';
+    document.getElementById('liveViewerCount').textContent = '0 watching';
+    addLiveLog('Live broadcast ended.');
+}
+
+function quickStudioAction(text) {
+    addLiveLog(text);
+}
+
+function resetLiveStudio() {
+    document.getElementById('liveTitle').value = '';
+    document.getElementById('liveDescription').value = '';
+    document.getElementById('liveAudience').value = 'Public';
+    document.getElementById('liveType').value = 'Video Live';
+    document.getElementById('cameraMode').value = 'Front Camera';
+    document.getElementById('micMode').value = 'Mic On';
+    document.getElementById('streamQuality').value = 'HD';
+    document.getElementById('liveTheme').value = 'theme-purple';
+    document.getElementById('roomAccess').value = 'Open Room';
+    document.getElementById('giftToggle').checked = true;
+    document.getElementById('commentsToggle').checked = true;
+    document.getElementById('recordToggle').checked = false;
+    document.getElementById('cohostToggle').checked = false;
+    document.getElementById('followersOnlyToggle').checked = false;
+    document.getElementById('vipBadgeToggle').checked = false;
+    endLive();
+    applyLiveTheme();
+    syncLivePreview();
+    addLiveLog('Studio reset complete.');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    applyLiveTheme();
+    syncLivePreview();
+});
+</script>
+{% endblock %}

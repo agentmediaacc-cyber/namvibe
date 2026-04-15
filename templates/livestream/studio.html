@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+{% block title %}Namvibe | Live Setup{% endblock %}
+
+{% block content %}
+<section class="live-real-shell">
+    <div class="live-real-wrap">
+        <div class="live-real-topbar">
+            <div>
+                <span class="auth-badge">Step 1 of 2</span>
+                <h1>Set up your live stream</h1>
+                <p>Choose audience, access, title, camera, mic, background, and room rules before opening your live channel.</p>
+            </div>
+
+            <div class="live-real-top-actions">
+                <a href="/accounts/dashboard/" class="btn btn-dark">Back Dashboard</a>
+                <button class="btn btn-main" onclick="prepareDeviceAccess()">Test Devices</button>
+            </div>
+        </div>
+
+        <div class="live-single-layout">
+            <div class="live-main-stage">
+                <div class="live-stage-frame theme-purple view-normal" id="livePreviewFrame">
+                    <video id="liveVideoPreview" class="live-video-preview" autoplay playsinline muted></video>
+
+                    <div class="live-overlay-top">
+                        <span class="live-pill" id="liveModePill">SETUP</span>
+                        <span class="live-room-tag" id="liveAccessLabel">Public • Open Room</span>
+                    </div>
+
+                    <div class="live-center-wrap">
+                        <div class="live-center-card">
+                            <div class="live-camera-avatar">{{ full_name|slice:":1"|upper }}</div>
+                            <h3 id="previewStreamTitle">Your live title will appear here</h3>
+                            <p id="previewStreamDescription">Set everything first, then continue to the real broadcast screen.</p>
+                            <div class="live-location-pill" id="liveLocationText">Location not shared</div>
+                            <div class="device-status-strip">
+                                <span id="cameraStatusBadge">Camera Off</span>
+                                <span id="micStatusBadge">Mic Off</span>
+                                <span id="locationStatusBadge">Location Off</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="live-overlay-bottom">
+                        <div class="live-host-row">
+                            <div class="pp-avatar">{{ full_name|slice:":1"|upper }}</div>
+                            <div>
+                                <strong>{{ full_name }}</strong>
+                                <span>@{{ username }}</span>
+                            </div>
+                        </div>
+
+                        <div class="pp-badges" id="livePreviewBadges">
+                            <span>Public</span>
+                            <span>Open Room</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="live-side-panel">
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Live channel setup</h3>
+                        <span id="streamStateBadge" class="live-status off">Not Ready</span>
+                    </div>
+
+                    <div class="live-compact-menu">
+                        <div class="pd-form-group">
+                            <label>Live Title</label>
+                            <input type="text" id="streamTitle" placeholder="Create an attractive title" oninput="syncLiveStudio()">
+                        </div>
+
+                        <div class="pd-form-group">
+                            <label>Description</label>
+                            <textarea id="streamDescription" rows="3" placeholder="Tell viewers what this live is about" oninput="syncLiveStudio()"></textarea>
+                        </div>
+
+                        <div class="pd-form-grid-2">
+                            <div class="pd-form-group">
+                                <label>Main Audience</label>
+                                <select id="streamAudience" onchange="syncLiveStudio()">
+                                    <option value="Public">Public</option>
+                                    <option value="Followers">Followers</option>
+                                    <option value="Friends">Friends</option>
+                                    <option value="Premium Members">Premium Members</option>
+                                    <option value="VIP Only">VIP Only</option>
+                                    <option value="Activated Accounts">Activated Accounts</option>
+                                    <option value="Private Room">Private Room</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Room Access</label>
+                                <select id="roomAccess" onchange="syncLiveStudio()">
+                                    <option value="Open Room">Open Room</option>
+                                    <option value="Invite Only">Invite Only</option>
+                                    <option value="Premium Locked">Premium Locked</option>
+                                    <option value="VIP Locked">VIP Locked</option>
+                                    <option value="Private Communication">Private Communication</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pd-form-group">
+                            <label>Extra Viewer Types</label>
+                            <div class="live-toggle-grid multi-choice-grid">
+                                <label><input type="checkbox" id="audPublic" checked onchange="syncLiveStudio()"> Public</label>
+                                <label><input type="checkbox" id="audFollowers" onchange="syncLiveStudio()"> Followers</label>
+                                <label><input type="checkbox" id="audPremium" onchange="syncLiveStudio()"> Premium</label>
+                                <label><input type="checkbox" id="audVip" onchange="syncLiveStudio()"> VIP</label>
+                            </div>
+                        </div>
+
+                        <div class="pd-form-grid-3">
+                            <div class="pd-form-group">
+                                <label>Camera Mode</label>
+                                <select id="cameraFacing">
+                                    <option value="user">Front Camera</option>
+                                    <option value="environment">Back Camera</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Resolution</label>
+                                <select id="streamQuality">
+                                    <option value="640x360">360p</option>
+                                    <option value="854x480">480p</option>
+                                    <option value="1280x720" selected>HD 720p</option>
+                                    <option value="1920x1080">Full HD 1080p</option>
+                                    <option value="2560x1440">1K / 1440p</option>
+                                    <option value="3840x2160">4K</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>View Style</label>
+                                <select id="viewMode" onchange="applyViewMode()">
+                                    <option value="normal">Normal</option>
+                                    <option value="cinema">Cinema</option>
+                                    <option value="portrait">Portrait</option>
+                                    <option value="square">Square</option>
+                                    <option value="wide">Wide</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pd-form-grid-2">
+                            <div class="pd-form-group">
+                                <label>Background</label>
+                                <select id="liveTheme" onchange="applyLiveTheme()">
+                                    <option value="theme-purple">Purple Glow</option>
+                                    <option value="theme-pink">Pink Shine</option>
+                                    <option value="theme-blue">Ocean Blue</option>
+                                    <option value="theme-gold">Golden VIP</option>
+                                    <option value="theme-dark">Dark Premium</option>
+                                </select>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Video Effect</label>
+                                <select id="liveEffect" onchange="applyLiveEffect()">
+                                    <option value="none">None</option>
+                                    <option value="grayscale(100%)">Black & White</option>
+                                    <option value="sepia(80%)">Warm Sepia</option>
+                                    <option value="contrast(130%) saturate(130%)">Contrast Boost</option>
+                                    <option value="brightness(1.1) saturate(1.4)">Bright Glow</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pd-form-grid-2">
+                            <div class="pd-form-group">
+                                <label>Mic Test</label>
+                                <button type="button" class="btn btn-dark live-inline-btn" onclick="testMic()">Test Mic</button>
+                            </div>
+
+                            <div class="pd-form-group">
+                                <label>Location</label>
+                                <button type="button" class="btn btn-dark live-inline-btn" onclick="requestLocationNow()">Enable Location</button>
+                            </div>
+                        </div>
+
+                        <div class="live-toggle-grid">
+                            <label><input type="checkbox" id="allowGifts" checked onchange="syncLiveStudio()"> Gifts</label>
+                            <label><input type="checkbox" id="allowComments" checked onchange="syncLiveStudio()"> Comments</label>
+                            <label><input type="checkbox" id="saveRecording" onchange="syncLiveStudio()"> Recording</label>
+                            <label><input type="checkbox" id="allowCohost" checked onchange="syncLiveStudio()"> Co-host</label>
+                            <label><input type="checkbox" id="allowPremiumJoin" onchange="syncLiveStudio()"> Premium Join</label>
+                            <label><input type="checkbox" id="allowPremiumView" onchange="syncLiveStudio()"> Premium View</label>
+                            <label><input type="checkbox" id="vipBadge" onchange="syncLiveStudio()"> VIP</label>
+                            <label><input type="checkbox" id="privateLine" onchange="syncLiveStudio()"> Private Line</label>
+                            <label><input type="checkbox" id="autoReplyJoin" checked onchange="syncLiveStudio()"> Auto Reply</label>
+                            <label><input type="checkbox" id="tipBoxEnabled" checked onchange="syncLiveStudio()"> Tip Box</label>
+                        </div>
+
+                        <div class="live-real-action-row">
+                            <button type="button" onclick="prepareDeviceAccess()">Test Camera</button>
+                            <button type="button" onclick="goToBroadcastScreen()">Next: Open Broadcast Screen</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="live-real-card">
+                    <div class="live-real-card-head">
+                        <h3>Setup Log</h3>
+                    </div>
+                    <div id="liveStudioLog">
+                        <div class="pd-list-item">Live setup ready.</div>
+                        <div class="pd-list-item">Test camera, mic, and location before continuing.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+let cameraFacingMode = "user";
+let userMediaStream = null;
+
+function logLive(text) {
+    const log = document.getElementById('liveStudioLog');
+    const row = document.createElement('div');
+    row.className = 'pd-list-item';
+    row.textContent = text;
+    log.prepend(row);
+}
+
+function syncLiveStudio() {
+    const title = document.getElementById('streamTitle').value || 'Your live title will appear here';
+    const desc = document.getElementById('streamDescription').value || 'Set everything first, then continue to the real broadcast screen.';
+    const audience = document.getElementById('streamAudience').value;
+    const access = document.getElementById('roomAccess').value;
+
+    document.getElementById('previewStreamTitle').textContent = title;
+    document.getElementById('previewStreamDescription').textContent = desc;
+    document.getElementById('liveAccessLabel').textContent = audience + ' • ' + access;
+
+    const badges = [audience, access, document.getElementById('streamQuality').selectedOptions[0].text];
+    if (document.getElementById('audFollowers').checked) badges.push('Followers');
+    if (document.getElementById('audPremium').checked) badges.push('Premium');
+    if (document.getElementById('audVip').checked) badges.push('VIP');
+    if (document.getElementById('allowGifts').checked) badges.push('Gifts');
+    if (document.getElementById('allowComments').checked) badges.push('Comments');
+    if (document.getElementById('allowCohost').checked) badges.push('Co-host');
+
+    document.getElementById('livePreviewBadges').innerHTML = badges.map(b => `<span>${b}</span>`).join('');
+    document.getElementById('streamStateBadge').textContent = title.trim() ? 'Ready' : 'Not Ready';
+    document.getElementById('streamStateBadge').className = title.trim() ? 'live-status pause' : 'live-status off';
+}
+
+function applyLiveTheme() {
+    const frame = document.getElementById('livePreviewFrame');
+    frame.classList.remove('theme-purple', 'theme-pink', 'theme-blue', 'theme-gold', 'theme-dark');
+    frame.classList.add(document.getElementById('liveTheme').value);
+}
+
+function applyViewMode() {
+    const wrap = document.getElementById('livePreviewFrame');
+    wrap.classList.remove('view-normal', 'view-cinema', 'view-portrait', 'view-square', 'view-wide');
+    const mode = document.getElementById('viewMode').value;
+    if (mode === 'cinema') wrap.classList.add('view-cinema');
+    else if (mode === 'portrait') wrap.classList.add('view-portrait');
+    else if (mode === 'square') wrap.classList.add('view-square');
+    else if (mode === 'wide') wrap.classList.add('view-wide');
+    else wrap.classList.add('view-normal');
+}
+
+function applyLiveEffect() {
+    const effect = document.getElementById('liveEffect').value;
+    const video = document.getElementById('liveVideoPreview');
+    video.style.filter = effect === 'none' ? 'none' : effect;
+}
+
+function getVideoConstraints() {
+    const quality = document.getElementById('streamQuality').value;
+    const facingMode = cameraFacingMode;
+    if (quality === '640x360') return { width: { ideal: 640 }, height: { ideal: 360 }, facingMode };
+    if (quality === '854x480') return { width: { ideal: 854 }, height: { ideal: 480 }, facingMode };
+    if (quality === '1280x720') return { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode };
+    if (quality === '1920x1080') return { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode };
+    if (quality === '2560x1440') return { width: { ideal: 2560 }, height: { ideal: 1440 }, facingMode };
+    if (quality === '3840x2160') return { width: { ideal: 3840 }, height: { ideal: 2160 }, facingMode };
+    return { facingMode };
+}
+
+async function prepareDeviceAccess() {
+    try {
+        cameraFacingMode = document.getElementById('cameraFacing').value || "user";
+        if (userMediaStream) userMediaStream.getTracks().forEach(track => track.stop());
+
+        userMediaStream = await navigator.mediaDevices.getUserMedia({
+            video: getVideoConstraints(),
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        });
+
+        const video = document.getElementById('liveVideoPreview');
+        video.srcObject = userMediaStream;
+        video.style.objectPosition = 'center center';
+
+        document.getElementById('cameraStatusBadge').textContent = 'Camera On';
+        document.getElementById('micStatusBadge').textContent = 'Mic On';
+        logLive('Camera and microphone test passed');
+    } catch (error) {
+        console.error(error);
+        alert('Camera or mic permission was denied.');
+        logLive('Camera or microphone permission denied');
+    }
+}
+
+function testMic() {
+    document.getElementById('micStatusBadge').textContent = 'Mic On';
+    logLive('Mic test complete');
+}
+
+function requestLocationNow() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            const lat = pos.coords.latitude.toFixed(5);
+            const lon = pos.coords.longitude.toFixed(5);
+            document.getElementById('liveLocationText').textContent = 'Location: ' + lat + ', ' + lon;
+            document.getElementById('locationStatusBadge').textContent = 'Location On';
+            logLive('Location enabled');
+        },
+        () => {
+            document.getElementById('locationStatusBadge').textContent = 'Location Off';
+            logLive('Location denied');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+}
+
+async function goToBroadcastScreen() {
+    const payload = {
+        title: document.getElementById("streamTitle").value || "Untitled Live",
+        description: document.getElementById("streamDescription").value || "",
+        audience: document.getElementById("streamAudience").value || "Public",
+        room_access: document.getElementById("roomAccess").value || "Open Room",
+        theme: document.getElementById("liveTheme").value || "theme-purple",
+        quality: document.getElementById("streamQuality").value || "1280x720",
+        frame_rate: 30,
+        view_mode: document.getElementById("viewMode").value || "normal",
+        allow_gifts: document.getElementById("allowGifts").checked,
+        allow_comments: document.getElementById("allowComments").checked,
+        allow_cohost: document.getElementById("allowCohost").checked,
+        allow_premium_join: document.getElementById("allowPremiumJoin").checked,
+        allow_premium_view: document.getElementById("allowPremiumView").checked,
+        vip_badge: document.getElementById("vipBadge").checked,
+        private_line: document.getElementById("privateLine").checked,
+        location_text: document.getElementById("liveLocationText").innerText || ""
+    };
+
+    const resp = await fetch("/livestream/api/rooms/create/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+    if (!data.ok) {
+        alert("Could not create live room");
+        return;
+    }
+
+    window.location.href = `/livestream/broadcast/${data.room.id}/`;
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    applyLiveTheme();
+    applyViewMode();
+    syncLiveStudio();
+});
+</script>
+{% endblock %}

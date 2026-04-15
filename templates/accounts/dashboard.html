@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+{% block title %}Namvibe | User Dashboard{% endblock %}
+
+{% block content %}
+<section class="premium-dash">
+    <div class="pd-wrap">
+
+        <aside class="pd-sidebar" id="pdSidebar">
+            <div class="pd-brand">
+                <div class="pd-brand-icon">E</div>
+                <div>
+                    <h2>Namvibe</h2>
+                    <span>Namibian vibes in motion</span>
+                </div>
+            </div>
+
+            <nav class="pd-nav">
+                <a href="#" class="pd-nav-link active" onclick="openPanel('overview', this)">
+                    <span class="pd-icon">🏠</span><span>Overview</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('profile', this)">
+                    <span class="pd-icon">👤</span><span>Profile</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('posts', this)">
+                    <span class="pd-icon">📝</span><span>Posts</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('reels', this)">
+                    <span class="pd-icon">🎬</span><span>Reels</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('messages', this)">
+                    <span class="pd-icon">💬</span><span>Messages</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('friends', this)">
+                    <span class="pd-icon">👥</span><span>Friends</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('wallet', this)">
+                    <span class="pd-icon">🪙</span><span>Wallet</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('live', this)">
+                    <span class="pd-icon">📡</span><span>Live</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('support', this)">
+                    <span class="pd-icon">🛟</span><span>Support</span>
+                </a>
+                <a href="#" class="pd-nav-link" onclick="openPanel('settings', this)">
+                    <span class="pd-icon">⚙️</span><span>Settings</span>
+                </a>
+            </nav>
+        </aside>
+
+        <div class="pd-main">
+            <div class="pd-topbar">
+                <div class="pd-top-left">
+                    <button class="pd-menu-btn" onclick="toggleSidebar()">☰</button>
+                    <div>
+                        <h1>Welcome back, {{ full_name }}</h1>
+                        <p>Your premium Namvibe dashboard is ready.</p>
+                    </div>
+                </div>
+
+                <div class="pd-top-right">
+                    <a href="/" class="btn btn-dark">Home</a>
+                    <a href="/api/dashboard/" class="btn btn-main">API Dashboard</a>
+                    <a href="/accounts/logout/" class="btn btn-dark">Logout</a>
+                </div>
+            </div>
+
+            {% if messages %}
+                <div class="pd-card" style="margin-bottom:20px;">
+                    {% for message in messages %}
+                        <div class="flash-message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <section id="overview" class="pd-panel active">
+                <div class="pd-hero-card">
+                    <div class="pd-user-row">
+                        <div class="pd-avatar">{{ full_name|slice:":1"|upper }}</div>
+                        <div>
+                            <h3>{{ full_name }}</h3>
+                            <span>@{{ username }}</span>
+                            <p>{{ email }}</p>
+                        </div>
+                    </div>
+
+                    <div class="pd-hero-actions">
+                        <button onclick="openPanel('posts')">+ Create Post</button>
+                        <button onclick="openPanel('posts')">📸 Upload Story</button>
+                        <button onclick="window.location.href='/livestream/studio/'">🎥 Go Live</button>
+                        <button onclick="openPanel('messages')">💬 Start Chat</button>
+                    </div>
+                </div>
+
+                <div class="pd-stats">
+                    <div class="pd-stat-card"><span>Followers</span><strong>0</strong></div>
+                    <div class="pd-stat-card"><span>Friends</span><strong>0</strong></div>
+                    <div class="pd-stat-card"><span>Posts</span><strong>{{ user_posts|length }}</strong></div>
+                    <div class="pd-stat-card"><span>Wallet Coins</span><strong>0</strong></div>
+                </div>
+
+                <div class="pd-grid">
+                    <div class="pd-card">
+                        <h3>Quick Access</h3>
+                        <div class="pd-app-grid">
+                            <button onclick="openPanel('profile')">👤 Profile</button>
+                            <button onclick="openPanel('posts')">📝 Posts</button>
+                            <button onclick="openPanel('reels')">🎬 Reels</button>
+                            <button onclick="openPanel('messages')">💬 Messages</button>
+                            <button onclick="openPanel('wallet')">🪙 Wallet</button>
+                            <button onclick="openPanel('live')">📡 Live</button>
+                            <button onclick="openPanel('friends')">👥 Friends</button>
+                            <button onclick="openPanel('settings')">⚙️ Settings</button>
+                        </div>
+                    </div>
+
+                    <div class="pd-card">
+                        <h3>Recent Posts</h3>
+                        {% if user_posts %}
+                            {% for post in user_posts|slice:":3" %}
+                                <div class="pd-list-item">{{ post.title|default:"Untitled Post" }} • {{ post.audience }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="pd-list-item">No recent activity yet</div>
+                            <div class="pd-list-item">Your latest posts will appear here</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section id="profile" class="pd-panel">
+                <div class="pd-card">
+                    <h3>My Profile</h3>
+                    <div class="pd-info-grid">
+                        <div><span>Full Name</span><strong>{{ full_name }}</strong></div>
+                        <div><span>Username</span><strong>@{{ username }}</strong></div>
+                        <div><span>Email</span><strong>{{ email }}</strong></div>
+                        <div><span>Status</span><strong>Active</strong></div>
+                    </div>
+                    <div class="pd-section-actions">
+                        <button>Edit Profile</button>
+                        <button>Change Picture</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="posts" class="pd-panel">
+                <div class="pd-post-layout">
+                    <div class="pd-post-left">
+                        <div class="pd-card">
+                            <div class="pd-headline-row">
+                                <div>
+                                    <h3>Post Studio</h3>
+                                    <p class="pd-muted">Create text, photo, video, story, group, private, VIP, public, premium, or activated-only posts.</p>
+                                </div>
+                            </div>
+
+                            <form class="pd-post-form" method="post" action="/posts/save/" enctype="multipart/form-data">
+                                {% csrf_token %}
+
+                                <div class="pd-form-group">
+                                    <label>Post Type</label>
+                                    <select name="media_type" id="mediaTypeSelector" onchange="toggleMediaType()">
+                                        <option value="text">Text</option>
+                                        <option value="photo">Photo</option>
+                                        <option value="video">Video</option>
+                                    </select>
+                                </div>
+
+                                <div class="pd-form-group">
+                                    <label>Post Title</label>
+                                    <input type="text" name="title" id="postTitle" placeholder="Enter post title" oninput="syncTextPost()">
+                                </div>
+
+                                <div class="pd-form-group">
+                                    <label>Caption</label>
+                                    <textarea name="caption" id="postCaption" rows="5" placeholder="Write your caption..." oninput="syncTextPost()"></textarea>
+                                </div>
+
+                                <div class="pd-form-grid-2">
+                                    <div class="pd-form-group">
+                                        <label>Audience</label>
+                                        <select name="audience" id="postAudience" onchange="syncAudience()">
+                                            <option value="Public">Public</option>
+                                            <option value="Followers">Followers</option>
+                                            <option value="Friends">Friends</option>
+                                            <option value="Premium">Premium Members</option>
+                                            <option value="VIP">VIP Only</option>
+                                            <option value="Activated">Activated Accounts</option>
+                                            <option value="Private">Private Only</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="pd-form-group">
+                                        <label>Share To</label>
+                                        <select name="share_to" id="postShareTo" onchange="syncAudience()">
+                                            <option value="Main Feed">Main Feed</option>
+                                            <option value="Story">Story</option>
+                                            <option value="Specific Group">Specific Group</option>
+                                            <option value="Individual User">Individual User</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="pd-form-grid-2">
+                                    <div class="pd-form-group">
+                                        <label>Background Style</label>
+                                        <select name="background_theme" id="bgTheme" onchange="applyTheme()">
+                                            <option value="theme-purple">Purple Glow</option>
+                                            <option value="theme-pink">Pink Shine</option>
+                                            <option value="theme-blue">Ocean Blue</option>
+                                            <option value="theme-gold">Golden VIP</option>
+                                            <option value="theme-dark">Dark Premium</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="pd-form-group">
+                                        <label>Font Style</label>
+                                        <select name="font_theme" id="fontTheme" onchange="applyFont()">
+                                            <option value="font-modern">Modern</option>
+                                            <option value="font-elegant">Elegant</option>
+                                            <option value="font-bold">Bold</option>
+                                            <option value="font-clean">Clean</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="pd-form-grid-3">
+                                    <div class="pd-form-group">
+                                        <label>Crop View</label>
+                                        <select name="crop_style" id="cropStyle" onchange="applyCrop()">
+                                            <option value="cover">Square Cover</option>
+                                            <option value="contain">Fit Full</option>
+                                            <option value="portrait">Portrait</option>
+                                            <option value="landscape">Landscape</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="pd-form-group">
+                                        <label>Photo Effect</label>
+                                        <select name="image_effect" id="imageEffect" onchange="applyImageEffect()">
+                                            <option value="none">None</option>
+                                            <option value="grayscale(100%)">Black & White</option>
+                                            <option value="sepia(80%)">Warm Sepia</option>
+                                            <option value="contrast(130%) saturate(120%)">Pop Contrast</option>
+                                            <option value="brightness(1.1) saturate(1.4)">Bright Glow</option>
+                                            <option value="blur(1px) saturate(1.3)">Soft Blur</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="pd-form-group">
+                                        <label>Video Mode</label>
+                                        <select name="video_mode" id="videoMode" onchange="applyVideoMode()">
+                                            <option value="normal">Normal</option>
+                                            <option value="muted">Muted</option>
+                                            <option value="loop">Loop</option>
+                                            <option value="mutedloop">Muted + Loop</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="pd-form-group composer-block" id="photoBlock">
+                                    <label>Upload Photo</label>
+                                    <input type="file" name="media_file" id="photoInput" accept="image/*" onchange="previewPhoto(event)">
+                                </div>
+
+                                <div class="pd-form-group composer-block" id="videoBlock">
+                                    <label>Upload Video</label>
+                                    <input type="file" name="media_file" id="videoInput" accept="video/*" onchange="previewVideo(event)">
+                                </div>
+
+                                <div class="pd-form-grid-2">
+                                    <div class="pd-form-group">
+                                        <label>Group Name</label>
+                                        <input type="text" name="group_name" id="groupName" placeholder="Group name if shared to group" oninput="syncAudience()">
+                                    </div>
+
+                                    <div class="pd-form-group">
+                                        <label>Individual User</label>
+                                        <input type="text" name="single_user" id="singleUser" placeholder="Username for private share" oninput="syncAudience()">
+                                    </div>
+                                </div>
+
+                                <div class="pd-check-grid">
+                                    <label><input type="checkbox" name="allow_comments" id="allowComments" checked onchange="syncBadges()"> Allow comments</label>
+                                    <label><input type="checkbox" name="allow_share" id="allowShare" checked onchange="syncBadges()"> Allow sharing</label>
+                                    <label><input type="checkbox" name="save_story" id="saveStory" onchange="syncBadges()"> Save to story</label>
+                                    <label><input type="checkbox" name="premium_badge" id="premiumBadge" onchange="syncBadges()"> Premium badge</label>
+                                </div>
+
+                                <div class="pd-section-actions">
+                                    <button type="submit">Publish Post</button>
+                                    <button type="button" onclick="resetComposer()">Reset</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="pd-post-right">
+                        <div class="pd-card sticky-preview">
+                            <div class="pd-preview-head">
+                                <h3>Live Preview</h3>
+                                <span id="previewVisibility">Public • Main Feed</span>
+                            </div>
+
+                            <div class="post-preview-card theme-purple font-modern" id="postPreviewCard">
+                                <div class="pp-top">
+                                    <div class="pp-avatar">{{ full_name|slice:":1"|upper }}</div>
+                                    <div>
+                                        <strong>{{ full_name }}</strong>
+                                        <span>@{{ username }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="pp-title" id="previewTitle">Your title will appear here</div>
+                                <div class="pp-caption" id="previewCaption">Write a beautiful caption and your live preview will update here.</div>
+
+                                <div class="pp-media cover" id="previewMediaWrap">
+                                    <img id="previewImage" class="pp-image hidden" alt="preview image">
+                                    <video id="previewVideo" class="pp-video hidden" playsinline controls></video>
+                                    <div class="pp-empty" id="previewEmpty">No media selected yet</div>
+                                </div>
+
+                                <div class="pp-badges" id="previewBadges">
+                                    <span>Public</span>
+                                    <span>Main Feed</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pd-card" style="margin-top:20px;">
+                    <h3>My Saved Posts</h3>
+                    {% if user_posts %}
+                        <div class="saved-posts-grid">
+                            {% for post in user_posts %}
+                                <div class="saved-post-card">
+                                    <div class="saved-post-head">
+                                        <strong>{{ post.title|default:"Untitled Post" }}</strong>
+                                        <span>{{ post.audience }}</span>
+                                    </div>
+                                    <p>{{ post.caption|default:"No caption" }}</p>
+
+                                    {% if post.media_type == 'photo' and post.media_url %}
+                                        <img src="{{ post.media_url }}" class="saved-post-media" alt="post image">
+                                    {% elif post.media_type == 'video' and post.media_url %}
+                                        <video src="{{ post.media_url }}" class="saved-post-media" controls></video>
+                                    {% endif %}
+
+                                    <div class="saved-post-tags">
+                                        <span>{{ post.share_to }}</span>
+                                        {% if post.premium_badge %}<span>Premium</span>{% endif %}
+                                        {% if post.save_story %}<span>Story</span>{% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="pd-empty-box">No posts yet. Start your first premium post.</div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section id="reels" class="pd-panel"><div class="pd-card"><h3>Reels & Shorts</h3><div class="pd-empty-box">No reels yet.</div></div></section>
+            <section id="messages" class="pd-panel"><div class="pd-card"><h3>Messages</h3><div class="pd-empty-box">Your chats will appear here.</div></div></section>
+            <section id="friends" class="pd-panel"><div class="pd-card"><h3>Friends & Requests</h3><div class="pd-empty-box">No friends connected yet.</div></div></section>
+            <section id="wallet" class="pd-panel"><div class="pd-card"><h3>Wallet</h3><div class="pd-empty-box">Wallet coming next.</div></div></section>
+            <section id="live" class="pd-panel"><div class="pd-card"><h3>Live Streaming</h3><div class="pd-empty-box">Open the new live studio to configure and preview your stream.</div><div class="pd-section-actions"><button onclick="window.location.href='/livestream/studio/'">Open Live Studio</button></div></div></section>
+            <section id="support" class="pd-panel"><div class="pd-card"><h3>Support Center</h3><div class="pd-empty-box">Support tools coming next.</div></div></section>
+            <section id="settings" class="pd-panel"><div class="pd-card"><h3>Settings</h3><div class="pd-empty-box">Settings tools coming next.</div></div></section>
+        </div>
+    </div>
+</section>
+
+<script>
+function openPanel(panelId, el=null) {
+    document.querySelectorAll('.pd-panel').forEach(panel => panel.classList.remove('active'));
+    const target = document.getElementById(panelId);
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll('.pd-nav-link').forEach(link => link.classList.remove('active'));
+    if (el) {
+        el.classList.add('active');
+    } else {
+        document.querySelectorAll('.pd-nav-link').forEach(link => {
+            const oc = link.getAttribute('onclick') || '';
+            if (oc.includes("'" + panelId + "'")) link.classList.add('active');
+        });
+    }
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('pdSidebar');
+    sidebar.classList.toggle('show');
+}
+
+function toggleMediaType() {
+    const mediaType = document.getElementById('mediaTypeSelector').value;
+    document.getElementById('photoBlock').classList.remove('active');
+    document.getElementById('videoBlock').classList.remove('active');
+    clearMediaPreview();
+
+    if (mediaType === 'photo') document.getElementById('photoBlock').classList.add('active');
+    if (mediaType === 'video') document.getElementById('videoBlock').classList.add('active');
+}
+
+function syncTextPost() {
+    document.getElementById('previewTitle').textContent =
+        document.getElementById('postTitle').value || 'Your title will appear here';
+
+    document.getElementById('previewCaption').textContent =
+        document.getElementById('postCaption').value || 'Write a beautiful caption and your live preview will update here.';
+}
+
+function syncAudience() {
+    const audience = document.getElementById('postAudience').value;
+    const shareTo = document.getElementById('postShareTo').value;
+    const groupName = document.getElementById('groupName').value.trim();
+    const singleUser = document.getElementById('singleUser').value.trim();
+
+    let text = audience + ' • ' + shareTo;
+    if (shareTo === 'Specific Group' && groupName) text += ' • ' + groupName;
+    if (shareTo === 'Individual User' && singleUser) text += ' • @' + singleUser;
+
+    document.getElementById('previewVisibility').textContent = text;
+    syncBadges();
+}
+
+function syncBadges() {
+    const badges = [];
+    badges.push(document.getElementById('postAudience').value);
+    badges.push(document.getElementById('postShareTo').value);
+
+    if (document.getElementById('allowComments').checked) badges.push('Comments On');
+    if (document.getElementById('allowShare').checked) badges.push('Share On');
+    if (document.getElementById('saveStory').checked) badges.push('Story Saved');
+    if (document.getElementById('premiumBadge').checked) badges.push('Premium');
+
+    document.getElementById('previewBadges').innerHTML = badges.map(b => `<span>${b}</span>`).join('');
+}
+
+function applyTheme() {
+    const card = document.getElementById('postPreviewCard');
+    card.classList.remove('theme-purple', 'theme-pink', 'theme-blue', 'theme-gold', 'theme-dark');
+    card.classList.add(document.getElementById('bgTheme').value);
+}
+
+function applyFont() {
+    const card = document.getElementById('postPreviewCard');
+    card.classList.remove('font-modern', 'font-elegant', 'font-bold', 'font-clean');
+    card.classList.add(document.getElementById('fontTheme').value);
+}
+
+function applyCrop() {
+    const wrap = document.getElementById('previewMediaWrap');
+    wrap.classList.remove('portrait', 'landscape', 'cover', 'contain');
+    const val = document.getElementById('cropStyle').value;
+    if (val === 'portrait') wrap.classList.add('portrait');
+    else if (val === 'landscape') wrap.classList.add('landscape');
+    else if (val === 'contain') wrap.classList.add('contain');
+    else wrap.classList.add('cover');
+}
+
+function applyImageEffect() {
+    const img = document.getElementById('previewImage');
+    img.style.filter = document.getElementById('imageEffect').value;
+}
+
+function applyVideoMode() {
+    const video = document.getElementById('previewVideo');
+    const val = document.getElementById('videoMode').value;
+    video.muted = false;
+    video.loop = false;
+
+    if (val === 'muted') video.muted = true;
+    if (val === 'loop') video.loop = true;
+    if (val === 'mutedloop') {
+        video.muted = true;
+        video.loop = true;
+    }
+}
+
+function previewPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const img = document.getElementById('previewImage');
+    const video = document.getElementById('previewVideo');
+    const empty = document.getElementById('previewEmpty');
+
+    img.src = URL.createObjectURL(file);
+    img.classList.remove('hidden');
+    video.classList.add('hidden');
+    video.pause();
+    empty.classList.add('hidden');
+    applyImageEffect();
+}
+
+function previewVideo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const img = document.getElementById('previewImage');
+    const video = document.getElementById('previewVideo');
+    const empty = document.getElementById('previewEmpty');
+
+    video.src = URL.createObjectURL(file);
+    video.classList.remove('hidden');
+    img.classList.add('hidden');
+    empty.classList.add('hidden');
+    applyVideoMode();
+}
+
+function clearMediaPreview() {
+    const img = document.getElementById('previewImage');
+    const video = document.getElementById('previewVideo');
+    const empty = document.getElementById('previewEmpty');
+
+    img.src = '';
+    video.src = '';
+    img.classList.add('hidden');
+    video.classList.add('hidden');
+    empty.classList.remove('hidden');
+}
+
+function resetComposer() {
+    document.getElementById('mediaTypeSelector').value = 'text';
+    document.getElementById('postTitle').value = '';
+    document.getElementById('postCaption').value = '';
+    document.getElementById('groupName').value = '';
+    document.getElementById('singleUser').value = '';
+    document.getElementById('postAudience').value = 'Public';
+    document.getElementById('postShareTo').value = 'Main Feed';
+    document.getElementById('bgTheme').value = 'theme-purple';
+    document.getElementById('fontTheme').value = 'font-modern';
+    document.getElementById('cropStyle').value = 'cover';
+    document.getElementById('imageEffect').value = 'none';
+    document.getElementById('videoMode').value = 'normal';
+    document.getElementById('allowComments').checked = true;
+    document.getElementById('allowShare').checked = true;
+    document.getElementById('saveStory').checked = false;
+    document.getElementById('premiumBadge').checked = false;
+    document.getElementById('photoInput').value = '';
+    document.getElementById('videoInput').value = '';
+
+    toggleMediaType();
+    syncTextPost();
+    syncAudience();
+    applyTheme();
+    applyFont();
+    applyCrop();
+    applyImageEffect();
+    applyVideoMode();
+    clearMediaPreview();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    toggleMediaType();
+    syncTextPost();
+    syncAudience();
+    applyTheme();
+    applyFont();
+    applyCrop();
+    applyVideoMode();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Login | Namvibe{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-card">
+        <span class="auth-badge">Welcome Back</span>
+        <h1>Login to Namvibe</h1>
+        <p>Use your registered Supabase email and password to enter your account.</p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash-message">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" class="auth-form-grid" autocomplete="off">
+            {% csrf_token %}
+
+            <div class="form-block full">
+                <label for="id_email">Email</label>
+                <input type="email" name="email" id="id_email" value="{{ entered_email|default:'' }}" placeholder="you@example.com" required>
+            </div>
+
+            <div class="form-block full">
+                <label for="login_password">Password</label>
+                <div class="password-wrap">
+                    <input type="password" name="password" id="login_password" placeholder="Your password" required>
+                    <button type="button" class="show-pass-btn" onclick="togglePass('login_password', this)">Show</button>
+                </div>
+            </div>
+
+            <div class="form-block full">
+                <button type="submit" class="btn btn-main auth-submit">Login</button>
+            </div>
+
+            <div class="form-block full auth-bottom-links">
+                <a href="/accounts/signup/">Create account</a>
+                <a href="/accounts/forgot-password/">Forgot password?</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+function togglePass(id, btn) {
+    const input = document.getElementById(id);
+    if (input.type === "password") {
+        input.type = "text";
+        btn.textContent = "Hide";
+    } else {
+        input.type = "password";
+        btn.textContent = "Show";
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+from django import forms
+
+class PostForm(forms.Form):
+    title = forms.CharField(max_length=180, required=False)
+    caption = forms.CharField(widget=forms.Textarea(attrs={"rows": 5}), required=False)
+    audience = forms.CharField(max_length=40, required=False)
+    share_to = forms.CharField(max_length=60, required=False)
+    group_name = forms.CharField(max_length=120, required=False)
+    single_user = forms.CharField(max_length=120, required=False)
+    background_theme = forms.CharField(max_length=40, required=False)
+    font_theme = forms.CharField(max_length=40, required=False)
+    crop_style = forms.CharField(max_length=40, required=False)
+    image_effect = forms.CharField(max_length=80, required=False)
+    video_mode = forms.CharField(max_length=40, required=False)
+    media_type = forms.CharField(max_length=20, required=False)
+    allow_comments = forms.BooleanField(required=False)
+    allow_share = forms.BooleanField(required=False)
+    save_story = forms.BooleanField(required=False)
+    premium_badge = forms.BooleanField(required=False)
+    media_file = forms.FileField(required=False)
