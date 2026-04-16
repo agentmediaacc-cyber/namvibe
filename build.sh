@@ -1,15 +1,17 @@
 #!/bin/bash
-echo "🔥 FORCE CLEAN INSTALL..."
+set -e
 
-rm -rf .venv
-rm -rf venv
+echo "🔥 INSTALLING DEPENDENCIES..."
+python -m pip install --upgrade pip
+python -m pip install --no-cache-dir -r requirements.txt
 
-python -m venv .venv
-source .venv/bin/activate
+echo "🧪 VERIFYING requests..."
+python - <<'PY'
+import requests
+print("requests ok:", requests.__version__)
+PY
 
-pip install --upgrade pip
-pip install -r requirements.txt
-
+echo "📦 COLLECTING STATIC..."
 python manage.py collectstatic --noinput
 
-echo "✅ CLEAN BUILD COMPLETE"
+echo "✅ BUILD COMPLETE"
