@@ -1,310 +1,977 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Namvibe — Namibian vibes in motion</title>
+  <title>Namvibe • Home</title>
   <style>
     :root{
-      --bg:#081225;
-      --bg2:#0f1c38;
-      --card:rgba(255,255,255,.08);
-      --card-border:rgba(255,255,255,.12);
-      --text:#f8fbff;
-      --muted:#b9c7dd;
-      --accent:#5ee0ff;
-      --accent2:#8b5cf6;
-      --success:#22c55e;
-      --shadow:0 20px 60px rgba(0,0,0,.35);
+      --bg:#0b1020;
+      --panel:rgba(255,255,255,.10);
+      --panel-2:rgba(255,255,255,.15);
+      --text:#f8fafc;
+      --muted:#cbd5e1;
+      --line:rgba(255,255,255,.12);
+      --pink:#ff2d7a;
+      --violet:#7c3aed;
+      --cyan:#00c2ff;
+      --amber:#ffb703;
+      --green:#22c55e;
+      --danger:#ef4444;
+      --shadow:0 20px 50px rgba(0,0,0,.35);
       --radius:24px;
     }
+
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;font-family:Inter,Arial,sans-serif;background:
-      radial-gradient(circle at top left, rgba(94,224,255,.16), transparent 28%),
-      radial-gradient(circle at top right, rgba(139,92,246,.18), transparent 25%),
-      linear-gradient(180deg,var(--bg),var(--bg2)); color:var(--text);}
-    a{text-decoration:none;color:inherit}
-    .wrap{max-width:1200px;margin:0 auto;padding:24px}
-    .nav{
-      display:flex;align-items:center;justify-content:space-between;gap:18px;
-      padding:14px 18px;margin-top:10px;
-      background:rgba(255,255,255,.06);backdrop-filter:blur(16px);
-      border:1px solid var(--card-border);border-radius:20px;box-shadow:var(--shadow);
+    html,body{margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:
+      radial-gradient(circle at top left, rgba(255,45,122,.22), transparent 20%),
+      radial-gradient(circle at top right, rgba(0,194,255,.18), transparent 22%),
+      radial-gradient(circle at bottom center, rgba(124,58,237,.18), transparent 25%),
+      linear-gradient(180deg,#0a0f1f,#111827 40%,#0f172a 100%);
+      color:var(--text);
+      min-height:100vh;
     }
-    .brand{display:flex;align-items:center;gap:14px;font-weight:800;font-size:1.15rem}
-    .logo{
+
+    a{text-decoration:none;color:inherit}
+    img,video{max-width:100%;display:block}
+    button{font:inherit}
+
+    .shell{
+      max-width:1400px;
+      margin:0 auto;
+      padding:18px;
+    }
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:50;
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      align-items:center;
+      gap:12px;
+      padding:12px 14px;
+      margin-bottom:18px;
+      border:1px solid var(--line);
+      border-radius:22px;
+      background:rgba(8,15,35,.72);
+      backdrop-filter:blur(16px);
+      box-shadow:var(--shadow);
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+    }
+
+    .brand-badge{
       width:44px;height:44px;border-radius:14px;
       display:grid;place-items:center;
-      background:linear-gradient(135deg,var(--accent),var(--accent2));
-      color:#07111f;font-weight:900;box-shadow:var(--shadow)
+      background:linear-gradient(135deg,var(--pink),var(--violet),var(--cyan));
+      color:white;font-weight:800;font-size:18px;
+      box-shadow:0 10px 30px rgba(124,58,237,.35);
+      flex:0 0 auto;
     }
-    .nav-links{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-weight:600}
-    .nav-actions{display:flex;gap:12px;flex-wrap:wrap}
-    .btn{
-      display:inline-flex;align-items:center;justify-content:center;
-      padding:12px 18px;border-radius:16px;font-weight:700;
-      border:1px solid var(--card-border);transition:.25s ease;
+
+    .brand-text{min-width:0}
+    .brand-title{
+      font-size:1.05rem;
+      font-weight:800;
+      letter-spacing:.2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
-    .btn:hover{transform:translateY(-2px)}
-    .btn-primary{
-      background:linear-gradient(135deg,var(--accent),var(--accent2));
-      color:#07111f;border:none;
+    .brand-sub{
+      color:var(--muted);
+      font-size:.83rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
-    .btn-ghost{background:rgba(255,255,255,.05);color:var(--text)}
-    .hero{
-      display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:center;
-      padding:58px 0 26px;
+
+    .hamburger{
+      width:46px;height:46px;border:none;border-radius:14px;
+      background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.08));
+      color:white;font-size:22px;cursor:pointer;
+      border:1px solid var(--line);
     }
-    .hero-card,.glass{
-      background:var(--card);border:1px solid var(--card-border);
-      backdrop-filter:blur(18px);border-radius:var(--radius);box-shadow:var(--shadow);
+
+    .top-actions{
+      display:flex;align-items:center;gap:10px;justify-self:end;
+      flex-wrap:wrap;
     }
-    .hero-copy{padding:34px}
+
+    .action-btn{
+      min-width:42px;
+      height:42px;
+      padding:0 14px;
+      border:none;
+      border-radius:14px;
+      cursor:pointer;
+      color:white;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      font-weight:700;
+    }
+
+    .action-primary{
+      background:linear-gradient(135deg,var(--pink),var(--violet));
+    }
+
+    .stat-pill{
+      padding:10px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,.10);
+      border:1px solid var(--line);
+      font-weight:700;
+      white-space:nowrap;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns:300px minmax(0,1fr) 340px;
+      gap:18px;
+      align-items:start;
+    }
+
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      backdrop-filter:blur(16px);
+      box-shadow:var(--shadow);
+    }
+
+    .menu{
+      padding:18px;
+      position:sticky;
+      top:88px;
+    }
+
+    .menu h3{
+      margin:4px 0 16px;
+      font-size:1rem;
+      color:#fff;
+    }
+
+    .menu-list{
+      display:grid;
+      gap:10px;
+    }
+
+    .menu-item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 14px;
+      border-radius:16px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      transition:.2s ease;
+    }
+
+    .menu-item:hover{
+      transform:translateY(-1px);
+      background:rgba(255,255,255,.10);
+    }
+
+    .menu-left{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      min-width:0;
+    }
+
+    .menu-icon{
+      width:38px;height:38px;border-radius:12px;
+      display:grid;place-items:center;
+      background:linear-gradient(135deg,rgba(255,45,122,.22),rgba(0,194,255,.18));
+      flex:0 0 auto;
+      font-size:18px;
+    }
+
     .badge{
-      display:inline-flex;align-items:center;gap:10px;
-      background:rgba(255,255,255,.08);border:1px solid var(--card-border);
-      color:var(--muted);padding:10px 14px;border-radius:999px;font-size:.92rem;font-weight:700;
-      margin-bottom:18px;
+      background:rgba(34,197,94,.18);
+      color:#b6f3c8;
+      border:1px solid rgba(34,197,94,.24);
+      font-size:.72rem;
+      font-weight:800;
+      padding:6px 9px;
+      border-radius:999px;
+      white-space:nowrap;
     }
-    h1{
-      margin:0 0 14px;font-size:clamp(2.4rem,5vw,4.8rem);line-height:1.02;letter-spacing:-.03em;
+
+    .content{
+      display:grid;
+      gap:18px;
     }
-    .hero-copy p{
-      color:var(--muted);font-size:1.08rem;line-height:1.75;max-width:760px;margin:0 0 22px;
+
+    .hero{
+      padding:24px;
+      overflow:hidden;
+      position:relative;
+      background:
+        linear-gradient(135deg, rgba(255,45,122,.20), rgba(124,58,237,.22), rgba(0,194,255,.18)),
+        rgba(255,255,255,.08);
     }
-    .hero-actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:20px}
-    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px}
-    .stat{
-      padding:18px;border-radius:18px;background:rgba(255,255,255,.05);
-      border:1px solid var(--card-border)
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:auto -80px -80px auto;
+      width:240px;height:240px;border-radius:50%;
+      background:radial-gradient(circle, rgba(255,183,3,.25), transparent 65%);
+      pointer-events:none;
     }
-    .stat h3{margin:0;font-size:1.5rem}
-    .stat p{margin:8px 0 0;color:var(--muted);font-size:.92rem}
-    .hero-side{padding:20px}
-    .phone{
-      border-radius:28px;padding:18px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04));
-      border:1px solid rgba(255,255,255,.16);
+
+    .hero h1{
+      margin:0 0 10px;
+      font-size:clamp(1.8rem, 4vw, 3rem);
+      line-height:1.05;
     }
-    .screen{
-      min-height:520px;border-radius:24px;padding:18px;
-      background:linear-gradient(180deg,#091120,#101b35);
+
+    .hero p{
+      margin:0;
+      max-width:760px;
+      color:var(--muted);
+      font-size:1rem;
+      line-height:1.6;
+    }
+
+    .hero-grid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:12px;
+      margin-top:20px;
+    }
+
+    .hero-stat{
+      padding:16px;
+      border-radius:18px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.10);
+    }
+
+    .hero-stat .num{
+      font-size:1.4rem;
+      font-weight:900;
+      margin-bottom:4px;
+    }
+
+    .hero-stat .label{
+      color:var(--muted);
+      font-size:.88rem;
+    }
+
+    .composer{
+      padding:18px;
+    }
+
+    .composer-box{
+      display:grid;
+      grid-template-columns:auto 1fr auto auto auto;
+      gap:12px;
+      align-items:center;
+    }
+
+    .avatar{
+      width:48px;height:48px;border-radius:50%;
+      overflow:hidden;
+      display:grid;place-items:center;
+      font-weight:800;
+      background:linear-gradient(135deg,var(--violet),var(--cyan));
+      flex:0 0 auto;
+    }
+
+    .input-fake{
+      min-height:52px;
+      display:flex;
+      align-items:center;
+      padding:0 16px;
+      border-radius:16px;
+      color:var(--muted);
+      background:rgba(255,255,255,.08);
+      border:1px solid var(--line);
+    }
+
+    .circle-btn{
+      width:48px;height:48px;border-radius:16px;
+      border:none;
+      cursor:pointer;
+      color:white;
+      background:rgba(255,255,255,.10);
+      border:1px solid var(--line);
+      font-size:18px;
+    }
+
+    .stories{
+      padding:18px;
+    }
+
+    .section-title{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .section-title h2{
+      margin:0;
+      font-size:1rem;
+    }
+
+    .story-row{
+      display:flex;
+      gap:14px;
+      overflow:auto;
+      padding-bottom:4px;
+    }
+
+    .story{
+      min-width:84px;
+      text-align:center;
+      cursor:pointer;
+    }
+
+    .story-ring{
+      width:76px;
+      height:76px;
+      margin:0 auto 8px;
+      padding:3px;
+      border-radius:50%;
+      background:linear-gradient(135deg,var(--pink),var(--amber),var(--violet),var(--cyan));
+    }
+
+    .story-inner{
+      width:100%;
+      height:100%;
+      border-radius:50%;
+      background:linear-gradient(135deg,#1f2937,#334155);
+      display:grid;
+      place-items:center;
+      font-weight:800;
+      font-size:1.1rem;
+    }
+
+    .story-name{
+      font-size:.8rem;
+      color:var(--muted);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .feed{
+      display:grid;
+      gap:18px;
+    }
+
+    .card{
+      padding:18px;
+      cursor:pointer;
+    }
+
+    .post-head{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    .post-meta{
+      min-width:0;
+    }
+
+    .post-name{
+      font-weight:800;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .post-time{
+      font-size:.83rem;
+      color:var(--muted);
+    }
+
+    .chip-live{
+      margin-left:auto;
+      background:linear-gradient(135deg,#ef4444,#f97316);
+      color:white;
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:.72rem;
+      font-weight:900;
+    }
+
+    .post-text{
+      color:#eef2ff;
+      line-height:1.6;
+      margin-bottom:14px;
+      word-break:break-word;
+    }
+
+    .media-box{
+      border-radius:20px;
+      min-height:240px;
+      background:
+        linear-gradient(145deg, rgba(255,45,122,.25), rgba(124,58,237,.22), rgba(0,194,255,.18)),
+        rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      display:grid;
+      place-items:center;
+      color:#fff;
+      font-weight:800;
+      margin-bottom:14px;
+      overflow:hidden;
+    }
+
+    .actions{
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:10px;
+    }
+
+    .mini-btn{
+      text-align:center;
+      padding:12px 8px;
+      border-radius:14px;
+      background:rgba(255,255,255,.08);
+      border:1px solid var(--line);
+      color:#fff;
+      font-weight:700;
+      font-size:.88rem;
+    }
+
+    .rightbar{
+      display:grid;
+      gap:18px;
+      position:sticky;
+      top:88px;
+    }
+
+    .widget{
+      padding:18px;
+    }
+
+    .widget-list{
+      display:grid;
+      gap:12px;
+    }
+
+    .small-card{
+      padding:14px;
+      border-radius:16px;
+      background:rgba(255,255,255,.07);
       border:1px solid rgba(255,255,255,.08);
     }
-    .screen-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .pill{padding:8px 12px;border-radius:999px;background:rgba(94,224,255,.12);color:var(--accent);font-size:.82rem;font-weight:800}
-    .creator{
-      display:flex;gap:14px;align-items:center;padding:14px;border-radius:18px;
-      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);margin-bottom:12px;
+
+    .live-item{
+      display:grid;
+      grid-template-columns:52px 1fr auto;
+      gap:12px;
+      align-items:center;
     }
-    .avatar{
-      width:50px;height:50px;border-radius:16px;display:grid;place-items:center;
-      background:linear-gradient(135deg,var(--accent2),var(--accent));font-weight:900;color:#06101f;
+
+    .thumb{
+      width:52px;height:52px;border-radius:14px;
+      background:linear-gradient(135deg,var(--pink),var(--cyan));
+      display:grid;place-items:center;font-weight:900;
     }
-    .creator small,.muted{color:var(--muted)}
-    .section{padding:24px 0 8px}
-    .section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin-bottom:18px}
-    .section-head h2{margin:0;font-size:2rem}
-    .section-head p{margin:6px 0 0;color:var(--muted)}
-    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-    .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-    .feature,.mini-card{
-      padding:22px;border-radius:22px;background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow)
+
+    .small-title{
+      font-weight:800;
+      margin-bottom:4px;
     }
-    .icon{
-      width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
-      background:linear-gradient(135deg,rgba(94,224,255,.22),rgba(139,92,246,.26));
-      font-size:1.4rem;margin-bottom:16px
+
+    .small-sub{
+      color:var(--muted);
+      font-size:.84rem;
     }
-    .feature h3,.mini-card h3{margin:0 0 8px}
-    .feature p,.mini-card p{margin:0;color:var(--muted);line-height:1.65}
-    .feed{
-      display:grid;grid-template-columns:1.1fr .9fr;gap:18px
+
+    .join-btn{
+      padding:10px 12px;
+      border-radius:12px;
+      background:linear-gradient(135deg,var(--pink),var(--violet));
+      color:#fff;
+      font-size:.84rem;
+      font-weight:800;
+      white-space:nowrap;
     }
-    .post-card{padding:22px}
-    .post-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-    .post-media{
-      height:220px;border-radius:20px;
-      background:linear-gradient(135deg,rgba(94,224,255,.18),rgba(139,92,246,.22),rgba(255,255,255,.05));
-      border:1px solid var(--card-border);margin:16px 0;
+
+    .ad-box{
+      padding:18px;
+      border-radius:18px;
+      background:linear-gradient(135deg, rgba(255,183,3,.18), rgba(255,45,122,.16));
+      border:1px solid rgba(255,255,255,.10);
     }
+
     .footer{
-      margin:38px 0 24px;padding:22px;
-      background:rgba(255,255,255,.05);border:1px solid var(--card-border);
-      border-radius:22px;color:var(--muted)
+      margin-top:20px;
+      padding:20px;
     }
-    .footer strong{color:var(--text)}
-    @media (max-width: 980px){
-      .hero,.feed,.grid-3,.grid-4{grid-template-columns:1fr}
-      .stats{grid-template-columns:1fr}
-      .nav{flex-direction:column;align-items:flex-start}
-      .nav-actions,.nav-links{width:100%}
+
+    .footer-grid{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+    }
+
+    .footer a{
+      display:block;
+      padding:12px 14px;
+      border-radius:14px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    .mobile-menu{
+      display:none;
+      margin-bottom:16px;
+      padding:16px;
+    }
+
+    .mobile-menu-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    @media (max-width: 1180px){
+      .layout{
+        grid-template-columns:1fr;
+      }
+      .menu,
+      .rightbar{
+        position:static;
+      }
+      .desktop-menu{
+        display:none;
+      }
+      .mobile-menu{
+        display:block;
+      }
+    }
+
+    @media (max-width: 860px){
+      .topbar{
+        grid-template-columns:1fr;
+      }
+      .top-actions{
+        justify-self:stretch;
+        justify-content:flex-start;
+      }
+      .hero-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+      .composer-box{
+        grid-template-columns:auto 1fr;
+      }
+      .actions{
+        grid-template-columns:repeat(3,1fr);
+      }
+      .footer-grid{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+      }
+    }
+
+    @media (max-width: 560px){
+      .shell{padding:12px}
+      .hero,.stories,.composer,.widget,.card,.menu,.mobile-menu,.footer{padding:14px}
+      .hero-grid{
+        grid-template-columns:1fr 1fr;
+      }
+      .footer-grid{
+        grid-template-columns:1fr;
+      }
+      .actions{
+        grid-template-columns:repeat(2,1fr);
+      }
+      .story{
+        min-width:74px;
+      }
+      .story-ring{
+        width:68px;height:68px;
+      }
+      .stat-pill{
+        width:100%;
+        text-align:center;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <nav class="nav">
+  <div class="shell">
+    <header class="topbar">
       <div class="brand">
-        <div class="logo">N</div>
-        <div>
-          <div>Namvibe</div>
-          <small class="muted">Namibian vibes in motion</small>
-        </div>
-      </div>
-      <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/accounts/login/">Login</a>
-        <a href="/accounts/signup/">Create Account</a>
-        <a href="/healthz">Status</a>
-      </div>
-      <div class="nav-actions">
-        <a class="btn btn-ghost" href="/feed/">Open Feed</a>
-        <a class="btn btn-primary" href="/accounts/signup/">Join Namvibe</a>
-      </div>
-    </nav>
-
-    <section class="hero">
-      <div class="hero-card hero-copy">
-        <div class="badge">✨ Premium social experience for creators, communities, and culture</div>
-        <h1>Connect, create, go live, and grow on Namvibe.</h1>
-        <p>
-          Namvibe brings together profiles, reels, live moments, private conversations,
-          gifts, wallet tools, and creator growth in one modern platform built for a bold African digital future.
-        </p>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="/accounts/signup/">Create Account</a>
-          <a class="btn btn-ghost" href="/feed/">Open Feed</a>
-        </div>
-        <div class="stats">
-          <div class="stat"><h3>24K+</h3><p>Creators discovering new audiences</p></div>
-          <div class="stat"><h3>180K+</h3><p>Daily views across reels and public moments</p></div>
-          <div class="stat"><h3>3.1K+</h3><p>Communities built around culture, love, and lifestyle</p></div>
+        <button class="hamburger" onclick="toggleMenu()">☰</button>
+        <div class="brand-badge">N</div>
+        <div class="brand-text">
+          <div class="brand-title">Namvibe</div>
+          <div class="brand-sub">Real people • stories • live • community</div>
         </div>
       </div>
 
-      <div class="hero-card hero-side">
-        <div class="phone">
-          <div class="screen">
-            <div class="screen-top">
-              <strong>Live on Namvibe</strong>
-              <div class="pill">LIVE</div>
-            </div>
-            <div class="creator">
-              <div class="avatar">NV</div>
-              <div>
-                <strong>@namvibe_vibes</strong><br>
-                <small>Sharing stories, reels, and community energy.</small>
-              </div>
-            </div>
-            <div class="creator">
-              <div class="avatar">AF</div>
-              <div>
-                <strong>Trending Profiles</strong><br>
-                <small>Discover creators, music, friendships, and local culture.</small>
-              </div>
-            </div>
-            <div class="creator">
-              <div class="avatar">WL</div>
-              <div>
-                <strong>Wallet & Gifts</strong><br>
-                <small>Coins, creator support, premium perks, and growth tools.</small>
-              </div>
-            </div>
-            <div class="creator">
-              <div class="avatar">GR</div>
-              <div>
-                <strong>Groups & Communities</strong><br>
-                <small>Join topics that matter and build your tribe.</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+      <div></div>
 
-    <section class="section">
-      <div class="section-head">
-        <div>
-          <h2>Core platform features</h2>
-          <p>Everything needed to launch a serious social platform with monetization and community power.</p>
-        </div>
+      <div class="top-actions">
+        <a href="#" class="action-btn action-primary">＋ Story</a>
+        <a href="#" class="action-btn">🖼 Upload</a>
+        <a href="#" class="action-btn">🔔</a>
+        <div class="stat-pill">👥 {{ total_members|default:0 }} members</div>
       </div>
-      <div class="grid-4">
-        <div class="feature"><div class="icon">👤</div><h3>Premium Profiles</h3><p>Clean profile cards, bios, interests, media highlights, and public identity presence.</p></div>
-        <div class="feature"><div class="icon">🎬</div><h3>Short Videos</h3><p>Reels, clips, story moments, and fast creator-first discovery experiences.</p></div>
-        <div class="feature"><div class="icon">🔴</div><h3>Live Streaming</h3><p>Broadcast, engage viewers, accept gifts, and create real-time community experiences.</p></div>
-        <div class="feature"><div class="icon">💬</div><h3>Messaging</h3><p>Private chat, future voice notes, creator conversations, and fast notifications.</p></div>
-        <div class="feature"><div class="icon">🪙</div><h3>Wallet System</h3><p>Coins, gifting, premium support, creator rewards, and growth monetization.</p></div>
-        <div class="feature"><div class="icon">👥</div><h3>Groups</h3><p>Communities, niche spaces, local conversations, and member-powered interactions.</p></div>
-        <div class="feature"><div class="icon">🛍️</div><h3>Marketplace</h3><p>Future-ready selling, promotions, product discovery, and creator commerce.</p></div>
-        <div class="feature"><div class="icon">🛡️</div><h3>Safety & Support</h3><p>Moderation, trust controls, admin tools, reporting systems, and platform oversight.</p></div>
-      </div>
-    </section>
+    </header>
 
-    <section class="section">
-      <div class="section-head">
-        <div>
-          <h2>What users will experience</h2>
-          <p>A smooth premium feed, real creator tools, and a clean mobile-first social experience.</p>
-        </div>
-      </div>
-      <div class="feed">
-        <div class="mini-card post-card">
-          <div class="post-top">
-            <div class="avatar">NM</div>
-            <div>
-              <strong>Featured Creator Moment</strong><br>
-              <small class="muted">Reels • Stories • Community</small>
-            </div>
-          </div>
-          <p>
-            This area can later show real public posts, reels previews, or trending creator cards once your production data layer is fully restored.
-          </p>
-          <div class="post-media"></div>
-          <p class="muted">Right now this page is a premium production-safe homepage template that keeps Namvibe live while the rest of the product is rebuilt cleanly.</p>
-        </div>
-
-        <div class="grid-3">
-          <div class="mini-card"><div class="icon">📈</div><h3>Growth</h3><p>Promotion tools, featured placements, boosted discovery, and creator visibility.</p></div>
-          <div class="mini-card"><div class="icon">❤️</div><h3>Connection</h3><p>Friendships, dating options, private communities, and audience engagement.</p></div>
-          <div class="mini-card"><div class="icon">🌍</div><h3>Culture</h3><p>Local identity, African creativity, music, fashion, entertainment, and expression.</p></div>
-        </div>
-      </div>
-    </section>
-
-    
-    <section class="section">
-      <div class="section-head">
-        <div>
-          <h2>Recent public posts</h2>
-          <p>Fresh community moments from Namvibe.</p>
-        </div>
-      </div>
-      <div class="grid-3">
-        {% if posts %}
-          {% for post in posts %}
-            <div class="mini-card">
-              <div class="icon">📝</div>
-              <h3>{{ post.author_name|default:"Namvibe User" }}</h3>
-              <p>{{ post.content|default:"Shared a new moment on Namvibe."|truncatechars:120 }}</p>
-            </div>
-          {% endfor %}
+    <div class="mobile-menu panel" id="mobileMenu" style="display:none;">
+      <div class="mobile-menu-grid">
+        <a class="menu-item" href="/"><span class="menu-left"><span class="menu-icon">🏠</span><span>Home</span></span></a>
+        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🖼</span><span>Gallery Hub</span></span></a>
+        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">👥</span><span>My Followers</span></span></a>
+        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">💼</span><span>Wallets</span></span></a>
+        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🔐</span><span>Security</span></span></a>
+        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🙍</span><span>My Profile</span></span></a>
+        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🕶</span><span>Anonymous Mode</span></span></a>
+        {% if request.user.is_authenticated %}
+          <a class="menu-item" href="/accounts/logout/"><span class="menu-left"><span class="menu-icon">↩</span><span>Log out</span></span></a>
         {% else %}
-          <div class="mini-card">
-            <div class="icon">✨</div>
-            <h3>No posts yet</h3>
-            <p>Your feed is connected. Create the first post and it will appear here.</p>
-          </div>
+          <a class="menu-item" href="/accounts/login/"><span class="menu-left"><span class="menu-icon">🔑</span><span>Login</span></span></a>
         {% endif %}
       </div>
-    </section>
+    </div>
 
+    <div class="layout">
+      <aside class="menu panel desktop-menu" id="sideMenu">
+        <h3>Menu</h3>
+        <div class="menu-list">
+          <a class="menu-item" href="/">
+            <span class="menu-left">
+              <span class="menu-icon">🏠</span>
+              <span>Home</span>
+            </span>
+          </a>
 
-    <div class="footer">
-      <strong>Namvibe</strong> — live on Railway and ready for the next production phase:
-      real homepage data, authentication polish, creator tools, wallet flows, and live platform scaling.
+          <a class="menu-item" href="#">
+            <span class="menu-left">
+              <span class="menu-icon">🖼</span>
+              <span>Gallery Hub</span>
+            </span>
+          </a>
+
+          <a class="menu-item" href="#">
+            <span class="menu-left">
+              <span class="menu-icon">👥</span>
+              <span>My Followers</span>
+            </span>
+          </a>
+
+          <a class="menu-item" href="#">
+            <span class="menu-left">
+              <span class="menu-icon">💼</span>
+              <span>Wallets</span>
+            </span>
+          </a>
+
+          <a class="menu-item" href="#">
+            <span class="menu-left">
+              <span class="menu-icon">🔐</span>
+              <span>Security</span>
+            </span>
+          </a>
+
+          <a class="menu-item" href="#">
+            <span class="menu-left">
+              <span class="menu-icon">🙍</span>
+              <span>My Profile</span>
+            </span>
+          </a>
+
+          <a class="menu-item" href="#">
+            <span class="menu-left">
+              <span class="menu-icon">🕶</span>
+              <span>Anonymous Mode</span>
+            </span>
+            <span class="badge">Optional</span>
+          </a>
+
+          {% if request.user.is_authenticated %}
+            <a class="menu-item" href="/accounts/logout/">
+              <span class="menu-left">
+                <span class="menu-icon">↩</span>
+                <span>Log out</span>
+              </span>
+            </a>
+          {% else %}
+            <a class="menu-item" href="/accounts/login/">
+              <span class="menu-left">
+                <span class="menu-icon">🔑</span>
+                <span>Login</span>
+              </span>
+            </a>
+            <a class="menu-item" href="/accounts/signup/">
+              <span class="menu-left">
+                <span class="menu-icon">✨</span>
+                <span>Sign up</span>
+              </span>
+              <span class="badge">Join</span>
+            </a>
+          {% endif %}
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="hero panel">
+          <h1>Welcome to Namvibe</h1>
+          <p>
+            A live social space for real stories, public feeds, image and video sharing,
+            creator moments, live rooms, discovery, and community connection — built to show
+            real content from your platform, not unnecessary fake information.
+          </p>
+
+          <div class="hero-grid">
+            <div class="hero-stat">
+              <div class="num">{{ total_members|default:0 }}</div>
+              <div class="label">Real members</div>
+            </div>
+            <div class="hero-stat">
+              <div class="num">{{ total_posts|default:0 }}</div>
+              <div class="label">Public posts</div>
+            </div>
+            <div class="hero-stat">
+              <div class="num">{{ total_live|default:0 }}</div>
+              <div class="label">Live sessions</div>
+            </div>
+            <div class="hero-stat">
+              <div class="num">{{ total_stories|default:0 }}</div>
+              <div class="label">Stories available</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="composer panel">
+          <div class="composer-box">
+            <div class="avatar">
+              {% if request.user.is_authenticated %}
+                {{ request.user.username|slice:":1"|upper }}
+              {% else %}
+                N
+              {% endif %}
+            </div>
+
+            {% if request.user.is_authenticated %}
+              <a href="#" class="input-fake">Share your story, post an update, image, or video...</a>
+            {% else %}
+              <a href="/accounts/login/" class="input-fake">Login to share your story, upload image, or start live...</a>
+            {% endif %}
+
+            <a href="#" class="circle-btn" title="Story">＋</a>
+            <a href="#" class="circle-btn" title="Upload">🖼</a>
+            <a href="#" class="circle-btn" title="Video">🎥</a>
+          </div>
+        </section>
+
+        <section class="stories panel">
+          <div class="section-title">
+            <h2>Stories</h2>
+            <a href="#">See all</a>
+          </div>
+
+          <div class="story-row">
+            {% if stories %}
+              {% for item in stories %}
+                <a href="#" class="story">
+                  <div class="story-ring">
+                    <div class="story-inner">
+                      {{ item.user.username|default:item.username|default:"N"|slice:":1"|upper }}
+                    </div>
+                  </div>
+                  <div class="story-name">
+                    {{ item.user.username|default:item.username|default:"Story" }}
+                  </div>
+                </a>
+              {% endfor %}
+            {% else %}
+              <a href="#" class="story">
+                <div class="story-ring"><div class="story-inner">N</div></div>
+                <div class="story-name">No stories yet</div>
+              </a>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="feed">
+          {% if recent_posts %}
+            {% for post in recent_posts %}
+              <article class="card panel">
+                <div class="post-head">
+                  <div class="avatar">
+                    {{ post.user.username|default:post.author.username|default:"N"|slice:":1"|upper }}
+                  </div>
+                  <div class="post-meta">
+                    <div class="post-name">
+                      {{ post.user.username|default:post.author.username|default:"Namvibe User" }}
+                    </div>
+                    <div class="post-time">
+                      {{ post.created_at|default:post.created|default:"Recent activity" }}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="post-text">
+                  {{ post.content|default:post.caption|default:post.text|default:"New public content from the community."|truncatechars:240 }}
+                </div>
+
+                <div class="media-box">
+                  Content preview
+                </div>
+
+                <div class="actions">
+                  <a href="#" class="mini-btn">❤️ Like</a>
+                  <a href="#" class="mini-btn">💬 Comment</a>
+                  <a href="#" class="mini-btn">📤 Share</a>
+                  <a href="#" class="mini-btn">👎 Dislike</a>
+                  <a href="#" class="mini-btn">➕ Join</a>
+                </div>
+              </article>
+            {% endfor %}
+          {% else %}
+            <article class="card panel">
+              <div class="post-head">
+                <div class="avatar">N</div>
+                <div class="post-meta">
+                  <div class="post-name">Namvibe Feed</div>
+                  <div class="post-time">Waiting for real posts</div>
+                </div>
+              </div>
+              <div class="post-text">
+                Your homepage is ready for real platform data. Once users begin posting,
+                their public content can appear here.
+              </div>
+              <div class="media-box">Feed preview area</div>
+              <div class="actions">
+                <a href="#" class="mini-btn">❤️ Like</a>
+                <a href="#" class="mini-btn">💬 Comment</a>
+                <a href="#" class="mini-btn">📤 Share</a>
+                <a href="#" class="mini-btn">👎 Dislike</a>
+                <a href="#" class="mini-btn">➕ Join</a>
+              </div>
+            </article>
+          {% endif %}
+        </section>
+
+        <footer class="footer panel">
+          <div class="section-title">
+            <h2>Footer Links</h2>
+          </div>
+          <div class="footer-grid">
+            <a href="#">About Us</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Cookies Policy</a>
+            <a href="#">Community Standards</a>
+            <a href="#">Parental Guide</a>
+            <a href="#">Streamer Sign Up</a>
+            <a href="#">Support</a>
+            <a href="#">Terms of Use</a>
+          </div>
+        </footer>
+      </main>
+
+      <aside class="rightbar">
+        <section class="widget panel">
+          <div class="section-title">
+            <h2>Live now</h2>
+            <a href="#">Open</a>
+          </div>
+          <div class="widget-list">
+            {% if live_preview %}
+              {% for live in live_preview %}
+                <a href="#" class="small-card live-item">
+                  <div class="thumb">LIVE</div>
+                  <div>
+                    <div class="small-title">
+                      {{ live.title|default:live.user.username|default:"Live stream" }}
+                    </div>
+                    <div class="small-sub">
+                      Join live video happening now
+                    </div>
+                  </div>
+                  <div class="join-btn">Join</div>
+                </a>
+              {% endfor %}
+            {% else %}
+              <div class="small-card">
+                <div class="small-title">No live video now</div>
+                <div class="small-sub">When users go live, previews can appear here.</div>
+              </div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="widget panel">
+          <div class="section-title">
+            <h2>Status from followers</h2>
+            <a href="#">More</a>
+          </div>
+          <div class="widget-list">
+            <a href="#" class="small-card">
+              <div class="small-title">Follower updates</div>
+              <div class="small-sub">This area can show status hints, fresh activity, and updates from followed users.</div>
+            </a>
+            <a href="#" class="small-card">
+              <div class="small-title">Story activity</div>
+              <div class="small-sub">Preview followed stories and quick watch entry.</div>
+            </a>
+          </div>
+        </section>
+
+        <section class="widget panel">
+          <div class="section-title">
+            <h2>Sponsored</h2>
+            <a href="#">Manage</a>
+          </div>
+          <div class="ad-box">
+            <div class="small-title">Ad preview space</div>
+            <div class="small-sub">
+              This block is reserved for system ads, promoted pages, pop-up campaign links, or creator boosts.
+            </div>
+          </div>
+        </section>
+
+        <section class="widget panel">
+          <div class="section-title">
+            <h2>Discover</h2>
+          </div>
+          <div class="widget-list">
+            <a href="#" class="small-card">
+              <div class="small-title">Public pages</div>
+              <div class="small-sub">Browse brands, creators, public communities, and trend pages.</div>
+            </a>
+            <a href="#" class="small-card">
+              <div class="small-title">Video feed</div>
+              <div class="small-sub">Short videos, highlights, and creator clips.</div>
+            </a>
+          </div>
+        </section>
+      </aside>
     </div>
   </div>
+
+  <script>
+    function toggleMenu() {
+      const menu = document.getElementById("mobileMenu");
+      if (!menu) return;
+      menu.style.display = menu.style.display === "none" ? "block" : "none";
+    }
+  </script>
 </body>
 </html>
