@@ -1,69 +1,48 @@
 import os
-import uuid
-requests = None
+from pathlib import Path
 
-def _get_requests():
+MEDIA_ROOT = Path("media")
+
+
+def get_public_posts(*args, **kwargs):
+    return []
+
+
+def get_posts_by_user(*args, **kwargs):
+    return []
+
+
+def get_post(*args, **kwargs):
+    return None
+
+
+def create_post(*args, **kwargs):
+    return None
+
+
+def update_post(*args, **kwargs):
+    return None
+
+
+def delete_post(*args, **kwargs):
+    return False
+
+
+def save_media_locally(file_obj, subdir="posts"):
     try:
-        import requests as _requests
-        return _requests
+        target_dir = MEDIA_ROOT / subdir
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        name = getattr(file_obj, "name", "upload.bin")
+        target_path = target_dir / name
+
+        with open(target_path, "wb") as f:
+            if hasattr(file_obj, "chunks"):
+                for chunk in file_obj.chunks():
+                    f.write(chunk)
+            else:
+                f.write(file_obj.read())
+
+        return str(target_path)
     except Exception:
         return None
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
-
-def save_media_locally(file_obj, folder="posts"):
-    if not file_obj:
-        return ""
-    ext = os.path.splitext(file_obj.name)[1] or ""
-    filename = f"{uuid.uuid4().hex}{ext}"
-    save_dir = os.path.join("media", folder)
-    os.makedirs(save_dir, exist_ok=True)
-    file_path = os.path.join(save_dir, filename)
-
-    with open(file_path, "wb+") as out:
-        for chunk in file_obj.chunks():
-            out.write(chunk)
-
-    return f"/media/{folder}/{filename}"
-
-def create_post(post_data):
-    url = f"{SUPABASE_URL}/rest/v1/posts"
-    headers = {
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-    }
-    return req.post(url, headers=headers, json=post_data, timeout=30)
-
-def get_posts_by_user(user_id):
-    url = f"{SUPABASE_URL}/rest/v1/posts"
-    headers = {
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-    }
-    params = {
-        "select": "*",
-        "user_id": f"eq.{user_id}",
-        "order": "created_at.desc",
-    }
-    return req.get(url, headers=headers, params=params, timeout=30)
-
-def get_public_posts(limit=20):
-    req = _get_requests()
-    if req is None:
-        return []
-
-    url = f"{SUPABASE_URL}/rest/v1/posts"
-    headers = {
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-    }
-    params = {
-        "select": "*",
-        "audience": "eq.Public",
-        "status": "eq.published",
-        "order": "created_at.desc",
-        "limit": str(limit),
-    }
-    return req.get(url, headers=headers, params=params, timeout=30)
