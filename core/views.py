@@ -1,5 +1,9 @@
 from django.shortcuts import render
-from posts.supabase_posts import get_public_posts
+try:
+    from posts.supabase_posts import get_public_posts
+except Exception:
+    def get_public_posts(*args, **kwargs):
+        return []
 
 def index(request):
     posts = []

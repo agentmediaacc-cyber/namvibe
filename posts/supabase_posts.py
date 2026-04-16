@@ -1,7 +1,13 @@
 import os
 import uuid
-import requests
+requests = None
 
+def _get_requests():
+    try:
+        import requests as _requests
+        return _requests
+    except Exception:
+        return None
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 
@@ -28,7 +34,7 @@ def create_post(post_data):
         "Content-Type": "application/json",
         "Prefer": "return=representation",
     }
-    return requests.post(url, headers=headers, json=post_data, timeout=30)
+    return req.post(url, headers=headers, json=post_data, timeout=30)
 
 def get_posts_by_user(user_id):
     url = f"{SUPABASE_URL}/rest/v1/posts"
@@ -41,9 +47,13 @@ def get_posts_by_user(user_id):
         "user_id": f"eq.{user_id}",
         "order": "created_at.desc",
     }
-    return requests.get(url, headers=headers, params=params, timeout=30)
+    return req.get(url, headers=headers, params=params, timeout=30)
 
 def get_public_posts(limit=20):
+    req = _get_requests()
+    if req is None:
+        return []
+
     url = f"{SUPABASE_URL}/rest/v1/posts"
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
@@ -56,4 +66,4 @@ def get_public_posts(limit=20):
         "order": "created_at.desc",
         "limit": str(limit),
     }
-    return requests.get(url, headers=headers, params=params, timeout=30)
+    return req.get(url, headers=headers, params=params, timeout=30)
