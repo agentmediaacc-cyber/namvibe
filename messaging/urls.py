@@ -1,0 +1,12 @@
+from django.urls import path
+
+from . import views
+
+app_name = "messaging"
+
+urlpatterns = [
+    path("conversation/<int:conversation_id>/", views.conversation_redirect, name="conversation"),
+    path("conversation/<int:conversation_id>/send/", views.send_message, name="send_message"),
+    path("message/<int:message_id>/delete/", views.delete_message, name="delete_message"),
+    path("start/<int:user_id>/", views.start_chat, name="start_chat"),
+]

@@ -1,0 +1,459 @@
+<div class="studio-shell">
+    <div class="studio-hero">
+        <div>
+            <span class="studio-kicker">Creator Studio</span>
+            <h3>Build a premium post</h3>
+            <p>Choose a format, shape the audience, style the media, preview it, then publish or save a draft.</p>
+        </div>
+        <div class="studio-status-pill">Phase 1 ready</div>
+    </div>
+
+    <form class="studio-grid" method="post" action="{% url 'save_post' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <section class="studio-panel">
+            <div class="studio-section-head">
+                <h4>Choose post type</h4>
+                <span id="studioTypeLabel">Text post</span>
+            </div>
+
+            <input type="hidden" name="post_type" id="studioPostType" value="text">
+            <input type="hidden" name="media_type" id="mediaTypeSelector" value="text">
+
+            <div class="post-type-grid">
+                <button type="button" class="post-type-card active" data-post-type="text" data-media-type="text" onclick="selectPostType(this)">
+                    <strong>Text</strong><span>Thoughts, updates, moments</span>
+                </button>
+                <button type="button" class="post-type-card" data-post-type="photo" data-media-type="photo" onclick="selectPostType(this)">
+                    <strong>Photo</strong><span>Single image post</span>
+                </button>
+                <button type="button" class="post-type-card" data-post-type="video" data-media-type="video" onclick="selectPostType(this)">
+                    <strong>Video</strong><span>Upload video content</span>
+                </button>
+                <button type="button" class="post-type-card" data-post-type="flyer" data-media-type="flyer" onclick="selectPostType(this)">
+                    <strong>Flyer</strong><span>Poster made in Namvibe</span>
+                </button>
+                <button type="button" class="post-type-card" data-post-type="story" data-media-type="photo" onclick="selectPostType(this)">
+                    <strong>Story</strong><span>Quick visual update</span>
+                </button>
+                <button type="button" class="post-type-card" data-post-type="reel" data-media-type="video" onclick="selectPostType(this)">
+                    <strong>Reel</strong><span>Short vertical video</span>
+                </button>
+                <button type="button" class="post-type-card" data-post-type="live_announcement" data-media-type="text" onclick="selectPostType(this)">
+                    <strong>Live</strong><span>Announce a live session</span>
+                </button>
+                <button type="button" class="post-type-card" data-post-type="poll" data-media-type="poll" onclick="selectPostType(this)">
+                    <strong>Poll</strong><span>Ask the community</span>
+                </button>
+            </div>
+
+            <div class="pd-form-grid-2 studio-fields">
+                <div class="pd-form-group">
+                    <label>Title</label>
+                    <input type="text" name="title" id="postTitle" placeholder="Give your post a title" oninput="syncStudioPreview()">
+                </div>
+                <div class="pd-form-group">
+                    <label>Hashtags</label>
+                    <input type="text" name="hashtags" id="postHashtags" placeholder="#namvibe #windhoek" oninput="syncStudioPreview()">
+                </div>
+                <div class="pd-form-group full">
+                    <label>Caption</label>
+                    <textarea name="caption" id="postCaption" rows="5" placeholder="Write your caption..." oninput="syncStudioPreview()"></textarea>
+                </div>
+                <div class="pd-form-group">
+                    <label>Tagged users / mentions</label>
+                    <input type="text" name="tagged_users" id="taggedUsers" placeholder="@friend @creator" oninput="syncStudioPreview()">
+                </div>
+                <div class="pd-form-group">
+                    <label>Share target</label>
+                    <select name="share_to" id="postShareTo" onchange="syncStudioAudience()">
+                        <option value="Main Feed">Main Feed</option>
+                        <option value="Story">Story</option>
+                        <option value="Reels">Reels</option>
+                        <option value="Group/community">Group/community</option>
+                        <option value="Specific user">Specific user</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="studio-panel">
+            <div class="studio-section-head">
+                <h4>Audience</h4>
+                <span id="previewVisibility">Public • Main Feed</span>
+            </div>
+            <input type="hidden" id="postAudience" value="Public">
+            <div class="audience-grid">
+                <label><input type="radio" name="audience" value="Public" checked onchange="syncStudioAudience()"> Public</label>
+                <label><input type="radio" name="audience" value="Followers" onchange="syncStudioAudience()"> Followers</label>
+                <label><input type="radio" name="audience" value="Friends" onchange="syncStudioAudience()"> Friends</label>
+                <label><input type="radio" name="audience" value="Only Me" onchange="syncStudioAudience()"> Only Me</label>
+                <label><input type="radio" name="audience" value="Specific user" onchange="syncStudioAudience()"> Specific user</label>
+                <label><input type="radio" name="audience" value="Group/community" onchange="syncStudioAudience()"> Group/community</label>
+            </div>
+            <div class="pd-form-grid-2 studio-fields">
+                <div class="pd-form-group">
+                    <label>Specific user</label>
+                    <input type="text" name="specific_user" id="singleUser" placeholder="@username" oninput="syncStudioAudience()">
+                </div>
+                <div class="pd-form-group">
+                    <label>Group/community</label>
+                    <input type="text" name="community_name" id="groupName" placeholder="Community name" oninput="syncStudioAudience()">
+                    <input type="hidden" name="group_name" id="legacyGroupName">
+                    <input type="hidden" name="single_user" id="legacySingleUser">
+                </div>
+            </div>
+        </section>
+
+        <section class="studio-panel" data-tool-panel="media">
+            <div class="studio-section-head">
+                <h4>Media and enhancement</h4>
+                <span>Upload and style</span>
+            </div>
+            <div class="pd-form-grid-3">
+                <div class="pd-form-group">
+                    <label>Image upload</label>
+                    <input type="file" name="media_file" id="photoInput" accept="image/*" onchange="previewStudioMedia(event, 'image')">
+                </div>
+                <div class="pd-form-group">
+                    <label>Video upload</label>
+                    <input type="file" name="media_file" id="videoInput" accept="video/*" onchange="previewStudioMedia(event, 'video')">
+                </div>
+                <div class="pd-form-group">
+                    <label>Display mode</label>
+                    <select name="display_mode" id="displayMode" onchange="applyStudioCrop()">
+                        <option value="cover">Cover</option>
+                        <option value="contain">Contain</option>
+                        <option value="portrait">Portrait</option>
+                        <option value="landscape">Landscape</option>
+                    </select>
+                </div>
+                <div class="pd-form-group">
+                    <label>Crop style</label>
+                    <select name="crop_style" id="cropStyle" onchange="applyStudioCrop()">
+                        <option value="cover">Square cover</option>
+                        <option value="contain">Fit full</option>
+                        <option value="portrait">Portrait</option>
+                        <option value="landscape">Landscape</option>
+                    </select>
+                </div>
+                <div class="pd-form-group">
+                    <label>Image effect</label>
+                    <select name="image_effect" id="imageEffect" onchange="applyStudioImageEffect()">
+                        <option value="none">None</option>
+                        <option value="grayscale(100%)">Black & White</option>
+                        <option value="sepia(80%)">Warm Sepia</option>
+                        <option value="contrast(130%) saturate(120%)">Pop Contrast</option>
+                        <option value="brightness(1.1) saturate(1.4)">Bright Glow</option>
+                    </select>
+                </div>
+                <div class="pd-form-group">
+                    <label>Overlay text</label>
+                    <input type="text" name="overlay_text" id="overlayText" placeholder="Optional text overlay" oninput="syncStudioPreview()">
+                </div>
+            </div>
+        </section>
+
+        <section class="studio-panel" data-tool-panel="flyer">
+            <div class="studio-section-head">
+                <h4>Flyer builder</h4>
+                <span>Poster basics</span>
+            </div>
+            <div class="pd-form-grid-3">
+                <div class="pd-form-group">
+                    <label>Flyer title</label>
+                    <input type="text" name="flyer_title" id="flyerTitle" placeholder="Event headline" oninput="syncStudioPreview()">
+                </div>
+                <div class="pd-form-group">
+                    <label>Call to action</label>
+                    <input type="text" name="flyer_cta" id="flyerCta" placeholder="Book now / Join us" oninput="syncStudioPreview()">
+                </div>
+                <div class="pd-form-group">
+                    <label>Logo/image</label>
+                    <input type="file" name="flyer_image" id="flyerImage" accept="image/*" onchange="previewStudioMedia(event, 'image')">
+                </div>
+                <div class="pd-form-group full">
+                    <label>Flyer body</label>
+                    <textarea name="flyer_body" id="flyerBody" rows="3" placeholder="Details, date, location..." oninput="syncStudioPreview()"></textarea>
+                </div>
+                <div class="pd-form-group">
+                    <label>Background</label>
+                    <select name="flyer_background" id="flyerBackground" onchange="applyFlyerStyle()">
+                        <option value="gradient-violet">Violet Glow</option>
+                        <option value="gradient-sunset">Sunset Pink</option>
+                        <option value="solid-black">Midnight</option>
+                        <option value="solid-white">Clean White</option>
+                    </select>
+                </div>
+                <div class="pd-form-group">
+                    <label>Text color</label>
+                    <input type="color" name="flyer_text_color" id="flyerTextColor" value="#ffffff" onchange="applyFlyerStyle()">
+                </div>
+                <div class="pd-form-group">
+                    <label>Layout</label>
+                    <select name="flyer_layout" id="flyerLayout" onchange="applyFlyerStyle()">
+                        <option value="centered">Centered</option>
+                        <option value="split">Split</option>
+                        <option value="banner">Banner</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="studio-panel">
+            <div class="studio-section-head">
+                <h4>Motion, poll, and engagement</h4>
+                <span>Metadata stored now</span>
+            </div>
+            <div class="pd-form-grid-3">
+                <div class="pd-form-group">
+                    <label>Music track</label>
+                    <select name="music_track" id="musicTrack" onchange="syncStudioPreview()">
+                        <option value="">No music</option>
+                        <option value="namvibe-rise">Namvibe Rise</option>
+                        <option value="windhoek-night">Windhoek Night</option>
+                        <option value="soft-pulse">Soft Pulse</option>
+                    </select>
+                </div>
+                <div class="pd-form-group">
+                    <label>Motion effect</label>
+                    <select name="motion_effect" id="motionEffect" onchange="syncStudioPreview()">
+                        <option value="none">None</option>
+                        <option value="slow-zoom">Slow zoom</option>
+                        <option value="pan-left">Pan left</option>
+                        <option value="pulse">Pulse</option>
+                    </select>
+                </div>
+                <div class="pd-form-group">
+                    <label>Poll question</label>
+                    <input type="text" name="poll_question" id="pollQuestion" placeholder="Ask a question" oninput="syncStudioPreview()">
+                </div>
+                <div class="pd-form-group full">
+                    <label>Poll options</label>
+                    <textarea name="poll_options" id="pollOptions" rows="2" placeholder="One option per line"></textarea>
+                </div>
+            </div>
+
+            <div class="pd-check-grid">
+                <label><input type="checkbox" name="allow_comments" id="allowComments" checked onchange="syncStudioBadges()"> Allow comments</label>
+                <label><input type="checkbox" name="allow_share" id="allowShare" checked onchange="syncStudioBadges()"> Allow sharing</label>
+                <label><input type="checkbox" name="save_story" id="saveStory" onchange="syncStudioBadges()"> Save to story</label>
+                <label><input type="checkbox" name="premium_badge" id="premiumBadge" onchange="syncStudioBadges()"> Premium badge</label>
+            </div>
+
+            <div class="pd-section-actions">
+                <button type="submit">Publish Post</button>
+                <button type="submit" name="save_draft" value="1">Save Draft</button>
+                <button type="button" onclick="resetStudioComposer()">Reset</button>
+            </div>
+        </section>
+    </form>
+
+    <aside class="studio-preview-panel">
+        <div class="pd-card sticky-preview">
+            <div class="pd-preview-head">
+                <h3>Live Preview</h3>
+                <span id="previewType">Text post</span>
+            </div>
+
+            <div class="post-preview-card theme-purple font-modern flyer-preview gradient-violet centered" id="postPreviewCard">
+                <div class="pp-top">
+                    <div class="pp-avatar">{{ full_name|slice:":1"|upper }}</div>
+                    <div>
+                        <strong>{{ full_name }}</strong>
+                        <span>@{{ username }}</span>
+                    </div>
+                </div>
+
+                <div class="pp-title" id="previewTitle">Your title will appear here</div>
+                <div class="pp-caption" id="previewCaption">Write a caption and your live preview will update here.</div>
+                <div class="pp-caption" id="previewMeta"></div>
+
+                <div class="pp-media cover" id="previewMediaWrap">
+                    <img id="previewImage" class="pp-image hidden" alt="preview image">
+                    <video id="previewVideo" class="pp-video hidden" playsinline controls></video>
+                    <div class="pp-empty" id="previewEmpty">No media selected yet</div>
+                    <div class="preview-overlay" id="previewOverlay"></div>
+                </div>
+
+                <div class="flyer-copy" id="flyerPreviewCopy">
+                    <strong id="flyerPreviewTitle">Flyer headline</strong>
+                    <span id="flyerPreviewBody">Flyer details appear here.</span>
+                    <em id="flyerPreviewCta">Call to action</em>
+                </div>
+
+                <div class="pp-badges" id="previewBadges">
+                    <span>Public</span>
+                    <span>Main Feed</span>
+                </div>
+            </div>
+
+            <div class="studio-analytics">
+                <h4>Engagement setup</h4>
+                <div><span>Views</span><strong>0</strong></div>
+                <div><span>Likes</span><strong>0</strong></div>
+                <div><span>Comments</span><strong>0</strong></div>
+                <div><span>Shares</span><strong>0</strong></div>
+                <p>Analytics counters are stored with new posts and will grow as engagement actions are connected.</p>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script>
+function studioValue(id, fallback = "") {
+    const el = document.getElementById(id);
+    return el ? el.value : fallback;
+}
+
+function selectedAudience() {
+    const checked = document.querySelector('input[name="audience"]:checked');
+    return checked ? checked.value : "Public";
+}
+
+function selectPostType(button) {
+    document.querySelectorAll(".post-type-card").forEach((item) => item.classList.remove("active"));
+    button.classList.add("active");
+
+    const postType = button.dataset.postType || "text";
+    const mediaType = button.dataset.mediaType || "text";
+    document.getElementById("studioPostType").value = postType;
+    document.getElementById("mediaTypeSelector").value = mediaType;
+    document.getElementById("studioTypeLabel").textContent = button.querySelector("strong").textContent + " post";
+    document.getElementById("previewType").textContent = button.querySelector("strong").textContent + " post";
+
+    document.querySelectorAll("[data-tool-panel]").forEach((panel) => {
+        if (panel.dataset.toolPanel === "flyer") {
+            panel.classList.toggle("studio-panel-focus", postType === "flyer");
+        }
+        if (panel.dataset.toolPanel === "media") {
+            panel.classList.toggle("studio-panel-focus", ["photo", "video", "story", "reel"].includes(postType));
+        }
+    });
+
+    if (postType === "story") {
+        document.getElementById("postShareTo").value = "Story";
+        document.getElementById("saveStory").checked = true;
+    }
+    if (postType === "reel") {
+        document.getElementById("postShareTo").value = "Reels";
+    }
+    if (postType === "flyer") {
+        document.getElementById("premiumBadge").checked = true;
+    }
+
+    syncStudioPreview();
+    syncStudioAudience();
+}
+
+function syncStudioPreview() {
+    const title = studioValue("postTitle") || studioValue("flyerTitle") || "Your title will appear here";
+    const caption = studioValue("postCaption") || studioValue("flyerBody") || "Write a caption and your live preview will update here.";
+    const hashtags = studioValue("postHashtags");
+    const tagged = studioValue("taggedUsers");
+    const overlay = studioValue("overlayText");
+    const music = studioValue("musicTrack");
+    const motion = studioValue("motionEffect", "none");
+    const poll = studioValue("pollQuestion");
+
+    document.getElementById("previewTitle").textContent = title;
+    document.getElementById("previewCaption").textContent = caption;
+    document.getElementById("previewOverlay").textContent = overlay;
+    document.getElementById("flyerPreviewTitle").textContent = studioValue("flyerTitle") || title;
+    document.getElementById("flyerPreviewBody").textContent = studioValue("flyerBody") || "Flyer details appear here.";
+    document.getElementById("flyerPreviewCta").textContent = studioValue("flyerCta") || "Call to action";
+
+    const meta = [];
+    if (hashtags) meta.push(hashtags);
+    if (tagged) meta.push("Tags: " + tagged);
+    if (music) meta.push("Motion queued: " + music + " / " + motion);
+    if (poll) meta.push("Poll: " + poll);
+    document.getElementById("previewMeta").textContent = meta.join(" • ");
+
+    syncStudioBadges();
+}
+
+function syncStudioAudience() {
+    const audience = selectedAudience();
+    const shareTo = studioValue("postShareTo", "Main Feed");
+    const groupName = studioValue("groupName").trim();
+    const singleUser = studioValue("singleUser").trim();
+    document.getElementById("legacyGroupName").value = groupName;
+    document.getElementById("legacySingleUser").value = singleUser;
+    document.getElementById("postAudience").value = audience;
+
+    let text = audience + " • " + shareTo;
+    if (audience === "Group/community" && groupName) text += " • " + groupName;
+    if (audience === "Specific user" && singleUser) text += " • @" + singleUser.replace(/^@/, "");
+    document.getElementById("previewVisibility").textContent = text;
+    syncStudioBadges();
+}
+
+function syncStudioBadges() {
+    const badges = [selectedAudience(), studioValue("postShareTo", "Main Feed")];
+    if (document.getElementById("allowComments").checked) badges.push("Comments On");
+    if (document.getElementById("allowShare").checked) badges.push("Share On");
+    if (document.getElementById("saveStory").checked) badges.push("Story");
+    if (document.getElementById("premiumBadge").checked) badges.push("Premium");
+    document.getElementById("previewBadges").innerHTML = badges.map((badge) => `<span>${badge}</span>`).join("");
+}
+
+function previewStudioMedia(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const img = document.getElementById("previewImage");
+    const video = document.getElementById("previewVideo");
+    const empty = document.getElementById("previewEmpty");
+    const url = URL.createObjectURL(file);
+
+    if (type === "video") {
+        video.src = url;
+        video.classList.remove("hidden");
+        img.classList.add("hidden");
+        empty.classList.add("hidden");
+    } else {
+        img.src = url;
+        img.classList.remove("hidden");
+        video.classList.add("hidden");
+        video.pause();
+        empty.classList.add("hidden");
+        applyStudioImageEffect();
+    }
+}
+
+function applyStudioCrop() {
+    const wrap = document.getElementById("previewMediaWrap");
+    wrap.classList.remove("portrait", "landscape", "cover", "contain");
+    wrap.classList.add(studioValue("cropStyle", "cover"));
+}
+
+function applyStudioImageEffect() {
+    document.getElementById("previewImage").style.filter = studioValue("imageEffect", "none");
+}
+
+function applyFlyerStyle() {
+    const card = document.getElementById("postPreviewCard");
+    card.classList.remove("gradient-violet", "gradient-sunset", "solid-black", "solid-white", "centered", "split", "banner");
+    card.classList.add(studioValue("flyerBackground", "gradient-violet"));
+    card.classList.add(studioValue("flyerLayout", "centered"));
+    card.style.setProperty("--flyer-text", studioValue("flyerTextColor", "#ffffff"));
+}
+
+function resetStudioComposer() {
+    document.querySelector(".post-type-card[data-post-type='text']").click();
+    document.querySelector(".studio-grid").reset();
+    document.getElementById("previewImage").classList.add("hidden");
+    document.getElementById("previewVideo").classList.add("hidden");
+    document.getElementById("previewEmpty").classList.remove("hidden");
+    syncStudioPreview();
+    syncStudioAudience();
+    applyFlyerStyle();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    syncStudioPreview();
+    syncStudioAudience();
+    applyFlyerStyle();
+});
+</script>

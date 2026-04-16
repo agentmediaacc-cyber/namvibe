@@ -1,0 +1,273 @@
+<div class="messages-shell {% if active_conversation %}has-active-chat{% else %}no-active-chat{% endif %}">
+    <aside class="chat-list-panel">
+        <div class="chat-list-head">
+            <div>
+                <h3>Messages</h3>
+                <p>One-to-one Namvibe chats</p>
+            </div>
+            <span class="chat-count">{{ chat_conversations|length }}</span>
+        </div>
+
+        <div class="chat-start-box">
+            <div class="chat-start-title">
+                <span>Start Chat</span>
+                <small>Choose a member</small>
+            </div>
+            <div class="member-quick-list">
+                {% for chat_user in all_chat_users %}
+                    <a href="{% url 'messaging:start_chat' chat_user.id %}" class="member-chip">
+                        <span class="chat-avatar small">{{ chat_user.username|slice:":1"|upper }}</span>
+                        <span>{{ chat_user.get_full_name|default:chat_user.username }}</span>
+                    </a>
+                {% empty %}
+                    <div class="chat-empty-list compact">No other members yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="chat-list-title">Recent chats</div>
+        <div class="chat-list">
+            {% for item in chat_conversations %}
+                <a href="{% url 'messaging:conversation' item.conversation.id %}" class="chat-list-item {% if active_conversation and active_conversation.id == item.conversation.id %}active{% endif %}">
+                    <span class="chat-avatar">{{ item.other.username|default:"N"|slice:":1"|upper }}</span>
+                    <span class="chat-list-copy">
+                        <strong>{{ item.other.get_full_name|default:item.other.username|default:"Namvibe Member" }}</strong>
+                        <small>
+                            {% if item.last_message %}
+                                {% if item.last_message.is_deleted %}
+                                    Message deleted
+                                {% else %}
+                                    {{ item.last_message.text|default:item.last_message.get_attachment_type_display|truncatechars:42 }}
+                                {% endif %}
+                            {% else %}
+                                New conversation
+                            {% endif %}
+                        </small>
+                    </span>
+                    {% if item.unread_count %}
+                        <span class="unread-badge">{{ item.unread_count }}</span>
+                    {% endif %}
+                </a>
+            {% empty %}
+                <div class="chat-empty-list">
+                    <strong>No conversations yet</strong>
+                    <span>Start a chat with a member above.</span>
+                </div>
+            {% endfor %}
+        </div>
+    </aside>
+
+    <section class="chat-thread-panel">
+        {% if active_conversation %}
+            <div class="chat-thread-head">
+                <a class="mobile-chat-back" href="{% url 'user_dashboard' %}?section=messages">← Chats</a>
+                <div class="chat-avatar large">{{ active_chat_other.username|default:"N"|slice:":1"|upper }}</div>
+                <div class="chat-thread-title">
+                    <h3>{{ active_chat_other.get_full_name|default:active_chat_other.username|default:"Namvibe Member" }}</h3>
+                    <p>@{{ active_chat_other.username }} · private chat</p>
+                </div>
+            </div>
+
+            <div class="chat-thread" id="chatThread">
+                {% for item in active_messages %}
+                    <article class="message-bubble {% if item.sender_id == request.user.id %}mine{% else %}theirs{% endif %}" id="message-{{ item.id }}">
+                        <div class="message-meta">
+                            <strong>{{ item.sender.get_full_name|default:item.sender.username }}</strong>
+                            <span>{{ item.created_at|date:"M j, H:i" }}</span>
+                            {% if item.sender_id == request.user.id %}
+                                <em>{% if item.is_read %}Read{% else %}Sent{% endif %}</em>
+                            {% endif %}
+                        </div>
+
+                        {% if item.reply_to %}
+                            <div class="reply-preview">
+                                Replying to {{ item.reply_to.sender.username }}:
+                                {% if item.reply_to.is_deleted %}Message deleted{% else %}{{ item.reply_to.text|default:"Attachment"|truncatechars:80 }}{% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if item.forwarded_from %}
+                            <div class="reply-preview">Forwarded message</div>
+                        {% endif %}
+
+                        {% if item.is_deleted %}
+                            <p class="deleted-message">Message deleted</p>
+                        {% else %}
+                            {% if item.text %}
+                                <p>{{ item.text|linebreaksbr }}</p>
+                            {% endif %}
+
+                            {% if item.attachment %}
+                                <div class="attachment-preview">
+                                    {% if item.attachment_type == "image" %}
+                                        <img src="{{ item.attachment.url }}" alt="Message image">
+                                    {% elif item.attachment_type == "video" %}
+                                        <video src="{{ item.attachment.url }}" controls></video>
+                                    {% else %}
+                                        <a href="{{ item.attachment.url }}" target="_blank" rel="noopener">Open attached file</a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endif %}
+
+                        <div class="message-actions">
+                            {% if not item.is_deleted %}
+                                <button type="button" onclick="replyToMessage('{{ item.id }}', '{{ item.sender.username|escapejs }}')">Reply</button>
+                                <button type="button" onclick="forwardMessage('{{ item.id }}')">Forward</button>
+                                {% if item.sender_id == request.user.id %}
+                                    <form method="post" action="{% url 'messaging:delete_message' item.id %}" onsubmit="return confirm('Delete this message?');">
+                                        {% csrf_token %}
+                                        <button type="submit">Delete</button>
+                                    </form>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </article>
+                {% empty %}
+                    <div class="chat-empty-thread">
+                        <h3>Start the conversation</h3>
+                        <p>Send a text, emoji, image, video, or file.</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <form class="message-compose" id="messageCompose" method="post" action="{% url 'messaging:send_message' active_conversation.id %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="reply_to" id="replyToInput">
+                <input type="hidden" name="forward_to" id="forwardToInput">
+
+                <div class="compose-state" id="composeState" hidden>
+                    <span id="composeStateText"></span>
+                    <button type="button" onclick="clearComposeState()">×</button>
+                </div>
+
+                <div class="emoji-row" id="emojiPicker" aria-label="Emoji shortcuts" hidden>
+                    <button type="button" onclick="insertEmoji('😀')">😀</button>
+                    <button type="button" onclick="insertEmoji('😂')">😂</button>
+                    <button type="button" onclick="insertEmoji('🔥')">🔥</button>
+                    <button type="button" onclick="insertEmoji('❤️')">❤️</button>
+                    <button type="button" onclick="insertEmoji('👏')">👏</button>
+                    <button type="button" onclick="insertEmoji('🙏')">🙏</button>
+                    <button type="button" onclick="insertEmoji('🇳🇦')">🇳🇦</button>
+                </div>
+
+                <div class="compose-preview" id="attachmentPreview" hidden></div>
+
+                <div class="composer-bar">
+                    <button class="tool-btn" type="button" onclick="toggleEmojiPicker()" aria-label="Open emoji picker">☺</button>
+                    <button class="tool-btn" type="button" onclick="chooseAttachment('image/*')" aria-label="Attach image">Image</button>
+                    <button class="tool-btn" type="button" onclick="chooseAttachment('video/*')" aria-label="Attach video">Video</button>
+                    <button class="tool-btn" type="button" onclick="chooseAttachment('.pdf,.doc,.docx,.txt,.zip,application/*')" aria-label="Attach file">File</button>
+                    <button class="tool-btn muted" type="button" title="Voice notes are coming soon" aria-label="Voice note placeholder">Voice</button>
+
+                    <textarea name="text" id="messageText" rows="1" placeholder="Message {{ active_chat_other.username }}..."></textarea>
+
+                    <input type="file" name="attachment" id="messageAttachment" hidden onchange="previewAttachment(event)">
+                    <button class="send-btn" type="submit">Send</button>
+                </div>
+                <small class="compose-hint">Press Enter to send. Use Shift+Enter for a new line.</small>
+            </form>
+        {% else %}
+            <div class="chat-empty-thread full">
+                <h3>Select a chat</h3>
+                <p>Choose a recent conversation or start a new private chat from the member list.</p>
+            </div>
+        {% endif %}
+    </section>
+</div>
+
+<script>
+function insertEmoji(emoji) {
+    const input = document.getElementById("messageText");
+    if (!input) return;
+    const start = input.selectionStart || input.value.length;
+    const end = input.selectionEnd || input.value.length;
+    input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+    input.focus();
+    input.selectionStart = input.selectionEnd = start + emoji.length;
+}
+
+function toggleEmojiPicker() {
+    const picker = document.getElementById("emojiPicker");
+    if (picker) picker.hidden = !picker.hidden;
+}
+
+function replyToMessage(messageId, username) {
+    document.getElementById("replyToInput").value = messageId;
+    document.getElementById("forwardToInput").value = "";
+    showComposeState("Replying to @" + username);
+}
+
+function forwardMessage(messageId) {
+    document.getElementById("forwardToInput").value = messageId;
+    document.getElementById("replyToInput").value = "";
+    showComposeState("Forwarding selected message");
+}
+
+function showComposeState(text) {
+    const state = document.getElementById("composeState");
+    document.getElementById("composeStateText").textContent = text;
+    state.hidden = false;
+}
+
+function clearComposeState() {
+    document.getElementById("replyToInput").value = "";
+    document.getElementById("forwardToInput").value = "";
+    document.getElementById("composeState").hidden = true;
+}
+
+function chooseAttachment(acceptValue) {
+    const input = document.getElementById("messageAttachment");
+    if (!input) return;
+    input.accept = acceptValue;
+    input.click();
+}
+
+function previewAttachment(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById("attachmentPreview");
+    preview.innerHTML = "";
+    preview.hidden = true;
+    if (!file) return;
+
+    const label = document.createElement("div");
+    label.className = "compose-preview-label";
+    label.textContent = file.name;
+    preview.appendChild(label);
+
+    const url = URL.createObjectURL(file);
+    if (file.type.startsWith("image/")) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "Attachment preview";
+        preview.appendChild(img);
+    } else if (file.type.startsWith("video/")) {
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;
+        preview.appendChild(video);
+    }
+    preview.hidden = false;
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    const thread = document.getElementById("chatThread");
+    if (thread) thread.scrollTop = thread.scrollHeight;
+
+    const input = document.getElementById("messageText");
+    const form = document.getElementById("messageCompose");
+    if (input && form) {
+        input.addEventListener("keydown", function(event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                form.requestSubmit();
+            }
+        });
+
+        input.addEventListener("input", function() {
+            input.style.height = "auto";
+            input.style.height = Math.min(input.scrollHeight, 140) + "px";
+        });
+    }
+});
+</script>

@@ -3,55 +3,14 @@
 
 {% block content %}
 <section class="premium-dash">
-    <div class="pd-wrap">
+    {% include "partials/contextual_drawer.html" with nav_context="dashboard" drawer_title="Dashboard Menu" drawer_label="Profile dashboard menu" %}
 
-        <aside class="pd-sidebar" id="pdSidebar">
-            <div class="pd-brand">
-                <div class="pd-brand-icon">E</div>
-                <div>
-                    <h2>Namvibe</h2>
-                    <span>Namibian vibes in motion</span>
-                </div>
-            </div>
-
-            <nav class="pd-nav">
-                <a href="#" class="pd-nav-link active" onclick="openPanel('overview', this)">
-                    <span class="pd-icon">🏠</span><span>Overview</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('profile', this)">
-                    <span class="pd-icon">👤</span><span>Profile</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('posts', this)">
-                    <span class="pd-icon">📝</span><span>Posts</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('reels', this)">
-                    <span class="pd-icon">🎬</span><span>Reels</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('messages', this)">
-                    <span class="pd-icon">💬</span><span>Messages</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('friends', this)">
-                    <span class="pd-icon">👥</span><span>Friends</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('wallet', this)">
-                    <span class="pd-icon">🪙</span><span>Wallet</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('live', this)">
-                    <span class="pd-icon">📡</span><span>Live</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('support', this)">
-                    <span class="pd-icon">🛟</span><span>Support</span>
-                </a>
-                <a href="#" class="pd-nav-link" onclick="openPanel('settings', this)">
-                    <span class="pd-icon">⚙️</span><span>Settings</span>
-                </a>
-            </nav>
-        </aside>
+    <div class="pd-wrap pd-single">
 
         <div class="pd-main">
             <div class="pd-topbar">
                 <div class="pd-top-left">
-                    <button class="pd-menu-btn" onclick="toggleSidebar()">☰</button>
+                    <button class="pd-menu-btn" id="menuButton" type="button" aria-controls="menuDrawer" aria-expanded="false">☰</button>
                     <div>
                         <h1>Welcome back, {{ full_name }}</h1>
                         <p>Your premium Namvibe dashboard is ready.</p>
@@ -59,9 +18,9 @@
                 </div>
 
                 <div class="pd-top-right">
-                    <a href="/" class="btn btn-dark">Home</a>
-                    <a href="/api/dashboard/" class="btn btn-main">API Dashboard</a>
-                    <a href="/accounts/logout/" class="btn btn-dark">Logout</a>
+                    <a href="{% url 'home' %}" class="btn btn-dark">Home</a>
+                    <a href="{% url 'dashboard_home' %}" class="btn btn-main">API Dashboard</a>
+                    <a href="{% url 'logout' %}" class="btn btn-dark">Logout</a>
                 </div>
             </div>
 
@@ -73,8 +32,8 @@
                 </div>
             {% endif %}
 
-            <section id="overview" class="pd-panel active">
-                <div class="pd-hero-card">
+            <section id="overview" class="pd-panel active" aria-hidden="false">
+                <div class="pd-card">
                     <div class="pd-user-row">
                         <div class="pd-avatar">{{ full_name|slice:":1"|upper }}</div>
                         <div>
@@ -84,51 +43,23 @@
                         </div>
                     </div>
 
+                    <div class="pd-info-grid">
+                        <div><span>Followers</span><strong>0</strong></div>
+                        <div><span>Friends</span><strong>0</strong></div>
+                        <div><span>Posts</span><strong>{{ user_posts|length }}</strong></div>
+                        <div><span>Wallet Coins</span><strong>0</strong></div>
+                    </div>
+
                     <div class="pd-hero-actions">
                         <button onclick="openPanel('posts')">+ Create Post</button>
                         <button onclick="openPanel('posts')">📸 Upload Story</button>
-                        <button onclick="window.location.href='/livestream/studio/'">🎥 Go Live</button>
+                        <button onclick="window.location.href='{% url 'live_studio' %}'">🎥 Go Live</button>
                         <button onclick="openPanel('messages')">💬 Start Chat</button>
-                    </div>
-                </div>
-
-                <div class="pd-stats">
-                    <div class="pd-stat-card"><span>Followers</span><strong>0</strong></div>
-                    <div class="pd-stat-card"><span>Friends</span><strong>0</strong></div>
-                    <div class="pd-stat-card"><span>Posts</span><strong>{{ user_posts|length }}</strong></div>
-                    <div class="pd-stat-card"><span>Wallet Coins</span><strong>0</strong></div>
-                </div>
-
-                <div class="pd-grid">
-                    <div class="pd-card">
-                        <h3>Quick Access</h3>
-                        <div class="pd-app-grid">
-                            <button onclick="openPanel('profile')">👤 Profile</button>
-                            <button onclick="openPanel('posts')">📝 Posts</button>
-                            <button onclick="openPanel('reels')">🎬 Reels</button>
-                            <button onclick="openPanel('messages')">💬 Messages</button>
-                            <button onclick="openPanel('wallet')">🪙 Wallet</button>
-                            <button onclick="openPanel('live')">📡 Live</button>
-                            <button onclick="openPanel('friends')">👥 Friends</button>
-                            <button onclick="openPanel('settings')">⚙️ Settings</button>
-                        </div>
-                    </div>
-
-                    <div class="pd-card">
-                        <h3>Recent Posts</h3>
-                        {% if user_posts %}
-                            {% for post in user_posts|slice:":3" %}
-                                <div class="pd-list-item">{{ post.title|default:"Untitled Post" }} • {{ post.audience }}</div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="pd-list-item">No recent activity yet</div>
-                            <div class="pd-list-item">Your latest posts will appear here</div>
-                        {% endif %}
                     </div>
                 </div>
             </section>
 
-            <section id="profile" class="pd-panel">
+            <section id="profile" class="pd-panel" aria-hidden="true">
                 <div class="pd-card">
                     <h3>My Profile</h3>
                     <div class="pd-info-grid">
@@ -144,7 +75,9 @@
                 </div>
             </section>
 
-            <section id="posts" class="pd-panel">
+            <section id="posts" class="pd-panel" aria-hidden="true">
+                {% include "posts/premium_post_studio.html" %}
+                <div hidden aria-hidden="true">
                 <div class="pd-post-layout">
                     <div class="pd-post-left">
                         <div class="pd-card">
@@ -155,7 +88,7 @@
                                 </div>
                             </div>
 
-                            <form class="pd-post-form" method="post" action="/posts/save/" enctype="multipart/form-data">
+                            <form class="pd-post-form" method="post" action="{% url 'save_post' %}" enctype="multipart/form-data">
                                 {% csrf_token %}
 
                                 <div class="pd-form-group">
@@ -360,40 +293,78 @@
                         <div class="pd-empty-box">No posts yet. Start your first premium post.</div>
                     {% endif %}
                 </div>
+                </div>
             </section>
 
-            <section id="reels" class="pd-panel"><div class="pd-card"><h3>Reels & Shorts</h3><div class="pd-empty-box">No reels yet.</div></div></section>
-            <section id="messages" class="pd-panel"><div class="pd-card"><h3>Messages</h3><div class="pd-empty-box">Your chats will appear here.</div></div></section>
-            <section id="friends" class="pd-panel"><div class="pd-card"><h3>Friends & Requests</h3><div class="pd-empty-box">No friends connected yet.</div></div></section>
-            <section id="wallet" class="pd-panel"><div class="pd-card"><h3>Wallet</h3><div class="pd-empty-box">Wallet coming next.</div></div></section>
-            <section id="live" class="pd-panel"><div class="pd-card"><h3>Live Streaming</h3><div class="pd-empty-box">Open the new live studio to configure and preview your stream.</div><div class="pd-section-actions"><button onclick="window.location.href='/livestream/studio/'">Open Live Studio</button></div></div></section>
-            <section id="support" class="pd-panel"><div class="pd-card"><h3>Support Center</h3><div class="pd-empty-box">Support tools coming next.</div></div></section>
-            <section id="settings" class="pd-panel"><div class="pd-card"><h3>Settings</h3><div class="pd-empty-box">Settings tools coming next.</div></div></section>
+            <section id="reels" class="pd-panel" aria-hidden="true"><div class="pd-card"><h3>Reels & Shorts</h3><div class="pd-empty-box">No reels yet.</div></div></section>
+            <section id="messages" class="pd-panel" aria-hidden="true">
+                {% include "messaging/dashboard_messages.html" %}
+            </section>
+            <section id="friends" class="pd-panel" aria-hidden="true"><div class="pd-card"><h3>Friends & Requests</h3><div class="pd-empty-box">No friends connected yet.</div></div></section>
+            <section id="wallet" class="pd-panel" aria-hidden="true"><div class="pd-card"><h3>Wallet</h3><div class="pd-empty-box">Wallet coming next.</div></div></section>
+            <section id="live" class="pd-panel" aria-hidden="true"><div class="pd-card"><h3>Live Streaming</h3><div class="pd-empty-box">Open the new live studio to configure and preview your stream.</div><div class="pd-section-actions"><button onclick="window.location.href='{% url 'live_studio' %}'">Open Live Studio</button></div></div></section>
+            <section id="support" class="pd-panel" aria-hidden="true"><div class="pd-card"><h3>Support Center</h3><div class="pd-empty-box">Support tools coming next.</div></div></section>
+            <section id="settings" class="pd-panel" aria-hidden="true"><div class="pd-card"><h3>Settings</h3><div class="pd-empty-box">Settings tools coming next.</div></div></section>
         </div>
     </div>
 </section>
 
 <script>
-function openPanel(panelId, el=null) {
-    document.querySelectorAll('.pd-panel').forEach(panel => panel.classList.remove('active'));
-    const target = document.getElementById(panelId);
-    if (target) target.classList.add('active');
+const drawer = document.getElementById("menuDrawer");
+const drawerBackdrop = document.getElementById("drawerBackdrop");
+const menuButton = document.getElementById("menuButton");
+const drawerClose = document.querySelector(".drawer-close");
+const dashboardItems = document.querySelectorAll("[data-dashboard-section]");
 
-    document.querySelectorAll('.pd-nav-link').forEach(link => link.classList.remove('active'));
-    if (el) {
-        el.classList.add('active');
-    } else {
-        document.querySelectorAll('.pd-nav-link').forEach(link => {
-            const oc = link.getAttribute('onclick') || '';
-            if (oc.includes("'" + panelId + "'")) link.classList.add('active');
-        });
-    }
+function openMenu() {
+    drawer.classList.add("open");
+    drawerBackdrop.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+    menuButton.setAttribute("aria-expanded", "true");
+    document.body.style.overflow = "hidden";
 }
 
-function toggleSidebar() {
-    const sidebar = document.getElementById('pdSidebar');
-    sidebar.classList.toggle('show');
+function closeMenu() {
+    drawer.classList.remove("open");
+    drawerBackdrop.classList.remove("open");
+    drawer.setAttribute("aria-hidden", "true");
+    menuButton.setAttribute("aria-expanded", "false");
+    document.body.style.overflow = "";
 }
+
+function toggleMenu() {
+    if (drawer.classList.contains("open")) closeMenu();
+    else openMenu();
+}
+
+function openPanel(panelId) {
+    document.querySelectorAll('.pd-panel').forEach(panel => {
+        const isActive = panel.id === panelId;
+        panel.classList.toggle('active', isActive);
+        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    });
+
+    dashboardItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.dashboardSection === panelId);
+    });
+
+    closeMenu();
+}
+
+menuButton.addEventListener("click", toggleMenu);
+drawerBackdrop.addEventListener("click", closeMenu);
+drawerClose.addEventListener("click", closeMenu);
+dashboardItems.forEach(item => {
+    item.addEventListener("click", () => openPanel(item.dataset.dashboardSection));
+});
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeMenu();
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("section")) openPanel(params.get("section"));
+});
 
 function toggleMediaType() {
     const mediaType = document.getElementById('mediaTypeSelector').value;

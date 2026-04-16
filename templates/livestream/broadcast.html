@@ -8,11 +8,11 @@
             <div>
                 <span class="auth-badge">Step 2 of 2</span>
                 <h1>Live Broadcast Screen</h1>
-                <p>The camera stays centered while comments, users, gifts, and controls stay around the stream.</p>
+                <p>Start the room when you are ready. Comments, gifts, joins, leaves, and viewer count update in real time.</p>
             </div>
 
             <div class="live-real-top-actions">
-                <a href="/livestream/room/{{ room.id }}/" class="btn btn-dark">Open Viewer Room</a>
+                <a href="{% url 'live_join' room.id %}" class="btn btn-dark">Open Viewer Room</a>
             </div>
         </div>
 
@@ -22,8 +22,8 @@
                     <video id="broadcastVideo" class="live-video-preview" autoplay playsinline muted></video>
 
                     <div class="live-overlay-top">
-                        <span class="live-pill" id="broadcastMode">LIVE</span>
-                        <span class="live-room-tag">{{ room.audience }} • {{ room.room_access }}</span>
+                        <span class="live-pill" id="broadcastMode">{{ room.status|upper }}</span>
+                        <span class="live-room-tag" id="roomAccessTag">{{ room.audience }} • {{ room.room_access }}</span>
                     </div>
 
                     <div class="live-center-wrap">
@@ -32,6 +32,7 @@
                             <h3>{{ room.title }}</h3>
                             <p>{{ room.description }}</p>
                             <div class="live-location-pill">{{ room.location_text|default:"Location not shared" }}</div>
+                            <div class="live-location-pill">Media transport: ready for LiveKit/WebRTC integration.</div>
                         </div>
                     </div>
 
@@ -44,15 +45,12 @@
                     </div>
 
                     <div class="broadcast-top-right-stats">
-                        <div class="stat-chip" id="viewerCountChip">12 viewers</div>
+                        <div class="stat-chip" id="viewerCountChip">{{ viewer_count|default:0 }} viewers</div>
                         <div class="stat-chip" id="giftCountChip">{{ gifts|length }} gifts</div>
                     </div>
 
                     <div class="broadcast-guest-grid" id="guestGrid">
-                        <div class="guest-box">User 1</div>
-                        <div class="guest-box">User 2</div>
-                        <div class="guest-box">User 3</div>
-                        <div class="guest-box">User 4</div>
+                        <div class="guest-box">Waiting for viewers</div>
                     </div>
 
                     <div class="live-overlay-bottom">
@@ -85,12 +83,12 @@
                         <h3>Host Controls</h3>
                     </div>
                     <div class="live-tools-grid">
+                        <button onclick="startLiveRoom()">Start Live</button>
+                        <button onclick="endLiveRoom()">End Live</button>
                         <button onclick="toggleFullscreenStage()">Full Screen</button>
-                        <button onclick="toggleGuestSlots()">Show 10 Users</button>
-                        <button onclick="togglePrivateMode()">Private Mode</button>
+                        <button onclick="toggleGuestSlots()">Viewer Roster</button>
                         <button onclick="toggleComments()">Comments On/Off</button>
                         <button onclick="sendAutoReply()">Auto Reply</button>
-                        <button onclick="blockRandomUser()">Block User</button>
                         <button onclick="forwardLive()">Forward Live</button>
                         <button onclick="sendGiftNotice()">Gift Notice</button>
                     </div>
@@ -127,8 +125,8 @@
                         <h3>Broadcast Log</h3>
                     </div>
                     <div id="broadcastLog">
-                        <div class="pd-list-item">Broadcast screen ready.</div>
-                        <div class="pd-list-item">Use controls to manage viewers, comments, gifts, and privacy.</div>
+                        <div class="pd-list-item">Broadcast room is {{ room.status }}.</div>
+                        <div class="pd-list-item">Camera preview is local only until LiveKit/WebRTC publishing is connected.</div>
                     </div>
                 </div>
             </div>
@@ -138,32 +136,105 @@
 
 <script>
 const roomId = "{{ room.id }}";
+const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/livestream/rooms/${roomId}/`;
+const commentsUrl = "{% url 'create_live_comment_api' room.id %}";
+const startUrl = "{% url 'start_live_room_api' room.id %}";
+const endUrl = "{% url 'end_live_room_api' room.id %}";
+let liveSocket = null;
 let userMediaStream = null;
 let commentsEnabled = true;
-let privateMode = false;
-let guestExpanded = false;
+let rosterExpanded = false;
+let giftCount = {{ gifts|length }};
 
 function logBroadcast(text) {
-    const log = document.getElementById('broadcastLog');
     const row = document.createElement('div');
     row.className = 'pd-list-item';
     row.textContent = text;
-    log.prepend(row);
+    document.getElementById('broadcastLog').prepend(row);
+}
+
+function connectLiveSocket() {
+    liveSocket = new WebSocket(wsUrl);
+    liveSocket.onopen = () => logBroadcast('Realtime live room connected.');
+    liveSocket.onmessage = event => handleLiveEvent(JSON.parse(event.data));
+    liveSocket.onclose = () => logBroadcast('Realtime connection closed.');
+}
+
+function handleLiveEvent(data) {
+    if (data.type === 'state') updateRoomState(data.room, data.event);
+    if (data.type === 'comment') addComment(data.comment);
+    if (data.type === 'gift') addGift(data.gift);
+    if (data.type === 'signal') logBroadcast('WebRTC signaling message received.');
+}
+
+function updateRoomState(room, eventName) {
+    document.getElementById('broadcastMode').textContent = room.status.toUpperCase();
+    document.getElementById('viewerCountChip').textContent = `${room.viewer_count} viewers`;
+    if (eventName === 'join') logBroadcast('A viewer joined.');
+    if (eventName === 'leave') logBroadcast('A viewer left.');
+    if (eventName === 'start') logBroadcast('Live session started.');
+    if (eventName === 'end') logBroadcast('Live session ended.');
+}
+
+function addComment(comment) {
+    const empty = document.querySelector('#broadcastCommentList .pd-list-item');
+    if (empty && empty.textContent === 'No comments yet.') empty.remove();
+
+    const row = document.createElement('div');
+    row.className = 'pd-list-item';
+    row.textContent = `${comment.username}: ${comment.message}`;
+    document.getElementById('broadcastCommentList').prepend(row);
+
+    if (commentsEnabled) {
+        const bubble = document.createElement('div');
+        bubble.className = `comment-bubble ${comment.is_host ? 'host' : 'user'} show`;
+        bubble.textContent = `${comment.username}: ${comment.message}`;
+        const pop = document.getElementById('broadcastCommentsPop');
+        pop.prepend(bubble);
+        while (pop.children.length > 6) pop.lastElementChild.remove();
+    }
+}
+
+function addGift(gift) {
+    giftCount += 1;
+    document.getElementById('giftCountChip').textContent = `${giftCount} gifts`;
+    const empty = document.querySelector('#broadcastGiftList .pd-list-item');
+    if (empty && empty.textContent === 'No gifts yet.') empty.remove();
+
+    const row = document.createElement('div');
+    row.className = 'pd-list-item';
+    row.textContent = `${gift.sender_username} sent ${gift.gift_name} (${gift.token_amount})`;
+    document.getElementById('broadcastGiftList').prepend(row);
 }
 
 async function prepareBroadcastCamera() {
     try {
-        userMediaStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
-        const video = document.getElementById('broadcastVideo');
-        video.srcObject = userMediaStream;
-        video.style.objectPosition = 'center center';
+        userMediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('broadcastVideo').srcObject = userMediaStream;
     } catch (error) {
-        console.error(error);
-        logBroadcast('Camera permission denied');
+        logBroadcast('Camera permission denied.');
     }
+}
+
+async function postJson(url, payload = {}) {
+    const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+        body: JSON.stringify(payload)
+    });
+    return resp.json();
+}
+
+async function startLiveRoom() {
+    const data = await postJson(startUrl);
+    if (!data.ok) return alert(data.error || "Could not start live room");
+    updateRoomState(data.room, 'start');
+}
+
+async function endLiveRoom() {
+    const data = await postJson(endUrl);
+    if (!data.ok) return alert(data.error || "Could not end live room");
+    updateRoomState(data.room, 'end');
 }
 
 async function sendHostMessage() {
@@ -171,106 +242,33 @@ async function sendHostMessage() {
     const message = input.value.trim();
     if (!message) return;
 
-    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/create/`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCookie("csrftoken"),
-        },
-        body: JSON.stringify({
-            message: message,
-            is_host: true
-        })
-    });
-
-    const data = await resp.json();
-    if (data.ok) {
+    if (liveSocket && liveSocket.readyState === WebSocket.OPEN) {
+        liveSocket.send(JSON.stringify({ action: "comment", message }));
         input.value = "";
-        loadComments();
-        logBroadcast('Host replied in live chat');
+        return;
     }
-}
 
-async function loadComments() {
-    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/`);
-    const data = await resp.json();
-    if (!data.ok) return;
-
-    const list = document.getElementById("broadcastCommentList");
-    const pop = document.getElementById("broadcastCommentsPop");
-    list.innerHTML = "";
-    pop.innerHTML = "";
-
-    data.comments.forEach((c, i) => {
-        const row = document.createElement("div");
-        row.className = "pd-list-item";
-        row.textContent = `${c.username}: ${c.message}`;
-        list.appendChild(row);
-
-        if (commentsEnabled && i < 6) {
-            const bubble = document.createElement("div");
-            bubble.className = `comment-bubble ${c.is_host ? 'host' : 'user'} show`;
-            bubble.textContent = `${c.username}: ${c.message}`;
-            pop.appendChild(bubble);
-        }
-    });
-}
-
-async function loadGifts() {
-    const resp = await fetch(`/livestream/api/rooms/${roomId}/gifts/`);
-    const data = await resp.json();
-    if (!data.ok) return;
-
-    const list = document.getElementById("broadcastGiftList");
-    list.innerHTML = "";
-    document.getElementById("giftCountChip").textContent = `${data.gifts.length} gifts`;
-
-    data.gifts.forEach(g => {
-        const row = document.createElement("div");
-        row.className = "pd-list-item";
-        row.textContent = `${g.sender_username} sent ${g.gift_name} (${g.token_amount})`;
-        list.appendChild(row);
-    });
+    const data = await postJson(commentsUrl, { message });
+    if (data.ok) input.value = "";
 }
 
 function toggleFullscreenStage() {
     const el = document.getElementById('broadcastFrame');
-    if (document.fullscreenElement) {
-        document.exitFullscreen();
-    } else {
-        el.requestFullscreen();
-    }
-    logBroadcast('Fullscreen toggled');
+    if (document.fullscreenElement) document.exitFullscreen();
+    else el.requestFullscreen();
 }
 
 function toggleGuestSlots() {
-    const grid = document.getElementById('guestGrid');
-    guestExpanded = !guestExpanded;
-    grid.innerHTML = '';
-
-    const count = guestExpanded ? 10 : 4;
-    for (let i = 1; i <= count; i++) {
-        const div = document.createElement('div');
-        div.className = 'guest-box';
-        div.textContent = `User ${i}`;
-        grid.appendChild(div);
-    }
-    logBroadcast(`Guest grid changed to ${count} users`);
-}
-
-function togglePrivateMode() {
-    privateMode = !privateMode;
-    logBroadcast(privateMode ? 'Live switched to private communication mode' : 'Live switched back from private mode');
+    rosterExpanded = !rosterExpanded;
+    document.getElementById('guestGrid').innerHTML = rosterExpanded
+        ? '<div class="guest-box">Realtime roster enabled</div><div class="guest-box">Viewer count updates live</div>'
+        : '<div class="guest-box">Waiting for viewers</div>';
 }
 
 function toggleComments() {
     commentsEnabled = !commentsEnabled;
-    if (!commentsEnabled) {
-        document.getElementById('broadcastCommentsPop').innerHTML = '';
-    } else {
-        loadComments();
-    }
-    logBroadcast(commentsEnabled ? 'Comments enabled' : 'Comments disabled');
+    if (!commentsEnabled) document.getElementById('broadcastCommentsPop').innerHTML = '';
+    logBroadcast(commentsEnabled ? 'Comments overlay enabled.' : 'Comments overlay hidden.');
 }
 
 function sendAutoReply() {
@@ -278,38 +276,31 @@ function sendAutoReply() {
     sendHostMessage();
 }
 
-function blockRandomUser() {
-    logBroadcast('A viewer was blocked from the live room');
-}
-
 function forwardLive() {
-    logBroadcast('Live page forwarded/shared');
+    navigator.clipboard?.writeText(window.location.origin + "{% url 'live_join' room.id %}");
+    logBroadcast('Viewer room link copied.');
 }
 
 function sendGiftNotice() {
-    logBroadcast('Gift notice sent to viewers');
+    logBroadcast('Gift notice sent to viewers.');
 }
 
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split(";");
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + "=")) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+        document.cookie.split(";").forEach(cookie => {
+            const trimmed = cookie.trim();
+            if (trimmed.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
             }
-        }
+        });
     }
     return cookieValue;
 }
 
-setInterval(loadComments, 4000);
-setInterval(loadGifts, 5000);
-
 document.addEventListener('DOMContentLoaded', function() {
     prepareBroadcastCamera();
+    connectLiveSocket();
 });
 </script>
 {% endblock %}

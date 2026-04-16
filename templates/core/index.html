@@ -14,8 +14,13 @@
             </p>
 
             <div class="hero-buttons">
-                <a href="/accounts/signup/" class="btn btn-main">Create Account</a>
-                <a href="/accounts/login/" class="btn btn-glass">Login</a>
+                {% if request.user.is_authenticated %}
+                    <a href="{{ smart_profile_url }}" class="btn btn-main">Dashboard</a>
+                    <a href="{% url 'logout' %}" class="btn btn-glass">Logout</a>
+                {% else %}
+                    <a href="{% url 'signup' %}" class="btn btn-main">Create Account</a>
+                    <a href="{{ smart_profile_url }}" class="btn btn-glass">Login</a>
+                {% endif %}
             </div>
 
             <div class="hero-stats">
@@ -71,7 +76,7 @@
             <span class="section-tag">Discover</span>
             <h2>Explore what matters to you</h2>
         </div>
-        <a href="/accounts/signup/" class="section-link">Start now</a>
+            <a href="{% url 'signup' %}" class="section-link">Start now</a>
     </div>
 
     <div class="feature-grid">
@@ -201,8 +206,13 @@
             <p>Support center, admin tools, moderation, financial controls, and scalable features for your platform.</p>
         </div>
         <div class="cta-buttons">
-            <a href="/accounts/signup/" class="btn btn-main">Join Namvibe</a>
-            <a href="/accounts/login/" class="btn btn-dark">Open Account</a>
+            {% if request.user.is_authenticated %}
+                <a href="{{ smart_profile_url }}" class="btn btn-main">Dashboard</a>
+                <a href="{% url 'logout' %}" class="btn btn-dark">Logout</a>
+            {% else %}
+                <a href="{% url 'signup' %}" class="btn btn-main">Join Namvibe</a>
+                <a href="{{ smart_profile_url }}" class="btn btn-dark">Open Account</a>
+            {% endif %}
         </div>
     </div>
 </section>

@@ -36,13 +36,39 @@
       background:linear-gradient(135deg,#5ee0ff,#8b5cf6);
       color:#081225;
     }
-    .post{padding:20px;margin-bottom:18px}
-    .post-top{margin-bottom:10px}
-    .post h3{margin:0 0 4px}
-    .post p{line-height:1.6;color:#d8e4f5}
+    .post{
+      padding:22px;
+      margin-bottom:20px;
+      border-radius:8px;
+    }
+    .post-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:14px;
+    }
+    .post-author{min-width:0}
+    .post h3{margin:0 0 5px;font-size:1.05rem}
+    .post p{line-height:1.65;color:#d8e4f5;margin:0}
+    .post-time{
+      color:#bfd0e8;
+      font-size:.86rem;
+      white-space:nowrap;
+      padding-top:2px;
+    }
     .media{
-      width:100%;max-height:420px;object-fit:cover;border-radius:18px;margin-top:14px;
+      display:block;
+      width:100%;
+      max-height:460px;
+      object-fit:cover;
+      border-radius:8px;
+      margin-top:16px;
       border:1px solid rgba(255,255,255,.08);
+      background:#050b16;
+    }
+    video.media{
+      aspect-ratio:16 / 9;
     }
     .empty{padding:28px;text-align:center}
     a{color:inherit;text-decoration:none}
@@ -70,16 +96,25 @@
       {% for post in posts %}
         <div class="card post">
           <div class="post-top">
-            <h3>{{ post.author_name|default:"Namvibe User" }}</h3>
-            <div class="muted">{{ post.created_at }}</div>
+            <div class="post-author">
+              <h3>{{ post.author_name|default:post.full_name|default:post.username|default:"Namvibe User" }}</h3>
+              <div class="muted">@{{ post.username|default:"user" }}</div>
+            </div>
+            <time class="post-time js-post-time" datetime="{{ post.created_at|default:'' }}">
+              {{ post.created_at|default:"Recent activity" }}
+            </time>
           </div>
 
-          {% if post.content %}
-            <p>{{ post.content }}</p>
+          {% if post.content or post.caption or post.title %}
+            <p>{{ post.content|default:post.caption|default:post.title }}</p>
           {% endif %}
 
           {% if post.media_url %}
-            <img src="{{ post.media_url }}" class="media" alt="Post media">
+            {% if post.media_type == "video" %}
+              <video src="{{ post.media_url }}" class="media" controls preload="metadata"></video>
+            {% else %}
+              <img src="{{ post.media_url }}" class="media" alt="Post media" loading="lazy">
+            {% endif %}
           {% endif %}
         </div>
       {% endfor %}
@@ -90,5 +125,40 @@
       </div>
     {% endif %}
   </div>
+
+  <script>
+    function formatPostTime(value) {
+      if (!value) return "Recent activity";
+
+      const createdAt = new Date(value);
+      if (Number.isNaN(createdAt.getTime())) return value;
+
+      const seconds = Math.floor((Date.now() - createdAt.getTime()) / 1000);
+      if (seconds < 60) return "Just now";
+
+      const intervals = [
+        ["hour", 3600],
+        ["minute", 60],
+      ];
+
+      if (seconds < 86400) {
+        for (const [unit, unitSeconds] of intervals) {
+          const count = Math.floor(seconds / unitSeconds);
+          if (count >= 1) return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
+        }
+      }
+
+      return createdAt.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    document.querySelectorAll(".js-post-time").forEach((item) => {
+      item.textContent = formatPostTime(item.getAttribute("datetime"));
+    });
+  </script>
 </body>
 </html>

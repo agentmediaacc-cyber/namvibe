@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Complete Your Profile | Namvibe{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-card premium-auth-card">
+        <span class="auth-badge">Profile setup</span>
+        <h1>Complete your profile</h1>
+        <p>Your account is ready. Add more personal details later to improve discovery, trust, and creator tools.</p>
+
+        <div class="profile-summary">
+            <div>
+                <span>Name</span>
+                <strong>{{ profile.full_name|default:request.session.eharo_full_name }}</strong>
+            </div>
+            <div>
+                <span>Email</span>
+                <strong>{{ profile.email|default:request.session.eharo_email }}</strong>
+            </div>
+            <div>
+                <span>Current country</span>
+                <strong>{{ profile.current_country|default:"Ready to add" }}</strong>
+            </div>
+        </div>
+
+        <div class="auth-bottom-links profile-actions">
+            <a href="{% url 'user_dashboard' %}" class="btn btn-main">Go to dashboard</a>
+            <a href="{% url 'home' %}">Back to home</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

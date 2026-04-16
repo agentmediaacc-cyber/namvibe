@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
-from django.db.models import Count
 from django.apps import apps
+from posts.supabase_posts import count_public_posts, get_public_posts
 
 
 def _safe_count(model_label):
@@ -49,11 +49,8 @@ def _pick_attr(obj, names, default=""):
 def index(request):
     total_members = User.objects.count()
 
-    total_posts = (
-        _safe_count("posts.Post")
-        or _safe_count("posts.Posts")
-        or _safe_count("core.Post")
-    )
+    recent_posts = get_public_posts(limit=8)
+    total_posts = count_public_posts() or len(recent_posts)
 
     total_live = (
         _safe_count("live.LiveSession")
@@ -65,12 +62,6 @@ def index(request):
     total_stories = (
         _safe_count("posts.Story")
         or _safe_count("core.Story")
-    )
-
-    recent_posts = (
-        _safe_recent("posts.Post", limit=8, order_fields=["-created_at", "-id"])
-        or _safe_recent("posts.Posts", limit=8, order_fields=["-created_at", "-id"])
-        or []
     )
 
     live_preview = (

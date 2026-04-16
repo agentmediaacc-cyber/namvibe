@@ -11,7 +11,7 @@
                 <p>{{ room.description|default:"Watch, comment, and send gifts." }}</p>
             </div>
             <div class="live-real-top-actions">
-                <a href="/" class="btn btn-dark">Back Home</a>
+                <a href="{% url 'home' %}" class="btn btn-dark">Back Home</a>
             </div>
         </div>
 
@@ -19,7 +19,7 @@
             <div class="live-main-stage">
                 <div class="live-stage-frame {{ room.theme|default:'theme-purple' }} view-normal" id="joinLiveFrame">
                     <div class="live-overlay-top">
-                        <span class="live-pill">{{ room.status|default:"live"|upper }}</span>
+                        <span class="live-pill" id="viewerMode">{{ room.status|upper }}</span>
                         <span class="live-room-tag">{{ room.audience|default:"Public" }} • {{ room.room_access|default:"Open Room" }}</span>
                     </div>
 
@@ -29,6 +29,13 @@
                             <h3>{{ room.title|default:"Live Room" }}</h3>
                             <p>{{ room.description|default:"Welcome to this live room." }}</p>
                             <div class="live-location-pill">{{ room.location_text|default:"Location not shared" }}</div>
+                            {% if room.status == "scheduled" %}
+                                <div class="live-location-pill">This room is scheduled. The host has not started yet.</div>
+                            {% elif room.status == "ended" %}
+                                <div class="live-location-pill">This live session has ended.</div>
+                            {% else %}
+                                <div class="live-location-pill">Live room connected. Media publishing is ready for LiveKit/WebRTC wiring.</div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -38,6 +45,11 @@
                                 {{ comment.username }}: {{ comment.message }}
                             </div>
                         {% endfor %}
+                    </div>
+
+                    <div class="broadcast-top-right-stats">
+                        <div class="stat-chip" id="viewerCountChip">{{ room.viewer_count|default:0 }} viewers</div>
+                        <div class="stat-chip" id="viewerGiftCountChip">{{ gifts|length }} gifts</div>
                     </div>
 
                     <div class="live-overlay-bottom">
@@ -68,10 +80,10 @@
                         <h3>Send Gift</h3>
                     </div>
                     <div class="live-tools-grid">
-                        <button onclick="sendGift('Star', 10)">⭐ Star 10</button>
-                        <button onclick="sendGift('Rose', 20)">🌹 Rose 20</button>
-                        <button onclick="sendGift('Fire', 50)">🔥 Fire 50</button>
-                        <button onclick="sendGift('Crown', 100)">👑 Crown 100</button>
+                        <button onclick="sendGift('Star', 10)">Star 10</button>
+                        <button onclick="sendGift('Rose', 20)">Rose 20</button>
+                        <button onclick="sendGift('Fire', 50)">Fire 50</button>
+                        <button onclick="sendGift('Crown', 100)">Crown 100</button>
                     </div>
                 </div>
 
@@ -107,107 +119,102 @@
 
 <script>
 const roomId = "{{ room.id }}";
+const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/livestream/rooms/${roomId}/`;
+const commentsUrl = "{% url 'create_live_comment_api' room.id %}";
+const giftsUrl = "{% url 'create_live_gift_api' room.id %}";
+let liveSocket = null;
+let giftCount = {{ gifts|length }};
+
+function connectLiveSocket() {
+    liveSocket = new WebSocket(wsUrl);
+    liveSocket.onmessage = event => handleLiveEvent(JSON.parse(event.data));
+}
+
+function handleLiveEvent(data) {
+    if (data.type === 'state') updateRoomState(data.room);
+    if (data.type === 'comment') addComment(data.comment);
+    if (data.type === 'gift') addGift(data.gift);
+}
+
+function updateRoomState(room) {
+    document.getElementById('viewerMode').textContent = room.status.toUpperCase();
+    document.getElementById('viewerCountChip').textContent = `${room.viewer_count} viewers`;
+}
+
+function addComment(comment) {
+    const empty = document.querySelector('#commentList .pd-list-item');
+    if (empty && empty.textContent === 'No comments yet.') empty.remove();
+
+    const row = document.createElement("div");
+    row.className = "pd-list-item";
+    row.textContent = `${comment.username}: ${comment.message}`;
+    document.getElementById("commentList").prepend(row);
+
+    const bubble = document.createElement("div");
+    bubble.className = `comment-bubble ${comment.is_host ? 'host' : 'user'} show`;
+    bubble.textContent = `${comment.username}: ${comment.message}`;
+    const pop = document.getElementById("viewerCommentsPop");
+    pop.prepend(bubble);
+    while (pop.children.length > 5) pop.lastElementChild.remove();
+}
+
+function addGift(gift) {
+    giftCount += 1;
+    document.getElementById('viewerGiftCountChip').textContent = `${giftCount} gifts`;
+    const empty = document.querySelector('#giftList .pd-list-item');
+    if (empty && empty.textContent === 'No gifts yet.') empty.remove();
+
+    const row = document.createElement("div");
+    row.className = "pd-list-item";
+    row.textContent = `${gift.sender_username} sent ${gift.gift_name} (${gift.token_amount})`;
+    document.getElementById("giftList").prepend(row);
+}
 
 async function sendViewerComment() {
     const input = document.getElementById("viewerCommentInput");
     const message = input.value.trim();
     if (!message) return;
 
-    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/create/`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCookie("csrftoken"),
-        },
-        body: JSON.stringify({
-            message: message,
-            is_host: false
-        })
-    });
-
-    const data = await resp.json();
-    if (data.ok) {
+    if (liveSocket && liveSocket.readyState === WebSocket.OPEN) {
+        liveSocket.send(JSON.stringify({ action: "comment", message }));
         input.value = "";
-        loadComments();
+        return;
     }
+
+    const data = await postJson(commentsUrl, { message });
+    if (data.ok) input.value = "";
 }
 
 async function sendGift(name, amount) {
-    const resp = await fetch(`/livestream/api/rooms/${roomId}/gifts/create/`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCookie("csrftoken"),
-        },
-        body: JSON.stringify({
-            gift_name: name,
-            token_amount: amount
-        })
-    });
-
-    const data = await resp.json();
-    if (data.ok) {
-        loadGifts();
+    if (liveSocket && liveSocket.readyState === WebSocket.OPEN) {
+        liveSocket.send(JSON.stringify({ action: "gift", gift_name: name, token_amount: amount }));
+        return;
     }
+    await postJson(giftsUrl, { gift_name: name, token_amount: amount });
 }
 
-async function loadComments() {
-    const resp = await fetch(`/livestream/api/rooms/${roomId}/comments/`);
-    const data = await resp.json();
-    if (!data.ok) return;
-
-    const list = document.getElementById("commentList");
-    const pop = document.getElementById("viewerCommentsPop");
-    list.innerHTML = "";
-    pop.innerHTML = "";
-
-    data.comments.forEach((c, i) => {
-        const row = document.createElement("div");
-        row.className = "pd-list-item";
-        row.textContent = `${c.username}: ${c.message}`;
-        list.appendChild(row);
-
-        if (i < 5) {
-            const bubble = document.createElement("div");
-            bubble.className = `comment-bubble ${c.is_host ? 'host' : 'user'} show`;
-            bubble.textContent = `${c.username}: ${c.message}`;
-            pop.appendChild(bubble);
-        }
+async function postJson(url, payload) {
+    const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+        body: JSON.stringify(payload)
     });
-}
-
-async function loadGifts() {
-    const resp = await fetch(`/livestream/api/rooms/${roomId}/gifts/`);
-    const data = await resp.json();
-    if (!data.ok) return;
-
-    const list = document.getElementById("giftList");
-    list.innerHTML = "";
-
-    data.gifts.forEach(g => {
-        const row = document.createElement("div");
-        row.className = "pd-list-item";
-        row.textContent = `${g.sender_username} sent ${g.gift_name} (${g.token_amount})`;
-        list.appendChild(row);
-    });
+    return resp.json();
 }
 
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== "") {
-        const cookies = document.cookie.split(";");
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + "=")) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+        document.cookie.split(";").forEach(cookie => {
+            const trimmed = cookie.trim();
+            if (trimmed.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
             }
-        }
+        });
     }
     return cookieValue;
 }
 
-setInterval(loadComments, 4000);
-setInterval(loadGifts, 5000);
+document.addEventListener('DOMContentLoaded', connectLiveSocket);
 </script>
 {% endblock %}

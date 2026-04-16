@@ -125,6 +125,10 @@
       background:linear-gradient(135deg,var(--pink),var(--violet));
     }
 
+    .auth-action{
+      background:rgba(255,255,255,.08);
+    }
+
     .stat-pill{
       padding:10px 14px;
       border-radius:14px;
@@ -136,9 +140,13 @@
 
     .layout{
       display:grid;
-      grid-template-columns:300px minmax(0,1fr) 340px;
+      grid-template-columns:minmax(0,1fr) 340px;
       gap:18px;
       align-items:start;
+    }
+
+    .layout.section-only{
+      grid-template-columns:minmax(0,1fr);
     }
 
     .panel{
@@ -171,16 +179,30 @@
       align-items:center;
       justify-content:space-between;
       gap:12px;
+      width:100%;
       padding:14px 14px;
-      border-radius:16px;
-      background:rgba(255,255,255,.06);
+      border-radius:8px;
+      background:rgba(255,255,255,.055);
       border:1px solid rgba(255,255,255,.08);
-      transition:.2s ease;
+      transition:background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      color:var(--text);
+      cursor:pointer;
+      text-align:left;
     }
 
     .menu-item:hover{
       transform:translateY(-1px);
       background:rgba(255,255,255,.10);
+    }
+
+    .menu-item.active{
+      background:linear-gradient(135deg, rgba(0,194,255,.18), rgba(255,255,255,.08));
+      border-color:rgba(0,194,255,.62);
+      box-shadow:inset 3px 0 0 var(--cyan), 0 12px 28px rgba(0,194,255,.12);
+    }
+
+    .menu-item.active .menu-icon{
+      background:linear-gradient(135deg,rgba(0,194,255,.30),rgba(255,45,122,.22));
     }
 
     .menu-left{
@@ -212,6 +234,32 @@
     .content{
       display:grid;
       gap:18px;
+    }
+
+    .content-section{
+      display:none;
+    }
+
+    .content-section.active{
+      display:grid;
+      gap:18px;
+    }
+
+    .section-panel{
+      padding:24px;
+      min-height:320px;
+    }
+
+    .section-panel h1{
+      margin:0 0 10px;
+      font-size:clamp(1.6rem, 3vw, 2.4rem);
+    }
+
+    .section-panel p{
+      margin:0;
+      color:var(--muted);
+      line-height:1.6;
+      max-width:680px;
     }
 
     .hero{
@@ -372,23 +420,28 @@
 
     .feed{
       display:grid;
-      gap:18px;
+      gap:20px;
     }
 
     .card{
-      padding:18px;
+      padding:20px;
       cursor:pointer;
+    }
+
+    .feed .card{
+      border-radius:8px;
     }
 
     .post-head{
       display:flex;
-      align-items:center;
+      align-items:flex-start;
       gap:12px;
-      margin-bottom:14px;
+      margin-bottom:16px;
     }
 
     .post-meta{
       min-width:0;
+      flex:1;
     }
 
     .post-name{
@@ -401,6 +454,7 @@
     .post-time{
       font-size:.83rem;
       color:var(--muted);
+      margin-top:3px;
     }
 
     .chip-live{
@@ -416,23 +470,33 @@
     .post-text{
       color:#eef2ff;
       line-height:1.6;
-      margin-bottom:14px;
+      margin-bottom:16px;
       word-break:break-word;
     }
 
     .media-box{
-      border-radius:20px;
-      min-height:240px;
-      background:
-        linear-gradient(145deg, rgba(255,45,122,.25), rgba(124,58,237,.22), rgba(0,194,255,.18)),
-        rgba(255,255,255,.06);
+      border-radius:8px;
+      background:rgba(255,255,255,.05);
       border:1px solid rgba(255,255,255,.10);
       display:grid;
       place-items:center;
       color:#fff;
       font-weight:800;
-      margin-bottom:14px;
+      margin-bottom:16px;
       overflow:hidden;
+    }
+
+    .media-box img,
+    .media-box video{
+      display:block;
+      width:100%;
+      max-height:520px;
+      object-fit:cover;
+      background:#050b16;
+    }
+
+    .media-box video{
+      aspect-ratio:16 / 9;
     }
 
     .actions{
@@ -444,7 +508,7 @@
     .mini-btn{
       text-align:center;
       padding:12px 8px;
-      border-radius:14px;
+      border-radius:8px;
       background:rgba(255,255,255,.08);
       border:1px solid var(--line);
       color:#fff;
@@ -536,15 +600,69 @@
       font-weight:700;
     }
 
-    .mobile-menu{
-      display:none;
-      margin-bottom:16px;
-      padding:16px;
+    .drawer-backdrop{
+      position:fixed;
+      inset:0;
+      z-index:90;
+      background:rgba(2,6,23,.72);
+      backdrop-filter:blur(2px);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .28s ease;
     }
 
-    .mobile-menu-grid{
+    .drawer-backdrop.open{
+      opacity:1;
+      pointer-events:auto;
+    }
+
+    .menu-drawer{
+      position:fixed;
+      top:0;
+      left:0;
+      z-index:100;
+      width:min(340px, calc(100vw - 32px));
+      height:100vh;
+      padding:18px;
+      border-radius:0 8px 8px 0;
+      opacity:.98;
+      transform:translateX(-105%);
+      transition:transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease;
+      overflow:auto;
+      box-shadow:0 28px 80px rgba(0,0,0,.46);
+      will-change:transform;
+    }
+
+    .menu-drawer.open{
+      transform:translateX(0);
+    }
+
+    .drawer-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    .drawer-title{
+      font-weight:900;
+      font-size:1rem;
+    }
+
+    .drawer-close{
+      width:38px;
+      height:38px;
+      border-radius:8px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.08);
+      color:white;
+      cursor:pointer;
+      font-size:20px;
+    }
+
+    .drawer-menu-list{
       display:grid;
-      grid-template-columns:repeat(2,minmax(0,1fr));
       gap:10px;
     }
 
@@ -552,15 +670,8 @@
       .layout{
         grid-template-columns:1fr;
       }
-      .menu,
       .rightbar{
         position:static;
-      }
-      .desktop-menu{
-        display:none;
-      }
-      .mobile-menu{
-        display:block;
       }
     }
 
@@ -588,7 +699,7 @@
 
     @media (max-width: 560px){
       .shell{padding:12px}
-      .hero,.stories,.composer,.widget,.card,.menu,.mobile-menu,.footer{padding:14px}
+      .hero,.stories,.composer,.widget,.card,.menu,.footer,.section-panel{padding:14px}
       .hero-grid{
         grid-template-columns:1fr 1fr;
       }
@@ -608,6 +719,10 @@
         width:100%;
         text-align:center;
       }
+      .top-actions .action-btn{
+        flex:1 1 auto;
+        padding:0 10px;
+      }
     }
   </style>
 </head>
@@ -615,7 +730,7 @@
   <div class="shell">
     <header class="topbar">
       <div class="brand">
-        <button class="hamburger" onclick="toggleMenu()">☰</button>
+        <button class="hamburger" id="menuButton" type="button" aria-controls="menuDrawer" aria-expanded="false" onclick="toggleMenu()">☰</button>
         <div class="brand-badge">N</div>
         <div class="brand-text">
           <div class="brand-title">Namvibe</div>
@@ -626,6 +741,13 @@
       <div></div>
 
       <div class="top-actions">
+        {% if not request.user.is_authenticated %}
+          <a href="{% url 'login' %}" class="action-btn auth-action">Login</a>
+          <a href="{% url 'signup' %}" class="action-btn action-primary">Sign up</a>
+        {% else %}
+          <a href="{{ smart_profile_url }}" class="action-btn action-primary">Profile</a>
+          <a href="{% url 'logout' %}" class="action-btn auth-action">Logout</a>
+        {% endif %}
         <a href="#" class="action-btn action-primary">＋ Story</a>
         <a href="#" class="action-btn">🖼 Upload</a>
         <a href="#" class="action-btn">🔔</a>
@@ -633,260 +755,125 @@
       </div>
     </header>
 
-    <div class="mobile-menu panel" id="mobileMenu" style="display:none;">
-      <div class="mobile-menu-grid">
-        <a class="menu-item" href="/"><span class="menu-left"><span class="menu-icon">🏠</span><span>Home</span></span></a>
-        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🖼</span><span>Gallery Hub</span></span></a>
-        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">👥</span><span>My Followers</span></span></a>
-        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">💼</span><span>Wallets</span></span></a>
-        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🔐</span><span>Security</span></span></a>
-        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🙍</span><span>My Profile</span></span></a>
-        <a class="menu-item" href="#"><span class="menu-left"><span class="menu-icon">🕶</span><span>Anonymous Mode</span></span></a>
-        {% if request.user.is_authenticated %}
-          <a class="menu-item" href="/accounts/logout/"><span class="menu-left"><span class="menu-icon">↩</span><span>Log out</span></span></a>
-        {% else %}
-          <a class="menu-item" href="/accounts/login/"><span class="menu-left"><span class="menu-icon">🔑</span><span>Login</span></span></a>
-        {% endif %}
-      </div>
-    </div>
+    {% include "partials/contextual_drawer.html" with nav_context="home" drawer_title="Home Menu" drawer_label="Homepage menu" %}
 
-    <div class="layout">
-      <aside class="menu panel desktop-menu" id="sideMenu">
-        <h3>Menu</h3>
-        <div class="menu-list">
-          <a class="menu-item" href="/">
-            <span class="menu-left">
-              <span class="menu-icon">🏠</span>
-              <span>Home</span>
-            </span>
-          </a>
-
-          <a class="menu-item" href="#">
-            <span class="menu-left">
-              <span class="menu-icon">🖼</span>
-              <span>Gallery Hub</span>
-            </span>
-          </a>
-
-          <a class="menu-item" href="#">
-            <span class="menu-left">
-              <span class="menu-icon">👥</span>
-              <span>My Followers</span>
-            </span>
-          </a>
-
-          <a class="menu-item" href="#">
-            <span class="menu-left">
-              <span class="menu-icon">💼</span>
-              <span>Wallets</span>
-            </span>
-          </a>
-
-          <a class="menu-item" href="#">
-            <span class="menu-left">
-              <span class="menu-icon">🔐</span>
-              <span>Security</span>
-            </span>
-          </a>
-
-          <a class="menu-item" href="#">
-            <span class="menu-left">
-              <span class="menu-icon">🙍</span>
-              <span>My Profile</span>
-            </span>
-          </a>
-
-          <a class="menu-item" href="#">
-            <span class="menu-left">
-              <span class="menu-icon">🕶</span>
-              <span>Anonymous Mode</span>
-            </span>
-            <span class="badge">Optional</span>
-          </a>
-
-          {% if request.user.is_authenticated %}
-            <a class="menu-item" href="/accounts/logout/">
-              <span class="menu-left">
-                <span class="menu-icon">↩</span>
-                <span>Log out</span>
-              </span>
-            </a>
-          {% else %}
-            <a class="menu-item" href="/accounts/login/">
-              <span class="menu-left">
-                <span class="menu-icon">🔑</span>
-                <span>Login</span>
-              </span>
-            </a>
-            <a class="menu-item" href="/accounts/signup/">
-              <span class="menu-left">
-                <span class="menu-icon">✨</span>
-                <span>Sign up</span>
-              </span>
-              <span class="badge">Join</span>
-            </a>
-          {% endif %}
-        </div>
-      </aside>
-
+    <div class="layout" id="homeLayout">
       <main class="content">
-        <section class="hero panel">
-          <h1>Welcome to Namvibe</h1>
-          <p>
-            A live social space for real stories, public feeds, image and video sharing,
-            creator moments, live rooms, discovery, and community connection — built to show
-            real content from your platform, not unnecessary fake information.
-          </p>
+        <div class="content-section active" data-section-panel="home" aria-hidden="false">
+          <section class="section-panel panel">
+            <h1>Home</h1>
+            <p>
+              A live social space for real stories, public feeds, image and video sharing,
+              creator moments, live rooms, discovery, and community connection.
+            </p>
 
-          <div class="hero-grid">
-            <div class="hero-stat">
-              <div class="num">{{ total_members|default:0 }}</div>
-              <div class="label">Real members</div>
+            <div class="hero-grid">
+              <div class="hero-stat">
+                <div class="num">{{ total_members|default:0 }}</div>
+                <div class="label">Real members</div>
+              </div>
+              <div class="hero-stat">
+                <div class="num">{{ total_posts|default:0 }}</div>
+                <div class="label">Public posts</div>
+              </div>
+              <div class="hero-stat">
+                <div class="num">{{ total_live|default:0 }}</div>
+                <div class="label">Live sessions</div>
+              </div>
+              <div class="hero-stat">
+                <div class="num">{{ total_stories|default:0 }}</div>
+                <div class="label">Stories available</div>
+              </div>
             </div>
-            <div class="hero-stat">
-              <div class="num">{{ total_posts|default:0 }}</div>
-              <div class="label">Public posts</div>
-            </div>
-            <div class="hero-stat">
-              <div class="num">{{ total_live|default:0 }}</div>
-              <div class="label">Live sessions</div>
-            </div>
-            <div class="hero-stat">
-              <div class="num">{{ total_stories|default:0 }}</div>
-              <div class="label">Stories available</div>
-            </div>
-          </div>
-        </section>
 
-        <section class="composer panel">
-          <div class="composer-box">
-            <div class="avatar">
+            <div class="composer-box">
+              <div class="avatar">
+                {% if request.user.is_authenticated %}
+                  {{ request.user.username|slice:":1"|upper }}
+                {% else %}
+                  N
+                {% endif %}
+              </div>
+
               {% if request.user.is_authenticated %}
-                {{ request.user.username|slice:":1"|upper }}
+                <a href="#" class="input-fake">Share your story, post an update, image, or video...</a>
               {% else %}
-                N
+                <a href="{{ smart_profile_url }}" class="input-fake">Login to share your story, upload image, or start live...</a>
               {% endif %}
             </div>
 
-            {% if request.user.is_authenticated %}
-              <a href="#" class="input-fake">Share your story, post an update, image, or video...</a>
+            {% if recent_posts %}
+              <div class="feed">
+                {% for post in recent_posts|slice:":1" %}
+                  <article class="card panel">
+                    <div class="post-head">
+                      <div class="avatar">
+                        {{ post.full_name|default:post.username|default:"N"|slice:":1"|upper }}
+                      </div>
+                      <div class="post-meta">
+                        <div class="post-name">
+                          {{ post.full_name|default:post.username|default:"Namvibe User" }}
+                        </div>
+                        <time class="post-time js-post-time" datetime="{{ post.created_at|default:'' }}">
+                          {{ post.created_at|default:"Recent activity" }}
+                        </time>
+                      </div>
+                    </div>
+
+                    <div class="post-text">
+                      {{ post.caption|default:post.content|default:post.title|default:"New public content from the community."|truncatechars:240 }}
+                    </div>
+
+                    {% if post.media_url %}
+                      <div class="media-box">
+                        {% if post.media_type == "video" %}
+                          <video src="{{ post.media_url }}" controls preload="metadata"></video>
+                        {% else %}
+                          <img src="{{ post.media_url }}" alt="Post media" loading="lazy">
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </article>
+                {% endfor %}
+              </div>
             {% else %}
-              <a href="/accounts/login/" class="input-fake">Login to share your story, upload image, or start live...</a>
+              <div class="post-text">Your homepage is ready for real platform data. Once users begin posting, their public content can appear here.</div>
             {% endif %}
+          </section>
+        </div>
 
-            <a href="#" class="circle-btn" title="Story">＋</a>
-            <a href="#" class="circle-btn" title="Upload">🖼</a>
-            <a href="#" class="circle-btn" title="Video">🎥</a>
-          </div>
+        <section class="content-section section-panel panel" data-section-panel="gallery" aria-hidden="true">
+          <h1>Gallery Hub</h1>
+          <p>Photos, videos, story highlights, and creator moments live here.</p>
         </section>
 
-        <section class="stories panel">
-          <div class="section-title">
-            <h2>Stories</h2>
-            <a href="#">See all</a>
-          </div>
-
-          <div class="story-row">
-            {% if stories %}
-              {% for item in stories %}
-                <a href="#" class="story">
-                  <div class="story-ring">
-                    <div class="story-inner">
-                      {{ item.user.username|default:item.username|default:"N"|slice:":1"|upper }}
-                    </div>
-                  </div>
-                  <div class="story-name">
-                    {{ item.user.username|default:item.username|default:"Story" }}
-                  </div>
-                </a>
-              {% endfor %}
-            {% else %}
-              <a href="#" class="story">
-                <div class="story-ring"><div class="story-inner">N</div></div>
-                <div class="story-name">No stories yet</div>
-              </a>
-            {% endif %}
-          </div>
+        <section class="content-section section-panel panel" data-section-panel="followers" aria-hidden="true">
+          <h1>My Followers</h1>
+          <p>Follower activity, people you follow, and community requests live here.</p>
         </section>
 
-        <section class="feed">
-          {% if recent_posts %}
-            {% for post in recent_posts %}
-              <article class="card panel">
-                <div class="post-head">
-                  <div class="avatar">
-                    {{ post.user.username|default:post.author.username|default:"N"|slice:":1"|upper }}
-                  </div>
-                  <div class="post-meta">
-                    <div class="post-name">
-                      {{ post.user.username|default:post.author.username|default:"Namvibe User" }}
-                    </div>
-                    <div class="post-time">
-                      {{ post.created_at|default:post.created|default:"Recent activity" }}
-                    </div>
-                  </div>
-                </div>
-
-                <div class="post-text">
-                  {{ post.content|default:post.caption|default:post.text|default:"New public content from the community."|truncatechars:240 }}
-                </div>
-
-                <div class="media-box">
-                  Content preview
-                </div>
-
-                <div class="actions">
-                  <a href="#" class="mini-btn">❤️ Like</a>
-                  <a href="#" class="mini-btn">💬 Comment</a>
-                  <a href="#" class="mini-btn">📤 Share</a>
-                  <a href="#" class="mini-btn">👎 Dislike</a>
-                  <a href="#" class="mini-btn">➕ Join</a>
-                </div>
-              </article>
-            {% endfor %}
-          {% else %}
-            <article class="card panel">
-              <div class="post-head">
-                <div class="avatar">N</div>
-                <div class="post-meta">
-                  <div class="post-name">Namvibe Feed</div>
-                  <div class="post-time">Waiting for real posts</div>
-                </div>
-              </div>
-              <div class="post-text">
-                Your homepage is ready for real platform data. Once users begin posting,
-                their public content can appear here.
-              </div>
-              <div class="media-box">Feed preview area</div>
-              <div class="actions">
-                <a href="#" class="mini-btn">❤️ Like</a>
-                <a href="#" class="mini-btn">💬 Comment</a>
-                <a href="#" class="mini-btn">📤 Share</a>
-                <a href="#" class="mini-btn">👎 Dislike</a>
-                <a href="#" class="mini-btn">➕ Join</a>
-              </div>
-            </article>
-          {% endif %}
+        <section class="content-section section-panel panel" data-section-panel="wallets" aria-hidden="true">
+          <h1>Wallets</h1>
+          <p>Balances, rewards, creator payments, and transaction shortcuts live here.</p>
         </section>
 
-        <footer class="footer panel">
-          <div class="section-title">
-            <h2>Footer Links</h2>
-          </div>
-          <div class="footer-grid">
-            <a href="#">About Us</a>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Cookies Policy</a>
-            <a href="#">Community Standards</a>
-            <a href="#">Parental Guide</a>
-            <a href="#">Streamer Sign Up</a>
-            <a href="#">Support</a>
-            <a href="#">Terms of Use</a>
-          </div>
-        </footer>
+        <section class="content-section section-panel panel" data-section-panel="security" aria-hidden="true">
+          <h1>Security</h1>
+          <p>Login protection, account safety, privacy settings, and trusted devices live here.</p>
+        </section>
+
+        <section class="content-section section-panel panel" data-section-panel="profile" aria-hidden="true">
+          <h1>My Profile</h1>
+          <p>Your profile details, public identity, saved posts, and creator settings live here.</p>
+        </section>
+
+        <section class="content-section section-panel panel" data-section-panel="anonymous" aria-hidden="true">
+          <h1>Anonymous Mode</h1>
+          <p>Private browsing, anonymous posting choices, and visibility controls live here.</p>
+        </section>
       </main>
 
-      <aside class="rightbar">
+      <aside class="rightbar contextual-extra" id="rightbar" hidden>
         <section class="widget panel">
           <div class="section-title">
             <h2>Live now</h2>
@@ -967,11 +954,109 @@
   </div>
 
   <script>
+    const drawer = document.getElementById("menuDrawer");
+    const drawerBackdrop = document.getElementById("drawerBackdrop");
+    const menuButton = document.getElementById("menuButton");
+    const layout = document.getElementById("homeLayout");
+    const rightbar = document.getElementById("rightbar");
+    const menuItems = document.querySelectorAll("[data-section]");
+    const contentSections = document.querySelectorAll("[data-section-panel]");
+
     function toggleMenu() {
-      const menu = document.getElementById("mobileMenu");
-      if (!menu) return;
-      menu.style.display = menu.style.display === "none" ? "block" : "none";
+      if (!drawer) return;
+      if (drawer.classList.contains("open")) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
     }
+
+    function openMenu() {
+      drawer.classList.add("open");
+      drawerBackdrop.classList.add("open");
+      drawer.setAttribute("aria-hidden", "false");
+      menuButton.setAttribute("aria-expanded", "true");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeMenu() {
+      drawer.classList.remove("open");
+      drawerBackdrop.classList.remove("open");
+      drawer.setAttribute("aria-hidden", "true");
+      menuButton.setAttribute("aria-expanded", "false");
+      document.body.style.overflow = "";
+    }
+
+    function selectSection(sectionName) {
+      menuItems.forEach((item) => {
+        item.classList.toggle("active", item.dataset.section === sectionName);
+      });
+
+      contentSections.forEach((section) => {
+        const isActive = section.dataset.sectionPanel === sectionName;
+        section.classList.toggle("active", isActive);
+        section.setAttribute("aria-hidden", isActive ? "false" : "true");
+      });
+
+      if (rightbar) rightbar.hidden = true;
+      if (layout) layout.classList.add("section-only");
+
+      closeMenu();
+    }
+
+    menuItems.forEach((item) => {
+      item.addEventListener("click", () => selectSection(item.dataset.section));
+    });
+
+    document.querySelectorAll(".js-drawer-action").forEach((item) => {
+      item.addEventListener("click", () => {
+        if (!item.dataset.section) closeMenu();
+      });
+    });
+
+    drawerBackdrop.addEventListener("click", closeMenu);
+    document.querySelector(".drawer-close").addEventListener("click", closeMenu);
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeMenu();
+    });
+
+    function formatPostTime(value) {
+      if (!value) return "Recent activity";
+
+      const createdAt = new Date(value);
+      if (Number.isNaN(createdAt.getTime())) return value;
+
+      const seconds = Math.floor((Date.now() - createdAt.getTime()) / 1000);
+      if (seconds < 60) return "Just now";
+
+      const intervals = [
+        ["year", 31536000],
+        ["month", 2592000],
+        ["week", 604800],
+        ["day", 86400],
+        ["hour", 3600],
+        ["minute", 60],
+      ];
+
+      for (const [unit, unitSeconds] of intervals) {
+        const count = Math.floor(seconds / unitSeconds);
+        if (count >= 1 && seconds < 86400) {
+          return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
+        }
+      }
+
+      return createdAt.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    document.querySelectorAll(".js-post-time").forEach((item) => {
+      item.textContent = formatPostTime(item.getAttribute("datetime"));
+    });
   </script>
 </body>
 </html>

@@ -12,7 +12,7 @@
             </div>
 
             <div class="live-real-top-actions">
-                <a href="/accounts/dashboard/" class="btn btn-dark">Back Dashboard</a>
+                <a href="{% url 'user_dashboard' %}" class="btn btn-dark">Back Dashboard</a>
                 <button class="btn btn-main" onclick="prepareDeviceAccess()">Test Devices</button>
             </div>
         </div>
@@ -196,7 +196,7 @@
 
                         <div class="live-real-action-row">
                             <button type="button" onclick="prepareDeviceAccess()">Test Camera</button>
-                            <button type="button" onclick="goToBroadcastScreen()">Next: Open Broadcast Screen</button>
+                            <button type="button" onclick="goToBroadcastScreen()">Create Room & Open Broadcast</button>
                         </div>
                     </div>
                 </div>
@@ -207,7 +207,7 @@
                     </div>
                     <div id="liveStudioLog">
                         <div class="pd-list-item">Live setup ready.</div>
-                        <div class="pd-list-item">Test camera, mic, and location before continuing.</div>
+                        <div class="pd-list-item">Rooms are created as scheduled until the host starts the live session.</div>
                     </div>
                 </div>
             </div>
@@ -218,6 +218,8 @@
 <script>
 let cameraFacingMode = "user";
 let userMediaStream = null;
+const createRoomUrl = "{% url 'create_live_room_api' %}";
+const broadcastUrlTemplate = "{% url 'live_broadcast' '00000000-0000-0000-0000-000000000000' %}";
 
 function logLive(text) {
     const log = document.getElementById('liveStudioLog');
@@ -352,7 +354,7 @@ async function goToBroadcastScreen() {
         location_text: document.getElementById("liveLocationText").innerText || ""
     };
 
-    const resp = await fetch("/livestream/api/rooms/create/", {
+    const resp = await fetch(createRoomUrl, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -363,11 +365,12 @@ async function goToBroadcastScreen() {
 
     const data = await resp.json();
     if (!data.ok) {
-        alert("Could not create live room");
+        alert(data.error || "Could not create live room");
         return;
     }
 
-    window.location.href = `/livestream/broadcast/${data.room.id}/`;
+    logLive("Room created as scheduled. Open the broadcast screen to start live.");
+    window.location.href = broadcastUrlTemplate.replace("00000000-0000-0000-0000-000000000000", data.room.id);
 }
 
 function getCookie(name) {
