@@ -1,10 +1,15 @@
 #!/bin/bash
+echo "🔥 FORCE CLEAN INSTALL..."
 
-echo "🚀 Installing dependencies..."
+rm -rf .venv
+rm -rf venv
+
+python -m venv .venv
+source .venv/bin/activate
+
 pip install --upgrade pip
 pip install -r requirements.txt
 
-echo "📦 Collecting static files..."
 python manage.py collectstatic --noinput
 
-echo "✅ Build complete"
+echo "✅ CLEAN BUILD COMPLETE"
