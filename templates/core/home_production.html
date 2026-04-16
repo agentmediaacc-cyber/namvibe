@@ -1,0 +1,282 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Namvibe — Namibian vibes in motion</title>
+  <style>
+    :root{
+      --bg:#081225;
+      --bg2:#0f1c38;
+      --card:rgba(255,255,255,.08);
+      --card-border:rgba(255,255,255,.12);
+      --text:#f8fbff;
+      --muted:#b9c7dd;
+      --accent:#5ee0ff;
+      --accent2:#8b5cf6;
+      --success:#22c55e;
+      --shadow:0 20px 60px rgba(0,0,0,.35);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;font-family:Inter,Arial,sans-serif;background:
+      radial-gradient(circle at top left, rgba(94,224,255,.16), transparent 28%),
+      radial-gradient(circle at top right, rgba(139,92,246,.18), transparent 25%),
+      linear-gradient(180deg,var(--bg),var(--bg2)); color:var(--text);}
+    a{text-decoration:none;color:inherit}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    .nav{
+      display:flex;align-items:center;justify-content:space-between;gap:18px;
+      padding:14px 18px;margin-top:10px;
+      background:rgba(255,255,255,.06);backdrop-filter:blur(16px);
+      border:1px solid var(--card-border);border-radius:20px;box-shadow:var(--shadow);
+    }
+    .brand{display:flex;align-items:center;gap:14px;font-weight:800;font-size:1.15rem}
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:#07111f;font-weight:900;box-shadow:var(--shadow)
+    }
+    .nav-links{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-weight:600}
+    .nav-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      padding:12px 18px;border-radius:16px;font-weight:700;
+      border:1px solid var(--card-border);transition:.25s ease;
+    }
+    .btn:hover{transform:translateY(-2px)}
+    .btn-primary{
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:#07111f;border:none;
+    }
+    .btn-ghost{background:rgba(255,255,255,.05);color:var(--text)}
+    .hero{
+      display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:center;
+      padding:58px 0 26px;
+    }
+    .hero-card,.glass{
+      background:var(--card);border:1px solid var(--card-border);
+      backdrop-filter:blur(18px);border-radius:var(--radius);box-shadow:var(--shadow);
+    }
+    .hero-copy{padding:34px}
+    .badge{
+      display:inline-flex;align-items:center;gap:10px;
+      background:rgba(255,255,255,.08);border:1px solid var(--card-border);
+      color:var(--muted);padding:10px 14px;border-radius:999px;font-size:.92rem;font-weight:700;
+      margin-bottom:18px;
+    }
+    h1{
+      margin:0 0 14px;font-size:clamp(2.4rem,5vw,4.8rem);line-height:1.02;letter-spacing:-.03em;
+    }
+    .hero-copy p{
+      color:var(--muted);font-size:1.08rem;line-height:1.75;max-width:760px;margin:0 0 22px;
+    }
+    .hero-actions{display:flex;gap:14px;flex-wrap:wrap;margin-top:20px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:28px}
+    .stat{
+      padding:18px;border-radius:18px;background:rgba(255,255,255,.05);
+      border:1px solid var(--card-border)
+    }
+    .stat h3{margin:0;font-size:1.5rem}
+    .stat p{margin:8px 0 0;color:var(--muted);font-size:.92rem}
+    .hero-side{padding:20px}
+    .phone{
+      border-radius:28px;padding:18px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04));
+      border:1px solid rgba(255,255,255,.16);
+    }
+    .screen{
+      min-height:520px;border-radius:24px;padding:18px;
+      background:linear-gradient(180deg,#091120,#101b35);
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .screen-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .pill{padding:8px 12px;border-radius:999px;background:rgba(94,224,255,.12);color:var(--accent);font-size:.82rem;font-weight:800}
+    .creator{
+      display:flex;gap:14px;align-items:center;padding:14px;border-radius:18px;
+      background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);margin-bottom:12px;
+    }
+    .avatar{
+      width:50px;height:50px;border-radius:16px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--accent2),var(--accent));font-weight:900;color:#06101f;
+    }
+    .creator small,.muted{color:var(--muted)}
+    .section{padding:24px 0 8px}
+    .section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin-bottom:18px}
+    .section-head h2{margin:0;font-size:2rem}
+    .section-head p{margin:6px 0 0;color:var(--muted)}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+    .feature,.mini-card{
+      padding:22px;border-radius:22px;background:var(--card);border:1px solid var(--card-border);box-shadow:var(--shadow)
+    }
+    .icon{
+      width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
+      background:linear-gradient(135deg,rgba(94,224,255,.22),rgba(139,92,246,.26));
+      font-size:1.4rem;margin-bottom:16px
+    }
+    .feature h3,.mini-card h3{margin:0 0 8px}
+    .feature p,.mini-card p{margin:0;color:var(--muted);line-height:1.65}
+    .feed{
+      display:grid;grid-template-columns:1.1fr .9fr;gap:18px
+    }
+    .post-card{padding:22px}
+    .post-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    .post-media{
+      height:220px;border-radius:20px;
+      background:linear-gradient(135deg,rgba(94,224,255,.18),rgba(139,92,246,.22),rgba(255,255,255,.05));
+      border:1px solid var(--card-border);margin:16px 0;
+    }
+    .footer{
+      margin:38px 0 24px;padding:22px;
+      background:rgba(255,255,255,.05);border:1px solid var(--card-border);
+      border-radius:22px;color:var(--muted)
+    }
+    .footer strong{color:var(--text)}
+    @media (max-width: 980px){
+      .hero,.feed,.grid-3,.grid-4{grid-template-columns:1fr}
+      .stats{grid-template-columns:1fr}
+      .nav{flex-direction:column;align-items:flex-start}
+      .nav-actions,.nav-links{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <div class="brand">
+        <div class="logo">N</div>
+        <div>
+          <div>Namvibe</div>
+          <small class="muted">Namibian vibes in motion</small>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/accounts/login/">Login</a>
+        <a href="/accounts/signup/">Create Account</a>
+        <a href="/healthz">Status</a>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-ghost" href="/accounts/login/">Login</a>
+        <a class="btn btn-primary" href="/accounts/signup/">Join Namvibe</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-card hero-copy">
+        <div class="badge">✨ Premium social experience for creators, communities, and culture</div>
+        <h1>Connect, create, go live, and grow on Namvibe.</h1>
+        <p>
+          Namvibe brings together profiles, reels, live moments, private conversations,
+          gifts, wallet tools, and creator growth in one modern platform built for a bold African digital future.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="/accounts/signup/">Create Account</a>
+          <a class="btn btn-ghost" href="/accounts/login/">Login</a>
+        </div>
+        <div class="stats">
+          <div class="stat"><h3>24K+</h3><p>Creators discovering new audiences</p></div>
+          <div class="stat"><h3>180K+</h3><p>Daily views across reels and public moments</p></div>
+          <div class="stat"><h3>3.1K+</h3><p>Communities built around culture, love, and lifestyle</p></div>
+        </div>
+      </div>
+
+      <div class="hero-card hero-side">
+        <div class="phone">
+          <div class="screen">
+            <div class="screen-top">
+              <strong>Live on Namvibe</strong>
+              <div class="pill">LIVE</div>
+            </div>
+            <div class="creator">
+              <div class="avatar">NV</div>
+              <div>
+                <strong>@namvibe_vibes</strong><br>
+                <small>Sharing stories, reels, and community energy.</small>
+              </div>
+            </div>
+            <div class="creator">
+              <div class="avatar">AF</div>
+              <div>
+                <strong>Trending Profiles</strong><br>
+                <small>Discover creators, music, friendships, and local culture.</small>
+              </div>
+            </div>
+            <div class="creator">
+              <div class="avatar">WL</div>
+              <div>
+                <strong>Wallet & Gifts</strong><br>
+                <small>Coins, creator support, premium perks, and growth tools.</small>
+              </div>
+            </div>
+            <div class="creator">
+              <div class="avatar">GR</div>
+              <div>
+                <strong>Groups & Communities</strong><br>
+                <small>Join topics that matter and build your tribe.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>Core platform features</h2>
+          <p>Everything needed to launch a serious social platform with monetization and community power.</p>
+        </div>
+      </div>
+      <div class="grid-4">
+        <div class="feature"><div class="icon">👤</div><h3>Premium Profiles</h3><p>Clean profile cards, bios, interests, media highlights, and public identity presence.</p></div>
+        <div class="feature"><div class="icon">🎬</div><h3>Short Videos</h3><p>Reels, clips, story moments, and fast creator-first discovery experiences.</p></div>
+        <div class="feature"><div class="icon">🔴</div><h3>Live Streaming</h3><p>Broadcast, engage viewers, accept gifts, and create real-time community experiences.</p></div>
+        <div class="feature"><div class="icon">💬</div><h3>Messaging</h3><p>Private chat, future voice notes, creator conversations, and fast notifications.</p></div>
+        <div class="feature"><div class="icon">🪙</div><h3>Wallet System</h3><p>Coins, gifting, premium support, creator rewards, and growth monetization.</p></div>
+        <div class="feature"><div class="icon">👥</div><h3>Groups</h3><p>Communities, niche spaces, local conversations, and member-powered interactions.</p></div>
+        <div class="feature"><div class="icon">🛍️</div><h3>Marketplace</h3><p>Future-ready selling, promotions, product discovery, and creator commerce.</p></div>
+        <div class="feature"><div class="icon">🛡️</div><h3>Safety & Support</h3><p>Moderation, trust controls, admin tools, reporting systems, and platform oversight.</p></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>What users will experience</h2>
+          <p>A smooth premium feed, real creator tools, and a clean mobile-first social experience.</p>
+        </div>
+      </div>
+      <div class="feed">
+        <div class="mini-card post-card">
+          <div class="post-top">
+            <div class="avatar">NM</div>
+            <div>
+              <strong>Featured Creator Moment</strong><br>
+              <small class="muted">Reels • Stories • Community</small>
+            </div>
+          </div>
+          <p>
+            This area can later show real public posts, reels previews, or trending creator cards once your production data layer is fully restored.
+          </p>
+          <div class="post-media"></div>
+          <p class="muted">Right now this page is a premium production-safe homepage template that keeps Namvibe live while the rest of the product is rebuilt cleanly.</p>
+        </div>
+
+        <div class="grid-3">
+          <div class="mini-card"><div class="icon">📈</div><h3>Growth</h3><p>Promotion tools, featured placements, boosted discovery, and creator visibility.</p></div>
+          <div class="mini-card"><div class="icon">❤️</div><h3>Connection</h3><p>Friendships, dating options, private communities, and audience engagement.</p></div>
+          <div class="mini-card"><div class="icon">🌍</div><h3>Culture</h3><p>Local identity, African creativity, music, fashion, entertainment, and expression.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">
+      <strong>Namvibe</strong> — live on Railway and ready for the next production phase:
+      real homepage data, authentication polish, creator tools, wallet flows, and live platform scaling.
+    </div>
+  </div>
+</body>
+</html>
