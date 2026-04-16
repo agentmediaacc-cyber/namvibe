@@ -159,7 +159,7 @@
         <a href="/healthz">Status</a>
       </div>
       <div class="nav-actions">
-        <a class="btn btn-ghost" href="/accounts/login/">Login</a>
+        <a class="btn btn-ghost" href="/feed/">Open Feed</a>
         <a class="btn btn-primary" href="/accounts/signup/">Join Namvibe</a>
       </div>
     </nav>
@@ -174,7 +174,7 @@
         </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="/accounts/signup/">Create Account</a>
-          <a class="btn btn-ghost" href="/accounts/login/">Login</a>
+          <a class="btn btn-ghost" href="/feed/">Open Feed</a>
         </div>
         <div class="stats">
           <div class="stat"><h3>24K+</h3><p>Creators discovering new audiences</p></div>
@@ -272,6 +272,34 @@
         </div>
       </div>
     </section>
+
+    
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <h2>Recent public posts</h2>
+          <p>Fresh community moments from Namvibe.</p>
+        </div>
+      </div>
+      <div class="grid-3">
+        {% if posts %}
+          {% for post in posts %}
+            <div class="mini-card">
+              <div class="icon">📝</div>
+              <h3>{{ post.author_name|default:"Namvibe User" }}</h3>
+              <p>{{ post.content|default:"Shared a new moment on Namvibe."|truncatechars:120 }}</p>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="mini-card">
+            <div class="icon">✨</div>
+            <h3>No posts yet</h3>
+            <p>Your feed is connected. Create the first post and it will appear here.</p>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+
 
     <div class="footer">
       <strong>Namvibe</strong> — live on Railway and ready for the next production phase:

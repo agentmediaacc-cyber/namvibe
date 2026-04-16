@@ -1,0 +1,94 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Namvibe Feed</title>
+  <style>
+    body{
+      margin:0;
+      font-family:Arial,sans-serif;
+      background:linear-gradient(180deg,#081225,#0f1c38);
+      color:#fff;
+    }
+    .wrap{max-width:960px;margin:0 auto;padding:24px}
+    .nav,.card{
+      background:rgba(255,255,255,.07);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:22px;
+      box-shadow:0 20px 60px rgba(0,0,0,.28);
+    }
+    .nav{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:16px 20px;margin-bottom:22px;
+    }
+    .brand{font-size:1.2rem;font-weight:800}
+    .muted{color:#bfd0e8}
+    .composer{padding:20px;margin-bottom:20px}
+    textarea,input[type=file]{
+      width:100%;margin-top:12px;border-radius:16px;border:none;
+      padding:14px;background:#0b1327;color:white;
+    }
+    button{
+      margin-top:14px;padding:12px 18px;border:none;border-radius:14px;
+      font-weight:700;cursor:pointer;
+      background:linear-gradient(135deg,#5ee0ff,#8b5cf6);
+      color:#081225;
+    }
+    .post{padding:20px;margin-bottom:18px}
+    .post-top{margin-bottom:10px}
+    .post h3{margin:0 0 4px}
+    .post p{line-height:1.6;color:#d8e4f5}
+    .media{
+      width:100%;max-height:420px;object-fit:cover;border-radius:18px;margin-top:14px;
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .empty{padding:28px;text-align:center}
+    a{color:inherit;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav">
+      <div>
+        <div class="brand">Namvibe Feed</div>
+        <div class="muted">Public posts, images, and creator moments</div>
+      </div>
+      <div><a href="/">Home</a></div>
+    </div>
+
+    <form class="card composer" action="/feed/create/" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <h3>Create Post</h3>
+      <textarea name="content" rows="4" placeholder="Share something on Namvibe..."></textarea>
+      <input type="file" name="media" accept="image/*,video/*">
+      <button type="submit">Post Now</button>
+    </form>
+
+    {% if posts %}
+      {% for post in posts %}
+        <div class="card post">
+          <div class="post-top">
+            <h3>{{ post.author_name|default:"Namvibe User" }}</h3>
+            <div class="muted">{{ post.created_at }}</div>
+          </div>
+
+          {% if post.content %}
+            <p>{{ post.content }}</p>
+          {% endif %}
+
+          {% if post.media_url %}
+            <img src="{{ post.media_url }}" class="media" alt="Post media">
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="card empty">
+        <h3>No posts yet</h3>
+        <p class="muted">Create the first Namvibe post above.</p>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -5,6 +5,7 @@ from core.views import index
 
 urlpatterns = [
     path("", index),
+    path("feed/", include("posts.urls")),
     path("healthz", lambda request: HttpResponse("ok")),
     path("admin/", admin.site.urls),
 ]
