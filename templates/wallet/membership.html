@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Membership | Namvibe{% endblock %}
+{% block content %}
+{% include "wallet/_styles.html" %}
+<section class="wallet-shell">
+  <div class="wallet-hero">
+    <div><h1>Premium membership</h1><p class="muted">Use wallet balance for Namvibe premium access and creator features.</p></div>
+    <div class="money">N${{ wallet.available_balance }}</div>
+  </div>
+  {% if active_membership %}
+    <div class="wallet-card"><strong>{{ active_membership.plan.name }} active</strong><p class="muted">Valid until {{ active_membership.ends_at|date:"M j, Y"|default:"ongoing" }}.</p></div>
+  {% endif %}
+  <div class="plan-grid">
+    {% for plan in plans %}
+      <article class="wallet-card">
+        <h2>{{ plan.name }}</h2>
+        <p class="muted">{{ plan.description }}</p>
+        <div class="money">N${{ plan.price }}</div>
+        <p class="muted">{{ plan.get_billing_period_display }}</p>
+        <form method="post" action="{% url 'wallet_membership_buy' plan.slug %}">{% csrf_token %}<button type="submit">Subscribe with wallet</button></form>
+      </article>
+    {% empty %}
+      <div class="wallet-card"><p class="muted">No active plans yet.</p></div>
+    {% endfor %}
+  </div>
+  <p><a class="pill" href="{% url 'wallet_membership_history' %}">Membership history</a></p>
+</section>
+{% endblock %}

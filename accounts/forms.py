@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from .models import AccountProfile
+from .models import AccountProfile, Profile
 
 class SignupForm(forms.Form):
     full_name = forms.CharField(max_length=120)
@@ -116,3 +116,33 @@ class LoginForm(forms.Form):
 
         cleaned["user"] = authenticated
         return cleaned
+
+
+class ProfileForm(forms.ModelForm):
+    class Meta:
+        model = Profile
+        fields = (
+            "display_name",
+            "username",
+            "bio",
+            "avatar",
+            "cover_image",
+            "website",
+            "location",
+            "is_creator",
+            "is_private",
+        )
+        widgets = {
+            "bio": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def clean_username(self):
+        username = self.cleaned_data["username"].strip().lower()
+        if len(username) < 3:
+            raise forms.ValidationError("Username must be at least 3 characters.")
+        qs = Profile.objects.filter(username__iexact=username)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("This username is already taken.")
+        return username

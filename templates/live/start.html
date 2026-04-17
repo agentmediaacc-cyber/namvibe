@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Start Live | Namvibe{% endblock %}
+{% block content %}
+{% include "live/_styles.html" %}
+<section class="live-shell">
+  <div class="live-hero" style="align-items:start;">
+    <form class="live-form live-panel" method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <h1>Start or schedule live</h1>
+      {{ form.as_p }}
+      <button class="primary" type="submit">Create live session</button>
+    </form>
+    <aside class="live-panel">
+      <h2>Creator room setup</h2>
+      <p class="muted">Public rooms are discoverable. Followers-only rooms require viewers to follow you. Premium rooms are prepared for future wallet entitlements.</p>
+      <p class="muted">Streaming is ready for playback URLs; until HLS/RTMP is connected, the room uses a production-safe video stage.</p>
+    </aside>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Wallet | Namvibe{% endblock %}
+{% block content %}
+{% include "wallet/_styles.html" %}
+<section class="wallet-shell">
+  <div class="wallet-hero">
+    <div>
+      <h1>Wallet</h1>
+      <p class="muted">Manage membership access, live gifts, creator earnings, and wallet activity.</p>
+    </div>
+    <div><a class="primary" href="{% url 'wallet_membership' %}">Premium membership</a></div>
+  </div>
+  <div class="wallet-grid">
+    <div class="wallet-card"><span class="muted">Available</span><div class="money">N${{ wallet.available_balance }}</div></div>
+    <div class="wallet-card"><span class="muted">Pending creator earnings</span><div class="money">N${{ wallet.pending_balance }}</div></div>
+    <div class="wallet-card"><span class="muted">Lifetime earned</span><div class="money">N${{ wallet.lifetime_earned }}</div></div>
+    <div class="wallet-card"><span class="muted">Lifetime spent</span><div class="money">N${{ wallet.lifetime_spent }}</div></div>
+  </div>
+  <div class="wallet-layout">
+    <main class="wallet-card">
+      <h2>Recent transactions</h2>
+      <div class="table-list">
+        {% for tx in transactions %}
+          <div class="row"><div><strong>{{ tx.get_transaction_type_display }}</strong><br><span class="muted">{{ tx.reference|default:"Wallet activity" }}</span></div><div><strong>N${{ tx.amount }}</strong><br><span class="status">{{ tx.status }}</span></div></div>
+        {% empty %}
+          <p class="muted">No wallet activity yet.</p>
+        {% endfor %}
+      </div>
+      <p><a class="pill" href="{% url 'wallet_transactions' %}">All transactions</a></p>
+    </main>
+    <aside>
+      <section class="wallet-card">
+        <h2>Membership</h2>
+        {% if active_membership %}
+          <p><strong>{{ active_membership.plan.name }}</strong><br><span class="muted">Active until {{ active_membership.ends_at|date:"M j, Y"|default:"ongoing" }}</span></p>
+        {% else %}
+          <p class="muted">No active membership.</p>
+        {% endif %}
+        <a class="pill primary" href="{% url 'wallet_membership' %}">View plans</a>
+      </section>
+      <section class="wallet-card">
+        <h2>Gifts</h2>
+        <p class="muted">{{ sent_gifts_count }} sent · {{ received_gifts_count }} received</p>
+        <a class="pill" href="{% url 'wallet_gifts' %}">Gift history</a>
+      </section>
+      <section class="wallet-card">
+        <h2>Creator earnings</h2>
+        <p class="muted">Track gifts and premium live access earnings.</p>
+        <a class="pill" href="{% url 'wallet_creator_earnings' %}">Open earnings</a>
+      </section>
+    </aside>
+  </div>
+</section>
+{% endblock %}

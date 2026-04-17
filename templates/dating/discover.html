@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Discover Dating | Namvibe{% endblock %}
+{% block content %}
+{% include "dating/_styles.html" %}
+<section class="dating-shell">
+  <div class="dating-tabs">
+    <a class="dating-primary" href="{% url 'dating_discover' %}">Discover</a>
+    <a href="{% url 'dating_profile_edit' %}">My Dating Profile</a>
+    <a href="{% url 'dating_matches' %}">Matches</a>
+    <a href="{% url 'dating_likes' %}">Likes</a>
+  </div>
+  <div class="dating-layout">
+    <aside class="dating-panel">
+      <h2>Filters</h2>
+      <form class="filter-form" method="get">
+        <input name="age_min" value="{{ filters.age_min }}" placeholder="Min age">
+        <input name="age_max" value="{{ filters.age_max }}" placeholder="Max age">
+        <select name="gender"><option value="">Any gender</option>{% for value,label in gender_choices %}<option value="{{ value }}" {% if filters.gender == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <input name="city" value="{{ filters.city }}" placeholder="City">
+        <input name="region" value="{{ filters.region }}" placeholder="Region">
+        <select name="relationship_goal"><option value="">Any goal</option>{% for value,label in goal_choices %}<option value="{{ value }}" {% if filters.relationship_goal == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        <label><input type="checkbox" name="verified" value="1" {% if filters.verified %}checked{% endif %}> Verified only</label>
+        <label><input type="checkbox" name="creator" value="1" {% if filters.creator %}checked{% endif %}> Creators</label>
+        <button class="dating-primary" type="submit">Apply</button>
+      </form>
+    </aside>
+    <main>
+      {% if primary_profile %}
+        <article class="dating-card">
+          <div class="dating-photo">
+            {% with photo=primary_profile.primary_photo %}
+              {% if photo %}<img src="{{ photo.image.url }}" alt="{{ primary_profile.display_name }}">{% else %}<span class="avatar">{{ primary_profile.display_name|first|upper }}</span>{% endif %}
+            {% endwith %}
+          </div>
+          <h1>{{ primary_profile.display_name }}{% if primary_profile.show_age %}, {{ primary_profile.age }}{% endif %}</h1>
+          <p class="dating-muted">{{ primary_profile.city }}{% if primary_profile.region %}, {{ primary_profile.region }}{% endif %} · {{ primary_profile.get_relationship_goal_display }}</p>
+          <p>{{ primary_profile.bio }}</p>
+          <div class="chip-row">{% for interest in primary_profile.interests %}<span class="chip">{{ interest }}</span>{% endfor %}</div>
+          <div class="dating-actions" style="margin-top:14px;">
+            <form method="post" action="{% url 'dating_pass' primary_profile.user.profile.username %}">{% csrf_token %}<button type="submit">Pass</button></form>
+            <form method="post" action="{% url 'dating_like' primary_profile.user.profile.username %}">{% csrf_token %}<button class="dating-primary" type="submit">Like</button></form>
+            <a href="{% url 'dating_profile_detail' primary_profile.user.profile.username %}">View profile</a>
+          </div>
+        </article>
+      {% else %}
+        <div class="dating-panel"><h2>No profiles found</h2><p class="dating-muted">Adjust your filters or check back soon.</p></div>
+      {% endif %}
+      <div class="dating-grid" style="margin-top:14px;">
+        {% for profile in profiles|slice:"1:" %}
+          <article class="dating-card">
+            <div class="dating-photo">{% with photo=profile.primary_photo %}{% if photo %}<img src="{{ photo.image.url }}" alt="{{ profile.display_name }}">{% else %}<span class="avatar">{{ profile.display_name|first|upper }}</span>{% endif %}{% endwith %}</div>
+            <h2>{{ profile.display_name }}{% if profile.show_age %}, {{ profile.age }}{% endif %}</h2>
+            <p class="dating-muted">{{ profile.city }} · {{ profile.get_relationship_goal_display }}</p>
+            <div class="dating-actions"><a href="{% url 'dating_profile_detail' profile.user.profile.username %}">Open</a></div>
+          </article>
+        {% endfor %}
+      </div>
+    </main>
+    <aside class="dating-panel">
+      <h2>Recent matches</h2>
+      {% for match in recent_matches %}
+        {% if match.user_one == request.user %}
+          {% with user=match.user_two %}
+            <a class="match-row" href="{% url 'dating_profile_detail' user.profile.username %}"><span>@{{ user.profile.username }}</span><small>{{ match.created_at|date:"M j" }}</small></a>
+          {% endwith %}
+        {% else %}
+          {% with user=match.user_one %}
+          <a class="match-row" href="{% url 'dating_profile_detail' user.profile.username %}"><span>@{{ user.profile.username }}</span><small>{{ match.created_at|date:"M j" }}</small></a>
+          {% endwith %}
+        {% endif %}
+      {% empty %}
+        <p class="dating-muted">Mutual matches will appear here.</p>
+      {% endfor %}
+    </aside>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ session.title }} | Live{% endblock %}
+{% block content %}
+{% include "live/_styles.html" %}
+<section class="live-shell">
+  <div class="room-layout">
+    <main>
+      <div class="player">
+        {% if locked_premium %}
+          <div><span class="badge badge-scheduled">PREMIUM</span><h1>{{ session.title }}</h1><p class="muted">Unlock this premium live room with your wallet balance.</p><form method="post" action="{% url 'live_purchase_access' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">Unlock for N${{ live_access_price }}</button></form></div>
+        {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline></video>{% else %}<div><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">Stream video will appear here when connected.</p></div>{% endif %}
+      </div>
+      <div class="live-panel" style="margin-top:14px;">
+        <h1>{{ session.title }}</h1>
+        <p class="muted">{{ session.description }}</p>
+        <div class="live-actions">
+          <span>{{ session.viewer_count }} viewers</span><span>{{ session.like_count }} reactions</span><span>{{ session.get_access_type_display }}</span>
+          {% if request.user.is_authenticated and request.user != session.host %}
+            <form method="post" action="{% url 'follow_toggle' session.host.profile.username %}">{% csrf_token %}<button type="submit">{% if is_following %}Following{% else %}Follow host{% endif %}</button></form>
+          {% endif %}
+          {% if not locked_premium %}<form method="post" action="{% url 'live_react' session.uuid %}">{% csrf_token %}<button class="primary" name="reaction_type" value="fire">React</button></form>{% endif %}
+        </div>
+      </div>
+      {% if is_host %}
+        <div class="live-panel" style="margin-top:14px;">
+          <h2>Host controls</h2>
+          <p class="muted">Stream key: <code>{{ session.stream_key|default:"Not generated yet" }}</code></p>
+          {% if session.status != "ended" %}<form method="post" action="{% url 'live_end' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">End session</button></form>{% endif %}
+        </div>
+      {% endif %}
+    </main>
+    <aside>
+      <section class="live-panel">
+        <h2>Host</h2>
+        <p><strong>{{ session.host.profile.display_name|default:session.host.username }}</strong><br><span class="muted">@{{ session.host.profile.username }}</span></p>
+        <a class="primary" href="{% url 'profile_detail' session.host.profile.username %}">Open profile</a>
+      </section>
+      <section class="live-panel" style="margin-top:14px;">
+        <h2>Live chat</h2>
+        {% include "live/_chat_messages.html" %}
+        {% if can_chat %}
+          <form class="chat-form" method="post" action="{% url 'live_message' session.uuid %}">
+            {% csrf_token %}
+            {{ message_form.body }}
+            <button class="primary" type="submit">Send</button>
+          </form>
+        {% else %}<p class="muted">Chat is unavailable for this room.</p>{% endif %}
+      </section>
+      {% if not locked_premium %}
+      <section class="live-panel" style="margin-top:14px;">
+        <h2>Send a gift</h2>
+        <form class="chat-form" method="post" action="{% url 'live_gift' session.uuid %}">
+          {% csrf_token %}
+          <select name="gift" required>
+            {% for gift in gift_catalog %}
+              <option value="{{ gift.slug }}">{{ gift.name }} · N${{ gift.coin_cost }}</option>
+            {% endfor %}
+          </select>
+          <input name="quantity" type="number" min="1" value="1">
+          <button class="primary" type="submit">Send gift</button>
+        </form>
+        {% for event in recent_gifts %}
+          <p class="muted">{{ event.sender.profile.username|default:event.sender.username }} sent {{ event.quantity }}x {{ event.gift.name }}</p>
+        {% empty %}
+          <p class="muted">No gifts in this room yet.</p>
+        {% endfor %}
+      </section>
+      {% endif %}
+      <section class="live-panel" style="margin-top:14px;">
+        <h2>Related live</h2>
+        {% for related in related_sessions %}<a class="chat-item" href="{% url 'live_room' related.uuid %}">{{ related.title }}</a>{% empty %}<p class="muted">No related live rooms.</p>{% endfor %}
+      </section>
+    </aside>
+  </div>
+</section>
+{% endblock %}

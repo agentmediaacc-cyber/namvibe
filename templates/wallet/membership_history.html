@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Membership History | Namvibe{% endblock %}
+{% block content %}
+{% include "wallet/_styles.html" %}
+<section class="wallet-shell">
+  <div class="wallet-card">
+    <h1>Membership history</h1>
+    <div class="table-list">
+      {% for membership in memberships %}
+        <div class="row"><div><strong>{{ membership.plan.name }}</strong><br><span class="muted">{{ membership.starts_at|date:"M j, Y" }}{% if membership.ends_at %} to {{ membership.ends_at|date:"M j, Y" }}{% endif %}</span></div><span class="status">{{ membership.status }}</span></div>
+      {% empty %}<p class="muted">No membership history yet.</p>{% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

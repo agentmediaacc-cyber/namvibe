@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Preview | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+    <div class="nv-list-head">
+        <div>
+            <h1>Preview</h1>
+            <p>This is how your post will render with stored metadata.</p>
+        </div>
+        <a href="{% url 'edit_post' post.uuid %}">Edit</a>
+    </div>
+    {% include "posts/_post_card.html" with post=post %}
+</section>
+{% endblock %}

@@ -1,0 +1,77 @@
+<article class="nv-post-card">
+    <div class="nv-post-top">
+        <a class="nv-author" href="{% url 'profile_detail' post.author.profile.username %}">
+            <span class="nv-avatar">{{ post.author.profile.display_name|default:post.author.username|first|upper }}</span>
+            <span>
+                <strong>{{ post.author.profile.display_name|default:post.author.username }}</strong>
+                <small>@{{ post.author.profile.username }} · {{ post.get_post_type_display }}</small>
+            </span>
+        </a>
+        <small>{{ post.published_at|default:post.created_at|date:"M j, Y H:i" }}</small>
+    </div>
+
+    {% if post.title %}<h2><a href="{% url 'post_detail' post.uuid %}">{{ post.title }}</a></h2>{% endif %}
+    {% if post.caption %}<p><a href="{% url 'post_detail' post.uuid %}">{{ post.caption }}</a></p>{% endif %}
+
+    {% with media_items=post.media.all %}
+        {% if media_items %}
+            <div class="nv-media-stack">
+                {% for media in media_items %}
+                    <a href="{% url 'post_detail' post.uuid %}">
+                        {% if media.media_type == "video" %}
+                            <video class="nv-media" controls preload="metadata" src="{{ media.file.url }}"></video>
+                        {% else %}
+                            <img class="nv-media" src="{{ media.file.url }}" alt="{{ media.alt_text|default:post.title }}" loading="lazy">
+                        {% endif %}
+                    </a>
+                    {% if media.overlay_text %}<div class="nv-overlay">{{ media.overlay_text }}</div>{% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    {% if post.flyer_meta %}
+        <div class="nv-flyer {{ post.flyer_meta.background_style }}">
+            <strong>{{ post.flyer_meta.flyer_title }}</strong>
+            <span>{{ post.flyer_meta.body }}</span>
+            {% if post.flyer_meta.call_to_action %}<em>{{ post.flyer_meta.call_to_action }}</em>{% endif %}
+        </div>
+    {% endif %}
+
+    {% if post.poll %}
+        <div class="nv-poll">
+            <strong>{{ post.poll.question }}</strong>
+            {% for option in post.poll.options.all %}
+                <div class="nv-poll-option">{{ option.text }} <span>{{ option.vote_count }}</span></div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if post.live_announcement %}
+        <div class="nv-live-box">
+            <strong>{{ post.live_announcement.stream_title }}</strong>
+            <span>{{ post.live_announcement.scheduled_for|date:"M j, Y H:i" }} · {{ post.live_announcement.get_access_type_display }}</span>
+            {% if post.live_announcement.ticket_price %}<span>N${{ post.live_announcement.ticket_price }}</span>{% endif %}
+        </div>
+    {% endif %}
+
+    <div class="nv-tags">
+        {% for tag in post.hashtags %}<span>{{ tag }}</span>{% endfor %}
+        {% if post.premium_badge %}<span>Premium</span>{% endif %}
+        {% if post.is_sensitive %}<span>Sensitive</span>{% endif %}
+    </div>
+
+    <div class="nv-actions">
+        <span>{{ post.view_count }} views</span>
+        <span>{{ post.like_count }} likes</span>
+        <span>{{ post.comment_count }} comments</span>
+        <span>{{ post.share_count }} shares</span>
+        <a href="{% url 'post_detail' post.uuid %}">Open</a>
+    </div>
+    <form class="nv-mobile-actions" method="post">
+        {% csrf_token %}
+        <button formaction="{% url 'like_post' post.uuid %}" name="next" value="{{ request.get_full_path }}">Like</button>
+        <button formaction="{% url 'save_post_toggle' post.uuid %}" name="next" value="{{ request.get_full_path }}">Save</button>
+        <button formaction="{% url 'share_post' post.uuid %}" name="target" value="feed">Share</button>
+    </form>
+</article>

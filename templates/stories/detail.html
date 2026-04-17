@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Story | Namvibe{% endblock %}
+
+{% block content %}
+<style>
+  .story-view{min-height:78vh;display:grid;place-items:center;padding:18px}.story-frame{width:min(480px,100%);min-height:680px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,#111827,#020617);border-radius:24px;padding:18px;position:relative;display:flex;flex-direction:column;gap:14px}.progress{height:4px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden}.progress span{display:block;width:70%;height:100%;background:linear-gradient(135deg,#14b8a6,#f43f5e)}.story-media{flex:1;display:grid;place-items:center;border-radius:18px;background:rgba(255,255,255,.06);overflow:hidden}.story-media img,.story-media video{width:100%;height:100%;object-fit:cover}.story-actions,.story-nav{display:flex;gap:8px;flex-wrap:wrap}.story-actions button,.story-actions a,.story-nav a{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.1);color:white;border-radius:8px;padding:10px 12px;font-weight:800}.story-actions textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#081322;color:white;border-radius:8px;padding:10px}
+</style>
+<section class="story-view">
+  <article class="story-frame">
+    <div class="progress"><span></span></div>
+    <div class="story-nav">
+      <a href="/">Close</a>
+      {% if previous_story %}<a href="{% url 'story_detail' previous_story.id %}">Previous</a>{% endif %}
+      {% if next_story %}<a href="{% url 'story_detail' next_story.id %}">Next</a>{% endif %}
+    </div>
+    <header>
+      <strong>@{{ story.author.profile.username|default:story.author.username }}</strong>
+      <small style="color:#cbd5e1;">{{ story.created_at|timesince }} ago</small>
+    </header>
+    <div class="story-media {{ story.background_style }}">
+      {% if story.media_type == "photo" and story.file %}
+        <img src="{{ story.file.url }}" alt="{{ story.caption }}">
+      {% elif story.media_type == "video" and story.file %}
+        <video src="{{ story.file.url }}" controls autoplay muted playsinline></video>
+      {% else %}
+        <h1 style="padding:22px;text-align:center;">{{ story.text_content }}</h1>
+      {% endif %}
+    </div>
+    {% if story.caption %}<p>{{ story.caption }}</p>{% endif %}
+    {% if story.link_url %}<a class="btn btn-main" href="{{ story.link_url }}">{{ story.link_label|default:"Open link" }}</a>{% endif %}
+    <div>{{ story.view_count }} views · {{ story.like_count }} likes · {{ story.comment_count }} replies · {{ story.share_count }} shares</div>
+    {% if request.user.is_authenticated %}
+      <form class="story-actions" method="post" action="{% url 'story_like' story.id %}">{% csrf_token %}<button name="reaction_type" value="like">Like</button><button name="reaction_type" value="fire">Fire</button></form>
+      <form class="story-actions" method="post" action="{% url 'story_comment' story.id %}">{% csrf_token %}<textarea name="body" rows="2" placeholder="Reply to story"></textarea><button type="submit">Reply</button></form>
+      <form class="story-actions" method="post" action="{% url 'story_share' story.id %}">{% csrf_token %}<button type="submit">Forward</button></form>
+    {% endif %}
+    {% for comment in comments %}<p><strong>@{{ comment.author.username }}</strong> {{ comment.body }}</p>{% endfor %}
+  </article>
+</section>
+<script>
+  fetch("{% url 'story_view' story.id %}", {method:"POST", headers:{"X-CSRFToken":"{{ csrf_token }}"}}).catch(() => {});
+</script>
+{% endblock %}

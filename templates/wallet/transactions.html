@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Transactions | Namvibe{% endblock %}
+{% block content %}
+{% include "wallet/_styles.html" %}
+<section class="wallet-shell">
+  <div class="wallet-card">
+    <h1>Transaction history</h1>
+    <div class="table-list">
+      {% for tx in page_obj %}
+        <div class="row"><div><strong>{{ tx.get_transaction_type_display }}</strong><br><span class="muted">{{ tx.created_at|date:"M j, Y H:i" }} · {{ tx.reference|default:"No reference" }}</span></div><div><strong>N${{ tx.amount }}</strong><br><span class="status">{{ tx.status }}</span></div></div>
+      {% empty %}
+        <p class="muted">No transactions yet.</p>
+      {% endfor %}
+    </div>
+    <p class="muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+  </div>
+</section>
+{% endblock %}

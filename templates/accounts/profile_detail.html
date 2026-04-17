@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}@{{ profile.username }} | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<style>
+    .profile-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.profile-tabs a{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;color:white;font-weight:800}
+    .profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px}
+    .profile-section{margin-top:18px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.055);border-radius:22px;padding:18px}
+    .profile-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.profile-actions a,.profile-actions button{border-radius:8px}
+</style>
+<section style="max-width: 980px; margin: 0 auto; padding: 28px 18px 80px;">
+    <div style="border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.07); border-radius: 24px; overflow: hidden; box-shadow: 0 20px 70px rgba(0,0,0,.25);">
+        <div style="min-height: 180px; background: linear-gradient(135deg, rgba(14,165,233,.7), rgba(236,72,153,.55));">
+            {% if profile.cover_image %}
+                <img src="{{ profile.cover_image.url }}" alt="" style="width:100%; height:240px; object-fit:cover;">
+            {% endif %}
+        </div>
+        <div style="padding: 0 22px 24px;">
+            <div style="display:flex; gap:18px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; margin-top:-52px;">
+                <div style="display:flex; align-items:flex-end; gap:16px;">
+                    <div style="width:108px; height:108px; border-radius:24px; background:#111827; border:4px solid rgba(255,255,255,.75); overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:38px; font-weight:800;">
+                        {% if profile.avatar %}
+                            <img src="{{ profile.avatar.url }}" alt="{{ profile.display_name }}" style="width:100%; height:100%; object-fit:cover;">
+                        {% else %}
+                            {{ profile.display_name|default:profile.username|first|upper }}
+                        {% endif %}
+                    </div>
+                    <div style="padding-bottom:8px;">
+                        <h1 style="margin:0; font-size:30px;">{{ profile.display_name }}</h1>
+                        <p style="margin:5px 0 0; color:#cbd5e1;">@{{ profile.username }}{% if profile.is_verified %} · verified{% endif %}</p>
+                        {% if current_live %}
+                            <a class="btn btn-main" style="margin-top:8px;" href="{% url 'live_room' current_live.uuid %}">LIVE now · {{ current_live.title }}</a>
+                        {% elif upcoming_live %}
+                            <a class="btn btn-dark" style="margin-top:8px;" href="{% url 'live_room' upcoming_live.uuid %}">Upcoming live {{ upcoming_live.starts_at|date:"M j H:i" }}</a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="profile-actions">
+                    {% if can_edit %}
+                        <a class="btn btn-main" href="{% url 'profile_edit' %}">Edit profile</a>
+                        <a class="btn btn-dark" href="{% url 'studio' %}">Create post</a>
+                        <a class="btn btn-dark" href="{% url 'live_home' %}">Go Live</a>
+                    {% elif request.user.is_authenticated %}
+                        <form method="post" action="{% url 'follow_toggle' profile.username %}">
+                            {% csrf_token %}
+                            <button class="btn btn-main" type="submit">{% if is_following %}Following{% else %}Follow{% endif %}</button>
+                        </form>
+                        <a class="btn btn-dark" href="{% url 'messaging:start_chat' profile.user.id %}">Message</a>
+                    {% else %}
+                        <a class="btn btn-main" href="{% url 'login' %}?next={{ request.path }}">Follow</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="display:flex; gap:18px; margin:22px 0; flex-wrap:wrap;">
+                <strong>{{ profile.post_count }} posts</strong>
+                <strong>{{ profile.follower_count }} followers</strong>
+                <strong>{{ profile.following_count }} following</strong>
+            </div>
+
+            {% if profile.bio %}<p style="line-height:1.7; color:#e2e8f0;">{{ profile.bio }}</p>{% endif %}
+            <div style="display:flex; gap:12px; flex-wrap:wrap; color:#cbd5e1;">
+                {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
+                {% if profile.website %}<a style="color:#7dd3fc;" href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
+                {% if active_membership %}<span>Premium</span>{% endif %}
+                {% if profile.is_creator %}<span>Creator</span>{% endif %}
+                {% if profile.is_private %}<span>Private</span>{% endif %}
+                {% if profile.user.dating_profile and profile.user.dating_profile.is_visible %}
+                    <a style="color:#fda4af;" href="{% url 'dating_profile_detail' profile.username %}">Dating profile available</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <nav class="profile-tabs" aria-label="Profile sections">
+        <a href="#posts">Posts</a>
+        <a href="#media">Media</a>
+        <a href="#live">Live</a>
+        <a href="#about">About</a>
+    </nav>
+
+    <section class="profile-section" id="posts">
+        <h2 style="margin-top:0;">Posts</h2>
+        <div class="profile-grid">
+            {% for post in profile_posts %}
+                {% include "posts/_post_card.html" with post=post %}
+            {% empty %}
+                <div class="nv-empty">No visible posts yet.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="profile-section" id="media">
+        <h2 style="margin-top:0;">Media</h2>
+        <div class="profile-grid">
+            {% for post in media_posts %}
+                {% include "posts/_post_card.html" with post=post %}
+            {% empty %}
+                <div class="nv-empty">No visible media posts yet.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="profile-section" id="live">
+        <h2 style="margin-top:0;">Live</h2>
+        <div class="profile-grid">
+            {% for post in live_posts %}
+                {% include "posts/_post_card.html" with post=post %}
+            {% empty %}
+                <div class="nv-empty">No live announcements yet.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="profile-section" id="about">
+        <h2 style="margin-top:0;">About</h2>
+        <p style="color:#cbd5e1;line-height:1.7;">{{ profile.bio|default:"This member is building their Namvibe presence." }}</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;color:#cbd5e1;">
+            {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
+            {% if profile.website %}<a style="color:#7dd3fc;" href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
+            {% if profile.is_creator %}<span>Creator account</span>{% endif %}
+        </div>
+    </section>
+</section>
+{% endblock %}

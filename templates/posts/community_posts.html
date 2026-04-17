@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{{ community.name }} Posts | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+    <div class="nv-list-head">
+        <div>
+            <h1>{{ community.name }} posts</h1>
+            <p>Community feed for {{ community.get_privacy_display|lower }} members.</p>
+        </div>
+        <a href="{% url 'community_detail' community.slug %}">Community</a>
+    </div>
+    <div class="nv-list-grid">
+        {% for post in page_obj %}
+            {% include "posts/_post_card.html" with post=post %}
+        {% empty %}
+            <div class="nv-empty">No visible community posts yet.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

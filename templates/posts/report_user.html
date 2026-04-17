@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Report @{{ profile.username }} | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+    <div class="nv-list-head"><div><h1>Report @{{ profile.username }}</h1><p>Help keep Namvibe safe.</p></div></div>
+    <form class="report-box" method="post">
+        {% csrf_token %}
+        <select name="reason">
+            {% for value,label in reasons %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+        </select>
+        <textarea name="details" rows="4" placeholder="Add details"></textarea>
+        <button type="submit">Submit report</button>
+    </form>
+</section>
+{% endblock %}

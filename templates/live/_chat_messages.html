@@ -1,0 +1,7 @@
+<div class="chat-list">
+  {% for message in messages %}
+    <div class="chat-item"><strong>@{{ message.user.profile.username|default:message.user.username }}</strong><p>{{ message.body }}</p><small class="muted">{{ message.created_at|date:"H:i" }}</small></div>
+  {% empty %}
+    <p class="muted">No messages yet.</p>
+  {% endfor %}
+</div>

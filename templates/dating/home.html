@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Dating | Namvibe{% endblock %}
+{% block content %}
+{% include "dating/_styles.html" %}
+<section class="dating-shell">
+  <div class="dating-hero">
+    <div>
+      <h1>Meet people with real profiles, shared interests, and Namibian energy.</h1>
+      <p class="dating-muted">Dating on Namvibe connects romance, friendship, creators, and community in one safe social space.</p>
+      <div class="dating-actions">
+        <a class="dating-primary" href="{% url 'signup' %}">Join Now</a>
+        <a href="{% url 'login' %}?next={% url 'dating_profile_edit' %}">Create dating profile</a>
+      </div>
+    </div>
+    <div class="dating-panel">
+      <strong>Already a member?</strong>
+      <p class="dating-muted">Sign in to browse matches, like profiles, and start real conversations after matching.</p>
+      <a class="dating-primary" href="{% url 'login' %}?next={% url 'dating_discover' %}">Open Dating</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

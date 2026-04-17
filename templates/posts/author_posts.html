@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}@{{ profile.username }} Posts | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+    <div class="nv-list-head">
+        <div>
+            <h1>@{{ profile.username }} posts</h1>
+            <p>{{ profile.display_name }} on Namvibe.</p>
+        </div>
+        <a href="{% url 'profile_detail' profile.username %}">Profile</a>
+    </div>
+    <div class="nv-list-grid">
+        {% for post in page_obj %}
+            {% include "posts/_post_card.html" with post=post %}
+        {% empty %}
+            <div class="nv-empty">No visible posts yet.</div>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

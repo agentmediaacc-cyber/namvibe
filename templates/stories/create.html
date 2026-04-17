@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Create Story | Namvibe{% endblock %}
+
+{% block content %}
+<section style="max-width:760px;margin:0 auto;padding:30px 16px 90px;">
+  <h1>Create Story</h1>
+  <p style="color:#cbd5e1;">Post a 24-hour text, image, or video story.</p>
+  <form method="post" enctype="multipart/form-data" style="display:grid;gap:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:22px;padding:18px;">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-main" type="submit">Publish story</button>
+  </form>
+</section>
+{% endblock %}

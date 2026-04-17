@@ -1,87 +1,19 @@
-from django.shortcuts import render
-from django.contrib.auth.models import User
-from django.apps import apps
-from posts.supabase_posts import count_public_posts, get_public_posts
+from django.shortcuts import redirect, render
+from django.urls import reverse
 
-
-def _safe_count(model_label):
-    try:
-        app_label, model_name = model_label.split(".")
-        model = apps.get_model(app_label, model_name)
-        return model.objects.count()
-    except Exception:
-        return 0
-
-
-def _safe_recent(model_label, limit=8, order_fields=None):
-    try:
-        app_label, model_name = model_label.split(".")
-        model = apps.get_model(app_label, model_name)
-        qs = model.objects.all()
-
-        if order_fields:
-            for field in order_fields:
-                try:
-                    qs = qs.order_by(field)
-                    return list(qs[:limit])
-                except Exception:
-                    continue
-
-        return list(qs[:limit])
-    except Exception:
-        return []
-
-
-def _pick_attr(obj, names, default=""):
-    for name in names:
-        if hasattr(obj, name):
-            value = getattr(obj, name)
-            if callable(value):
-                try:
-                    value = value()
-                except Exception:
-                    continue
-            if value not in [None, ""]:
-                return value
-    return default
+from .homepage import homepage_context
+from posts.supabase_posts import count_public_posts, get_public_posts  # compatibility for older tests/imports
 
 
 def index(request):
-    total_members = User.objects.count()
+    return render(request, "core/home_production.html", homepage_context(request))
 
-    recent_posts = get_public_posts(limit=8)
-    total_posts = count_public_posts() or len(recent_posts)
 
-    total_live = (
-        _safe_count("live.LiveSession")
-        or _safe_count("livestream.LiveStream")
-        or _safe_count("livestream.Stream")
-        or _safe_count("live.Stream")
-    )
+def dating_entry_view(request):
+    return redirect("discover_people")
 
-    total_stories = (
-        _safe_count("posts.Story")
-        or _safe_count("core.Story")
-    )
 
-    live_preview = (
-        _safe_recent("livestream.LiveStream", limit=6, order_fields=["-created_at", "-id"])
-        or _safe_recent("live.LiveSession", limit=6, order_fields=["-created_at", "-id"])
-        or []
-    )
-
-    stories = (
-        _safe_recent("posts.Story", limit=10, order_fields=["-created_at", "-id"])
-        or []
-    )
-
-    context = {
-        "total_members": total_members,
-        "total_posts": total_posts,
-        "total_live": total_live,
-        "total_stories": total_stories,
-        "recent_posts": recent_posts,
-        "live_preview": live_preview,
-        "stories": stories,
-    }
-    return render(request, "core/home_production.html", context)
+def settings_entry_view(request):
+    if request.user.is_authenticated:
+        return redirect("profile_edit")
+    return redirect(f"{reverse('login')}?next={reverse('settings')}")

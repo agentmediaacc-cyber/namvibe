@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Create Community | Namvibe{% endblock %}
+
+{% block content %}
+<section style="max-width: 760px; margin:0 auto; padding:32px 18px 90px;">
+    <h1 style="font-size:34px; margin:0 0 10px;">Create community</h1>
+    <p style="color:#cbd5e1; margin:0 0 24px;">Start a space for people, places, events, and creator circles in Namibia.</p>
+    <form method="post" enctype="multipart/form-data" style="display:grid; gap:16px; padding:22px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.07); border-radius:24px;">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-main" type="submit">Create community</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Search | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+    <div class="nv-list-head"><div><h1>Search</h1><p>Results for {{ query|default:"your next search" }}.</p></div></div>
+    <form class="comment-box" method="get" action="{% url 'discover_search' %}">
+        <textarea name="q" rows="1" placeholder="Search">{{ query }}</textarea>
+        <button type="submit">Search</button>
+    </form>
+    <h2>People</h2>
+    <div class="nv-list-grid">
+        {% for profile in users %}
+            <a class="nv-empty" href="{% url 'profile_detail' profile.username %}">@{{ profile.username }} · {{ profile.display_name }}</a>
+        {% empty %}<p class="nv-muted">No people found.</p>{% endfor %}
+    </div>
+    <h2>Posts</h2>
+    <div class="nv-list-grid">
+        {% for post in posts %}{% include "posts/_post_card.html" with post=post %}{% empty %}<p class="nv-muted">No posts found.</p>{% endfor %}
+    </div>
+    <h2>Communities</h2>
+    <div class="nv-list-grid">
+        {% for community in communities %}
+            <a class="nv-empty" href="{% url 'community_detail' community.slug %}">{{ community.name }}</a>
+        {% empty %}<p class="nv-muted">No communities found.</p>{% endfor %}
+    </div>
+</section>
+{% endblock %}

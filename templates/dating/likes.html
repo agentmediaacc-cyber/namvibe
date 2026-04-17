@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Dating Likes | Namvibe{% endblock %}
+{% block content %}
+{% include "dating/_styles.html" %}
+<section class="dating-shell">
+  <div class="dating-tabs"><a href="{% url 'dating_discover' %}">Discover</a><a href="{% url 'dating_matches' %}">Matches</a><a class="dating-primary" href="{% url 'dating_likes' %}">Likes</a></div>
+  <div class="dating-layout">
+    <section class="dating-panel">
+      <h2>People you liked</h2>
+      {% for like in sent_likes %}<a class="match-row" href="{% url 'dating_profile_detail' like.to_user.profile.username %}">@{{ like.to_user.profile.username }}<small>{{ like.created_at|date:"M j" }}</small></a>{% empty %}<p class="dating-muted">No likes sent yet.</p>{% endfor %}
+    </section>
+    <section class="dating-panel">
+      <h2>Liked you</h2>
+      {% for like in received_likes %}<a class="match-row" href="{% url 'dating_profile_detail' like.from_user.profile.username %}">@{{ like.from_user.profile.username }}<small>{{ like.created_at|date:"M j" }}</small></a>{% empty %}<p class="dating-muted">No received likes yet.</p>{% endfor %}
+    </section>
+    <section class="dating-panel">
+      <h2>Passed</h2>
+      {% for pass in passes %}<span class="match-row">@{{ pass.to_user.profile.username }}<small>{{ pass.created_at|date:"M j" }}</small></span>{% empty %}<p class="dating-muted">No passes yet.</p>{% endfor %}
+    </section>
+  </div>
+</section>
+{% endblock %}

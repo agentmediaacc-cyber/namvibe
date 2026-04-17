@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Live | Namvibe{% endblock %}
+{% block content %}
+{% include "live/_styles.html" %}
+<section class="live-shell">
+  <div class="live-hero">
+    <div>
+      <span class="badge badge-live">{{ live_count }} LIVE</span>
+      <h1>Live creators, real chat, and community energy in the moment.</h1>
+      <p class="muted">Browse live creators, join rooms, chat with hosts, and schedule your own creator session.</p>
+      <div class="live-actions"><a class="primary" href="#live-now">Browse lives</a><a href="{% url 'live_start' %}">Start live</a><a href="{% url 'live_scheduled' %}">Upcoming</a></div>
+    </div>
+    <aside class="live-panel">
+      <h2>Featured</h2>
+      {% for session in featured_sessions %}
+        <a class="live-card" style="display:block;margin-bottom:10px;" href="{% url 'live_room' session.uuid %}"><span class="badge badge-live">{{ session.status|upper }}</span><h3>{{ session.title }}</h3><p class="muted">@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</p></a>
+      {% empty %}
+        <p class="muted">Featured live creators will appear here.</p>
+      {% endfor %}
+    </aside>
+  </div>
+  <div class="chip-row" style="margin-top:16px;">{% for category in categories %}<span class="chip">{{ category }}</span>{% endfor %}</div>
+  <h2 id="live-now">Live now</h2>
+  <div class="live-grid">
+    {% for session in live_sessions %}
+      {% include "live/session_card.html" %}
+    {% empty %}
+      <div class="live-panel"><h3>No one is live right now</h3><p class="muted">Start a room or check upcoming sessions.</p><a class="primary" href="{% url 'live_start' %}">Go Live</a></div>
+    {% endfor %}
+  </div>
+  <h2>Scheduled</h2>
+  <div class="live-grid">
+    {% for session in scheduled_sessions %}
+      {% include "live/session_card.html" %}
+    {% empty %}<div class="live-panel"><p class="muted">No scheduled sessions yet.</p></div>{% endfor %}
+  </div>
+</section>
+{% endblock %}

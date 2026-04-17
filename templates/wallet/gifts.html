@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Gift History | Namvibe{% endblock %}
+{% block content %}
+{% include "wallet/_styles.html" %}
+<section class="wallet-shell">
+  <div class="wallet-layout">
+    <section class="wallet-card">
+      <h1>Gifts sent</h1>
+      <div class="table-list">
+        {% for event in sent_gifts %}
+          <div class="row"><div><strong>{{ event.quantity }}x {{ event.gift.name }}</strong><br><span class="muted">To @{{ event.recipient.profile.username|default:event.recipient.username }}</span></div><div>N${{ event.total_cost }}</div></div>
+        {% empty %}<p class="muted">No gifts sent yet.</p>{% endfor %}
+      </div>
+    </section>
+    <section class="wallet-card">
+      <h1>Gifts received</h1>
+      <div class="table-list">
+        {% for event in received_gifts %}
+          <div class="row"><div><strong>{{ event.quantity }}x {{ event.gift.name }}</strong><br><span class="muted">From @{{ event.sender.profile.username|default:event.sender.username }}</span></div><div>N${{ event.creator_value }}</div></div>
+        {% empty %}<p class="muted">No gifts received yet.</p>{% endfor %}
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Dating Matches | Namvibe{% endblock %}
+{% block content %}
+{% include "dating/_styles.html" %}
+<section class="dating-shell">
+  <div class="dating-tabs"><a href="{% url 'dating_discover' %}">Discover</a><a class="dating-primary" href="{% url 'dating_matches' %}">Matches</a><a href="{% url 'dating_likes' %}">Likes</a></div>
+  <div class="dating-panel" style="margin-top:16px;">
+    <h1>Your matches</h1>
+    {% for match in matches %}
+      {% if match.user_one == request.user %}{% with user=match.user_two %}{% include "dating/match_row.html" %}{% endwith %}{% else %}{% with user=match.user_one %}{% include "dating/match_row.html" %}{% endwith %}{% endif %}
+    {% empty %}
+      <p class="dating-muted">No matches yet. Keep discovering.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

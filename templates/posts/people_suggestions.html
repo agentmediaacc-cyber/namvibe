@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Suggested People | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<style>.suggestion-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.suggestion-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:16px;padding:16px;color:white;display:grid;gap:8px}</style>
+<section class="nv-list-page">
+    <div class="nv-list-head"><div><h1>Suggested people</h1><p>Creators and members worth following.</p></div></div>
+    {% include "posts/_suggestion_cards.html" %}
+</section>
+{% endblock %}

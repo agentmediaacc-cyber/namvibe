@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Draft Saved | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+    <div class="nv-empty">
+        <h1>Draft saved</h1>
+        <p>{{ post.title|default:post.get_post_type_display }} is ready when you are.</p>
+        <div class="nv-head-actions">
+            <a href="{% url 'edit_post' post.uuid %}">Edit draft</a>
+            <form method="post" action="{% url 'publish_draft' post.uuid %}">
+                {% csrf_token %}
+                <button type="submit">Publish draft</button>
+            </form>
+            <a href="{% url 'preview_post' post.uuid %}">Preview</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

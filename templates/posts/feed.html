@@ -4,161 +4,79 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Namvibe Feed</title>
-  <style>
-    body{
-      margin:0;
-      font-family:Arial,sans-serif;
-      background:linear-gradient(180deg,#081225,#0f1c38);
-      color:#fff;
-    }
-    .wrap{max-width:960px;margin:0 auto;padding:24px}
-    .nav,.card{
-      background:rgba(255,255,255,.07);
-      border:1px solid rgba(255,255,255,.12);
-      border-radius:22px;
-      box-shadow:0 20px 60px rgba(0,0,0,.28);
-    }
-    .nav{
-      display:flex;justify-content:space-between;align-items:center;
-      padding:16px 20px;margin-bottom:22px;
-    }
-    .brand{font-size:1.2rem;font-weight:800}
-    .muted{color:#bfd0e8}
-    .composer{padding:20px;margin-bottom:20px}
-    textarea,input[type=file]{
-      width:100%;margin-top:12px;border-radius:16px;border:none;
-      padding:14px;background:#0b1327;color:white;
-    }
-    button{
-      margin-top:14px;padding:12px 18px;border:none;border-radius:14px;
-      font-weight:700;cursor:pointer;
-      background:linear-gradient(135deg,#5ee0ff,#8b5cf6);
-      color:#081225;
-    }
-    .post{
-      padding:22px;
-      margin-bottom:20px;
-      border-radius:8px;
-    }
-    .post-top{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:16px;
-      margin-bottom:14px;
-    }
-    .post-author{min-width:0}
-    .post h3{margin:0 0 5px;font-size:1.05rem}
-    .post p{line-height:1.65;color:#d8e4f5;margin:0}
-    .post-time{
-      color:#bfd0e8;
-      font-size:.86rem;
-      white-space:nowrap;
-      padding-top:2px;
-    }
-    .media{
-      display:block;
-      width:100%;
-      max-height:460px;
-      object-fit:cover;
-      border-radius:8px;
-      margin-top:16px;
-      border:1px solid rgba(255,255,255,.08);
-      background:#050b16;
-    }
-    video.media{
-      aspect-ratio:16 / 9;
-    }
-    .empty{padding:28px;text-align:center}
-    a{color:inherit;text-decoration:none}
-  </style>
+  <title>{{ feed_title|default:"Namvibe Feed" }}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
-  <div class="wrap">
-    <div class="nav">
-      <div>
-        <div class="brand">Namvibe Feed</div>
-        <div class="muted">Public posts, images, and creator moments</div>
+  {% include "posts/post_styles.html" %}
+  <style>
+    .feed-shell{max-width:1020px;margin:0 auto;padding:20px 14px 92px}
+    .feed-nav{position:sticky;top:0;z-index:20;margin:-20px -14px 18px;padding:14px;background:rgba(6,11,24,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
+    .feed-nav-inner{max-width:1020px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .feed-tabs{display:flex;gap:8px;overflow:auto;padding-bottom:2px}
+    .feed-tabs a,.feed-actions a{white-space:nowrap;color:white;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-weight:800}
+    .feed-tabs a.active{background:linear-gradient(135deg,#14b8a6,#f43f5e)}
+    .legacy-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:22px;padding:18px;margin-bottom:14px}
+    .feed-composer{display:grid;gap:10px;margin-bottom:16px}
+    .feed-composer textarea,.feed-composer input{width:100%;border:1px solid rgba(255,255,255,.12);background:#0a1222;color:#fff;border-radius:8px;padding:12px}
+    .feed-composer button{border:0;border-radius:8px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#14b8a6,#f43f5e);color:white}
+  </style>
+  <div class="feed-shell">
+    <nav class="feed-nav">
+      <div class="feed-nav-inner">
+        <div class="feed-tabs">
+          <a class="{% if active_feed == 'for_you' %}active{% endif %}" href="{% url 'feed' %}">For You</a>
+          <a class="{% if active_feed == 'following' %}active{% endif %}" href="{% url 'feed_following' %}">Following</a>
+          <a class="{% if active_feed == 'friends' %}active{% endif %}" href="{% url 'feed_friends' %}">Friends</a>
+          <a class="{% if active_feed == 'nearby' %}active{% endif %}" href="{% url 'feed_nearby' %}">Nearby</a>
+          <a class="{% if active_feed == 'trending' %}active{% endif %}" href="{% url 'feed_trending' %}">Trending</a>
+          <a class="{% if active_feed == 'reels' %}active{% endif %}" href="{% url 'reels_feed' %}">Reels</a>
+        </div>
+        <div class="feed-actions">
+          <a href="{% url 'discover' %}">Discover</a>
+          <a href="{% url 'studio' %}">Studio</a>
+        </div>
       </div>
-      <div><a href="/">Home</a></div>
-    </div>
+    </nav>
 
-    <form class="card composer" action="/feed/create/" method="post" enctype="multipart/form-data">
+    <header class="nv-list-head">
+      <div>
+        <h1>{{ feed_title|default:"For You" }}</h1>
+        <p>{{ feed_subtitle|default:"Fresh Namvibe posts ranked for you." }}</p>
+      </div>
+    </header>
+
+    <form class="legacy-card feed-composer" action="{% url 'create_post' %}" method="post" enctype="multipart/form-data">
       {% csrf_token %}
-      <h3>Create Post</h3>
-      <textarea name="content" rows="4" placeholder="Share something on Namvibe..."></textarea>
+      <textarea name="content" rows="3" placeholder="Share something quick on Namvibe..."></textarea>
       <input type="file" name="media" accept="image/*,video/*">
-      <button type="submit">Post Now</button>
+      <button type="submit">Post quick update</button>
     </form>
 
-    {% if posts %}
+    <div class="nv-list-grid">
       {% for post in posts %}
-        <div class="card post">
-          <div class="post-top">
-            <div class="post-author">
-              <h3>{{ post.author_name|default:post.full_name|default:post.username|default:"Namvibe User" }}</h3>
-              <div class="muted">@{{ post.username|default:"user" }}</div>
+        {% include "posts/_post_card.html" with post=post %}
+      {% empty %}
+        {% for post in legacy_posts %}
+          <article class="legacy-card">
+            <div class="nv-post-top">
+              <div><strong>{{ post.author_name|default:post.full_name|default:post.username|default:"Namvibe User" }}</strong><br><small>@{{ post.username|default:"user" }}</small></div>
+              <small>{{ post.created_at|default:"Recent activity" }}</small>
             </div>
-            <time class="post-time js-post-time" datetime="{{ post.created_at|default:'' }}">
-              {{ post.created_at|default:"Recent activity" }}
-            </time>
-          </div>
-
-          {% if post.content or post.caption or post.title %}
             <p>{{ post.content|default:post.caption|default:post.title }}</p>
-          {% endif %}
-
-          {% if post.media_url %}
-            {% if post.media_type == "video" %}
-              <video src="{{ post.media_url }}" class="media" controls preload="metadata"></video>
-            {% else %}
-              <img src="{{ post.media_url }}" class="media" alt="Post media" loading="lazy">
+            {% if post.media_url %}
+              {% if post.media_type == "video" %}
+                <video class="nv-media" controls preload="metadata" src="{{ post.media_url }}"></video>
+              {% else %}
+                <img class="nv-media" src="{{ post.media_url }}" alt="Post media" loading="lazy">
+              {% endif %}
             {% endif %}
-          {% endif %}
-        </div>
+          </article>
+        {% empty %}
+          <div class="nv-empty">No posts yet. Start from Studio or create a quick update above.</div>
+        {% endfor %}
       {% endfor %}
-    {% else %}
-      <div class="card empty">
-        <h3>No posts yet</h3>
-        <p class="muted">Create the first Namvibe post above.</p>
-      </div>
-    {% endif %}
+    </div>
   </div>
-
-  <script>
-    function formatPostTime(value) {
-      if (!value) return "Recent activity";
-
-      const createdAt = new Date(value);
-      if (Number.isNaN(createdAt.getTime())) return value;
-
-      const seconds = Math.floor((Date.now() - createdAt.getTime()) / 1000);
-      if (seconds < 60) return "Just now";
-
-      const intervals = [
-        ["hour", 3600],
-        ["minute", 60],
-      ];
-
-      if (seconds < 86400) {
-        for (const [unit, unitSeconds] of intervals) {
-          const count = Math.floor(seconds / unitSeconds);
-          if (count >= 1) return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
-        }
-      }
-
-      return createdAt.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-
-    document.querySelectorAll(".js-post-time").forEach((item) => {
-      item.textContent = formatPostTime(item.getAttribute("datetime"));
-    });
-  </script>
 </body>
 </html>

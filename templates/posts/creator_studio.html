@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Creator Studio | Namvibe{% endblock %}
+
+{% block content %}
+<style>
+    .studio-page{max-width:1180px;margin:0 auto;padding:24px 16px 92px}
+    .studio-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:20px}
+    .studio-head h1{font-size:36px;margin:0 0 8px}
+    .studio-head p,.nv-muted{color:#cbd5e1;margin:0;line-height:1.6}
+    .studio-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:18px;align-items:start}
+    .studio-panel,.preview-panel,.draft-strip{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:22px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
+    .type-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+    .type-grid label{border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:12px;background:rgba(10,18,34,.72);cursor:pointer}
+    .type-grid input{margin-right:7px}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .full{grid-column:1/-1}
+    .studio-panel label{display:block;font-weight:700;margin-bottom:7px;color:#f8fafc}
+    .studio-panel input,.studio-panel textarea,.studio-panel select{width:100%;min-width:0;border:1px solid rgba(255,255,255,.12);background:#0a1222;color:#fff;border-radius:8px;padding:12px}
+    .check-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
+    .check-row label{display:flex;gap:8px;align-items:center;font-weight:600;background:rgba(255,255,255,.06);padding:10px;border-radius:8px}
+    .check-row input{width:auto}
+    .studio-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .studio-actions button,.studio-actions a{border:0;border-radius:8px;padding:12px 16px;font-weight:800;cursor:pointer}
+    .publish{background:linear-gradient(135deg,#14b8a6,#f43f5e);color:white}
+    .draft{background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.12)!important}
+    .preview-card{position:sticky;top:94px}
+    .mini-preview{border-radius:18px;background:#070d19;min-height:360px;padding:18px;display:grid;gap:14px}
+    .upload-zone{border:1px dashed rgba(255,255,255,.24);border-radius:8px;padding:14px;background:rgba(255,255,255,.04)}
+    .builder-box{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;background:rgba(255,255,255,.05)}
+    @media(max-width:860px){.studio-layout{grid-template-columns:1fr}.type-grid,.form-grid,.check-row{grid-template-columns:1fr}.preview-card{position:static}}
+</style>
+
+<section class="studio-page">
+    <div class="studio-head">
+        <div>
+            <h1>Creator Studio</h1>
+            <p>Publish posts, reels, stories, flyers, polls, and live announcements for Namvibe.</p>
+        </div>
+        <a class="btn btn-dark" href="{% url 'feed' %}">Feed</a>
+    </div>
+
+    {% if form.errors %}
+        <div class="studio-panel" style="margin-bottom:16px;color:#fecaca;">
+            {{ form.errors }}
+        </div>
+    {% endif %}
+
+    <div class="studio-layout">
+        <form class="studio-panel" method="post" enctype="multipart/form-data" action="{% url 'studio' %}">
+            {% csrf_token %}
+
+            <div class="type-grid">
+                {% for value,label in post_types %}
+                    <label>
+                        <input type="radio" name="post_type" value="{{ value }}" {% if active_type == value %}checked{% endif %}>
+                        {{ label }}
+                    </label>
+                {% endfor %}
+            </div>
+
+            <div class="form-grid">
+                <div>
+                    <label>Title</label>
+                    <input name="title" value="{{ form.title.value|default:'' }}" placeholder="Post title">
+                </div>
+                <div>
+                    <label>Audience</label>
+                    <select name="audience">
+                        {% for value,label in audiences %}<option value="{{ value }}" {% if form.audience.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="full">
+                    <label>Caption</label>
+                    <textarea name="caption" rows="5" placeholder="Write your caption">{{ form.caption.value|default:'' }}</textarea>
+                </div>
+                <div>
+                    <label>Hashtags</label>
+                    <input name="hashtags_text" value="{{ form.hashtags_text.value|default:'' }}" placeholder="#windhoek #namibia">
+                </div>
+                <div>
+                    <label>Mentions</label>
+                    <input name="mentions_text" value="{{ form.mentions_text.value|default:'' }}" placeholder="@creator @friend">
+                </div>
+                <div>
+                    <label>Share target</label>
+                    <select name="share_target">
+                        {% for value,label in share_targets %}<option value="{{ value }}" {% if form.share_target.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>Specific user</label>
+                    <input name="target_username" value="{{ form.target_username.value|default:'' }}" placeholder="@username">
+                </div>
+                <div>
+                    <label>Community slug</label>
+                    <input name="community_slug" value="{{ form.community_slug.value|default:'' }}" placeholder="windhoek-creators">
+                </div>
+                <div class="upload-zone full">
+                    <label>Media upload</label>
+                    <input type="file" name="media_file" accept="image/*,video/*,audio/*">
+                </div>
+            </div>
+
+            <div class="builder-box" style="margin-top:14px;">
+                <strong>Flyer builder</strong>
+                <div class="form-grid" style="margin-top:12px;">
+                    <input name="flyer_title" placeholder="Flyer title" value="{{ form.flyer_title.value|default:'' }}">
+                    <input name="flyer_cta" placeholder="Call to action" value="{{ form.flyer_cta.value|default:'' }}">
+                    <textarea class="full" name="flyer_body" rows="3" placeholder="Flyer body">{{ form.flyer_body.value|default:'' }}</textarea>
+                    <input name="flyer_background" placeholder="gradient-violet" value="{{ form.flyer_background.value|default:'gradient-violet' }}">
+                    <input name="flyer_text_color" placeholder="#ffffff" value="{{ form.flyer_text_color.value|default:'#ffffff' }}">
+                    <input name="flyer_layout" placeholder="centered" value="{{ form.flyer_layout.value|default:'centered' }}">
+                </div>
+            </div>
+
+            <div class="builder-box" style="margin-top:14px;">
+                <strong>Poll builder</strong>
+                <div class="form-grid" style="margin-top:12px;">
+                    <input class="full" name="poll_question" placeholder="Poll question" value="{{ form.poll_question.value|default:'' }}">
+                    <textarea class="full" name="poll_options" rows="4" placeholder="One option per line">{{ form.poll_options.value|default:'' }}</textarea>
+                    <label><input type="checkbox" name="poll_multiple_choice" {% if form.poll_multiple_choice.value %}checked{% endif %}> Multiple choice</label>
+                    <input type="datetime-local" name="poll_closes_at" value="{{ form.poll_closes_at.value|default:'' }}">
+                </div>
+            </div>
+
+            <div class="builder-box" style="margin-top:14px;">
+                <strong>Live announcement</strong>
+                <div class="form-grid" style="margin-top:12px;">
+                    <input name="stream_title" placeholder="Stream title" value="{{ form.stream_title.value|default:'' }}">
+                    <input type="datetime-local" name="scheduled_for" value="{{ form.scheduled_for.value|default:'' }}">
+                    <select name="access_type">
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                        <option value="vip">VIP</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                    <input type="number" min="0" step="0.01" name="ticket_price" placeholder="0.00" value="{{ form.ticket_price.value|default:'' }}">
+                </div>
+            </div>
+
+            <div class="check-row">
+                <label><input type="checkbox" name="allow_comments" checked> Comments</label>
+                <label><input type="checkbox" name="allow_sharing" checked> Sharing</label>
+                <label><input type="checkbox" name="save_to_story"> Story</label>
+                <label><input type="checkbox" name="premium_badge"> Premium</label>
+            </div>
+
+            <div class="studio-actions">
+                <button class="publish" type="submit">Publish</button>
+                <button class="draft" type="submit" name="save_draft" value="on">Save draft</button>
+                <button class="draft" type="submit" formaction="{% url 'save_draft' %}">Draft endpoint</button>
+            </div>
+        </form>
+
+        <aside class="preview-panel preview-card">
+            <h2 style="margin-top:0;">Live preview</h2>
+            <div class="mini-preview">
+                <span class="nv-muted">Audience and format are applied when the post is saved.</span>
+                <div class="builder-box">
+                    <strong>Flyer preview</strong>
+                    <p class="nv-muted">Flyer title, body, CTA, background, text color, and layout are stored as structured metadata.</p>
+                </div>
+                <div class="builder-box">
+                    <strong>Poll preview</strong>
+                    <p class="nv-muted">Poll options become voteable choices in Phase 4 interactions.</p>
+                </div>
+                <div class="builder-box">
+                    <strong>Live announcement</strong>
+                    <p class="nv-muted">Paid and VIP access hooks are ready for wallet integration.</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    {% if recent_drafts %}
+        <div class="draft-strip" style="margin-top:18px;">
+            <h2>Recent drafts</h2>
+            {% for draft in recent_drafts %}
+                <p><a href="{% url 'studio_draft' draft.uuid %}">{{ draft.title|default:draft.get_post_type_display }}</a></p>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

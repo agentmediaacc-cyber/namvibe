@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title|default:"Post" }} | Namvibe{% endblock %}
+
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+    <div class="nv-list-head">
+        <div>
+            <h1>{{ post.title|default:"Post" }}</h1>
+            <p>Visible to {{ post.get_audience_display }} · {{ post.get_share_target_display }}</p>
+        </div>
+        {% if request.user == post.author %}
+            <div class="nv-head-actions">
+                <a href="{% url 'edit_post' post.uuid %}">Edit</a>
+                {% if post.status == "draft" %}
+                    <form method="post" action="{% url 'publish_draft' post.uuid %}">
+                        {% csrf_token %}
+                        <button type="submit">Publish</button>
+                    </form>
+                {% endif %}
+                <form method="post" action="{% url 'delete_post' post.uuid %}">
+                    {% csrf_token %}
+                    <button type="submit">Delete</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+    {% include "posts/_post_card.html" with post=post %}
+
+    <section class="share-sheet">
+        <h2>Share</h2>
+        <form method="post" action="{% url 'share_post' post.uuid %}">
+            {% csrf_token %}
+            <select name="target">
+                <option value="feed">Feed</option>
+                <option value="profile">Profile</option>
+                <option value="community">Community</option>
+                <option value="direct">Direct</option>
+            </select>
+            <textarea name="message" rows="2" placeholder="Add a message"></textarea>
+            <button type="submit">Share post</button>
+        </form>
+    </section>
+
+    {% if post.allow_comments %}
+        <section class="comment-box" id="comments">
+            <h2>Comments</h2>
+            {% if request.user.is_authenticated %}
+                <form method="post" action="{% url 'add_comment' post.uuid %}">
+                    {% csrf_token %}
+                    <textarea name="body" rows="3" placeholder="Add a comment"></textarea>
+                    <button type="submit">Comment</button>
+                </form>
+            {% else %}
+                <p><a href="{% url 'login' %}?next={{ request.path }}">Log in</a> to comment.</p>
+            {% endif %}
+
+            {% for comment in comments %}
+                <article class="comment-item">
+                    {% if comment.is_pinned %}<div class="pinned">Pinned comment</div>{% endif %}
+                    <strong>@{{ comment.author.profile.username|default:comment.author.username }}</strong>
+                    <p>{{ comment.body }}</p>
+                    {% if request.user.is_authenticated %}
+                        <form method="post" action="{% url 'reply_comment' comment.id %}">
+                            {% csrf_token %}
+                            <textarea name="body" rows="2" placeholder="Reply"></textarea>
+                            <button type="submit">Reply</button>
+                        </form>
+                    {% endif %}
+                    <div class="nv-head-actions">
+                        {% if request.user == comment.author or request.user == post.author %}
+                            <form method="post" action="{% url 'delete_comment' comment.id %}">{% csrf_token %}<button type="submit">Delete</button></form>
+                        {% endif %}
+                        {% if request.user == post.author %}
+                            <form method="post" action="{% url 'pin_comment' comment.id %}">{% csrf_token %}<button type="submit">{% if comment.is_pinned %}Unpin{% else %}Pin{% endif %}</button></form>
+                        {% endif %}
+                    </div>
+                    {% for reply in comment.replies.all %}
+                        {% if not reply.is_deleted %}
+                            <article class="comment-item comment-reply">
+                                <strong>@{{ reply.author.profile.username|default:reply.author.username }}</strong>
+                                <p>{{ reply.body }}</p>
+                            </article>
+                        {% endif %}
+                    {% endfor %}
+                </article>
+            {% empty %}
+                <p class="nv-muted">No comments yet.</p>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    <section class="report-box">
+        <h2>Report</h2>
+        <form method="post" action="{% url 'report_post' post.uuid %}">
+            {% csrf_token %}
+            <select name="reason">
+                <option value="spam">Spam</option>
+                <option value="harassment">Harassment</option>
+                <option value="hate">Hate speech</option>
+                <option value="nudity">Nudity</option>
+                <option value="violence">Violence</option>
+                <option value="scam">Scam</option>
+                <option value="other">Other</option>
+            </select>
+            <textarea name="details" rows="2" placeholder="Add details"></textarea>
+            <button type="submit">Submit report</button>
+        </form>
+    </section>
+</section>
+<script>
+  document.querySelectorAll(".nv-media").forEach((item) => {
+    item.addEventListener("dblclick", () => {
+      const form = item.closest(".nv-post-card")?.querySelector(".nv-mobile-actions");
+      form?.querySelector("button")?.click();
+    });
+  });
+  fetch("{% url 'track_post_view' post.uuid %}", {
+    method: "POST",
+    headers: {"X-CSRFToken": "{{ csrf_token }}", "Content-Type": "application/x-www-form-urlencoded"},
+    body: "duration_seconds=1"
+  }).catch(() => {});
+</script>
+{% endblock %}

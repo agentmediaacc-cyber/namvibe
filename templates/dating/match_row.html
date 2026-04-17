@@ -1,0 +1,10 @@
+<div class="match-row">
+  <div style="display:flex;gap:12px;align-items:center;">
+    <span class="avatar">{{ user.profile.display_name|default:user.username|first|upper }}</span>
+    <span><strong>{{ user.profile.display_name|default:user.username }}</strong><br><small>{{ user.dating_profile.region|default:user.profile.location }} · matched {{ match.created_at|date:"M j" }}</small></span>
+  </div>
+  <div class="dating-actions">
+    <a href="{% url 'dating_profile_detail' user.profile.username %}">Profile</a>
+    <a class="dating-primary" href="{% url 'dating_message_match' user.profile.username %}">Message</a>
+  </div>
+</div>

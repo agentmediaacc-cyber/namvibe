@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
-from .models import AccountProfile
+from .models import AccountProfile, Follow, Profile
 
 
 class AccountAuthFlowTests(TestCase):
@@ -146,3 +146,33 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
         self.assertNotIn("eharo_user_id", self.client.session)
+
+
+class SocialGraphTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="mina", password="StrongPass1")
+        self.creator = User.objects.create_user(username="tangi", password="StrongPass1")
+
+    def test_user_creation_creates_creator_profile_shell(self):
+        self.assertTrue(Profile.objects.filter(user=self.user, username="mina").exists())
+
+    def test_follow_toggle_creates_and_removes_follow_with_counts(self):
+        self.client.force_login(self.user)
+
+        first_response = self.client.post(reverse("follow_toggle", kwargs={"username": self.creator.profile.username}))
+        self.user.profile.refresh_from_db()
+        self.creator.profile.refresh_from_db()
+
+        self.assertRedirects(first_response, reverse("profile_detail", kwargs={"username": "tangi"}), fetch_redirect_response=False)
+        self.assertTrue(Follow.objects.filter(follower=self.user, following=self.creator).exists())
+        self.assertEqual(self.user.profile.following_count, 1)
+        self.assertEqual(self.creator.profile.follower_count, 1)
+
+        second_response = self.client.post(reverse("follow_toggle", kwargs={"username": self.creator.profile.username}))
+        self.user.profile.refresh_from_db()
+        self.creator.profile.refresh_from_db()
+
+        self.assertRedirects(second_response, reverse("profile_detail", kwargs={"username": "tangi"}), fetch_redirect_response=False)
+        self.assertFalse(Follow.objects.filter(follower=self.user, following=self.creator).exists())
+        self.assertEqual(self.user.profile.following_count, 0)
+        self.assertEqual(self.creator.profile.follower_count, 0)

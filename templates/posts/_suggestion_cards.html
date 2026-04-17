@@ -1,0 +1,16 @@
+<div class="suggestion-grid">
+    {% for profile in suggested_people %}
+        <a class="suggestion-card" href="{% url 'profile_detail' profile.username %}">
+            <span class="nv-avatar">{{ profile.display_name|default:profile.username|first|upper }}</span>
+            <strong>{{ profile.display_name|default:profile.username }}</strong>
+            <small>@{{ profile.username }} · {{ profile.location|default:"Namibia" }}</small>
+        </a>
+    {% endfor %}
+    {% for community in suggested_communities %}
+        <a class="suggestion-card" href="{% url 'community_detail' community.slug %}">
+            <span class="nv-avatar">{{ community.name|first|upper }}</span>
+            <strong>{{ community.name }}</strong>
+            <small>{{ community.member_count }} members · {{ community.get_privacy_display }}</small>
+        </a>
+    {% endfor %}
+</div>

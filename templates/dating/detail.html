@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ dating_profile.display_name }} | Dating{% endblock %}
+{% block content %}
+{% include "dating/_styles.html" %}
+<section class="dating-shell">
+  <article class="dating-hero">
+    <div>
+      <div class="dating-photo">
+        {% with photo=dating_profile.primary_photo %}
+          {% if photo %}<img src="{{ photo.image.url }}" alt="{{ dating_profile.display_name }}">{% else %}<span class="avatar">{{ dating_profile.display_name|first|upper }}</span>{% endif %}
+        {% endwith %}
+      </div>
+    </div>
+    <div>
+      <h1>{{ dating_profile.display_name }}{% if dating_profile.show_age %}, {{ dating_profile.age }}{% endif %}</h1>
+      <p class="dating-muted">{{ dating_profile.city }}{% if dating_profile.region %}, {{ dating_profile.region }}{% endif %} · {{ dating_profile.get_relationship_goal_display }}</p>
+      <p>{{ dating_profile.bio }}</p>
+      <div class="chip-row">{% for interest in dating_profile.interests %}<span class="chip">{{ interest }}</span>{% endfor %}</div>
+      <div class="dating-actions" style="margin-top:16px;">
+        {% if dating_profile.user != request.user %}
+          <form method="post" action="{% url 'dating_pass' dating_profile.user.profile.username %}">{% csrf_token %}<button type="submit">{% if passed %}Passed{% else %}Pass{% endif %}</button></form>
+          <form method="post" action="{% url 'dating_like' dating_profile.user.profile.username %}">{% csrf_token %}<button class="dating-primary" type="submit">{% if liked %}Liked{% else %}Like{% endif %}</button></form>
+        {% else %}
+          <a class="dating-primary" href="{% url 'dating_profile_edit' %}">Edit profile</a>
+        {% endif %}
+        <a href="{% url 'profile_detail' dating_profile.user.profile.username %}">Social profile</a>
+        <a href="{% url 'report_user' dating_profile.user.profile.username %}">Safety report</a>
+      </div>
+    </div>
+  </article>
+</section>
+{% endblock %}

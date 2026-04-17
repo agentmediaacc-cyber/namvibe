@@ -1,7 +1,33 @@
 from django.contrib import messages
-from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_protect
+from communities.models import Community
+from accounts.models import Profile
+from .forms import POST_TYPE_FORMS
+from .models import Comment, Like, Post, Report, Save, Share
+from .services import (
+    FeedRankingService,
+    add_comment,
+    base_visible_posts,
+    can_interact_with_post,
+    create_report,
+    create_share,
+    suggested_communities_for,
+    suggested_users_for,
+    threaded_comments_for_post,
+    toggle_like,
+    toggle_pin_comment,
+    toggle_save,
+    track_view,
+    trending_hashtags,
+    delete_comment,
+)
 from .supabase_posts import get_public_posts, create_post
 
 
@@ -20,10 +46,27 @@ def _session_user(request):
 
 @require_http_methods(["GET"])
 def feed_view(request):
-    posts = get_public_posts(limit=50)
-    if not isinstance(posts, list):
-        posts = []
-    return render(request, "posts/feed.html", {"posts": posts})
+    queryset = base_visible_posts(request.user).published()
+    ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
+    paginator = Paginator(ranked_posts, 15)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    legacy_posts = []
+    if not ranked_posts:
+        legacy_posts = get_public_posts(limit=50)
+        if not isinstance(legacy_posts, list):
+            legacy_posts = []
+    return render(
+        request,
+        "posts/feed.html",
+        {
+            "page_obj": page_obj,
+            "posts": page_obj.object_list,
+            "legacy_posts": legacy_posts,
+            "feed_title": "For You",
+            "feed_subtitle": "A ranked feed of public, followed, community, and creator posts.",
+            "active_feed": "for_you",
+        },
+    )
 
 
 @require_http_methods(["POST"])
@@ -105,3 +148,417 @@ def save_post_view(request):
         )
 
     return redirect(f"{reverse('user_dashboard')}?section=posts")
+
+
+def _post_queryset_for_user(request):
+    return base_visible_posts(request.user)
+
+
+def _form_for_post_type(post_type):
+    return POST_TYPE_FORMS.get(post_type, POST_TYPE_FORMS[Post.PostType.TEXT])
+
+
+def _post_type_from_request(request, fallback=Post.PostType.TEXT):
+    value = request.POST.get("post_type") or request.GET.get("type") or fallback
+    if value == "live_announcement":
+        value = Post.PostType.LIVE
+    return value if value in POST_TYPE_FORMS else fallback
+
+
+@login_required(login_url="login")
+@csrf_protect
+def studio_view(request):
+    post_type = _post_type_from_request(request)
+    form_class = _form_for_post_type(post_type)
+    form = form_class(request.POST or None, request.FILES or None, author=request.user)
+    if request.method == "POST" and form.is_valid():
+        post = form.save()
+        if post.status == Post.Status.DRAFT:
+            messages.success(request, "Draft saved.")
+            return redirect("studio_draft", uuid=post.uuid)
+        messages.success(request, "Post published.")
+        return redirect("post_detail", uuid=post.uuid)
+
+    context = {
+        "form": form,
+        "active_type": post_type,
+        "post_types": Post.PostType.choices,
+        "audiences": Post.Audience.choices,
+        "share_targets": Post.ShareTarget.choices,
+        "recent_drafts": Post.objects.filter(author=request.user, status=Post.Status.DRAFT).prefetch_related("media")[:6],
+    }
+    return render(request, "posts/creator_studio.html", context)
+
+
+@login_required(login_url="login")
+@csrf_protect
+def save_draft_view(request):
+    if request.method != "POST":
+        return redirect("studio")
+    mutable_post = request.POST.copy()
+    mutable_post["save_draft"] = "on"
+    post_type = mutable_post.get("post_type") or Post.PostType.TEXT
+    if post_type == "live_announcement":
+        post_type = Post.PostType.LIVE
+        mutable_post["post_type"] = post_type
+    form_class = _form_for_post_type(post_type)
+    form = form_class(mutable_post, request.FILES, author=request.user)
+    if form.is_valid():
+        post = form.save()
+        messages.success(request, "Draft saved.")
+        return redirect("studio_draft", uuid=post.uuid)
+    return render(request, "posts/creator_studio.html", {"form": form, "active_type": post_type, "post_types": Post.PostType.choices, "audiences": Post.Audience.choices, "share_targets": Post.ShareTarget.choices})
+
+
+@login_required(login_url="login")
+def studio_draft_view(request, uuid):
+    post = get_object_or_404(
+        Post.objects.select_related("author", "community", "target_user").prefetch_related("media", "poll__options"),
+        uuid=uuid,
+        author=request.user,
+        status=Post.Status.DRAFT,
+    )
+    return render(request, "posts/studio_draft.html", {"post": post})
+
+
+@login_required(login_url="login")
+def preview_post_view(request, uuid):
+    post = get_object_or_404(
+        Post.objects.select_related("author", "author__profile", "community").prefetch_related("media", "poll__options"),
+        uuid=uuid,
+        author=request.user,
+    )
+    return render(request, "posts/post_preview.html", {"post": post})
+
+
+@login_required(login_url="login")
+@csrf_protect
+def edit_post_view(request, uuid):
+    post = get_object_or_404(Post.objects.select_related("author").prefetch_related("media"), uuid=uuid)
+    if post.author != request.user:
+        return HttpResponseForbidden("You cannot edit this post.")
+    form_class = _form_for_post_type(post.post_type)
+    form = form_class(request.POST or None, request.FILES or None, instance=post, author=request.user)
+    if request.method == "POST" and form.is_valid():
+        edited_post = form.save()
+        edited_post.is_edited = True
+        edited_post.save(update_fields=["is_edited", "updated_at"])
+        messages.success(request, "Post updated.")
+        return redirect("post_detail", uuid=post.uuid)
+    return render(request, "posts/creator_studio.html", {"form": form, "post": post, "active_type": post.post_type, "post_types": Post.PostType.choices, "audiences": Post.Audience.choices, "share_targets": Post.ShareTarget.choices})
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def delete_post_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if post.author != request.user:
+        return HttpResponseForbidden("You cannot delete this post.")
+    post.soft_delete()
+    messages.success(request, "Post deleted.")
+    return redirect("author_posts", username=request.user.profile.username)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def publish_draft_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid, author=request.user, status=Post.Status.DRAFT)
+    post.publish()
+    messages.success(request, "Draft published.")
+    return redirect("post_detail", uuid=post.uuid)
+
+
+def post_detail_view(request, uuid):
+    post = get_object_or_404(_post_queryset_for_user(request), uuid=uuid)
+    comments = threaded_comments_for_post(post)
+    liked = request.user.is_authenticated and Like.objects.filter(user=request.user, post=post).exists()
+    saved = request.user.is_authenticated and Save.objects.filter(user=request.user, post=post).exists()
+    return render(request, "posts/post_detail.html", {"post": post, "comments": comments, "liked": liked, "saved": saved})
+
+
+def author_posts_list_view(request, username):
+    profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
+    posts = _post_queryset_for_user(request).filter(author=profile.user)
+    paginator = Paginator(posts, 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "posts/author_posts.html", {"profile": profile, "page_obj": page_obj})
+
+
+def community_posts_list_view(request, slug):
+    community = get_object_or_404(Community.objects.select_related("owner"), slug__iexact=slug)
+    posts = _post_queryset_for_user(request).filter(community=community)
+    paginator = Paginator(posts, 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "posts/community_posts.html", {"community": community, "page_obj": page_obj})
+
+
+def _paginated_feed(request, queryset, *, title, subtitle, active_feed):
+    ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
+    paginator = Paginator(ranked_posts, 15)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "posts/feed.html",
+        {
+            "page_obj": page_obj,
+            "posts": page_obj.object_list,
+            "legacy_posts": [],
+            "feed_title": title,
+            "feed_subtitle": subtitle,
+            "active_feed": active_feed,
+        },
+    )
+
+
+def following_feed_view(request):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('login')}?next={request.path}")
+    followed_ids = request.user.following_edges.values_list("following_id", flat=True)
+    queryset = base_visible_posts(request.user).published().filter(author_id__in=followed_ids)
+    return _paginated_feed(request, queryset, title="Following", subtitle="Posts from creators and people you follow.", active_feed="following")
+
+
+def friends_feed_view(request):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('login')}?next={request.path}")
+    friend_pairs = request.user.sent_friend_requests.filter(status="accepted").values_list("to_user_id", flat=True)
+    reverse_pairs = request.user.received_friend_requests.filter(status="accepted").values_list("from_user_id", flat=True)
+    queryset = base_visible_posts(request.user).published().filter(Q(author_id__in=friend_pairs) | Q(author_id__in=reverse_pairs))
+    return _paginated_feed(request, queryset, title="Friends", subtitle="Posts visible through accepted friendships.", active_feed="friends")
+
+
+def trending_feed_view(request):
+    queryset = (
+        base_visible_posts(request.user)
+        .published()
+        .order_by("-like_count", "-comment_count", "-share_count", "-published_at")
+    )
+    return _paginated_feed(request, queryset, title="Trending", subtitle="Posts gaining attention across Namvibe.", active_feed="trending")
+
+
+def nearby_feed_view(request):
+    location = request.GET.get("location", "").strip()
+    if not location and request.user.is_authenticated:
+        location = getattr(getattr(request.user, "profile", None), "location", "")
+    queryset = base_visible_posts(request.user).published()
+    if location:
+        queryset = queryset.filter(Q(author__profile__location__iexact=location) | Q(community__name__icontains=location))
+    return _paginated_feed(request, queryset, title="Nearby Namibia", subtitle=location or "Local creator posts and communities.", active_feed="nearby")
+
+
+def community_feed_view(request, slug):
+    community = get_object_or_404(Community.objects.select_related("owner"), slug__iexact=slug)
+    queryset = base_visible_posts(request.user).published().filter(community=community)
+    return _paginated_feed(request, queryset, title=f"{community.name} Feed", subtitle=community.description, active_feed="community")
+
+
+def reels_feed_view(request):
+    queryset = base_visible_posts(request.user).published().filter(post_type=Post.PostType.REEL)
+    return _paginated_feed(request, queryset, title="Reels Feed", subtitle="Short-form videos backed by unified posts.", active_feed="reels")
+
+
+def discover_view(request):
+    return render(
+        request,
+        "posts/discover.html",
+        {
+            "hashtags": trending_hashtags(),
+            "suggested_people": suggested_users_for(request.user),
+            "suggested_communities": suggested_communities_for(request.user),
+        },
+    )
+
+
+def search_view(request):
+    query = request.GET.get("q", "").strip()
+    users = Profile.objects.none()
+    posts = Post.objects.none()
+    communities = Community.objects.none()
+    if query:
+        users = Profile.objects.select_related("user").filter(
+            Q(username__icontains=query) | Q(display_name__icontains=query) | Q(bio__icontains=query)
+        )[:20]
+        posts = base_visible_posts(request.user).published().filter(
+            Q(title__icontains=query)
+            | Q(caption__icontains=query)
+            | Q(author__profile__location__icontains=query)
+            | Q(community__name__icontains=query)
+        )[:20]
+        communities = Community.objects.select_related("owner").filter(
+            Q(name__icontains=query) | Q(description__icontains=query) | Q(slug__icontains=query)
+        )[:20]
+    return render(request, "posts/search.html", {"query": query, "users": users, "posts": posts, "communities": communities})
+
+
+def hashtag_view(request, tag):
+    normalized = tag if tag.startswith("#") else f"#{tag}"
+    posts = [
+        post
+        for post in base_visible_posts(request.user).published()[:300]
+        if normalized.lower() in [item.lower() for item in (post.hashtags or [])]
+    ]
+    paginator = Paginator(posts, 15)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    return render(request, "posts/hashtag.html", {"tag": normalized, "page_obj": page_obj, "posts": page_obj.object_list})
+
+
+def people_suggestions_view(request):
+    return render(request, "posts/people_suggestions.html", {"suggested_people": suggested_users_for(request.user, limit=30)})
+
+
+def community_suggestions_view(request):
+    return render(request, "posts/community_suggestions.html", {"suggested_communities": suggested_communities_for(request.user, limit=30)})
+
+
+def _post_action_redirect(request, post):
+    return redirect(request.POST.get("next") or reverse("post_detail", kwargs={"uuid": post.uuid}))
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def like_post_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if not can_interact_with_post(request.user, post):
+        return HttpResponseForbidden("You cannot react to this post.")
+    reaction = request.POST.get("reaction_type") or Like.ReactionType.LIKE
+    if reaction not in Like.ReactionType.values:
+        reaction = Like.ReactionType.LIKE
+    like, active = toggle_like(request.user, post, reaction)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        post.refresh_from_db()
+        return JsonResponse({"liked": active, "like_count": post.like_count, "reaction_type": getattr(like, "reaction_type", "")})
+    messages.success(request, "Reaction saved." if active else "Reaction removed.")
+    return _post_action_redirect(request, post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def save_post_toggle_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if not can_interact_with_post(request.user, post):
+        return HttpResponseForbidden("You cannot save this post.")
+    _, active = toggle_save(request.user, post)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        post.refresh_from_db()
+        return JsonResponse({"saved": active, "save_count": post.save_count})
+    messages.success(request, "Post saved." if active else "Post removed from saves.")
+    return _post_action_redirect(request, post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def share_post_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if not can_interact_with_post(request.user, post):
+        return HttpResponseForbidden("You cannot share this post.")
+    target = request.POST.get("target") or Share.Target.FEED
+    if target not in Share.Target.values:
+        target = Share.Target.FEED
+    share = create_share(request.user, post, target=target, message=request.POST.get("message", ""))
+    if not share:
+        return HttpResponseForbidden("You cannot share this post.")
+    messages.success(request, "Post shared.")
+    return _post_action_redirect(request, post)
+
+
+@require_http_methods(["POST"])
+def track_post_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if request.user.is_authenticated and not can_interact_with_post(request.user, post):
+        return HttpResponseForbidden("You cannot view-track this post.")
+    if not request.user.is_authenticated and not Post.objects.visible_to(request.user).filter(pk=post.pk).exists():
+        return HttpResponseForbidden("You cannot view-track this post.")
+    if not request.session.session_key:
+        request.session.save()
+    view = track_view(
+        request.user,
+        post,
+        session_key=request.session.session_key,
+        duration_seconds=request.POST.get("duration_seconds", 0),
+        completed=request.POST.get("completed") in {"1", "true", "on", "yes"},
+    )
+    if not view:
+        return HttpResponseForbidden("You cannot view-track this post.")
+    return JsonResponse({"ok": True, "view_count": Post.objects.get(pk=post.pk).view_count})
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def add_comment_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if not can_interact_with_post(request.user, post):
+        return HttpResponseForbidden("You cannot comment on this post.")
+    body = request.POST.get("body", "").strip()
+    if not body:
+        messages.error(request, "Comment cannot be empty.")
+        return _post_action_redirect(request, post)
+    comment = add_comment(request.user, post, body)
+    if not comment:
+        return HttpResponseForbidden("You cannot comment on this post.")
+    messages.success(request, "Comment added.")
+    return _post_action_redirect(request, post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def reply_comment_view(request, id):
+    parent = get_object_or_404(Comment.objects.select_related("post"), id=id, is_deleted=False)
+    body = request.POST.get("body", "").strip()
+    if not body:
+        messages.error(request, "Reply cannot be empty.")
+        return _post_action_redirect(request, parent.post)
+    comment = add_comment(request.user, parent.post, body, parent=parent)
+    if not comment:
+        return HttpResponseForbidden("You cannot reply to this comment.")
+    messages.success(request, "Reply added.")
+    return _post_action_redirect(request, parent.post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def delete_comment_view(request, id):
+    comment = get_object_or_404(Comment.objects.select_related("post", "author"), id=id)
+    if not delete_comment(request.user, comment):
+        return HttpResponseForbidden("You cannot delete this comment.")
+    messages.success(request, "Comment deleted.")
+    return _post_action_redirect(request, comment.post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def pin_comment_view(request, id):
+    comment = get_object_or_404(Comment.objects.select_related("post", "author"), id=id)
+    if not toggle_pin_comment(request.user, comment):
+        return HttpResponseForbidden("Only the post owner can pin comments.")
+    messages.success(request, "Pinned comment updated.")
+    return _post_action_redirect(request, comment.post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def report_post_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if not can_interact_with_post(request.user, post):
+        return HttpResponseForbidden("You cannot report this post.")
+    reason = request.POST.get("reason") or Report.Reason.OTHER
+    if reason not in Report.Reason.values:
+        reason = Report.Reason.OTHER
+    report = create_report(request.user, post=post, reason=reason, details=request.POST.get("details", ""))
+    if not report:
+        return HttpResponseForbidden("You cannot report this post.")
+    messages.success(request, "Report submitted.")
+    return _post_action_redirect(request, post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["GET", "POST"])
+def report_user_view(request, username):
+    profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
+    if request.method == "POST":
+        reason = request.POST.get("reason") or Report.Reason.OTHER
+        if reason not in Report.Reason.values:
+            reason = Report.Reason.OTHER
+        create_report(request.user, reported_user=profile.user, reason=reason, details=request.POST.get("details", ""))
+        messages.success(request, "Report submitted.")
+        return redirect("profile_detail", username=profile.username)
+    return render(request, "posts/report_user.html", {"profile": profile, "reasons": Report.Reason.choices})
