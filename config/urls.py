@@ -1,14 +1,14 @@
 from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import path, include
-
-def railway_home(request):
-    return HttpResponse("ok")
+from core.views import index  # your real homepage
 
 urlpatterns = [
-    path("", railway_home),
-    path("healthz", railway_home),
+    path("", index),  # ✅ restore real homepage
+    path("healthz", lambda request: HttpResponse("ok")),  # keep for Railway
     path("admin/", admin.site.urls),
+
+    # apps
     path("accounts/", include("accounts.urls")),
     path("posts/", include("posts.urls")),
     path("feed/", include("posts.urls")),
