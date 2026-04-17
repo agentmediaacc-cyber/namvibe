@@ -8,260 +8,183 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <style>
         :root{
-            --nav-height: 64px;
-            --nav-height-mobile: 56px;
+            --nav-height: 60px;
             --nav-bg: rgba(7,16,29,.88);
             --nav-line: rgba(255,255,255,.10);
         }
-
         *{box-sizing:border-box}
-        html{scroll-behavior:smooth}
-        body{margin:0;padding:0;background:#07101d;color:#fff}
-
+        body{margin:0;background:#07101d;color:#fff}
         .site-header{
-            position:fixed;
+            position:sticky;
             top:0;
-            left:0;
-            right:0;
-            z-index:9999;
+            z-index:3000;
             background:var(--nav-bg);
             backdrop-filter:blur(14px);
             border-bottom:1px solid var(--nav-line);
-            transition:transform .22s ease, opacity .22s ease, box-shadow .22s ease;
         }
-
-        .site-header.nav-hidden{
-            transform:translateY(-100%);
-            opacity:.98;
-        }
-
-        .site-header.nav-scrolled{
-            box-shadow:0 14px 34px rgba(0,0,0,.24);
-        }
-
-        .navbar{
-            min-height:var(--nav-height);
-            display:flex;
-            align-items:center;
-        }
-
         .nav-wrap{
-            width:min(1220px, calc(100% - 24px));
+            width:min(1220px, calc(100% - 16px));
             margin:0 auto;
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            padding:10px 0;
-        }
-
-        .logo-wrap{
-            display:flex;
+            min-height:var(--nav-height);
+            display:grid;
+            grid-template-columns:auto auto 1fr auto;
             align-items:center;
             gap:10px;
-            text-decoration:none;
-            color:inherit;
-            min-width:0;
+            padding:8px 0;
         }
-
-        .logo-icon{
-            width:38px;
-            height:38px;
-            border-radius:10px;
-            display:grid;
-            place-items:center;
-            font-weight:900;
+        .menu-btn,.search-btn,.nav-link-btn{
+            border:1px solid rgba(255,255,255,.08);
+            background:rgba(255,255,255,.06);
             color:#fff;
+            border-radius:10px;
+            padding:9px 11px;
+            text-decoration:none;
+            font-weight:700;
+            cursor:pointer;
+        }
+        .menu-btn{font-size:20px; line-height:1}
+        .brand{
+            display:flex;align-items:center;gap:10px;
+            text-decoration:none;color:#fff;min-width:0;
+        }
+        .brand-mark{
+            width:36px;height:36px;border-radius:10px;
+            display:grid;place-items:center;font-weight:900;
             background:linear-gradient(135deg,#14b8a6,#f43f5e);
             flex:0 0 auto;
         }
-
-        .logo{
-            font-weight:900;
-            color:#fff;
-            line-height:1.05;
-        }
-
-        .logo-sub{
-            font-size:11px;
-            color:#cbd5e1;
-            line-height:1.1;
-        }
-
-        .nav-links{
-            display:flex;
-            align-items:center;
-            gap:10px;
-        }
-
-        .nav-links a,
-        .nav-actions a{
-            text-decoration:none;
-            color:#fff;
+        .brand small{display:block;color:#cbd5e1;font-size:11px}
+        .top-search{
+            display:flex;align-items:center;gap:8px;
             border:1px solid rgba(255,255,255,.08);
-            background:rgba(255,255,255,.05);
-            padding:9px 12px;
-            border-radius:10px;
-            font-weight:700;
-            white-space:nowrap;
+            background:rgba(255,255,255,.06);
+            border-radius:12px;padding:4px 6px;
+            min-width:0;
         }
-
-        .nav-actions{
-            display:flex;
-            align-items:center;
-            gap:8px;
-            flex-wrap:nowrap;
+        .top-search input{
+            flex:1;min-width:0;border:0;background:transparent;
+            color:#fff;outline:0;padding:8px;
         }
-
-        .btn-main{
+        .top-search button{
+            border:0;border-radius:8px;padding:8px 10px;
+            background:rgba(255,255,255,.08);color:#fff;font-weight:800;
+        }
+        .top-actions{display:flex;align-items:center;gap:8px}
+        .primary-btn{
             background:linear-gradient(135deg,#14b8a6,#f43f5e)!important;
             border:0!important;
         }
-
-        .btn-dark{
-            background:rgba(255,255,255,.07)!important;
+        .drawer-overlay{
+            position:fixed;inset:0;background:rgba(0,0,0,.6);
+            z-index:3998;display:none;
         }
-
-        main{
-            min-height:100vh;
-            padding-top:var(--nav-height);
+        .drawer-overlay.open{display:block}
+        .drawer{
+            position:fixed;top:0;left:0;bottom:0;
+            width:min(320px,88vw);
+            background:rgba(6,12,24,.98);
+            border-right:1px solid rgba(255,255,255,.08);
+            z-index:3999;
+            transform:translateX(-100%);
+            transition:transform .22s ease;
+            padding:16px;
+            display:flex;flex-direction:column;gap:14px;
         }
-        body.home-page main{
-            padding-top:0;
+        .drawer.open{transform:translateX(0)}
+        .drawer-head{display:flex;align-items:center;justify-content:space-between}
+        .drawer-close{
+            border:1px solid rgba(255,255,255,.08);
+            background:rgba(255,255,255,.06);
+            color:#fff;border-radius:10px;
+            width:40px;height:40px;cursor:pointer;
         }
-
+        .drawer-nav{display:grid;gap:8px}
+        .drawer-nav a{
+            color:#fff;text-decoration:none;
+            border:1px solid rgba(255,255,255,.08);
+            background:rgba(255,255,255,.05);
+            border-radius:10px;padding:12px;font-weight:800;
+        }
+        main{min-height:100vh}
         .footer{
-            padding:40px 16px;
-            background:#08111f;
-            color:#e2e8f0;
+            padding:40px 16px;background:#08111f;color:#e2e8f0;
             border-top:1px solid rgba(255,255,255,.08);
         }
-
         .footer-grid{
-            width:min(1220px,100%);
-            margin:0 auto;
-            display:grid;
-            grid-template-columns:2fr 1fr 1fr;
-            gap:20px;
+            width:min(1220px,100%);margin:0 auto;
+            display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;
         }
+        .footer a{display:block;color:#cbd5e1;text-decoration:none;margin:6px 0}
+        .footer-copy{width:min(1220px,100%);margin:18px auto 0;color:#94a3b8}
 
-        .footer a{
-            display:block;
-            color:#cbd5e1;
-            text-decoration:none;
-            margin:6px 0;
+        @media (max-width: 900px){
+            .nav-wrap{grid-template-columns:auto auto 1fr auto}
+            .top-search button{display:none}
+            .footer-grid{grid-template-columns:1fr}
         }
-
-        .footer-copy{
-            width:min(1220px,100%);
-            margin:18px auto 0;
-            color:#94a3b8;
-        }
-
-        @media (max-width: 980px){
-            :root{
-                --nav-height: var(--nav-height-mobile);
-            }
-
-            .navbar{
-                min-height:var(--nav-height-mobile);
-            }
-
-            .nav-wrap{
-                width:calc(100% - 14px);
-                gap:8px;
-                padding:8px 0;
-            }
-
-            .logo-icon{
-                width:34px;
-                height:34px;
-                border-radius:9px;
-                font-size:14px;
-            }
-
-            .logo{
-                font-size:14px;
-            }
-
-            .logo-sub{
-                font-size:10px;
-            }
-
-            .nav-links{
-                display:none !important;
-            }
-
-            .nav-actions{
-                gap:6px;
-            }
-
-            .nav-actions a{
-                padding:8px 10px;
-                font-size:12px;
-                border-radius:9px;
-            }
-
-            .footer-grid{
-                grid-template-columns:1fr;
-            }
-        }
-
         @media (max-width: 640px){
-            .logo-sub{
-                display:none;
-            }
-
-            .nav-wrap{
-                width:calc(100% - 10px);
-            }
-
-            .nav-actions a{
-                padding:7px 9px;
-                font-size:11px;
-            }
-
-            .nav-actions a.btn-dark{
-                display:inline-flex;
-            }
+            .brand small{display:none}
+            .top-search{display:none}
+            .top-actions .hide-mobile{display:none}
+            .nav-wrap{width:calc(100% - 10px);gap:8px}
+            .menu-btn,.nav-link-btn{padding:8px 10px;font-size:12px}
         }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
-    {% if request.resolver_match.url_name != 'home' %}
+<body>
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <aside class="drawer" id="mainDrawer" aria-hidden="true">
+        <div class="drawer-head">
+            <a class="brand" href="{% url 'home' %}">
+                <span class="brand-mark">N</span>
+                <span><strong>Namvibe</strong><small>Menu</small></span>
+            </a>
+            <button class="drawer-close" type="button" id="drawerClose">×</button>
+        </div>
+        <nav class="drawer-nav">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'feed' %}">Feed</a>
+            <a href="{% url 'dating' %}">Dating</a>
+            <a href="{% url 'live_home' %}">Live</a>
+            <a href="{% url 'community_list' %}">Communities</a>
+            <a href="{% url 'wallet_home' %}">Wallet</a>
+            <a href="{% url 'settings' %}">Settings</a>
+            {% if request.user.is_authenticated %}
+                <a href="{{ smart_profile_url }}">Profile</a>
+                <a href="{% url 'logout' %}">Logout</a>
+            {% else %}
+                <a href="{% url 'login' %}">Login</a>
+                <a href="{% url 'signup' %}">Sign Up</a>
+            {% endif %}
+        </nav>
+    </aside>
+
     <header class="site-header" id="siteHeader">
-        <div class="navbar">
-            <div class="nav-wrap">
-                <a href="{% url 'home' %}" class="logo-wrap">
-                    <div class="logo-icon">N</div>
-                    <div>
-                        <div class="logo">Namvibe</div>
-                        <div class="logo-sub">Namibian vibes in motion</div>
-                    </div>
-                </a>
+        <div class="nav-wrap">
+            <button class="menu-btn" type="button" id="drawerOpen" aria-label="Open menu">☰</button>
 
-                <nav class="nav-links">
-                    <a href="{% url 'home' %}">Home</a>
-                    <a href="{% url 'feed' %}">Feed</a>
-                    <a href="{% url 'dating' %}">Dating</a>
-                    <a href="{% url 'live_home' %}">Live</a>
-                    <a href="{% url 'community_list' %}">Communities</a>
-                </nav>
+            <a class="brand" href="{% url 'home' %}">
+                <span class="brand-mark">N</span>
+                <span><strong>Namvibe</strong><small>Namibian vibes in motion</small></span>
+            </a>
 
-                <div class="nav-actions">
-                    {% if request.user.is_authenticated %}
-                        <a href="{{ smart_profile_url }}" class="btn btn-main">Profile</a>
-                        <a href="{% url 'logout' %}" class="btn btn-dark">Logout</a>
-                    {% else %}
-                        <a href="{% url 'login' %}" class="btn btn-dark">Login</a>
-                        <a href="{% url 'signup' %}" class="btn btn-main">Sign Up</a>
-                    {% endif %}
-                </div>
+            <form class="top-search" action="{% url 'discover_search' %}" method="get">
+                <input type="search" name="q" placeholder="Search people, posts, communities">
+                <button type="submit">Search</button>
+            </form>
+
+            <div class="top-actions">
+                <a class="nav-link-btn hide-mobile" href="{% url 'discover' %}">Discover</a>
+                {% if request.user.is_authenticated %}
+                    <a class="nav-link-btn" href="{{ smart_profile_url }}">Profile</a>
+                {% else %}
+                    <a class="nav-link-btn" href="{% url 'login' %}">Login</a>
+                    <a class="nav-link-btn primary-btn" href="{% url 'signup' %}">Sign Up</a>
+                {% endif %}
             </div>
         </div>
     </header>
-    {% endif %}
 
     <main>
         {% block content %}{% endblock %}
@@ -273,7 +196,6 @@
                 <h3>Namvibe</h3>
                 <p>Share moments, discover people, post short videos, join communities, and grow in one beautiful social space.</p>
             </div>
-
             <div>
                 <h4>Platform</h4>
                 <a href="{% url 'home' %}">Home</a>
@@ -281,11 +203,10 @@
                 <a href="{% url 'dating' %}">Dating</a>
                 <a href="{% url 'live_home' %}">Live</a>
             </div>
-
             <div>
                 <h4>Account</h4>
-                <a href="{{ smart_profile_url }}">Profile</a>
                 {% if request.user.is_authenticated %}
+                    <a href="{{ smart_profile_url }}">Profile</a>
                     <a href="{% url 'logout' %}">Logout</a>
                 {% else %}
                     <a href="{% url 'login' %}">Login</a>
@@ -298,37 +219,29 @@
 
     <script>
         (function () {
-            const header = document.getElementById("siteHeader");
-            if (!header) return;
+            const drawer = document.getElementById("mainDrawer");
+            const overlay = document.getElementById("drawerOverlay");
+            const openBtn = document.getElementById("drawerOpen");
+            const closeBtn = document.getElementById("drawerClose");
 
-            let lastY = window.scrollY;
-            let ticking = false;
-
-            function updateHeader() {
-                const y = window.scrollY;
-
-                if (y > 10) {
-                    header.classList.add("nav-scrolled");
-                } else {
-                    header.classList.remove("nav-scrolled");
-                }
-
-                if (y > 80 && y > lastY) {
-                    header.classList.add("nav-hidden");
-                } else {
-                    header.classList.remove("nav-hidden");
-                }
-
-                lastY = y;
-                ticking = false;
+            function openDrawer() {
+                drawer.classList.add("open");
+                overlay.classList.add("open");
+                drawer.setAttribute("aria-hidden", "false");
             }
 
-            window.addEventListener("scroll", function () {
-                if (!ticking) {
-                    window.requestAnimationFrame(updateHeader);
-                    ticking = true;
-                }
-            }, { passive: true });
+            function closeDrawer() {
+                drawer.classList.remove("open");
+                overlay.classList.remove("open");
+                drawer.setAttribute("aria-hidden", "true");
+            }
+
+            openBtn?.addEventListener("click", openDrawer);
+            closeBtn?.addEventListener("click", closeDrawer);
+            overlay?.addEventListener("click", closeDrawer);
+            document.addEventListener("keydown", function(e){
+                if (e.key === "Escape") closeDrawer();
+            });
         })();
     </script>
 
