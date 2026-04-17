@@ -3,6 +3,9 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
+
+def railway_home(request):
+    return HttpResponse('namvibe ok')
 from accounts.views import public_profile_view
 from core.views import index, settings_entry_view
 from posts.views import (
@@ -40,7 +43,7 @@ from posts.views import (
 )
 
 urlpatterns = [
-    path("", index, name="home"),
+    path("", railway_home),
     path("healthz", lambda request: HttpResponse("ok")),
     path("admin/", admin.site.urls),
     path("settings/", settings_entry_view, name="settings"),

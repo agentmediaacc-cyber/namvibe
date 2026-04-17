@@ -105,8 +105,4 @@ CSRF_TRUSTED_ORIGINS = [
     "https://web-production-354b3.up.railway.app",
 ]
 
-ALLOWED_HOSTS = [
-    "web-production-354b3.up.railway.app",
-    "localhost",
-    "127.0.0.1",
-]
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", ".railway.app", "www.namvibe.com", "namvibe.com"]
