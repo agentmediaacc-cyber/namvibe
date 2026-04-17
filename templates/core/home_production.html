@@ -11,7 +11,7 @@
     :root{--bg:#07101d;--panel:rgba(255,255,255,.075);--line:rgba(255,255,255,.11);--text:#f8fafc;--muted:#cbd5e1;--hot:#f43f5e;--teal:#14b8a6;--blue:#38bdf8}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(20,184,166,.16),transparent 24%),radial-gradient(circle at top right,rgba(244,63,94,.18),transparent 24%),linear-gradient(180deg,#07101d,#0f172a 52%,#08111f);color:var(--text);font-family:Inter,Arial,sans-serif}a{color:inherit;text-decoration:none}
     .home-shell{max-width:1220px;margin:0 auto;padding:14px 14px 96px}
-    .home-top{position:sticky;top:0;z-index:2000;z-index:40;display:grid;grid-template-columns:auto auto minmax(190px,1fr) auto;align-items:center;gap:12px;margin-bottom:16px;padding:12px;border:1px solid var(--line);background:rgba(7,16,29,.78);backdrop-filter:blur(16px);border-radius:18px}
+    .home-top{position:relative;top:auto;z-index:20;z-index:40;display:grid;grid-template-columns:auto auto minmax(190px,1fr) auto;align-items:center;gap:12px;margin-bottom:16px;padding:12px;border:1px solid var(--line);background:rgba(7,16,29,.78);backdrop-filter:blur(16px);border-radius:18px}
     .hamburger{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.08);color:white;font-size:22px;cursor:pointer}
     .brand{display:flex;align-items:center;gap:10px}.brand-mark{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(135deg,var(--teal),var(--hot));font-weight:900}.brand small{display:block;color:var(--muted)}
     .home-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);border-radius:12px;padding:6px 8px}.home-search input{flex:1;min-width:0;border:0;background:transparent;color:white;outline:0;padding:8px}.home-search button{border:0;border-radius:8px;background:rgba(255,255,255,.1);color:white;padding:8px 10px;font-weight:800}
@@ -259,16 +259,10 @@
 </div>
 <style>
   .homepage-shell{padding-top:10px}
-  .home-top{
-    top: calc(var(--nav-height) + 8px) !important;
-  }
+  .home-top{ top:auto !important; }
   @media(max-width:900px){
     .homepage-shell{padding-top:8px}
-    .home-top{
-      top: calc(var(--nav-height) + 6px) !important;
-      padding:10px !important;
-      border-radius:16px !important;
-    }
+    .home-top{ top:auto !important; padding:10px !important; border-radius:16px !important; }
   }
 </style>
 {% endblock %}
@@ -278,7 +272,7 @@
     :root{--bg:#07101d;--panel:rgba(255,255,255,.075);--line:rgba(255,255,255,.11);--text:#f8fafc;--muted:#cbd5e1;--hot:#f43f5e;--teal:#14b8a6;--blue:#38bdf8}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(20,184,166,.16),transparent 24%),radial-gradient(circle at top right,rgba(244,63,94,.18),transparent 24%),linear-gradient(180deg,#07101d,#0f172a 52%,#08111f);color:var(--text);font-family:Inter,Arial,sans-serif}a{color:inherit;text-decoration:none}
     .home-shell{max-width:1220px;margin:0 auto;padding:14px 14px 96px}
-    .home-top{position:sticky;top:0;z-index:2000;z-index:40;display:grid;grid-template-columns:auto auto minmax(190px,1fr) auto;align-items:center;gap:12px;margin-bottom:16px;padding:12px;border:1px solid var(--line);background:rgba(7,16,29,.78);backdrop-filter:blur(16px);border-radius:18px}
+    .home-top{position:relative;top:auto;z-index:20;z-index:40;display:grid;grid-template-columns:auto auto minmax(190px,1fr) auto;align-items:center;gap:12px;margin-bottom:16px;padding:12px;border:1px solid var(--line);background:rgba(7,16,29,.78);backdrop-filter:blur(16px);border-radius:18px}
     .hamburger{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.08);color:white;font-size:22px;cursor:pointer}
     .brand{display:flex;align-items:center;gap:10px}.brand-mark{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(135deg,var(--teal),var(--hot));font-weight:900}.brand small{display:block;color:var(--muted)}
     .home-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);border-radius:12px;padding:6px 8px}.home-search input{flex:1;min-width:0;border:0;background:transparent;color:white;outline:0;padding:8px}.home-search button{border:0;border-radius:8px;background:rgba(255,255,255,.1);color:white;padding:8px 10px;font-weight:800}
