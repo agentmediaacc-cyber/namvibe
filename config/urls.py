@@ -7,12 +7,13 @@ def safe_index(request):
     try:
         return real_index(request)
     except Exception as e:
-        return HttpResponse(f"Namvibe homepage temporarily safe mode.<br><br>Error: {e}")
+        return HttpResponse(f"Namvibe safe mode<br><br>{e}")
 
 urlpatterns = [
     path("", safe_index),
     path("healthz", lambda request: HttpResponse("ok")),
-    path("admin/", admin.site.urls"),
+    path("admin/", admin.site.urls),
+
     path("accounts/", include("accounts.urls")),
     path("posts/", include("posts.urls")),
     path("feed/", include("posts.urls")),
