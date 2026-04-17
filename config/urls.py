@@ -25,6 +25,7 @@ urlpatterns = [
     path("feed/", include("posts.urls")),
     path("live/", include("live.urls")),
     path("wallet/", include("wallet.urls")),
+    path("settings/", lambda request: redirect("/accounts/profile/edit/"), name="settings"),
     path("dating/", include("dating.urls")),
     path("communities/", include(("communities.urls", "communities"), namespace="communities")),
 ]
