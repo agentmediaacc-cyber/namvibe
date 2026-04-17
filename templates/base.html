@@ -126,6 +126,9 @@
             min-height:100vh;
             padding-top:var(--nav-height);
         }
+        body.home-page main{
+            padding-top:0;
+        }
 
         .footer{
             padding:40px 16px;
@@ -225,7 +228,8 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
+    {% if request.resolver_match.url_name != 'home' %}
     <header class="site-header" id="siteHeader">
         <div class="navbar">
             <div class="nav-wrap">
@@ -257,6 +261,7 @@
             </div>
         </div>
     </header>
+    {% endif %}
 
     <main>
         {% block content %}{% endblock %}
