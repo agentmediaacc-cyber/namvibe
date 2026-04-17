@@ -28,3 +28,33 @@ urlpatterns = [
     path("dating/", include("dating.urls")),
     path("communities/", include(("communities.urls", "communities"), namespace="communities")),
 ]
+
+
+# === ALIASES FOR TEMPLATE COMPATIBILITY ===
+from django.shortcuts import redirect
+
+def alias(to):
+    return lambda request, *a, **kw: redirect(to)
+
+urlpatterns += [
+    path("reels/", alias("/posts/reels/feed/"), name="reels_feed"),
+    path("discover/", alias("/posts/discover/"), name="discover"),
+    path("discover/search/", alias("/posts/discover/search/"), name="discover_search"),
+    path("studio/", alias("/posts/studio/"), name="studio"),
+
+    path("profile/<str:username>/", alias("/accounts/profile/"), name="profile_detail"),
+
+    path("post/<uuid:uuid>/", alias("/posts/"), name="post_detail"),
+
+    path("like/<uuid:uuid>/", alias("/posts/"), name="like_post"),
+    path("save-toggle/<uuid:uuid>/", alias("/posts/"), name="save_post_toggle"),
+    path("share/<uuid:uuid>/", alias("/posts/"), name="share_post"),
+
+    path("comment/<uuid:uuid>/", alias("/posts/"), name="add_comment"),
+    path("delete/<uuid:uuid>/", alias("/posts/"), name="delete_post"),
+    path("edit/<uuid:uuid>/", alias("/posts/"), name="edit_post"),
+
+    path("draft/save/", alias("/posts/studio/draft/"), name="save_draft"),
+    path("draft/publish/<uuid:uuid>/", alias("/posts/"), name="publish_draft"),
+    path("preview/<uuid:uuid>/", alias("/posts/"), name="preview_post"),
+]
