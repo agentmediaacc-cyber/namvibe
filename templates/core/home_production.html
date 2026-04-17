@@ -1,12 +1,10 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Namvibe | Home</title>
-  <link rel="stylesheet" href="{% static 'css/style.css' %}">
-  {% include "posts/post_styles.html" %}
+
+{% block title %}Namvibe | Home{% endblock %}
+
+{% block extra_head %}
+{% include "posts/post_styles.html" %}
   <style>
     :root{--bg:#07101d;--panel:rgba(255,255,255,.075);--line:rgba(255,255,255,.11);--text:#f8fafc;--muted:#cbd5e1;--hot:#f43f5e;--teal:#14b8a6;--blue:#38bdf8}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(20,184,166,.16),transparent 24%),radial-gradient(circle at top right,rgba(244,63,94,.18),transparent 24%),linear-gradient(180deg,#07101d,#0f172a 52%,#08111f);color:var(--text);font-family:Inter,Arial,sans-serif}a{color:inherit;text-decoration:none}
@@ -27,8 +25,8 @@
     .live-strip,.profile-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}.mini-user{border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:14px;padding:12px;display:grid;gap:8px}.live-badge{display:inline-flex;width:max-content;background:#ef4444;color:white;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
     @media(max-width:900px){.home-top{grid-template-columns:auto auto 1fr}.home-search{grid-column:1/-1;order:3}.hero,.layout{grid-template-columns:1fr}.side{position:static}.stats{grid-template-columns:repeat(2,1fr)}.top-actions .pill,.top-actions .desktop-only{display:none}}
   </style>
-</head>
-<body>
+
+
 <div class="compat" data-section="gallery"></div>
 <aside class="rightbar contextual-extra" id="rightbar" hidden></aside>
 <div class="drawer-overlay" id="drawerOverlay" hidden></div>
@@ -53,7 +51,7 @@
     {% endif %}
   </nav>
 </aside>
-<main class="home-shell">
+<div class="home-shell homepage-shell">
   <header class="home-top">
     <button class="hamburger" type="button" aria-label="Open menu" data-open-drawer>☰</button>
     <a class="brand" href="/">
@@ -256,8 +254,279 @@
       {% endfor %}
     </aside>
   </div>
-</main>
+</div>
+<style>
+  .homepage-shell{padding-top:10px}
+  .home-top{
+    top: calc(var(--nav-height) + 8px) !important;
+  }
+  @media(max-width:900px){
+    .homepage-shell{padding-top:8px}
+    .home-top{
+      top: calc(var(--nav-height) + 6px) !important;
+      padding:10px !important;
+      border-radius:16px !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<style>
+    :root{--bg:#07101d;--panel:rgba(255,255,255,.075);--line:rgba(255,255,255,.11);--text:#f8fafc;--muted:#cbd5e1;--hot:#f43f5e;--teal:#14b8a6;--blue:#38bdf8}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(20,184,166,.16),transparent 24%),radial-gradient(circle at top right,rgba(244,63,94,.18),transparent 24%),linear-gradient(180deg,#07101d,#0f172a 52%,#08111f);color:var(--text);font-family:Inter,Arial,sans-serif}a{color:inherit;text-decoration:none}
+    .home-shell{max-width:1220px;margin:0 auto;padding:14px 14px 96px}
+    .home-top{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:auto auto minmax(190px,1fr) auto;align-items:center;gap:12px;margin-bottom:16px;padding:12px;border:1px solid var(--line);background:rgba(7,16,29,.78);backdrop-filter:blur(16px);border-radius:18px}
+    .hamburger{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.08);color:white;font-size:22px;cursor:pointer}
+    .brand{display:flex;align-items:center;gap:10px}.brand-mark{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(135deg,var(--teal),var(--hot));font-weight:900}.brand small{display:block;color:var(--muted)}
+    .home-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);border-radius:12px;padding:6px 8px}.home-search input{flex:1;min-width:0;border:0;background:transparent;color:white;outline:0;padding:8px}.home-search button{border:0;border-radius:8px;background:rgba(255,255,255,.1);color:white;padding:8px 10px;font-weight:800}
+    .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.top-actions a,.top-actions button,.pill{border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:10px 12px;font-weight:800}.primary{background:linear-gradient(135deg,var(--teal),var(--hot))!important}
+    .icon-btn{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;padding:0!important}.profile-menu{position:relative}.avatar-btn{width:42px;height:42px;border:1px solid var(--line);border-radius:999px;background:linear-gradient(135deg,var(--teal),var(--hot));color:white;font-weight:900;cursor:pointer}.profile-dropdown{position:absolute;right:0;top:50px;display:none;min-width:210px;border:1px solid var(--line);background:rgba(7,16,29,.96);backdrop-filter:blur(16px);border-radius:14px;padding:8px;box-shadow:0 24px 80px rgba(0,0,0,.35)}.profile-dropdown.open{display:grid}.profile-dropdown a{border:0;background:transparent;justify-content:flex-start}
+    .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:80;opacity:0;pointer-events:none;transition:opacity .22s ease}.drawer-overlay.open{opacity:1;pointer-events:auto}.drawer{position:fixed;inset:0 auto 0 0;width:min(330px,88vw);background:rgba(6,12,24,.96);border-right:1px solid var(--line);z-index:90;transform:translateX(-100%);transition:transform .24s ease;box-shadow:24px 0 90px rgba(0,0,0,.42);padding:18px;display:flex;flex-direction:column;gap:14px}.drawer.open{transform:translateX(0)}.drawer-head{display:flex;align-items:center;justify-content:space-between}.drawer-close{border:1px solid var(--line);background:rgba(255,255,255,.08);color:white;border-radius:8px;width:40px;height:40px;cursor:pointer}.drawer-nav{display:grid;gap:8px}.drawer-nav a{display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.055);border-radius:10px;padding:13px 12px;font-weight:800}.drawer-nav a:hover{background:rgba(255,255,255,.1);transform:translateX(2px)}
+    .hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:16px;margin-bottom:16px}.panel{border:1px solid var(--line);background:var(--panel);border-radius:22px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
+    .hero h1{font-size:clamp(32px,5vw,58px);line-height:1.02;margin:0 0 12px}.hero p{color:var(--muted);line-height:1.7}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.stat{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.05)}.stat strong{display:block;font-size:22px}
+    .layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}.rail{display:flex;gap:12px;overflow:auto;padding-bottom:8px}.story-card{min-width:112px;height:164px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.07);padding:10px;display:flex;flex-direction:column;justify-content:space-between}.story-card.unseen{box-shadow:0 0 0 2px var(--hot)}.story-add{background:linear-gradient(135deg,rgba(20,184,166,.35),rgba(244,63,94,.28))}
+    .avatar{width:46px;height:46px;border-radius:999px;background:linear-gradient(135deg,var(--teal),var(--hot));display:grid;place-items:center;font-weight:900}.composer textarea{width:100%;border:1px solid var(--line);background:#081322;color:#fff;border-radius:10px;padding:12px}.composer-actions,.post-shortcuts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .ad-card,.live-card,.discover-card,.reel-card{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:16px;padding:14px;margin-bottom:12px}.ad-card img,.ad-card video,.reel-card video,.reel-card img{width:100%;border-radius:10px;max-height:260px;object-fit:cover}.tag-cloud{display:flex;gap:8px;flex-wrap:wrap}.tag-cloud a{background:rgba(56,189,248,.13);color:#bfdbfe;border-radius:8px;padding:7px 9px}
+    .side{position:sticky;top:92px}.empty{color:var(--muted);padding:18px;border:1px dashed var(--line);border-radius:14px}.compat{display:none}
+    .live-strip,.profile-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}.mini-user{border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:14px;padding:12px;display:grid;gap:8px}.live-badge{display:inline-flex;width:max-content;background:#ef4444;color:white;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
+    @media(max-width:900px){.home-top{grid-template-columns:auto auto 1fr}.home-search{grid-column:1/-1;order:3}.hero,.layout{grid-template-columns:1fr}.side{position:static}.stats{grid-template-columns:repeat(2,1fr)}.top-actions .pill,.top-actions .desktop-only{display:none}}
+  </style>
+
+
+<div class="compat" data-section="gallery"></div>
+<aside class="rightbar contextual-extra" id="rightbar" hidden></aside>
+<div class="drawer-overlay" id="drawerOverlay" hidden></div>
+<aside class="drawer" id="mainDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <a class="brand" href="/"><span class="brand-mark">N</span><span><strong>Namvibe</strong><small>Menu</small></span></a>
+    <button class="drawer-close" type="button" data-close-drawer>×</button>
+  </div>
+  <nav class="drawer-nav">
+    <a href="{% url 'home' %}">Home</a>
+    <a href="{% url 'feed' %}">Feed</a>
+    <a href="{% url 'dating' %}">Dating</a>
+    <a href="{% url 'live_home' %}">Live</a>
+    <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
+    <a href="{% url 'community_list' %}">Communities</a>
+    <a href="{% url 'wallet_home' %}">Wallet</a>
+    <a href="{% url 'settings' %}">Settings</a>
+    {% if request.user.is_authenticated %}
+      <a href="{% url 'logout' %}">Logout</a>
+    {% else %}
+      <a href="{% url 'login' %}">Login</a>
+    {% endif %}
+  </nav>
+</aside>
+<div class="home-shell homepage-shell">
+  <header class="home-top">
+    <button class="hamburger" type="button" aria-label="Open menu" data-open-drawer>☰</button>
+    <a class="brand" href="/">
+      <span class="brand-mark">N</span>
+      <span><strong>Namvibe</strong><small>Namibia in motion</small></span>
+    </a>
+    <form class="home-search" action="{% url 'discover_search' %}" method="get">
+      <input type="search" name="q" placeholder="Search people, posts, communities">
+      <button type="submit">Search</button>
+    </form>
+    <nav class="top-actions">
+      <span class="pill desktop-only">{{ total_members }} members</span>
+      <a href="{% url 'story_create' %}" class="primary desktop-only">+ Story</a>
+      <a href="{% url 'studio' %}" class="desktop-only">Upload</a>
+      <a class="icon-btn" href="{% url 'discover' %}" aria-label="Notifications">⌁</a>
+      {% if request.user.is_authenticated %}
+        <div class="profile-menu">
+          <button class="avatar-btn" type="button" data-profile-toggle>{{ request.user.profile.display_name|default:request.user.username|first|upper }}</button>
+          <div class="profile-dropdown" id="profileDropdown">
+            <a href="{{ smart_profile_url }}">Dashboard</a>
+            <a href="{% url 'profile_detail' request.user.profile.username %}">Public profile</a>
+            <a href="{% url 'settings' %}">Settings</a>
+            <a href="{% url 'logout' %}">Logout</a>
+          </div>
+        </div>
+      {% else %}
+        <a href="{{ smart_profile_url }}" class="desktop-only">Profile</a>
+        <a href="{% url 'login' %}" class="auth-action">Login</a>
+        <a href="{% url 'signup' %}" class="primary">Join</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="panel">
+      <h1>Stories, posts, live moments, and creator energy from Namibia.</h1>
+      <p>Follow what is moving now, share a quick update, watch public stories, discover communities, and open the feed built for Namvibe.</p>
+      <div class="top-actions">
+        <a class="primary" href="{% url 'feed' %}">Open Feed</a>
+        <a href="{% url 'story_create' %}">Create Story</a>
+        <a href="{% url 'studio' %}">Create Post</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><strong>{{ total_members }}</strong><span>Members</span></div>
+        <div class="stat"><strong>{{ total_posts }}</strong><span>Public posts</span></div>
+        <div class="stat"><strong>{{ total_stories }}</strong><span>Active stories</span></div>
+        <div class="stat"><strong>{{ total_live }}</strong><span>Live rooms</span></div>
+      </div>
+      <div class="profile-strip">
+        {% for creator in creators|slice:":3" %}
+          <a class="mini-user" href="{% url 'profile_detail' creator.username %}">
+            <span class="avatar">{{ creator.display_name|default:creator.username|first|upper }}</span>
+            <strong>@{{ creator.username }}</strong>
+            <small>{{ creator.location|default:"Featured" }}</small>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+    <aside>
+      {% for ad in top_ads %}
+        <article class="ad-card">
+          <small>Sponsored · {{ ad.sponsor_name }}</small>
+          <h2>{{ ad.title }}</h2>
+          <p>{{ ad.description }}</p>
+          {% if ad.image %}<img src="{{ ad.image.url }}" alt="{{ ad.title }}">{% endif %}
+          {% if ad.video %}<video src="{{ ad.video.url }}" controls preload="metadata"></video>{% endif %}
+          <a class="primary pill" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
+        </article>
+      {% empty %}
+        <div class="panel">
+          <strong>Live creators</strong>
+          <div class="live-strip">
+            {% for room in live_preview|slice:":2" %}
+              <a class="mini-user" href="{% if room.uuid %}{% url 'live_room' room.uuid %}{% else %}{% url 'live_home' %}{% endif %}">
+                <span class="live-badge">LIVE</span>
+                <strong>{{ room.title }}</strong>
+                <small>{{ room.viewer_count }} watching</small>
+              </a>
+            {% empty %}
+              <a class="mini-user" href="{% url 'live_home' %}">
+                <span class="live-badge">LIVE</span>
+                <strong>Go Live</strong>
+                <small>Start from the live studio</small>
+              </a>
+            {% endfor %}
+          </div>
+          <div class="top-actions" style="margin-top:12px;">
+            <a class="primary" href="{% url 'signup' %}">Join Now</a>
+            <a href="{% url 'live_start' %}">Go Live</a>
+          </div>
+        </div>
+      {% endfor %}
+    </aside>
+  </section>
+
+  <section class="panel" style="margin-bottom:16px;">
+    <div class="rail">
+      <a class="story-card story-add" href="{% url 'story_create' %}">
+        <span class="avatar">+</span>
+        <strong>Add Story</strong>
+        <small>Text, image, or video</small>
+      </a>
+      {% for item in story_rail %}
+        <a class="story-card {% if not item.is_seen %}unseen{% endif %}" href="{% url 'story_detail' item.first_story.id %}">
+          <span class="avatar">{{ item.author.profile.display_name|default:item.author.username|first|upper }}</span>
+          <strong>{{ item.author.profile.display_name|default:item.author.username }}</strong>
+          <span>{{ item.first_story.caption|default:item.first_story.text_content|truncatechars:28 }}</span>
+          <small>{{ item.story_count }} stor{{ item.story_count|pluralize:"y,ies" }}</small>
+        </a>
+      {% empty %}
+        <div class="empty">No active public stories yet.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="layout">
+    <section>
+      <form class="panel composer" action="{% url 'create_post' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <textarea name="content" rows="3" placeholder="Share your story, post an update, image, or video..."></textarea>
+        <div class="composer-actions">
+          <input type="file" name="media" accept="image/*,video/*">
+          <button class="pill primary" type="submit">Post update</button>
+        </div>
+        <div class="post-shortcuts">
+          <a class="pill" href="{% url 'studio' %}?type=photo">Photo</a>
+          <a class="pill" href="{% url 'studio' %}?type=reel">Reel</a>
+          <a class="pill" href="{% url 'studio' %}?type=poll">Poll</a>
+          <a class="pill" href="{% url 'studio' %}?type=live">Live</a>
+        </div>
+      </form>
+
+      {% for post in feed_posts %}
+        {% include "posts/_post_card.html" with post=post %}
+        {% if forloop.counter == 3 %}
+          {% for ad in mid_ads %}
+            <article class="ad-card">
+              <small>Sponsored · {{ ad.sponsor_name }}</small>
+              <h2>{{ ad.title }}</h2>
+              <p>{{ ad.description }}</p>
+              {% if ad.image %}<img src="{{ ad.image.url }}" alt="{{ ad.title }}">{% endif %}
+              <a class="primary pill" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
+            </article>
+          {% endfor %}
+        {% endif %}
+      {% empty %}
+        <div class="panel empty">No public posts yet. Create the first public post or story.</div>
+      {% endfor %}
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <h2>Live now</h2>
+        {% for room in live_preview %}
+          <a class="live-card" href="{% if room.uuid %}{% url 'live_room' room.uuid %}{% else %}{% url 'live_home' %}{% endif %}">
+            <strong>{{ room.title }}</strong>
+            <p>{{ room.description|default:"Live room on Namvibe." }}</p>
+            <small>{{ room.status }} · {{ room.viewer_count }} viewers</small>
+          </a>
+        {% empty %}
+          <div class="empty">No live sessions right now.</div>
+        {% endfor %}
+      </section>
+
+      <section class="panel">
+        <h2>Discover</h2>
+        {% for community in communities %}
+          <a class="discover-card" href="{% url 'community_detail' community.slug %}"><strong>{{ community.name }}</strong><br><small>{{ community.member_count }} members</small></a>
+        {% endfor %}
+        {% for creator in creators %}
+          <a class="discover-card" href="{% url 'profile_detail' creator.username %}"><strong>@{{ creator.username }}</strong><br><small>{{ creator.location|default:"Namibia" }}</small></a>
+        {% endfor %}
+        <div class="tag-cloud">
+          {% for tag,count in trending_tags %}
+            <a href="{% url 'hashtag' tag|cut:'#' %}">{{ tag }}</a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Reels and video</h2>
+        {% for post in reel_preview %}
+          <a class="reel-card" href="{% url 'post_detail' post.uuid %}">
+            <strong>{{ post.title|default:"Video post" }}</strong>
+            <small>@{{ post.author.profile.username }}</small>
+          </a>
+        {% empty %}
+          <div class="empty">Video previews will appear here.</div>
+        {% endfor %}
+        <a class="pill" href="{% url 'reels_feed' %}">Open reels</a>
+      </section>
+
+      {% for ad in sidebar_ads %}
+        <article class="ad-card">
+          <small>Sponsored · {{ ad.sponsor_name }}</small>
+          <h2>{{ ad.title }}</h2>
+          <p>{{ ad.description }}</p>
+          <a class="primary pill" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
+        </article>
+      {% endfor %}
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
 <script>
+
   const drawer = document.getElementById("mainDrawer");
   const overlay = document.getElementById("drawerOverlay");
   function openDrawer(){
@@ -286,6 +555,6 @@
       profileDropdown.classList.remove("open");
     }
   });
+
 </script>
-</body>
-</html>
+{% endblock %}

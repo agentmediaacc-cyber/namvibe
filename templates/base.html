@@ -6,37 +6,126 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Namvibe{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <style>
+        :root{
+            --nav-height: 78px;
+            --nav-bg: rgba(7,16,29,.86);
+            --nav-line: rgba(255,255,255,.10);
+        }
+        *{box-sizing:border-box}
+        html{scroll-behavior:smooth}
+        body{margin:0}
+        .site-header{
+            position:sticky;
+            top:0;
+            z-index:1000;
+            backdrop-filter:blur(16px);
+            background:var(--nav-bg);
+            border-bottom:1px solid var(--nav-line);
+            transition:transform .22s ease, background .22s ease, box-shadow .22s ease;
+        }
+        .site-header.nav-hidden{
+            transform:translateY(-110%);
+        }
+        .site-header.nav-scrolled{
+            box-shadow:0 16px 40px rgba(0,0,0,.22);
+        }
+        .navbar{
+            min-height:var(--nav-height);
+            display:flex;
+            align-items:center;
+        }
+        .nav-wrap{
+            width:min(1220px, calc(100% - 24px));
+            margin:0 auto;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:14px;
+            padding:12px 0;
+        }
+        .logo-wrap{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit}
+        .logo-icon{
+            width:42px;height:42px;border-radius:12px;
+            display:grid;place-items:center;
+            font-weight:900;color:#fff;
+            background:linear-gradient(135deg,#14b8a6,#f43f5e);
+        }
+        .logo{font-weight:900;color:#fff}
+        .logo-sub{font-size:12px;color:#cbd5e1}
+        .nav-links{display:flex;align-items:center;gap:14px}
+        .nav-links a,.nav-actions a{
+            text-decoration:none;color:#fff;
+            border:1px solid rgba(255,255,255,.08);
+            background:rgba(255,255,255,.05);
+            padding:10px 12px;border-radius:12px;font-weight:700;
+        }
+        .nav-actions{display:flex;align-items:center;gap:10px}
+        .btn-main{
+            background:linear-gradient(135deg,#14b8a6,#f43f5e)!important;
+            border:0!important;
+        }
+        .btn-dark{
+            background:rgba(255,255,255,.07)!important;
+        }
+        main{min-height:calc(100vh - var(--nav-height))}
+        .footer{
+            padding:40px 16px;
+            background:#08111f;
+            color:#e2e8f0;
+            border-top:1px solid rgba(255,255,255,.08);
+        }
+        .footer-grid{
+            width:min(1220px,100%);
+            margin:0 auto;
+            display:grid;
+            grid-template-columns:2fr 1fr 1fr;
+            gap:20px;
+        }
+        .footer a{display:block;color:#cbd5e1;text-decoration:none;margin:6px 0}
+        .footer-copy{
+            width:min(1220px,100%);
+            margin:18px auto 0;
+            color:#94a3b8;
+        }
+        @media (max-width: 900px){
+            .nav-links{display:none}
+            .nav-wrap{width:min(100%, calc(100% - 16px))}
+            .nav-actions a{padding:9px 10px;font-size:14px}
+            .footer-grid{grid-template-columns:1fr}
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <div class="bg-orb orb-1"></div>
-    <div class="bg-orb orb-2"></div>
-    <div class="bg-orb orb-3"></div>
+    <header class="site-header" id="siteHeader">
+        <div class="navbar">
+            <div class="nav-wrap">
+                <a href="{% url 'home' %}" class="logo-wrap">
+                    <div class="logo-icon">N</div>
+                    <div>
+                        <div class="logo">Namvibe</div>
+                        <div class="logo-sub">Namibian vibes in motion</div>
+                    </div>
+                </a>
 
-    <header class="navbar">
-        <div class="nav-wrap">
-            <a href="/" class="logo-wrap">
-                <div class="logo-icon">E</div>
-                <div>
-                    <div class="logo">Namvibe</div>
-                    <div class="logo-sub">Namibian vibes in motion</div>
+                <nav class="nav-links">
+                    <a href="{% url 'home' %}">Home</a>
+                    <a href="{% url 'feed' %}">Feed</a>
+                    <a href="{% url 'dating' %}">Dating</a>
+                    <a href="{% url 'live_home' %}">Live</a>
+                    <a href="{% url 'community_list' %}">Communities</a>
+                </nav>
+
+                <div class="nav-actions">
+                    {% if request.user.is_authenticated %}
+                        <a href="{{ smart_profile_url }}" class="btn btn-main">Profile</a>
+                        <a href="{% url 'logout' %}" class="btn btn-dark">Logout</a>
+                    {% else %}
+                        <a href="{% url 'login' %}" class="btn btn-dark">Login</a>
+                        <a href="{% url 'signup' %}" class="btn btn-main">Sign Up</a>
+                    {% endif %}
                 </div>
-            </a>
-
-            <nav class="nav-links">
-                <a href="/">Home</a>
-                <a href="#discover">Discover</a>
-                <a href="#feed">Feed</a>
-                <a href="#support">Support</a>
-            </nav>
-
-            <div class="nav-actions">
-                {% if request.user.is_authenticated %}
-                    <a href="{{ smart_profile_url }}" class="btn btn-main">Profile</a>
-                    <a href="{% url 'logout' %}" class="btn btn-dark">Logout</a>
-                {% else %}
-                    <a href="{% url 'login' %}" class="btn btn-dark">Login</a>
-                    <a href="{% url 'signup' %}" class="btn btn-main">Sign Up</a>
-                {% endif %}
             </div>
         </div>
     </header>
@@ -54,10 +143,10 @@
 
             <div>
                 <h4>Platform</h4>
-                <a href="/">Home</a>
-                <a href="#discover">Discover</a>
-                <a href="#feed">Feed</a>
-                <a href="#support">Support</a>
+                <a href="{% url 'home' %}">Home</a>
+                <a href="{% url 'feed' %}">Feed</a>
+                <a href="{% url 'dating' %}">Dating</a>
+                <a href="{% url 'live_home' %}">Live</a>
             </div>
 
             <div>
@@ -73,5 +162,49 @@
         </div>
         <div class="footer-copy">© 2026 Namvibe. Love, Connect, Share.</div>
     </footer>
+
+    <script>
+        (function () {
+            const header = document.getElementById("siteHeader");
+            if (!header) return;
+
+            let lastY = window.scrollY;
+            let ticking = false;
+
+            function updateHeader() {
+                const y = window.scrollY;
+
+                if (y > 20) {
+                    header.classList.add("nav-scrolled");
+                } else {
+                    header.classList.remove("nav-scrolled");
+                }
+
+                if (y > 100 && y > lastY) {
+                    header.classList.add("nav-hidden");
+                } else {
+                    header.classList.remove("nav-hidden");
+                }
+
+                lastY = y;
+                ticking = false;
+            }
+
+            window.addEventListener("scroll", function () {
+                if (!ticking) {
+                    window.requestAnimationFrame(updateHeader);
+                    ticking = true;
+                }
+            }, { passive: true });
+
+            document.addEventListener("click", function (e) {
+                const link = e.target.closest("a");
+                if (!link) return;
+                header.classList.add("nav-hidden");
+            });
+        })();
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>
