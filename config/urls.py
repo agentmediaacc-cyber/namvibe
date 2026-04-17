@@ -1,14 +1,18 @@
 from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import path, include
-from core.views import index  # your real homepage
+from core.views import index as real_index
+
+def safe_index(request):
+    try:
+        return real_index(request)
+    except Exception as e:
+        return HttpResponse(f"Namvibe homepage temporarily safe mode.<br><br>Error: {e}")
 
 urlpatterns = [
-    path("", index),  # ✅ restore real homepage
-    path("healthz", lambda request: HttpResponse("ok")),  # keep for Railway
-    path("admin/", admin.site.urls),
-
-    # apps
+    path("", safe_index),
+    path("healthz", lambda request: HttpResponse("ok")),
+    path("admin/", admin.site.urls"),
     path("accounts/", include("accounts.urls")),
     path("posts/", include("posts.urls")),
     path("feed/", include("posts.urls")),
