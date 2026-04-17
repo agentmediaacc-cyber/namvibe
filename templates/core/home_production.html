@@ -11,13 +11,13 @@
     :root{--bg:#07101d;--panel:rgba(255,255,255,.075);--line:rgba(255,255,255,.11);--text:#f8fafc;--muted:#cbd5e1;--hot:#f43f5e;--teal:#14b8a6;--blue:#38bdf8}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(20,184,166,.16),transparent 24%),radial-gradient(circle at top right,rgba(244,63,94,.18),transparent 24%),linear-gradient(180deg,#07101d,#0f172a 52%,#08111f);color:var(--text);font-family:Inter,Arial,sans-serif}a{color:inherit;text-decoration:none}
     .home-shell{max-width:1220px;margin:0 auto;padding:14px 14px 96px}
-    .home-top{position:relative;top:auto;z-index:20;z-index:40;display:grid;grid-template-columns:auto auto minmax(190px,1fr) auto;align-items:center;gap:12px;margin-bottom:16px;padding:12px;border:1px solid var(--line);background:rgba(7,16,29,.78);backdrop-filter:blur(16px);border-radius:18px}
-    .hamburger{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.08);color:white;font-size:22px;cursor:pointer}
+    
+    
     .brand{display:flex;align-items:center;gap:10px}.brand-mark{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(135deg,var(--teal),var(--hot));font-weight:900}.brand small{display:block;color:var(--muted)}
-    .home-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);border-radius:12px;padding:6px 8px}.home-search input{flex:1;min-width:0;border:0;background:transparent;color:white;outline:0;padding:8px}.home-search button{border:0;border-radius:8px;background:rgba(255,255,255,.1);color:white;padding:8px 10px;font-weight:800}
-    .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.top-actions a,.top-actions button,.pill{border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:10px 12px;font-weight:800}.primary{background:linear-gradient(135deg,var(--teal),var(--hot))!important}
-    .icon-btn{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;padding:0!important}.profile-menu{position:relative}.avatar-btn{width:42px;height:42px;border:1px solid var(--line);border-radius:999px;background:linear-gradient(135deg,var(--teal),var(--hot));color:white;font-weight:900;cursor:pointer}.profile-dropdown{position:absolute;right:0;top:50px;display:none;min-width:210px;border:1px solid var(--line);background:rgba(7,16,29,.96);backdrop-filter:blur(16px);border-radius:14px;padding:8px;box-shadow:0 24px 80px rgba(0,0,0,.35)}.profile-dropdown.open{display:grid}.profile-dropdown a{border:0;background:transparent;justify-content:flex-start}
-    .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:80;opacity:0;pointer-events:none;transition:opacity .22s ease}.drawer-overlay.open{opacity:1;pointer-events:auto}.drawer{position:fixed;inset:0 auto 0 0;width:min(330px,88vw);background:rgba(6,12,24,.96);border-right:1px solid var(--line);z-index:90;transform:translateX(-100%);transition:transform .24s ease;box-shadow:24px 0 90px rgba(0,0,0,.42);padding:18px;display:flex;flex-direction:column;gap:14px}.drawer.open{transform:translateX(0)}.drawer-head{display:flex;align-items:center;justify-content:space-between}.drawer-close{border:1px solid var(--line);background:rgba(255,255,255,.08);color:white;border-radius:8px;width:40px;height:40px;cursor:pointer}.drawer-nav{display:grid;gap:8px}.drawer-nav a{display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.055);border-radius:10px;padding:13px 12px;font-weight:800}.drawer-nav a:hover{background:rgba(255,255,255,.1);transform:translateX(2px)}
+    .home-search input{flex:1;min-width:0;border:0;background:transparent;color:white;outline:0;padding:8px}.home-search button{border:0;border-radius:8px;background:rgba(255,255,255,.1);color:white;padding:8px 10px;font-weight:800}
+    .top-actions a,.top-actions button,.pill{border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:10px 12px;font-weight:800}.primary{background:linear-gradient(135deg,var(--teal),var(--hot))!important}
+    .profile-dropdown.open{display:grid}.profile-dropdown a{border:0;background:transparent;justify-content:flex-start}
+    
     .hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:16px;margin-bottom:16px}.panel{border:1px solid var(--line);background:var(--panel);border-radius:22px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
     .hero h1{font-size:clamp(32px,5vw,58px);line-height:1.02;margin:0 0 12px}.hero p{color:var(--muted);line-height:1.7}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.stat{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.05)}.stat strong{display:block;font-size:22px}
     .layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}.rail{display:flex;gap:12px;overflow:auto;padding-bottom:8px}.story-card{min-width:112px;height:164px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.07);padding:10px;display:flex;flex-direction:column;justify-content:space-between}.story-card.unseen{box-shadow:0 0 0 2px var(--hot)}.story-add{background:linear-gradient(135deg,rgba(20,184,166,.35),rgba(244,63,94,.28))}
@@ -25,67 +25,15 @@
     .ad-card,.live-card,.discover-card,.reel-card{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:16px;padding:14px;margin-bottom:12px}.ad-card img,.ad-card video,.reel-card video,.reel-card img{width:100%;border-radius:10px;max-height:260px;object-fit:cover}.tag-cloud{display:flex;gap:8px;flex-wrap:wrap}.tag-cloud a{background:rgba(56,189,248,.13);color:#bfdbfe;border-radius:8px;padding:7px 9px}
     .side{position:sticky;top:92px}.empty{color:var(--muted);padding:18px;border:1px dashed var(--line);border-radius:14px}.compat{display:none}
     .live-strip,.profile-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}.mini-user{border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:14px;padding:12px;display:grid;gap:8px}.live-badge{display:inline-flex;width:max-content;background:#ef4444;color:white;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
-    @media(max-width:900px){.home-top{grid-template-columns:auto auto 1fr}.home-search{grid-column:1/-1;order:3}.hero,.layout{grid-template-columns:1fr}.side{position:static}.stats{grid-template-columns:repeat(2,1fr)}.top-actions .pill,.top-actions .desktop-only{display:none}}
+    @media(max-width:900px){.hero,.layout{grid-template-columns:1fr}.side{position:static}.stats{grid-template-columns:repeat(2,1fr)}.top-actions .pill,.top-actions .desktop-only{display:none}}
   </style>
 
 
 <div class="compat" data-section="gallery"></div>
 <aside class="rightbar contextual-extra" id="rightbar" hidden></aside>
-<div class="drawer-overlay" id="drawerOverlay" hidden></div>
-<aside class="drawer" id="mainDrawer" aria-hidden="true">
-  <div class="drawer-head">
-    <a class="brand" href="/"><span class="brand-mark">N</span><span><strong>Namvibe</strong><small>Menu</small></span></a>
-    <button class="drawer-close" type="button" data-close-drawer>×</button>
-  </div>
-  <nav class="drawer-nav">
-    <a href="{% url 'home' %}">Home</a>
-    <a href="{% url 'feed' %}">Feed</a>
-    <a href="{% url 'dating' %}">Dating</a>
-    <a href="{% url 'live_home' %}">Live</a>
-    <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
-    <a href="{% url 'community_list' %}">Communities</a>
-    <a href="{% url 'wallet_home' %}">Wallet</a>
-    <a href="{% url 'settings' %}">Settings</a>
-    {% if request.user.is_authenticated %}
-      <a href="{% url 'logout' %}">Logout</a>
-    {% else %}
-      <a href="{% url 'login' %}">Login</a>
-    {% endif %}
-  </nav>
-</aside>
+
 <div class="home-shell homepage-shell">
-  <header class="home-top">
-    <button class="hamburger" type="button" aria-label="Open menu" data-open-drawer>☰</button>
-    <a class="brand" href="/">
-      <span class="brand-mark">N</span>
-      <span><strong>Namvibe</strong><small>Namibia in motion</small></span>
-    </a>
-    <form class="home-search" action="{% url 'discover_search' %}" method="get">
-      <input type="search" name="q" placeholder="Search people, posts, communities">
-      <button type="submit">Search</button>
-    </form>
-    <nav class="top-actions">
-      <span class="pill desktop-only">{{ total_members }} members</span>
-      <a href="{% url 'story_create' %}" class="primary desktop-only">+ Story</a>
-      <a href="{% url 'studio' %}" class="desktop-only">Upload</a>
-      <a class="icon-btn" href="{% url 'discover' %}" aria-label="Notifications">⌁</a>
-      {% if request.user.is_authenticated %}
-        <div class="profile-menu">
-          <button class="avatar-btn" type="button" data-profile-toggle>{{ request.user.profile.display_name|default:request.user.username|first|upper }}</button>
-          <div class="profile-dropdown" id="profileDropdown">
-            <a href="{{ smart_profile_url }}">Dashboard</a>
-            <a href="{% url 'profile_detail' request.user.profile.username %}">Public profile</a>
-            <a href="{% url 'settings' %}">Settings</a>
-            <a href="{% url 'logout' %}">Logout</a>
-          </div>
-        </div>
-      {% else %}
-        <a href="{{ smart_profile_url }}" class="desktop-only">Profile</a>
-        <a href="{% url 'login' %}" class="auth-action">Login</a>
-        <a href="{% url 'signup' %}" class="primary">Join</a>
-      {% endif %}
-    </nav>
-  </header>
+  
 
   <section class="hero">
     <div class="panel">
@@ -259,10 +207,10 @@
 </div>
 <style>
   .homepage-shell{padding-top:10px}
-  .home-top{ top:auto !important; }
+  
   @media(max-width:900px){
     .homepage-shell{padding-top:8px}
-    .home-top{ top:auto !important; padding:10px !important; border-radius:16px !important; }
+    
   }
 </style>
 {% endblock %}
@@ -272,13 +220,13 @@
     :root{--bg:#07101d;--panel:rgba(255,255,255,.075);--line:rgba(255,255,255,.11);--text:#f8fafc;--muted:#cbd5e1;--hot:#f43f5e;--teal:#14b8a6;--blue:#38bdf8}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,rgba(20,184,166,.16),transparent 24%),radial-gradient(circle at top right,rgba(244,63,94,.18),transparent 24%),linear-gradient(180deg,#07101d,#0f172a 52%,#08111f);color:var(--text);font-family:Inter,Arial,sans-serif}a{color:inherit;text-decoration:none}
     .home-shell{max-width:1220px;margin:0 auto;padding:14px 14px 96px}
-    .home-top{position:relative;top:auto;z-index:20;z-index:40;display:grid;grid-template-columns:auto auto minmax(190px,1fr) auto;align-items:center;gap:12px;margin-bottom:16px;padding:12px;border:1px solid var(--line);background:rgba(7,16,29,.78);backdrop-filter:blur(16px);border-radius:18px}
-    .hamburger{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.08);color:white;font-size:22px;cursor:pointer}
+    
+    
     .brand{display:flex;align-items:center;gap:10px}.brand-mark{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(135deg,var(--teal),var(--hot));font-weight:900}.brand small{display:block;color:var(--muted)}
-    .home-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);border-radius:12px;padding:6px 8px}.home-search input{flex:1;min-width:0;border:0;background:transparent;color:white;outline:0;padding:8px}.home-search button{border:0;border-radius:8px;background:rgba(255,255,255,.1);color:white;padding:8px 10px;font-weight:800}
-    .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.top-actions a,.top-actions button,.pill{border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:10px 12px;font-weight:800}.primary{background:linear-gradient(135deg,var(--teal),var(--hot))!important}
-    .icon-btn{width:42px;height:42px;border-radius:8px;display:grid;place-items:center;padding:0!important}.profile-menu{position:relative}.avatar-btn{width:42px;height:42px;border:1px solid var(--line);border-radius:999px;background:linear-gradient(135deg,var(--teal),var(--hot));color:white;font-weight:900;cursor:pointer}.profile-dropdown{position:absolute;right:0;top:50px;display:none;min-width:210px;border:1px solid var(--line);background:rgba(7,16,29,.96);backdrop-filter:blur(16px);border-radius:14px;padding:8px;box-shadow:0 24px 80px rgba(0,0,0,.35)}.profile-dropdown.open{display:grid}.profile-dropdown a{border:0;background:transparent;justify-content:flex-start}
-    .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:80;opacity:0;pointer-events:none;transition:opacity .22s ease}.drawer-overlay.open{opacity:1;pointer-events:auto}.drawer{position:fixed;inset:0 auto 0 0;width:min(330px,88vw);background:rgba(6,12,24,.96);border-right:1px solid var(--line);z-index:90;transform:translateX(-100%);transition:transform .24s ease;box-shadow:24px 0 90px rgba(0,0,0,.42);padding:18px;display:flex;flex-direction:column;gap:14px}.drawer.open{transform:translateX(0)}.drawer-head{display:flex;align-items:center;justify-content:space-between}.drawer-close{border:1px solid var(--line);background:rgba(255,255,255,.08);color:white;border-radius:8px;width:40px;height:40px;cursor:pointer}.drawer-nav{display:grid;gap:8px}.drawer-nav a{display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.055);border-radius:10px;padding:13px 12px;font-weight:800}.drawer-nav a:hover{background:rgba(255,255,255,.1);transform:translateX(2px)}
+    .home-search input{flex:1;min-width:0;border:0;background:transparent;color:white;outline:0;padding:8px}.home-search button{border:0;border-radius:8px;background:rgba(255,255,255,.1);color:white;padding:8px 10px;font-weight:800}
+    .top-actions a,.top-actions button,.pill{border:1px solid var(--line);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:10px 12px;font-weight:800}.primary{background:linear-gradient(135deg,var(--teal),var(--hot))!important}
+    .profile-dropdown.open{display:grid}.profile-dropdown a{border:0;background:transparent;justify-content:flex-start}
+    
     .hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);gap:16px;margin-bottom:16px}.panel{border:1px solid var(--line);background:var(--panel);border-radius:22px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
     .hero h1{font-size:clamp(32px,5vw,58px);line-height:1.02;margin:0 0 12px}.hero p{color:var(--muted);line-height:1.7}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.stat{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.05)}.stat strong{display:block;font-size:22px}
     .layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}.rail{display:flex;gap:12px;overflow:auto;padding-bottom:8px}.story-card{min-width:112px;height:164px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.07);padding:10px;display:flex;flex-direction:column;justify-content:space-between}.story-card.unseen{box-shadow:0 0 0 2px var(--hot)}.story-add{background:linear-gradient(135deg,rgba(20,184,166,.35),rgba(244,63,94,.28))}
@@ -286,67 +234,15 @@
     .ad-card,.live-card,.discover-card,.reel-card{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:16px;padding:14px;margin-bottom:12px}.ad-card img,.ad-card video,.reel-card video,.reel-card img{width:100%;border-radius:10px;max-height:260px;object-fit:cover}.tag-cloud{display:flex;gap:8px;flex-wrap:wrap}.tag-cloud a{background:rgba(56,189,248,.13);color:#bfdbfe;border-radius:8px;padding:7px 9px}
     .side{position:sticky;top:92px}.empty{color:var(--muted);padding:18px;border:1px dashed var(--line);border-radius:14px}.compat{display:none}
     .live-strip,.profile-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}.mini-user{border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:14px;padding:12px;display:grid;gap:8px}.live-badge{display:inline-flex;width:max-content;background:#ef4444;color:white;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
-    @media(max-width:900px){.home-top{grid-template-columns:auto auto 1fr}.home-search{grid-column:1/-1;order:3}.hero,.layout{grid-template-columns:1fr}.side{position:static}.stats{grid-template-columns:repeat(2,1fr)}.top-actions .pill,.top-actions .desktop-only{display:none}}
+    @media(max-width:900px){.hero,.layout{grid-template-columns:1fr}.side{position:static}.stats{grid-template-columns:repeat(2,1fr)}.top-actions .pill,.top-actions .desktop-only{display:none}}
   </style>
 
 
 <div class="compat" data-section="gallery"></div>
 <aside class="rightbar contextual-extra" id="rightbar" hidden></aside>
-<div class="drawer-overlay" id="drawerOverlay" hidden></div>
-<aside class="drawer" id="mainDrawer" aria-hidden="true">
-  <div class="drawer-head">
-    <a class="brand" href="/"><span class="brand-mark">N</span><span><strong>Namvibe</strong><small>Menu</small></span></a>
-    <button class="drawer-close" type="button" data-close-drawer>×</button>
-  </div>
-  <nav class="drawer-nav">
-    <a href="{% url 'home' %}">Home</a>
-    <a href="{% url 'feed' %}">Feed</a>
-    <a href="{% url 'dating' %}">Dating</a>
-    <a href="{% url 'live_home' %}">Live</a>
-    <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
-    <a href="{% url 'community_list' %}">Communities</a>
-    <a href="{% url 'wallet_home' %}">Wallet</a>
-    <a href="{% url 'settings' %}">Settings</a>
-    {% if request.user.is_authenticated %}
-      <a href="{% url 'logout' %}">Logout</a>
-    {% else %}
-      <a href="{% url 'login' %}">Login</a>
-    {% endif %}
-  </nav>
-</aside>
+
 <div class="home-shell homepage-shell">
-  <header class="home-top">
-    <button class="hamburger" type="button" aria-label="Open menu" data-open-drawer>☰</button>
-    <a class="brand" href="/">
-      <span class="brand-mark">N</span>
-      <span><strong>Namvibe</strong><small>Namibia in motion</small></span>
-    </a>
-    <form class="home-search" action="{% url 'discover_search' %}" method="get">
-      <input type="search" name="q" placeholder="Search people, posts, communities">
-      <button type="submit">Search</button>
-    </form>
-    <nav class="top-actions">
-      <span class="pill desktop-only">{{ total_members }} members</span>
-      <a href="{% url 'story_create' %}" class="primary desktop-only">+ Story</a>
-      <a href="{% url 'studio' %}" class="desktop-only">Upload</a>
-      <a class="icon-btn" href="{% url 'discover' %}" aria-label="Notifications">⌁</a>
-      {% if request.user.is_authenticated %}
-        <div class="profile-menu">
-          <button class="avatar-btn" type="button" data-profile-toggle>{{ request.user.profile.display_name|default:request.user.username|first|upper }}</button>
-          <div class="profile-dropdown" id="profileDropdown">
-            <a href="{{ smart_profile_url }}">Dashboard</a>
-            <a href="{% url 'profile_detail' request.user.profile.username %}">Public profile</a>
-            <a href="{% url 'settings' %}">Settings</a>
-            <a href="{% url 'logout' %}">Logout</a>
-          </div>
-        </div>
-      {% else %}
-        <a href="{{ smart_profile_url }}" class="desktop-only">Profile</a>
-        <a href="{% url 'login' %}" class="auth-action">Login</a>
-        <a href="{% url 'signup' %}" class="primary">Join</a>
-      {% endif %}
-    </nav>
-  </header>
+  
 
   <section class="hero">
     <div class="panel">
@@ -521,36 +417,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
 
-  const drawer = document.getElementById("mainDrawer");
-  const overlay = document.getElementById("drawerOverlay");
-  function openDrawer(){
-    overlay.hidden = false;
-    requestAnimationFrame(() => {
-      drawer.classList.add("open");
-      overlay.classList.add("open");
-      drawer.setAttribute("aria-hidden", "false");
-    });
-  }
-  function closeDrawer(){
-    drawer.classList.remove("open");
-    overlay.classList.remove("open");
-    drawer.setAttribute("aria-hidden", "true");
-    setTimeout(() => { overlay.hidden = true; }, 240);
-  }
-  document.querySelectorAll("[data-open-drawer]").forEach((button) => button.addEventListener("click", openDrawer));
-  document.querySelectorAll("[data-close-drawer]").forEach((button) => button.addEventListener("click", closeDrawer));
-  overlay.addEventListener("click", closeDrawer);
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
-  const profileToggle = document.querySelector("[data-profile-toggle]");
-  const profileDropdown = document.getElementById("profileDropdown");
-  profileToggle?.addEventListener("click", () => profileDropdown.classList.toggle("open"));
-  document.addEventListener("click", (event) => {
-    if (profileDropdown && profileToggle && !profileDropdown.contains(event.target) && !profileToggle.contains(event.target)) {
-      profileDropdown.classList.remove("open");
-    }
-  });
-
-</script>
 {% endblock %}
