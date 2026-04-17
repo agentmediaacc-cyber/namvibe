@@ -12,7 +12,7 @@ def safe_index(request):
 
 
 urlpatterns = [
-    path("", safe_index),
+    path("", safe_index, name="home"),
     path("healthz", lambda request: HttpResponse("ok")),
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
