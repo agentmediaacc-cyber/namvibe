@@ -1,8 +1,13 @@
 import os
 import requests
+from django.conf import settings
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+SUPABASE_URL = getattr(settings, "SUPABASE_URL", os.getenv("SUPABASE_URL", "")).rstrip("/")
+SUPABASE_SERVICE_KEY = getattr(
+    settings,
+    "SUPABASE_SERVICE_ROLE_KEY",
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_SERVICE_KEY", "")),
+)
 
 def _headers():
     return {

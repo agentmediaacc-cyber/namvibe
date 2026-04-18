@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 import os
 import dj_database_url
 from dotenv import load_dotenv
@@ -6,8 +7,27 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+logger = logging.getLogger(__name__)
+
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name, default=None):
+    value = os.getenv(name)
+    if not value:
+        return list(default or [])
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key")
-DEBUG = os.getenv("DEBUG", "True") == "True"
+DEBUG = env_bool("DEBUG", default=False)
+if SECRET_KEY == "django-insecure-dev-key":
+    logger.warning("SECRET_KEY is not set. Using the development fallback key.")
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',
@@ -71,6 +91,10 @@ CHANNEL_LAYERS = {
     }
 }
 
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+if not DATABASE_URL:
+    logger.warning("DATABASE_URL is not set. Falling back to local SQLite.")
+
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
@@ -91,18 +115,40 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Namvibe <no-reply@namvibe.com>")
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+SUPABASE_PUBLISHABLE_KEY = os.getenv("SUPABASE_PUBLISHABLE_KEY", SUPABASE_ANON_KEY)
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", os.getenv("SUPABASE_SERVICE_KEY", ""))
+SUPABASE_SERVICE_KEY = SUPABASE_SERVICE_ROLE_KEY
+if not SUPABASE_URL or not SUPABASE_ANON_KEY or not SUPABASE_SERVICE_ROLE_KEY:
+    logger.warning(
+        "Supabase is not fully configured. Required env vars: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY."
+    )
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://web-production-354b3.up.railway.app",
-]
+default_allowed_hosts = ["localhost", "127.0.0.1", "testserver", ".railway.app", "www.namvibe.com", "namvibe.com"]
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", default_allowed_hosts)
+if DEBUG and "*" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("*")
 
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", ".railway.app", "www.namvibe.com", "namvibe.com"]
+default_csrf_origins = [
+    "https://*.up.railway.app",
+    "https://*.railway.app",
+    "https://www.namvibe.com",
+    "https://namvibe.com",
+]
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", default_csrf_origins)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

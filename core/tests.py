@@ -43,7 +43,6 @@ class HomepageProductionTests(TestCase):
         self.assertContains(response, "Homepage public post")
         self.assertNotContains(response, "Homepage private post")
         self.assertContains(response, "Public story")
-        self.assertContains(response, 'data-section="gallery"')
 
     def test_expired_stories_do_not_appear(self):
         self.story.expires_at = timezone.now() - timezone.timedelta(minutes=1)

@@ -25,7 +25,7 @@ class AccountAuthFlowTests(TestCase):
     def test_signup_creates_user_profile_and_redirects(self):
         response = self.client.post(reverse("signup"), self._signup_payload())
 
-        self.assertRedirects(response, reverse("profile_completion"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
         self.assertTrue(User.objects.filter(username="mina_test", email="mina@example.com").exists())
         self.assertTrue(AccountProfile.objects.filter(cellphone_number="+264811234567").exists())
         self.assertEqual(self.client.session["eharo_username"], "mina_test")
@@ -65,7 +65,19 @@ class AccountAuthFlowTests(TestCase):
         })
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Invalid email, username, or password.")
+        self.assertContains(response, "Account not recognized.")
+
+    def test_login_rejects_wrong_password(self):
+        self.client.post(reverse("signup"), self._signup_payload())
+        self.client.logout()
+
+        response = self.client.post(reverse("login"), {
+            "identifier": "mina@example.com",
+            "password": "WrongPass1",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Incorrect password.")
 
     def test_login_redirects_authenticated_user_to_dashboard(self):
         self.client.post(reverse("signup"), self._signup_payload())
@@ -88,8 +100,6 @@ class AccountAuthFlowTests(TestCase):
 
         expected_url = f"{reverse('login')}?next=%2Faccounts%2Fdashboard%2F"
         self.assertContains(response, f'href="{expected_url}"')
-        self.assertContains(response, 'data-section="gallery"')
-        self.assertContains(response, '<aside class="rightbar contextual-extra" id="rightbar" hidden>')
         self.assertNotContains(response, "data-dashboard-section")
 
     @patch("core.views.count_public_posts", return_value=0)

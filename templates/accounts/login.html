@@ -14,7 +14,9 @@
             {% endfor %}
         {% endif %}
 
-        {% if form.non_field_errors %}
+        {% if clean_login_error %}
+            <div class="flash-message">{{ clean_login_error }}</div>
+        {% elif form.non_field_errors %}
             <div class="flash-message">{{ form.non_field_errors.0 }}</div>
         {% endif %}
 

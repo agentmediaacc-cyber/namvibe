@@ -105,11 +105,11 @@ class LoginForm(forms.Form):
             user = User.objects.filter(email__iexact=identifier).first()
 
         if user is None:
-            raise forms.ValidationError("Invalid email, username, or password.")
+            raise forms.ValidationError("Account not recognized.")
 
         authenticated = authenticate(username=user.username, password=password)
         if authenticated is None:
-            raise forms.ValidationError("Invalid email, username, or password.")
+            raise forms.ValidationError("Incorrect password.")
 
         if not authenticated.is_active:
             raise forms.ValidationError("This account is inactive.")

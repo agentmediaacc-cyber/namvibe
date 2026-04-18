@@ -13,7 +13,7 @@
                     <button class="pd-menu-btn" id="menuButton" type="button" aria-controls="menuDrawer" aria-expanded="false">☰</button>
                     <div>
                         <h1>Welcome back, {{ full_name }}</h1>
-                        <p>Your premium Namvibe dashboard is ready.</p>
+                        <p>Your Namvibe profile is ready.</p>
                     </div>
                 </div>
 
@@ -44,10 +44,10 @@
                     </div>
 
                     <div class="pd-info-grid">
-                        <div><span>Followers</span><strong>0</strong></div>
-                        <div><span>Friends</span><strong>0</strong></div>
-                        <div><span>Posts</span><strong>{{ user_posts|length }}</strong></div>
-                        <div><span>Wallet Coins</span><strong>0</strong></div>
+                        <div><span>Followers</span><strong>{{ profile.follower_count }}</strong></div>
+                        <div><span>Following</span><strong>{{ profile.following_count }}</strong></div>
+                        <div><span>Posts</span><strong>{{ post_count }}</strong></div>
+                        <div><span>Wallet Balance</span><strong>{{ wallet_balance }}</strong></div>
                     </div>
 
                     <div class="pd-hero-actions">
@@ -69,8 +69,8 @@
                         <div><span>Status</span><strong>Active</strong></div>
                     </div>
                     <div class="pd-section-actions">
-                        <button>Edit Profile</button>
-                        <button>Change Picture</button>
+                        <button onclick="window.location.href='{% url 'profile_edit' %}'">Edit Profile</button>
+                        <button onclick="window.location.href='{% url 'profile_edit' %}'">Change Picture</button>
                     </div>
                 </div>
             </section>

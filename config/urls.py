@@ -3,6 +3,33 @@ from django.http import HttpResponse
 from django.urls import path, include
 from core.views import index as real_index
 from django.shortcuts import redirect
+from accounts.views import public_profile_view
+from posts.views import (
+    add_comment_view,
+    author_posts_list_view,
+    community_posts_list_view,
+    delete_comment_view,
+    delete_post_view,
+    discover_view,
+    edit_post_view,
+    hashtag_view,
+    like_post_view,
+    post_detail_view,
+    preview_post_view,
+    publish_draft_view,
+    pin_comment_view,
+    reels_feed_view,
+    reply_comment_view,
+    report_post_view,
+    report_user_view,
+    save_draft_view,
+    save_post_toggle_view,
+    search_view,
+    share_post_view,
+    studio_draft_view,
+    studio_view,
+    track_post_view,
+)
 
 def community_list_alias(request):
     return redirect("/communities/")
@@ -20,15 +47,21 @@ urlpatterns = [
     path("healthz", lambda request: HttpResponse("ok")),
     path("admin/", admin.site.urls),
     path("community-list/", community_list_alias, name="community_list"),
+    path("hashtags/<str:tag>/", hashtag_view, name="hashtag"),
     path("accounts/", include("accounts.urls")),
+    path("api/", include("api.urls")),
     path("posts/", include("posts.urls")),
     path("feed/", include("posts.urls")),
     path("live/", include("live.urls")),
+    path("livestream/", include("livestream.urls")),
+    path("messaging/", include(("messaging.urls", "messaging"), namespace="messaging")),
     path("wallet/", include("wallet.urls")),
     path("settings/", lambda request: redirect("/accounts/profile/edit/"), name="settings"),
-    path("stories/create/", lambda request: redirect("/"), name="story_create"),
+    path("stories/", include("stories.urls")),
+    path("ads/", include("ads.urls")),
     path("dating/", include("dating.urls")),
-    path("communities/", include(("communities.urls", "communities"), namespace="communities")),
+    path("discover/people/", lambda request: redirect("/dating/"), name="discover_people"),
+    path("communities/", include("communities.urls")),
 ]
 
 
@@ -39,24 +72,34 @@ def alias(to):
     return lambda request, *a, **kw: redirect(to)
 
 urlpatterns += [
-    path("reels/", alias("/posts/reels/feed/"), name="reels_feed"),
-    path("discover/", alias("/posts/discover/"), name="discover"),
-    path("discover/search/", alias("/posts/discover/search/"), name="discover_search"),
-    path("studio/", alias("/posts/studio/"), name="studio"),
+    path("reels/", reels_feed_view, name="reels_feed"),
+    path("discover/", discover_view, name="discover"),
+    path("discover/search/", search_view, name="discover_search"),
+    path("studio/", studio_view, name="studio"),
+    path("studio/create/", studio_view, name="studio_create"),
+    path("studio/draft/<uuid:uuid>/", studio_draft_view, name="studio_draft"),
 
-    path("profile/<str:username>/", alias("/accounts/profile/"), name="profile_detail"),
+    path("profile/<str:username>/", public_profile_view, name="profile_detail"),
 
-    path("post/<uuid:uuid>/", alias("/posts/"), name="post_detail"),
+    path("post/<uuid:uuid>/", post_detail_view, name="post_detail"),
+    path("author/<str:username>/", author_posts_list_view, name="author_posts"),
+    path("community/<slug:slug>/posts/", community_posts_list_view, name="community_posts"),
 
-    path("like/<uuid:uuid>/", alias("/posts/"), name="like_post"),
-    path("save-toggle/<uuid:uuid>/", alias("/posts/"), name="save_post_toggle"),
-    path("share/<uuid:uuid>/", alias("/posts/"), name="share_post"),
+    path("like/<uuid:uuid>/", like_post_view, name="like_post"),
+    path("save-toggle/<uuid:uuid>/", save_post_toggle_view, name="save_post_toggle"),
+    path("share/<uuid:uuid>/", share_post_view, name="share_post"),
+    path("track/<uuid:uuid>/", track_post_view, name="track_post_view"),
+    path("report/<uuid:uuid>/", report_post_view, name="report_post"),
 
-    path("comment/<uuid:uuid>/", alias("/posts/"), name="add_comment"),
-    path("delete/<uuid:uuid>/", alias("/posts/"), name="delete_post"),
-    path("edit/<uuid:uuid>/", alias("/posts/"), name="edit_post"),
+    path("comment/<uuid:uuid>/", add_comment_view, name="add_comment"),
+    path("comment/<int:id>/reply/", reply_comment_view, name="reply_comment"),
+    path("comment/<int:id>/delete/", delete_comment_view, name="delete_comment"),
+    path("comment/<int:id>/pin/", pin_comment_view, name="pin_comment"),
+    path("delete/<uuid:uuid>/", delete_post_view, name="delete_post"),
+    path("edit/<uuid:uuid>/", edit_post_view, name="edit_post"),
+    path("profile/<str:username>/report/", report_user_view, name="report_user"),
 
-    path("draft/save/", alias("/posts/studio/draft/"), name="save_draft"),
-    path("draft/publish/<uuid:uuid>/", alias("/posts/"), name="publish_draft"),
-    path("preview/<uuid:uuid>/", alias("/posts/"), name="preview_post"),
+    path("draft/save/", save_draft_view, name="save_draft"),
+    path("draft/publish/<uuid:uuid>/", publish_draft_view, name="publish_draft"),
+    path("preview/<uuid:uuid>/", preview_post_view, name="preview_post"),
 ]
