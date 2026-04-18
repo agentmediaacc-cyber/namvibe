@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ tier }} Membership | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">Premium</span>
+      <h1>{{ tier }} Membership</h1>
+      <p>Compare active Namvibe membership plans, wallet balance, and current access before upgrading.</p>
+      <div class="product-actions">
+        <a class="nv-btn primary" href="{% url 'wallet_membership' %}">View all plans</a>
+        <a class="nv-btn" href="{% url 'wallet_home' %}">Wallet</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="product-grid">
+    <div class="product-card"><span>Wallet balance</span><strong>N${{ wallet.available_balance }}</strong></div>
+    <div class="product-card"><span>Membership spending</span><strong>N${{ spend_total }}</strong></div>
+    <div class="product-card"><span>Current plan</span><strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}None{% endif %}</strong></div>
+  </div>
+
+  <div class="product-section">
+    <h2>Active plans</h2>
+    <div class="product-grid">
+      {% for plan in plans %}
+        <article class="product-card">
+          <strong>{{ plan.name }}</strong>
+          <span>{{ plan.description }}</span>
+          <strong>N${{ plan.price }}</strong>
+          <form method="post" action="{% url 'wallet_membership_buy' plan.slug %}">
+            {% csrf_token %}
+            <button class="nv-btn primary" type="submit">Subscribe with wallet</button>
+          </form>
+        </article>
+      {% empty %}
+        <div class="product-card">No active membership plans are configured yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

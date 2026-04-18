@@ -5,12 +5,13 @@ from django.db.models import Count, Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from communities.models import Community
 from accounts.models import Profile
 from .forms import POST_TYPE_FORMS
-from .models import Comment, Like, Post, Report, Save, Share
+from .models import Comment, Like, Post, PostMedia, Report, Save, Share
 from .services import (
     FeedRankingService,
     add_comment,
@@ -71,15 +72,45 @@ def feed_view(request):
 
 @require_http_methods(["POST"])
 def create_post_view(request):
-    user = _session_user(request)
-    if not user:
+    if not request.user.is_authenticated:
         messages.error(request, "Login required to create a post.")
         return redirect("login")
 
     content = request.POST.get("content", "").strip()
     media_file = request.FILES.get("media") or request.FILES.get("media_file")
+    post_type = request.POST.get("post_type") or Post.PostType.TEXT
+    if media_file:
+        content_type = getattr(media_file, "content_type", "") or ""
+        if content_type.startswith("video/"):
+            post_type = Post.PostType.VIDEO
+        elif content_type.startswith("image/"):
+            post_type = Post.PostType.PHOTO
+    if post_type not in Post.PostType.values:
+        post_type = Post.PostType.TEXT
 
     if content or media_file:
+        post = Post.objects.create(
+            author=request.user,
+            post_type=post_type,
+            title=content[:120],
+            caption=content,
+            audience=Post.Audience.PUBLIC,
+            share_target=Post.ShareTarget.MAIN_FEED,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+            allow_comments=True,
+            allow_sharing=True,
+        )
+        if media_file:
+            media_type = PostMedia.MediaType.VIDEO if post_type == Post.PostType.VIDEO else PostMedia.MediaType.IMAGE
+            PostMedia.objects.create(post=post, media_type=media_type, file=media_file)
+
+        user = _session_user(request) or {
+            "user_id": str(request.user.id),
+            "full_name": request.user.get_full_name() or request.user.username,
+            "username": getattr(getattr(request.user, "profile", None), "username", request.user.username),
+            "email": request.user.email,
+        }
         create_post(
             user_id=user["user_id"],
             full_name=user["full_name"],

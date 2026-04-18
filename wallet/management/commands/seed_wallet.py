@@ -13,26 +13,37 @@ class Command(BaseCommand):
     help = "Seed Namvibe wallet plans, gift catalog, demo balances, and sample gift events."
 
     def handle(self, *args, **options):
-        premium, _ = MembershipPlan.objects.update_or_create(
-            slug="premium",
+        silver, _ = MembershipPlan.objects.update_or_create(
+            slug="silver",
             defaults={
-                "name": "Namvibe Premium",
-                "description": "Premium access hooks for live rooms, profile polish, and creator discovery.",
+                "name": "Silver",
+                "description": "Starter premium access for profile polish, discovery, and member-only areas.",
                 "price": Decimal("75.00"),
                 "billing_period": MembershipPlan.BillingPeriod.MONTHLY,
                 "is_active": True,
-                "feature_flags": {"premium_badge": True, "premium_live_access": True},
+                "feature_flags": {"premium_badge": True, "profile_polish": True},
+            },
+        )
+        premium, _ = MembershipPlan.objects.update_or_create(
+            slug="vip",
+            defaults={
+                "name": "VIP",
+                "description": "VIP hooks for live rooms, profile status, creator discovery, and priority experiences.",
+                "price": Decimal("150.00"),
+                "billing_period": MembershipPlan.BillingPeriod.MONTHLY,
+                "is_active": True,
+                "feature_flags": {"premium_badge": True, "premium_live_access": True, "vip_badge": True},
             },
         )
         MembershipPlan.objects.update_or_create(
-            slug="creator-plus",
+            slug="platinum",
             defaults={
-                "name": "Creator Plus",
-                "description": "Creator-focused premium hooks for future boosts and earning tools.",
-                "price": Decimal("120.00"),
+                "name": "Platinum",
+                "description": "Creator-focused premium hooks for boosts, gifting, paid access, and earning tools.",
+                "price": Decimal("250.00"),
                 "billing_period": MembershipPlan.BillingPeriod.MONTHLY,
                 "is_active": True,
-                "feature_flags": {"premium_badge": True, "creator_boosts": True},
+                "feature_flags": {"premium_badge": True, "premium_live_access": True, "vip_badge": True, "creator_boosts": True},
             },
         )
         gifts = [

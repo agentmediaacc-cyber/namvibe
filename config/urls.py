@@ -4,6 +4,18 @@ from django.urls import path, include
 from core.views import index as real_index
 from django.shortcuts import redirect
 from accounts.views import public_profile_view
+from core.product_views import (
+    channels_view,
+    coins_view,
+    flyer_tools_view,
+    gaming_view,
+    gifting_view,
+    image_tools_view,
+    notifications_view,
+    photo_selling_view,
+    premium_tier_view,
+    support_view,
+)
 from posts.views import (
     add_comment_view,
     author_posts_list_view,
@@ -46,6 +58,16 @@ urlpatterns = [
     path("", safe_index, name="home"),
     path("healthz", lambda request: HttpResponse("ok")),
     path("admin/", admin.site.urls),
+    path("notifications/", notifications_view, name="notifications"),
+    path("channels/", channels_view, name="channels"),
+    path("gaming/", gaming_view, name="gaming"),
+    path("photo-selling/", photo_selling_view, name="photo_selling"),
+    path("flyers/", flyer_tools_view, name="flyer_tools"),
+    path("image-tools/", image_tools_view, name="image_tools"),
+    path("gifting/", gifting_view, name="gifting"),
+    path("coins/", coins_view, name="coins"),
+    path("support/", support_view, name="support_help"),
+    path("premium/<str:tier>/", premium_tier_view, name="premium_tier"),
     path("community-list/", community_list_alias, name="community_list"),
     path("hashtags/<str:tag>/", hashtag_view, name="hashtag"),
     path("accounts/", include("accounts.urls")),

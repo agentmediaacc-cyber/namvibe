@@ -27,6 +27,8 @@
     .preview-card{position:sticky;top:94px}
     .mini-preview{border-radius:18px;background:#070d19;min-height:360px;padding:18px;display:grid;gap:14px}
     .upload-zone{border:1px dashed rgba(255,255,255,.24);border-radius:8px;padding:14px;background:rgba(255,255,255,.04)}
+    .media-preview{display:none;margin-top:12px;border-radius:8px;overflow:hidden;background:#050b14}
+    .media-preview img,.media-preview video{width:100%;max-height:360px;object-fit:contain;display:block}
     .builder-box{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;background:rgba(255,255,255,.05)}
     @media(max-width:860px){.studio-layout{grid-template-columns:1fr}.type-grid,.form-grid,.check-row{grid-template-columns:1fr}.preview-card{position:static}}
 </style>
@@ -96,9 +98,11 @@
                     <label>Community slug</label>
                     <input name="community_slug" value="{{ form.community_slug.value|default:'' }}" placeholder="windhoek-creators">
                 </div>
-                <div class="upload-zone full">
+                <div class="upload-zone full" data-drop-zone>
                     <label>Media upload</label>
-                    <input type="file" name="media_file" accept="image/*,video/*,audio/*">
+                    <p class="nv-muted">Drag and drop media here, choose from gallery, or use the camera on supported phones.</p>
+                    <input type="file" name="media_file" accept="image/*,video/*,audio/*" capture="environment" data-drop-input data-preview-input>
+                    <div class="media-preview" id="studioMediaPreview"></div>
                 </div>
             </div>
 
@@ -182,4 +186,44 @@
         </div>
     {% endif %}
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function renderStudioPreview(file) {
+    const preview = document.getElementById("studioMediaPreview");
+    if (!preview || !file) return;
+    const url = URL.createObjectURL(file);
+    const isVideo = file.type.startsWith("video/");
+    preview.innerHTML = isVideo
+        ? `<video src="${url}" controls playsinline></video>`
+        : `<img src="${url}" alt="Selected media preview">`;
+    preview.style.display = "block";
+}
+
+document.querySelectorAll("[data-preview-input]").forEach(function(input) {
+    input.addEventListener("change", function() {
+        renderStudioPreview(input.files && input.files[0]);
+    });
+});
+
+document.querySelectorAll("[data-drop-zone]").forEach(function(zone) {
+    const input = zone.querySelector("[data-drop-input]");
+    zone.addEventListener("dragover", function(event) {
+        event.preventDefault();
+        zone.style.borderColor = "#14b8a6";
+    });
+    zone.addEventListener("dragleave", function() {
+        zone.style.borderColor = "rgba(255,255,255,.24)";
+    });
+    zone.addEventListener("drop", function(event) {
+        event.preventDefault();
+        zone.style.borderColor = "rgba(255,255,255,.24)";
+        if (event.dataTransfer.files.length && input) {
+            input.files = event.dataTransfer.files;
+            renderStudioPreview(event.dataTransfer.files[0]);
+        }
+    });
+});
+</script>
 {% endblock %}

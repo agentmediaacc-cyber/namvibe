@@ -19,7 +19,7 @@
 
                 <div class="pd-top-right">
                     <a href="{% url 'home' %}" class="btn btn-dark">Home</a>
-                    <a href="{% url 'dashboard_home' %}" class="btn btn-main">API Dashboard</a>
+                    <a href="{% url 'notifications' %}" class="btn btn-main">Notifications</a>
                     <a href="{% url 'logout' %}" class="btn btn-dark">Logout</a>
                 </div>
             </div>
@@ -66,7 +66,7 @@
                         <div><span>Full Name</span><strong>{{ full_name }}</strong></div>
                         <div><span>Username</span><strong>@{{ username }}</strong></div>
                         <div><span>Email</span><strong>{{ email }}</strong></div>
-                        <div><span>Status</span><strong>Active</strong></div>
+                        <div><span>Status</span><strong>{% if account_profile.profile_completed %}Complete{% else %}Needs details{% endif %}</strong></div>
                     </div>
                     <div class="pd-section-actions">
                         <button onclick="window.location.href='{% url 'profile_edit' %}'">Edit Profile</button>

@@ -105,6 +105,40 @@
             background:rgba(255,255,255,.05);
             border-radius:10px;padding:12px;font-weight:800;
         }
+        .drawer-section{margin-top:10px;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+        .mobile-bottom-nav{
+            position:fixed;left:0;right:0;bottom:0;z-index:2500;
+            display:none;grid-template-columns:repeat(5,1fr);gap:0;
+            background:rgba(6,12,24,.94);backdrop-filter:blur(16px);
+            border-top:1px solid rgba(255,255,255,.1);
+            padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+        }
+        .mobile-bottom-nav a{
+            color:#dbeafe;text-decoration:none;text-align:center;
+            font-size:11px;font-weight:800;padding:7px 4px;border-radius:8px;
+        }
+        .mobile-bottom-nav span{display:block;font-size:17px;line-height:1.1}
+        .product-shell{max-width:1180px;margin:0 auto;padding:28px 16px 104px}
+        .product-hero,.product-card{
+            border:1px solid rgba(255,255,255,.1);
+            background:rgba(255,255,255,.07);
+            border-radius:12px;
+            padding:18px;
+            box-shadow:0 24px 80px rgba(0,0,0,.22);
+        }
+        .product-hero h1{font-size:clamp(32px,5vw,58px);line-height:1;margin:8px 0}
+        .product-hero p,.product-card span,.muted-card{color:#cbd5e1;line-height:1.6}
+        .eyebrow{color:#67e8f9;font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:.08em}
+        .product-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+        .nv-btn{
+            display:inline-flex;align-items:center;justify-content:center;
+            border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);
+            color:#fff;text-decoration:none;border-radius:8px;padding:10px 12px;font-weight:900;
+        }
+        .nv-btn.primary{background:linear-gradient(135deg,#14b8a6,#f43f5e);border:0}
+        .product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px}
+        .product-section{margin-top:20px}
+        .product-section h2{margin:0 0 10px}
         main{min-height:100vh}
         .footer{
             padding:40px 16px;background:#08111f;color:#e2e8f0;
@@ -128,6 +162,8 @@
             .top-actions .hide-mobile{display:none}
             .nav-wrap{width:calc(100% - 10px);gap:8px}
             .menu-btn,.nav-link-btn{padding:8px 10px;font-size:12px}
+            .mobile-bottom-nav{display:grid}
+            body{padding-bottom:68px}
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -143,13 +179,34 @@
             <button class="drawer-close" type="button" id="drawerClose">×</button>
         </div>
         <nav class="drawer-nav">
+            <div class="drawer-section">Core</div>
             <a href="{% url 'home' %}">Home</a>
             <a href="{% url 'feed' %}">Feed</a>
+            <a href="{% url 'reels_feed' %}">Reels</a>
+            <a href="{% url 'story_create' %}">Stories</a>
+            <a href="{% url 'studio' %}">Create</a>
+            <a href="{% url 'notifications' %}">Notifications</a>
+            <div class="drawer-section">Social</div>
             <a href="{% url 'dating' %}">Dating</a>
             <a href="{% url 'live_home' %}">Live</a>
+            <a href="{% url 'live_studio' %}">Live Studio</a>
             <a href="{% url 'community_list' %}">Communities</a>
+            <a href="{% url 'channels' %}">Channels</a>
+            <a href="{% url 'gaming' %}">Gaming</a>
+            {% if request.user.is_authenticated %}
+                <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
+            {% endif %}
+            <div class="drawer-section">Money and tools</div>
             <a href="{% url 'wallet_home' %}">Wallet</a>
+            <a href="{% url 'wallet_membership' %}">Premium</a>
+            <a href="{% url 'gifting' %}">Gifting</a>
+            <a href="{% url 'coins' %}">Coins</a>
+            <a href="{% url 'photo_selling' %}">Photo Selling</a>
+            <a href="{% url 'flyer_tools' %}">Flyer Studio</a>
+            <a href="{% url 'image_tools' %}">Image Tools</a>
+            <div class="drawer-section">Account</div>
             <a href="{% url 'settings' %}">Settings</a>
+            <a href="{% url 'support_help' %}">Support</a>
             {% if request.user.is_authenticated %}
                 <a href="{{ smart_profile_url }}">Profile</a>
                 <a href="{% url 'logout' %}">Logout</a>
@@ -185,6 +242,14 @@
             </div>
         </div>
     </header>
+
+    <nav class="mobile-bottom-nav" aria-label="Primary mobile navigation">
+        <a href="{% url 'feed' %}"><span>⌂</span>Feed</a>
+        <a href="{% url 'reels_feed' %}"><span>▶</span>Reels</a>
+        <a href="{% url 'studio' %}"><span>＋</span>Create</a>
+        <a href="{% url 'dating' %}"><span>♡</span>Dating</a>
+        <a href="{{ smart_profile_url }}"><span>●</span>Profile</a>
+    </nav>
 
     <main>
         {% block content %}{% endblock %}

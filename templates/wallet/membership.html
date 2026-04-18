@@ -7,6 +7,11 @@
     <div><h1>Premium membership</h1><p class="muted">Use wallet balance for Namvibe premium access and creator features.</p></div>
     <div class="money">N${{ wallet.available_balance }}</div>
   </div>
+  <div class="wallet-grid" style="margin-bottom:14px;">
+    <a class="wallet-card" href="{% url 'premium_tier' 'silver' %}"><strong>Silver</strong><p class="muted">Starter premium access.</p></a>
+    <a class="wallet-card" href="{% url 'premium_tier' 'vip' %}"><strong>VIP</strong><p class="muted">Live and discovery upgrades.</p></a>
+    <a class="wallet-card" href="{% url 'premium_tier' 'platinum' %}"><strong>Platinum</strong><p class="muted">Creator and monetization tools.</p></a>
+  </div>
   {% if active_membership %}
     <div class="wallet-card"><strong>{{ active_membership.plan.name }} active</strong><p class="muted">Valid until {{ active_membership.ends_at|date:"M j, Y"|default:"ongoing" }}.</p></div>
   {% endif %}

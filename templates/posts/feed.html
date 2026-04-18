@@ -1,82 +1,150 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ feed_title|default:"Namvibe Feed" }}</title>
-  <link rel="stylesheet" href="{% static 'css/style.css' %}">
-</head>
-<body>
-  {% include "posts/post_styles.html" %}
-  <style>
-    .feed-shell{max-width:1020px;margin:0 auto;padding:20px 14px 92px}
-    .feed-nav{position:sticky;top:0;z-index:20;margin:-20px -14px 18px;padding:14px;background:rgba(6,11,24,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
-    .feed-nav-inner{max-width:1020px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-    .feed-tabs{display:flex;gap:8px;overflow:auto;padding-bottom:2px}
-    .feed-tabs a,.feed-actions a{white-space:nowrap;color:white;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-weight:800}
-    .feed-tabs a.active{background:linear-gradient(135deg,#14b8a6,#f43f5e)}
-    .legacy-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:22px;padding:18px;margin-bottom:14px}
-    .feed-composer{display:grid;gap:10px;margin-bottom:16px}
-    .feed-composer textarea,.feed-composer input{width:100%;border:1px solid rgba(255,255,255,.12);background:#0a1222;color:#fff;border-radius:8px;padding:12px}
-    .feed-composer button{border:0;border-radius:8px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#14b8a6,#f43f5e);color:white}
-  </style>
-  <div class="feed-shell">
-    <nav class="feed-nav">
-      <div class="feed-nav-inner">
-        <div class="feed-tabs">
-          <a class="{% if active_feed == 'for_you' %}active{% endif %}" href="{% url 'feed' %}">For You</a>
-          <a class="{% if active_feed == 'following' %}active{% endif %}" href="{% url 'feed_following' %}">Following</a>
-          <a class="{% if active_feed == 'friends' %}active{% endif %}" href="{% url 'feed_friends' %}">Friends</a>
-          <a class="{% if active_feed == 'nearby' %}active{% endif %}" href="{% url 'feed_nearby' %}">Nearby</a>
-          <a class="{% if active_feed == 'trending' %}active{% endif %}" href="{% url 'feed_trending' %}">Trending</a>
-          <a class="{% if active_feed == 'reels' %}active{% endif %}" href="{% url 'reels_feed' %}">Reels</a>
-        </div>
-        <div class="feed-actions">
-          <a href="{% url 'discover' %}">Discover</a>
-          <a href="{% url 'studio' %}">Studio</a>
-        </div>
-      </div>
-    </nav>
 
-    <header class="nv-list-head">
-      <div>
-        <h1>{{ feed_title|default:"For You" }}</h1>
-        <p>{{ feed_subtitle|default:"Fresh Namvibe posts ranked for you." }}</p>
-      </div>
-    </header>
+{% block title %}{{ feed_title|default:"Namvibe Feed" }} | Namvibe{% endblock %}
 
-    <form class="legacy-card feed-composer" action="{% url 'create_post' %}" method="post" enctype="multipart/form-data">
-      {% csrf_token %}
-      <textarea name="content" rows="3" placeholder="Share something quick on Namvibe..."></textarea>
-      <input type="file" name="media" accept="image/*,video/*">
-      <button type="submit">Post quick update</button>
-    </form>
+{% block extra_head %}
+{% include "posts/post_styles.html" %}
+<style>
+  .feed-shell{max-width:1180px;margin:0 auto;padding:18px 14px 104px}
+  .feed-layout{display:grid;grid-template-columns:220px minmax(0,1fr) 280px;gap:14px;align-items:start}
+  .feed-sticky{position:sticky;top:78px}
+  .feed-panel,.feed-composer,.legacy-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:12px;padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.2)}
+  .feed-tabs{display:grid;gap:8px}
+  .feed-tabs a,.feed-actions a{color:white;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-weight:800}
+  .feed-tabs a.active{background:linear-gradient(135deg,#14b8a6,#f43f5e);border:0}
+  .feed-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+  .feed-head h1{margin:0;font-size:clamp(28px,4vw,42px)}
+  .feed-head p{margin:6px 0 0;color:#cbd5e1}
+  .feed-composer{display:grid;gap:10px;margin-bottom:14px}
+  .feed-composer textarea,.feed-composer input,.feed-composer select{width:100%;border:1px solid rgba(255,255,255,.12);background:#0a1222;color:#fff;border-radius:8px;padding:12px}
+  .feed-composer button{border:0;border-radius:8px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#14b8a6,#f43f5e);color:white}
+  .drop-zone{border:1px dashed rgba(255,255,255,.24);border-radius:8px;padding:12px;background:rgba(255,255,255,.04)}
+  .quick-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+  .side-list{display:grid;gap:10px}
+  .side-card{display:block;color:white;text-decoration:none;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.05);border-radius:8px;padding:10px}
+  .mobile-feed-tabs{display:none;gap:8px;overflow:auto;margin-bottom:12px}
+  .mobile-feed-tabs a{white-space:nowrap;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);padding:9px 10px;border-radius:8px;font-weight:800}
+  @media(max-width:980px){.feed-layout{grid-template-columns:1fr}.feed-sticky{position:static}.left-rail{display:none}.mobile-feed-tabs{display:flex}.right-rail{order:3}}
+  @media(max-width:620px){.quick-row{grid-template-columns:1fr}.feed-shell{padding-left:10px;padding-right:10px}}
+</style>
+{% endblock %}
 
-    <div class="nv-list-grid">
-      {% for post in posts %}
-        {% include "posts/_post_card.html" with post=post %}
-      {% empty %}
-        {% for post in legacy_posts %}
-          <article class="legacy-card">
-            <div class="nv-post-top">
-              <div><strong>{{ post.author_name|default:post.full_name|default:post.username|default:"Namvibe User" }}</strong><br><small>@{{ post.username|default:"user" }}</small></div>
-              <small>{{ post.created_at|default:"Recent activity" }}</small>
-            </div>
-            <p>{{ post.content|default:post.caption|default:post.title }}</p>
-            {% if post.media_url %}
-              {% if post.media_type == "video" %}
-                <video class="nv-media" controls preload="metadata" src="{{ post.media_url }}"></video>
-              {% else %}
-                <img class="nv-media" src="{{ post.media_url }}" alt="Post media" loading="lazy">
-              {% endif %}
-            {% endif %}
-          </article>
-        {% empty %}
-          <div class="nv-empty">No posts yet. Start from Studio or create a quick update above.</div>
-        {% endfor %}
-      {% endfor %}
+{% block content %}
+<section class="feed-shell">
+  <div class="feed-head">
+    <div>
+      <h1>{{ feed_title|default:"For You" }}</h1>
+      <p>{{ feed_subtitle|default:"Fresh Namvibe posts ranked for you." }}</p>
+    </div>
+    <div class="feed-actions">
+      <a href="{% url 'discover' %}">Discover</a>
+      <a href="{% url 'studio' %}">Studio</a>
     </div>
   </div>
-</body>
-</html>
+
+  <nav class="mobile-feed-tabs" aria-label="Feed sections">
+    <a class="{% if active_feed == 'for_you' %}active{% endif %}" href="{% url 'feed' %}">For You</a>
+    <a class="{% if active_feed == 'following' %}active{% endif %}" href="{% url 'feed_following' %}">Following</a>
+    <a class="{% if active_feed == 'friends' %}active{% endif %}" href="{% url 'feed_friends' %}">Friends</a>
+    <a class="{% if active_feed == 'nearby' %}active{% endif %}" href="{% url 'feed_nearby' %}">Nearby</a>
+    <a class="{% if active_feed == 'trending' %}active{% endif %}" href="{% url 'feed_trending' %}">Trending</a>
+    <a class="{% if active_feed == 'reels' %}active{% endif %}" href="{% url 'reels_feed' %}">Reels</a>
+  </nav>
+
+  <div class="feed-layout">
+    <aside class="feed-panel feed-sticky left-rail">
+      <nav class="feed-tabs">
+        <a class="{% if active_feed == 'for_you' %}active{% endif %}" href="{% url 'feed' %}">For You</a>
+        <a class="{% if active_feed == 'following' %}active{% endif %}" href="{% url 'feed_following' %}">Following</a>
+        <a class="{% if active_feed == 'friends' %}active{% endif %}" href="{% url 'feed_friends' %}">Friends</a>
+        <a class="{% if active_feed == 'nearby' %}active{% endif %}" href="{% url 'feed_nearby' %}">Nearby</a>
+        <a class="{% if active_feed == 'trending' %}active{% endif %}" href="{% url 'feed_trending' %}">Trending</a>
+        <a class="{% if active_feed == 'reels' %}active{% endif %}" href="{% url 'reels_feed' %}">Reels</a>
+        <a href="{% url 'story_create' %}">Create Story</a>
+        <a href="{% url 'live_home' %}">Live</a>
+      </nav>
+    </aside>
+
+    <main>
+      <form class="feed-composer" action="{% url 'create_post' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <textarea name="content" rows="3" placeholder="Share a status, caption, emoji, image, or video..."></textarea>
+        <div class="drop-zone" data-drop-zone>
+          <strong>Upload media</strong>
+          <p style="margin:6px 0 10px;color:#cbd5e1;">Drag and drop an image or video here, or choose a file.</p>
+          <input type="file" name="media" accept="image/*,video/*" data-drop-input>
+        </div>
+        <div class="quick-row">
+          <select name="post_type">
+            <option value="text">Status</option>
+            <option value="photo">Photo</option>
+            <option value="video">Video</option>
+            <option value="reel">Reel</option>
+          </select>
+          <button type="submit">Post update</button>
+        </div>
+      </form>
+
+      <div class="nv-list-grid">
+        {% for post in posts %}
+          {% include "posts/_post_card.html" with post=post %}
+        {% empty %}
+          {% for post in legacy_posts %}
+            <article class="legacy-card">
+              <div class="nv-post-top">
+                <div><strong>{{ post.author_name|default:post.full_name|default:post.username|default:"Namvibe User" }}</strong><br><small>@{{ post.username|default:"user" }}</small></div>
+                <small>{{ post.created_at|default:"Recent activity" }}</small>
+              </div>
+              <p>{{ post.content|default:post.caption|default:post.title }}</p>
+              {% if post.media_url %}
+                {% if post.media_type == "video" %}
+                  <video class="nv-media" controls preload="metadata" src="{{ post.media_url }}"></video>
+                {% else %}
+                  <img class="nv-media" src="{{ post.media_url }}" alt="Post media" loading="lazy">
+                {% endif %}
+              {% endif %}
+            </article>
+          {% empty %}
+            <div class="feed-panel">No posts yet. Start from Studio or create a quick update above.</div>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </main>
+
+    <aside class="feed-panel feed-sticky right-rail">
+      <h2>Next moves</h2>
+      <div class="side-list">
+        <a class="side-card" href="{% url 'studio' %}?type=photo">Create photo post</a>
+        <a class="side-card" href="{% url 'studio' %}?type=reel">Create reel</a>
+        <a class="side-card" href="{% url 'story_create' %}">Upload story</a>
+        <a class="side-card" href="{% url 'live_studio' %}">Open live studio</a>
+        <a class="side-card" href="{% url 'dating_discover' %}">Dating discover</a>
+        <a class="side-card" href="{% url 'wallet_membership' %}">Premium membership</a>
+      </div>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.querySelectorAll("[data-drop-zone]").forEach(function(zone) {
+  const input = zone.querySelector("[data-drop-input]");
+  zone.addEventListener("dragover", function(event) {
+    event.preventDefault();
+    zone.style.borderColor = "#14b8a6";
+  });
+  zone.addEventListener("dragleave", function() {
+    zone.style.borderColor = "rgba(255,255,255,.24)";
+  });
+  zone.addEventListener("drop", function(event) {
+    event.preventDefault();
+    zone.style.borderColor = "rgba(255,255,255,.24)";
+    if (event.dataTransfer.files.length && input) {
+      input.files = event.dataTransfer.files;
+    }
+  });
+});
+</script>
+{% endblock %}

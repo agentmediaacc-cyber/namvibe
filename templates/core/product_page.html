@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">Namvibe</span>
+      <h1>{{ title }}</h1>
+      <p>{{ subtitle }}</p>
+      <div class="product-actions">
+        {% for action in actions %}
+          <a class="nv-btn primary" href="{% url action.url_name %}{{ action.query|default:'' }}">{{ action.label }}</a>
+        {% empty %}
+          <a class="nv-btn primary" href="{% url 'feed' %}">Open feed</a>
+          <a class="nv-btn" href="{% url 'user_dashboard' %}">Dashboard</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if message %}
+    <div class="product-card">{{ message }}</div>
+  {% endif %}
+
+  {% if wallet %}
+    <div class="product-grid">
+      <div class="product-card"><span>Available balance</span><strong>N${{ wallet.available_balance }}</strong></div>
+      <div class="product-card"><span>Pending earnings</span><strong>N${{ wallet.pending_balance }}</strong></div>
+      <div class="product-card"><span>Lifetime earned</span><strong>N${{ wallet.lifetime_earned }}</strong></div>
+    </div>
+  {% endif %}
+
+  {% if gift_catalog %}
+    <div class="product-section">
+      <h2>Gift catalog</h2>
+      <div class="product-grid">
+        {% for gift in gift_catalog %}
+          <article class="product-card"><strong>{{ gift.name }}</strong><span>N${{ gift.coin_cost }} · creator gets N${{ gift.value_to_creator }}</span></article>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if recent_flyers %}
+    <div class="product-section">
+      <h2>Recent flyers</h2>
+      <div class="product-grid">
+        {% for post in recent_flyers %}
+          <a class="product-card" href="{% url 'post_detail' post.uuid %}"><strong>{{ post.title|default:post.flyer_meta.flyer_title }}</strong><span>@{{ post.author.profile.username }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if recent_posts %}
+    <div class="product-section">
+      <h2>Recent activity</h2>
+      <div class="product-grid">
+        {% for post in recent_posts %}
+          <a class="product-card" href="{% url 'post_detail' post.uuid %}"><strong>{{ post.title|default:post.get_post_type_display }}</strong><span>@{{ post.author.profile.username }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="product-card muted-card">
+    This area is wired as a real route with database-backed sections where data exists. New product workflows can attach here without breaking navigation.
+  </div>
+</section>
+{% endblock %}

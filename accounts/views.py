@@ -283,6 +283,7 @@ def user_dashboard_view(request):
         "email": email,
         "profile": profile,
         "supabase_profile": supabase_profile,
+        "account_profile": account_profile,
         "user_posts": posts,
         "post_count": post_count,
         "wallet_balance": getattr(wallet, "available_balance", 0),
