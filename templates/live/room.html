@@ -11,8 +11,16 @@
         {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline></video>{% else %}<div><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">Stream video will appear here when connected.</p></div>{% endif %}
       </div>
       <div class="live-panel" style="margin-top:14px;">
-        <h1>{{ session.title }}</h1>
-        <p class="muted">{{ session.description }}</p>
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+          <div>
+            <h1>{{ session.title }}</h1>
+            <p class="muted">{{ session.description }}</p>
+          </div>
+          <div class="chip-row">
+            <span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.viewer_count }} watching</span>
+            <span class="badge badge-scheduled">{{ session.get_access_type_display }}</span>
+          </div>
+        </div>
         <div class="live-actions">
           <span>{{ session.viewer_count }} viewers</span><span>{{ session.like_count }} reactions</span><span>{{ session.get_access_type_display }}</span>
           {% if request.user.is_authenticated and request.user != session.host %}
@@ -25,6 +33,12 @@
         <div class="live-panel" style="margin-top:14px;">
           <h2>Host controls</h2>
           <p class="muted">Stream key: <code>{{ session.stream_key|default:"Not generated yet" }}</code></p>
+          <div class="chip-row" style="margin:12px 0;">
+            <span class="chip">Pinned creator promo hook</span>
+            <span class="chip">Greeting automation hook</span>
+            <span class="chip">Remove viewer flow placeholder</span>
+            <span class="chip">Clear chat control placeholder</span>
+          </div>
           {% if session.status != "ended" %}<form method="post" action="{% url 'live_end' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">End session</button></form>{% endif %}
         </div>
       {% endif %}
@@ -37,6 +51,7 @@
       </section>
       <section class="live-panel" style="margin-top:14px;">
         <h2>Live chat</h2>
+        <p class="muted">Pinned messages, moderation actions, and richer host automation are ready to deepen here without replacing the current chat flow.</p>
         {% include "live/_chat_messages.html" %}
         {% if can_chat %}
           <form class="chat-form" method="post" action="{% url 'live_message' session.uuid %}">

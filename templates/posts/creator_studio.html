@@ -4,226 +4,362 @@
 
 {% block content %}
 <style>
-    .studio-page{max-width:1180px;margin:0 auto;padding:24px 16px 92px}
-    .studio-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:20px}
-    .studio-head h1{font-size:36px;margin:0 0 8px}
-    .studio-head p,.nv-muted{color:#cbd5e1;margin:0;line-height:1.6}
-    .studio-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:18px;align-items:start}
-    .studio-panel,.preview-panel,.draft-strip{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:22px;padding:18px;box-shadow:0 24px 80px rgba(0,0,0,.25)}
-    .type-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
-    .type-grid label{border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:12px;background:rgba(10,18,34,.72);cursor:pointer}
-    .type-grid input{margin-right:7px}
-    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-    .full{grid-column:1/-1}
-    .studio-panel label{display:block;font-weight:700;margin-bottom:7px;color:#f8fafc}
-    .studio-panel input,.studio-panel textarea,.studio-panel select{width:100%;min-width:0;border:1px solid rgba(255,255,255,.12);background:#0a1222;color:#fff;border-radius:8px;padding:12px}
-    .check-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0}
-    .check-row label{display:flex;gap:8px;align-items:center;font-weight:600;background:rgba(255,255,255,.06);padding:10px;border-radius:8px}
-    .check-row input{width:auto}
-    .studio-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-    .studio-actions button,.studio-actions a{border:0;border-radius:8px;padding:12px 16px;font-weight:800;cursor:pointer}
-    .publish{background:linear-gradient(135deg,#14b8a6,#f43f5e);color:white}
-    .draft{background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.12)!important}
-    .preview-card{position:sticky;top:94px}
-    .mini-preview{border-radius:18px;background:#070d19;min-height:360px;padding:18px;display:grid;gap:14px}
-    .upload-zone{border:1px dashed rgba(255,255,255,.24);border-radius:8px;padding:14px;background:rgba(255,255,255,.04)}
-    .media-preview{display:none;margin-top:12px;border-radius:8px;overflow:hidden;background:#050b14}
-    .media-preview img,.media-preview video{width:100%;max-height:360px;object-fit:contain;display:block}
-    .builder-box{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;background:rgba(255,255,255,.05)}
-    @media(max-width:860px){.studio-layout{grid-template-columns:1fr}.type-grid,.form-grid,.check-row{grid-template-columns:1fr}.preview-card{position:static}}
+  .studio-shell{max-width:1220px;margin:0 auto;padding:18px 12px 98px}
+  .studio-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(340px,.92fr);gap:18px;align-items:start}
+  .studio-panel,.studio-preview,.studio-drafts{
+    border:1px solid rgba(120,92,39,.14);background:rgba(255,253,249,.97);border-radius:30px;padding:18px;
+    box-shadow:0 20px 56px rgba(66,45,10,.06)
+  }
+  .studio-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
+  .studio-head h1{margin:0 0 8px;font-size:clamp(2rem,5vw,3.4rem)}
+  .studio-muted{color:#7a6d5b;line-height:1.65}
+  .studio-mode-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  .studio-mode-btn,.studio-chip,.studio-soft-btn,.studio-hook{
+    border:1px solid rgba(120,92,39,.14);background:#fff;border-radius:20px;padding:14px;cursor:pointer;color:#2b2216;font-weight:800;text-align:left
+  }
+  .studio-mode-btn.active,.studio-chip.active{background:linear-gradient(135deg,#fffaf0,#f4ead0);border-color:rgba(156,116,39,.3);box-shadow:0 12px 28px rgba(66,45,10,.08)}
+  .studio-mode-btn small,.studio-chip small,.studio-hook small{display:block;margin-top:4px;color:#7a6d5b;font-weight:600;line-height:1.45}
+  .studio-section{margin-top:16px}
+  .studio-section h2{margin:0 0 10px;font-size:1.08rem}
+  .studio-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .studio-field{display:grid;gap:8px}
+  .studio-field.full{grid-column:1/-1}
+  .studio-field label{font-weight:800;color:#3f3529}
+  .studio-field input,.studio-field textarea,.studio-field select{
+    width:100%;min-width:0;border:1px solid rgba(120,92,39,.14);background:#fff;border-radius:18px;padding:13px 14px;color:#1f1a14
+  }
+  .studio-field textarea{min-height:110px;resize:vertical}
+  .studio-upload{
+    border:1px dashed rgba(120,92,39,.24);border-radius:24px;padding:18px;background:linear-gradient(135deg,#fffdf9,#f8f0dd);display:grid;gap:12px
+  }
+  .studio-upload-actions,.studio-action-row,.studio-chip-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .studio-soft-btn{border-radius:999px;padding:11px 14px}
+  .studio-preview-phone{
+    position:sticky;top:86px;padding:14px;border-radius:36px;background:linear-gradient(180deg,#1f1a14,#3f2a10);color:#fffdf8;min-height:78vh;
+    box-shadow:0 28px 80px rgba(66,45,10,.2)
+  }
+  .studio-preview-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
+  .studio-preview-chip{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.14);font-weight:800}
+  .studio-preview-card{border-radius:28px;overflow:hidden;background:rgba(255,255,255,.08);min-height:48vh;display:flex;align-items:center;justify-content:center;position:relative}
+  .studio-preview-media,.studio-preview-media img,.studio-preview-media video{width:100%;height:100%;object-fit:cover}
+  .studio-preview-copy{padding:18px}
+  .studio-preview-copy h2,.studio-preview-copy p{margin:0}
+  .studio-preview-copy p{margin-top:8px;color:rgba(255,249,240,.86);line-height:1.6}
+  .studio-preview-actions{display:flex;gap:10px;flex-wrap:wrap;color:rgba(255,249,240,.82);font-size:13px;margin-top:12px}
+  .studio-hook-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .studio-hook{cursor:default;background:#fffcf7}
+  .studio-advanced{display:none}
+  .studio-advanced.active{display:block}
+  .studio-toggle-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .studio-toggle{display:flex;gap:8px;align-items:center;padding:12px;border-radius:18px;background:#fff;border:1px solid rgba(120,92,39,.12)}
+  .studio-submit-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
+  .studio-submit,.studio-draft-btn{border:0;border-radius:999px;padding:13px 18px;font-weight:900;cursor:pointer}
+  .studio-submit{background:linear-gradient(135deg,#c7a14a,#9c7427);color:#fffdf7}
+  .studio-draft-btn{background:#f8f0dd;color:#6d4e18}
+  .studio-note{font-size:13px;color:#8c7653}
+  .studio-errors{margin-bottom:14px;padding:14px;border-radius:20px;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}
+  .studio-drafts a{display:block;padding:10px 0;border-top:1px solid rgba(120,92,39,.08);text-decoration:none;color:#2b2216}
+  .studio-drafts a:first-of-type{border-top:0;padding-top:0}
+  @media (max-width: 980px){.studio-layout{grid-template-columns:1fr}.studio-preview-phone{position:static;min-height:auto}}
+  @media (max-width: 760px){
+    .studio-shell{padding-inline:8px}
+    .studio-mode-grid,.studio-grid,.studio-hook-grid,.studio-toggle-row{grid-template-columns:1fr 1fr}
+  }
 </style>
 
-<section class="studio-page">
-    <div class="studio-head">
+<section class="studio-shell">
+  <div class="studio-layout">
+    <form class="studio-panel" method="post" enctype="multipart/form-data" action="{% url 'studio' %}" id="creatorStudioForm">
+      {% csrf_token %}
+      <div class="studio-head">
         <div>
-            <h1>Creator Studio</h1>
-            <p>Publish posts, reels, stories, flyers, polls, and live announcements for Namvibe.</p>
+          <h1>Creator Studio</h1>
+          <p class="studio-muted">Build a post, reel, flyer, poll, or live announcement from one mobile-friendly creation surface. Gallery, camera, preview, drafts, and monetization hooks stay connected to the same publishing pipeline.</p>
         </div>
-        <a class="btn btn-dark" href="{% url 'feed' %}">Feed</a>
-    </div>
+        <a class="studio-soft-btn" href="{% url 'home' %}">Back to feed</a>
+      </div>
 
-    {% if form.errors %}
-        <div class="studio-panel" style="margin-bottom:16px;color:#fecaca;">
-            {{ form.errors }}
+      {% if form.errors %}
+        <div class="studio-errors">{{ form.errors }}</div>
+      {% endif %}
+
+      <section class="studio-section">
+        <h2>Pick a format</h2>
+        <div class="studio-mode-grid" id="studioModeGrid">
+          {% for value,label in post_types %}
+            <button class="studio-mode-btn {% if active_type == value %}active{% endif %}" type="button" data-post-type="{{ value }}">
+              {{ label }}
+              <small>
+                {% if value == 'reel' %}Short-form vertical video
+                {% elif value == 'video' %}Longer clip with richer caption
+                {% elif value == 'photo' %}Photo-first post
+                {% elif value == 'flyer' %}Promotion or event graphic
+                {% elif value == 'poll' %}Audience interaction
+                {% elif value == 'live' %}Live announcement
+                {% else %}Status update or social post{% endif %}
+              </small>
+            </button>
+          {% endfor %}
         </div>
-    {% endif %}
+        <input type="hidden" name="post_type" id="studioPostType" value="{{ active_type }}">
+      </section>
 
-    <div class="studio-layout">
-        <form class="studio-panel" method="post" enctype="multipart/form-data" action="{% url 'studio' %}">
-            {% csrf_token %}
-
-            <div class="type-grid">
-                {% for value,label in post_types %}
-                    <label>
-                        <input type="radio" name="post_type" value="{{ value }}" {% if active_type == value %}checked{% endif %}>
-                        {{ label }}
-                    </label>
-                {% endfor %}
-            </div>
-
-            <div class="form-grid">
-                <div>
-                    <label>Title</label>
-                    <input name="title" value="{{ form.title.value|default:'' }}" placeholder="Post title">
-                </div>
-                <div>
-                    <label>Audience</label>
-                    <select name="audience">
-                        {% for value,label in audiences %}<option value="{{ value }}" {% if form.audience.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="full">
-                    <label>Caption</label>
-                    <textarea name="caption" rows="5" placeholder="Write your caption">{{ form.caption.value|default:'' }}</textarea>
-                </div>
-                <div>
-                    <label>Hashtags</label>
-                    <input name="hashtags_text" value="{{ form.hashtags_text.value|default:'' }}" placeholder="#windhoek #namibia">
-                </div>
-                <div>
-                    <label>Mentions</label>
-                    <input name="mentions_text" value="{{ form.mentions_text.value|default:'' }}" placeholder="@creator @friend">
-                </div>
-                <div>
-                    <label>Share target</label>
-                    <select name="share_target">
-                        {% for value,label in share_targets %}<option value="{{ value }}" {% if form.share_target.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label>Specific user</label>
-                    <input name="target_username" value="{{ form.target_username.value|default:'' }}" placeholder="@username">
-                </div>
-                <div>
-                    <label>Community slug</label>
-                    <input name="community_slug" value="{{ form.community_slug.value|default:'' }}" placeholder="windhoek-creators">
-                </div>
-                <div class="upload-zone full" data-drop-zone>
-                    <label>Media upload</label>
-                    <p class="nv-muted">Drag and drop media here, choose from gallery, or use the camera on supported phones.</p>
-                    <input type="file" name="media_file" accept="image/*,video/*,audio/*" capture="environment" data-drop-input data-preview-input>
-                    <div class="media-preview" id="studioMediaPreview"></div>
-                </div>
-            </div>
-
-            <div class="builder-box" style="margin-top:14px;">
-                <strong>Flyer builder</strong>
-                <div class="form-grid" style="margin-top:12px;">
-                    <input name="flyer_title" placeholder="Flyer title" value="{{ form.flyer_title.value|default:'' }}">
-                    <input name="flyer_cta" placeholder="Call to action" value="{{ form.flyer_cta.value|default:'' }}">
-                    <textarea class="full" name="flyer_body" rows="3" placeholder="Flyer body">{{ form.flyer_body.value|default:'' }}</textarea>
-                    <input name="flyer_background" placeholder="gradient-violet" value="{{ form.flyer_background.value|default:'gradient-violet' }}">
-                    <input name="flyer_text_color" placeholder="#ffffff" value="{{ form.flyer_text_color.value|default:'#ffffff' }}">
-                    <input name="flyer_layout" placeholder="centered" value="{{ form.flyer_layout.value|default:'centered' }}">
-                </div>
-            </div>
-
-            <div class="builder-box" style="margin-top:14px;">
-                <strong>Poll builder</strong>
-                <div class="form-grid" style="margin-top:12px;">
-                    <input class="full" name="poll_question" placeholder="Poll question" value="{{ form.poll_question.value|default:'' }}">
-                    <textarea class="full" name="poll_options" rows="4" placeholder="One option per line">{{ form.poll_options.value|default:'' }}</textarea>
-                    <label><input type="checkbox" name="poll_multiple_choice" {% if form.poll_multiple_choice.value %}checked{% endif %}> Multiple choice</label>
-                    <input type="datetime-local" name="poll_closes_at" value="{{ form.poll_closes_at.value|default:'' }}">
-                </div>
-            </div>
-
-            <div class="builder-box" style="margin-top:14px;">
-                <strong>Live announcement</strong>
-                <div class="form-grid" style="margin-top:12px;">
-                    <input name="stream_title" placeholder="Stream title" value="{{ form.stream_title.value|default:'' }}">
-                    <input type="datetime-local" name="scheduled_for" value="{{ form.scheduled_for.value|default:'' }}">
-                    <select name="access_type">
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                        <option value="vip">VIP</option>
-                        <option value="paid">Paid</option>
-                    </select>
-                    <input type="number" min="0" step="0.01" name="ticket_price" placeholder="0.00" value="{{ form.ticket_price.value|default:'' }}">
-                </div>
-            </div>
-
-            <div class="check-row">
-                <label><input type="checkbox" name="allow_comments" checked> Comments</label>
-                <label><input type="checkbox" name="allow_sharing" checked> Sharing</label>
-                <label><input type="checkbox" name="save_to_story"> Story</label>
-                <label><input type="checkbox" name="premium_badge"> Premium</label>
-            </div>
-
-            <div class="studio-actions">
-                <button class="publish" type="submit">Publish</button>
-                <button class="draft" type="submit" name="save_draft" value="on">Save draft</button>
-                <button class="draft" type="submit" formaction="{% url 'save_draft' %}">Draft endpoint</button>
-            </div>
-        </form>
-
-        <aside class="preview-panel preview-card">
-            <h2 style="margin-top:0;">Live preview</h2>
-            <div class="mini-preview">
-                <span class="nv-muted">Audience and format are applied when the post is saved.</span>
-                <div class="builder-box">
-                    <strong>Flyer preview</strong>
-                    <p class="nv-muted">Flyer title, body, CTA, background, text color, and layout are stored as structured metadata.</p>
-                </div>
-                <div class="builder-box">
-                    <strong>Poll preview</strong>
-                    <p class="nv-muted">Poll options become voteable choices in Phase 4 interactions.</p>
-                </div>
-                <div class="builder-box">
-                    <strong>Live announcement</strong>
-                    <p class="nv-muted">Paid and VIP access hooks are ready for wallet integration.</p>
-                </div>
-            </div>
-        </aside>
-    </div>
-
-    {% if recent_drafts %}
-        <div class="draft-strip" style="margin-top:18px;">
-            <h2>Recent drafts</h2>
-            {% for draft in recent_drafts %}
-                <p><a href="{% url 'studio_draft' draft.uuid %}">{{ draft.title|default:draft.get_post_type_display }}</a></p>
-            {% endfor %}
+      <section class="studio-section">
+        <h2>Media source</h2>
+        <div class="studio-upload">
+          <div class="studio-upload-actions">
+            <button class="studio-soft-btn" type="button" id="studioGalleryButton">Pick from gallery</button>
+            <button class="studio-soft-btn" type="button" id="studioCameraButton">Use camera</button>
+            <button class="studio-soft-btn" type="button" id="studioVideoButton">Record video</button>
+            <button class="studio-soft-btn" type="button" id="studioResetMedia">Clear media</button>
+          </div>
+          <p class="studio-note" id="studioUploadNote">Reels and video posts keep the original file path and quality through the existing upload pipeline. Editing controls below are honest starter hooks.</p>
+          <input type="file" id="studioMediaInput" name="media_file" accept="image/*,video/*,audio/*" hidden>
         </div>
-    {% endif %}
+      </section>
+
+      <section class="studio-section">
+        <h2>Main post details</h2>
+        <div class="studio-grid">
+          <div class="studio-field">
+            <label for="studioTitle">Title</label>
+            <input id="studioTitle" name="title" value="{{ form.title.value|default:'' }}" placeholder="Add a strong title">
+          </div>
+          <div class="studio-field">
+            <label for="studioAudience">Audience</label>
+            <select id="studioAudience" name="audience">
+              {% for value,label in audiences %}<option value="{{ value }}" {% if form.audience.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="studio-field full">
+            <label for="studioCaption">Caption</label>
+            <textarea id="studioCaption" name="caption" placeholder="Tell the story behind the post, reel, or announcement">{{ form.caption.value|default:'' }}</textarea>
+          </div>
+          <div class="studio-field">
+            <label for="studioHashtags">Hashtags</label>
+            <input id="studioHashtags" name="hashtags_text" value="{{ form.hashtags_text.value|default:'' }}" placeholder="#namvibe #windhoek #creator">
+          </div>
+          <div class="studio-field">
+            <label for="studioMentions">Mentions</label>
+            <input id="studioMentions" name="mentions_text" value="{{ form.mentions_text.value|default:'' }}" placeholder="@creator @friend">
+          </div>
+          <div class="studio-field">
+            <label for="studioShareTarget">Share target</label>
+            <select id="studioShareTarget" name="share_target">
+              {% for value,label in share_targets %}<option value="{{ value }}" {% if form.share_target.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="studio-field">
+            <label for="studioTargetUsername">Specific user</label>
+            <input id="studioTargetUsername" name="target_username" value="{{ form.target_username.value|default:'' }}" placeholder="@username">
+          </div>
+          <div class="studio-field full">
+            <label for="studioCommunitySlug">Community</label>
+            <input id="studioCommunitySlug" name="community_slug" value="{{ form.community_slug.value|default:'' }}" placeholder="community-slug">
+          </div>
+        </div>
+      </section>
+
+      <section class="studio-section studio-advanced" id="studioReelTools">
+        <h2>Reel and video tools</h2>
+        <div class="studio-hook-grid">
+          <div class="studio-hook"><strong>Trim hook</strong><small>Reserved for future cut/trim editing before publish.</small></div>
+          <div class="studio-hook"><strong>Cover image</strong><small>Reserved for thumbnail/cover selection on reels.</small></div>
+          <div class="studio-hook"><strong>Mute / unmute</strong><small>Starter control for audio handling without pretending server-side edits exist.</small></div>
+          <div class="studio-hook"><strong>Effects / mirror</strong><small>Future enhancement slot for lightweight video treatments.</small></div>
+        </div>
+      </section>
+
+      <section class="studio-section studio-advanced" id="studioFlyerTools">
+        <h2>Flyer builder</h2>
+        <div class="studio-grid">
+          <div class="studio-field"><label>Flyer title</label><input name="flyer_title" value="{{ form.flyer_title.value|default:'' }}" placeholder="Event, drop, promo, or announcement"></div>
+          <div class="studio-field"><label>CTA</label><input name="flyer_cta" value="{{ form.flyer_cta.value|default:'' }}" placeholder="Book now / Join / Shop"></div>
+          <div class="studio-field full"><label>Flyer body</label><textarea name="flyer_body" placeholder="Add the flyer details">{{ form.flyer_body.value|default:'' }}</textarea></div>
+          <div class="studio-field"><label>Background</label><input name="flyer_background" value="{{ form.flyer_background.value|default:'gradient-violet' }}"></div>
+          <div class="studio-field"><label>Text color</label><input name="flyer_text_color" value="{{ form.flyer_text_color.value|default:'#ffffff' }}"></div>
+          <div class="studio-field full"><label>Layout</label><input name="flyer_layout" value="{{ form.flyer_layout.value|default:'centered' }}"></div>
+        </div>
+      </section>
+
+      <section class="studio-section studio-advanced" id="studioPollTools">
+        <h2>Poll builder</h2>
+        <div class="studio-grid">
+          <div class="studio-field full"><label>Question</label><input name="poll_question" value="{{ form.poll_question.value|default:'' }}" placeholder="Ask the audience something real"></div>
+          <div class="studio-field full"><label>Options</label><textarea name="poll_options" placeholder="One option per line">{{ form.poll_options.value|default:'' }}</textarea></div>
+          <div class="studio-field"><label>Close at</label><input type="datetime-local" name="poll_closes_at" value="{{ form.poll_closes_at.value|default:'' }}"></div>
+          <div class="studio-field"><label style="visibility:hidden;">Multi</label><div class="studio-toggle"><input type="checkbox" name="poll_multiple_choice" {% if form.poll_multiple_choice.value %}checked{% endif %}> Allow multiple choice</div></div>
+        </div>
+      </section>
+
+      <section class="studio-section studio-advanced" id="studioLiveAnnouncement">
+        <h2>Live announcement details</h2>
+        <div class="studio-grid">
+          <div class="studio-field"><label>Stream title</label><input name="stream_title" value="{{ form.stream_title.value|default:'' }}" placeholder="Tonight with the Namvibe crew"></div>
+          <div class="studio-field"><label>Scheduled for</label><input type="datetime-local" name="scheduled_for" value="{{ form.scheduled_for.value|default:'' }}"></div>
+          <div class="studio-field"><label>Access type</label><select name="access_type"><option value="public">Public</option><option value="private">Private</option><option value="vip">VIP</option><option value="paid">Paid</option></select></div>
+          <div class="studio-field"><label>Ticket price</label><input type="number" min="0" step="0.01" name="ticket_price" value="{{ form.ticket_price.value|default:'' }}" placeholder="0.00"></div>
+        </div>
+      </section>
+
+      <section class="studio-section">
+        <h2>Publishing options</h2>
+        <div class="studio-toggle-row">
+          <label class="studio-toggle"><input type="checkbox" name="allow_comments" checked> Comments</label>
+          <label class="studio-toggle"><input type="checkbox" name="allow_sharing" checked> Sharing</label>
+          <label class="studio-toggle"><input type="checkbox" name="save_to_story" {% if form.save_to_story.value %}checked{% endif %}> Add to story</label>
+          <label class="studio-toggle"><input type="checkbox" name="premium_badge" {% if form.premium_badge.value %}checked{% endif %}> Premium badge</label>
+        </div>
+      </section>
+
+      <div class="studio-submit-row">
+        <button class="studio-submit" type="submit">Publish now</button>
+        <button class="studio-draft-btn" type="submit" formaction="{% url 'save_draft' %}">Save draft</button>
+        <span class="studio-note" id="studioStatusNote">Preview updates live. Advanced editing hooks are clearly marked and won’t fake unsupported processing.</span>
+      </div>
+    </form>
+
+    <aside class="studio-preview">
+      <div class="studio-preview-phone">
+        <div class="studio-preview-top">
+          <span class="studio-preview-chip" id="studioPreviewType">Post preview</span>
+          <span class="studio-preview-chip" id="studioPreviewAudience">Public</span>
+        </div>
+        <div class="studio-preview-card">
+          <div class="studio-preview-media" id="studioPreviewMedia" hidden></div>
+          <div class="studio-preview-copy" id="studioPreviewCopy">
+            <h2 id="studioPreviewTitle">Your title will appear here.</h2>
+            <p id="studioPreviewCaption">A cleaner creation flow makes posts, reels, flyers, and live announcements feel like real creator tools instead of admin forms.</p>
+            <div class="studio-preview-actions">
+              <span id="studioPreviewMeta">Ready to publish</span>
+            </div>
+          </div>
+        </div>
+        <div class="studio-section">
+          <h2 style="color:#fffdf8;">Creator hooks</h2>
+          <div class="studio-hook-grid">
+            <div class="studio-hook"><strong>Promote content</strong><small>Route finished content into ads and promo tools.</small></div>
+            <div class="studio-hook"><strong>Go live next</strong><small>Jump into live studio after publishing a reel or announcement.</small></div>
+            <div class="studio-hook"><strong>Wallet prompts</strong><small>Premium, gifting, and creator earnings stay connected.</small></div>
+            <div class="studio-hook"><strong>Permission ready</strong><small>Camera and gallery inputs are tuned for mobile capture.</small></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  {% if recent_drafts %}
+    <section class="studio-drafts" style="margin-top:18px;">
+      <h2 style="margin-top:0;">Recent drafts</h2>
+      {% for draft in recent_drafts %}
+        <a href="{% url 'studio_draft' draft.uuid %}">{{ draft.title|default:draft.get_post_type_display }}</a>
+      {% endfor %}
+    </section>
+  {% endif %}
 </section>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-function renderStudioPreview(file) {
-    const preview = document.getElementById("studioMediaPreview");
-    if (!preview || !file) return;
-    const url = URL.createObjectURL(file);
-    const isVideo = file.type.startsWith("video/");
-    preview.innerHTML = isVideo
-        ? `<video src="${url}" controls playsinline></video>`
-        : `<img src="${url}" alt="Selected media preview">`;
-    preview.style.display = "block";
-}
+  (function () {
+    const form = document.getElementById("creatorStudioForm");
+    const typeInput = document.getElementById("studioPostType");
+    const mediaInput = document.getElementById("studioMediaInput");
+    const previewMedia = document.getElementById("studioPreviewMedia");
+    const previewTitle = document.getElementById("studioPreviewTitle");
+    const previewCaption = document.getElementById("studioPreviewCaption");
+    const previewType = document.getElementById("studioPreviewType");
+    const previewAudience = document.getElementById("studioPreviewAudience");
+    const previewMeta = document.getElementById("studioPreviewMeta");
+    const uploadNote = document.getElementById("studioUploadNote");
+    const sections = {
+      reel: document.getElementById("studioReelTools"),
+      video: document.getElementById("studioReelTools"),
+      flyer: document.getElementById("studioFlyerTools"),
+      poll: document.getElementById("studioPollTools"),
+      live: document.getElementById("studioLiveAnnouncement")
+    };
 
-document.querySelectorAll("[data-preview-input]").forEach(function(input) {
-    input.addEventListener("change", function() {
-        renderStudioPreview(input.files && input.files[0]);
-    });
-});
+    function setPostType(type) {
+      typeInput.value = type;
+      document.querySelectorAll("[data-post-type]").forEach(function(button) {
+        button.classList.toggle("active", button.dataset.postType === type);
+      });
+      Object.values(sections).forEach(function(section) {
+        if (section) section.classList.remove("active");
+      });
+      if (sections[type]) sections[type].classList.add("active");
+      previewType.textContent = type.charAt(0).toUpperCase() + type.slice(1) + " preview";
+      previewMeta.textContent = type === "reel" ? "Vertical video flow" : type === "live" ? "Live announcement flow" : "Ready to publish";
+      if (type === "reel" || type === "video") {
+        mediaInput.accept = "video/*";
+        uploadNote.textContent = "Use gallery or camera recording for reels and video posts. Cover, trim, and effect controls are honest starter hooks.";
+      } else if (type === "photo" || type === "story" || type === "flyer") {
+        mediaInput.accept = "image/*";
+        uploadNote.textContent = "Choose a photo from gallery or camera. Image posts preserve the current upload flow and social visibility rules.";
+      } else {
+        mediaInput.accept = "image/*,video/*,audio/*";
+        uploadNote.textContent = "This format stays compatible with the existing post pipeline and creator tools.";
+      }
+    }
 
-document.querySelectorAll("[data-drop-zone]").forEach(function(zone) {
-    const input = zone.querySelector("[data-drop-input]");
-    zone.addEventListener("dragover", function(event) {
-        event.preventDefault();
-        zone.style.borderColor = "#14b8a6";
+    function renderPreview(file) {
+      if (!file) {
+        previewMedia.hidden = true;
+        previewMedia.innerHTML = "";
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      const isVideo = file.type.startsWith("video/");
+      previewMedia.hidden = false;
+      previewMedia.innerHTML = isVideo
+        ? '<video src="' + url + '" controls muted playsinline></video>'
+        : '<img src="' + url + '" alt="Studio media preview">';
+    }
+
+    function syncPreview() {
+      previewTitle.textContent = document.getElementById("studioTitle").value.trim() || "Your title will appear here.";
+      previewCaption.textContent = document.getElementById("studioCaption").value.trim() || "A cleaner creation flow makes posts, reels, flyers, and live announcements feel like real creator tools instead of admin forms.";
+      previewAudience.textContent = document.getElementById("studioAudience").selectedOptions[0].textContent;
+    }
+
+    document.querySelectorAll("[data-post-type]").forEach(function(button) {
+      button.addEventListener("click", function() {
+        setPostType(button.dataset.postType);
+      });
     });
-    zone.addEventListener("dragleave", function() {
-        zone.style.borderColor = "rgba(255,255,255,.24)";
+    ["studioTitle", "studioCaption", "studioAudience"].forEach(function(id) {
+      const input = document.getElementById(id);
+      input?.addEventListener("input", syncPreview);
+      input?.addEventListener("change", syncPreview);
     });
-    zone.addEventListener("drop", function(event) {
-        event.preventDefault();
-        zone.style.borderColor = "rgba(255,255,255,.24)";
-        if (event.dataTransfer.files.length && input) {
-            input.files = event.dataTransfer.files;
-            renderStudioPreview(event.dataTransfer.files[0]);
-        }
+    document.getElementById("studioGalleryButton")?.addEventListener("click", function() {
+      mediaInput.removeAttribute("capture");
+      mediaInput.click();
     });
-});
+    document.getElementById("studioCameraButton")?.addEventListener("click", function() {
+      mediaInput.accept = "image/*";
+      mediaInput.setAttribute("capture", "environment");
+      mediaInput.click();
+    });
+    document.getElementById("studioVideoButton")?.addEventListener("click", function() {
+      mediaInput.accept = "video/*";
+      mediaInput.setAttribute("capture", "environment");
+      mediaInput.click();
+    });
+    document.getElementById("studioResetMedia")?.addEventListener("click", function() {
+      mediaInput.value = "";
+      renderPreview(null);
+    });
+    mediaInput?.addEventListener("change", function() {
+      renderPreview(mediaInput.files && mediaInput.files[0]);
+    });
+    form?.addEventListener("submit", function() {
+      document.getElementById("studioStatusNote").textContent = "Publishing through the current Namvibe pipeline...";
+    });
+
+    setPostType("{{ active_type|default:'text' }}");
+    syncPreview();
+  }());
 </script>
 {% endblock %}
