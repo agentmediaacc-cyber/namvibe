@@ -7,9 +7,9 @@
     <div>
       <span class="eyebrow">Ads and Promotions</span>
       <h1>Promote creators, products, and businesses on Namvibe</h1>
-      <p>Browse active discover ads and open the promotions starter to plan future sponsored content flows.</p>
+      <p>Launch sponsored posts, reach new audiences, and track what is live on Namvibe.</p>
       <div class="product-actions">
-        <a class="nv-btn primary" href="{% url 'ads_starter' %}">Promotions starter</a>
+        <a class="nv-btn primary" href="{% url 'ads_starter' %}">Create promotion</a>
         <a class="nv-btn" href="{% url 'support_control' %}">Control dashboard</a>
       </div>
     </div>
@@ -31,7 +31,7 @@
           <span>{{ ad.description|truncatechars:90 }}</span>
         </a>
       {% empty %}
-        <div class="product-card">No active discover ads yet.</div>
+        <div class="product-card">No ads are running right now.</div>
       {% endfor %}
     </div>
   </div>

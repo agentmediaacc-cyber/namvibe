@@ -26,7 +26,7 @@
   <div class="product-section">
     <h2>Permission readiness</h2>
     <div class="product-card">
-      <p id="permissionState">Tap the button below to test your camera and microphone permissions before real calling ships.</p>
+      <p id="permissionState">Check your camera and microphone before you start a voice or video session.</p>
       <div class="product-actions">
         <button class="nv-btn primary" type="button" id="permissionCheck">Check camera and mic</button>
         <a class="nv-btn" href="{% url 'support_help' %}">Permission help</a>
@@ -39,13 +39,13 @@
   document.getElementById("permissionCheck")?.addEventListener("click", async function () {
     const state = document.getElementById("permissionState");
     if (!navigator.mediaDevices?.getUserMedia) {
-      state.textContent = "This browser does not expose camera/mic permissions here yet.";
+      state.textContent = "This browser cannot open camera and microphone checks here.";
       return;
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       stream.getTracks().forEach(track => track.stop());
-      state.textContent = "Camera and microphone are ready for future live and calling flows.";
+      state.textContent = "Camera and microphone are ready.";
       document.body.dataset.focusUi = "true";
       setTimeout(() => { document.body.dataset.focusUi = "false"; }, 1500);
     } catch (error) {

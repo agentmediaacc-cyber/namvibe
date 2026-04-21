@@ -67,7 +67,7 @@
                 <div style="display:grid;place-items:center;height:100%;padding:28px;text-align:center;">
                   <div>
                     <h2>{{ post.title|default:"Short video update" }}</h2>
-                    <p>{{ post.caption|default:"Creator video content will appear here as reels publish." }}</p>
+                    <p>{{ post.caption|default:"Fresh video from Namvibe creators." }}</p>
                   </div>
                 </div>
               {% endif %}
@@ -132,7 +132,7 @@
       {% empty %}
         <div class="reels-panel empty-reels">
           <h2>No reels yet</h2>
-          <p>Short videos will appear here as creators publish reels or video posts. Use Studio to post the first one and keep the feed moving.</p>
+          <p>Post your first reel and start building your video feed.</p>
           <p style="margin-top:12px;"><a class="nv-btn primary" href="{% url 'studio' %}?type=reel">Create your first reel</a></p>
         </div>
       {% endfor %}
@@ -168,7 +168,7 @@
               <span>{{ community.member_count }} members</span><strong>{{ community.name }}</strong>
             </a>
           {% empty %}
-            <p>Community suggestions will appear here.</p>
+            <p>Communities you may want to join show up here.</p>
           {% endfor %}
         </div>
       </section>

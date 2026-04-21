@@ -385,7 +385,7 @@
             {% for session in featured_live|slice:":4" %}
               <a class="rail-link" href="{% url 'live_room' session.uuid %}"><span>{{ session.title|truncatechars:22 }}</span><strong>{{ session.viewer_count }}</strong></a>
             {% empty %}
-              <div class="rail-note">Featured live rooms will appear here when creators go live.</div>
+              <div class="rail-note">Catch featured rooms as soon as creators start streaming.</div>
             {% endfor %}
           </section>
           <section>

@@ -33,7 +33,7 @@
             <section class="account-card">
                 <div class="account-top">
                     <div>
-                        <span class="auth-badge">Private account shell</span>
+                        <span class="auth-badge">Private account</span>
                         <h1>Welcome back, {{ profile.display_name|default:username }}</h1>
                         <p class="account-copy">Your public profile stays username-first. Use this private shell to manage onboarding, content, wallet, messages, dating, and creator tools.</p>
                     </div>
@@ -107,7 +107,7 @@
             <section id="posts" class="account-panel">
                 <div class="account-card">
                     <h2 style="margin-top:0;">Creator Studio</h2>
-                    <p class="account-copy">Open the full creator studio, reels, flyer, and live flows from here without rebuilding separate dashboards. Flyer builder, motion, poll, and engagement flows all stay connected.</p>
+                    <p class="account-copy">Open studio, reels, Flyer builder, and live tools from one place and keep your drafts moving.</p>
                     <div class="action-row">
                         <a href="{% url 'studio' %}">Open studio</a>
                         <a href="{% url 'studio' %}?type=reel">New reel</a>
@@ -127,7 +127,7 @@
                             {% endfor %}
                         </div>
                     {% endif %}
-                    <p class="account-copy" style="margin-top:14px;">Motion, poll, and engagement hooks remain creator-first while the studio stays compatible with the current publishing pipeline.</p>
+                    <p class="account-copy" style="margin-top:14px;">Motion, poll, and engagement stay close while drafts, reels, and live updates remain ready to publish from the same flow.</p>
                 </div>
             </section>
 
@@ -148,7 +148,7 @@
                         <a href="{% url 'wallet_home' %}">Wallet home</a>
                         <a href="{% url 'wallet_membership_plans' %}">Premium plans</a>
                         <a href="{% url 'wallet_creator_earnings' %}">Creator earnings</a>
-                        <a href="{% url 'ads_starter' %}">Ads starter</a>
+                        <a href="{% url 'ads_starter' %}">Create promotion</a>
                     </div>
                 </div>
             </section>

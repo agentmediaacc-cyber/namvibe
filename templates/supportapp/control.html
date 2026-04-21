@@ -6,12 +6,12 @@
   <div class="product-hero">
     <div>
       <span class="eyebrow">Control</span>
-      <h1>Master admin and support starter dashboard</h1>
-      <p>This starter keeps moderation, support, promos, memberships, featured content, and broadcast entry points organized while backend workflows continue to expand.</p>
+      <h1>Support and control center</h1>
+      <p>Manage moderation, support, promos, memberships, featured content, and broadcasts from one clean control surface.</p>
       <div class="product-actions">
         <a class="nv-btn primary" href="/admin/">Django admin</a>
         <a class="nv-btn" href="{% url 'support_help' %}">Support home</a>
-        <a class="nv-btn" href="{% url 'ads_starter' %}">Ads starter</a>
+        <a class="nv-btn" href="{% url 'ads_starter' %}">Create promotion</a>
       </div>
     </div>
   </div>
@@ -68,7 +68,7 @@
   </div>
 
   <div class="product-section">
-    <h2>Promo card management starter</h2>
+    <h2>Promo cards</h2>
     <div class="product-grid">
       {% for promo in promo_cards %}
         <article class="product-card"><strong>{{ promo.title }}</strong><span>{{ promo.get_placement_display }} · priority {{ promo.priority }}</span></article>

@@ -5,7 +5,7 @@
 <style>
   .live-studio-shell{max-width:1220px;margin:0 auto;padding:18px 12px 96px}
   .live-studio-layout{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(360px,.98fr);gap:18px;align-items:start}
-  .live-studio-panel,.live-studio-preview,.live-hook-card{
+  .live-studio-panel,.live-studio-preview,.live-detail-card{
     border:1px solid rgba(120,92,39,.14);background:rgba(255,253,249,.97);border-radius:30px;padding:18px;box-shadow:0 20px 56px rgba(66,45,10,.06)
   }
   .live-studio-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
@@ -43,13 +43,14 @@
   .live-preview-overlay h2,.live-preview-overlay p{margin:0}
   .live-preview-overlay p{margin-top:6px;color:rgba(255,249,240,.84)}
   .live-status{font-size:13px;color:#8c7653}
-  .live-hook-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
-  .live-hook-card strong{display:block;margin-bottom:6px}
-  .live-hook-card p{margin:0;color:#7a6d5b;line-height:1.6}
+  .live-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+  .live-detail-card strong{display:block;margin-bottom:6px}
+  .live-detail-card p{margin:0;color:#7a6d5b;line-height:1.6}
   .live-submit{border:0;border-radius:999px;padding:13px 18px;font-weight:900;background:linear-gradient(135deg,#c7a14a,#9c7427);color:#fffdf7;cursor:pointer}
   .live-errors{margin-bottom:14px;padding:14px;border-radius:20px;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}
   @media (max-width: 980px){.live-studio-layout{grid-template-columns:1fr}.live-preview-device{position:static;min-height:auto}}
-  @media (max-width: 760px){.live-studio-shell{padding-inline:8px}.live-setup-grid,.live-chip-grid,.live-hook-grid{grid-template-columns:1fr 1fr}}
+  @media (max-width: 760px){.live-studio-shell{padding-inline:8px}.live-setup-grid,.live-chip-grid,.live-detail-grid{grid-template-columns:1fr 1fr}}
+  @media (max-width: 560px){.live-setup-grid,.live-chip-grid,.live-detail-grid{grid-template-columns:1fr}.live-studio-panel,.live-studio-preview,.live-detail-card{padding:14px;border-radius:22px}}
 </style>
 
 <section class="live-studio-shell">
@@ -59,7 +60,7 @@
       <div class="live-studio-head">
         <div>
           <h1>Live Studio</h1>
-          <p class="live-studio-muted">Set up a stream with camera and mic readiness, audience controls, thumbnail preview, and creator prompts before you go live.</p>
+          <p class="live-studio-muted">Check your camera, set the room, and go live in a few quick steps.</p>
         </div>
         <a class="live-soft-btn" href="{% url 'live_home' %}">Back to live</a>
       </div>
@@ -73,22 +74,22 @@
         <div class="live-chip-grid" id="liveModeGrid">
           <button class="live-chip active" type="button" data-start-mode="now">Go live now<small>Open a room immediately</small></button>
           <button class="live-chip" type="button" data-start-mode="schedule">Schedule later<small>Announce and prepare before streaming</small></button>
-          <button class="live-chip" type="button" data-start-mode="private">Restricted starter<small>Private or premium room setup</small></button>
+          <button class="live-chip" type="button" data-start-mode="private">Private access<small>Set up a limited or premium room</small></button>
           <button class="live-chip" type="button" data-start-mode="camera">Camera check<small>Test device readiness first</small></button>
         </div>
         <input type="hidden" name="start_mode" id="liveStartMode" value="{{ form.start_mode.value|default:'now' }}">
       </section>
 
       <section class="story-section">
-        <h2 style="margin:0 0 10px;">Camera, mic, and gallery readiness</h2>
+        <h2 style="margin:0 0 10px;">Camera and mic</h2>
         <div class="live-permission-card">
           <div class="live-permission-actions">
-            <button class="live-soft-btn" type="button" id="livePermissionProbe">Check camera + mic</button>
+            <button class="live-soft-btn" type="button" id="livePermissionProbe">Open camera</button>
             <button class="live-soft-btn" type="button" id="liveSwitchCamera">Switch camera</button>
             <button class="live-soft-btn" type="button" id="liveToggleMic">Mute mic</button>
             <button class="live-soft-btn" type="button" id="liveToggleCamera">Hide camera</button>
           </div>
-          <div class="live-status" id="livePermissionState">Use this before starting so your browser and phone permissions are ready.</div>
+          <div class="live-status" id="livePermissionState">Tap once to check your camera and microphone.</div>
         </div>
       </section>
 
@@ -127,24 +128,24 @@
           </div>
           <div class="live-field">
             <label style="visibility:hidden;">Feature</label>
-            <label class="live-soft-btn" style="display:flex;align-items:center;gap:8px;border-radius:18px;"><input type="checkbox" name="is_featured" {% if form.is_featured.value %}checked{% endif %}> Feature request</label>
+            <label class="live-soft-btn" style="display:flex;align-items:center;gap:8px;border-radius:18px;"><input type="checkbox" name="is_featured" {% if form.is_featured.value %}checked{% endif %}> Feature on live page</label>
           </div>
         </div>
       </section>
 
       <section class="story-section">
-        <h2 style="margin:0 0 10px;">Host automation hooks</h2>
-        <div class="live-hook-grid">
-          <div class="live-hook-card"><strong>Welcome message</strong><p>Reserved for an automatic greeting that appears when viewers enter the room.</p></div>
-          <div class="live-hook-card"><strong>Pinned creator promo</strong><p>Reserved for a pinned wallet, premium, or creator CTA inside live chat.</p></div>
-          <div class="live-hook-card"><strong>Join key / access code</strong><p>Starter hook for future restricted-room access without pretending it is active now.</p></div>
-          <div class="live-hook-card"><strong>Auto reply to greetings</strong><p>Reserved for host workflow automation once realtime controls expand.</p></div>
+        <h2 style="margin:0 0 10px;">Room touches</h2>
+        <div class="live-detail-grid">
+          <div class="live-detail-card"><strong>Welcome message</strong><p>Set the tone for everyone joining your room.</p></div>
+          <div class="live-detail-card"><strong>Pinned message</strong><p>Keep your key link, promo, or update visible during the stream.</p></div>
+          <div class="live-detail-card"><strong>Access code</strong><p>Use a private code when you want tighter access.</p></div>
+          <div class="live-detail-card"><strong>Host replies</strong><p>Stay ready to greet viewers and steer the chat.</p></div>
         </div>
       </section>
 
       <div class="live-submit-row">
         <button class="live-submit" type="submit">Create live session</button>
-        <span class="live-status" id="liveStudioNote">This setup uses the current live model and permission-safe browser preview.</span>
+        <span class="live-status" id="liveStudioNote">Preview updates as you prepare your room.</span>
       </div>
     </form>
 
@@ -158,20 +159,20 @@
           <video id="livePreviewVideo" playsinline muted autoplay hidden></video>
           <img id="livePreviewImage" alt="Live thumbnail preview" hidden>
           <div id="livePreviewFallback">
-            <span class="badge badge-live">PREVIEW</span>
-            <h2 style="margin:10px 0 6px;">Camera preview will appear here</h2>
-            <p class="live-studio-muted" style="color:rgba(255,249,240,.82);">If the browser blocks access, you’ll get a clear permission message instead of a broken creator flow.</p>
+            <span class="badge badge-live">LIVE PREVIEW</span>
+            <h2 style="margin:10px 0 6px;">Open your camera to frame the room</h2>
+            <p class="live-studio-muted" style="color:rgba(255,249,240,.82);">You can also upload a cover image and start with camera off.</p>
           </div>
           <div class="live-preview-overlay">
             <h2 id="livePreviewTitle">Your live title</h2>
-            <p id="livePreviewDescription">Update your title and description to preview the room feel before going live.</p>
+            <p id="livePreviewDescription">Add a title and short description so viewers know what is happening.</p>
           </div>
         </div>
-        <div class="live-hook-grid" style="margin-top:14px;">
-          <div class="live-hook-card"><strong>Viewer count</strong><p>Clean display and premium/private room messaging already flow through the room template.</p></div>
-          <div class="live-hook-card"><strong>Host controls</strong><p>Mute, camera toggle, and switch-camera work here as honest local-preview controls.</p></div>
-          <div class="live-hook-card"><strong>Gift prompts</strong><p>Room gifting and wallet prompts remain connected to the monetization routes.</p></div>
-          <div class="live-hook-card"><strong>Chat hooks</strong><p>Room chat stays real while moderation and automation controls deepen later.</p></div>
+        <div class="live-detail-grid" style="margin-top:14px;">
+          <div class="live-detail-card"><strong>Viewer count</strong><p>See the room size at a glance once you are live.</p></div>
+          <div class="live-detail-card"><strong>Host controls</strong><p>Switch cameras, mute, and manage your room without leaving the stream.</p></div>
+          <div class="live-detail-card"><strong>Gifts</strong><p>Wallet and gifting stay available while you stream.</p></div>
+          <div class="live-detail-card"><strong>Chat</strong><p>Messages stay close so you can greet viewers and respond fast.</p></div>
         </div>
       </div>
     </aside>
@@ -207,15 +208,16 @@
 
     function syncPreview() {
       previewTitle.textContent = document.getElementById("liveTitle").value.trim() || "Your live title";
-      previewDescription.textContent = document.getElementById("liveDescription").value.trim() || "Update your title and description to preview the room feel before going live.";
+      previewDescription.textContent = document.getElementById("liveDescription").value.trim() || "Add a title and short description so viewers know what is happening.";
       previewAccess.textContent = document.getElementById("liveAccessType").selectedOptions[0].textContent;
     }
 
     async function startPreview() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        permissionState.textContent = "This browser does not expose camera and microphone preview here.";
+        permissionState.textContent = "This browser cannot open camera preview here.";
         return;
       }
+      permissionState.textContent = "Opening camera...";
       try {
         if (currentStream) {
           currentStream.getTracks().forEach(function(track) { track.stop(); });
@@ -228,9 +230,23 @@
         previewVideo.hidden = false;
         previewFallback.hidden = true;
         previewImage.hidden = true;
-        permissionState.textContent = "Camera and microphone are ready.";
+        const videoTracks = currentStream.getVideoTracks();
+        const audioTracks = currentStream.getAudioTracks();
+        if (!videoTracks.length) {
+          permissionState.textContent = "No camera found on this device.";
+        } else if (!audioTracks.length) {
+          permissionState.textContent = "Camera ready. Microphone not available.";
+        } else {
+          permissionState.textContent = "Camera and microphone are ready.";
+        }
       } catch (error) {
-        permissionState.textContent = "Camera or microphone access is blocked. Enable permissions in your browser or device settings, then try again.";
+        if (error && (error.name === "NotFoundError" || error.name === "DevicesNotFoundError")) {
+          permissionState.textContent = "No camera or microphone was found.";
+        } else if (error && error.name === "NotAllowedError") {
+          permissionState.textContent = "Camera or microphone access is blocked. Allow access and try again.";
+        } else {
+          permissionState.textContent = "Unable to open your camera right now. Try again.";
+        }
       }
     }
 
@@ -255,14 +271,14 @@
       if (currentStream) {
         currentStream.getAudioTracks().forEach(function(track) { track.enabled = audioEnabled; });
       }
-      permissionState.textContent = audioEnabled ? "Microphone enabled for preview." : "Microphone muted for preview.";
+      permissionState.textContent = audioEnabled ? "Microphone on." : "Microphone muted.";
     });
     document.getElementById("liveToggleCamera")?.addEventListener("click", function() {
       cameraEnabled = !cameraEnabled;
       if (currentStream) {
         currentStream.getVideoTracks().forEach(function(track) { track.enabled = cameraEnabled; });
       }
-      permissionState.textContent = cameraEnabled ? "Camera visible in preview." : "Camera hidden in preview.";
+      permissionState.textContent = cameraEnabled ? "Camera on." : "Camera off.";
     });
     thumbnailInput?.addEventListener("change", function() {
       const file = thumbnailInput.files && thumbnailInput.files[0];
@@ -272,10 +288,10 @@
       previewImage.hidden = false;
       previewFallback.hidden = true;
       previewVideo.hidden = true;
-      permissionState.textContent = "Thumbnail preview loaded.";
+      permissionState.textContent = "Cover image ready.";
     });
     document.getElementById("liveStudioForm")?.addEventListener("submit", function() {
-      document.getElementById("liveStudioNote").textContent = "Creating live session through the current Namvibe live flow...";
+      document.getElementById("liveStudioNote").textContent = "Creating your live session...";
     });
 
     updateMode("now");

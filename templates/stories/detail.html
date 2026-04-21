@@ -102,7 +102,7 @@
       {% for comment in comments %}
         <div class="story-comment"><strong>@{{ comment.author.username }}</strong> {{ comment.body }}</div>
       {% empty %}
-        <div class="story-comment">Replies will appear here as people answer or react.</div>
+        <div class="story-comment">No replies yet. Start the conversation.</div>
       {% endfor %}
     </div>
   </article>

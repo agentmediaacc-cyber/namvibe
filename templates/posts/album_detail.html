@@ -6,7 +6,7 @@
   <div class="nv-list-head">
     <div>
       <h1>{{ album_title }}</h1>
-      <p>Published {{ album_kind }} from your creator flow, grouped into one route-safe media lane.</p>
+      <p>Your {{ album_kind }} in one clean media collection.</p>
     </div>
     <div class="nv-head-actions">
       <a href="{% url 'media_albums' %}">All albums</a>
@@ -19,7 +19,7 @@
     {% empty %}
       <div class="nv-empty">
         <h2 style="margin-top:0;">This album is still empty</h2>
-        <p>Publish {{ album_kind }} from Creator Studio and they will appear here automatically.</p>
+        <p>Create {{ album_kind }} in Studio to start filling this album.</p>
       </div>
     {% endfor %}
   </div>

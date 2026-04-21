@@ -85,6 +85,10 @@
     .story-mode-grid,.story-style-grid,.story-chip-grid,.story-grid{grid-template-columns:1fr 1fr}
     .story-preview-card{min-height:56vh}
   }
+  @media (max-width: 560px){
+    .story-mode-grid,.story-style-grid,.story-chip-grid,.story-grid{grid-template-columns:1fr}
+    .story-create-panel,.story-preview-panel,.story-helper-card{padding:14px;border-radius:22px}
+  }
 </style>
 
 <section class="story-create-shell">
@@ -94,7 +98,7 @@
       <div class="story-create-head">
         <div>
           <h1>Story Studio</h1>
-          <p class="story-muted">Fast, visual, mobile-first. Pick a format, preview it instantly, then publish to your 24-hour story rail.</p>
+          <p class="story-muted">Pick a format, add media, and post your story in seconds.</p>
         </div>
         <a class="story-soft-btn" href="{% url 'home' %}">Back to home</a>
       </div>
@@ -134,14 +138,14 @@
             <button class="story-soft-btn" type="button" id="storyCameraButton">Use camera</button>
             <button class="story-soft-btn" type="button" id="storyClearButton">Clear selection</button>
           </div>
-          <p class="story-soft-note">Gallery and camera both map into the same real upload field so publishing still uses the current backend flow.</p>
+          <p class="story-soft-note">Choose a clip or photo, then post when it looks right.</p>
           <input type="file" id="storyFileInput" name="file" accept="image/*,video/*" hidden>
           <div class="story-status-note" id="storyFileState">No media selected yet.</div>
         </div>
       </section>
 
       <section class="story-section">
-        <h2>Style and visibility</h2>
+        <h2>Story details</h2>
         <div class="story-grid">
           <div class="story-field full">
             <label for="storyTextContent">Story text</label>
@@ -202,15 +206,15 @@
       </section>
 
       <section class="story-section">
-        <h2>Music and extras</h2>
+        <h2>Extras</h2>
         <div class="story-helper-grid">
           <div class="story-helper-card">
-            <strong>Music picker hook</strong>
-            <p>Music library integration is not wired yet. This slot is reserved for track search, clip selection, and story sound layering without faking unavailable editing tools.</p>
+            <strong>Sound</strong>
+            <p>Add a soundtrack later from your device or keep this story clean and direct.</p>
           </div>
           <div class="story-helper-card">
             <strong>Draft memory</strong>
-            <p>Your text, caption, theme, and link inputs are stored locally in this browser until you publish or clear them, so mobile edits feel safer.</p>
+            <p>Your text, caption, theme, and link stay saved on this device while you edit.</p>
           </div>
         </div>
       </section>
@@ -235,11 +239,11 @@
           </span>
           <div>
             <strong>@{{ request.user.profile.username }}</strong><br>
-            <small style="color:rgba(255,249,240,.82);">Preview before publish</small>
+            <small style="color:rgba(255,249,240,.82);">Story preview</small>
           </div>
         </div>
         <div class="story-preview-card theme-midnight" id="storyPreviewCard">
-          <div class="story-preview-text" id="storyPreviewText">Your story text will appear here.</div>
+          <div class="story-preview-text" id="storyPreviewText">Write something worth opening.</div>
           <div class="story-preview-media" id="storyPreviewMedia" hidden></div>
           <div class="story-preview-caption" id="storyPreviewCaption" hidden></div>
         </div>
@@ -276,7 +280,7 @@
       const textStyle = textStyleInput.value || "clean";
       previewCard.className = "story-preview-card theme-" + theme;
       previewText.className = "story-preview-text style-" + textStyle;
-      previewText.textContent = textInput.value.trim() || "Your story text will appear here.";
+      previewText.textContent = textInput.value.trim() || "Write something worth opening.";
       const caption = captionInput.value.trim();
       previewCaption.hidden = !caption;
       previewCaption.textContent = caption;

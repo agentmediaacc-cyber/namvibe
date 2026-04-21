@@ -14,11 +14,11 @@
   .studio-head h1{margin:0 0 8px;font-size:clamp(2rem,5vw,3.4rem)}
   .studio-muted{color:#7a6d5b;line-height:1.65}
   .studio-mode-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
-  .studio-mode-btn,.studio-chip,.studio-soft-btn,.studio-hook{
+  .studio-mode-btn,.studio-chip,.studio-soft-btn,.studio-tool{
     border:1px solid rgba(120,92,39,.14);background:#fff;border-radius:20px;padding:14px;cursor:pointer;color:#2b2216;font-weight:800;text-align:left
   }
   .studio-mode-btn.active,.studio-chip.active{background:linear-gradient(135deg,#fffaf0,#f4ead0);border-color:rgba(156,116,39,.3);box-shadow:0 12px 28px rgba(66,45,10,.08)}
-  .studio-mode-btn small,.studio-chip small,.studio-hook small{display:block;margin-top:4px;color:#7a6d5b;font-weight:600;line-height:1.45}
+  .studio-mode-btn small,.studio-chip small,.studio-tool small{display:block;margin-top:4px;color:#7a6d5b;font-weight:600;line-height:1.45}
   .studio-section{margin-top:16px}
   .studio-section h2{margin:0 0 10px;font-size:1.08rem}
   .studio-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
@@ -46,8 +46,8 @@
   .studio-preview-copy h2,.studio-preview-copy p{margin:0}
   .studio-preview-copy p{margin-top:8px;color:rgba(255,249,240,.86);line-height:1.6}
   .studio-preview-actions{display:flex;gap:10px;flex-wrap:wrap;color:rgba(255,249,240,.82);font-size:13px;margin-top:12px}
-  .studio-hook-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .studio-hook{cursor:default;background:#fffcf7}
+  .studio-tool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .studio-tool{cursor:default;background:#fffcf7}
   .studio-advanced{display:none}
   .studio-advanced.active{display:block}
   .studio-toggle-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -63,7 +63,11 @@
   @media (max-width: 980px){.studio-layout{grid-template-columns:1fr}.studio-preview-phone{position:static;min-height:auto}}
   @media (max-width: 760px){
     .studio-shell{padding-inline:8px}
-    .studio-mode-grid,.studio-grid,.studio-hook-grid,.studio-toggle-row{grid-template-columns:1fr 1fr}
+    .studio-mode-grid,.studio-grid,.studio-tool-grid,.studio-toggle-row{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width: 560px){
+    .studio-mode-grid,.studio-grid,.studio-tool-grid,.studio-toggle-row{grid-template-columns:1fr}
+    .studio-panel,.studio-preview,.studio-drafts{padding:14px;border-radius:22px}
   }
 </style>
 
@@ -74,7 +78,7 @@
       <div class="studio-head">
         <div>
           <h1>Creator Studio</h1>
-          <p class="studio-muted">Build a post, reel, flyer, poll, or live announcement from one mobile-friendly creation surface. Gallery, camera, preview, drafts, and monetization hooks stay connected to the same publishing pipeline.</p>
+          <p class="studio-muted">Create a post, reel, flyer, poll, or live update from one fast mobile flow.</p>
         </div>
         <a class="studio-soft-btn" href="{% url 'home' %}">Back to feed</a>
       </div>
@@ -113,7 +117,7 @@
             <button class="studio-soft-btn" type="button" id="studioVideoButton">Record video</button>
             <button class="studio-soft-btn" type="button" id="studioResetMedia">Clear media</button>
           </div>
-          <p class="studio-note" id="studioUploadNote">Reels and video posts keep the original file path and quality through the existing upload pipeline. Editing controls below are honest starter hooks.</p>
+          <p class="studio-note" id="studioUploadNote">Choose media, check the preview, then publish.</p>
           <input type="file" id="studioMediaInput" name="media_file" accept="image/*,video/*,audio/*" hidden>
         </div>
       </section>
@@ -162,11 +166,11 @@
 
       <section class="studio-section studio-advanced" id="studioReelTools">
         <h2>Reel and video tools</h2>
-        <div class="studio-hook-grid">
-          <div class="studio-hook"><strong>Trim hook</strong><small>Reserved for future cut/trim editing before publish.</small></div>
-          <div class="studio-hook"><strong>Cover image</strong><small>Reserved for thumbnail/cover selection on reels.</small></div>
-          <div class="studio-hook"><strong>Mute / unmute</strong><small>Starter control for audio handling without pretending server-side edits exist.</small></div>
-          <div class="studio-hook"><strong>Effects / mirror</strong><small>Future enhancement slot for lightweight video treatments.</small></div>
+        <div class="studio-tool-grid">
+          <div class="studio-tool"><strong>Trim</strong><small>Keep your clip tight before you post.</small></div>
+          <div class="studio-tool"><strong>Cover image</strong><small>Choose the frame people see first.</small></div>
+          <div class="studio-tool"><strong>Audio</strong><small>Post with sound or keep it quiet.</small></div>
+          <div class="studio-tool"><strong>Effects</strong><small>Keep the look clean and focused.</small></div>
         </div>
       </section>
 
@@ -215,7 +219,7 @@
       <div class="studio-submit-row">
         <button class="studio-submit" type="submit">Publish now</button>
         <button class="studio-draft-btn" type="submit" formaction="{% url 'save_draft' %}">Save draft</button>
-        <span class="studio-note" id="studioStatusNote">Preview updates live. Advanced editing hooks are clearly marked and won’t fake unsupported processing.</span>
+        <span class="studio-note" id="studioStatusNote">Preview updates as you edit.</span>
       </div>
     </form>
 
@@ -228,20 +232,20 @@
         <div class="studio-preview-card">
           <div class="studio-preview-media" id="studioPreviewMedia" hidden></div>
           <div class="studio-preview-copy" id="studioPreviewCopy">
-            <h2 id="studioPreviewTitle">Your title will appear here.</h2>
-            <p id="studioPreviewCaption">A cleaner creation flow makes posts, reels, flyers, and live announcements feel like real creator tools instead of admin forms.</p>
+            <h2 id="studioPreviewTitle">Give this post a strong title.</h2>
+            <p id="studioPreviewCaption">Add a caption, choose your audience, and publish when it feels right.</p>
             <div class="studio-preview-actions">
               <span id="studioPreviewMeta">Ready to publish</span>
             </div>
           </div>
         </div>
         <div class="studio-section">
-          <h2 style="color:#fffdf8;">Creator hooks</h2>
-          <div class="studio-hook-grid">
-            <div class="studio-hook"><strong>Promote content</strong><small>Route finished content into ads and promo tools.</small></div>
-            <div class="studio-hook"><strong>Go live next</strong><small>Jump into live studio after publishing a reel or announcement.</small></div>
-            <div class="studio-hook"><strong>Wallet prompts</strong><small>Premium, gifting, and creator earnings stay connected.</small></div>
-            <div class="studio-hook"><strong>Permission ready</strong><small>Camera and gallery inputs are tuned for mobile capture.</small></div>
+          <h2 style="color:#fffdf8;">Creator flow</h2>
+          <div class="studio-tool-grid">
+            <div class="studio-tool"><strong>Promote content</strong><small>Move finished posts into ads when you want more reach.</small></div>
+            <div class="studio-tool"><strong>Go live next</strong><small>Jump into Live Studio after posting a reel or update.</small></div>
+            <div class="studio-tool"><strong>Wallet</strong><small>Keep premium, gifting, and earnings one tap away.</small></div>
+            <div class="studio-tool"><strong>Permissions</strong><small>Camera and gallery access are ready for mobile capture.</small></div>
           </div>
         </div>
       </div>
@@ -293,7 +297,7 @@
       previewMeta.textContent = type === "reel" ? "Vertical video flow" : type === "live" ? "Live announcement flow" : "Ready to publish";
       if (type === "reel" || type === "video") {
         mediaInput.accept = "video/*";
-        uploadNote.textContent = "Use gallery or camera recording for reels and video posts. Cover, trim, and effect controls are honest starter hooks.";
+        uploadNote.textContent = "Use gallery or camera recording for reels and video posts.";
       } else if (type === "photo" || type === "story" || type === "flyer") {
         mediaInput.accept = "image/*";
         uploadNote.textContent = "Choose a photo from gallery or camera. Image posts preserve the current upload flow and social visibility rules.";
@@ -318,8 +322,8 @@
     }
 
     function syncPreview() {
-      previewTitle.textContent = document.getElementById("studioTitle").value.trim() || "Your title will appear here.";
-      previewCaption.textContent = document.getElementById("studioCaption").value.trim() || "A cleaner creation flow makes posts, reels, flyers, and live announcements feel like real creator tools instead of admin forms.";
+      previewTitle.textContent = document.getElementById("studioTitle").value.trim() || "Give this post a strong title.";
+      previewCaption.textContent = document.getElementById("studioCaption").value.trim() || "Add a caption, choose your audience, and publish when it feels right.";
       previewAudience.textContent = document.getElementById("studioAudience").selectedOptions[0].textContent;
     }
 
@@ -355,7 +359,7 @@
       renderPreview(mediaInput.files && mediaInput.files[0]);
     });
     form?.addEventListener("submit", function() {
-      document.getElementById("studioStatusNote").textContent = "Publishing through the current Namvibe pipeline...";
+      document.getElementById("studioStatusNote").textContent = "Publishing now...";
     });
 
     setPostType("{{ active_type|default:'text' }}");

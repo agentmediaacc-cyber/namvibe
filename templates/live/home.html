@@ -15,7 +15,7 @@
       {% for session in featured_sessions %}
         <a class="live-card" style="display:block;margin-bottom:10px;" href="{% url 'live_room' session.uuid %}"><span class="badge badge-live">{{ session.status|upper }}</span><h3>{{ session.title }}</h3><p class="muted">@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</p></a>
       {% empty %}
-        <p class="muted">Featured live creators will appear here.</p>
+        <p class="muted">The strongest rooms and rising hosts show up here.</p>
       {% endfor %}
     </aside>
   </div>

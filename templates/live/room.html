@@ -8,7 +8,7 @@
       <div class="player">
         {% if locked_premium %}
           <div><span class="badge badge-scheduled">PREMIUM</span><h1>{{ session.title }}</h1><p class="muted">Unlock this premium live room with your wallet balance.</p><form method="post" action="{% url 'live_purchase_access' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">Unlock for N${{ live_access_price }}</button></form></div>
-        {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline></video>{% else %}<div><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">Stream video will appear here when connected.</p></div>{% endif %}
+        {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline></video>{% else %}<div><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">The stream will appear as soon as the host connects.</p></div>{% endif %}
       </div>
       <div class="live-panel" style="margin-top:14px;">
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
@@ -34,10 +34,10 @@
           <h2>Host controls</h2>
           <p class="muted">Stream key: <code>{{ session.stream_key|default:"Not generated yet" }}</code></p>
           <div class="chip-row" style="margin:12px 0;">
-            <span class="chip">Pinned creator promo hook</span>
-            <span class="chip">Greeting automation hook</span>
-            <span class="chip">Remove viewer flow placeholder</span>
-            <span class="chip">Clear chat control placeholder</span>
+            <span class="chip">Pin message</span>
+            <span class="chip">Welcome viewers</span>
+            <span class="chip">Manage viewers</span>
+            <span class="chip">Clear chat</span>
           </div>
           {% if session.status != "ended" %}<form method="post" action="{% url 'live_end' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">End session</button></form>{% endif %}
         </div>
@@ -51,7 +51,7 @@
       </section>
       <section class="live-panel" style="margin-top:14px;">
         <h2>Live chat</h2>
-        <p class="muted">Pinned messages, moderation actions, and richer host automation are ready to deepen here without replacing the current chat flow.</p>
+        <p class="muted">Stay close to chat, pin key updates, and keep the room moving.</p>
         {% include "live/_chat_messages.html" %}
         {% if can_chat %}
           <form class="chat-form" method="post" action="{% url 'live_message' session.uuid %}">
