@@ -1,0 +1,208 @@
+Phone test URL: http://192.168.179.30:8000
+
+=== ROUTES ===
+
+=== API / DASHBOARD FILES ===
+./ads/urls.py
+./ads/views.py
+./posts/urls.py
+./posts/views.py
+./core/urls.py
+./core/views.py
+./groupsapp/views.py
+./config/urls.py
+./communities/urls.py
+./communities/views.py
+./supportapp/views.py
+./staticfiles/admin/css/dashboard.e90f2068217b.css
+./staticfiles/admin/css/dashboard.css
+./staticfiles/admin/css/dashboard.css.gz
+./staticfiles/admin/css/dashboard.e90f2068217b.css.gz
+./reels/views.py
+./livestream/urls.py
+./livestream/views.py
+./stories/urls.py
+./stories/views.py
+./accounts/urls.py
+./accounts/views.py
+./live/urls.py
+./live/views.py
+./wallet/urls.py
+./wallet/views.py
+./api
+./api/urls.py
+./api/views.py
+./templates/accounts/dashboard.html
+./templates/messaging/dashboard_messages.html
+./profiles/views.py
+./dating/urls.py
+./dating/views.py
+./messaging/urls.py
+./messaging/views.py
+
+=== MATCHED URL CODE ===
+config/settings.py:1:from pathlib import Path
+config/settings.py:137:STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+config/settings.py:138:STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+config/urls.py:3:from django.urls import path, include
+config/urls.py:58:    path("", safe_index, name="home"),
+config/urls.py:59:    path("healthz", lambda request: HttpResponse("ok")),
+config/urls.py:60:    path("admin/", admin.site.urls),
+config/urls.py:61:    path("notifications/", notifications_view, name="notifications"),
+config/urls.py:62:    path("channels/", channels_view, name="channels"),
+config/urls.py:63:    path("gaming/", gaming_view, name="gaming"),
+config/urls.py:64:    path("photo-selling/", photo_selling_view, name="photo_selling"),
+config/urls.py:65:    path("flyers/", flyer_tools_view, name="flyer_tools"),
+config/urls.py:66:    path("image-tools/", image_tools_view, name="image_tools"),
+config/urls.py:67:    path("gifting/", gifting_view, name="gifting"),
+config/urls.py:68:    path("coins/", coins_view, name="coins"),
+config/urls.py:69:    path("support/", support_view, name="support_help"),
+config/urls.py:70:    path("premium/<str:tier>/", premium_tier_view, name="premium_tier"),
+config/urls.py:71:    path("community-list/", community_list_alias, name="community_list"),
+config/urls.py:72:    path("hashtags/<str:tag>/", hashtag_view, name="hashtag"),
+config/urls.py:73:    path("accounts/", include("accounts.urls")),
+config/urls.py:74:    path("api/", include("api.urls")),
+config/urls.py:75:    path("posts/", include("posts.urls")),
+config/urls.py:76:    path("feed/", include("posts.urls")),
+config/urls.py:77:    path("live/", include("live.urls")),
+config/urls.py:78:    path("livestream/", include("livestream.urls")),
+config/urls.py:79:    path("messaging/", include(("messaging.urls", "messaging"), namespace="messaging")),
+config/urls.py:80:    path("wallet/", include("wallet.urls")),
+config/urls.py:81:    path("settings/", lambda request: redirect("/accounts/profile/edit/"), name="settings"),
+config/urls.py:82:    path("stories/", include("stories.urls")),
+config/urls.py:83:    path("ads/", include("ads.urls")),
+config/urls.py:84:    path("dating/", include("dating.urls")),
+config/urls.py:85:    path("discover/people/", lambda request: redirect("/dating/"), name="discover_people"),
+config/urls.py:86:    path("communities/", include("communities.urls")),
+config/urls.py:97:    path("reels/", reels_feed_view, name="reels_feed"),
+config/urls.py:98:    path("discover/", discover_view, name="discover"),
+config/urls.py:99:    path("discover/search/", search_view, name="discover_search"),
+config/urls.py:100:    path("studio/", studio_view, name="studio"),
+config/urls.py:101:    path("studio/create/", studio_view, name="studio_create"),
+config/urls.py:102:    path("studio/draft/<uuid:uuid>/", studio_draft_view, name="studio_draft"),
+config/urls.py:104:    path("profile/<str:username>/", public_profile_view, name="profile_detail"),
+config/urls.py:106:    path("post/<uuid:uuid>/", post_detail_view, name="post_detail"),
+config/urls.py:107:    path("author/<str:username>/", author_posts_list_view, name="author_posts"),
+config/urls.py:108:    path("community/<slug:slug>/posts/", community_posts_list_view, name="community_posts"),
+config/urls.py:110:    path("like/<uuid:uuid>/", like_post_view, name="like_post"),
+config/urls.py:111:    path("save-toggle/<uuid:uuid>/", save_post_toggle_view, name="save_post_toggle"),
+config/urls.py:112:    path("share/<uuid:uuid>/", share_post_view, name="share_post"),
+config/urls.py:113:    path("track/<uuid:uuid>/", track_post_view, name="track_post_view"),
+config/urls.py:114:    path("report/<uuid:uuid>/", report_post_view, name="report_post"),
+config/urls.py:116:    path("comment/<uuid:uuid>/", add_comment_view, name="add_comment"),
+config/urls.py:117:    path("comment/<int:id>/reply/", reply_comment_view, name="reply_comment"),
+config/urls.py:118:    path("comment/<int:id>/delete/", delete_comment_view, name="delete_comment"),
+config/urls.py:119:    path("comment/<int:id>/pin/", pin_comment_view, name="pin_comment"),
+config/urls.py:120:    path("delete/<uuid:uuid>/", delete_post_view, name="delete_post"),
+config/urls.py:121:    path("edit/<uuid:uuid>/", edit_post_view, name="edit_post"),
+config/urls.py:122:    path("profile/<str:username>/report/", report_user_view, name="report_user"),
+config/urls.py:124:    path("draft/save/", save_draft_view, name="save_draft"),
+config/urls.py:125:    path("draft/publish/<uuid:uuid>/", publish_draft_view, name="publish_draft"),
+config/urls.py:126:    path("preview/<uuid:uuid>/", preview_post_view, name="preview_post"),
+core/urls.py:1:from django.urls import path
+core/urls.py:5:    path('', index, name='home'),
+accounts/urls.py:2:from django.urls import path
+accounts/urls.py:16:    path('login/', login_view, name='login'),
+accounts/urls.py:17:    path('logout/', logout_view, name='logout'),
+accounts/urls.py:18:    path('signup/', signup_view, name='signup'),
+accounts/urls.py:19:    path('complete-profile/', profile_completion_view, name='profile_completion'),
+accounts/urls.py:20:    path('forgot-password/', forgot_password_view, name='forgot_password'),
+accounts/urls.py:21:    path(
+accounts/urls.py:29:    path('dashboard/', user_dashboard_view, name='user_dashboard'),
+accounts/urls.py:30:    path('profile/edit/', edit_profile_view, name='profile_edit'),
+accounts/urls.py:31:    path('profile/<str:username>/', public_profile_view, name='account_profile_detail'),
+accounts/urls.py:32:    path('profile/<str:username>/follow/', follow_toggle_view, name='follow_toggle'),
+posts/supabase_posts.py:1:from pathlib import Path
+posts/supabase_posts.py:211:        target_path = target_dir / filename
+posts/supabase_posts.py:213:        with open(target_path, "wb") as file_handle:
+posts/urls.py:1:from django.urls import path
+posts/urls.py:40:    path("", feed_view, name="feed"),
+posts/urls.py:41:    path("following/", following_feed_view, name="feed_following"),
+posts/urls.py:42:    path("friends/", friends_feed_view, name="feed_friends"),
+posts/urls.py:43:    path("trending/", trending_feed_view, name="feed_trending"),
+posts/urls.py:44:    path("nearby/", nearby_feed_view, name="feed_nearby"),
+posts/urls.py:45:    path("create/", create_post_view, name="create_post"),
+posts/urls.py:46:    path("save/", save_post_view, name="save_post"),
+posts/urls.py:47:    path("studio/", studio_view, name="posts_studio"),
+posts/urls.py:48:    path("studio/create/", studio_view, name="posts_studio_create"),
+posts/urls.py:49:    path("studio/draft/", save_draft_view, name="posts_save_draft"),
+posts/urls.py:50:    path("studio/draft/<uuid:uuid>/", studio_draft_view, name="posts_studio_draft"),
+posts/urls.py:51:    path("studio/preview/<uuid:uuid>/", preview_post_view, name="posts_preview"),
+posts/urls.py:52:    path("<uuid:uuid>/", post_detail_view, name="posts_post_detail"),
+posts/urls.py:53:    path("<uuid:uuid>/edit/", edit_post_view, name="posts_edit_post"),
+posts/urls.py:54:    path("<uuid:uuid>/delete/", delete_post_view, name="posts_delete_post"),
+posts/urls.py:55:    path("<uuid:uuid>/publish/", publish_draft_view, name="posts_publish_draft"),
+posts/urls.py:56:    path("<uuid:uuid>/like/", like_post_view, name="posts_like_post"),
+posts/urls.py:57:    path("<uuid:uuid>/save-toggle/", save_post_toggle_view, name="posts_save_post_toggle"),
+posts/urls.py:58:    path("<uuid:uuid>/share/", share_post_view, name="posts_share_post"),
+posts/urls.py:59:    path("<uuid:uuid>/view/", track_post_view, name="posts_track_post_view"),
+posts/urls.py:60:    path("<uuid:uuid>/comment/", add_comment_view, name="posts_add_comment"),
+posts/urls.py:61:    path("<uuid:uuid>/report/", report_post_view, name="posts_report_post"),
+posts/urls.py:62:    path("comment/<int:id>/reply/", reply_comment_view, name="posts_reply_comment"),
+posts/urls.py:63:    path("comment/<int:id>/delete/", delete_comment_view, name="posts_delete_comment"),
+posts/urls.py:64:    path("comment/<int:id>/pin/", pin_comment_view, name="posts_pin_comment"),
+posts/urls.py:65:    path("author/<str:username>/", author_posts_list_view, name="posts_author_posts"),
+posts/urls.py:66:    path("community/<slug:slug>/", community_posts_list_view, name="posts_community_posts"),
+posts/urls.py:67:    path("community/<slug:slug>/feed/", community_feed_view, name="posts_community_feed"),
+posts/urls.py:68:    path("reels/feed/", reels_feed_view, name="posts_reels_feed"),
+posts/urls.py:69:    path("discover/", discover_view, name="posts_discover"),
+posts/urls.py:70:    path("discover/search/", search_view, name="posts_search"),
+posts/urls.py:71:    path("discover/people/", people_suggestions_view, name="posts_people_suggestions"),
+posts/urls.py:72:    path("discover/communities/", community_suggestions_view, name="posts_community_suggestions"),
+posts/urls.py:73:    path("hashtags/<str:tag>/", hashtag_view, name="posts_hashtag"),
+posts/urls.py:74:    path("profile/<str:username>/report/", report_user_view, name="posts_report_user"),
+posts/views.py:346:        return redirect(f"{reverse('login')}?next={request.path}")
+posts/views.py:354:        return redirect(f"{reverse('login')}?next={request.path}")
+wallet/urls.py:1:from django.urls import path
+wallet/urls.py:16:    path("", wallet_home_view, name="wallet_home"),
+wallet/urls.py:17:    path("transactions/", wallet_transactions_view, name="wallet_transactions"),
+wallet/urls.py:18:    path("gifts/", wallet_gifts_view, name="wallet_gifts"),
+wallet/urls.py:19:    path("membership/", membership_overview_view, name="wallet_membership"),
+wallet/urls.py:20:    path("membership/plans/", membership_plans_view, name="wallet_membership_plans"),
+wallet/urls.py:21:    path("membership/history/", membership_history_view, name="wallet_membership_history"),
+wallet/urls.py:22:    path("membership/buy/<slug:slug>/", membership_purchase_view, name="wallet_membership_buy"),
+wallet/urls.py:23:    path("creator/earnings/", creator_earnings_view, name="wallet_creator_earnings"),
+live/urls.py:1:from django.urls import path
+live/urls.py:20:    path("", live_home_view, name="live_home"),
+live/urls.py:21:    path("featured/", live_featured_view, name="live_featured"),
+live/urls.py:22:    path("scheduled/", live_scheduled_view, name="live_scheduled"),
+live/urls.py:23:    path("start/", live_start_view, name="live_start"),
+live/urls.py:24:    path("studio/", live_studio_view, name="legacy_live_studio"),
+live/urls.py:25:    path("<uuid:uuid>/", live_room_view, name="live_room"),
+live/urls.py:26:    path("<uuid:uuid>/chat/", live_chat_view, name="live_chat"),
+live/urls.py:27:    path("<uuid:uuid>/message/", live_message_view, name="live_message"),
+live/urls.py:28:    path("<uuid:uuid>/gift/", live_gift_view, name="live_gift"),
+live/urls.py:29:    path("<uuid:uuid>/purchase/", live_purchase_access_view, name="live_purchase_access"),
+live/urls.py:30:    path("<uuid:uuid>/end/", live_end_view, name="live_end"),
+live/urls.py:31:    path("<uuid:uuid>/react/", live_react_view, name="live_react"),
+live/views.py:77:            return redirect(f"{reverse('login')}?next={request.path}")
+messaging/urls.py:1:from django.urls import path
+messaging/urls.py:8:    path("conversation/<int:conversation_id>/", views.conversation_redirect, name="conversation"),
+messaging/urls.py:9:    path("conversation/<int:conversation_id>/send/", views.send_message, name="send_message"),
+messaging/urls.py:10:    path("message/<int:message_id>/delete/", views.delete_message, name="delete_message"),
+messaging/urls.py:11:    path("start/<int:user_id>/", views.start_chat, name="start_chat"),
+dating/urls.py:1:from django.urls import path
+dating/urls.py:17:    path("", dating_home_view, name="dating"),
+dating/urls.py:18:    path("profile/", dating_profile_edit_view, name="dating_profile_edit"),
+dating/urls.py:19:    path("discover/", dating_discover_view, name="dating_discover"),
+dating/urls.py:20:    path("matches/", dating_matches_view, name="dating_matches"),
+dating/urls.py:21:    path("likes/", dating_likes_view, name="dating_likes"),
+dating/urls.py:22:    path("<str:username>/", dating_profile_detail_view, name="dating_profile_detail"),
+dating/urls.py:23:    path("<str:username>/message/", dating_message_match_view, name="dating_message_match"),
+dating/urls.py:24:    path("action/like/<str:username>/", dating_like_view, name="dating_like"),
+dating/urls.py:25:    path("action/pass/<str:username>/", dating_pass_view, name="dating_pass"),
+communities/urls.py:1:from django.urls import path
+communities/urls.py:7:    path("", community_list_view, name="community_list"),
+communities/urls.py:8:    path("create/", community_create_view, name="community_create"),
+communities/urls.py:9:    path("<slug:slug>/", community_detail_view, name="community_detail"),
+communities/urls.py:10:    path("<slug:slug>/join/", community_join_view, name="community_join"),
+ads/urls.py:1:from django.urls import path
+ads/urls.py:7:    path("<int:id>/click/", ad_click_view, name="ad_click"),
+api/urls.py:1:from django.urls import path
+api/urls.py:13:    path('', api_root, name='api_root'),
+api/urls.py:15:    path('dashboard/', dashboard_home, name='dashboard_home'),
+api/urls.py:16:    path('dashboard/users/', dashboard_users, name='dashboard_users'),
+api/urls.py:17:    path('dashboard/posts/', dashboard_posts, name='dashboard_posts'),
+api/urls.py:18:    path('dashboard/wallet/', dashboard_wallet, name='dashboard_wallet'),
+api/urls.py:19:    path('dashboard/support/', dashboard_support, name='dashboard_support'),
+api/urls.py:20:    path('dashboard/reports/', dashboard_reports, name='dashboard_reports'),
