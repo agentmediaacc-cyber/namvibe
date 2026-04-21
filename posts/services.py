@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from accounts.models import Follow, FriendRequest, Mute
 from communities.models import Community, CommunityMembership
-from .models import Comment, Like, Post, PostView, Report, Save, Share
+from .models import Comment, CommentReaction, Like, Post, PostView, Report, Save, Share
 
 
 def notification_hook(event_type, *, actor=None, recipient=None, post=None, comment=None):
@@ -94,6 +94,28 @@ def add_comment(user, post, body, parent=None):
     post.save(update_fields=["comment_count"])
     notification_hook("comment", actor=user, recipient=post.author, post=post, comment=comment)
     return comment
+
+
+def toggle_comment_reaction(user, comment, reaction_type=Like.ReactionType.LIKE):
+    if not can_interact_with_post(user, comment.post):
+        return None, False
+    reaction, created = CommentReaction.objects.get_or_create(
+        user=user,
+        comment=comment,
+        defaults={"reaction_type": reaction_type},
+    )
+    if created:
+        comment.like_count = CommentReaction.objects.filter(comment=comment).count()
+        comment.save(update_fields=["like_count"])
+        return reaction, True
+    if reaction.reaction_type != reaction_type:
+        reaction.reaction_type = reaction_type
+        reaction.save(update_fields=["reaction_type"])
+        return reaction, True
+    reaction.delete()
+    comment.like_count = CommentReaction.objects.filter(comment=comment).count()
+    comment.save(update_fields=["like_count"])
+    return None, False
 
 
 def delete_comment(user, comment):

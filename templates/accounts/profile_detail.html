@@ -93,6 +93,8 @@
     <nav class="profile-tabs" aria-label="Profile sections">
         <a href="#posts">Posts</a>
         <a href="#media">Media</a>
+        <a href="#reels">Reels</a>
+        <a href="#communities">Communities</a>
         <a href="#live">Live</a>
         <a href="#about">About</a>
     </nav>
@@ -115,6 +117,31 @@
                 {% include "posts/_post_card.html" with post=post %}
             {% empty %}
                 <div class="nv-empty">No visible media posts yet.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="profile-section" id="reels">
+        <h2 style="margin-top:0;">Reels</h2>
+        <div class="profile-grid">
+            {% for post in reel_posts %}
+                {% include "posts/_post_card.html" with post=post %}
+            {% empty %}
+                <div class="nv-empty">No visible reels yet.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="profile-section" id="communities">
+        <h2 style="margin-top:0;">Communities</h2>
+        <div class="profile-grid">
+            {% for membership in joined_communities %}
+                <a class="nv-empty" href="{% url 'community_detail' membership.community.slug %}">
+                    <strong>{{ membership.community.name }}</strong>
+                    <p>{{ membership.community.member_count }} members · {{ membership.community.get_privacy_display }}</p>
+                </a>
+            {% empty %}
+                <div class="nv-empty">No visible communities yet.</div>
             {% endfor %}
         </div>
     </section>

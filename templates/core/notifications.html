@@ -17,18 +17,27 @@
   </div>
 
   <div class="product-section">
-    <h2>Latest activity</h2>
-    <div class="product-grid" style="grid-template-columns:1fr;">
-      {% for item in notification_items %}
-        <a class="product-card" href="{{ item.href }}">
-          <strong>{{ item.title }}</strong>
-          <span>{{ item.copy }}</span>
-          <span>{{ item.meta|date:"M j, H:i" }}</span>
-        </a>
-      {% empty %}
-        <div class="product-card">No notification activity yet. New follows, chats, comments, dating likes, gifts, and wallet updates will land here.</div>
+    <h2>Activity center</h2>
+    {% if notification_groups %}
+      {% for group in notification_groups %}
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 10px;">{{ group.title }}</h3>
+          <div class="product-grid" style="grid-template-columns:1fr;">
+            {% for item in group.items %}
+              <a class="product-card" href="{{ item.href }}">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.copy }}</span>
+                <span>{{ item.meta|date:"M j, H:i" }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
       {% endfor %}
-    </div>
+    {% else %}
+      <div class="product-grid" style="grid-template-columns:1fr;">
+        <div class="product-card">No notification activity yet. New follows, chats, comments, dating likes, gifts, and wallet updates will land here.</div>
+      </div>
+    {% endif %}
   </div>
 
   <div class="product-section">

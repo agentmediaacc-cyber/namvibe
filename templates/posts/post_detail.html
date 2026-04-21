@@ -45,12 +45,20 @@
 
     {% if post.allow_comments %}
         <section class="comment-box" id="comments">
-            <h2>Comments</h2>
+            <div class="nv-list-head" style="margin-bottom:12px;">
+                <div>
+                    <h2 style="margin:0;">Comments</h2>
+                    <p>Reply, react, and keep the conversation moving.</p>
+                </div>
+            </div>
             {% if request.user.is_authenticated %}
                 <form method="post" action="{% url 'add_comment' post.uuid %}">
                     {% csrf_token %}
+                    <div class="nv-tags" style="margin-bottom:10px;">
+                        <span>😀 Like</span><span>🔥 Hype</span><span>❤️ Love</span><span>👏 Support</span>
+                    </div>
                     <textarea name="body" rows="3" placeholder="Add a comment"></textarea>
-                    <button type="submit">Comment</button>
+                    <button type="submit">Post comment</button>
                 </form>
             {% else %}
                 <p><a href="{% url 'login' %}?next={{ request.path }}">Log in</a> to comment.</p>
@@ -61,11 +69,23 @@
                     {% if comment.is_pinned %}<div class="pinned">Pinned comment</div>{% endif %}
                     <strong>@{{ comment.author.profile.username|default:comment.author.username }}</strong>
                     <p>{{ comment.body }}</p>
+                    <div class="nv-tags" style="margin-top:8px;">
+                        <span>{{ comment.like_count }} reactions</span>
+                        <span>{{ comment.replies.count }} replies</span>
+                    </div>
                     {% if request.user.is_authenticated %}
                         <form method="post" action="{% url 'reply_comment' comment.id %}">
                             {% csrf_token %}
                             <textarea name="body" rows="2" placeholder="Reply"></textarea>
                             <button type="submit">Reply</button>
+                        </form>
+                        <form method="post" action="{% url 'react_comment' comment.id %}">
+                            {% csrf_token %}
+                            <div class="nv-head-actions">
+                                {% for value,label in comment_reaction_choices %}
+                                    <button type="submit" name="reaction_type" value="{{ value }}">{{ label }}</button>
+                                {% endfor %}
+                            </div>
                         </form>
                     {% endif %}
                     <div class="nv-head-actions">
@@ -81,6 +101,7 @@
                             <article class="comment-item comment-reply">
                                 <strong>@{{ reply.author.profile.username|default:reply.author.username }}</strong>
                                 <p>{{ reply.body }}</p>
+                                <div class="nv-tags"><span>{{ reply.like_count }} reactions</span></div>
                             </article>
                         {% endif %}
                     {% endfor %}

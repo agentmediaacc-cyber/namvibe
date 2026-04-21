@@ -31,17 +31,21 @@ from posts.views import (
     preview_post_view,
     publish_draft_view,
     pin_comment_view,
+    react_comment_view,
     reels_feed_view,
     reply_comment_view,
     report_post_view,
     report_user_view,
     save_draft_view,
+    saved_posts_view,
     save_post_toggle_view,
     search_view,
     share_post_view,
     studio_draft_view,
     studio_view,
     track_post_view,
+    media_albums_view,
+    media_album_detail_view,
 )
 
 def community_list_alias(request):
@@ -119,6 +123,7 @@ urlpatterns += [
     path("comment/<int:id>/reply/", reply_comment_view, name="reply_comment"),
     path("comment/<int:id>/delete/", delete_comment_view, name="delete_comment"),
     path("comment/<int:id>/pin/", pin_comment_view, name="pin_comment"),
+    path("comment/<int:id>/react/", react_comment_view, name="react_comment"),
     path("delete/<uuid:uuid>/", delete_post_view, name="delete_post"),
     path("edit/<uuid:uuid>/", edit_post_view, name="edit_post"),
     path("profile/<str:username>/report/", report_user_view, name="report_user"),
@@ -126,4 +131,7 @@ urlpatterns += [
     path("draft/save/", save_draft_view, name="save_draft"),
     path("draft/publish/<uuid:uuid>/", publish_draft_view, name="publish_draft"),
     path("preview/<uuid:uuid>/", preview_post_view, name="preview_post"),
+    path("saved/", saved_posts_view, name="saved_posts"),
+    path("albums/", media_albums_view, name="media_albums"),
+    path("albums/<str:kind>/", media_album_detail_view, name="media_album_detail"),
 ]

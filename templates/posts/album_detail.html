@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ album_title }} Album | Namvibe{% endblock %}
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+  <div class="nv-list-head">
+    <div>
+      <h1>{{ album_title }}</h1>
+      <p>Published {{ album_kind }} from your creator flow, grouped into one route-safe media lane.</p>
+    </div>
+    <div class="nv-head-actions">
+      <a href="{% url 'media_albums' %}">All albums</a>
+      <a href="{% url 'studio' %}?type={{ album_kind|slice:':-1' }}">Create more</a>
+    </div>
+  </div>
+  <div class="nv-list-grid">
+    {% for post in posts %}
+      {% include "posts/_post_card.html" with post=post %}
+    {% empty %}
+      <div class="nv-empty">
+        <h2 style="margin-top:0;">This album is still empty</h2>
+        <p>Publish {{ album_kind }} from Creator Studio and they will appear here automatically.</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

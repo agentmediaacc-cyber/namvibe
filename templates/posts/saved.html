@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Saved Content | Namvibe{% endblock %}
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+  <div class="nv-list-head">
+    <div>
+      <h1>Saved content</h1>
+      <p>Your bookmark lane for posts, reels, and media you want to revisit or reuse for creator inspiration.</p>
+    </div>
+    <div class="nv-head-actions">
+      <a href="{% url 'media_albums' %}">My albums</a>
+      <a href="{% url 'studio' %}">Create</a>
+    </div>
+  </div>
+
+  {% if media_saved_posts %}
+    <section class="comment-box">
+      <h2>Saved media</h2>
+      <div class="suggestion-grid">
+        {% for post in media_saved_posts|slice:":6" %}
+          <a class="suggestion-card" href="{% url 'post_detail' post.uuid %}">
+            <span class="nv-avatar">{{ post.author.profile.username|first|upper }}</span>
+            <strong>{{ post.title|default:post.get_post_type_display }}</strong>
+            <small>@{{ post.author.profile.username }} · {{ post.get_post_type_display }}</small>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  <div class="nv-list-grid">
+    {% for post in saved_posts %}
+      {% include "posts/_post_card.html" with post=post %}
+    {% empty %}
+      <div class="nv-empty">
+        <h2 style="margin-top:0;">Nothing saved yet</h2>
+        <p>Save posts and reels as you scroll so your creator references, community updates, and favorite media stay easy to find.</p>
+        <div class="nv-head-actions">
+          <a href="{% url 'home' %}">Home feed</a>
+          <a href="{% url 'discover' %}">Discover</a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

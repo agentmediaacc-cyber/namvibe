@@ -17,6 +17,7 @@ from .views import (
     nearby_feed_view,
     people_suggestions_view,
     pin_comment_view,
+    react_comment_view,
     post_detail_view,
     preview_post_view,
     publish_draft_view,
@@ -28,12 +29,15 @@ from .views import (
     search_view,
     save_draft_view,
     save_post_view,
+    saved_posts_view,
     share_post_view,
     studio_draft_view,
     studio_view,
     track_post_view,
     trending_feed_view,
     community_suggestions_view,
+    media_albums_view,
+    media_album_detail_view,
 )
 
 urlpatterns = [
@@ -70,6 +74,10 @@ urlpatterns = [
     path("discover/search/", search_view, name="posts_search"),
     path("discover/people/", people_suggestions_view, name="posts_people_suggestions"),
     path("discover/communities/", community_suggestions_view, name="posts_community_suggestions"),
+    path("saved/", saved_posts_view, name="posts_saved"),
+    path("albums/", media_albums_view, name="posts_albums"),
+    path("albums/<str:kind>/", media_album_detail_view, name="posts_album_detail"),
     path("hashtags/<str:tag>/", hashtag_view, name="posts_hashtag"),
     path("profile/<str:username>/report/", report_user_view, name="posts_report_user"),
+    path("comment/<int:id>/react/", react_comment_view, name="posts_react_comment"),
 ]

@@ -6,8 +6,12 @@
 {% include "posts/post_styles.html" %}
 <style>
     .discover-grid,.suggestion-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
-    .suggestion-card,.hashtag-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:16px;padding:16px;color:white;display:grid;gap:8px}
-    .discover-search{display:flex;gap:8px;margin:18px 0}.discover-search input{flex:1;border:1px solid rgba(255,255,255,.12);background:#0a1222;color:white;border-radius:8px;padding:12px}.discover-search button{border:0;border-radius:8px;padding:12px 16px;background:linear-gradient(135deg,#14b8a6,#f43f5e);color:white;font-weight:900}
+    .suggestion-card,.hashtag-card{border:1px solid rgba(120,92,39,.14);background:rgba(255,253,249,.97);border-radius:20px;padding:16px;color:#2b2216;display:grid;gap:8px;box-shadow:0 16px 36px rgba(66,45,10,.05)}
+    .discover-search{display:flex;gap:8px;margin:18px 0}
+    .discover-search input{flex:1;border:1px solid rgba(120,92,39,.12);background:#fff;color:#1f1a14;border-radius:16px;padding:12px}
+    .discover-search button{border:0;border-radius:16px;padding:12px 16px;background:linear-gradient(135deg,#c7a14a,#9c7427);color:white;font-weight:900}
+    .discover-chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+    .discover-chips a{text-decoration:none;padding:10px 14px;border-radius:999px;background:#f8f0dd;color:#6d4e18;font-weight:800}
 </style>
 <section class="nv-list-page">
     <div class="nv-list-head">
@@ -15,6 +19,12 @@
             <h1>Discover</h1>
             <p>Find people, communities, hashtags, and posts across Namibia.</p>
         </div>
+    </div>
+    <div class="discover-chips">
+        <a href="{% url 'posts_people_suggestions' %}">People</a>
+        <a href="{% url 'posts_community_suggestions' %}">Communities</a>
+        <a href="{% url 'reels_feed' %}">Reels</a>
+        <a href="{% url 'live_home' %}">Live</a>
     </div>
     <form class="discover-search" method="get" action="{% url 'discover_search' %}">
         <input name="q" placeholder="Search Namvibe">

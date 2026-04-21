@@ -49,6 +49,8 @@
                     <div class="metric"><span>Followers</span><strong>{{ profile.follower_count }}</strong></div>
                     <div class="metric"><span>Posts</span><strong>{{ post_count }}</strong></div>
                     <div class="metric"><span>Wallet</span><strong>N${{ wallet_balance }}</strong></div>
+                    <div class="metric"><span>Saved</span><strong>{{ saved_post_count }}</strong></div>
+                    <div class="metric"><span>Communities</span><strong>{{ community_count }}</strong></div>
                 </div>
                 <div class="action-row" style="margin-top:16px;">
                     <a href="{% url 'studio' %}">Create post</a>
@@ -56,6 +58,8 @@
                     <a href="{% url 'live_start' %}">Go live</a>
                     <a href="{% url 'dating_profile_edit' %}">Dating profile</a>
                     <a href="{% url 'wallet_home' %}">Wallet</a>
+                    <a href="{% url 'saved_posts' %}">Saved</a>
+                    <a href="{% url 'media_albums' %}">Albums</a>
                 </div>
             </section>
 
@@ -102,14 +106,28 @@
 
             <section id="posts" class="account-panel">
                 <div class="account-card">
-                    <h2 style="margin-top:0;">Creator tools</h2>
-                    <p class="account-copy">Open the full creator studio, reels, flyer, and live flows from here without rebuilding separate dashboards.</p>
+                    <h2 style="margin-top:0;">Creator Studio</h2>
+                    <p class="account-copy">Open the full creator studio, reels, flyer, and live flows from here without rebuilding separate dashboards. Flyer builder, motion, poll, and engagement flows all stay connected.</p>
                     <div class="action-row">
                         <a href="{% url 'studio' %}">Open studio</a>
                         <a href="{% url 'studio' %}?type=reel">New reel</a>
                         <a href="{% url 'studio' %}?type=flyer">Flyer</a>
                         <a href="{% url 'live_start' %}">Live setup</a>
+                        <a href="{% url 'saved_posts' %}">Saved content</a>
+                        <a href="{% url 'media_albums' %}">My albums</a>
                     </div>
+                    {% if draft_posts %}
+                        <div class="progress-list" style="margin-top:16px;">
+                            {% for draft in draft_posts %}
+                                <div class="progress-item">
+                                    <strong>{{ draft.title|default:draft.get_post_type_display }}</strong>
+                                    <p class="account-copy">{{ draft.get_post_type_display }} · Draft</p>
+                                    <a href="{% url 'studio_draft' draft.uuid %}" class="btn btn-dark">Resume</a>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="account-copy" style="margin-top:14px;">Motion, poll, and engagement hooks remain creator-first while the studio stays compatible with the current publishing pipeline.</p>
                 </div>
             </section>
 

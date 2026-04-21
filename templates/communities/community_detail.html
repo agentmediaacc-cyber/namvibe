@@ -4,7 +4,7 @@
 
 {% block content %}
 <section style="max-width: 980px; margin:0 auto; padding:28px 18px 90px;">
-    <div style="border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.07); border-radius:24px; overflow:hidden;">
+    <div style="border:1px solid rgba(120,92,39,.12); background:rgba(255,253,249,.97); border-radius:24px; overflow:hidden; box-shadow:0 16px 36px rgba(66,45,10,.05);">
         <div style="height:210px; background:linear-gradient(135deg, rgba(20,184,166,.5), rgba(244,63,94,.45));">
             {% if community.cover %}<img src="{{ community.cover.url }}" alt="" style="width:100%; height:100%; object-fit:cover;">{% endif %}
         </div>
@@ -12,7 +12,7 @@
             <div style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;">
                 <div>
                     <h1 style="margin:0 0 8px;">{{ community.name }}</h1>
-                    <p style="margin:0; color:#cbd5e1;">{{ community.member_count }} members · {{ community.get_privacy_display }} · owned by @{{ community.owner.username }}</p>
+                    <p style="margin:0; color:#7a6d5b;">{{ community.member_count }} members · {{ community.get_privacy_display }} · owned by @{{ community.owner.username }}</p>
                 </div>
                 {% if request.user.is_authenticated %}
                     <form method="post" action="{% url 'community_join' community.slug %}">
@@ -26,8 +26,22 @@
                 {% endif %}
             </div>
             {% if community.description %}
-                <p style="line-height:1.7; color:#e2e8f0; margin-top:22px;">{{ community.description }}</p>
+                <p style="line-height:1.7; color:#554a3c; margin-top:22px;">{{ community.description }}</p>
             {% endif %}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:18px;">
+                <a href="{% url 'community_posts' community.slug %}" style="text-decoration:none;color:#2b2216;padding:16px;border-radius:18px;border:1px solid rgba(120,92,39,.1);background:#fff;">
+                    <strong>Community feed</strong>
+                    <p style="margin:6px 0 0;color:#7a6d5b;">Open posts and updates shared into this community lane.</p>
+                </a>
+                <div style="padding:16px;border-radius:18px;border:1px solid rgba(120,92,39,.1);background:#fff;">
+                    <strong>Members</strong>
+                    <p style="margin:6px 0 0;color:#7a6d5b;">Member list starter uses the live membership count for now.</p>
+                </div>
+                <div style="padding:16px;border-radius:18px;border:1px solid rgba(120,92,39,.1);background:#fff;">
+                    <strong>Media</strong>
+                    <p style="margin:6px 0 0;color:#7a6d5b;">Photo, video, reel, and flyer posts can deepen into a richer media tab here later.</p>
+                </div>
+            </div>
         </div>
     </div>
 </section>

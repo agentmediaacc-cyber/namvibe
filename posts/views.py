@@ -24,6 +24,7 @@ from .services import (
     suggested_users_for,
     threaded_comments_for_post,
     toggle_like,
+    toggle_comment_reaction,
     toggle_pin_comment,
     toggle_save,
     track_view,
@@ -305,7 +306,17 @@ def post_detail_view(request, uuid):
     comments = threaded_comments_for_post(post)
     liked = request.user.is_authenticated and Like.objects.filter(user=request.user, post=post).exists()
     saved = request.user.is_authenticated and Save.objects.filter(user=request.user, post=post).exists()
-    return render(request, "posts/post_detail.html", {"post": post, "comments": comments, "liked": liked, "saved": saved})
+    return render(
+        request,
+        "posts/post_detail.html",
+        {
+            "post": post,
+            "comments": comments,
+            "liked": liked,
+            "saved": saved,
+            "comment_reaction_choices": Like.ReactionType.choices,
+        },
+    )
 
 
 def author_posts_list_view(request, username):
@@ -432,6 +443,88 @@ def search_view(request):
     return render(request, "posts/search.html", {"query": query, "users": users, "posts": posts, "communities": communities})
 
 
+@login_required(login_url="login")
+def saved_posts_view(request):
+    saves = (
+        Save.objects.filter(user=request.user)
+        .select_related("post", "post__author", "post__author__profile", "post__community")
+        .prefetch_related("post__media", "post__poll__options")
+        .order_by("-created_at")
+    )
+    saved_posts = [row.post for row in saves if row.post.status == Post.Status.PUBLISHED]
+    media_saved_posts = [post for post in saved_posts if post.post_type in {Post.PostType.PHOTO, Post.PostType.VIDEO, Post.PostType.REEL}]
+    return render(
+        request,
+        "posts/saved.html",
+        {
+            "saved_posts": saved_posts,
+            "media_saved_posts": media_saved_posts,
+        },
+    )
+
+
+@login_required(login_url="login")
+def media_albums_view(request):
+    media_posts = list(
+        Post.objects.filter(author=request.user, status=Post.Status.PUBLISHED)
+        .prefetch_related("media")
+        .order_by("-published_at", "-created_at")
+    )
+    albums = [
+        {
+            "slug": "photos",
+            "title": "Photos",
+            "description": "Published photo posts and image-first updates.",
+            "posts": [post for post in media_posts if post.post_type == Post.PostType.PHOTO],
+        },
+        {
+            "slug": "videos",
+            "title": "Videos",
+            "description": "Longer clips and creator video drops.",
+            "posts": [post for post in media_posts if post.post_type == Post.PostType.VIDEO],
+        },
+        {
+            "slug": "reels",
+            "title": "Reels",
+            "description": "Short-form vertical video content.",
+            "posts": [post for post in media_posts if post.post_type == Post.PostType.REEL],
+        },
+        {
+            "slug": "flyers",
+            "title": "Flyers",
+            "description": "Promotional graphics and event artwork.",
+            "posts": [post for post in media_posts if post.post_type == Post.PostType.FLYER],
+        },
+    ]
+    return render(request, "posts/albums.html", {"albums": albums})
+
+
+@login_required(login_url="login")
+def media_album_detail_view(request, kind):
+    album_map = {
+        "photos": Post.PostType.PHOTO,
+        "videos": Post.PostType.VIDEO,
+        "reels": Post.PostType.REEL,
+        "flyers": Post.PostType.FLYER,
+    }
+    if kind not in album_map:
+        return redirect("media_albums")
+    posts = list(
+        Post.objects.filter(author=request.user, status=Post.Status.PUBLISHED, post_type=album_map[kind])
+        .prefetch_related("media")
+        .order_by("-published_at", "-created_at")
+    )
+    return render(
+        request,
+        "posts/album_detail.html",
+        {
+            "album_kind": kind,
+            "album_title": kind.title(),
+            "posts": posts,
+        },
+    )
+
+
 def hashtag_view(request, tag):
     normalized = tag if tag.startswith("#") else f"#{tag}"
     posts = [
@@ -539,6 +632,18 @@ def add_comment_view(request, uuid):
         return HttpResponseForbidden("You cannot comment on this post.")
     messages.success(request, "Comment added.")
     return _post_action_redirect(request, post)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def react_comment_view(request, id):
+    comment = get_object_or_404(Comment.objects.select_related("post"), id=id)
+    reaction_type = request.POST.get("reaction_type") or Like.ReactionType.LIKE
+    if reaction_type not in Like.ReactionType.values:
+        reaction_type = Like.ReactionType.LIKE
+    _, active = toggle_comment_reaction(request.user, comment, reaction_type)
+    messages.success(request, "Reply reaction saved." if active else "Reply reaction removed.")
+    return _post_action_redirect(request, comment.post)
 
 
 @login_required(login_url="login")

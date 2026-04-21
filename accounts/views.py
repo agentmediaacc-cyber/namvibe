@@ -19,6 +19,7 @@ from posts.models import Post
 from posts.services import base_visible_posts
 from posts.supabase_posts import get_posts_by_user
 from wallet.services import active_membership_for, ensure_wallet
+from communities.models import CommunityMembership
 
 from .forms import LoginForm, ProfileForm, SignupForm
 from .models import AccountProfile, Block, Follow, Profile
@@ -422,6 +423,9 @@ def user_dashboard_view(request):
         "user_posts": posts,
         "post_count": post_count,
         "account_role": account_role,
+        "draft_posts": Post.objects.filter(author=request.user, status=Post.Status.DRAFT).prefetch_related("media")[:8],
+        "saved_post_count": request.user.post_saves.count(),
+        "community_count": CommunityMembership.objects.filter(user=request.user, status=CommunityMembership.Status.ACTIVE).count(),
         **dashboard_metrics,
         **messaging_dashboard_context(request.user, request.GET.get("conversation")),
     }
@@ -449,6 +453,11 @@ def public_profile_view(request, username):
     live_posts = [post for post in visible_posts if post.post_type == Post.PostType.LIVE]
     current_live = LiveSession.objects.filter(host=profile.user, status=LiveSession.Status.LIVE).order_by("-starts_at").first()
     upcoming_live = LiveSession.objects.filter(host=profile.user, status=LiveSession.Status.SCHEDULED).order_by("starts_at").first()
+    joined_communities = list(
+        CommunityMembership.objects.filter(user=profile.user, status=CommunityMembership.Status.ACTIVE)
+        .select_related("community")
+        .order_by("-created_at")[:6]
+    )
 
     context = {
         "profile": profile,
@@ -456,7 +465,9 @@ def public_profile_view(request, username):
         "can_edit": request.user.is_authenticated and request.user == profile.user,
         "profile_posts": visible_posts,
         "media_posts": media_posts,
+        "reel_posts": [post for post in visible_posts if post.post_type == Post.PostType.REEL],
         "live_posts": live_posts,
+        "joined_communities": joined_communities,
         "current_live": current_live,
         "upcoming_live": upcoming_live,
         "active_membership": active_membership_for(profile.user),

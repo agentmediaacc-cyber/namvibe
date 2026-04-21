@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}My Albums | Namvibe{% endblock %}
+{% block content %}
+{% include "posts/post_styles.html" %}
+<section class="nv-list-page">
+  <div class="nv-list-head">
+    <div>
+      <h1>Media albums</h1>
+      <p>Organize your published media by type so profile curation and creator continuity feel intentional, even before full album models are added.</p>
+    </div>
+    <div class="nv-head-actions">
+      <a href="{% url 'studio' %}">Open studio</a>
+      <a href="{% url 'saved_posts' %}">Saved</a>
+    </div>
+  </div>
+  <div class="suggestion-grid">
+    {% for album in albums %}
+      <a class="suggestion-card" href="{% url 'media_album_detail' album.slug %}">
+        <span class="nv-avatar">{{ album.title|first|upper }}</span>
+        <strong>{{ album.title }}</strong>
+        <small>{{ album.posts|length }} items</small>
+        <small>{{ album.description }}</small>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

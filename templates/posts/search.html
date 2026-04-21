@@ -7,13 +7,13 @@
 <section class="nv-list-page">
     <div class="nv-list-head"><div><h1>Search</h1><p>Results for {{ query|default:"your next search" }}.</p></div></div>
     <form class="comment-box" method="get" action="{% url 'discover_search' %}">
-        <textarea name="q" rows="1" placeholder="Search">{{ query }}</textarea>
+        <textarea name="q" rows="1" placeholder="Search people, hashtags, communities, posts">{{ query }}</textarea>
         <button type="submit">Search</button>
     </form>
     <h2>People</h2>
     <div class="nv-list-grid">
         {% for profile in users %}
-            <a class="nv-empty" href="{% url 'profile_detail' profile.username %}">@{{ profile.username }} · {{ profile.display_name }}</a>
+            <a class="nv-empty" href="{% url 'profile_detail' profile.username %}">@{{ profile.username }} · {{ profile.display_name }}{% if profile.location %} · {{ profile.location }}{% endif %}</a>
         {% empty %}<p class="nv-muted">No people found.</p>{% endfor %}
     </div>
     <h2>Posts</h2>
@@ -23,7 +23,7 @@
     <h2>Communities</h2>
     <div class="nv-list-grid">
         {% for community in communities %}
-            <a class="nv-empty" href="{% url 'community_detail' community.slug %}">{{ community.name }}</a>
+            <a class="nv-empty" href="{% url 'community_detail' community.slug %}">{{ community.name }} · {{ community.description|truncatechars:90 }}</a>
         {% empty %}<p class="nv-muted">No communities found.</p>{% endfor %}
     </div>
 </section>

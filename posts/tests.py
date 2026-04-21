@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from accounts.models import Follow, FriendRequest
 from communities.models import Community, CommunityMembership
-from .models import Comment, FlyerMeta, Like, LiveAnnouncement, Poll, Post, PostView, Report, Save, Share
+from .models import Comment, CommentReaction, FlyerMeta, Like, LiveAnnouncement, Poll, Post, PostView, Report, Save, Share
 
 
 class PremiumPostStudioTests(TestCase):
@@ -359,6 +359,17 @@ class FeedDiscoveryInteractionTests(TestCase):
         self.assertRedirects(delete_response, reverse("post_detail", kwargs={"uuid": self.public_post.uuid}), fetch_redirect_response=False)
         self.assertTrue(comment.is_deleted)
 
+    def test_comment_reaction_toggle(self):
+        self.client.force_login(self.viewer)
+        comment = Comment.objects.create(post=self.public_post, author=self.author, body="Talk to me")
+
+        first = self.client.post(reverse("react_comment", kwargs={"id": comment.id}), {"reaction_type": "love"})
+        second = self.client.post(reverse("react_comment", kwargs={"id": comment.id}), {"reaction_type": "love"})
+
+        self.assertRedirects(first, reverse("post_detail", kwargs={"uuid": self.public_post.uuid}), fetch_redirect_response=False)
+        self.assertRedirects(second, reverse("post_detail", kwargs={"uuid": self.public_post.uuid}), fetch_redirect_response=False)
+        self.assertFalse(CommentReaction.objects.filter(user=self.viewer, comment=comment).exists())
+
     def test_audience_restrictions_on_interactions(self):
         self.client.force_login(self.viewer)
         response = self.client.post(reverse("like_post", kwargs={"uuid": self.followers_post.uuid}))
@@ -385,3 +396,26 @@ class FeedDiscoveryInteractionTests(TestCase):
 
         self.assertRedirects(response, reverse("post_detail", kwargs={"uuid": self.public_post.uuid}), fetch_redirect_response=False)
         self.assertTrue(Report.objects.filter(reporter=self.viewer, post=self.public_post, reason=Report.Reason.SPAM).exists())
+
+    def test_saved_posts_and_albums_pages_load(self):
+        self.client.force_login(self.author)
+        photo_post = Post.objects.create(
+            author=self.author,
+            title="Photo album item",
+            post_type=Post.PostType.PHOTO,
+            audience=Post.Audience.PUBLIC,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        Save.objects.create(user=self.author, post=photo_post)
+
+        saved_response = self.client.get(reverse("saved_posts"))
+        albums_response = self.client.get(reverse("media_albums"))
+        album_detail_response = self.client.get(reverse("media_album_detail", kwargs={"kind": "photos"}))
+
+        self.assertEqual(saved_response.status_code, 200)
+        self.assertContains(saved_response, "Saved content")
+        self.assertEqual(albums_response.status_code, 200)
+        self.assertContains(albums_response, "Media albums")
+        self.assertEqual(album_detail_response.status_code, 200)
+        self.assertContains(album_detail_response, "Photo album item")
