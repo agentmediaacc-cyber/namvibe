@@ -1,7 +1,8 @@
+{% load media_helpers %}
 <a class="live-card" href="{% url 'live_room' session.uuid %}">
   <div class="thumb">
     {% if session.thumbnail %}
-      <img src="{{ session.thumbnail.url }}" alt="{{ session.title }}">
+      <img src="{% live_thumbnail_url session %}" alt="{{ session.title }}">
     {% else %}
       <strong>{{ session.host.profile.display_name|default:session.host.username|first|upper }}</strong>
     {% endif %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static media_helpers %}
 
 {% block title %}Namvibe | Home{% endblock %}
 
@@ -212,7 +212,7 @@
               <div class="story-ring">
                 <div class="story-core">
                   {% if item.author.profile.avatar %}
-                    <img src="{{ item.author.profile.avatar.url }}" alt="{{ item.author.profile.display_name|default:item.author.username }}">
+                    <img src="{% avatar_url item.author.profile %}" alt="{{ item.author.profile.display_name|default:item.author.username }}">
                   {% else %}
                     <span>{{ item.author.profile.display_name|default:item.author.username|first|upper }}</span>
                   {% endif %}
@@ -233,7 +233,7 @@
         <div class="composer-row">
           <span class="mini-avatar">
             {% if current_profile and current_profile.avatar %}
-              <img src="{{ current_profile.avatar.url }}" alt="{{ current_profile.display_name|default:current_profile.username }}">
+              <img src="{% avatar_url current_profile %}" alt="{{ current_profile.display_name|default:current_profile.username }}">
             {% else %}
               {{ nav_profile_label|first|upper }}
             {% endif %}
@@ -286,10 +286,12 @@
               {% with media=item.post.primary_media %}
                 {% if media %}
                   <div class="reel-thumb">
-                    {% if media.media_type == "video" %}
-                      <video src="{{ media.file.url }}" controls preload="metadata"></video>
+                    {% if media.file|file_exists and media.media_type == "video" %}
+                      <video src="{% media_url media %}" controls preload="metadata"></video>
+                    {% elif media.file|file_exists %}
+                      <img src="{% media_url media %}" alt="{{ item.post.title|default:item.post.caption }}" loading="lazy">
                     {% else %}
-                      <img src="{{ media.file.url }}" alt="{{ item.post.title|default:item.post.caption }}" loading="lazy">
+                      <img src="/static/images/default-media.svg" alt="{{ item.post.title|default:item.post.caption }}" loading="lazy">
                     {% endif %}
                   </div>
                 {% endif %}
@@ -314,7 +316,7 @@
                 <div class="live-card-identity">
                   <span class="live-card-avatar">
                     {% if item.session.host.profile.avatar %}
-                      <img src="{{ item.session.host.profile.avatar.url }}" alt="{{ item.session.host.profile.username }}">
+                      <img src="{% avatar_url item.session.host.profile %}" alt="{{ item.session.host.profile.username }}">
                     {% else %}
                       {{ item.session.host.profile.username|first|upper }}
                     {% endif %}
@@ -331,7 +333,7 @@
               </div>
               <div class="live-card-preview">
                 {% if item.session.thumbnail %}
-                  <img src="{{ item.session.thumbnail.url }}" alt="{{ item.session.title }}" loading="lazy">
+                  <img src="{% live_thumbnail_url item.session %}" alt="{{ item.session.title }}" loading="lazy">
                 {% endif %}
                 <div class="live-card-overlay">
                   <span class="module-kicker">Live with chat and gifts</span>

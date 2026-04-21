@@ -1,13 +1,17 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch
 
 from django.utils import timezone
 
 from accounts.models import Follow, FriendRequest
+from accounts.supabase import supabase_profile_id_for_user
 from communities.models import Community, CommunityMembership
+from core.media import profile_avatar_url, profile_cover_url
 from .models import Comment, CommentReaction, FlyerMeta, Like, LiveAnnouncement, Poll, Post, PostView, Report, Save, Share
+from .supabase_posts import create_post as supabase_create_post
 
 
 class PremiumPostStudioTests(TestCase):
@@ -247,6 +251,45 @@ class UnifiedPostFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Creator Studio")
+
+    @patch("posts.views.create_post")
+    def test_feed_create_syncs_supabase_with_profile_uuid_not_session_integer(self, create_post_mock):
+        self.client.force_login(self.author)
+        session = self.client.session
+        session["eharo_user_id"] = "15"
+        session["eharo_full_name"] = "Wrong Session Name"
+        session["eharo_username"] = "wrong-session"
+        session["eharo_email"] = "wrong@example.com"
+        session.save()
+
+        image = SimpleUploadedFile("post.jpg", b"fake-image-bytes", content_type="image/jpeg")
+        response = self.client.post(
+            reverse("create_post"),
+            {"content": "Studio sync test", "post_type": "photo", "media": image},
+        )
+
+        self.assertRedirects(response, reverse("feed"), fetch_redirect_response=False)
+        self.assertEqual(create_post_mock.call_args.kwargs["user_id"], str(supabase_profile_id_for_user(self.author)))
+        self.assertNotEqual(create_post_mock.call_args.kwargs["user_id"], "15")
+
+    def test_feed_create_get_redirects_to_studio(self):
+        self.client.force_login(self.author)
+
+        response = self.client.get(reverse("create_post"))
+
+        self.assertRedirects(response, reverse("studio"), fetch_redirect_response=False)
+
+    def test_safe_profile_media_helpers_fallback_without_files(self):
+        self.assertIn("default-avatar.svg", profile_avatar_url(self.author.profile))
+        self.assertIn("default-cover.svg", profile_cover_url(self.author.profile))
+
+    @patch("posts.supabase_posts._supabase_ready", return_value=True)
+    @patch("posts.supabase_posts.requests.post")
+    def test_supabase_create_post_skips_invalid_non_uuid_user_ids(self, requests_post, _supabase_ready):
+        created = supabase_create_post(user_id="15", title="Broken UUID")
+
+        self.assertIsNone(created)
+        requests_post.assert_not_called()
 
 
 class FeedDiscoveryInteractionTests(TestCase):

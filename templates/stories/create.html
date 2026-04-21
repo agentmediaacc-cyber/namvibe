@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load media_helpers %}
 
 {% block title %}Create Story | Namvibe{% endblock %}
 
@@ -231,11 +232,7 @@
         <div class="story-preview-progress"><span></span><span></span><span></span><span></span></div>
         <div class="story-preview-meta">
           <span class="story-preview-avatar">
-            {% if request.user.profile.avatar %}
-              <img src="{{ request.user.profile.avatar.url }}" alt="{{ request.user.profile.username }}">
-            {% else %}
-              {{ request.user.profile.username|first|upper }}
-            {% endif %}
+            <img src="{% avatar_url request.user.profile %}" alt="{{ request.user.profile.username }}">
           </span>
           <div>
             <strong>@{{ request.user.profile.username }}</strong><br>

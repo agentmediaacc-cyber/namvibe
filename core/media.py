@@ -3,6 +3,7 @@ from fractions import Fraction
 
 from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
+from django.conf import settings
 
 
 IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
@@ -12,6 +13,10 @@ AUDIO_MIME_TYPES = {"audio/mpeg", "audio/mp4", "audio/wav", "audio/ogg"}
 MAX_IMAGE_SIZE = 8 * 1024 * 1024
 MAX_VIDEO_SIZE = 250 * 1024 * 1024
 MAX_AUDIO_SIZE = 40 * 1024 * 1024
+DEFAULT_AVATAR = "images/default-avatar.svg"
+DEFAULT_COVER = "images/default-cover.svg"
+DEFAULT_MEDIA = "images/default-media.svg"
+DEFAULT_LIVE_COVER = "images/default-live-cover.svg"
 
 
 def _content_type(file_obj):
@@ -89,3 +94,63 @@ def classify_aspect_ratio(width, height):
     if ratio > 1.35:
         return "landscape"
     return "portrait"
+
+
+def media_file_exists(file_field):
+    if not file_field:
+        return False
+    name = getattr(file_field, "name", "")
+    if not name:
+        return False
+
+    storage = getattr(file_field, "storage", None)
+    if storage and hasattr(storage, "exists"):
+        try:
+            return bool(storage.exists(name))
+        except Exception:
+            return False
+
+    return False
+
+
+def _asset_url(path):
+    return f"{settings.STATIC_URL.rstrip('/')}/{path.lstrip('/')}"
+
+
+def safe_file_url(file_field, fallback=DEFAULT_MEDIA):
+    if not file_field:
+        return _asset_url(fallback)
+
+    name = getattr(file_field, "name", "")
+    if not name:
+        return _asset_url(fallback)
+
+    storage = getattr(file_field, "storage", None)
+    if storage and hasattr(storage, "exists"):
+        try:
+            if storage.exists(name):
+                return file_field.url
+            return _asset_url(fallback)
+        except Exception:
+            pass
+
+    try:
+        return file_field.url
+    except Exception:
+        return _asset_url(fallback)
+
+
+def profile_avatar_url(profile):
+    return safe_file_url(getattr(profile, "avatar", None), DEFAULT_AVATAR)
+
+
+def profile_cover_url(profile):
+    return safe_file_url(getattr(profile, "cover_image", None), DEFAULT_COVER)
+
+
+def post_media_url(media):
+    return safe_file_url(getattr(media, "file", None), DEFAULT_MEDIA)
+
+
+def live_cover_url(session):
+    return safe_file_url(getattr(session, "thumbnail", None), DEFAULT_LIVE_COVER)

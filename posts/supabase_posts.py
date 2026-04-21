@@ -1,4 +1,6 @@
+import logging
 from pathlib import Path
+from uuid import UUID
 from uuid import uuid4
 import os
 
@@ -6,6 +8,7 @@ import requests
 from django.conf import settings
 
 
+logger = logging.getLogger(__name__)
 SUPABASE_URL = getattr(settings, "SUPABASE_URL", os.getenv("SUPABASE_URL", "")).rstrip("/")
 SUPABASE_SERVICE_KEY = getattr(
     settings,
@@ -42,6 +45,15 @@ def _safe_int(value, default=0):
 
 def _is_missing_column(response):
     return response.status_code == 400 and "does not exist" in response.text
+
+
+def _valid_uuid_or_none(value):
+    if not value:
+        return None
+    try:
+        return str(UUID(str(value)))
+    except (TypeError, ValueError, AttributeError):
+        return None
 
 
 def _normalize_post(post):
@@ -88,9 +100,9 @@ def _request_posts(params):
         if response.ok:
             return [_normalize_post(post) for post in response.json()]
         if not _is_missing_column(response):
-            print("SUPABASE POSTS READ ERROR:", response.status_code, response.text)
+            logger.warning("Supabase posts read failed: %s %s", response.status_code, response.text)
     except Exception as exc:
-        print("SUPABASE POSTS READ ERROR:", exc)
+        logger.warning("Supabase posts read failed: %s", exc)
     return None
 
 
@@ -115,9 +127,9 @@ def count_public_posts():
             if "/" in content_range:
                 return _safe_int(content_range.rsplit("/", 1)[-1], 0)
         if not _is_missing_column(response):
-            print("SUPABASE POSTS COUNT ERROR:", response.status_code, response.text)
+            logger.warning("Supabase posts count failed: %s %s", response.status_code, response.text)
     except Exception as exc:
-        print("SUPABASE POSTS COUNT ERROR:", exc)
+        logger.warning("Supabase posts count failed: %s", exc)
 
     try:
         response = requests.get(
@@ -173,9 +185,14 @@ def get_posts_by_user(user_id):
     if not user_id:
         return []
 
+    user_uuid = _valid_uuid_or_none(user_id)
+    if not user_uuid:
+        logger.warning("Supabase user posts lookup skipped because user id is not a valid UUID: %s", user_id)
+        return []
+
     rows = _request_posts({
         "select": "*",
-        "user_id": f"eq.{user_id}",
+        "user_id": f"eq.{user_uuid}",
         "order": "created_at.desc",
     })
     if rows is not None:
@@ -183,7 +200,7 @@ def get_posts_by_user(user_id):
 
     return _request_posts({
         "select": "*",
-        "author_id": f"eq.{user_id}",
+        "author_id": f"eq.{user_uuid}",
         "order": "created_at.desc",
     }) or []
 
@@ -219,7 +236,7 @@ def save_media_locally(file_obj, subdir="posts"):
 
         return f"{settings.MEDIA_URL}{subdir}/{filename}"
     except Exception as exc:
-        print("POST MEDIA SAVE ERROR:", exc)
+        logger.warning("Post media save failed: %s", exc)
         return None
 
 
@@ -282,6 +299,11 @@ def create_post(
     if not _supabase_ready() or not user_id:
         return None
 
+    user_uuid = _valid_uuid_or_none(user_id)
+    if not user_uuid:
+        logger.warning("Supabase post sync skipped because user id is not a valid UUID: %s", user_id)
+        return None
+
     media_url = None
     if media_file is not None:
         media_url = save_media_locally(media_file, "posts")
@@ -292,7 +314,7 @@ def create_post(
     title = (title or "").strip()
 
     payload = {
-        "user_id": user_id,
+        "user_id": user_uuid,
         "full_name": full_name or "Namvibe User",
         "username": username or "user",
         "email": email or "",
@@ -353,7 +375,7 @@ def create_post(
 
         if response.status_code == 400:
             legacy_payload = {
-                "author_id": user_id,
+                "author_id": user_uuid,
                 "content": caption or title,
                 "image_url": media_url,
                 "privacy": (audience or "Public").lower(),
@@ -367,13 +389,13 @@ def create_post(
             if legacy_response.ok:
                 rows = legacy_response.json()
                 return _normalize_post(rows[0]) if rows else None
-            print(
-                "SUPABASE POSTS LEGACY CREATE ERROR:",
+            logger.warning(
+                "Supabase legacy post create failed: %s %s",
                 legacy_response.status_code,
                 legacy_response.text,
             )
         else:
-            print("SUPABASE POSTS CREATE ERROR:", response.status_code, response.text)
+            logger.warning("Supabase post create failed: %s %s", response.status_code, response.text)
     except Exception as exc:
-        print("SUPABASE POSTS CREATE ERROR:", exc)
+        logger.warning("Supabase post create failed: %s", exc)
     return None

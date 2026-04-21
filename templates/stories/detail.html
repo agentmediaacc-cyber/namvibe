@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load media_helpers %}
 
 {% block title %}Story | Namvibe{% endblock %}
 
@@ -50,7 +51,7 @@
     <header class="story-head">
       <div class="story-author">
         <span class="story-avatar">
-          {% if story.author.profile.avatar %}<img src="{{ story.author.profile.avatar.url }}" alt="{{ story.author.profile.username }}">{% else %}{{ story.author.profile.username|first|upper }}{% endif %}
+          <img src="{% avatar_url story.author.profile %}" alt="{{ story.author.profile.username }}">
         </span>
         <div>
           <strong>@{{ story.author.profile.username|default:story.author.username }}</strong><br>
@@ -60,10 +61,12 @@
       <a href="{% url 'profile_detail' story.author.profile.username %}" class="story-nav">Profile</a>
     </header>
     <div class="story-media {{ story.background_style }}">
-      {% if story.media_type == "photo" and story.file %}
-        <img src="{{ story.file.url }}" alt="{{ story.caption }}">
-      {% elif story.media_type == "video" and story.file %}
-        <video src="{{ story.file.url }}" controls autoplay muted playsinline></video>
+      {% if story.media_type == "photo" and story.file and story.file|file_exists %}
+        <img src="{% file_url story.file 'images/default-media.svg' %}" alt="{{ story.caption }}">
+      {% elif story.media_type == "video" and story.file and story.file|file_exists %}
+        <video src="{% file_url story.file 'images/default-media.svg' %}" controls autoplay muted playsinline></video>
+      {% elif story.media_type != "text" %}
+        <img src="/static/images/default-media.svg" alt="{{ story.caption|default:'Story media unavailable' }}">
       {% else %}
         <h1 style="padding:22px;text-align:center;">{{ story.text_content }}</h1>
       {% endif %}

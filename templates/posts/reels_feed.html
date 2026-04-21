@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static media_helpers %}
 
 {% block title %}Reels | Namvibe{% endblock %}
 
@@ -58,11 +58,15 @@
       {% for post in reels %}
         <article class="reel-card" data-reel-card>
           <div class="reel-video-wrap">
-            {% with media=post.media.first %}
+              {% with media=post.media.first %}
               {% if media and media.media_type == "video" %}
-                <video src="{{ media.file.url }}" muted loop playsinline preload="metadata" controls></video>
+                {% if media.file|file_exists %}
+                  <video src="{% media_url media %}" muted loop playsinline preload="metadata" controls></video>
+                {% else %}
+                  <img src="/static/images/default-media.svg" alt="{{ post.title|default:post.caption }}" loading="lazy">
+                {% endif %}
               {% elif media %}
-                <img src="{{ media.file.url }}" alt="{{ post.title|default:post.caption }}" loading="lazy">
+                <img src="{% media_url media %}" alt="{{ post.title|default:post.caption }}" loading="lazy">
               {% else %}
                 <div style="display:grid;place-items:center;height:100%;padding:28px;text-align:center;">
                   <div>
@@ -77,7 +81,7 @@
             <div class="reel-top">
               <a class="reel-author" href="{% url 'profile_detail' post.author.profile.username %}">
                 <span class="reel-avatar">
-                  {% if post.author.profile.avatar %}<img src="{{ post.author.profile.avatar.url }}" alt="{{ post.author.profile.username }}">{% else %}{{ post.author.profile.username|first|upper }}{% endif %}
+                  <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.profile.username }}">
                 </span>
                 <span>
                   <strong>{{ post.author.profile.display_name|default:post.author.username }}</strong><br>

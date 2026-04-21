@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static media_helpers %}
 
 {% block title %}{{ feed_title|default:"Namvibe Feed" }} | Namvibe{% endblock %}
 
@@ -33,6 +33,10 @@
     border:0;border-radius:16px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#c7a14a,#9c7427);color:#fffdf7
   }
   .drop-zone{border:1px dashed rgba(120,92,39,.28);border-radius:18px;padding:12px;background:#fbf7ef}
+  .composer-preview{display:none;gap:10px;padding:12px;border:1px solid rgba(226,112,132,.16);border-radius:18px;background:#fff7f8}
+  .composer-preview.visible{display:grid}
+  .composer-preview img,.composer-preview video{width:100%;max-height:320px;object-fit:cover;border-radius:16px;background:#1f1720}
+  .composer-status{color:#7f6671;font-size:13px}
   .quick-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
   .side-list{display:grid;gap:10px}
   .side-card{
@@ -95,6 +99,10 @@
           <p style="margin:6px 0 10px;color:#7a6d5b;">Drag and drop an image or video here, or choose a file.</p>
           <input type="file" name="media" accept="image/*,video/*" data-drop-input>
         </div>
+        <div class="composer-preview" id="feedComposerPreview">
+          <div id="feedComposerMedia"></div>
+          <div class="composer-status" id="feedComposerStatus">Media ready to post.</div>
+        </div>
         <div class="quick-row">
           <select name="post_type">
             <option value="text">Status</option>
@@ -151,6 +159,34 @@
 <script>
 document.querySelectorAll("[data-drop-zone]").forEach(function(zone) {
   const input = zone.querySelector("[data-drop-input]");
+  const preview = document.getElementById("feedComposerPreview");
+  const previewMedia = document.getElementById("feedComposerMedia");
+  const previewStatus = document.getElementById("feedComposerStatus");
+
+  function renderPreview(file) {
+    if (!file) {
+      preview.classList.remove("visible");
+      previewMedia.innerHTML = "";
+      previewStatus.textContent = "Media ready to post.";
+      return;
+    }
+    if (!/^image\\//.test(file.type) && !/^video\\//.test(file.type)) {
+      preview.classList.add("visible");
+      previewMedia.innerHTML = "";
+      previewStatus.textContent = "Choose an image or video file.";
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    preview.classList.add("visible");
+    previewMedia.innerHTML = /^video\\//.test(file.type)
+      ? '<video src="' + url + '" controls playsinline></video>'
+      : '<img src="' + url + '" alt="Selected media preview">';
+    previewStatus.textContent = file.name + " is ready to post.";
+  }
+
+  input?.addEventListener("change", function() {
+    renderPreview(input.files[0]);
+  });
   zone.addEventListener("dragover", function(event) {
     event.preventDefault();
     zone.style.borderColor = "#14b8a6";
@@ -163,6 +199,7 @@ document.querySelectorAll("[data-drop-zone]").forEach(function(zone) {
     zone.style.borderColor = "rgba(255,255,255,.24)";
     if (event.dataTransfer.files.length && input) {
       input.files = event.dataTransfer.files;
+      renderPreview(input.files[0]);
     }
   });
 });

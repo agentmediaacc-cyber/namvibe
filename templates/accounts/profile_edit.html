@@ -1,15 +1,74 @@
 {% extends "base.html" %}
+{% load media_helpers %}
 
 {% block title %}Edit Profile | Namvibe{% endblock %}
 
 {% block content %}
-<section style="max-width: 760px; margin: 0 auto; padding: 32px 18px 80px;">
-    <h1 style="font-size:34px; margin:0 0 10px;">Edit profile</h1>
-    <p style="color:#cbd5e1; margin:0 0 24px;">Shape how people discover you across Namvibe.</p>
-    <form method="post" enctype="multipart/form-data" style="display:grid; gap:16px; padding:22px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.07); border-radius:24px;">
+<section style="max-width: 880px; margin: 0 auto; padding: 18px 12px 96px;">
+    <div style="display:grid; gap:16px;">
+        <div>
+            <h1 style="font-size:clamp(2rem,6vw,3rem); margin:0 0 6px;">Edit profile</h1>
+            <p style="color:#7f6671; margin:0;">Update your public look, then save when it feels right.</p>
+        </div>
+        <div style="display:grid; gap:14px; grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);">
+            <div style="border:1px solid rgba(226,112,132,.16); background:rgba(255,255,255,.96); border-radius:28px; overflow:hidden; box-shadow:0 20px 52px rgba(181,64,93,.08);">
+                <img id="coverPreview" src="{% cover_url profile %}" alt="" style="width:100%; height:220px; object-fit:cover; display:block;">
+                <div style="padding:0 18px 18px;">
+                    <div style="display:flex; gap:14px; align-items:end; margin-top:-52px;">
+                        <img id="avatarPreview" src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}" style="width:104px; height:104px; border-radius:24px; border:4px solid rgba(255,255,255,.96); object-fit:cover; background:#fff7f8;">
+                        <div style="padding-bottom:10px;">
+                            <strong style="display:block; font-size:1.1rem;">@{{ profile.username }}</strong>
+                            <small style="color:#7f6671;">Public profile preview</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="border:1px solid rgba(226,112,132,.16); background:rgba(255,255,255,.92); border-radius:24px; padding:16px; display:grid; gap:10px; align-content:start;">
+                <strong>Tips</strong>
+                <small style="color:#7f6671; line-height:1.6;">Choose a clear avatar, add a strong cover, and keep your profile details easy to read on phone.</small>
+                <small id="profileMediaStatus" style="color:#7f6671;">Select an image to update the preview instantly.</small>
+            </div>
+        </div>
+    </div>
+    <form method="post" enctype="multipart/form-data" style="display:grid; gap:16px; padding:20px; margin-top:16px; border:1px solid rgba(226,112,132,.16); background:rgba(255,255,255,.96); border-radius:28px; box-shadow:0 20px 52px rgba(181,64,93,.08);">
         {% csrf_token %}
-        {{ form.as_p }}
+        <div style="display:grid; gap:16px; grid-template-columns:repeat(2,minmax(0,1fr));">
+            {% for field in form %}
+                <div style="{% if field.name == 'bio' or field.name == 'website' or field.name == 'location' %}grid-column:span 2;{% endif %}">
+                    <label for="{{ field.id_for_label }}" style="display:block; margin-bottom:6px; font-weight:800; color:#2c1f28;">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<small style="display:block; margin-top:6px; color:#7f6671;">{{ field.help_text }}</small>{% endif %}
+                    {% for error in field.errors %}<small style="display:block; margin-top:6px; color:#cf365e;">{{ error }}</small>{% endfor %}
+                </div>
+            {% endfor %}
+        </div>
         <button class="btn btn-main" type="submit">Save profile</button>
     </form>
 </section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const avatarInput = document.getElementById("id_avatar");
+    const coverInput = document.getElementById("id_cover_image");
+    const avatarPreview = document.getElementById("avatarPreview");
+    const coverPreview = document.getElementById("coverPreview");
+    const status = document.getElementById("profileMediaStatus");
+
+    function previewFile(input, target, typeLabel) {
+      const file = input?.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        status.textContent = "Choose an image file for " + typeLabel.toLowerCase() + ".";
+        return;
+      }
+      target.src = URL.createObjectURL(file);
+      status.textContent = typeLabel + " ready to save.";
+    }
+
+    avatarInput?.addEventListener("change", function () { previewFile(avatarInput, avatarPreview, "Avatar"); });
+    coverInput?.addEventListener("change", function () { previewFile(coverInput, coverPreview, "Cover"); });
+  }());
+</script>
 {% endblock %}

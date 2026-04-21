@@ -1,7 +1,8 @@
+{% load media_helpers %}
 <article class="nv-post-card">
     <div class="nv-post-top">
         <a class="nv-author" href="{% url 'profile_detail' post.author.profile.username %}">
-            <span class="nv-avatar">{{ post.author.profile.display_name|default:post.author.username|first|upper }}</span>
+            <span class="nv-avatar"><img src="{% avatar_url post.author.profile %}" alt="{{ post.author.profile.display_name|default:post.author.username }}" style="width:100%;height:100%;object-fit:cover;"></span>
             <span>
                 <strong>{{ post.author.profile.display_name|default:post.author.username }}</strong>
                 <small>@{{ post.author.profile.username }} · {{ post.get_post_type_display }}</small>
@@ -18,10 +19,14 @@
             <div class="nv-media-stack">
                 {% for media in media_items %}
                     <a href="{% url 'post_detail' post.uuid %}">
-                        {% if media.media_type == "video" %}
-                            <video class="nv-media" controls preload="metadata" src="{{ media.file.url }}"></video>
+                        {% if media.file|file_exists %}
+                            {% if media.media_type == "video" %}
+                                <video class="nv-media" controls preload="metadata" src="{% media_url media %}"></video>
+                            {% else %}
+                                <img class="nv-media" src="{% media_url media %}" alt="{{ media.alt_text|default:post.title }}" loading="lazy">
+                            {% endif %}
                         {% else %}
-                            <img class="nv-media" src="{{ media.file.url }}" alt="{{ media.alt_text|default:post.title }}" loading="lazy">
+                            <div class="nv-media" style="display:grid;place-items:center;background:#fff4f6;color:#7f6671;padding:24px;text-align:center;">Media unavailable</div>
                         {% endif %}
                     </a>
                     {% if media.overlay_text %}<div class="nv-overlay">{{ media.overlay_text }}</div>{% endif %}

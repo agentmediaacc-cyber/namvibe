@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
@@ -10,6 +11,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from communities.models import Community
 from accounts.models import Profile
+from accounts.supabase import supabase_profile_id_for_user
 from supportapp.models import SystemPromoCard
 from .forms import POST_TYPE_FORMS
 from .models import Comment, Like, Post, PostMedia, Report, Save, Share
@@ -47,6 +49,18 @@ def _session_user(request):
     }
 
 
+def _post_sync_identity(request):
+    if request.user.is_authenticated:
+        profile = getattr(request.user, "profile", None)
+        return {
+            "user_id": str(supabase_profile_id_for_user(request.user)),
+            "full_name": request.user.get_full_name() or getattr(profile, "display_name", "") or request.user.username,
+            "username": getattr(profile, "username", "") or request.user.username,
+            "email": request.user.email or "",
+        }
+    return _session_user(request)
+
+
 @require_http_methods(["GET"])
 def feed_view(request):
     queryset = base_visible_posts(request.user).published()
@@ -72,8 +86,11 @@ def feed_view(request):
     )
 
 
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 def create_post_view(request):
+    if request.method == "GET":
+        return redirect("studio")
+
     if not request.user.is_authenticated:
         messages.error(request, "Login required to create a post.")
         return redirect("login")
@@ -91,44 +108,47 @@ def create_post_view(request):
         post_type = Post.PostType.TEXT
 
     if content or media_file:
-        post = Post.objects.create(
-            author=request.user,
-            post_type=post_type,
-            title=content[:120],
-            caption=content,
-            audience=Post.Audience.PUBLIC,
-            share_target=Post.ShareTarget.MAIN_FEED,
-            status=Post.Status.PUBLISHED,
-            published_at=timezone.now(),
-            allow_comments=True,
-            allow_sharing=True,
-        )
-        if media_file:
-            media_type = PostMedia.MediaType.VIDEO if post_type == Post.PostType.VIDEO else PostMedia.MediaType.IMAGE
-            PostMedia.objects.create(post=post, media_type=media_type, file=media_file)
+        try:
+            with transaction.atomic():
+                post = Post.objects.create(
+                    author=request.user,
+                    post_type=post_type,
+                    title=content[:120],
+                    caption=content,
+                    audience=Post.Audience.PUBLIC,
+                    share_target=Post.ShareTarget.MAIN_FEED,
+                    status=Post.Status.PUBLISHED,
+                    published_at=timezone.now(),
+                    allow_comments=True,
+                    allow_sharing=True,
+                )
+                if media_file:
+                    media_type = PostMedia.MediaType.VIDEO if post_type == Post.PostType.VIDEO else PostMedia.MediaType.IMAGE
+                    media = PostMedia.objects.create(post=post, media_type=media_type, file=media_file)
+                    if not getattr(media.file, "name", ""):
+                        raise ValueError("Uploaded media did not save correctly.")
+        except Exception:
+            messages.error(request, "We could not publish that post. Please try the upload again.")
+            return redirect("feed")
 
-        user = _session_user(request) or {
-            "user_id": str(request.user.id),
-            "full_name": request.user.get_full_name() or request.user.username,
-            "username": getattr(getattr(request.user, "profile", None), "username", request.user.username),
-            "email": request.user.email,
-        }
-        create_post(
-            user_id=user["user_id"],
-            full_name=user["full_name"],
-            username=user["username"],
-            email=user["email"],
-            title=content[:120],
-            caption=content,
-            media_file=media_file,
-        )
+        user = _post_sync_identity(request)
+        if user:
+            create_post(
+                user_id=user["user_id"],
+                full_name=user["full_name"],
+                username=user["username"],
+                email=user["email"],
+                title=content[:120],
+                caption=content,
+                media_file=media_file,
+            )
 
     return redirect("feed")
 
 
 @require_http_methods(["POST"])
 def save_post_view(request):
-    user = _session_user(request)
+    user = _post_sync_identity(request)
     if not user:
         messages.error(request, "Login required to create a post.")
         return redirect("login")
