@@ -300,24 +300,7 @@ def homepage_context(request):
     reel_preview = [post for post in ranked_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
     active_stories = StoryItem.objects.visible_to(user)
     live_now, featured_live = _live_preview(user)
-    
-from stories.services import visible_stories_for
-from collections import defaultdict
-
-stories = visible_stories_for(request.user)
-
-grouped = defaultdict(list)
-for s in stories:
-    grouped[s.author].append(s)
-
-story_rail = []
-for author, items in grouped.items():
-    story_rail.append({
-        "author": author,
-        "first_story": items[0],
-        "stories": items,
-    })
-
+    story_rail = story_rail_for(user, limit=18)
     live_author_ids = {session.host_id for session in live_now}
     for item in story_rail:
         item["is_live"] = item["author"].id in live_author_ids
