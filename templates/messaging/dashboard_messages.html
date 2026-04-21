@@ -66,6 +66,10 @@
                     <h3>{{ active_chat_other.get_full_name|default:active_chat_other.username|default:"Namvibe Member" }}</h3>
                     <p>@{{ active_chat_other.username }} · private chat</p>
                 </div>
+                <div class="message-actions">
+                    <a class="tool-btn" href="{% url 'messaging:call_gate' active_chat_other.id 'voice' %}">Voice call</a>
+                    <a class="tool-btn" href="{% url 'messaging:call_gate' active_chat_other.id 'video' %}">Video call</a>
+                </div>
             </div>
 
             <div class="chat-thread" id="chatThread">
@@ -251,6 +255,7 @@ function previewAttachment(event) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
+    document.body.dataset.focusUi = document.querySelector(".has-active-chat") ? "true" : "false";
     const thread = document.getElementById("chatThread");
     if (thread) thread.scrollTop = thread.scrollHeight;
 

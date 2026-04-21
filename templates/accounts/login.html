@@ -6,14 +6,13 @@
     <div class="auth-card premium-auth-card">
         <span class="auth-badge">Welcome back</span>
         <h1>Login to Namvibe</h1>
-        <p>Use your email or username with your password to continue.</p>
+        <p>Use your email or username to continue into your private account shell, messages, wallet, and creator tools.</p>
 
         {% if messages %}
             {% for message in messages %}
                 <div class="flash-message">{{ message }}</div>
             {% endfor %}
         {% endif %}
-
         {% if clean_login_error %}
             <div class="flash-message">{{ clean_login_error }}</div>
         {% elif form.non_field_errors %}
@@ -37,6 +36,14 @@
                     <button type="button" class="show-pass-btn" onclick="togglePass('id_password', this)">Show</button>
                 </div>
                 {% if form.password.errors %}<div class="field-error">{{ form.password.errors.0 }}</div>{% endif %}
+            </div>
+
+            <div class="form-block full" style="flex-direction:row;align-items:center;justify-content:space-between;">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
+                    <input type="checkbox" name="remember_me"{% if form.remember_me.value %} checked{% endif %}>
+                    Keep me signed in
+                </label>
+                <a href="{% url 'verify_email_request' %}">Resend verification</a>
             </div>
 
             <div class="form-block full">

@@ -13,15 +13,17 @@
             --nav-line: rgba(255,255,255,.10);
         }
         *{box-sizing:border-box}
-        body{margin:0;background:#07101d;color:#fff}
+        body{margin:0;background:#f5f7fb;color:#0f172a}
         .site-header{
             position:sticky;
             top:0;
             z-index:3000;
-            background:var(--nav-bg);
+            background:rgba(255,255,255,.92);
             backdrop-filter:blur(14px);
-            border-bottom:1px solid var(--nav-line);
+            border-bottom:1px solid rgba(15,23,42,.08);
+            transition:transform .22s ease, box-shadow .22s ease;
         }
+        .site-header.header-hidden{transform:translateY(-100%)}
         .nav-wrap{
             width:min(1220px, calc(100% - 16px));
             margin:0 auto;
@@ -33,9 +35,9 @@
             padding:8px 0;
         }
         .menu-btn,.search-btn,.nav-link-btn{
-            border:1px solid rgba(255,255,255,.08);
-            background:rgba(255,255,255,.06);
-            color:#fff;
+            border:1px solid rgba(15,23,42,.08);
+            background:rgba(255,255,255,.82);
+            color:#0f172a;
             border-radius:10px;
             padding:9px 11px;
             text-decoration:none;
@@ -45,7 +47,7 @@
         .menu-btn{font-size:20px; line-height:1}
         .brand{
             display:flex;align-items:center;gap:10px;
-            text-decoration:none;color:#fff;min-width:0;
+            text-decoration:none;color:#0f172a;min-width:0;
         }
         .brand-mark{
             width:36px;height:36px;border-radius:10px;
@@ -53,21 +55,21 @@
             background:linear-gradient(135deg,#14b8a6,#f43f5e);
             flex:0 0 auto;
         }
-        .brand small{display:block;color:#cbd5e1;font-size:11px}
+        .brand small{display:block;color:#64748b;font-size:11px}
         .top-search{
             display:flex;align-items:center;gap:8px;
-            border:1px solid rgba(255,255,255,.08);
-            background:rgba(255,255,255,.06);
+            border:1px solid rgba(15,23,42,.08);
+            background:rgba(248,250,252,.95);
             border-radius:12px;padding:4px 6px;
             min-width:0;
         }
         .top-search input{
             flex:1;min-width:0;border:0;background:transparent;
-            color:#fff;outline:0;padding:8px;
+            color:#0f172a;outline:0;padding:8px;
         }
         .top-search button{
             border:0;border-radius:8px;padding:8px 10px;
-            background:rgba(255,255,255,.08);color:#fff;font-weight:800;
+            background:rgba(15,23,42,.08);color:#0f172a;font-weight:800;
         }
         .top-actions{display:flex;align-items:center;gap:8px}
         .nav-icon-link{
@@ -97,8 +99,8 @@
         .drawer{
             position:fixed;top:0;left:0;bottom:0;
             width:min(320px,88vw);
-            background:rgba(6,12,24,.98);
-            border-right:1px solid rgba(255,255,255,.08);
+            background:rgba(255,255,255,.98);
+            border-right:1px solid rgba(15,23,42,.08);
             z-index:3999;
             transform:translateX(-100%);
             transition:transform .22s ease;
@@ -110,26 +112,28 @@
         .drawer-close{
             border:1px solid rgba(255,255,255,.08);
             background:rgba(255,255,255,.06);
-            color:#fff;border-radius:10px;
+            color:#0f172a;border-radius:10px;
             width:40px;height:40px;cursor:pointer;
         }
         .drawer-nav{display:grid;gap:8px}
         .drawer-nav a{
-            color:#fff;text-decoration:none;
-            border:1px solid rgba(255,255,255,.08);
-            background:rgba(255,255,255,.05);
+            color:#0f172a;text-decoration:none;
+            border:1px solid rgba(15,23,42,.08);
+            background:#f8fafc;
             border-radius:10px;padding:12px;font-weight:800;
         }
         .drawer-section{margin-top:10px;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
         .mobile-bottom-nav{
             position:fixed;left:0;right:0;bottom:0;z-index:2500;
             display:none;grid-template-columns:repeat(5,1fr);gap:0;
-            background:rgba(6,12,24,.94);backdrop-filter:blur(16px);
-            border-top:1px solid rgba(255,255,255,.1);
+            background:rgba(255,255,255,.96);backdrop-filter:blur(16px);
+            border-top:1px solid rgba(15,23,42,.08);
             padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+            transition:transform .2s ease;
         }
+        .mobile-bottom-nav.nav-hidden{transform:translateY(120%)}
         .mobile-bottom-nav a{
-            color:#dbeafe;text-decoration:none;text-align:center;
+            color:#334155;text-decoration:none;text-align:center;
             font-size:11px;font-weight:800;padding:7px 4px;border-radius:8px;
         }
         .mobile-bottom-nav span{display:block;font-size:17px;line-height:1.1}
@@ -156,14 +160,14 @@
         .product-section h2{margin:0 0 10px}
         main{min-height:100vh}
         .footer{
-            padding:40px 16px;background:#08111f;color:#e2e8f0;
-            border-top:1px solid rgba(255,255,255,.08);
+            padding:40px 16px;background:#ffffff;color:#0f172a;
+            border-top:1px solid rgba(15,23,42,.08);
         }
         .footer-grid{
             width:min(1220px,100%);margin:0 auto;
             display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;
         }
-        .footer a{display:block;color:#cbd5e1;text-decoration:none;margin:6px 0}
+        .footer a{display:block;color:#64748b;text-decoration:none;margin:6px 0}
         .footer-copy{width:min(1220px,100%);margin:18px auto 0;color:#94a3b8}
 
         @media (max-width: 900px){
@@ -214,6 +218,7 @@
             <div class="drawer-section">Money and tools</div>
             <a href="{% url 'wallet_home' %}">Wallet</a>
             <a href="{% url 'wallet_membership' %}">Premium</a>
+            <a href="{% url 'ads_home' %}">Ads</a>
             <a href="{% url 'gifting' %}">Gifting</a>
             <a href="{% url 'coins' %}">Coins</a>
             <a href="{% url 'photo_selling' %}">Photo Selling</a>
@@ -222,6 +227,9 @@
             <div class="drawer-section">Account</div>
             <a href="{% url 'settings' %}">Settings</a>
             <a href="{% url 'support_help' %}">Support</a>
+            {% if request.user.is_authenticated and request.user.account_role.is_admin %}
+                <a href="{% url 'support_control' %}">Control</a>
+            {% endif %}
             {% if request.user.is_authenticated %}
                 <a href="{{ smart_profile_url }}">Profile</a>
                 <a href="{% url 'logout' %}">Logout</a>
@@ -328,6 +336,38 @@
             openBtn?.addEventListener("click", openDrawer);
             closeBtn?.addEventListener("click", closeDrawer);
             overlay?.addEventListener("click", closeDrawer);
+            const mobileNav = document.querySelector(".mobile-bottom-nav");
+            const siteHeader = document.getElementById("siteHeader");
+            let lastY = window.scrollY;
+            let navTimer = null;
+
+            function showChrome() {
+                mobileNav?.classList.remove("nav-hidden");
+                siteHeader?.classList.remove("header-hidden");
+            }
+
+            function hideChrome() {
+                if (document.body.dataset.chromeLock === "true") return;
+                mobileNav?.classList.add("nav-hidden");
+                siteHeader?.classList.add("header-hidden");
+            }
+
+            window.addEventListener("scroll", function () {
+                const currentY = window.scrollY;
+                const delta = currentY - lastY;
+                const focusMode = document.body.dataset.focusUi === "true";
+                if (focusMode && currentY > 40) {
+                    hideChrome();
+                } else if (delta > 12 && currentY > 80) {
+                    hideChrome();
+                } else if (delta < -8 || currentY < 40) {
+                    showChrome();
+                }
+                lastY = currentY;
+                if (navTimer) clearTimeout(navTimer);
+                navTimer = setTimeout(showChrome, 900);
+            }, { passive: true });
+
             document.addEventListener("keydown", function(e){
                 if (e.key === "Escape") closeDrawer();
             });

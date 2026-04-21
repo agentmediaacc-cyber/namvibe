@@ -10,12 +10,10 @@ class AccountAuthFlowTests(TestCase):
     def _signup_payload(self, **overrides):
         payload = {
             "full_name": "Mina Amunyela",
+            "country_code": "+264",
+            "cellphone_number": "811234567",
             "username": "mina_test",
             "email": "mina@example.com",
-            "cellphone_number": "+264811234567",
-            "residential_address": "12 Independence Avenue, Windhoek",
-            "country_of_origin": "Namibia",
-            "current_country": "Namibia",
             "password": "StrongPass1",
             "confirm_password": "StrongPass1",
         }
@@ -25,7 +23,7 @@ class AccountAuthFlowTests(TestCase):
     def test_signup_creates_user_profile_and_redirects(self):
         response = self.client.post(reverse("signup"), self._signup_payload())
 
-        self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("profile_completion"), fetch_redirect_response=False)
         self.assertTrue(User.objects.filter(username="mina_test", email="mina@example.com").exists())
         self.assertTrue(AccountProfile.objects.filter(cellphone_number="+264811234567").exists())
         self.assertEqual(self.client.session["eharo_username"], "mina_test")
@@ -49,14 +47,14 @@ class AccountAuthFlowTests(TestCase):
             "identifier": "mina_test",
             "password": "StrongPass1",
         })
-        self.assertRedirects(username_response, reverse("user_dashboard"), fetch_redirect_response=False)
+        self.assertRedirects(username_response, reverse("profile_completion"), fetch_redirect_response=False)
 
         self.client.logout()
         email_response = self.client.post(reverse("login"), {
             "identifier": "mina@example.com",
             "password": "StrongPass1",
         })
-        self.assertRedirects(email_response, reverse("user_dashboard"), fetch_redirect_response=False)
+        self.assertRedirects(email_response, reverse("profile_completion"), fetch_redirect_response=False)
 
     def test_login_rejects_invalid_credentials(self):
         response = self.client.post(reverse("login"), {
@@ -109,7 +107,7 @@ class AccountAuthFlowTests(TestCase):
 
         response = self.client.get(reverse("home"))
 
-        self.assertContains(response, f'href="{reverse("user_dashboard")}"')
+        self.assertContains(response, f'href="{reverse("profile_detail", kwargs={"username": "mina_test"})}"')
         self.assertContains(response, f'href="{reverse("logout")}"')
         self.assertNotContains(response, f'href="{reverse("login")}" class="action-btn auth-action"')
         self.assertNotContains(response, f'href="{reverse("signup")}" class="action-btn action-primary"')
@@ -156,6 +154,14 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("login"), fetch_redirect_response=False)
         self.assertNotIn("eharo_user_id", self.client.session)
+
+    def test_public_profile_does_not_expose_private_identity_fields(self):
+        self.client.post(reverse("signup"), self._signup_payload())
+        response = self.client.get(reverse("profile_detail", kwargs={"username": "mina_test"}))
+
+        self.assertContains(response, "@mina_test")
+        self.assertNotContains(response, "mina@example.com")
+        self.assertNotContains(response, "+264811234567")
 
 
 class SocialGraphTests(TestCase):

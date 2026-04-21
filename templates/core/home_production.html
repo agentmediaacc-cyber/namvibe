@@ -7,435 +7,191 @@
 {% include "posts/post_styles.html" %}
 <style>
   :root{
-    --home-bg:#050b14;
-    --home-panel:rgba(10,17,30,.88);
-    --home-panel-soft:rgba(255,255,255,.055);
-    --home-line:rgba(255,255,255,.09);
-    --home-text:#f8fafc;
-    --home-muted:#9fb0c9;
-    --home-cyan:#50d6ff;
-    --home-gold:#ffd36b;
-    --home-pink:#ff4f88;
-    --home-green:#2ee6a6;
+    --feed-bg:#f3f6fb;
+    --card:#ffffff;
+    --card-soft:#f8fbff;
+    --line:#dbe4f0;
+    --text:#102033;
+    --muted:#64748b;
+    --accent:#4f46e5;
+    --accent-soft:#eff1ff;
+    --pink:#ff5f8f;
+    --gold:#ffbf47;
+    --green:#16c79a;
   }
-  body{
-    background:
-      radial-gradient(circle at 8% 0%, rgba(80,214,255,.14), transparent 24%),
-      radial-gradient(circle at 96% 10%, rgba(255,79,136,.16), transparent 26%),
-      radial-gradient(circle at 50% 100%, rgba(46,230,166,.09), transparent 30%),
-      linear-gradient(180deg,#040912,#08111d 52%,#050b14);
-    color:var(--home-text);
-    font-family:"Space Grotesk","Segoe UI",sans-serif;
+  body{background:linear-gradient(180deg,#f8fbff,#eef3fa 50%,#f6f8fc);color:var(--text)}
+  .home-shell{width:min(1120px,calc(100% - 12px));margin:0 auto;padding:10px 0 110px}
+  .home-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+  .feed-column,.rail-column{min-width:0}
+  .mobile-topbar,.stories-strip,.composer-mini,.feed-tabs-wrap,.feed-module,.rail-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:24px;
+    box-shadow:0 16px 40px rgba(15,23,42,.05);
   }
-  .site-header{backdrop-filter:blur(20px)}
-  .mobile-bottom-nav{display:none !important}
-  .home-shell{width:min(1380px,calc(100% - 18px));margin:0 auto;padding:14px 0 110px}
-  .home-command{
-    position:sticky;top:72px;z-index:50;
+  .mobile-topbar{
+    position:sticky;top:72px;z-index:25;
     display:flex;align-items:center;gap:10px;
-    padding:10px 12px;margin-bottom:14px;
-    border:1px solid var(--home-line);
-    background:rgba(6,12,23,.86);
-    border-radius:20px;
-    backdrop-filter:blur(18px);
+    padding:10px 12px;margin-bottom:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);
   }
-  .brand-chip,.command-link,.chip,.mini-btn,.tab-link,.mobile-nav-item,.create-menu a,.feed-module .cta,.side-list a,.feed-card-link{
+  .topbar-title{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .topbar-actions{margin-left:auto;display:flex;gap:8px}
+  .topbar-chip,.story-item,.mini-pill,.tab-pill,.rail-link,.floating-promo,.promo-dismiss,.feed-action{
     text-decoration:none;color:inherit;
   }
-  .brand-chip{
-    display:flex;align-items:center;gap:10px;min-width:max-content;
-    padding:10px 12px;border-radius:16px;
-    background:linear-gradient(135deg,rgba(80,214,255,.16),rgba(255,79,136,.16));
-    border:1px solid rgba(255,255,255,.08);
+  .topbar-chip,.mini-pill,.tab-pill,.feed-action{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    border:1px solid var(--line);background:#f8fbff;border-radius:999px;padding:9px 12px;font-weight:700;
   }
-  .brand-chip .mark,.story-avatar,.mini-avatar,.side-avatar,.date-avatar{
-    width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-weight:900;
-    background:linear-gradient(135deg,var(--home-cyan),var(--home-pink));color:#04111d;overflow:hidden;
+  .topbar-chip .count{display:inline-flex;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--pink);color:#fff;font-size:11px;font-weight:900;align-items:center;justify-content:center}
+  .stories-strip{padding:12px;margin-bottom:12px;overflow:hidden}
+  .stories-track,.feed-tabs{display:flex;gap:10px;overflow:auto;padding-bottom:2px;scrollbar-width:none}
+  .stories-track::-webkit-scrollbar,.feed-tabs::-webkit-scrollbar{display:none}
+  .story-item{
+    min-width:78px;width:78px;display:grid;gap:8px;justify-items:center;
   }
-  .brand-chip small,.metric-card span,.story-card small,.side-note,.feed-note,.mini-label,.tab-state,.mobile-nav-item small{color:var(--home-muted)}
-  .command-search{
-    flex:1;display:flex;align-items:center;gap:10px;min-width:0;
-    border:1px solid var(--home-line);border-radius:16px;
-    background:rgba(255,255,255,.05);padding:6px 8px 6px 12px;
+  .story-ring{
+    width:72px;height:72px;border-radius:999px;padding:3px;
+    background:linear-gradient(135deg,var(--accent),var(--pink),var(--gold));
   }
-  .command-search input{
-    flex:1;min-width:0;border:0;outline:0;background:transparent;color:#fff;padding:10px 0;
+  .story-core{
+    width:100%;height:100%;border-radius:999px;background:#fff;display:grid;place-items:center;overflow:hidden;
   }
-  .command-search button,.mini-btn.primary,.feed-module .cta.primary,.premium-cta{
-    border:0;border-radius:12px;padding:10px 14px;font-weight:800;color:#07111a;
-    background:linear-gradient(135deg,var(--home-gold),#fff3bf);
+  .story-core img,.mini-avatar img,.rail-avatar img,.reel-thumb img,.live-thumb img{width:100%;height:100%;object-fit:cover}
+  .story-core span,.mini-avatar,.rail-avatar{
+    width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,#dbeafe,#fde7f3);font-weight:900;color:#1e293b;
   }
-  .command-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
-  .command-link{
-    position:relative;display:flex;align-items:center;gap:8px;
-    padding:10px 12px;border-radius:14px;border:1px solid var(--home-line);
-    background:rgba(255,255,255,.05);font-weight:700;white-space:nowrap;
+  .story-item strong{font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .story-item small{font-size:11px;color:var(--muted);line-height:1.25;text-align:center}
+  .story-live{display:inline-flex;padding:3px 7px;border-radius:999px;background:#fee2e2;color:#be123c;font-size:10px;font-weight:900}
+  .composer-mini{padding:14px;margin-bottom:12px;display:grid;gap:12px}
+  .composer-row{display:flex;gap:10px;align-items:center}
+  .mini-avatar,.rail-avatar{width:44px;height:44px;border-radius:16px;overflow:hidden;flex:0 0 auto}
+  .composer-entry{
+    flex:1;display:block;padding:13px 14px;border-radius:18px;background:var(--card-soft);border:1px solid var(--line);font-weight:700;
   }
-  .command-link .count,.status-dot,.live-pill,.story-live,.ad-pill,.badge-soft{
-    display:inline-flex;align-items:center;justify-content:center;
-    min-width:20px;height:20px;padding:0 7px;border-radius:999px;font-size:11px;font-weight:900;
+  .composer-links{display:flex;gap:8px;overflow:auto;scrollbar-width:none}
+  .composer-links::-webkit-scrollbar{display:none}
+  .feed-tabs-wrap{padding:12px;margin-bottom:12px}
+  .tab-pill{white-space:nowrap;background:#fff}
+  .tab-pill.active{background:var(--accent-soft);border-color:#c7d2fe;color:#312e81}
+  .feed-stack{display:grid;gap:12px}
+  .feed-module{padding:14px}
+  .module-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .module-kicker{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .live-badge,.promo-badge,.soft-badge{
+    display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:900;
   }
-  .command-link .count{background:#ff4f88;color:#fff}
-  .status-dot{background:rgba(46,230,166,.2);color:var(--home-green)}
-  .home-layout{
-    display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start;
+  .live-badge{background:#fee2e2;color:#b91c1c}
+  .promo-badge{background:#eff6ff;color:#1d4ed8}
+  .soft-badge{background:#f1f5f9;color:#475569}
+  .feed-module h3,.feed-module p{margin:0}
+  .feed-copy{color:var(--muted);line-height:1.6}
+  .module-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .module-tags span{padding:6px 10px;border-radius:999px;background:#f8fafc;color:#475569;font-size:12px}
+  .feed-cta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .reel-thumb,.live-thumb{
+    margin-top:12px;height:min(58vw,420px);max-height:420px;border-radius:22px;overflow:hidden;background:#dbeafe;
   }
-  .hero-grid{
-    display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:16px;margin-bottom:16px;
+  .reel-thumb video,.live-thumb video,.reel-thumb img,.live-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .promo-card{
+    background:linear-gradient(145deg,#ffffff,#f6f2ff 80%);
   }
-  .panel,.feed-module,.side-panel{
-    border:1px solid var(--home-line);border-radius:28px;
-    background:linear-gradient(180deg,rgba(11,19,33,.92),rgba(8,14,24,.88));
-    box-shadow:0 28px 90px rgba(0,0,0,.28);
+  .promo-card .feed-cta-row .mini-pill:first-child{background:var(--accent);border-color:var(--accent);color:#fff}
+  .rail-column{display:grid;gap:12px}
+  .rail-card{padding:14px;position:sticky;top:86px}
+  .rail-stack{display:grid;gap:14px}
+  .rail-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+  .rail-head h3{margin:0;font-size:15px}
+  .rail-note{font-size:13px;color:var(--muted);line-height:1.55}
+  .rail-link{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #edf2f7}
+  .rail-link:first-child{border-top:0;padding-top:0}
+  .floating-promo{
+    position:fixed;right:12px;bottom:86px;z-index:60;width:min(320px,calc(100vw - 24px));
+    padding:14px;border-radius:22px;background:rgba(255,255,255,.96);border:1px solid var(--line);box-shadow:0 24px 60px rgba(15,23,42,.12);
+    display:none;
   }
-  .panel{padding:18px}
-  .hero-panel{
-    padding:24px;
-    background:
-      radial-gradient(circle at top left, rgba(80,214,255,.16), transparent 30%),
-      radial-gradient(circle at bottom right, rgba(255,79,136,.16), transparent 28%),
-      linear-gradient(180deg,rgba(14,24,40,.95),rgba(7,12,22,.96));
+  .floating-promo.visible{display:block}
+  .promo-dismiss{
+    position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#fff;
+    display:grid;place-items:center;font-weight:900;color:#475569;
   }
-  .eyebrow{
-    display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;
-    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);font-size:12px;font-weight:800;
-    letter-spacing:.06em;text-transform:uppercase;color:#dff8ff;
+  .focus-media{margin-top:10px}
+  .focus-media video{width:100%;border-radius:22px;max-height:min(72vh,560px);background:#000}
+  .home-mobile-nav{position:fixed;left:10px;right:10px;bottom:10px;z-index:80;display:none;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:24px;backdrop-filter:blur(14px);transition:transform .2s ease}
+  .home-mobile-nav.nav-hidden{transform:translateY(120%)}
+  .mobile-nav-item,.mobile-create-toggle,.mobile-create-menu a{
+    text-decoration:none;color:#334155;font-size:11px;font-weight:800;text-align:center;border-radius:16px;background:#f8fafc;padding:8px 4px;display:grid;place-items:center;gap:4px;
   }
-  .hero-panel h1{font-size:clamp(2rem,4vw,4.4rem);line-height:.95;margin:14px 0 12px;max-width:700px}
-  .hero-panel p{color:var(--home-muted);line-height:1.75;font-size:1rem;max-width:680px;margin:0}
-  .hero-actions,.quick-chip-row,.composer-links,.feed-tabs,.stats-row,.feed-module .meta-row,.side-stack,.side-list,.reel-meta,.module-tags,.community-pills,.dating-pills,.mobile-create-links{
-    display:flex;gap:10px;flex-wrap:wrap;
+  .mobile-create{position:relative}
+  .mobile-create-toggle{border:0;width:100%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+  .mobile-create-menu{
+    position:absolute;left:50%;bottom:64px;transform:translateX(-50%);display:none;min-width:220px;padding:10px;border-radius:20px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 60px rgba(15,23,42,.16);
   }
-  .hero-actions{margin-top:18px}
-  .mini-btn,.chip,.tab-link,.feed-module .cta,.premium-cta{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    padding:11px 14px;border-radius:14px;border:1px solid var(--home-line);
-    background:rgba(255,255,255,.06);font-weight:800;
-  }
-  .mini-btn.primary,.feed-module .cta.primary,.premium-cta{border-color:transparent}
-  .stats-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
-  .metric-card{
-    padding:14px;border-radius:20px;border:1px solid rgba(255,255,255,.08);
-    background:rgba(255,255,255,.045);
-  }
-  .metric-card strong{display:block;font-size:1.5rem;margin-bottom:6px}
-  .spotlight-card{
-    padding:18px;display:grid;gap:14px;height:100%;
-    background:
-      radial-gradient(circle at top, rgba(255,211,107,.14), transparent 28%),
-      linear-gradient(180deg,rgba(14,19,32,.95),rgba(7,11,20,.96));
-  }
-  .story-row,.quick-actions-panel,.composer-panel,.feed-switcher,.side-panel,.feed-module{padding:16px}
-  .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-  .section-head h2,.side-panel h3{margin:0;font-size:1.02rem}
-  .story-row-track,.quick-chip-row,.feed-tabs{
-    overflow:auto;flex-wrap:nowrap;padding-bottom:4px;scrollbar-width:none;
-  }
-  .story-row-track::-webkit-scrollbar,.quick-chip-row::-webkit-scrollbar,.feed-tabs::-webkit-scrollbar{display:none}
-  .story-row-track{display:flex;gap:12px}
-  .story-card{
-    min-width:106px;width:106px;height:178px;padding:12px;border-radius:24px;
-    border:1px solid var(--home-line);position:relative;overflow:hidden;
-    background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.04));
-    display:flex;flex-direction:column;justify-content:space-between;
-  }
-  .story-card::after{
-    content:"";position:absolute;inset:auto 0 0 0;height:64%;
-    background:linear-gradient(180deg,transparent,rgba(2,6,12,.9));
-  }
-  .story-card > *{position:relative;z-index:1}
-  .story-add{
-    background:linear-gradient(180deg,rgba(80,214,255,.22),rgba(255,79,136,.18));
-  }
-  .story-card.unseen{box-shadow:0 0 0 2px rgba(255,211,107,.68)}
-  .story-avatar,.mini-avatar,.side-avatar,.date-avatar{border-radius:18px}
-  .story-avatar img,.mini-avatar img,.side-avatar img,.date-avatar img{
-    width:100%;height:100%;object-fit:cover;
-  }
-  .story-live{background:#ff4f88;color:#fff}
-  .quick-chip-row{display:flex}
-  .chip{white-space:nowrap;background:rgba(255,255,255,.045)}
-  .chip span{opacity:.8}
-  .composer-panel{
-    display:grid;gap:14px;background:
-      radial-gradient(circle at top left, rgba(46,230,166,.11), transparent 25%),
-      linear-gradient(180deg,rgba(12,18,30,.95),rgba(9,14,24,.93));
-  }
-  .composer-main{display:flex;gap:12px;align-items:flex-start}
-  .composer-prompt{
-    flex:1;display:block;padding:15px 16px;border-radius:18px;
-    border:1px solid var(--home-line);background:rgba(255,255,255,.05);
-  }
-  .composer-prompt strong{display:block;margin-bottom:4px}
-  .composer-links{gap:8px}
-  .feed-tabs{display:flex}
-  .tab-link{
-    flex-direction:column;align-items:flex-start;min-width:120px;white-space:nowrap;
-    background:rgba(255,255,255,.045);
-  }
-  .tab-link.active{background:linear-gradient(135deg,rgba(80,214,255,.18),rgba(255,79,136,.18));border-color:rgba(255,211,107,.22)}
-  .feed-stack{display:grid;gap:14px}
-  .feed-module{
-    padding:16px;display:grid;gap:14px;overflow:hidden;
-  }
-  .feed-module h3,.feed-module h4,.feed-module p{margin:0}
-  .feed-media{
-    border-radius:20px;overflow:hidden;background:#030814;border:1px solid rgba(255,255,255,.06);
-  }
-  .feed-media img,.feed-media video{
-    width:100%;max-height:420px;object-fit:cover;display:block;
-  }
-  .feed-kicker,.side-kicker{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#dceefe}
-  .feed-note{line-height:1.65}
-  .module-tags span,.community-pills span,.dating-pills span,.badge-soft{
-    padding:7px 10px;border-radius:999px;background:rgba(80,214,255,.1);color:#dff7ff;font-size:12px;
-  }
-  .live-pill{background:rgba(255,79,136,.18);color:#ffd9e7}
-  .community-grid,.dating-grid,.spotlight-list{display:grid;gap:10px}
-  .side-panel{padding:16px;position:sticky;top:140px}
-  .side-stack{display:grid;gap:14px}
-  .side-card{
-    border:1px solid rgba(255,255,255,.07);border-radius:22px;padding:14px;background:rgba(255,255,255,.04);
-  }
-  .side-user,.wallet-slab,.side-live-row,.side-community{
-    display:flex;align-items:center;gap:10px;
-  }
-  .side-user strong,.side-community strong,.side-live-row strong{display:block}
-  .side-list{display:grid}
-  .side-list a{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
-    padding:10px 0;border-top:1px solid rgba(255,255,255,.06);
-  }
-  .side-list a:first-child{border-top:0;padding-top:0}
-  .trend-tag{display:flex;align-items:center;justify-content:space-between}
-  .premium-card{
-    background:
-      radial-gradient(circle at top right, rgba(255,211,107,.15), transparent 30%),
-      linear-gradient(180deg,rgba(18,20,31,.98),rgba(9,11,20,.96));
-  }
-  .premium-price{font-size:1.7rem;font-weight:900;color:#fff6d2}
-  .home-mobile-nav{
-    position:fixed;left:10px;right:10px;bottom:10px;z-index:120;
-    display:none;grid-template-columns:repeat(5,1fr);gap:8px;
-    padding:8px;border-radius:24px;border:1px solid rgba(255,255,255,.08);
-    background:rgba(4,8,16,.94);backdrop-filter:blur(18px);
-  }
-  .mobile-nav-item{
-    display:grid;place-items:center;gap:4px;padding:8px 4px;border-radius:16px;
-    background:rgba(255,255,255,.04);font-size:11px;font-weight:800;text-align:center;
-  }
-  .mobile-create{
-    position:relative;
-  }
-  .create-toggle{
-    display:grid;place-items:center;gap:4px;width:100%;padding:8px 4px;border:0;border-radius:16px;
-    background:linear-gradient(135deg,rgba(255,211,107,.9),rgba(255,79,136,.9));color:#061019;font-weight:900;
-  }
-  .create-menu{
-    position:absolute;left:50%;bottom:64px;transform:translateX(-50%);
-    display:none;min-width:210px;padding:10px;border-radius:20px;border:1px solid rgba(255,255,255,.08);
-    background:rgba(6,10,18,.96);box-shadow:0 20px 60px rgba(0,0,0,.45);
-  }
-  .create-menu a{
-    display:block;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);margin-top:8px;
-  }
-  .create-menu a:first-child{margin-top:0}
-  .mobile-create.open .create-menu{display:block}
-  .empty-state{
-    padding:18px;border-radius:22px;border:1px dashed rgba(255,255,255,.14);color:var(--home-muted);
-    background:rgba(255,255,255,.03);
-  }
-  @media (max-width: 1180px){
+  .mobile-create.open .mobile-create-menu{display:grid;gap:8px}
+  @media (max-width: 980px){
     .home-layout{grid-template-columns:1fr}
-    .side-panel{position:static}
-  }
-  @media (max-width: 900px){
-    .hero-grid{grid-template-columns:1fr}
-    .stats-row{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .home-command{top:68px}
+    .rail-column{display:none}
   }
   @media (max-width: 720px){
-    .home-shell{width:calc(100% - 10px);padding-top:8px}
-    .home-command{gap:8px;padding:8px;top:64px}
-    .brand-chip strong,.command-link span.label{display:none}
-    .command-search button{display:none}
-    .command-link{padding:10px}
-    .hero-panel{padding:18px}
-    .story-card{min-width:96px;width:96px;height:164px}
+    .home-shell{width:calc(100% - 8px);padding-bottom:98px}
+    .mobile-topbar{top:64px;padding:8px 10px}
+    .topbar-title{display:none}
+    .topbar-actions{gap:6px}
+    .topbar-chip{padding:8px 10px;font-size:12px}
     .home-mobile-nav{display:grid}
-    body{padding-bottom:96px}
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <main class="home-shell">
-  <section class="home-command" aria-label="Namvibe home command center">
-    <a class="brand-chip" href="{% url 'home' %}">
-      <span class="mark">N</span>
-      <span>
-        <strong>Namvibe</strong>
-        <small>Namibian social super app</small>
-      </span>
-    </a>
-    <form class="command-search" action="{% url 'discover_search' %}" method="get">
-      <span>⌕</span>
-      <input type="search" name="q" placeholder="{{ nav_search_placeholder }}">
-      <button type="submit">Search</button>
-    </form>
-    <div class="command-actions">
-      <a class="command-link" href="{{ notifications_url }}">
-        <span>◔</span>
-        <span class="label">Alerts</span>
-        {% if nav_notification_count %}<span class="count">{{ nav_notification_count }}</span>{% endif %}
-      </a>
-      <a class="command-link" href="{{ messages_url }}">
-        <span>✉</span>
-        <span class="label">Messages</span>
-        {% if nav_message_count %}<span class="count">{{ nav_message_count }}</span>{% endif %}
-      </a>
-      <a class="command-link" href="{{ wallet_url }}">
-        <span>¤</span>
-        <span class="label">Wallet</span>
-      </a>
-      <a class="command-link" href="{{ profile_url }}">
-        <span class="mini-avatar">
-          {% if current_profile and current_profile.avatar %}
-            <img src="{{ current_profile.avatar.url }}" alt="{{ current_profile.display_name|default:current_profile.username }}">
-          {% else %}
-            {{ nav_profile_label|first|upper }}
-          {% endif %}
-        </span>
-      </a>
+  <section class="mobile-topbar">
+    <div>
+      <div class="topbar-title">Namvibe feed</div>
+      <strong>Scroll, watch, reply, repeat</strong>
+    </div>
+    <div class="topbar-actions">
+      <a class="topbar-chip" href="{{ notifications_url }}">Alerts{% if nav_notification_count %}<span class="count">{{ nav_notification_count }}</span>{% endif %}</a>
+      <a class="topbar-chip" href="{{ messages_url }}">Chat{% if nav_message_count %}<span class="count">{{ nav_message_count }}</span>{% endif %}</a>
     </div>
   </section>
 
-  <div class="hero-grid">
-    <section class="panel hero-panel">
-      <span class="eyebrow"><span class="status-dot">Live</span> Home command center</span>
-      <h1>Everything moving across Namvibe, from stories to live rooms to wallet flow.</h1>
-      <p>Jump straight into real stories, active conversations, premium rooms, trending posts, communities, dating discovery, and creator tools without leaving the homepage.</p>
-      <div class="hero-actions">
-        <a class="mini-btn primary" href="{% url 'feed' %}">Open Feed</a>
-        <a class="mini-btn" href="{% url 'reels_feed' %}">Watch Reels</a>
-        <a class="mini-btn" href="{% url 'live_home' %}">Join Live</a>
-        <a class="mini-btn" href="{% url 'community_list' %}">Browse Communities</a>
-      </div>
-      <div class="stats-row">
-        <div class="metric-card">
-          <strong>{{ total_members }}</strong>
-          <span>Profiles active on Namvibe</span>
-        </div>
-        <div class="metric-card">
-          <strong>{{ total_posts }}</strong>
-          <span>Public posts published</span>
-        </div>
-        <div class="metric-card">
-          <strong>{{ total_stories }}</strong>
-          <span>Stories live right now</span>
-        </div>
-        <div class="metric-card">
-          <strong>{{ total_live }}</strong>
-          <span>Sessions streaming now</span>
-        </div>
-      </div>
-    </section>
-
-    <aside class="panel spotlight-card">
-      <div class="section-head">
-        <h2>Live pulse</h2>
-        <a class="mini-btn" href="{% url 'notifications' %}">Activity</a>
-      </div>
-      {% if top_ads %}
-        {% for ad in top_ads %}
-          <article class="feed-module" style="padding:14px;">
-            <span class="ad-pill">Sponsored</span>
-            <h3>{{ ad.title }}</h3>
-            <p class="feed-note">{{ ad.description }}</p>
-            {% if ad.image %}
-              <div class="feed-media"><img src="{{ ad.image.url }}" alt="{{ ad.title }}" loading="lazy"></div>
-            {% elif ad.video %}
-              <div class="feed-media"><video src="{{ ad.video.url }}" controls preload="metadata"></video></div>
-            {% endif %}
-            <a class="feed-module cta primary" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
-          </article>
-        {% endfor %}
-      {% else %}
-        <div class="spotlight-list">
-          {% for session in live_preview|slice:":3" %}
-            <a class="feed-card-link" href="{% url 'live_room' session.uuid %}">
-              <article class="feed-module" style="padding:14px;">
-                <div class="feed-module meta-row">
-                  <span class="live-pill">LIVE</span>
-                  <span class="feed-note">{{ session.viewer_count }} watching</span>
-                </div>
-                <h3>{{ session.title }}</h3>
-                <p class="feed-note">{{ session.description|default:"Creator session happening now on Namvibe."|truncatechars:110 }}</p>
-              </article>
-            </a>
-          {% empty %}
-            <div class="empty-state">No live sessions are active yet. Start the next room from Live Studio.</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    </aside>
-  </div>
-
   <div class="home-layout">
-    <section>
-      <section class="panel story-row">
-        <div class="section-head">
-          <h2>Stories</h2>
-          <a class="mini-btn" href="{% url 'story_create' %}">Add Story</a>
-        </div>
-        <div class="story-row-track">
-          <a class="story-card story-add" href="{% url 'story_create' %}">
-            <span class="story-avatar">+</span>
-            <div>
-              <strong>Add story</strong>
-              <small>Photo, text, or video</small>
+    <section class="feed-column">
+      <section class="stories-strip">
+        <div class="stories-track">
+          <a class="story-item" href="{% url 'story_create' %}">
+            <div class="story-ring">
+              <div class="story-core"><span>+</span></div>
             </div>
+            <strong>Add Story</strong>
+            <small>Status, photo, or video</small>
           </a>
           {% for item in story_rail %}
-            <a class="story-card {% if not item.is_seen %}unseen{% endif %}" href="{% url 'story_detail' item.first_story.id %}">
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-                <span class="story-avatar">
+            <a class="story-item" href="{% url 'story_detail' item.first_story.id %}">
+              <div class="story-ring">
+                <div class="story-core">
                   {% if item.author.profile.avatar %}
                     <img src="{{ item.author.profile.avatar.url }}" alt="{{ item.author.profile.display_name|default:item.author.username }}">
                   {% else %}
-                    {{ item.author.profile.display_name|default:item.author.username|first|upper }}
+                    <span>{{ item.author.profile.display_name|default:item.author.username|first|upper }}</span>
                   {% endif %}
-                </span>
-                {% if item.is_live %}
-                  <span class="story-live">LIVE</span>
-                {% endif %}
+                </div>
               </div>
-              <div>
-                <strong>{{ item.author.profile.display_name|default:item.author.username|truncatechars:14 }}</strong>
-                <div class="side-note">{{ item.first_story.caption|default:item.first_story.text_content|truncatechars:24 }}</div>
-                <small>{{ item.story_count }} stor{{ item.story_count|pluralize:"y,ies" }}</small>
-              </div>
+              <strong>{{ item.author.profile.display_name|default:item.author.username|truncatechars:12 }}</strong>
+              {% if item.is_live %}
+                <span class="story-live">LIVE</span>
+              {% else %}
+                <small>{{ item.first_story.caption|default:item.first_story.text_content|truncatechars:16 }}</small>
+              {% endif %}
             </a>
-          {% empty %}
-            <div class="empty-state">Stories will appear here as soon as creators publish them.</div>
           {% endfor %}
         </div>
       </section>
 
-      <section class="panel quick-actions-panel">
-        <div class="section-head">
-          <h2>Quick actions</h2>
-          <a class="mini-btn" href="{% url 'discover' %}">Discover</a>
-        </div>
-        <div class="quick-chip-row">
-          {% for action in quick_actions %}
-            <a class="chip" href="{{ action.url }}"><span>{{ action.icon }}</span>{{ action.label }}</a>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="panel composer-panel">
-        <div class="composer-main">
+      <section class="composer-mini">
+        <div class="composer-row">
           <span class="mini-avatar">
             {% if current_profile and current_profile.avatar %}
               <img src="{{ current_profile.avatar.url }}" alt="{{ current_profile.display_name|default:current_profile.username }}">
@@ -443,48 +199,54 @@
               {{ nav_profile_label|first|upper }}
             {% endif %}
           </span>
-          <a class="composer-prompt" href="{% url 'studio' %}">
-            <strong>What’s happening on Namvibe?</strong>
-            <span class="side-note">Open Creator Studio to publish a post, reel, flyer, or community update.</span>
-          </a>
+          <a class="composer-entry" href="{% url 'studio' %}">What’s happening on Namvibe?</a>
         </div>
         <div class="composer-links">
           {% for action in composer_actions %}
-            <a class="mini-btn" href="{{ action.url }}">{{ action.label }}</a>
+            <a class="mini-pill" href="{{ action.url }}">{{ action.label }}</a>
           {% endfor %}
         </div>
       </section>
 
-      <section class="panel feed-switcher">
-        <div class="section-head">
-          <h2>Feed</h2>
-          <a class="mini-btn" href="{% url 'feed' %}">Full feed</a>
-        </div>
+      <section class="feed-tabs-wrap">
         <div class="feed-tabs">
           {% for tab in feed_tabs %}
-            <a class="tab-link {% if tab.key == 'for_you' %}active{% endif %}" href="{{ tab.url }}">
-              <strong>{{ tab.label }}</strong>
-              <span class="tab-state">{% if tab.key == 'for_you' %}Mixed home ranking{% else %}Open dedicated view{% endif %}</span>
-            </a>
+            <a class="tab-pill {% if tab.key == 'for_you' %}active{% endif %}" href="{{ tab.url }}">{{ tab.label }}</a>
           {% endfor %}
         </div>
       </section>
 
       <section class="feed-stack">
+        {% for ad in top_ads %}
+          <article class="feed-module">
+            <div class="module-head">
+              <span class="promo-badge">Sponsored</span>
+              <span class="soft-badge">{{ ad.sponsor_name }}</span>
+            </div>
+            <h3>{{ ad.title }}</h3>
+            <p class="feed-copy">{{ ad.description|truncatechars:140 }}</p>
+            {% if ad.image %}
+              <div class="focus-media"><img src="{{ ad.image.url }}" alt="{{ ad.title }}" loading="lazy" style="width:100%;border-radius:18px;"></div>
+            {% endif %}
+            <div class="feed-cta-row">
+              <a class="mini-pill" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
+            </div>
+          </article>
+        {% endfor %}
         {% for item in mixed_feed %}
           {% if item.kind == "post" %}
             {% include "posts/_post_card.html" with post=item.post %}
           {% elif item.kind == "reel" %}
             <article class="feed-module">
-              <div class="feed-module meta-row">
-                <span class="feed-kicker">Video preview</span>
-                <a class="feed-module cta" href="{% url 'reels_feed' %}">Open reels</a>
+              <div class="module-head">
+                <span class="module-kicker">Video first</span>
+                <span class="soft-badge">{{ item.post.view_count }} views</span>
               </div>
-              <h3>{{ item.post.title|default:item.post.caption|truncatechars:70 }}</h3>
-              <p class="feed-note">@{{ item.post.author.profile.username }} · {{ item.post.view_count }} views · {{ item.post.like_count }} likes</p>
+              <h3>{{ item.post.title|default:item.post.caption|truncatechars:80 }}</h3>
+              <p class="feed-copy">@{{ item.post.author.profile.username }} · built for quick watching and fast replies.</p>
               {% with media=item.post.primary_media %}
                 {% if media %}
-                  <div class="feed-media">
+                  <div class="reel-thumb">
                     {% if media.media_type == "video" %}
                       <video src="{{ media.file.url }}" controls preload="metadata"></video>
                     {% else %}
@@ -493,247 +255,173 @@
                   </div>
                 {% endif %}
               {% endwith %}
-              <div class="reel-meta">
-                {% for tag in item.post.hashtags|slice:":4" %}<span class="badge-soft">{{ tag }}</span>{% endfor %}
+              <div class="module-tags">
+                {% for tag in item.post.hashtags|slice:":4" %}<span>{{ tag }}</span>{% endfor %}
               </div>
-              <a class="feed-module cta primary" href="{% url 'post_detail' item.post.uuid %}">Watch post</a>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{% url 'post_detail' item.post.uuid %}">Open post</a>
+                <a class="feed-action mini-pill" href="{% url 'reels_feed' %}">More videos</a>
+              </div>
             </article>
           {% elif item.kind == "live" %}
             <article class="feed-module">
-              <div class="feed-module meta-row">
-                <span class="live-pill">{% if item.session.status == "live" %}LIVE{% else %}Scheduled{% endif %}</span>
-                <span class="feed-note">{{ item.session.viewer_count }} viewers</span>
+              <div class="module-head">
+                <span class="live-badge">{% if item.session.status == "live" %}LIVE NOW{% else %}Scheduled{% endif %}</span>
+                <span class="soft-badge">{{ item.session.viewer_count }} watching</span>
               </div>
               <h3>{{ item.session.title }}</h3>
-              <p class="feed-note">{{ item.session.description|default:"Join the stream, react live, and send gifts from your wallet."|truncatechars:140 }}</p>
+              <p class="feed-copy">{{ item.session.description|default:"Join the stream, react live, and send gifts from your wallet."|truncatechars:150 }}</p>
               {% if item.session.thumbnail %}
-                <div class="feed-media">
-                  <img src="{{ item.session.thumbnail.url }}" alt="{{ item.session.title }}" loading="lazy">
-                </div>
+                <div class="live-thumb"><img src="{{ item.session.thumbnail.url }}" alt="{{ item.session.title }}" loading="lazy"></div>
               {% endif %}
               <div class="module-tags">
-                <span>Host @{{ item.session.host.profile.username }}</span>
+                <span>@{{ item.session.host.profile.username }}</span>
                 <span>{{ item.session.get_access_type_display }}</span>
                 <span>{{ item.session.starts_at|date:"M j, H:i" }}</span>
               </div>
-              <a class="feed-module cta primary" href="{% url 'live_room' item.session.uuid %}">{% if item.session.status == "live" %}Join live{% else %}Open live room{% endif %}</a>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{% url 'live_room' item.session.uuid %}">Join live</a>
+                <a class="mini-pill" href="{% url 'live_start' %}">Go live</a>
+              </div>
             </article>
           {% elif item.kind == "community" %}
             <article class="feed-module">
-              <span class="feed-kicker">Community to join</span>
+              <div class="module-head">
+                <span class="module-kicker">Community post lane</span>
+                <span class="soft-badge">{{ item.community.member_count }} members</span>
+              </div>
               <h3>{{ item.community.name }}</h3>
-              <p class="feed-note">{{ item.community.description|default:"Public community on Namvibe."|truncatechars:150 }}</p>
-              <div class="community-pills">
-                <span>{{ item.community.member_count }} members</span>
+              <p class="feed-copy">{{ item.community.description|default:"Public Namvibe community."|truncatechars:150 }}</p>
+              <div class="module-tags">
                 <span>{{ item.community.get_privacy_display }}</span>
                 <span>@{{ item.community.owner.profile.username }}</span>
               </div>
-              <a class="feed-module cta primary" href="{% url 'community_detail' item.community.slug %}">Open community</a>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{% url 'community_detail' item.community.slug %}">Open community</a>
+                <a class="mini-pill" href="{% url 'community_list' %}">More communities</a>
+              </div>
             </article>
           {% elif item.kind == "dating" %}
             <article class="feed-module">
-              <span class="feed-kicker">Dating discovery</span>
-              <div style="display:flex;gap:12px;align-items:flex-start;">
-                <span class="date-avatar">
-                  {% if item.profile.primary_photo %}
-                    <img src="{{ item.profile.primary_photo.image.url }}" alt="{{ item.profile.display_name }}">
-                  {% else %}
-                    {{ item.profile.display_name|default:item.profile.user.profile.username|first|upper }}
-                  {% endif %}
-                </span>
-                <div style="flex:1;min-width:0;">
-                  <h3>{{ item.profile.display_name|default:item.profile.user.profile.display_name }}{% if item.profile.show_age %}, {{ item.profile.age }}{% endif %}</h3>
-                  <p class="feed-note">{{ item.profile.city|default:item.profile.region|default:item.profile.country }} · {{ item.profile.relationship_goal|title }}</p>
-                </div>
+              <div class="module-head">
+                <span class="module-kicker">Dating prompt</span>
+                <span class="soft-badge">{% if item.profile.is_verified_dating %}Verified{% else %}Discovery{% endif %}</span>
               </div>
-              <p class="feed-note">{{ item.profile.bio|default:"Visible dating profile on Namvibe."|truncatechars:150 }}</p>
-              <div class="dating-pills">
-                {% for interest in item.profile.interests|slice:":4" %}
-                  <span>{{ interest }}</span>
-                {% endfor %}
-                {% if item.profile.is_verified_dating %}<span>Verified</span>{% endif %}
+              <h3>{{ item.profile.display_name|default:item.profile.user.profile.display_name }}{% if item.profile.show_age %}, {{ item.profile.age }}{% endif %}</h3>
+              <p class="feed-copy">{{ item.profile.city|default:item.profile.region|default:item.profile.country }} · {{ item.profile.relationship_goal|title }}</p>
+              <div class="module-tags">
+                {% for interest in item.profile.interests|slice:":4" %}<span>{{ interest }}</span>{% endfor %}
               </div>
-              <a class="feed-module cta primary" href="{% url 'dating_profile_detail' item.profile.user.profile.username %}">Open profile</a>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{% url 'dating_profile_detail' item.profile.user.profile.username %}">Open profile</a>
+                <a class="mini-pill" href="{% url 'dating' %}">Dating home</a>
+              </div>
             </article>
           {% elif item.kind == "wallet" %}
-            <article class="feed-module premium-card">
-              <span class="feed-kicker">Wallet and premium</span>
-              <h3>{% if item.wallet.active_membership %}{{ item.wallet.active_membership.plan.name }} active{% else %}Unlock premium rooms and creator perks{% endif %}</h3>
-              <p class="feed-note">Available balance N${{ item.wallet.account.available_balance }} · Pending N${{ item.wallet.account.pending_balance }} · 30-day activity N${{ item.wallet.monthly_spend }}</p>
-              <div class="module-tags">
-                <span>Wallet home</span>
-                <span>Membership</span>
-                <span>Creator earnings</span>
+            <article class="feed-module promo-card">
+              <div class="module-head">
+                <span class="promo-badge">Monetization</span>
+                <span class="soft-badge">N${{ item.wallet.account.available_balance }}</span>
               </div>
-              <div class="hero-actions">
-                <a class="premium-cta" href="{% url 'wallet_home' %}">Open wallet</a>
-                <a class="mini-btn" href="{% url 'wallet_membership' %}">Membership</a>
+              <h3>{% if item.wallet.active_membership %}{{ item.wallet.active_membership.plan.name }} is active{% else %}Use wallet, premium, and creator tools together{% endif %}</h3>
+              <p class="feed-copy">Available balance N${{ item.wallet.account.available_balance }} · pending N${{ item.wallet.account.pending_balance }} · 30-day activity N${{ item.wallet.monthly_spend }}</p>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{% url 'wallet_home' %}">Open wallet</a>
+                <a class="mini-pill" href="{% url 'wallet_membership_plans' %}">Premium plans</a>
+                <a class="mini-pill" href="{% url 'wallet_creator_earnings' %}">Creator earnings</a>
+              </div>
+            </article>
+          {% elif item.kind == "promo" %}
+            <article class="feed-module promo-card promo-dismissible">
+              <div class="module-head">
+                <span class="promo-badge">Namvibe tip</span>
+                {% if item.promo.dismissible %}
+                  <button class="promo-dismiss" type="button" aria-label="Dismiss promo">×</button>
+                {% endif %}
+              </div>
+              <h3>{{ item.promo.title }}</h3>
+              <p class="feed-copy">{{ item.promo.body }}</p>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{{ item.promo.url }}">{{ item.promo.cta_label }}</a>
               </div>
             </article>
           {% elif item.kind == "ad" %}
             <article class="feed-module">
-              <div class="feed-module meta-row">
-                <span class="ad-pill">Promoted</span>
-                <span class="feed-note">{{ item.ad.sponsor_name }}</span>
+              <div class="module-head">
+                <span class="promo-badge">Promoted</span>
+                <span class="soft-badge">{{ item.ad.sponsor_name }}</span>
               </div>
               <h3>{{ item.ad.title }}</h3>
-              <p class="feed-note">{{ item.ad.description }}</p>
+              <p class="feed-copy">{{ item.ad.description|truncatechars:150 }}</p>
               {% if item.ad.image %}
-                <div class="feed-media"><img src="{{ item.ad.image.url }}" alt="{{ item.ad.title }}" loading="lazy"></div>
-              {% elif item.ad.video %}
-                <div class="feed-media"><video src="{{ item.ad.video.url }}" controls preload="metadata"></video></div>
+                <div class="focus-media"><img src="{{ item.ad.image.url }}" alt="{{ item.ad.title }}" loading="lazy" style="width:100%;border-radius:18px;"></div>
               {% endif %}
-              <a class="feed-module cta primary" href="{% url 'ad_click' item.ad.id %}">{{ item.ad.call_to_action }}</a>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{% url 'ad_click' item.ad.id %}">{{ item.ad.call_to_action }}</a>
+              </div>
             </article>
           {% endif %}
-        {% empty %}
-          <div class="empty-state">The homepage feed will populate automatically once public stories, posts, or live sessions are published.</div>
         {% endfor %}
       </section>
     </section>
 
-    <aside class="side-panel">
-      <div class="side-stack">
-        {% if current_profile %}
-          <section class="side-card">
-            <span class="side-kicker">Profile</span>
-            <div class="side-user" style="margin-top:10px;">
-              <span class="side-avatar">
-                {% if current_profile.avatar %}
-                  <img src="{{ current_profile.avatar.url }}" alt="{{ current_profile.display_name|default:current_profile.username }}">
-                {% else %}
-                  {{ current_profile.display_name|default:current_profile.username|first|upper }}
-                {% endif %}
-              </span>
-              <div>
-                <strong>{{ current_profile.display_name|default:current_profile.username }}</strong>
-                <div class="side-note">@{{ current_profile.username }}</div>
-              </div>
-            </div>
-            <div class="side-list" style="margin-top:12px;">
-              <a href="{{ profile_url }}"><span>Followers</span><strong>{{ current_profile.follower_count }}</strong></a>
-              <a href="{% url 'feed_following' %}"><span>Following</span><strong>{{ following_count }}</strong></a>
-              <a href="{% url 'dating_matches' %}"><span>Matches</span><strong>{{ friend_count }}</strong></a>
-            </div>
-          </section>
-        {% endif %}
-
-        {% if wallet_snapshot %}
-          <section class="side-card">
-            <div class="section-head">
-              <h3>Wallet summary</h3>
-              <a class="mini-btn" href="{% url 'wallet_transactions' %}">History</a>
-            </div>
-            <div class="side-list">
-              <a href="{% url 'wallet_home' %}"><span>Available</span><strong>N${{ wallet_snapshot.account.available_balance }}</strong></a>
-              <a href="{% url 'wallet_home' %}"><span>Pending</span><strong>N${{ wallet_snapshot.account.pending_balance }}</strong></a>
-              <a href="{% url 'wallet_membership' %}"><span>Membership</span><strong>{% if wallet_snapshot.active_membership %}{{ wallet_snapshot.active_membership.plan.name }}{% else %}None{% endif %}</strong></a>
-            </div>
-          </section>
-        {% endif %}
-
-        <section class="side-card">
-          <div class="section-head">
-            <h3>Trending hashtags</h3>
-            <a class="mini-btn" href="{% url 'discover' %}">More</a>
-          </div>
-          <div class="side-list">
-            {% for tag,count in trending_tags %}
-              <a class="trend-tag" href="{% url 'hashtag' tag|cut:'#' %}">
-                <span>{{ tag }}</span>
-                <strong>{{ count }}</strong>
-              </a>
-            {% empty %}
-              <div class="side-note">Hashtags will show here as more public posts are published.</div>
-            {% endfor %}
-          </div>
-        </section>
-
-        <section class="side-card">
-          <div class="section-head">
-            <h3>Suggested people</h3>
-            <a class="mini-btn" href="{% url 'discover' %}">Explore</a>
-          </div>
-          <div class="side-list">
-            {% for creator in creators|slice:":4" %}
-              <a href="{% url 'profile_detail' creator.username %}">
-                <span>{{ creator.display_name|default:creator.username }}</span>
-                <strong>@{{ creator.username }}</strong>
-              </a>
-            {% endfor %}
-          </div>
-        </section>
-
-        <section class="side-card">
-          <div class="section-head">
-            <h3>Communities</h3>
-            <a class="mini-btn" href="{% url 'community_list' %}">Browse</a>
-          </div>
-          <div class="side-list">
-            {% for community in communities|slice:":4" %}
-              <a href="{% url 'community_detail' community.slug %}">
-                <span>{{ community.name }}</span>
-                <strong>{{ community.member_count }}</strong>
-              </a>
-            {% endfor %}
-          </div>
-        </section>
-
-        <section class="side-card">
-          <div class="section-head">
-            <h3>Featured live</h3>
-            <a class="mini-btn" href="{% url 'live_home' %}">Open</a>
-          </div>
-          <div class="side-list">
-            {% for session in featured_live|slice:":4" %}
-              <a href="{% url 'live_room' session.uuid %}">
-                <span>{{ session.title|truncatechars:24 }}</span>
-                <strong>{{ session.viewer_count }}</strong>
-              </a>
-            {% empty %}
-              <div class="side-note">Featured live sessions will appear here when creators go live.</div>
-            {% endfor %}
-          </div>
-        </section>
-
-        <section class="side-card premium-card">
-          <span class="side-kicker">Premium</span>
-          <h3 style="margin:8px 0 6px;">Upgrade your access</h3>
-          {% if membership_plans %}
-            <div class="premium-price">N${{ membership_plans.0.price }}</div>
-            <p class="feed-note">{{ membership_plans.0.name }}{% if membership_plans.0.description %} · {{ membership_plans.0.description|truncatechars:90 }}{% endif %}</p>
-          {% else %}
-            <p class="feed-note">Membership plans are ready to appear here as soon as they are configured.</p>
+    <aside class="rail-column">
+      <div class="rail-card">
+        <div class="rail-stack">
+          {% if current_profile %}
+            <section>
+              <div class="rail-head"><h3>Your profile</h3><a class="mini-pill" href="{{ profile_url }}">Open</a></div>
+              <div class="rail-note">@{{ current_profile.username }} · {{ current_profile.follower_count }} followers · {{ current_profile.post_count }} posts</div>
+            </section>
           {% endif %}
-          <a class="premium-cta" href="{% url 'wallet_membership_plans' %}" style="margin-top:10px;">View plans</a>
-        </section>
-
-        {% for ad in sidebar_ads %}
-          <section class="side-card">
-            <span class="ad-pill">Sponsored</span>
-            <h3 style="margin:10px 0 6px;">{{ ad.title }}</h3>
-            <p class="feed-note">{{ ad.description|truncatechars:110 }}</p>
-            {% if ad.image %}
-              <div class="feed-media" style="margin-top:12px;"><img src="{{ ad.image.url }}" alt="{{ ad.title }}" loading="lazy"></div>
-            {% endif %}
-            <a class="mini-btn primary" href="{% url 'ad_click' ad.id %}" style="margin-top:12px;">{{ ad.call_to_action }}</a>
+          <section>
+            <div class="rail-head"><h3>Trending tags</h3><a class="mini-pill" href="{% url 'discover' %}">More</a></div>
+            {% for tag,count in trending_tags %}
+              <a class="rail-link" href="{% url 'hashtag' tag|cut:'#' %}"><span>{{ tag }}</span><strong>{{ count }}</strong></a>
+            {% endfor %}
           </section>
-        {% endfor %}
+          <section>
+            <div class="rail-head"><h3>Featured live</h3><a class="mini-pill" href="{% url 'live_home' %}">Open</a></div>
+            {% for session in featured_live|slice:":4" %}
+              <a class="rail-link" href="{% url 'live_room' session.uuid %}"><span>{{ session.title|truncatechars:22 }}</span><strong>{{ session.viewer_count }}</strong></a>
+            {% empty %}
+              <div class="rail-note">Featured live rooms will appear here when creators go live.</div>
+            {% endfor %}
+          </section>
+          <section>
+            <div class="rail-head"><h3>People to follow</h3><a class="mini-pill" href="{% url 'discover' %}">Discover</a></div>
+            {% for creator in creators|slice:":4" %}
+              <a class="rail-link" href="{% url 'profile_detail' creator.username %}"><span>{{ creator.display_name|default:creator.username }}</span><strong>@{{ creator.username }}</strong></a>
+            {% endfor %}
+          </section>
+        </div>
       </div>
     </aside>
   </div>
 </main>
 
-<nav class="home-mobile-nav" aria-label="Homepage mobile navigation">
+{% if floating_promos %}
+  <aside class="floating-promo visible" id="floatingPromo">
+    <button class="promo-dismiss" type="button" id="floatingPromoDismiss">×</button>
+    <span class="promo-badge">Suggested next step</span>
+    <h3 style="margin:10px 0 6px;">{{ floating_promos.0.title }}</h3>
+    <p class="feed-copy">{{ floating_promos.0.body }}</p>
+    <div class="feed-cta-row">
+      <a class="mini-pill" href="{{ floating_promos.0.url }}">{{ floating_promos.0.cta_label }}</a>
+    </div>
+  </aside>
+{% endif %}
+
+<nav class="home-mobile-nav" id="homeMobileNav" aria-label="Main mobile navigation">
   <a class="mobile-nav-item" href="{% url 'home' %}"><span>⌂</span><small>Home</small></a>
-  <a class="mobile-nav-item" href="{% url 'reels_feed' %}"><span>▶</span><small>Reels</small></a>
+  <a class="mobile-nav-item" href="{% url 'reels_feed' %}"><span>▶</span><small>Videos</small></a>
   <div class="mobile-create" id="mobileCreateMenu">
-    <button class="create-toggle" type="button" id="mobileCreateToggle"><span>＋</span><small>Create</small></button>
-    <div class="create-menu">
+    <button class="mobile-create-toggle" type="button" id="mobileCreateToggle"><span>＋</span><small>Create</small></button>
+    <div class="mobile-create-menu">
       <a href="{% url 'studio' %}?type=text">Post</a>
       <a href="{% url 'studio' %}?type=reel">Reel</a>
       <a href="{% url 'story_create' %}">Story</a>
-      <a href="{% url 'live_start' %}">Go Live</a>
+      <a href="{% url 'live_start' %}">Go live</a>
     </div>
   </div>
   <a class="mobile-nav-item" href="{% url 'live_home' %}"><span>⬤</span><small>Live</small></a>
@@ -742,18 +430,61 @@
 
 <script>
   (function () {
-    const menu = document.getElementById("mobileCreateMenu");
-    const toggle = document.getElementById("mobileCreateToggle");
-    if (!menu || !toggle) return;
+    const createMenu = document.getElementById("mobileCreateMenu");
+    const createToggle = document.getElementById("mobileCreateToggle");
+    const floatingPromo = document.getElementById("floatingPromo");
+    const floatingDismiss = document.getElementById("floatingPromoDismiss");
+    const mobileNav = document.getElementById("homeMobileNav");
 
-    toggle.addEventListener("click", function () {
-      menu.classList.toggle("open");
+    if (createMenu && createToggle) {
+      createToggle.addEventListener("click", function () {
+        createMenu.classList.toggle("open");
+      });
+      document.addEventListener("click", function (event) {
+        if (!createMenu.contains(event.target)) {
+          createMenu.classList.remove("open");
+        }
+      });
+    }
+
+    document.querySelectorAll(".promo-dismissible .promo-dismiss").forEach(function (button) {
+      button.addEventListener("click", function () {
+        button.closest(".promo-dismissible")?.remove();
+      });
     });
 
-    document.addEventListener("click", function (event) {
-      if (!menu.contains(event.target)) {
-        menu.classList.remove("open");
+    floatingDismiss?.addEventListener("click", function () {
+      floatingPromo?.remove();
+    });
+
+    let lastY = window.scrollY;
+    let idleTimer = null;
+    window.addEventListener("scroll", function () {
+      const currentY = window.scrollY;
+      const delta = currentY - lastY;
+      if (delta > 10 && currentY > 120) {
+        mobileNav?.classList.add("nav-hidden");
+      } else if (delta < -6 || currentY < 40) {
+        mobileNav?.classList.remove("nav-hidden");
       }
+      lastY = currentY;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(function () {
+        mobileNav?.classList.remove("nav-hidden");
+      }, 900);
+    }, { passive: true });
+
+    document.querySelectorAll("video").forEach(function (video) {
+      video.addEventListener("play", function () {
+        document.body.dataset.focusUi = "true";
+        mobileNav?.classList.add("nav-hidden");
+      });
+      ["pause", "ended"].forEach(function (eventName) {
+        video.addEventListener(eventName, function () {
+          document.body.dataset.focusUi = "false";
+          mobileNav?.classList.remove("nav-hidden");
+        });
+      });
     });
   }());
 </script>

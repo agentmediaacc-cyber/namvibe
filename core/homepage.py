@@ -17,6 +17,7 @@ from posts.models import Comment, Post
 from posts.services import FeedRankingService, suggested_communities_for, suggested_users_for, trending_hashtags
 from stories.models import StoryItem
 from stories.services import story_rail_for
+from supportapp.models import SystemPromoCard
 from wallet.models import MembershipPlan, WalletTransaction
 from wallet.services import active_membership_for, ensure_wallet
 
@@ -161,7 +162,77 @@ def _composer_actions(user):
     ]
 
 
-def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, wallet_snapshot, ads):
+def _system_promos(user, wallet_snapshot, limit=4):
+    stored = list(SystemPromoCard.objects.filter(is_active=True, placement=SystemPromoCard.Placement.HOMEPAGE_FEED)[:limit])
+    if stored:
+        return [
+            {
+                "title": item.title,
+                "body": item.body,
+                "icon": item.icon or "★",
+                "cta_label": item.cta_label,
+                "url": item.cta_url or reverse("support_help"),
+                "dismissible": item.dismissible,
+            }
+            for item in stored
+        ]
+
+    prompts = []
+    if not user.is_authenticated:
+        prompts.append({
+            "title": "Create your Namvibe account",
+            "body": "Set up your profile, drop your first story, and join live rooms in minutes.",
+            "icon": "◎",
+            "cta_label": "Sign up",
+            "url": reverse("signup"),
+            "dismissible": True,
+        })
+    if user.is_authenticated and not hasattr(user, "dating_profile"):
+        prompts.append({
+            "title": "Create your dating profile and meet your match",
+            "body": "Appear in discovery with privacy-safe public details and start matching.",
+            "icon": "♡",
+            "cta_label": "Set up dating",
+            "url": reverse("dating_profile_edit"),
+            "dismissible": True,
+        })
+    prompts.append({
+        "title": "Did you know you can earn money with Namvibe Studio?",
+        "body": "Publish reels, flyers, premium content, and creator promos from one studio flow.",
+        "icon": "◌",
+        "cta_label": "Open studio",
+        "url": reverse("studio"),
+        "dismissible": True,
+    })
+    prompts.append({
+        "title": "Go live and receive gifts",
+        "body": "Host public or premium live rooms and grow your creator earnings through gifts and access sales.",
+        "icon": "⬤",
+        "cta_label": "Start live",
+        "url": reverse("live_start"),
+        "dismissible": True,
+    })
+    if wallet_snapshot and not wallet_snapshot["active_membership"]:
+        prompts.append({
+            "title": "Upgrade to Premium to unlock more reach",
+            "body": "Premium unlocks stronger creator access, trust signals, and call/video shortcuts.",
+            "icon": "★",
+            "cta_label": "See plans",
+            "url": reverse("wallet_membership_plans"),
+            "dismissible": True,
+        })
+    prompts.append({
+        "title": "Run an ad and promote your business",
+        "body": "Launch promotions, sponsor feed placements, and show up across Namvibe discovery surfaces.",
+        "icon": "↗",
+        "cta_label": "Open promotions",
+        "url": reverse("ads_starter"),
+        "dismissible": True,
+    })
+    return prompts[:limit]
+
+
+def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, wallet_snapshot, ads, promos):
     modules = []
     reels_by_id = {post.id: post for post in reels}
     post_bucket = list(posts)
@@ -180,6 +251,8 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
         modules.append({"kind": "dating", "profile": dating_profiles[0]})
     if wallet_snapshot:
         modules.append({"kind": "wallet", "wallet": wallet_snapshot})
+    if promos:
+        modules.append({"kind": "promo", "promo": promos[0]})
 
     if ads:
         modules.append({"kind": "ad", "ad": ads[0]})
@@ -193,6 +266,10 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
     for index, ad in enumerate(ads[1:], start=1):
         insert_at = min(len(modules), 5 + (index * 4))
         modules.insert(insert_at, {"kind": "ad", "ad": ad})
+
+    for index, promo in enumerate(promos[1:], start=1):
+        insert_at = min(len(modules), 3 + (index * 4))
+        modules.insert(insert_at, {"kind": "promo", "promo": promo})
 
     for session in live_sessions[1:3]:
         modules.append({"kind": "live", "session": session})
@@ -230,6 +307,7 @@ def homepage_context(request):
     top_ads = _active_ads(Advertisement.Placement.HOMEPAGE_TOP, 1)
     mid_ads = _active_ads(Advertisement.Placement.HOMEPAGE_MID, 3)
     sidebar_ads = _active_ads(Advertisement.Placement.HOMEPAGE_SIDEBAR, 2)
+    promos = _system_promos(user, wallet_snapshot)
     membership_plans = list(MembershipPlan.objects.filter(is_active=True).order_by("price", "name")[:3])
 
     current_profile = getattr(user, "profile", None) if user.is_authenticated else None
@@ -248,7 +326,8 @@ def homepage_context(request):
         "quick_actions": _quick_actions(user),
         "composer_actions": _composer_actions(user),
         "feed_tabs": _feed_tabs(),
-        "mixed_feed": _mixed_feed(primary_posts, reel_preview, live_now, communities, dating_profiles, wallet_snapshot, mid_ads),
+        "mixed_feed": _mixed_feed(primary_posts, reel_preview, live_now, communities, dating_profiles, wallet_snapshot, mid_ads, promos),
+        "floating_promos": [promo for promo in promos if promo.get("dismissible")][:2],
         "featured_live": featured_live,
         "live_preview": live_now,
         "communities": communities,

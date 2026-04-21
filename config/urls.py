@@ -16,6 +16,7 @@ from core.product_views import (
     premium_tier_view,
     support_view,
 )
+from supportapp.views import support_control_view
 from posts.views import (
     add_comment_view,
     author_posts_list_view,
@@ -67,6 +68,7 @@ urlpatterns = [
     path("gifting/", gifting_view, name="gifting"),
     path("coins/", coins_view, name="coins"),
     path("support/", support_view, name="support_help"),
+    path("support/control/", support_control_view, name="support_control"),
     path("premium/<str:tier>/", premium_tier_view, name="premium_tier"),
     path("community-list/", community_list_alias, name="community_list"),
     path("hashtags/<str:tag>/", hashtag_view, name="hashtag"),

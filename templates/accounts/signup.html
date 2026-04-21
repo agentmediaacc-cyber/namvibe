@@ -4,10 +4,10 @@
 {% block content %}
 <section class="auth-shell">
     <div class="auth-card auth-wide premium-auth-card">
-        <span class="auth-badge">Private by design</span>
+        <span class="auth-badge">Join Namvibe</span>
         <div class="auth-top">
-            <h1>Create your Namvibe account</h1>
-            <p>Join with verified account details so your profile, wallet, and creator tools are ready when you need them.</p>
+            <h1>Create a privacy-safe social account</h1>
+            <p>Your public profile uses your username by default. Your real name, email, and phone stay in private account context.</p>
         </div>
 
         {% if messages %}
@@ -15,7 +15,6 @@
                 <div class="flash-message">{{ message }}</div>
             {% endfor %}
         {% endif %}
-
         {% if form.non_field_errors %}
             <div class="flash-message">{{ form.non_field_errors.0 }}</div>
         {% endif %}
@@ -31,38 +30,30 @@
 
             <div class="form-block">
                 <label for="id_username">Username</label>
-                <input type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" placeholder="namvibe_user" required>
+                <input type="text" name="username" id="id_username" value="{{ form.username.value|default:'' }}" placeholder="your_handle" required>
+                <small>This is what people see publicly.</small>
                 {% if form.username.errors %}<div class="field-error">{{ form.username.errors.0 }}</div>{% endif %}
             </div>
 
-            <div class="form-block">
+            <div class="form-block full">
                 <label for="id_email">Email address</label>
                 <input type="email" name="email" id="id_email" value="{{ form.email.value|default:'' }}" placeholder="you@example.com" required>
                 {% if form.email.errors %}<div class="field-error">{{ form.email.errors.0 }}</div>{% endif %}
             </div>
 
             <div class="form-block">
+                <label for="id_country_code">Country code</label>
+                <select name="country_code" id="id_country_code">
+                    {% for value,label in form.country_code.field.choices %}
+                        <option value="{{ value }}"{% if form.country_code.value|default:'+264' == value %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-block">
                 <label for="id_cellphone_number">Cellphone number</label>
-                <input type="text" name="cellphone_number" id="id_cellphone_number" value="{{ form.cellphone_number.value|default:'' }}" placeholder="+264 81 000 0000" required>
+                <input type="tel" name="cellphone_number" id="id_cellphone_number" value="{{ form.cellphone_number.value|default:'' }}" placeholder="81 234 5678" required>
                 {% if form.cellphone_number.errors %}<div class="field-error">{{ form.cellphone_number.errors.0 }}</div>{% endif %}
-            </div>
-
-            <div class="form-block full">
-                <label for="id_residential_address">Residential address</label>
-                <textarea name="residential_address" id="id_residential_address" rows="3" placeholder="Street, city, region" required>{{ form.residential_address.value|default:'' }}</textarea>
-                {% if form.residential_address.errors %}<div class="field-error">{{ form.residential_address.errors.0 }}</div>{% endif %}
-            </div>
-
-            <div class="form-block">
-                <label for="id_country_of_origin">Country of origin</label>
-                <input type="text" name="country_of_origin" id="id_country_of_origin" value="{{ form.country_of_origin.value|default:'' }}" placeholder="Namibia" required>
-                {% if form.country_of_origin.errors %}<div class="field-error">{{ form.country_of_origin.errors.0 }}</div>{% endif %}
-            </div>
-
-            <div class="form-block">
-                <label for="id_current_country">Current country</label>
-                <input type="text" name="current_country" id="id_current_country" value="{{ form.current_country.value|default:'' }}" placeholder="Namibia" required>
-                {% if form.current_country.errors %}<div class="field-error">{{ form.current_country.errors.0 }}</div>{% endif %}
             </div>
 
             <div class="form-block">
@@ -71,7 +62,7 @@
                     <input type="password" name="password" id="id_password" placeholder="Create a secure password" required>
                     <button type="button" class="show-pass-btn" onclick="togglePass('id_password', this)">Show</button>
                 </div>
-                <small>Use at least 8 characters. A stronger password protects your profile.</small>
+                <small>Use at least 8 characters with upper, lower, and number.</small>
                 {% if form.password.errors %}<div class="field-error">{{ form.password.errors.0 }}</div>{% endif %}
             </div>
 

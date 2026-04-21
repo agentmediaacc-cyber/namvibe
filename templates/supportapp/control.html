@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Control | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">Control</span>
+      <h1>Master admin and support starter dashboard</h1>
+      <p>This starter keeps moderation, support, promos, memberships, featured content, and broadcast entry points organized while backend workflows continue to expand.</p>
+      <div class="product-actions">
+        <a class="nv-btn primary" href="/admin/">Django admin</a>
+        <a class="nv-btn" href="{% url 'support_help' %}">Support home</a>
+        <a class="nv-btn" href="{% url 'ads_starter' %}">Ads starter</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="product-grid">
+    {% for key,value in support_metrics.items %}
+      <div class="product-card"><span>{{ key|title }}</span><strong>{{ value }}</strong></div>
+    {% endfor %}
+  </div>
+
+  <div class="product-section">
+    <h2>Quick links</h2>
+    <div class="product-grid">
+      {% for item in quick_links %}
+        <a class="product-card" href="{{ item.url }}"><strong>{{ item.label }}</strong><span>Open route</span></a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Promo card management starter</h2>
+    <div class="product-grid">
+      {% for promo in promo_cards %}
+        <article class="product-card"><strong>{{ promo.title }}</strong><span>{{ promo.get_placement_display }} · priority {{ promo.priority }}</span></article>
+      {% empty %}
+        <div class="product-card">No promo cards yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Team roles</h2>
+    <div class="product-grid">
+      {% for row in team_roles %}
+        <article class="product-card"><strong>@{{ row.user.username }}</strong><span>{{ row.get_role_display }}</span></article>
+      {% empty %}
+        <div class="product-card">No elevated roles yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

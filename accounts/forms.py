@@ -3,16 +3,25 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+
 from .models import AccountProfile, Profile
+
+
+COUNTRY_CODE_CHOICES = [
+    ("+264", "Namibia (+264)"),
+    ("+27", "South Africa (+27)"),
+    ("+267", "Botswana (+267)"),
+    ("+260", "Zambia (+260)"),
+    ("+244", "Angola (+244)"),
+]
+
 
 class SignupForm(forms.Form):
     full_name = forms.CharField(max_length=120)
-    username = forms.CharField(max_length=30)
-    email = forms.EmailField()
+    country_code = forms.ChoiceField(choices=COUNTRY_CODE_CHOICES, initial="+264")
     cellphone_number = forms.CharField(max_length=30)
-    residential_address = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
-    country_of_origin = forms.CharField(max_length=80)
-    current_country = forms.CharField(max_length=80)
+    email = forms.EmailField()
+    username = forms.CharField(max_length=30)
     password = forms.CharField(widget=forms.PasswordInput())
     confirm_password = forms.CharField(widget=forms.PasswordInput())
 
@@ -31,6 +40,8 @@ class SignupForm(forms.Form):
             raise forms.ValidationError("Use only letters, numbers, dot, and underscore.")
         if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("This username is already taken.")
+        if Profile.objects.filter(username__iexact=username).exists():
+            raise forms.ValidationError("This username is already taken.")
         return username
 
     def clean_email(self):
@@ -40,35 +51,20 @@ class SignupForm(forms.Form):
         return email
 
     def clean_cellphone_number(self):
-        cellphone_number = self.cleaned_data["cellphone_number"].strip()
-        digits = [char for char in cellphone_number if char.isdigit()]
-        if len(digits) < 7:
+        cellphone_number = "".join(char for char in self.cleaned_data["cellphone_number"] if char.isdigit())
+        if len(cellphone_number) < 7:
             raise forms.ValidationError("Enter a valid cellphone number.")
-        if AccountProfile.objects.filter(cellphone_number__iexact=cellphone_number).exists():
-            raise forms.ValidationError("An account with this cellphone number already exists.")
         return cellphone_number
-
-    def clean_residential_address(self):
-        residential_address = self.cleaned_data["residential_address"].strip()
-        if len(residential_address) < 8:
-            raise forms.ValidationError("Enter a complete residential address.")
-        return residential_address
-
-    def clean_country_of_origin(self):
-        return self.cleaned_data["country_of_origin"].strip()
-
-    def clean_current_country(self):
-        return self.cleaned_data["current_country"].strip()
 
     def clean_password(self):
         password = self.cleaned_data["password"]
         if len(password) < 8:
             raise forms.ValidationError("Password must be at least 8 characters.")
-        if not any(c.isupper() for c in password):
+        if not any(char.isupper() for char in password):
             raise forms.ValidationError("Password must include an uppercase letter.")
-        if not any(c.islower() for c in password):
+        if not any(char.islower() for char in password):
             raise forms.ValidationError("Password must include a lowercase letter.")
-        if not any(c.isdigit() for c in password):
+        if not any(char.isdigit() for char in password):
             raise forms.ValidationError("Password must include a number.")
         try:
             validate_password(password)
@@ -80,14 +76,22 @@ class SignupForm(forms.Form):
         cleaned = super().clean()
         password = cleaned.get("password")
         confirm = cleaned.get("confirm_password")
+        country_code = cleaned.get("country_code") or "+264"
+        number = cleaned.get("cellphone_number")
         if password and confirm and password != confirm:
             self.add_error("confirm_password", "Passwords do not match.")
+        if number:
+            normalized_phone = f"{country_code}{number.lstrip('0')}"
+            if AccountProfile.objects.filter(cellphone_number__iexact=normalized_phone).exists():
+                self.add_error("cellphone_number", "An account with this cellphone number already exists.")
+            cleaned["normalized_phone"] = normalized_phone
         return cleaned
 
 
 class LoginForm(forms.Form):
     identifier = forms.CharField(max_length=150)
     password = forms.CharField(widget=forms.PasswordInput())
+    remember_me = forms.BooleanField(required=False)
 
     def clean_identifier(self):
         return self.cleaned_data["identifier"].strip()

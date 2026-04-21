@@ -2,7 +2,12 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
 from django.shortcuts import render
 
+from accounts.models import Follow, FriendRequest
+from dating.models import DatingLike
+from messaging.models import Message
 from posts.models import Post
+from posts.models import Comment
+from supportapp.models import SystemPromoCard
 from wallet.models import GiftCatalog, GiftEvent, MembershipPlan, WalletTransaction
 from wallet.services import active_membership_for, ensure_wallet
 
@@ -34,13 +39,26 @@ def feature_page(request, key, title, subtitle, actions=None):
 
 
 def notifications_view(request):
-    return feature_page(
-        request,
-        "notifications",
-        "Notifications",
-        "Profile, message, match, wallet, and live alerts in one place.",
-        [{"label": "Open messages", "url_name": "user_dashboard", "query": "?section=messages"}],
-    )
+    context = {
+        "title": "Notifications",
+        "subtitle": "Profile, message, match, wallet, and live alerts in one place.",
+        "actions": [{"label": "Open messages", "url_name": "user_dashboard", "query": "?section=messages"}],
+        "notification_items": [],
+    }
+    if request.user.is_authenticated:
+        latest_messages = Message.objects.filter(conversation__participants=request.user).exclude(sender=request.user).select_related("sender").order_by("-created_at")[:8]
+        follows = Follow.objects.filter(following=request.user).select_related("follower", "follower__profile").order_by("-created_at")[:6]
+        friend_requests = FriendRequest.objects.filter(to_user=request.user, status=FriendRequest.Status.PENDING).select_related("from_user", "from_user__profile").order_by("-created_at")[:6]
+        dating_likes = DatingLike.objects.filter(to_user=request.user).select_related("from_user", "from_user__profile").order_by("-created_at")[:6]
+        post_comments = Comment.objects.filter(post__author=request.user).exclude(author=request.user).select_related("author", "author__profile", "post").order_by("-created_at")[:8]
+        items = []
+        items.extend({"title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages"} for row in latest_messages)
+        items.extend({"title": f"@{row.follower.profile.username} followed you", "meta": row.created_at, "copy": "Open profile", "href": f"/profile/{row.follower.profile.username}/"} for row in follows)
+        items.extend({"title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review in dashboard", "href": "/accounts/dashboard/?section=friends"} for row in friend_requests)
+        items.extend({"title": f"@{row.from_user.profile.username} liked your dating profile", "meta": row.created_at, "copy": "Open dating likes", "href": "/dating/likes/"} for row in dating_likes)
+        items.extend({"title": f"@{row.author.profile.username} commented on your post", "meta": row.created_at, "copy": row.body[:80], "href": f"/post/{row.post.uuid}/"} for row in post_comments)
+        context["notification_items"] = sorted(items, key=lambda item: item["meta"], reverse=True)[:20]
+    return render(request, "core/notifications.html", context)
 
 
 def channels_view(request):
@@ -86,7 +104,20 @@ def coins_view(request):
 
 
 def support_view(request):
-    return feature_page(request, "support", "Support", "Help, safety, reporting, and account support.")
+    return render(
+        request,
+        "supportapp/home.html",
+        {
+            "promo_cards": SystemPromoCard.objects.filter(is_active=True)[:6],
+            "open_routes": [
+                {"label": "Notifications", "url_name": "notifications"},
+                {"label": "Wallet", "url_name": "wallet_home"},
+                {"label": "Premium plans", "url_name": "wallet_membership_plans"},
+                {"label": "Live home", "url_name": "live_home"},
+                {"label": "Creator Studio", "url_name": "studio"},
+            ],
+        },
+    )
 
 
 @login_required(login_url="login")

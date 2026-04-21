@@ -9,11 +9,26 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
-from django.utils.http import url_has_allowed_host_and_scheme
+
+from live.models import LiveSession
+from messaging.services import messaging_dashboard_context
+from posts.models import Post
+from posts.services import base_visible_posts
+from posts.supabase_posts import get_posts_by_user
+from wallet.services import active_membership_for, ensure_wallet
+
 from .forms import LoginForm, ProfileForm, SignupForm
 from .models import AccountProfile, Block, Follow, Profile
+from .services import (
+    ensure_account_role,
+    load_email_verification_token,
+    next_auth_redirect,
+    onboarding_items_for,
+    send_verification_email,
+)
 from .supabase import (
     ensure_supabase_profile,
     find_supabase_profile,
@@ -21,25 +36,19 @@ from .supabase import (
     sign_in_supabase_auth,
     supabase_profile_id_for_user,
 )
-from messaging.services import messaging_dashboard_context
-from posts.models import Post
-from posts.services import base_visible_posts
-from posts.supabase_posts import get_posts_by_user
-from live.models import LiveSession
-from wallet.services import active_membership_for
 
 logger = logging.getLogger(__name__)
 
 
-def _profile_redirect_url(request):
-    redirect_to = request.POST.get("next") or request.GET.get("next") or reverse("user_dashboard")
+def _safe_redirect(request, fallback="user_dashboard"):
+    redirect_to = request.POST.get("next") or request.GET.get("next") or reverse(fallback)
     if url_has_allowed_host_and_scheme(
         redirect_to,
         allowed_hosts={request.get_host()},
         require_https=request.is_secure(),
     ):
         return redirect_to
-    return reverse("user_dashboard")
+    return reverse(fallback)
 
 
 def _login_url_with_next(route_name):
@@ -62,7 +71,7 @@ def _ensure_auth_profile(user):
         user=user,
         defaults={
             "username": user.username,
-            "display_name": user.get_full_name() or user.username,
+            "display_name": user.username,
         },
     )
 
@@ -78,6 +87,18 @@ def _available_username(seed):
     return username
 
 
+def _dashboard_metrics(user):
+    wallet = ensure_wallet(user)
+    onboarding_items, onboarding_progress = onboarding_items_for(user)
+    return {
+        "wallet_balance": getattr(wallet, "available_balance", 0),
+        "pending_balance": getattr(wallet, "pending_balance", 0),
+        "onboarding_items": onboarding_items,
+        "onboarding_progress": onboarding_progress,
+        "active_membership": active_membership_for(user),
+    }
+
+
 def _user_from_supabase_login(identifier, password, auth_payload, profile_payload):
     auth_user = auth_payload.get("user") or {}
     email = (auth_user.get("email") or identifier).lower()
@@ -86,7 +107,11 @@ def _user_from_supabase_login(identifier, password, auth_payload, profile_payloa
         or (auth_user.get("user_metadata") or {}).get("full_name")
         or email.split("@")[0]
     )
-    username = (profile_payload or {}).get("username") or (auth_user.get("user_metadata") or {}).get("username") or email.split("@")[0]
+    username = (
+        (profile_payload or {}).get("username")
+        or (auth_user.get("user_metadata") or {}).get("username")
+        or email.split("@")[0]
+    )
 
     user = User.objects.filter(email__iexact=email).first()
     if user is None:
@@ -106,21 +131,33 @@ def _user_from_supabase_login(identifier, password, auth_payload, profile_payloa
     profile_username = (profile_payload or {}).get("username") or user.profile.username
     if Profile.objects.filter(username__iexact=profile_username).exclude(user=user).exists():
         profile_username = user.profile.username
-    Profile.objects.filter(user=user).update(username=profile_username, display_name=full_name or user.profile.display_name)
+    Profile.objects.filter(user=user).update(
+        username=profile_username,
+        display_name=user.profile.display_name or profile_username,
+    )
 
     phone = (profile_payload or {}).get("phone") or ""
-    if phone and not hasattr(user, "account_profile"):
-        AccountProfile.objects.get_or_create(
-            user=user,
-            defaults={
-                "full_name": full_name,
-                "email": email,
-                "cellphone_number": phone,
-                "residential_address": "",
-                "country_of_origin": "",
-                "current_country": "",
-            },
-        )
+    account_profile, _ = AccountProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            "full_name": full_name,
+            "email": email,
+            "phone_country_code": "+264",
+            "cellphone_number": phone or f"+264{user.id}",
+            "residential_address": "",
+            "country_of_origin": "Namibia",
+            "current_country": "Namibia",
+        },
+    )
+    if full_name and not account_profile.full_name:
+        account_profile.full_name = full_name
+    if email and not account_profile.email:
+        account_profile.email = email
+    if phone and not account_profile.cellphone_number:
+        account_profile.cellphone_number = phone
+    account_profile.save()
+
+    ensure_account_role(user, supabase_uid=auth_user.get("id") or "")
     return user
 
 
@@ -137,9 +174,18 @@ def login_view(request):
             user = form.cleaned_data["user"]
             _ensure_auth_profile(user)
             ensure_supabase_profile(user)
+            ensure_account_role(user)
             django_login(request, user)
+            if form.cleaned_data.get("remember_me"):
+                request.session.set_expiry(60 * 60 * 24 * 30)
+            else:
+                request.session.set_expiry(0)
             _set_account_session(request, user)
-            return redirect(_profile_redirect_url(request))
+            account_profile = getattr(user, "account_profile", None)
+            if account_profile and not account_profile.email_verified:
+                messages.info(request, "Verify your email to unlock trusted account features and admin approvals.")
+            return redirect(next_auth_redirect(request, user))
+
         identifier = request.POST.get("identifier", "").strip().lower()
         password = request.POST.get("password", "")
         if "@" in identifier and password:
@@ -149,15 +195,22 @@ def login_view(request):
                 user = _user_from_supabase_login(identifier, password, auth_payload, supabase_profile)
                 ensure_supabase_profile(user)
                 django_login(request, user)
+                if request.POST.get("remember_me"):
+                    request.session.set_expiry(60 * 60 * 24 * 30)
+                else:
+                    request.session.set_expiry(0)
                 _set_account_session(request, user)
-                return redirect(_profile_redirect_url(request))
+                account_profile = getattr(user, "account_profile", None)
+                if account_profile and not account_profile.email_verified:
+                    messages.info(request, "Verify your email to unlock trusted account features and admin approvals.")
+                return redirect(next_auth_redirect(request, user))
             if supabase_profile and auth_error != "not_configured":
                 clean_login_error = "Incorrect password."
 
     return render(
         request,
         "accounts/login.html",
-        {"form": form, "next": _profile_redirect_url(request), "clean_login_error": clean_login_error},
+        {"form": form, "next": _safe_redirect(request), "clean_login_error": clean_login_error},
     )
 
 
@@ -175,10 +228,11 @@ def signup_view(request):
     form = SignupForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
+        normalized_phone = form.cleaned_data["normalized_phone"]
         existing_supabase_profile = find_supabase_profile(
             email=form.cleaned_data["email"],
             username=form.cleaned_data["username"],
-            phone=form.cleaned_data["cellphone_number"],
+            phone=normalized_phone,
         )
         if existing_supabase_profile:
             messages.error(request, "An account with those details already exists. Try logging in instead.")
@@ -196,10 +250,13 @@ def signup_view(request):
                     user=user,
                     full_name=form.cleaned_data["full_name"],
                     email=form.cleaned_data["email"],
-                    cellphone_number=form.cleaned_data["cellphone_number"],
-                    residential_address=form.cleaned_data["residential_address"],
-                    country_of_origin=form.cleaned_data["country_of_origin"],
-                    current_country=form.cleaned_data["current_country"],
+                    phone_country_code=form.cleaned_data["country_code"],
+                    cellphone_number=normalized_phone,
+                    residential_address="",
+                    country_of_origin="Namibia",
+                    current_country="Namibia",
+                    profile_completed=False,
+                    email_verified=False,
                 )
         except IntegrityError:
             messages.error(
@@ -209,9 +266,18 @@ def signup_view(request):
         else:
             _ensure_auth_profile(user)
             ensure_supabase_profile(user)
+            ensure_account_role(user)
             django_login(request, user)
+            request.session.set_expiry(60 * 60 * 24 * 14)
             _set_account_session(request, user)
-            return redirect("user_dashboard")
+            sent, note = send_verification_email(request, user)
+            if note:
+                if sent:
+                    messages.success(request, note)
+                else:
+                    messages.info(request, note)
+            messages.success(request, "Your account is ready. Finish the quick setup to unlock your best Namvibe experience.")
+            return redirect("profile_completion")
 
     return render(request, "accounts/signup.html", {"form": form})
 
@@ -234,17 +300,86 @@ def forgot_password_view(request):
     return render(request, "accounts/forgot_password.html", {"form": form})
 
 
+def verify_email_request_view(request):
+    if request.method == "POST":
+        identifier = (request.POST.get("email") or "").strip().lower()
+        user = User.objects.filter(email__iexact=identifier).first()
+        if user and hasattr(user, "account_profile") and not user.account_profile.email_verified:
+            sent, note = send_verification_email(request, user)
+            if sent:
+                messages.success(request, "If this account exists, a fresh verification email has been sent.")
+            else:
+                messages.info(request, note)
+        else:
+            messages.success(request, "If this account exists, a fresh verification email has been sent.")
+        return redirect("verify_email_request")
+    return render(request, "accounts/verify_email_request.html")
+
+
+@login_required(login_url="login")
+def verify_email_notice_view(request):
+    account_profile = getattr(request.user, "account_profile", None)
+    if account_profile and account_profile.email_verified:
+        messages.success(request, "Your email is already verified.")
+        return redirect("user_dashboard")
+    return render(
+        request,
+        "accounts/verify_email_notice.html",
+        {
+            "account_profile": account_profile,
+        },
+    )
+
+
+@login_required(login_url="login")
+@require_POST
+def resend_verification_email_view(request):
+    sent, note = send_verification_email(request, request.user)
+    if sent:
+        messages.success(request, note)
+    else:
+        messages.info(request, note)
+    return redirect("verify_email_notice")
+
+
+def verify_email_confirm_view(request, token):
+    try:
+        payload = load_email_verification_token(token)
+    except Exception:
+        return render(request, "accounts/verify_email_result.html", {"verification_ok": False})
+
+    user = get_object_or_404(User, pk=payload.get("user_id"), email__iexact=payload.get("email"))
+    account_profile = getattr(user, "account_profile", None)
+    if account_profile:
+        account_profile.email_verified = True
+        account_profile.profile_completed = True
+        account_profile.save(update_fields=["email_verified", "profile_completed", "updated_at"])
+    return render(request, "accounts/verify_email_result.html", {"verification_ok": True, "verified_user": user})
+
+
 def profile_completion_view(request):
     if not request.user.is_authenticated:
         return redirect(_login_url_with_next("profile_completion"))
 
     _set_account_session(request, request.user)
+    account_profile = getattr(request.user, "account_profile", None)
+    onboarding_items, onboarding_progress = onboarding_items_for(request.user)
+    if request.method == "POST":
+        account_profile.profile_completed = True
+        account_profile.save(update_fields=["profile_completed", "updated_at"])
+        messages.success(request, "Your onboarding shell is ready.")
+        return redirect("user_dashboard")
 
-    profile = None
-    if request.user.is_authenticated:
-        profile = getattr(request.user, "account_profile", None)
-
-    return render(request, "accounts/profile_completion.html", {"profile": profile})
+    return render(
+        request,
+        "accounts/profile_completion.html",
+        {
+            "profile": account_profile,
+            "onboarding_items": onboarding_items,
+            "onboarding_progress": onboarding_progress,
+            "active_membership": active_membership_for(request.user),
+        },
+    )
 
 
 def user_dashboard_view(request):
@@ -254,28 +389,28 @@ def user_dashboard_view(request):
     _set_account_session(request, request.user)
     _ensure_auth_profile(request.user)
     supabase_profile = ensure_supabase_profile(request.user) or get_supabase_profile(request.user)
+    account_role = ensure_account_role(request.user)
 
     posts = []
     try:
         posts = get_posts_by_user(request.session.get("eharo_user_id"))
         if not posts:
             posts = get_posts_by_user(str(supabase_profile_id_for_user(request.user)))
-    except Exception as e:
-        print("LOAD POSTS ERROR:", e)
+    except Exception as exc:
+        logger.warning("LOAD POSTS ERROR: %s", exc)
 
     profile = request.user.profile
-    wallet = getattr(request.user, "wallet", None)
     account_profile = getattr(request.user, "account_profile", None)
     full_name = (
         (supabase_profile or {}).get("full_name")
         or getattr(account_profile, "full_name", "")
-        or profile.display_name
         or request.user.get_full_name()
         or request.user.username
     )
     username = (supabase_profile or {}).get("username") or profile.username or request.user.username
     email = (supabase_profile or {}).get("email") or getattr(account_profile, "email", "") or request.user.email
     post_count = max(profile.post_count, len(posts))
+    dashboard_metrics = _dashboard_metrics(request.user)
 
     context = {
         "full_name": full_name,
@@ -286,17 +421,15 @@ def user_dashboard_view(request):
         "account_profile": account_profile,
         "user_posts": posts,
         "post_count": post_count,
-        "wallet_balance": getattr(wallet, "available_balance", 0),
+        "account_role": account_role,
+        **dashboard_metrics,
         **messaging_dashboard_context(request.user, request.GET.get("conversation")),
     }
     return render(request, "accounts/dashboard.html", context)
 
 
 def public_profile_view(request, username):
-    profile = get_object_or_404(
-        Profile.objects.select_related("user"),
-        username__iexact=username,
-    )
+    profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
     is_blocked = False
     is_following = False
     if request.user.is_authenticated:
@@ -334,12 +467,16 @@ def public_profile_view(request, username):
 @login_required(login_url="login")
 def edit_profile_view(request):
     profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
     form = ProfileForm(request.POST or None, request.FILES or None, instance=profile)
     if request.method == "POST" and form.is_valid():
         form.save()
+        if account_profile:
+            account_profile.profile_completed = True
+            account_profile.save(update_fields=["profile_completed", "updated_at"])
         messages.success(request, "Profile updated.")
         return redirect("profile_detail", username=profile.username)
-    return render(request, "accounts/profile_edit.html", {"form": form, "profile": profile})
+    return render(request, "accounts/profile_edit.html", {"form": form, "profile": profile, "account_profile": account_profile})
 
 
 @login_required(login_url="login")

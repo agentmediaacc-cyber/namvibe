@@ -8,14 +8,22 @@ from .views import (
     logout_view,
     public_profile_view,
     profile_completion_view,
+    resend_verification_email_view,
     signup_view,
     user_dashboard_view,
+    verify_email_confirm_view,
+    verify_email_notice_view,
+    verify_email_request_view,
 )
 
 urlpatterns = [
     path('login/', login_view, name='login'),
     path('logout/', logout_view, name='logout'),
     path('signup/', signup_view, name='signup'),
+    path('verify-email/', verify_email_notice_view, name='verify_email_notice'),
+    path('verify-email/request/', verify_email_request_view, name='verify_email_request'),
+    path('verify-email/resend/', resend_verification_email_view, name='verify_email_resend'),
+    path('verify-email/confirm/<str:token>/', verify_email_confirm_view, name='verify_email_confirm'),
     path('complete-profile/', profile_completion_view, name='profile_completion'),
     path('forgot-password/', forgot_password_view, name='forgot_password'),
     path(

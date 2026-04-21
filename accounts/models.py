@@ -13,16 +13,24 @@ class AccountProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="account_profile")
     full_name = models.CharField(max_length=120)
     email = models.EmailField(unique=True)
+    phone_country_code = models.CharField(max_length=8, blank=True, default="+264")
     cellphone_number = models.CharField(max_length=30, unique=True)
     residential_address = models.TextField()
     country_of_origin = models.CharField(max_length=80)
     current_country = models.CharField(max_length=80)
     profile_completed = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False)
+    verification_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.full_name} (@{self.user.username})"
+
+    @property
+    def public_label(self):
+        profile = getattr(self.user, "profile", None)
+        return getattr(profile, "display_name", "") or getattr(profile, "username", "") or self.user.username
 
 
 class Profile(models.Model):
@@ -57,8 +65,42 @@ class Profile(models.Model):
         if not self.username:
             self.username = self.user.username
         if not self.display_name:
-            self.display_name = self.user.get_full_name() or self.user.username
+            self.display_name = self.username or self.user.username
         super().save(*args, **kwargs)
+
+
+class AccountRole(models.Model):
+    class Role(models.TextChoices):
+        MEMBER = "member", "Member"
+        SUPPORT = "support", "Support"
+        PLATFORM_ADMIN = "platform_admin", "Platform admin"
+        MASTER_ADMIN = "master_admin", "Master admin"
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="account_role")
+    role = models.CharField(max_length=24, choices=Role.choices, default=Role.MEMBER, db_index=True)
+    supabase_uid = models.CharField(max_length=64, blank=True, db_index=True)
+    can_manage_promos = models.BooleanField(default=False)
+    can_manage_support = models.BooleanField(default=False)
+    can_moderate_users = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["role"]),
+            models.Index(fields=["supabase_uid"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} ({self.role})"
+
+    @property
+    def is_admin(self):
+        return self.role in {self.Role.PLATFORM_ADMIN, self.Role.MASTER_ADMIN}
+
+    @property
+    def is_master_admin(self):
+        return self.role == self.Role.MASTER_ADMIN
 
 
 class Follow(models.Model):
@@ -165,9 +207,10 @@ def ensure_profile(sender, instance, created, **kwargs):
         user=instance,
         defaults={
             "username": instance.username,
-            "display_name": instance.get_full_name() or instance.username,
+            "display_name": instance.username,
         },
     )
+    AccountRole.objects.get_or_create(user=instance)
 
 
 @receiver(post_save, sender=Follow)

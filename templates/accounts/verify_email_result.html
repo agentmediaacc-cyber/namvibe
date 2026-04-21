@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Email Verification | Namvibe{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-card premium-auth-card">
+        {% if verification_ok %}
+            <span class="auth-badge">Verified</span>
+            <h1>Your email is now verified</h1>
+            <p>{{ verified_user.username }} can now move through trusted account flows, support approvals, and premium-ready surfaces more smoothly.</p>
+            <div class="auth-bottom-links">
+                <a href="{% url 'login' %}" class="btn btn-main">Login</a>
+                <a href="{% url 'home' %}">Home</a>
+            </div>
+        {% else %}
+            <span class="auth-badge">Invalid link</span>
+            <h1>This verification link is no longer valid</h1>
+            <p>Request a fresh verification email from your account shell and try again.</p>
+            <div class="auth-bottom-links">
+                <a href="{% url 'login' %}" class="btn btn-main">Login</a>
+                <a href="{% url 'verify_email_notice' %}">Resend email</a>
+            </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

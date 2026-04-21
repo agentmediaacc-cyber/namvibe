@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Support | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">Support Center</span>
+      <h1>Help, safety, support, and system guidance</h1>
+      <p>Use this hub for support, account safety, creator questions, premium guidance, and operational entry points.</p>
+      <div class="product-actions">
+        {% for item in open_routes %}
+          <a class="nv-btn primary" href="{% url item.url_name %}">{{ item.label }}</a>
+        {% endfor %}
+        {% if request.user.is_authenticated and request.user.account_role.is_admin %}
+          <a class="nv-btn" href="{% url 'support_control' %}">Control dashboard</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>System promo cards</h2>
+    <div class="product-grid">
+      {% for promo in promo_cards %}
+        <article class="product-card">
+          <strong>{{ promo.title }}</strong>
+          <span>{{ promo.body }}</span>
+          <span>{{ promo.get_placement_display }}</span>
+        </article>
+      {% empty %}
+        <div class="product-card">No promo cards have been configured yet. Admins can seed them later without changing homepage wiring.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

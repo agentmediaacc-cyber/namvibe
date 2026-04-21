@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Promotions Starter | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">Promotions starter</span>
+      <h1>Plan promotions, homepage promos, and sponsored feed slots</h1>
+      <p>This starter gives creators and admins a clean place to expand promotions without sending users to weak dead-end routes.</p>
+    </div>
+  </div>
+  <div class="product-section">
+    <h2>Active ads</h2>
+    <div class="product-grid">
+      {% for ad in active_ads %}
+        <article class="product-card"><strong>{{ ad.title }}</strong><span>{{ ad.sponsor_name }} · {{ ad.placement }}</span></article>
+      {% empty %}
+        <div class="product-card">No active ads yet. Use Django admin or future internal tools to create them.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

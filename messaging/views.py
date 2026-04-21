@@ -7,10 +7,11 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.shortcuts import render
 
 from .forms import MessageForm, attachment_type_for
 from .models import Conversation, Message
-from .services import get_or_create_direct_conversation
+from .services import call_gate_state, get_or_create_direct_conversation
 
 
 def _dashboard_messages_url(conversation):
@@ -89,3 +90,23 @@ def delete_message(request, message_id):
     message.text = ""
     message.save(update_fields=["deleted_at", "text"])
     return redirect(_dashboard_messages_url(message.conversation))
+
+
+@login_required(login_url="login")
+def call_gate_view(request, user_id, mode):
+    other_user = get_object_or_404(get_user_model(), pk=user_id)
+    if other_user == request.user:
+        messages.error(request, "Choose another member to start a call.")
+        return redirect("user_dashboard")
+    if mode not in {"voice", "video"}:
+        mode = "voice"
+    conversation = get_or_create_direct_conversation(request.user, other_user)
+    return render(
+        request,
+        "messaging/call_gate.html",
+        {
+            "other_user": other_user,
+            "conversation": conversation,
+            "gate": call_gate_state(request.user, mode),
+        },
+    )

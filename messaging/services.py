@@ -1,5 +1,9 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.db.models import Max
+
+from wallet.services import active_membership_for, ensure_wallet
 
 from .forms import MessageForm
 from .models import Conversation
@@ -70,4 +74,19 @@ def messaging_dashboard_context(user, conversation_id=None):
         "active_messages": active_messages,
         "message_form": MessageForm(),
         "all_chat_users": get_user_model().objects.exclude(pk=user.pk).order_by("username")[:25],
+    }
+
+
+def call_gate_state(user, mode="voice"):
+    cost = Decimal("25.00") if mode == "video" else Decimal("10.00")
+    membership = active_membership_for(user)
+    wallet = ensure_wallet(user)
+    unlocked = bool(membership) or wallet.available_balance >= cost
+    return {
+        "mode": mode,
+        "cost": cost,
+        "wallet": wallet,
+        "membership": membership,
+        "unlocked": unlocked,
+        "reason": "Premium members can start calls without token charges." if membership else f"{mode.title()} calls require Premium or N${cost} in wallet credits.",
     }

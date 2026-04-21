@@ -1,0 +1,6 @@
+Verify your Namvibe email
+
+Open this link within {{ valid_days }} days:
+{{ verify_link }}
+
+If you did not create a Namvibe account, ignore this message or contact {{ support_email }}.

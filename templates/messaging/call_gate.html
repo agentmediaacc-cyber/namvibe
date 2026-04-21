@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ gate.mode|title }} Call | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">{{ gate.mode|title }} call</span>
+      <h1>{{ gate.mode|title }} calling is gated by Premium or wallet credits</h1>
+      <p>{{ gate.reason }}</p>
+      <div class="product-actions">
+        <a class="nv-btn primary" href="{% url 'user_dashboard' %}?section=messages&conversation={{ conversation.id }}">Back to chat</a>
+        <a class="nv-btn" href="{% url 'wallet_membership_plans' %}">Premium plans</a>
+        <a class="nv-btn" href="{% url 'wallet_home' %}">Open wallet</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="product-grid">
+    <div class="product-card"><span>Conversation</span><strong>@{{ other_user.username }}</strong></div>
+    <div class="product-card"><span>Call mode</span><strong>{{ gate.mode|title }}</strong></div>
+    <div class="product-card"><span>Wallet balance</span><strong>N${{ gate.wallet.available_balance }}</strong></div>
+    <div class="product-card"><span>Unlock path</span><strong>{% if gate.membership %}Premium active{% else %}N${{ gate.cost }} credits{% endif %}</strong></div>
+  </div>
+
+  <div class="product-section">
+    <h2>Permission readiness</h2>
+    <div class="product-card">
+      <p id="permissionState">Tap the button below to test your camera and microphone permissions before real calling ships.</p>
+      <div class="product-actions">
+        <button class="nv-btn primary" type="button" id="permissionCheck">Check camera and mic</button>
+        <a class="nv-btn" href="{% url 'support_help' %}">Permission help</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.getElementById("permissionCheck")?.addEventListener("click", async function () {
+    const state = document.getElementById("permissionState");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      state.textContent = "This browser does not expose camera/mic permissions here yet.";
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      state.textContent = "Camera and microphone are ready for future live and calling flows.";
+      document.body.dataset.focusUi = "true";
+      setTimeout(() => { document.body.dataset.focusUi = "false"; }, 1500);
+    } catch (error) {
+      state.textContent = "Permission blocked. Enable camera and microphone in your browser or phone settings.";
+    }
+  });
+</script>
+{% endblock %}

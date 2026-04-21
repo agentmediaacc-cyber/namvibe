@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Ads | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">Ads and Promotions</span>
+      <h1>Promote creators, products, and businesses on Namvibe</h1>
+      <p>Browse active discover ads and open the promotions starter to plan future sponsored content flows.</p>
+      <div class="product-actions">
+        <a class="nv-btn primary" href="{% url 'ads_starter' %}">Promotions starter</a>
+        <a class="nv-btn" href="{% url 'support_control' %}">Control dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Discover placements</h2>
+    <div class="product-grid">
+      {% for ad in ads %}
+        <a class="product-card" href="{% url 'ad_click' ad.id %}">
+          <strong>{{ ad.title }}</strong>
+          <span>{{ ad.sponsor_name }} · {{ ad.call_to_action }}</span>
+        </a>
+      {% empty %}
+        <div class="product-card">No active discover ads yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

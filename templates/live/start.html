@@ -14,7 +14,27 @@
       <h2>Creator room setup</h2>
       <p class="muted">Public rooms are discoverable. Followers-only rooms require viewers to follow you. Premium rooms are prepared for future wallet entitlements.</p>
       <p class="muted">Streaming is ready for playback URLs; until HLS/RTMP is connected, the room uses a production-safe video stage.</p>
+      <div class="live-actions" style="margin-top:12px;">
+        <button type="button" class="primary" id="permissionProbe">Check camera + mic</button>
+      </div>
+      <p class="muted" id="permissionProbeState">Use this before going live so your phone permissions are ready.</p>
     </aside>
   </div>
 </section>
+<script>
+document.getElementById("permissionProbe")?.addEventListener("click", async function () {
+  const state = document.getElementById("permissionProbeState");
+  if (!navigator.mediaDevices?.getUserMedia) {
+    state.textContent = "This browser does not expose live permission checks here.";
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    stream.getTracks().forEach(track => track.stop());
+    state.textContent = "Camera and microphone are ready for live creation.";
+  } catch (error) {
+    state.textContent = "Camera or microphone access is blocked. Enable permissions in your browser or device settings.";
+  }
+});
+</script>
 {% endblock %}
