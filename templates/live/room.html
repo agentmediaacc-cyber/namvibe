@@ -4,57 +4,62 @@
 {% include "live/_styles.html" %}
 <section class="live-shell">
   <div class="room-layout">
-    <main>
+    <main class="live-room-shell">
       <div class="player">
         {% if locked_premium %}
-          <div><span class="badge badge-scheduled">PREMIUM</span><h1>{{ session.title }}</h1><p class="muted">Unlock this premium live room with your wallet balance.</p><form method="post" action="{% url 'live_purchase_access' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">Unlock for N${{ live_access_price }}</button></form></div>
-        {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline></video>{% else %}<div><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">The stream will appear as soon as the host connects.</p></div>{% endif %}
+          <div style="padding:22px;text-align:center;"><span class="badge badge-scheduled">PREMIUM</span><h1>{{ session.title }}</h1><p class="muted">Unlock this room with your wallet balance.</p><form method="post" action="{% url 'live_purchase_access' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">Unlock for N${{ live_access_price }}</button></form></div>
+        {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline></video>{% else %}<div style="padding:22px;text-align:center;"><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">The stream starts as soon as the host connects.</p></div>{% endif %}
       </div>
-      <div class="live-panel" style="margin-top:14px;">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-          <div>
+      <div class="live-panel live-room-panel">
+        <div class="live-room-top">
+          <div class="live-room-title">
             <h1>{{ session.title }}</h1>
-            <p class="muted">{{ session.description }}</p>
+            {% if session.description %}<p class="muted">{{ session.description }}</p>{% endif %}
           </div>
-          <div class="chip-row">
+          <div class="live-room-meta">
             <span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.viewer_count }} watching</span>
             <span class="badge badge-scheduled">{{ session.get_access_type_display }}</span>
           </div>
         </div>
-        <div class="live-actions">
+        <div class="live-room-actions">
           <span>{{ session.viewer_count }} viewers</span><span>{{ session.like_count }} reactions</span><span>{{ session.get_access_type_display }}</span>
           {% if request.user.is_authenticated and request.user != session.host %}
             <form method="post" action="{% url 'follow_toggle' session.host.profile.username %}">{% csrf_token %}<button type="submit">{% if is_following %}Following{% else %}Follow host{% endif %}</button></form>
           {% endif %}
-          {% if not locked_premium %}<form method="post" action="{% url 'live_react' session.uuid %}">{% csrf_token %}<button class="primary" name="reaction_type" value="fire">React</button></form>{% endif %}
+          {% if not locked_premium %}
+            <form method="post" action="{% url 'live_react' session.uuid %}">{% csrf_token %}<button class="primary" name="reaction_type" value="fire">React</button></form>
+          {% endif %}
+          <a href="{% url 'live_home' %}">Explore live</a>
         </div>
       </div>
       {% if is_host %}
-        <div class="live-panel" style="margin-top:14px;">
+        <div class="live-panel live-room-panel">
           <h2>Host controls</h2>
-          <p class="muted">Stream key: <code>{{ session.stream_key|default:"Not generated yet" }}</code></p>
-          <div class="chip-row" style="margin:12px 0;">
+          <div class="chip-row">
             <span class="chip">Pin message</span>
             <span class="chip">Welcome viewers</span>
             <span class="chip">Manage viewers</span>
             <span class="chip">Clear chat</span>
           </div>
+          <p class="muted">Stream key: <code>{{ session.stream_key|default:"Not generated yet" }}</code></p>
           {% if session.status != "ended" %}<form method="post" action="{% url 'live_end' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">End session</button></form>{% endif %}
         </div>
       {% endif %}
     </main>
-    <aside>
+    <aside class="live-room-side">
       <section class="live-panel">
         <h2>Host</h2>
         <p><strong>{{ session.host.profile.display_name|default:session.host.username }}</strong><br><span class="muted">@{{ session.host.profile.username }}</span></p>
         <a class="primary" href="{% url 'profile_detail' session.host.profile.username %}">Open profile</a>
       </section>
-      <section class="live-panel" style="margin-top:14px;">
-        <h2>Live chat</h2>
-        <p class="muted">Stay close to chat, pin key updates, and keep the room moving.</p>
+      <section class="live-panel">
+        <div class="live-room-chat-head">
+          <h2 style="margin:0;">Live chat</h2>
+          <span class="chip">{% if can_chat %}Chat on{% else %}Chat off{% endif %}</span>
+        </div>
         {% include "live/_chat_messages.html" %}
         {% if can_chat %}
-          <form class="chat-form" method="post" action="{% url 'live_message' session.uuid %}">
+          <form class="chat-form live-chat-composer" method="post" action="{% url 'live_message' session.uuid %}">
             {% csrf_token %}
             {{ message_form.body }}
             <button class="primary" type="submit">Send</button>
@@ -62,9 +67,9 @@
         {% else %}<p class="muted">Chat is unavailable for this room.</p>{% endif %}
       </section>
       {% if not locked_premium %}
-      <section class="live-panel" style="margin-top:14px;">
+      <section class="live-panel">
         <h2>Send a gift</h2>
-        <form class="chat-form" method="post" action="{% url 'live_gift' session.uuid %}">
+        <form class="chat-form live-chat-composer" method="post" action="{% url 'live_gift' session.uuid %}">
           {% csrf_token %}
           <select name="gift" required>
             {% for gift in gift_catalog %}
@@ -74,14 +79,16 @@
           <input name="quantity" type="number" min="1" value="1">
           <button class="primary" type="submit">Send gift</button>
         </form>
+        <div class="live-gift-list">
         {% for event in recent_gifts %}
           <p class="muted">{{ event.sender.profile.username|default:event.sender.username }} sent {{ event.quantity }}x {{ event.gift.name }}</p>
         {% empty %}
           <p class="muted">No gifts in this room yet.</p>
         {% endfor %}
+        </div>
       </section>
       {% endif %}
-      <section class="live-panel" style="margin-top:14px;">
+      <section class="live-panel">
         <h2>Related live</h2>
         {% for related in related_sessions %}<a class="chat-item" href="{% url 'live_room' related.uuid %}">{{ related.title }}</a>{% empty %}<p class="muted">No related live rooms.</p>{% endfor %}
       </section>

@@ -1,301 +1,832 @@
 {% extends "base.html" %}
-{% block title %}Start Live | Namvibe{% endblock %}
+{% block title %}Live Studio | Namvibe{% endblock %}
 {% block content %}
-{% include "live/_styles.html" %}
 <style>
-  .live-studio-shell{max-width:1220px;margin:0 auto;padding:18px 12px 96px}
-  .live-studio-layout{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(360px,.98fr);gap:18px;align-items:start}
-  .live-studio-panel,.live-studio-preview,.live-detail-card{
-    border:1px solid rgba(120,92,39,.14);background:rgba(255,253,249,.97);border-radius:30px;padding:18px;box-shadow:0 20px 56px rgba(66,45,10,.06)
+  .live-camera-shell{
+    min-height:calc(100vh - 68px);
+    padding:0 0 94px;
+    background:linear-gradient(180deg,#f6f0e4 0%,#f3f6fb 24%,#eef2f7 100%);
   }
-  .live-studio-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
-  .live-studio-head h1{margin:0 0 8px;font-size:clamp(2rem,5vw,3.4rem);color:#1f1a14}
-  .live-studio-muted{color:#7a6d5b;line-height:1.65}
-  .live-setup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-  .live-field{display:grid;gap:8px}
-  .live-field.full{grid-column:1/-1}
-  .live-field label{font-weight:800;color:#3f3529}
-  .live-field input,.live-field textarea,.live-field select{
-    width:100%;min-width:0;border:1px solid rgba(120,92,39,.14);background:#fff;border-radius:18px;padding:13px 14px;color:#1f1a14
+  .live-camera-wrap{
+    width:min(100%,520px);
+    margin:0 auto;
+    min-height:calc(100vh - 68px);
+    position:relative;
+    background:#0b0d10;
+    overflow:hidden;
   }
-  .live-field textarea{min-height:110px;resize:vertical}
-  .live-chip-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .live-camera-stage{
+    position:relative;
+    min-height:calc(100vh - 68px);
+    background:#060709;
+  }
+  .live-camera-feed,
+  .live-camera-cover{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    background:#060709;
+  }
+  .live-camera-cover{display:none}
+  .live-camera-feed.is-hidden,
+  .live-camera-cover.is-hidden{display:none}
+  .live-camera-gradient{
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(180deg,rgba(8,10,14,.6) 0%,rgba(8,10,14,0) 22%,rgba(8,10,14,.18) 58%,rgba(8,10,14,.78) 100%);
+    pointer-events:none;
+  }
+  .live-topbar,
+  .live-bottombar,
+  .live-center-stack{
+    position:absolute;
+    left:12px;
+    right:12px;
+    z-index:4;
+  }
+  .live-topbar{
+    top:calc(env(safe-area-inset-top,0px) + 12px);
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .live-top-left,
+  .live-top-right,
+  .live-quick-controls,
+  .live-mini-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .live-glass-btn,
+  .live-chip,
+  .live-primary{
+    border:1px solid rgba(255,255,255,.18);
+    background:rgba(16,18,24,.46);
+    backdrop-filter:blur(18px);
+    color:#fffdf8;
+    border-radius:999px;
+    min-height:42px;
+    padding:0 14px;
+    font-weight:800;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    cursor:pointer;
+  }
+  .live-glass-btn.icon-only{width:42px;padding:0}
+  .live-primary{
+    background:linear-gradient(135deg,#d8b663,#a67723);
+    color:#fffdf7;
+    border-color:transparent;
+    min-height:54px;
+    padding:0 18px;
+    box-shadow:0 18px 34px rgba(154,112,28,.32);
+  }
   .live-chip{
-    border:1px solid rgba(120,92,39,.14);background:#fff;border-radius:20px;padding:14px;cursor:pointer;font-weight:800;color:#2b2216;text-align:left
+    min-height:34px;
+    padding:0 12px;
+    font-size:12px;
+    font-weight:900;
   }
-  .live-chip.active{background:linear-gradient(135deg,#fffaf0,#f4ead0);border-color:rgba(156,116,39,.3);box-shadow:0 12px 28px rgba(66,45,10,.08)}
-  .live-chip small{display:block;margin-top:4px;color:#7a6d5b;font-weight:600;line-height:1.45}
+  .live-chip.is-live{background:rgba(161,21,46,.82)}
+  .live-chip.is-status{background:rgba(255,255,255,.14)}
+  .live-title-stack{
+    margin-top:10px;
+    max-width:calc(100% - 54px);
+  }
+  .live-title-stack h1{
+    margin:0;
+    color:#fffdf8;
+    font-size:clamp(1.3rem,4vw,1.9rem);
+    line-height:1.1;
+  }
+  .live-title-stack p{
+    margin:6px 0 0;
+    color:rgba(255,248,237,.82);
+    font-size:13px;
+    line-height:1.45;
+  }
+  .live-center-stack{
+    top:50%;
+    transform:translateY(-50%);
+    display:grid;
+    justify-items:end;
+    pointer-events:none;
+  }
+  .live-quick-controls{
+    display:grid;
+    gap:10px;
+    pointer-events:auto;
+  }
+  .live-control{
+    width:54px;
+    min-height:54px;
+    border-radius:18px;
+    border:1px solid rgba(255,255,255,.14);
+    background:rgba(13,15,19,.52);
+    backdrop-filter:blur(18px);
+    color:#fffdf8;
+    display:grid;
+    place-items:center;
+    gap:4px;
+    cursor:pointer;
+    font-size:11px;
+    font-weight:800;
+    padding:8px 6px;
+    text-align:center;
+  }
+  .live-control strong{font-size:12px;line-height:1}
   .live-permission-card{
-    border:1px dashed rgba(120,92,39,.24);border-radius:24px;padding:18px;background:linear-gradient(135deg,#fffdf9,#f8f0dd);display:grid;gap:12px
+    position:absolute;
+    left:14px;
+    right:14px;
+    top:50%;
+    transform:translateY(-50%);
+    z-index:5;
+    border-radius:28px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(12,14,18,.82);
+    backdrop-filter:blur(18px);
+    color:#fffdf8;
+    padding:18px;
+    display:grid;
+    gap:14px;
   }
-  .live-permission-actions,.live-submit-row,.live-inline-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .live-soft-btn{border:1px solid rgba(120,92,39,.14);background:#fff;border-radius:999px;padding:11px 14px;color:#2b2216;font-weight:800;cursor:pointer}
-  .live-preview-device{
-    position:sticky;top:86px;padding:14px;border-radius:36px;background:linear-gradient(180deg,#1f1a14,#3f2a10);min-height:78vh;color:#fffdf8;box-shadow:0 28px 80px rgba(66,45,10,.2)
+  .live-permission-card[hidden]{display:none}
+  .live-permission-card h2,
+  .live-sheet-head h2{margin:0}
+  .live-permission-card p{
+    margin:0;
+    color:rgba(255,248,237,.84);
+    line-height:1.5;
   }
-  .live-preview-screen{
-    min-height:48vh;border-radius:28px;overflow:hidden;background:#120f0b;display:grid;place-items:center;position:relative;border:1px solid rgba(255,255,255,.1)
+  .live-status-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
   }
-  .live-preview-screen video,.live-preview-screen img{width:100%;height:100%;object-fit:cover}
-  .live-preview-overlay{
-    position:absolute;left:12px;right:12px;bottom:12px;padding:12px 14px;border-radius:20px;background:rgba(31,26,20,.56);backdrop-filter:blur(12px)
+  .live-status-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:7px 10px;
+    border-radius:999px;
+    background:rgba(255,255,255,.08);
+    color:#fffdf8;
+    font-size:12px;
+    font-weight:800;
   }
-  .live-preview-overlay h2,.live-preview-overlay p{margin:0}
-  .live-preview-overlay p{margin-top:6px;color:rgba(255,249,240,.84)}
-  .live-status{font-size:13px;color:#8c7653}
-  .live-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
-  .live-detail-card strong{display:block;margin-bottom:6px}
-  .live-detail-card p{margin:0;color:#7a6d5b;line-height:1.6}
-  .live-submit{border:0;border-radius:999px;padding:13px 18px;font-weight:900;background:linear-gradient(135deg,#c7a14a,#9c7427);color:#fffdf7;cursor:pointer}
-  .live-errors{margin-bottom:14px;padding:14px;border-radius:20px;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}
-  @media (max-width: 980px){.live-studio-layout{grid-template-columns:1fr}.live-preview-device{position:static;min-height:auto}}
-  @media (max-width: 760px){.live-studio-shell{padding-inline:8px}.live-setup-grid,.live-chip-grid,.live-detail-grid{grid-template-columns:1fr 1fr}}
-  @media (max-width: 560px){.live-setup-grid,.live-chip-grid,.live-detail-grid{grid-template-columns:1fr}.live-studio-panel,.live-studio-preview,.live-detail-card{padding:14px;border-radius:22px}}
+  .live-status-dot{
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background:#f59e0b;
+  }
+  .live-status-dot.ok{background:#10b981}
+  .live-status-dot.warn{background:#ef4444}
+  .live-bottombar{
+    bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+    display:grid;
+    gap:10px;
+  }
+  .live-quick-entry{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto;
+    gap:10px;
+    padding:10px;
+    border-radius:26px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(12,14,18,.62);
+    backdrop-filter:blur(20px);
+    box-shadow:0 18px 44px rgba(0,0,0,.24);
+  }
+  .live-title-input{
+    width:100%;
+    min-width:0;
+    border:0;
+    background:rgba(255,255,255,.08);
+    color:#fffdf8;
+    border-radius:18px;
+    padding:0 16px;
+    min-height:54px;
+    font-size:15px;
+    font-weight:700;
+  }
+  .live-title-input::placeholder,
+  .live-sheet-field input::placeholder,
+  .live-sheet-field textarea::placeholder{color:rgba(255,248,237,.6)}
+  .live-sheet-toggle{
+    position:fixed;
+    inset:0;
+    z-index:90;
+    display:none;
+    background:rgba(8,10,14,.48);
+  }
+  .live-sheet-toggle.is-open{display:block}
+  .live-sheet{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    max-height:min(82vh,780px);
+    border-radius:28px 28px 0 0;
+    background:#fffdf8;
+    padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 20px);
+    box-shadow:0 -30px 80px rgba(15,23,42,.24);
+    overflow:auto;
+  }
+  .live-sheet-handle{
+    width:52px;
+    height:5px;
+    border-radius:999px;
+    background:#d6c1a2;
+    margin:0 auto 12px;
+  }
+  .live-sheet-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .live-sheet-head p{
+    margin:4px 0 0;
+    color:#7a6d5b;
+    font-size:13px;
+  }
+  .live-sheet-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+  }
+  .live-sheet-field{
+    display:grid;
+    gap:8px;
+  }
+  .live-sheet-field.full{grid-column:1/-1}
+  .live-sheet-field label{
+    color:#34291d;
+    font-size:13px;
+    font-weight:800;
+  }
+  .live-sheet-field input,
+  .live-sheet-field textarea,
+  .live-sheet-field select{
+    width:100%;
+    min-width:0;
+    border:1px solid rgba(120,92,39,.14);
+    background:#fff;
+    color:#1f1a14;
+    border-radius:18px;
+    padding:13px 14px;
+  }
+  .live-sheet-field textarea{min-height:94px;resize:vertical}
+  .live-audience-grid,
+  .live-music-row,
+  .live-toggle-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .live-audience-option,
+  .live-mini-chip{
+    border:1px solid rgba(120,92,39,.14);
+    background:#fff;
+    color:#2b2216;
+    border-radius:999px;
+    min-height:38px;
+    padding:0 12px;
+    font-weight:800;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    cursor:pointer;
+    text-decoration:none;
+  }
+  .live-audience-option.is-active{background:#f8f0dd;border-color:rgba(156,116,39,.28);color:#8d6416}
+  .live-toggle{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:12px 14px;
+    border-radius:18px;
+    background:#fff;
+    border:1px solid rgba(120,92,39,.12);
+    font-weight:700;
+    color:#2b2216;
+  }
+  .live-sheet-actions{
+    position:sticky;
+    bottom:-14px;
+    margin:16px -14px -20px;
+    padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px);
+    background:rgba(255,253,248,.96);
+    backdrop-filter:blur(14px);
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    border-top:1px solid rgba(120,92,39,.12);
+  }
+  .live-sheet-actions button{
+    min-height:48px;
+    border-radius:16px;
+    border:0;
+    font-weight:900;
+    cursor:pointer;
+  }
+  .live-sheet-actions .secondary{
+    background:#f5ede1;
+    color:#7d5c1d;
+  }
+  .live-sheet-actions .primary{
+    background:linear-gradient(135deg,#d8b663,#a67723);
+    color:#fffdf7;
+  }
+  .live-hidden-inputs{display:none}
+  .live-mini-note{
+    color:rgba(255,248,237,.82);
+    font-size:12px;
+    text-align:center;
+  }
+  @media (min-width: 760px){
+    .live-camera-wrap{width:min(100%,960px);border-radius:34px;overflow:hidden;min-height:calc(100vh - 92px);margin-top:14px;box-shadow:0 28px 80px rgba(15,23,42,.16)}
+    .live-camera-stage{min-height:calc(100vh - 92px)}
+    .live-quick-entry{grid-template-columns:minmax(0,1fr) auto auto auto}
+    .live-sheet{
+      left:auto;
+      width:min(420px,100vw);
+      right:14px;
+      bottom:14px;
+      top:14px;
+      max-height:none;
+      border-radius:28px;
+      padding-bottom:20px;
+    }
+    .live-sheet-actions{
+      position:static;
+      margin:16px 0 0;
+      padding:0;
+      background:transparent;
+      border-top:0;
+    }
+  }
+  @media (max-width: 560px){
+    .live-sheet-grid{grid-template-columns:1fr}
+    .live-quick-entry{grid-template-columns:1fr}
+    .live-glass-btn,
+    .live-primary{min-height:48px}
+  }
 </style>
 
-<section class="live-studio-shell">
-  <div class="live-studio-layout">
-    <form class="live-studio-panel" method="post" enctype="multipart/form-data" id="liveStudioForm">
-      {% csrf_token %}
-      <div class="live-studio-head">
-        <div>
-          <h1>Live Studio</h1>
-          <p class="live-studio-muted">Check your camera, set the room, and go live in a few quick steps.</p>
-        </div>
-        <a class="live-soft-btn" href="{% url 'live_home' %}">Back to live</a>
-      </div>
+<section class="live-camera-shell">
+  <form method="post" enctype="multipart/form-data" id="liveStudioForm">
+    {% csrf_token %}
+    <div class="live-camera-wrap">
+      <div class="live-camera-stage">
+        <video id="livePreviewVideo" class="live-camera-feed is-hidden" playsinline autoplay muted></video>
+        <img id="livePreviewCover" class="live-camera-cover is-hidden" alt="Live cover preview">
+        <div class="live-camera-gradient"></div>
 
-      {% if form.errors %}
-        <div class="live-errors">{{ form.errors }}</div>
-      {% endif %}
-
-      <section class="story-section">
-        <h2 style="margin:0 0 10px;">Start mode</h2>
-        <div class="live-chip-grid" id="liveModeGrid">
-          <button class="live-chip active" type="button" data-start-mode="now">Go live now<small>Open a room immediately</small></button>
-          <button class="live-chip" type="button" data-start-mode="schedule">Schedule later<small>Announce and prepare before streaming</small></button>
-          <button class="live-chip" type="button" data-start-mode="private">Private access<small>Set up a limited or premium room</small></button>
-          <button class="live-chip" type="button" data-start-mode="camera">Camera check<small>Test device readiness first</small></button>
-        </div>
-        <input type="hidden" name="start_mode" id="liveStartMode" value="{{ form.start_mode.value|default:'now' }}">
-      </section>
-
-      <section class="story-section">
-        <h2 style="margin:0 0 10px;">Camera and mic</h2>
-        <div class="live-permission-card">
-          <div class="live-permission-actions">
-            <button class="live-soft-btn" type="button" id="livePermissionProbe">Open camera</button>
-            <button class="live-soft-btn" type="button" id="liveSwitchCamera">Switch camera</button>
-            <button class="live-soft-btn" type="button" id="liveToggleMic">Mute mic</button>
-            <button class="live-soft-btn" type="button" id="liveToggleCamera">Hide camera</button>
-          </div>
-          <div class="live-status" id="livePermissionState">Tap once to check your camera and microphone.</div>
-        </div>
-      </section>
-
-      <section class="story-section">
-        <h2 style="margin:0 0 10px;">Session details</h2>
-        <div class="live-setup-grid">
-          <div class="live-field full">
-            <label for="liveTitle">Stream title</label>
-            <input id="liveTitle" name="title" value="{{ form.title.value|default:'' }}" placeholder="Tonight on Namvibe">
-          </div>
-          <div class="live-field full">
-            <label for="liveDescription">Description</label>
-            <textarea id="liveDescription" name="description" placeholder="Tell people what this live is about">{{ form.description.value|default:'' }}</textarea>
-          </div>
-          <div class="live-field">
-            <label for="liveStartsAt">Starts at</label>
-            <input id="liveStartsAt" type="datetime-local" name="starts_at" value="{{ form.starts_at.value|date:'Y-m-d\\TH:i' }}">
-          </div>
-          <div class="live-field">
-            <label for="liveAccessType">Audience</label>
-            <select id="liveAccessType" name="access_type">
-              {% for value,label in form.access_type.field.choices %}
-                <option value="{{ value }}" {% if form.access_type.value == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="live-field full">
-            <label>Thumbnail</label>
-            <div class="live-inline-row">
-              <input type="file" id="liveThumbnailInput" name="thumbnail" accept="image/*">
+        <div class="live-topbar">
+          <div>
+            <div class="live-top-left">
+              <a class="live-glass-btn icon-only" href="{% url 'live_home' %}" aria-label="Back to live">×</a>
+              <span class="live-chip is-live">LIVE</span>
+              <span class="live-chip is-status" id="livePermissionBadge">Connecting</span>
+            </div>
+            <div class="live-title-stack">
+              <h1 id="livePreviewTitle">Go live on Namvibe</h1>
+              <p id="livePreviewMeta">Public room</p>
             </div>
           </div>
-          <div class="live-field">
-            <label style="visibility:hidden;">Chat</label>
-            <label class="live-soft-btn" style="display:flex;align-items:center;gap:8px;border-radius:18px;"><input type="checkbox" name="chat_enabled" {% if form.chat_enabled.value or form.chat_enabled.value == None %}checked{% endif %}> Enable chat</label>
-          </div>
-          <div class="live-field">
-            <label style="visibility:hidden;">Feature</label>
-            <label class="live-soft-btn" style="display:flex;align-items:center;gap:8px;border-radius:18px;"><input type="checkbox" name="is_featured" {% if form.is_featured.value %}checked{% endif %}> Feature on live page</label>
+          <div class="live-top-right">
+            <button class="live-glass-btn icon-only" type="button" id="liveSettingsButton" aria-label="Open live settings">⋯</button>
           </div>
         </div>
-      </section>
 
-      <section class="story-section">
-        <h2 style="margin:0 0 10px;">Room touches</h2>
-        <div class="live-detail-grid">
-          <div class="live-detail-card"><strong>Welcome message</strong><p>Set the tone for everyone joining your room.</p></div>
-          <div class="live-detail-card"><strong>Pinned message</strong><p>Keep your key link, promo, or update visible during the stream.</p></div>
-          <div class="live-detail-card"><strong>Access code</strong><p>Use a private code when you want tighter access.</p></div>
-          <div class="live-detail-card"><strong>Host replies</strong><p>Stay ready to greet viewers and steer the chat.</p></div>
+        <div class="live-center-stack">
+          <div class="live-quick-controls">
+            <button class="live-control" type="button" id="liveSwitchCamera" aria-label="Switch camera"><strong>↺</strong><span>Flip</span></button>
+            <button class="live-control" type="button" id="liveToggleMic" aria-label="Mute microphone"><strong>🎙</strong><span>Mic</span></button>
+            <button class="live-control" type="button" id="liveToggleCamera" aria-label="Turn camera on or off"><strong>◉</strong><span>Cam</span></button>
+            <button class="live-control" type="button" id="liveChatToggle" aria-label="Toggle chat"><strong>💬</strong><span>Chat</span></button>
+          </div>
         </div>
-      </section>
 
-      <div class="live-submit-row">
-        <button class="live-submit" type="submit">Create live session</button>
-        <span class="live-status" id="liveStudioNote">Preview updates as you prepare your room.</span>
+        <div class="live-permission-card" id="livePermissionCard">
+          <div class="live-status-row">
+            <span class="live-status-pill"><span class="live-status-dot" id="cameraDot"></span><span id="cameraStatusLabel">Camera</span></span>
+            <span class="live-status-pill"><span class="live-status-dot" id="micDot"></span><span id="micStatusLabel">Microphone</span></span>
+          </div>
+          <h2 id="permissionTitle">Opening your camera</h2>
+          <p id="permissionCopy">Allow camera and microphone access to start a live room.</p>
+          <div class="live-mini-actions">
+            <button class="live-glass-btn" type="button" id="livePermissionProbe">Try again</button>
+            <button class="live-glass-btn" type="button" id="liveSettingsOpenAlt">Settings</button>
+          </div>
+        </div>
+
+        <div class="live-bottombar">
+          <div class="live-quick-entry">
+            <input class="live-title-input" id="liveTitleQuick" type="text" placeholder="Add a live title" value="{{ form.title.value|default:'' }}">
+            <button class="live-glass-btn" type="button" id="liveAudienceButton">Audience</button>
+            <button class="live-glass-btn" type="button" id="liveCoverButton">Cover</button>
+            <button class="live-primary" type="submit" id="liveSubmitButton">Go live</button>
+          </div>
+          <div class="live-mini-note" id="liveMiniNote">Camera first. Adjust the room when you need to.</div>
+        </div>
+
+        <div class="live-hidden-inputs">
+          <input type="hidden" name="start_mode" id="liveStartMode" value="{{ form.start_mode.value|default:'now' }}">
+          <input type="text" id="liveTitle" name="title" value="{{ form.title.value|default:'' }}">
+          <textarea id="liveDescription" name="description">{{ form.description.value|default:'' }}</textarea>
+          <input id="liveStartsAt" type="datetime-local" name="starts_at" value="{{ form.starts_at.value|date:'Y-m-d\\TH:i' }}">
+          <select id="liveAccessType" name="access_type">
+            {% for value,label in form.access_type.field.choices %}
+              <option value="{{ value }}" {% if form.access_type.value == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <input type="checkbox" name="chat_enabled" id="liveChatEnabled" {% if form.chat_enabled.value or form.chat_enabled.value == None %}checked{% endif %}>
+          <input type="checkbox" name="is_featured" id="liveFeatured" {% if form.is_featured.value %}checked{% endif %}>
+          <input type="file" id="liveThumbnailInput" name="thumbnail" accept="image/*">
+        </div>
       </div>
-    </form>
+    </div>
 
-    <aside class="live-studio-preview">
-      <div class="live-preview-device">
-        <div class="studio-preview-top" style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px;">
-          <span class="studio-preview-chip" id="livePreviewMode">Go live now</span>
-          <span class="studio-preview-chip" id="livePreviewAccess">Public</span>
-        </div>
-        <div class="live-preview-screen" id="livePreviewScreen">
-          <video id="livePreviewVideo" playsinline muted autoplay hidden></video>
-          <img id="livePreviewImage" alt="Live thumbnail preview" hidden>
-          <div id="livePreviewFallback">
-            <span class="badge badge-live">LIVE PREVIEW</span>
-            <h2 style="margin:10px 0 6px;">Open your camera to frame the room</h2>
-            <p class="live-studio-muted" style="color:rgba(255,249,240,.82);">You can also upload a cover image and start with camera off.</p>
+    <div class="live-sheet-toggle" id="liveSettingsSheet">
+      <div class="live-sheet" role="dialog" aria-modal="true" aria-labelledby="liveSettingsTitle">
+        <div class="live-sheet-handle"></div>
+        <div class="live-sheet-head">
+          <div>
+            <h2 id="liveSettingsTitle">Live settings</h2>
+            <p>Set the room, then go live.</p>
           </div>
-          <div class="live-preview-overlay">
-            <h2 id="livePreviewTitle">Your live title</h2>
-            <p id="livePreviewDescription">Add a title and short description so viewers know what is happening.</p>
+          <button class="live-glass-btn icon-only" type="button" id="liveSettingsClose" aria-label="Close settings">×</button>
+        </div>
+
+        {% if form.errors %}
+          <div style="margin-bottom:12px;padding:12px 14px;border-radius:18px;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3;">
+            {{ form.errors }}
+          </div>
+        {% endif %}
+
+        <div class="live-sheet-grid">
+          <div class="live-sheet-field full">
+            <label for="liveTitleSheet">Title</label>
+            <input id="liveTitleSheet" type="text" value="{{ form.title.value|default:'' }}" placeholder="Tonight on Namvibe">
+          </div>
+          <div class="live-sheet-field full">
+            <label for="liveDescriptionSheet">Description</label>
+            <textarea id="liveDescriptionSheet" placeholder="What is this live about?">{{ form.description.value|default:'' }}</textarea>
+          </div>
+          <div class="live-sheet-field">
+            <label for="liveStartModeSheet">Start</label>
+            <select id="liveStartModeSheet">
+              <option value="now" {% if form.start_mode.value|default:'now' == 'now' %}selected{% endif %}>Go live now</option>
+              <option value="schedule" {% if form.start_mode.value == 'schedule' %}selected{% endif %}>Schedule later</option>
+            </select>
+          </div>
+          <div class="live-sheet-field">
+            <label for="liveStartsAtSheet">Starts at</label>
+            <input id="liveStartsAtSheet" type="datetime-local" value="{{ form.starts_at.value|date:'Y-m-d\\TH:i' }}">
+          </div>
+          <div class="live-sheet-field full">
+            <label>Audience</label>
+            <div class="live-audience-grid" id="liveAudienceGrid">
+              {% for value,label in form.access_type.field.choices %}
+                <button class="live-audience-option {% if form.access_type.value|default:'public' == value %}is-active{% endif %}" type="button" data-access-value="{{ value }}">{{ label }}</button>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="live-sheet-field full">
+            <label for="liveWelcomeMessage">Welcome message</label>
+            <input id="liveWelcomeMessage" type="text" placeholder="Say hi to everyone joining">
+          </div>
+          <div class="live-sheet-field full">
+            <label for="livePinnedMessage">Pinned message</label>
+            <input id="livePinnedMessage" type="text" placeholder="Share a link, promo, or update">
+          </div>
+          <div class="live-sheet-field">
+            <label for="liveAccessCode">Access code</label>
+            <input id="liveAccessCode" type="text" placeholder="Optional code">
+          </div>
+          <div class="live-sheet-field">
+            <label for="liveCoverInputVisible">Cover image</label>
+            <input id="liveCoverInputVisible" type="file" accept="image/*">
+          </div>
+          <div class="live-sheet-field full">
+            <label>Music</label>
+            <div class="live-music-row">
+              <input id="liveMusicInput" type="file" accept="audio/*" hidden>
+              <button class="live-mini-chip" type="button" id="liveMusicPick">Choose music</button>
+              <button class="live-mini-chip" type="button" id="liveMusicClear">Remove</button>
+              <span class="live-mini-chip" id="liveMusicName">No track selected</span>
+            </div>
+          </div>
+          <div class="live-sheet-field full">
+            <label for="liveMusicVolume">Music level</label>
+            <input id="liveMusicVolume" type="range" min="0" max="100" value="35">
+          </div>
+          <div class="live-sheet-field full">
+            <div class="live-toggle-row">
+              <label class="live-toggle"><input type="checkbox" id="liveLowerMusic" checked> Lower music while speaking</label>
+              <label class="live-toggle"><input type="checkbox" id="liveChatEnabledSheet" {% if form.chat_enabled.value or form.chat_enabled.value == None %}checked{% endif %}> Chat enabled</label>
+              <label class="live-toggle"><input type="checkbox" id="liveFeaturedSheet" {% if form.is_featured.value %}checked{% endif %}> Feature this live</label>
+            </div>
           </div>
         </div>
-        <div class="live-detail-grid" style="margin-top:14px;">
-          <div class="live-detail-card"><strong>Viewer count</strong><p>See the room size at a glance once you are live.</p></div>
-          <div class="live-detail-card"><strong>Host controls</strong><p>Switch cameras, mute, and manage your room without leaving the stream.</p></div>
-          <div class="live-detail-card"><strong>Gifts</strong><p>Wallet and gifting stay available while you stream.</p></div>
-          <div class="live-detail-card"><strong>Chat</strong><p>Messages stay close so you can greet viewers and respond fast.</p></div>
+
+        <div class="live-sheet-actions">
+          <button class="secondary" type="button" id="liveSettingsDone">Done</button>
+          <button class="primary" type="submit">Go live</button>
         </div>
       </div>
-    </aside>
-  </div>
+    </div>
+  </form>
 </section>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
   (function () {
-    const modeInput = document.getElementById("liveStartMode");
-    const permissionState = document.getElementById("livePermissionState");
-    const previewMode = document.getElementById("livePreviewMode");
-    const previewAccess = document.getElementById("livePreviewAccess");
-    const previewTitle = document.getElementById("livePreviewTitle");
-    const previewDescription = document.getElementById("livePreviewDescription");
-    const previewVideo = document.getElementById("livePreviewVideo");
-    const previewImage = document.getElementById("livePreviewImage");
-    const previewFallback = document.getElementById("livePreviewFallback");
+    const storageKey = "namvibe_live_camera_pref";
+    const video = document.getElementById("livePreviewVideo");
+    const cover = document.getElementById("livePreviewCover");
+    const permissionCard = document.getElementById("livePermissionCard");
+    const permissionTitle = document.getElementById("permissionTitle");
+    const permissionCopy = document.getElementById("permissionCopy");
+    const permissionBadge = document.getElementById("livePermissionBadge");
+    const cameraDot = document.getElementById("cameraDot");
+    const micDot = document.getElementById("micDot");
+    const cameraStatusLabel = document.getElementById("cameraStatusLabel");
+    const micStatusLabel = document.getElementById("micStatusLabel");
+    const settingsSheet = document.getElementById("liveSettingsSheet");
+    const titleQuick = document.getElementById("liveTitleQuick");
+    const titleInput = document.getElementById("liveTitle");
+    const titleSheet = document.getElementById("liveTitleSheet");
+    const descriptionInput = document.getElementById("liveDescription");
+    const descriptionSheet = document.getElementById("liveDescriptionSheet");
+    const startsAtInput = document.getElementById("liveStartsAt");
+    const startsAtSheet = document.getElementById("liveStartsAtSheet");
+    const startModeInput = document.getElementById("liveStartMode");
+    const startModeSheet = document.getElementById("liveStartModeSheet");
+    const accessInput = document.getElementById("liveAccessType");
+    const titlePreview = document.getElementById("livePreviewTitle");
+    const metaPreview = document.getElementById("livePreviewMeta");
+    const miniNote = document.getElementById("liveMiniNote");
     const thumbnailInput = document.getElementById("liveThumbnailInput");
-    let currentFacing = "user";
-    let currentStream = null;
+    const coverVisible = document.getElementById("liveCoverInputVisible");
+    const musicInput = document.getElementById("liveMusicInput");
+    const musicName = document.getElementById("liveMusicName");
+    const chatEnabled = document.getElementById("liveChatEnabled");
+    const chatEnabledSheet = document.getElementById("liveChatEnabledSheet");
+    const featuredInput = document.getElementById("liveFeatured");
+    const featuredSheet = document.getElementById("liveFeaturedSheet");
+    const chatToggle = document.getElementById("liveChatToggle");
+    const form = document.getElementById("liveStudioForm");
+    let stream = null;
+    let preferredDeviceId = sessionStorage.getItem(storageKey) || "";
+    let currentFacing = preferredDeviceId ? null : "user";
     let audioEnabled = true;
     let cameraEnabled = true;
 
-    function updateMode(mode) {
-      modeInput.value = mode === "private" ? "schedule" : mode === "camera" ? "now" : mode;
-      document.querySelectorAll("[data-start-mode]").forEach(function(button) {
-        button.classList.toggle("active", button.dataset.startMode === mode);
-      });
-      previewMode.textContent = mode === "schedule" ? "Scheduled live" : mode === "private" ? "Restricted setup" : mode === "camera" ? "Camera check" : "Go live now";
+    function setStatus(kind, title, copy) {
+      permissionBadge.textContent = kind;
+      permissionTitle.textContent = title;
+      permissionCopy.textContent = copy;
     }
 
-    function syncPreview() {
-      previewTitle.textContent = document.getElementById("liveTitle").value.trim() || "Your live title";
-      previewDescription.textContent = document.getElementById("liveDescription").value.trim() || "Add a title and short description so viewers know what is happening.";
-      previewAccess.textContent = document.getElementById("liveAccessType").selectedOptions[0].textContent;
+    function setDeviceState(cameraState, micState) {
+      cameraDot.className = "live-status-dot " + (cameraState === "ok" ? "ok" : cameraState === "warn" ? "warn" : "");
+      micDot.className = "live-status-dot " + (micState === "ok" ? "ok" : micState === "warn" ? "warn" : "");
+      cameraStatusLabel.textContent = cameraState === "ok" ? "Camera ready" : cameraState === "warn" ? "Camera blocked" : "Camera pending";
+      micStatusLabel.textContent = micState === "ok" ? "Mic ready" : micState === "warn" ? "Mic blocked" : "Mic pending";
+    }
+
+    function openSheet() {
+      settingsSheet.classList.add("is-open");
+      document.body.dataset.focusUi = "true";
+    }
+
+    function closeSheet() {
+      settingsSheet.classList.remove("is-open");
+      document.body.dataset.focusUi = "false";
+    }
+
+    function syncTitle(value) {
+      titleQuick.value = value;
+      titleInput.value = value;
+      titleSheet.value = value;
+      titlePreview.textContent = value.trim() || "Go live on Namvibe";
+    }
+
+    function syncDescription(value) {
+      descriptionInput.value = value;
+      descriptionSheet.value = value;
+    }
+
+    function syncStartsAt(value) {
+      startsAtInput.value = value;
+      startsAtSheet.value = value;
+    }
+
+    function syncStartMode(value) {
+      startModeInput.value = value;
+      startModeSheet.value = value;
+      renderMeta();
+    }
+
+    function syncAudience(value) {
+      accessInput.value = value;
+      document.querySelectorAll("[data-access-value]").forEach(function(button) {
+        button.classList.toggle("is-active", button.dataset.accessValue === value);
+      });
+      renderMeta();
+    }
+
+    function renderMeta() {
+      const audienceLabel = accessInput.selectedOptions[0] ? accessInput.selectedOptions[0].textContent : "Public";
+      metaPreview.textContent = audienceLabel + (startModeInput.value === "schedule" ? " · Scheduled" : " · Ready now");
+      miniNote.textContent = cameraEnabled ? "Camera first. Adjust the room when you need to." : "Camera is off. You can still go live with cover or audio.";
+    }
+
+    function togglePermissionCard(show) {
+      permissionCard.hidden = !show;
+    }
+
+    function stopStream() {
+      if (stream) {
+        stream.getTracks().forEach(function(track) { track.stop(); });
+        stream = null;
+      }
+    }
+
+    async function chooseNextCamera() {
+      if (!navigator.mediaDevices?.enumerateDevices) {
+        currentFacing = currentFacing === "environment" ? "user" : "environment";
+        return;
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(function(device) { return device.kind === "videoinput"; });
+      if (!cameras.length) return;
+      let currentIndex = cameras.findIndex(function(device) { return device.deviceId === preferredDeviceId; });
+      currentIndex = currentIndex < 0 ? 0 : currentIndex + 1;
+      const next = cameras[currentIndex % cameras.length];
+      preferredDeviceId = next.deviceId;
+      sessionStorage.setItem(storageKey, preferredDeviceId);
+      currentFacing = null;
     }
 
     async function startPreview() {
       if (!navigator.mediaDevices?.getUserMedia) {
-        permissionState.textContent = "This browser cannot open camera preview here.";
+        togglePermissionCard(true);
+        setStatus("Unavailable", "Camera unavailable", "This browser cannot open the live camera here.");
+        setDeviceState("warn", "warn");
         return;
       }
-      permissionState.textContent = "Opening camera...";
+      togglePermissionCard(true);
+      setStatus("Connecting", "Opening your camera", "Give Namvibe access to your camera and microphone.");
+      setDeviceState("", "");
       try {
-        if (currentStream) {
-          currentStream.getTracks().forEach(function(track) { track.stop(); });
-        }
-        currentStream = await navigator.mediaDevices.getUserMedia({
-          video: cameraEnabled ? { facingMode: currentFacing } : false,
+        stopStream();
+        const videoConstraint = cameraEnabled
+          ? (preferredDeviceId ? { deviceId: { exact: preferredDeviceId } } : { facingMode: currentFacing || "user" })
+          : false;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraint,
           audio: audioEnabled
         });
-        previewVideo.srcObject = currentStream;
-        previewVideo.hidden = false;
-        previewFallback.hidden = true;
-        previewImage.hidden = true;
-        const videoTracks = currentStream.getVideoTracks();
-        const audioTracks = currentStream.getAudioTracks();
-        if (!videoTracks.length) {
-          permissionState.textContent = "No camera found on this device.";
-        } else if (!audioTracks.length) {
-          permissionState.textContent = "Camera ready. Microphone not available.";
-        } else {
-          permissionState.textContent = "Camera and microphone are ready.";
+        video.srcObject = stream;
+        video.classList.remove("is-hidden");
+        cover.classList.add("is-hidden");
+        const videoTracks = stream.getVideoTracks();
+        const audioTracks = stream.getAudioTracks();
+        setDeviceState(videoTracks.length ? "ok" : "warn", audioTracks.length ? "ok" : "warn");
+        setStatus("Camera ready", "Camera ready", audioTracks.length ? "You are framed and ready to go live." : "Camera is ready. Microphone is not available.");
+        togglePermissionCard(false);
+        if (videoTracks[0] && videoTracks[0].getSettings().deviceId) {
+          preferredDeviceId = videoTracks[0].getSettings().deviceId;
+          sessionStorage.setItem(storageKey, preferredDeviceId);
         }
       } catch (error) {
-        if (error && (error.name === "NotFoundError" || error.name === "DevicesNotFoundError")) {
-          permissionState.textContent = "No camera or microphone was found.";
-        } else if (error && error.name === "NotAllowedError") {
-          permissionState.textContent = "Camera or microphone access is blocked. Allow access and try again.";
+        video.classList.add("is-hidden");
+        if (error && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
+          setStatus("Blocked", "Camera blocked", "Allow camera and microphone access, then try again.");
+          setDeviceState("warn", "warn");
+        } else if (error && (error.name === "NotFoundError" || error.name === "DevicesNotFoundError")) {
+          setStatus("No device", "No camera found", "Check your phone camera or switch to another device.");
+          setDeviceState("warn", "warn");
         } else {
-          permissionState.textContent = "Unable to open your camera right now. Try again.";
+          setStatus("Retry", "Could not start camera", "Try again or open settings to finish the room first.");
+          setDeviceState("warn", "warn");
         }
       }
     }
 
-    document.querySelectorAll("[data-start-mode]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        updateMode(button.dataset.startMode);
-      });
-    });
-    ["liveTitle", "liveDescription", "liveAccessType"].forEach(function(id) {
-      const input = document.getElementById(id);
-      input?.addEventListener("input", syncPreview);
-      input?.addEventListener("change", syncPreview);
-    });
-    document.getElementById("livePermissionProbe")?.addEventListener("click", startPreview);
-    document.getElementById("liveSwitchCamera")?.addEventListener("click", function() {
-      currentFacing = currentFacing === "user" ? "environment" : "user";
-      permissionState.textContent = "Switching camera...";
-      startPreview();
-    });
-    document.getElementById("liveToggleMic")?.addEventListener("click", function() {
-      audioEnabled = !audioEnabled;
-      if (currentStream) {
-        currentStream.getAudioTracks().forEach(function(track) { track.enabled = audioEnabled; });
-      }
-      permissionState.textContent = audioEnabled ? "Microphone on." : "Microphone muted.";
-    });
-    document.getElementById("liveToggleCamera")?.addEventListener("click", function() {
-      cameraEnabled = !cameraEnabled;
-      if (currentStream) {
-        currentStream.getVideoTracks().forEach(function(track) { track.enabled = cameraEnabled; });
-      }
-      permissionState.textContent = cameraEnabled ? "Camera on." : "Camera off.";
-    });
-    thumbnailInput?.addEventListener("change", function() {
-      const file = thumbnailInput.files && thumbnailInput.files[0];
-      if (!file) return;
+    function syncCoverInput(fileList) {
+      if (!fileList || !fileList[0]) return;
+      const file = fileList[0];
       const url = URL.createObjectURL(file);
-      previewImage.src = url;
-      previewImage.hidden = false;
-      previewFallback.hidden = true;
-      previewVideo.hidden = true;
-      permissionState.textContent = "Cover image ready.";
-    });
-    document.getElementById("liveStudioForm")?.addEventListener("submit", function() {
-      document.getElementById("liveStudioNote").textContent = "Creating your live session...";
-    });
+      cover.src = url;
+      cover.classList.remove("is-hidden");
+      cover.style.display = "block";
+    }
 
-    updateMode("now");
-    syncPreview();
+    titleQuick.addEventListener("input", function () { syncTitle(titleQuick.value); });
+    titleSheet.addEventListener("input", function () { syncTitle(titleSheet.value); });
+    descriptionSheet.addEventListener("input", function () { syncDescription(descriptionSheet.value); });
+    startsAtSheet.addEventListener("change", function () { syncStartsAt(startsAtSheet.value); });
+    startModeSheet.addEventListener("change", function () { syncStartMode(startModeSheet.value); });
+    document.querySelectorAll("[data-access-value]").forEach(function(button) {
+      button.addEventListener("click", function () { syncAudience(button.dataset.accessValue); });
+    });
+    document.getElementById("liveSettingsButton").addEventListener("click", openSheet);
+    document.getElementById("liveSettingsOpenAlt").addEventListener("click", openSheet);
+    document.getElementById("liveSettingsClose").addEventListener("click", closeSheet);
+    document.getElementById("liveSettingsDone").addEventListener("click", closeSheet);
+    settingsSheet.addEventListener("click", function (event) {
+      if (event.target === settingsSheet) closeSheet();
+    });
+    document.getElementById("livePermissionProbe").addEventListener("click", startPreview);
+    document.getElementById("liveSwitchCamera").addEventListener("click", async function () {
+      await chooseNextCamera();
+      await startPreview();
+    });
+    document.getElementById("liveToggleMic").addEventListener("click", function (event) {
+      audioEnabled = !audioEnabled;
+      if (stream) {
+        stream.getAudioTracks().forEach(function(track) { track.enabled = audioEnabled; });
+      }
+      event.currentTarget.querySelector("span").textContent = audioEnabled ? "Mic" : "Muted";
+      setDeviceState(stream && stream.getVideoTracks().length ? "ok" : "", audioEnabled ? "ok" : "warn");
+    });
+    document.getElementById("liveToggleCamera").addEventListener("click", async function (event) {
+      cameraEnabled = !cameraEnabled;
+      event.currentTarget.querySelector("span").textContent = cameraEnabled ? "Cam" : "Off";
+      if (cameraEnabled) {
+        await startPreview();
+      } else {
+        if (stream) {
+          stream.getVideoTracks().forEach(function(track) { track.enabled = false; });
+        }
+        video.classList.add("is-hidden");
+        togglePermissionCard(false);
+      }
+      renderMeta();
+    });
+    document.getElementById("liveChatToggle").addEventListener("click", function (event) {
+      chatEnabled.checked = !chatEnabled.checked;
+      chatEnabledSheet.checked = chatEnabled.checked;
+      event.currentTarget.querySelector("span").textContent = chatEnabled.checked ? "Chat" : "Quiet";
+    });
+    document.getElementById("liveAudienceButton").addEventListener("click", openSheet);
+    document.getElementById("liveCoverButton").addEventListener("click", function () { coverVisible.click(); });
+    coverVisible.addEventListener("change", function () {
+      const dt = new DataTransfer();
+      if (coverVisible.files && coverVisible.files[0]) {
+        dt.items.add(coverVisible.files[0]);
+        thumbnailInput.files = dt.files;
+        syncCoverInput(coverVisible.files);
+      }
+    });
+    document.getElementById("liveMusicPick").addEventListener("click", function () { musicInput.click(); });
+    document.getElementById("liveMusicClear").addEventListener("click", function () {
+      musicInput.value = "";
+      musicName.textContent = "No track selected";
+    });
+    musicInput.addEventListener("change", function () {
+      musicName.textContent = musicInput.files && musicInput.files[0] ? musicInput.files[0].name : "No track selected";
+    });
+    chatEnabledSheet.addEventListener("change", function () {
+      chatEnabled.checked = chatEnabledSheet.checked;
+      chatToggle.querySelector("span").textContent = chatEnabled.checked ? "Chat" : "Quiet";
+    });
+    featuredSheet.addEventListener("change", function () {
+      featuredInput.checked = featuredSheet.checked;
+    });
+    form.addEventListener("submit", function () {
+      miniNote.textContent = "Creating your live room...";
+    });
+    window.addEventListener("beforeunload", stopStream);
+
+    syncTitle(titleInput.value);
+    syncDescription(descriptionInput.value);
+    syncStartsAt(startsAtInput.value);
+    syncStartMode(startModeInput.value || "now");
+    syncAudience(accessInput.value || "public");
+    renderMeta();
+    startPreview();
   }());
 </script>
 {% endblock %}
