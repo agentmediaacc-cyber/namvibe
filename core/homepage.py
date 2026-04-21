@@ -35,6 +35,10 @@ def _safe_profile_url(user):
     return reverse("user_dashboard")
 
 
+def _login_dashboard_url():
+    return f"{reverse('login')}?next=%2Faccounts%2Fdashboard%2F"
+
+
 def _active_ads(placement, limit=2):
     ads = list(Advertisement.objects.active_for(placement)[:limit])
     if ads:
@@ -351,10 +355,10 @@ def homepage_context(request):
         "nav_message_count": header_counts["messages"],
         "nav_messages_url": messages_url,
         "nav_wallet_url": reverse("wallet_home"),
-        "nav_profile_url": _safe_profile_url(user) if user.is_authenticated else reverse("login"),
+        "nav_profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "nav_profile_label": (current_profile.display_name or current_profile.username) if current_profile else "Guest",
         "nav_search_placeholder": "Search people, communities, creators, and live rooms",
-        "profile_url": _safe_profile_url(user) if user.is_authenticated else reverse("login"),
+        "profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "messages_url": messages_url,
         "notifications_url": reverse("notifications"),
         "wallet_url": reverse("wallet_home"),

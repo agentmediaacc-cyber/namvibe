@@ -1,6 +1,16 @@
 <a class="live-card" href="{% url 'live_room' session.uuid %}">
-  <div class="thumb">{% if session.thumbnail %}<img src="{{ session.thumbnail.url }}" alt="{{ session.title }}">{% else %}<strong>{{ session.host.profile.display_name|default:session.host.username|first|upper }}</strong>{% endif %}</div>
+  <div class="thumb">
+    {% if session.thumbnail %}
+      <img src="{{ session.thumbnail.url }}" alt="{{ session.title }}">
+    {% else %}
+      <strong>{{ session.host.profile.display_name|default:session.host.username|first|upper }}</strong>
+    {% endif %}
+  </div>
   <span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span>
   <h3>{{ session.title }}</h3>
   <p class="muted">@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</p>
+  <div class="chip-row" style="margin-top:10px;">
+    <span class="chip">{{ session.get_access_type_display }}</span>
+    <span class="chip">Join live</span>
+  </div>
 </a>

@@ -7,19 +7,19 @@
 {% include "posts/post_styles.html" %}
 <style>
   :root{
-    --feed-bg:#f3f6fb;
+    --feed-bg:#fff6f8;
     --card:#ffffff;
-    --card-soft:#f8fbff;
-    --line:#dbe4f0;
-    --text:#102033;
-    --muted:#64748b;
-    --accent:#4f46e5;
-    --accent-soft:#eff1ff;
-    --pink:#ff5f8f;
-    --gold:#ffbf47;
-    --green:#16c79a;
+    --card-soft:#fff1f4;
+    --line:#f0d4da;
+    --text:#201923;
+    --muted:#7c6672;
+    --accent:#ea4f70;
+    --accent-soft:#ffe8ee;
+    --pink:#f25d7d;
+    --gold:#ff8ca2;
+    --green:#19b88c;
   }
-  body{background:linear-gradient(180deg,#f8fbff,#eef3fa 50%,#f6f8fc);color:var(--text)}
+  body{background:linear-gradient(180deg,#fffdfd,#fff4f6 44%,#f9eef1);color:var(--text)}
   .home-shell{width:min(1120px,calc(100% - 12px));margin:0 auto;padding:10px 0 110px}
   .home-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
   .feed-column,.rail-column{min-width:0}
@@ -41,7 +41,7 @@
   }
   .topbar-chip,.mini-pill,.tab-pill,.feed-action{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    border:1px solid var(--line);background:#f8fbff;border-radius:999px;padding:9px 12px;font-weight:700;
+    border:1px solid var(--line);background:#fff6f8;border-radius:999px;padding:9px 12px;font-weight:700;
   }
   .topbar-chip .count{display:inline-flex;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--pink);color:#fff;font-size:11px;font-weight:900;align-items:center;justify-content:center}
   .stories-strip{padding:12px;margin-bottom:12px;overflow:hidden}
@@ -63,7 +63,7 @@
   }
   .story-item strong{font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .story-item small{font-size:11px;color:var(--muted);line-height:1.25;text-align:center}
-  .story-live{display:inline-flex;padding:3px 7px;border-radius:999px;background:#fee2e2;color:#be123c;font-size:10px;font-weight:900}
+  .story-live{display:inline-flex;padding:3px 7px;border-radius:999px;background:#ffe1e8;color:#cf365e;font-size:10px;font-weight:900}
   .composer-mini{padding:14px;margin-bottom:12px;display:grid;gap:12px}
   .composer-row{display:flex;gap:10px;align-items:center}
   .mini-avatar,.rail-avatar{width:44px;height:44px;border-radius:16px;overflow:hidden;flex:0 0 auto}
@@ -74,7 +74,7 @@
   .composer-links::-webkit-scrollbar{display:none}
   .feed-tabs-wrap{padding:12px;margin-bottom:12px}
   .tab-pill{white-space:nowrap;background:#fff}
-  .tab-pill.active{background:var(--accent-soft);border-color:#c7d2fe;color:#312e81}
+  .tab-pill.active{background:var(--accent-soft);border-color:#f4b7c5;color:#bc2d54}
   .feed-stack{display:grid;gap:12px}
   .feed-module{padding:14px}
   .module-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
@@ -82,20 +82,59 @@
   .live-badge,.promo-badge,.soft-badge{
     display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:900;
   }
-  .live-badge{background:#fee2e2;color:#b91c1c}
-  .promo-badge{background:#eff6ff;color:#1d4ed8}
-  .soft-badge{background:#f1f5f9;color:#475569}
+  .live-badge{background:#ffdde5;color:#cb234f}
+  .promo-badge{background:#fff0f4;color:#c23558}
+  .soft-badge{background:#fdf1f4;color:#7b5a65}
   .feed-module h3,.feed-module p{margin:0}
   .feed-copy{color:var(--muted);line-height:1.6}
   .module-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-  .module-tags span{padding:6px 10px;border-radius:999px;background:#f8fafc;color:#475569;font-size:12px}
+  .module-tags span{padding:6px 10px;border-radius:999px;background:#fff4f6;color:#7c6672;font-size:12px}
   .feed-cta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   .reel-thumb,.live-thumb{
     margin-top:12px;height:min(58vw,420px);max-height:420px;border-radius:22px;overflow:hidden;background:#dbeafe;
   }
+  .live-module{
+    background:linear-gradient(160deg,#fff8fa 0%,#fff0f3 100%);
+    border-color:#f3c8d1;
+  }
+  .live-card-hero{
+    margin-top:12px;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:12px;
+    padding:14px;
+    border-radius:22px;
+    background:linear-gradient(160deg,rgba(235,79,112,.12),rgba(255,255,255,.72));
+    border:1px solid rgba(235,79,112,.12);
+  }
+  .live-card-identity{display:flex;gap:12px;align-items:center}
+  .live-card-avatar{
+    width:52px;height:52px;border-radius:18px;overflow:hidden;flex:0 0 auto;
+    background:linear-gradient(135deg,#ffc1cd,#ea4f70);display:grid;place-items:center;color:#fff;font-weight:900;
+  }
+  .live-card-avatar img{width:100%;height:100%;object-fit:cover}
+  .live-card-stats{display:grid;gap:8px;justify-items:end}
+  .live-card-preview{
+    margin-top:12px;height:min(54vw,320px);max-height:320px;border-radius:24px;overflow:hidden;
+    background:linear-gradient(145deg,#271a26,#6c1f3c 55%,#f35f7f 100%);position:relative;
+  }
+  .live-card-preview img{width:100%;height:100%;object-fit:cover;display:block}
+  .live-card-preview::after{
+    content:"";
+    position:absolute;inset:auto 0 0 0;height:40%;
+    background:linear-gradient(180deg,rgba(9,10,14,0),rgba(9,10,14,.62));
+  }
+  .live-card-overlay{
+    position:absolute;left:14px;right:14px;bottom:14px;z-index:1;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+  }
+  .live-card-join{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-height:42px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.92);color:#c23558;font-weight:900;text-decoration:none;
+  }
   .reel-thumb video,.live-thumb video,.reel-thumb img,.live-thumb img{width:100%;height:100%;object-fit:cover;display:block}
   .promo-card{
-    background:linear-gradient(145deg,#ffffff,#f6f2ff 80%);
+    background:linear-gradient(145deg,#ffffff,#fff0f4 80%);
   }
   .promo-card .feed-cta-row .mini-pill:first-child{background:var(--accent);border-color:var(--accent);color:#fff}
   .rail-column{display:grid;gap:12px}
@@ -108,7 +147,7 @@
   .rail-link:first-child{border-top:0;padding-top:0}
   .floating-promo{
     position:fixed;right:12px;bottom:86px;z-index:60;width:min(320px,calc(100vw - 24px));
-    padding:14px;border-radius:22px;background:rgba(255,255,255,.96);border:1px solid var(--line);box-shadow:0 24px 60px rgba(15,23,42,.12);
+    padding:14px;border-radius:22px;background:rgba(255,255,255,.96);border:1px solid var(--line);box-shadow:0 24px 60px rgba(206,67,95,.16);
     display:none;
   }
   .floating-promo.visible{display:block}
@@ -121,10 +160,10 @@
   .home-mobile-nav{position:fixed;left:10px;right:10px;bottom:10px;z-index:80;display:none;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:24px;backdrop-filter:blur(14px);transition:transform .2s ease}
   .home-mobile-nav.nav-hidden{transform:translateY(120%)}
   .mobile-nav-item,.mobile-create-toggle,.mobile-create-menu a{
-    text-decoration:none;color:#334155;font-size:11px;font-weight:800;text-align:center;border-radius:16px;background:#f8fafc;padding:8px 4px;display:grid;place-items:center;gap:4px;
+    text-decoration:none;color:#5a4d58;font-size:11px;font-weight:800;text-align:center;border-radius:16px;background:#fff5f7;padding:8px 4px;display:grid;place-items:center;gap:4px;
   }
   .mobile-create{position:relative}
-  .mobile-create-toggle{border:0;width:100%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff}
+  .mobile-create-toggle{border:0;width:100%;background:linear-gradient(135deg,#ea4f70,#d43f61);color:#fff}
   .mobile-create-menu{
     position:absolute;left:50%;bottom:64px;transform:translateX(-50%);display:none;min-width:220px;padding:10px;border-radius:20px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 60px rgba(15,23,42,.16);
   }
@@ -271,16 +310,36 @@
               </div>
               <h3>{{ item.session.title }}</h3>
               <p class="feed-copy">{{ item.session.description|default:"Join the stream, react live, and send gifts from your wallet."|truncatechars:150 }}</p>
-              {% if item.session.thumbnail %}
-                <div class="live-thumb"><img src="{{ item.session.thumbnail.url }}" alt="{{ item.session.title }}" loading="lazy"></div>
-              {% endif %}
-              <div class="module-tags">
-                <span>@{{ item.session.host.profile.username }}</span>
-                <span>{{ item.session.get_access_type_display }}</span>
-                <span>{{ item.session.starts_at|date:"M j, H:i" }}</span>
+              <div class="live-card-hero">
+                <div class="live-card-identity">
+                  <span class="live-card-avatar">
+                    {% if item.session.host.profile.avatar %}
+                      <img src="{{ item.session.host.profile.avatar.url }}" alt="{{ item.session.host.profile.username }}">
+                    {% else %}
+                      {{ item.session.host.profile.username|first|upper }}
+                    {% endif %}
+                  </span>
+                  <div>
+                    <strong>@{{ item.session.host.profile.username }}</strong><br>
+                    <small class="feed-copy">{{ item.session.get_access_type_display }} · {{ item.session.starts_at|date:"M j, H:i" }}</small>
+                  </div>
+                </div>
+                <div class="live-card-stats">
+                  <span class="live-badge">{% if item.session.status == "live" %}LIVE{% else %}SOON{% endif %}</span>
+                  <span class="soft-badge">{{ item.session.viewer_count }} watching</span>
+                </div>
+              </div>
+              <div class="live-card-preview">
+                {% if item.session.thumbnail %}
+                  <img src="{{ item.session.thumbnail.url }}" alt="{{ item.session.title }}" loading="lazy">
+                {% endif %}
+                <div class="live-card-overlay">
+                  <span class="module-kicker">Live with chat and gifts</span>
+                  <a class="live-card-join" href="{% url 'live_room' item.session.uuid %}">Join</a>
+                </div>
               </div>
               <div class="feed-cta-row">
-                <a class="mini-pill" href="{% url 'live_room' item.session.uuid %}">Join live</a>
+                <a class="mini-pill" href="{% url 'live_room' item.session.uuid %}">Watch now</a>
                 <a class="mini-pill" href="{% url 'live_start' %}">Go live</a>
               </div>
             </article>

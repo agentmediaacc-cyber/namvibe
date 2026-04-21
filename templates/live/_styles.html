@@ -1,56 +1,60 @@
 <style>
-  .live-shell{max-width:1180px;margin:0 auto;padding:18px 12px 96px;color:#1f1a14}
+  .live-shell{max-width:1180px;margin:0 auto;padding:18px 12px 96px;color:#241b24}
   .live-panel,.live-card,.live-hero{
-    border:1px solid rgba(120,92,39,.14);
-    background:rgba(255,253,249,.96);
+    border:1px solid rgba(226,112,132,.14);
+    background:rgba(255,252,252,.96);
     border-radius:24px;
     padding:16px;
-    box-shadow:0 24px 60px rgba(66,45,10,.06)
+    box-shadow:0 24px 60px rgba(181,64,93,.08)
   }
   .live-hero{
     display:grid;
     grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);
     gap:18px;
-    background:linear-gradient(135deg,rgba(247,237,214,.95),rgba(255,250,241,.88))
+    background:linear-gradient(135deg,rgba(255,233,238,.95),rgba(255,247,248,.88))
   }
   .live-hero h1{font-size:clamp(34px,5vw,58px);line-height:1.02;margin:0 0 12px}
-  .muted{color:#7a6d5b;line-height:1.7}
+  .muted{color:#7f6671;line-height:1.7}
   .live-actions,.live-tabs{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .live-actions a,.live-actions button,.live-tabs a{
-    border:1px solid rgba(120,92,39,.14);
+    border:1px solid rgba(226,112,132,.14);
     background:#fff;
-    color:#2b2216;
+    color:#2c1f28;
     border-radius:14px;
     padding:11px 14px;
     font-weight:900
   }
-  .primary{background:linear-gradient(135deg,#c7a14a,#9c7427)!important;color:#fffdf7!important;border-color:transparent!important}
+  .primary{background:linear-gradient(135deg,#f26c7f,#d94763)!important;color:#fffdf7!important;border-color:transparent!important}
   .live-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px}
-  .thumb{height:210px;border-radius:18px;background:linear-gradient(135deg,rgba(199,161,74,.22),rgba(227,212,179,.18));overflow:hidden;display:grid;place-items:center}
+  .thumb{height:210px;border-radius:18px;background:linear-gradient(135deg,rgba(242,108,127,.22),rgba(255,210,220,.22));overflow:hidden;display:grid;place-items:center}
   .thumb img{width:100%;height:100%;object-fit:cover}
   .badge{display:inline-flex;width:max-content;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:900}
-  .badge-live{background:#fee2e2;color:#b42318}
-  .badge-scheduled{background:#eef2ff;color:#4338ca}
+  .badge-live{background:#ffdbe3;color:#cb234f}
+  .badge-scheduled{background:#fff0f4;color:#bc2d54}
   .room-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
   .player{
     min-height:66vh;
     border-radius:28px;
-    background:radial-gradient(circle at center,rgba(199,161,74,.18),transparent 30%),#1f1a14;
+    background:radial-gradient(circle at center,rgba(242,108,127,.18),transparent 30%),#1e141d;
     display:grid;
     place-items:center;
-    border:1px solid rgba(120,92,39,.14);
+    border:1px solid rgba(226,112,132,.14);
     overflow:hidden;
     position:relative
   }
   .player video{width:100%;height:100%;object-fit:cover}
   .chat-list{display:grid;gap:8px;max-height:420px;overflow:auto}
-  .chat-item{border:1px solid rgba(120,92,39,.08);background:rgba(255,250,243,.88);border-radius:12px;padding:10px}
+  .chat-item{border:1px solid rgba(226,112,132,.1);background:rgba(255,247,248,.94);border-radius:16px;padding:12px}
+  .chat-item-host{background:linear-gradient(135deg,#fff0f4,#ffe4ea);border-color:rgba(242,108,127,.22)}
+  .chat-item p{margin:8px 0 0;color:#2c1f28;line-height:1.55}
   .chat-form textarea,.chat-form input,.chat-form select,.live-form input,.live-form textarea,.live-form select{
-    width:100%;min-width:0;border:1px solid rgba(120,92,39,.14);background:#fffdf9;color:#1f1a14;border-radius:14px;padding:11px
+    width:100%;min-width:0;border:1px solid rgba(226,112,132,.14);background:#fffdfd;color:#241b24;border-radius:16px;padding:11px
   }
   .live-form{display:grid;gap:14px}
   .chip-row{display:flex;gap:8px;flex-wrap:wrap}
-  .chip{background:#f8f0dd;color:#7d5c1d;border-radius:999px;padding:7px 10px;font-size:13px}
+  .chip{background:#fff0f4;color:#c23c5e;border-radius:999px;padding:7px 10px;font-size:13px}
+  .live-card{color:inherit;text-decoration:none}
+  .live-card h3{margin:10px 0 6px}
   .live-room-shell{display:grid;gap:14px}
   .live-room-panel{display:grid;gap:12px}
   .live-room-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
@@ -61,6 +65,16 @@
   .live-room-chat-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .live-chat-composer{display:grid;gap:10px}
   .live-gift-list{display:grid;gap:8px;margin-top:10px}
+  .live-host-control{
+    border:1px solid rgba(226,112,132,.14);
+    background:#fff5f7;
+    color:#c23c5e;
+    border-radius:999px;
+    min-height:38px;
+    padding:0 12px;
+    font-weight:800;
+    cursor:pointer;
+  }
   @media(max-width:900px){
     .live-shell{padding-inline:8px}
     .live-hero,.room-layout{grid-template-columns:1fr}

@@ -1,6 +1,12 @@
 <div class="chat-list">
   {% for message in messages %}
-    <div class="chat-item"><strong>@{{ message.user.profile.username|default:message.user.username }}</strong><p>{{ message.body }}</p><small class="muted">{{ message.created_at|date:"H:i" }}</small></div>
+    <div class="chat-item {% if session.host_id == message.user_id %}chat-item-host{% endif %}">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+        <strong>@{{ message.user.profile.username|default:message.user.username }}{% if session.host_id == message.user_id %} · Host{% endif %}</strong>
+        <small class="muted">{{ message.created_at|date:"H:i" }}</small>
+      </div>
+      <p>{{ message.body }}</p>
+    </div>
   {% empty %}
     <p class="muted">No messages yet.</p>
   {% endfor %}

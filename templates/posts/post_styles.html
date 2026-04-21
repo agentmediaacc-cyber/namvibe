@@ -1,25 +1,25 @@
 <style>
     .nv-list-page{max-width:980px;margin:0 auto;padding:28px 16px 92px}
     .nv-list-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
-    .nv-list-head h1{font-size:34px;margin:0 0 8px}.nv-list-head p{color:#7a6d5b;margin:0}
+    .nv-list-head h1{font-size:34px;margin:0 0 8px}.nv-list-head p{color:#7f6671;margin:0}
     .nv-list-grid{display:grid;gap:16px}
-    .nv-post-card,.nv-empty{border:1px solid rgba(120,92,39,.14);background:rgba(255,253,249,.97);border-radius:28px;padding:18px;box-shadow:0 20px 56px rgba(66,45,10,.06)}
-    .nv-post-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px;color:#7a6d5b}
-    .nv-author{display:flex;gap:12px;align-items:center;color:#2b2216;text-decoration:none}
-    .nv-avatar{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#f4ead0,#c7a14a);display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#5f4518}
-    .nv-author small{display:block;color:#7a6d5b;margin-top:3px}.nv-post-card h2{margin:0 0 10px}.nv-post-card h2 a,.nv-post-card p a{text-decoration:none;color:inherit}.nv-post-card p{color:#554a3c;line-height:1.7}
-    .nv-media-stack{position:relative;display:grid;gap:10px;margin:14px 0}.nv-media{width:100%;max-height:560px;object-fit:cover;border-radius:18px;background:#efe5d2;border:1px solid rgba(120,92,39,.14)}
+    .nv-post-card,.nv-empty{border:1px solid rgba(226,112,132,.14);background:rgba(255,252,252,.97);border-radius:28px;padding:18px;box-shadow:0 20px 56px rgba(181,64,93,.08)}
+    .nv-post-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px;color:#7f6671}
+    .nv-author{display:flex;gap:12px;align-items:center;color:#2c1f28;text-decoration:none}
+    .nv-avatar{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#ffd0da,#f26c7f);display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#7a2340}
+    .nv-author small{display:block;color:#7f6671;margin-top:3px}.nv-post-card h2{margin:0 0 10px}.nv-post-card h2 a,.nv-post-card p a{text-decoration:none;color:inherit}.nv-post-card p{color:#5c4b55;line-height:1.7}
+    .nv-media-stack{position:relative;display:grid;gap:10px;margin:14px 0}.nv-media{width:100%;max-height:560px;object-fit:cover;border-radius:18px;background:#fdecef;border:1px solid rgba(226,112,132,.14)}
     .nv-overlay{position:absolute;left:16px;bottom:16px;background:rgba(31,26,20,.62);padding:8px 10px;border-radius:12px;color:white}
-    .nv-flyer,.nv-poll,.nv-live-box{display:grid;gap:8px;border:1px solid rgba(120,92,39,.14);border-radius:18px;padding:16px;margin:14px 0;background:linear-gradient(135deg,#fffaf0,#f4ead0)}
-    .nv-poll-option{display:flex;justify-content:space-between;border:1px solid rgba(120,92,39,.1);border-radius:14px;padding:10px;background:#fffdf9}
-    .nv-tags,.nv-actions,.nv-head-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.nv-tags span{font-size:13px;color:#7d5c1d;background:#f8f0dd;padding:6px 9px;border-radius:999px}
-    .nv-actions{border-top:1px solid rgba(120,92,39,.1);padding-top:14px;margin-top:14px;color:#7a6d5b}.nv-actions a,.nv-list-head a,.nv-head-actions a,.nv-head-actions button{color:#2b2216;background:#fff;border:1px solid rgba(120,92,39,.12);border-radius:14px;padding:10px 12px;font-weight:800;text-decoration:none}
+    .nv-flyer,.nv-poll,.nv-live-box{display:grid;gap:8px;border:1px solid rgba(226,112,132,.14);border-radius:18px;padding:16px;margin:14px 0;background:linear-gradient(135deg,#fff7f8,#ffe8ee)}
+    .nv-poll-option{display:flex;justify-content:space-between;border:1px solid rgba(226,112,132,.1);border-radius:14px;padding:10px;background:#fffdfd}
+    .nv-tags,.nv-actions,.nv-head-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.nv-tags span{font-size:13px;color:#c23c5e;background:#fff0f4;padding:6px 9px;border-radius:999px}
+    .nv-actions{border-top:1px solid rgba(226,112,132,.1);padding-top:14px;margin-top:14px;color:#7f6671}.nv-actions a,.nv-list-head a,.nv-head-actions a,.nv-head-actions button{color:#2c1f28;background:#fff;border:1px solid rgba(226,112,132,.12);border-radius:14px;padding:10px 12px;font-weight:800;text-decoration:none}
     .nv-head-actions form{margin:0}.nv-head-actions button{cursor:pointer}
-    .nv-mobile-actions{position:sticky;bottom:10px;display:flex;gap:8px;margin-top:12px;background:rgba(255,253,249,.92);backdrop-filter:blur(14px);border:1px solid rgba(120,92,39,.14);border-radius:18px;padding:8px;z-index:10}
-    .nv-mobile-actions button{flex:1;border:0;border-radius:14px;padding:10px;background:#f8f0dd;color:#6d4e18;font-weight:900}
-    .comment-box,.share-sheet,.report-box{border:1px solid rgba(120,92,39,.12);background:#fffdf9;border-radius:18px;padding:14px;margin-top:16px}
-    .comment-item{border-top:1px solid rgba(120,92,39,.08);padding:12px 0}.comment-reply{margin-left:24px}.pinned{color:#9c7427;font-size:12px;font-weight:900}
-    .comment-box textarea,.share-sheet textarea,.report-box textarea,.report-box select{width:100%;min-width:0;border:1px solid rgba(120,92,39,.12);background:#fff;color:#1f1a14;border-radius:14px;padding:10px}
-    .comment-box button,.share-sheet button,.report-box button,.comment-item button{border:0;border-radius:14px;padding:9px 11px;background:#f7eed8;color:#6d4e18;font-weight:800;margin-top:8px}
+    .nv-mobile-actions{position:sticky;bottom:10px;display:flex;gap:8px;margin-top:12px;background:rgba(255,252,252,.92);backdrop-filter:blur(14px);border:1px solid rgba(226,112,132,.14);border-radius:18px;padding:8px;z-index:10}
+    .nv-mobile-actions button{flex:1;border:0;border-radius:14px;padding:10px;background:#fff0f4;color:#c23c5e;font-weight:900}
+    .comment-box,.share-sheet,.report-box{border:1px solid rgba(226,112,132,.12);background:#fffdfd;border-radius:18px;padding:14px;margin-top:16px}
+    .comment-item{border-top:1px solid rgba(226,112,132,.08);padding:12px 0}.comment-reply{margin-left:24px}.pinned{color:#d94763;font-size:12px;font-weight:900}
+    .comment-box textarea,.share-sheet textarea,.report-box textarea,.report-box select{width:100%;min-width:0;border:1px solid rgba(226,112,132,.12);background:#fff;color:#241b24;border-radius:14px;padding:10px}
+    .comment-box button,.share-sheet button,.report-box button,.comment-item button{border:0;border-radius:14px;padding:9px 11px;background:#fff0f4;color:#c23c5e;font-weight:800;margin-top:8px}
     @media (max-width: 640px){.nv-post-card,.nv-empty{padding:14px;border-radius:22px}}
 </style>

@@ -5,7 +5,7 @@
   .live-camera-shell{
     min-height:calc(100vh - 68px);
     padding:0 0 94px;
-    background:linear-gradient(180deg,#f6f0e4 0%,#f3f6fb 24%,#eef2f7 100%);
+    background:linear-gradient(180deg,#fff9fa 0%,#fff2f5 24%,#f9eef1 100%);
   }
   .live-camera-wrap{
     width:min(100%,520px);
@@ -83,12 +83,12 @@
   }
   .live-glass-btn.icon-only{width:42px;padding:0}
   .live-primary{
-    background:linear-gradient(135deg,#d8b663,#a67723);
+    background:linear-gradient(135deg,#f26c7f,#d94763);
     color:#fffdf7;
     border-color:transparent;
     min-height:54px;
     padding:0 18px;
-    box-shadow:0 18px 34px rgba(154,112,28,.32);
+    box-shadow:0 18px 34px rgba(217,71,99,.32);
   }
   .live-chip{
     min-height:34px;
@@ -96,8 +96,8 @@
     font-size:12px;
     font-weight:900;
   }
-  .live-chip.is-live{background:rgba(161,21,46,.82)}
-  .live-chip.is-status{background:rgba(255,255,255,.14)}
+  .live-chip.is-live{background:rgba(203,35,79,.84)}
+  .live-chip.is-status{background:rgba(255,236,241,.16)}
   .live-title-stack{
     margin-top:10px;
     max-width:calc(100% - 54px);
@@ -239,7 +239,7 @@
     bottom:0;
     max-height:min(82vh,780px);
     border-radius:28px 28px 0 0;
-    background:#fffdf8;
+    background:#fffdfd;
     padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 20px);
     box-shadow:0 -30px 80px rgba(15,23,42,.24);
     overflow:auto;
@@ -248,7 +248,7 @@
     width:52px;
     height:5px;
     border-radius:999px;
-    background:#d6c1a2;
+    background:#f0bcc8;
     margin:0 auto 12px;
   }
   .live-sheet-head{
@@ -260,7 +260,7 @@
   }
   .live-sheet-head p{
     margin:4px 0 0;
-    color:#7a6d5b;
+    color:#7f6671;
     font-size:13px;
   }
   .live-sheet-grid{
@@ -274,7 +274,7 @@
   }
   .live-sheet-field.full{grid-column:1/-1}
   .live-sheet-field label{
-    color:#34291d;
+    color:#442834;
     font-size:13px;
     font-weight:800;
   }
@@ -283,9 +283,9 @@
   .live-sheet-field select{
     width:100%;
     min-width:0;
-    border:1px solid rgba(120,92,39,.14);
+    border:1px solid rgba(226,112,132,.14);
     background:#fff;
-    color:#1f1a14;
+    color:#241b24;
     border-radius:18px;
     padding:13px 14px;
   }
@@ -300,9 +300,9 @@
   }
   .live-audience-option,
   .live-mini-chip{
-    border:1px solid rgba(120,92,39,.14);
+    border:1px solid rgba(226,112,132,.14);
     background:#fff;
-    color:#2b2216;
+    color:#2c1f28;
     border-radius:999px;
     min-height:38px;
     padding:0 12px;
@@ -314,7 +314,7 @@
     cursor:pointer;
     text-decoration:none;
   }
-  .live-audience-option.is-active{background:#f8f0dd;border-color:rgba(156,116,39,.28);color:#8d6416}
+  .live-audience-option.is-active{background:#ffe8ee;border-color:rgba(217,71,99,.28);color:#c23c5e}
   .live-toggle{
     display:flex;
     align-items:center;
@@ -322,9 +322,9 @@
     padding:12px 14px;
     border-radius:18px;
     background:#fff;
-    border:1px solid rgba(120,92,39,.12);
+    border:1px solid rgba(226,112,132,.12);
     font-weight:700;
-    color:#2b2216;
+    color:#2c1f28;
   }
   .live-sheet-actions{
     position:sticky;
@@ -336,7 +336,7 @@
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:10px;
-    border-top:1px solid rgba(120,92,39,.12);
+    border-top:1px solid rgba(226,112,132,.12);
   }
   .live-sheet-actions button{
     min-height:48px;
@@ -346,8 +346,8 @@
     cursor:pointer;
   }
   .live-sheet-actions .secondary{
-    background:#f5ede1;
-    color:#7d5c1d;
+    background:#fff1f4;
+    color:#c23c5e;
   }
   .live-sheet-actions .primary{
     background:linear-gradient(135deg,#d8b663,#a67723);
@@ -816,7 +816,10 @@
       featuredInput.checked = featuredSheet.checked;
     });
     form.addEventListener("submit", function () {
-      miniNote.textContent = "Creating your live room...";
+      document.body.dataset.focusUi = "true";
+      miniNote.textContent = "Going live...";
+      const submit = document.getElementById("liveSubmitButton");
+      if (submit) submit.textContent = "Going live...";
     });
     window.addEventListener("beforeunload", stopStream);
 

@@ -8,7 +8,14 @@
       <div class="player">
         {% if locked_premium %}
           <div style="padding:22px;text-align:center;"><span class="badge badge-scheduled">PREMIUM</span><h1>{{ session.title }}</h1><p class="muted">Unlock this room with your wallet balance.</p><form method="post" action="{% url 'live_purchase_access' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">Unlock for N${{ live_access_price }}</button></form></div>
-        {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline></video>{% else %}<div style="padding:22px;text-align:center;"><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">The stream starts as soon as the host connects.</p></div>{% endif %}
+        {% elif session.playback_url %}<video src="{{ session.playback_url }}" controls autoplay playsinline id="liveRoomPlayback"></video>{% else %}<div style="padding:22px;text-align:center;"><span class="badge {% if session.status == 'live' %}badge-live{% else %}badge-scheduled{% endif %}">{{ session.status|upper }}</span><h1>{{ session.title }}</h1><p class="muted">{% if is_host and session.status == 'live' %}Your camera stays visible here while you host.{% else %}The stream starts as soon as the host connects.{% endif %}</p></div>{% endif %}
+        {% if is_host and session.status == 'live' %}
+          <video id="hostSelfPreview" playsinline autoplay muted style="position:absolute;right:14px;bottom:14px;width:min(34vw,150px);height:min(46vw,210px);border-radius:20px;border:1px solid rgba(255,255,255,.18);background:#0a0a0c;object-fit:cover;box-shadow:0 20px 36px rgba(0,0,0,.24);"></video>
+          <div style="position:absolute;left:14px;top:14px;display:flex;gap:8px;flex-wrap:wrap;z-index:2;">
+            <span class="badge badge-live">LIVE NOW</span>
+            <span class="badge badge-scheduled">{{ session.viewer_count }} watching</span>
+          </div>
+        {% endif %}
       </div>
       <div class="live-panel live-room-panel">
         <div class="live-room-top">
@@ -36,10 +43,10 @@
         <div class="live-panel live-room-panel">
           <h2>Host controls</h2>
           <div class="chip-row">
-            <span class="chip">Pin message</span>
-            <span class="chip">Welcome viewers</span>
-            <span class="chip">Manage viewers</span>
-            <span class="chip">Clear chat</span>
+            <button type="button" class="live-host-control" id="hostToggleMic">Mute mic</button>
+            <button type="button" class="live-host-control" id="hostToggleCam">Camera off</button>
+            <button type="button" class="live-host-control" id="hostSwitchCam">Switch camera</button>
+            <button type="button" class="live-host-control" id="hostPinPrompt">Pin message</button>
           </div>
           <p class="muted">Stream key: <code>{{ session.stream_key|default:"Not generated yet" }}</code></p>
           {% if session.status != "ended" %}<form method="post" action="{% url 'live_end' session.uuid %}">{% csrf_token %}<button class="primary" type="submit">End session</button></form>{% endif %}
@@ -95,4 +102,59 @@
     </aside>
   </div>
 </section>
+{% if is_host and session.status == "live" %}
+<script>
+  (function () {
+    const selfPreview = document.getElementById("hostSelfPreview");
+    const toggleMic = document.getElementById("hostToggleMic");
+    const toggleCam = document.getElementById("hostToggleCam");
+    const switchCam = document.getElementById("hostSwitchCam");
+    let stream = null;
+    let audioEnabled = true;
+    let cameraEnabled = true;
+    let facingMode = "user";
+
+    async function startHostPreview() {
+      if (!navigator.mediaDevices?.getUserMedia || !selfPreview) return;
+      try {
+        if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: cameraEnabled ? { facingMode: facingMode } : false,
+          audio: audioEnabled
+        });
+        selfPreview.srcObject = stream;
+      } catch (error) {}
+    }
+
+    toggleMic?.addEventListener("click", function () {
+      audioEnabled = !audioEnabled;
+      if (stream) stream.getAudioTracks().forEach(function (track) { track.enabled = audioEnabled; });
+      toggleMic.textContent = audioEnabled ? "Mute mic" : "Mic muted";
+    });
+    toggleCam?.addEventListener("click", function () {
+      cameraEnabled = !cameraEnabled;
+      if (cameraEnabled) {
+        startHostPreview();
+      } else if (stream) {
+        stream.getVideoTracks().forEach(function (track) { track.enabled = false; });
+        selfPreview.style.opacity = "0.45";
+      }
+      if (cameraEnabled) selfPreview.style.opacity = "1";
+      toggleCam.textContent = cameraEnabled ? "Camera off" : "Camera on";
+    });
+    switchCam?.addEventListener("click", function () {
+      facingMode = facingMode === "user" ? "environment" : "user";
+      startHostPreview();
+    });
+    document.getElementById("hostPinPrompt")?.addEventListener("click", function () {
+      const composer = document.querySelector(".chat-form textarea");
+      composer?.focus();
+    });
+    window.addEventListener("beforeunload", function () {
+      if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+    });
+    startHostPreview();
+  }());
+</script>
+{% endif %}
 {% endblock %}
