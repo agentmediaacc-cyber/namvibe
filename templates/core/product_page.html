@@ -19,6 +19,25 @@
     </div>
   </div>
 
+  {% if feature_metrics %}
+    <div class="product-grid">
+      {% for item in feature_metrics %}
+        <article class="product-card"><span>{{ item.label }}</span><strong>{{ item.value }}</strong></article>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if feature_shortcuts %}
+    <div class="product-section">
+      <h2>Quick routes</h2>
+      <div class="product-grid">
+        {% for item in feature_shortcuts %}
+          <a class="product-card" href="{{ item.url }}"><strong>{{ item.label }}</strong><span>Open route</span></a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
   {% if message %}
     <div class="product-card">{{ message }}</div>
   {% endif %}
@@ -62,6 +81,62 @@
         {% endfor %}
       </div>
     </div>
+  {% endif %}
+
+  {% for section in feature_sections %}
+    <div class="product-section">
+      <h2>{{ section.title }}</h2>
+      <div class="product-grid">
+        {% for card in section.cards %}
+          {% if section.kind == "post" %}
+            <a class="product-card" href="{% url 'post_detail' card.uuid %}">
+              <strong>{{ card.title|default:card.get_post_type_display }}</strong>
+              <span>@{{ card.author.profile.username }}{% if card.community %} · {{ card.community.name }}{% endif %}</span>
+            </a>
+          {% elif section.kind == "community" %}
+            <a class="product-card" href="{% url 'community_detail' card.slug %}">
+              <strong>{{ card.name }}</strong>
+              <span>{{ card.member_count }} members · {{ card.description|truncatechars:84 }}</span>
+            </a>
+          {% elif section.kind == "live" %}
+            <a class="product-card" href="{% url 'live_room' card.uuid %}">
+              <strong>{{ card.title }}</strong>
+              <span>@{{ card.host.profile.username }} · {{ card.viewer_count }} watching</span>
+            </a>
+          {% elif section.kind == "gift" %}
+            <article class="product-card">
+              <strong>{{ card.name }}</strong>
+              <span>N${{ card.coin_cost }} · creator gets N${{ card.value_to_creator }}</span>
+            </article>
+          {% elif section.kind == "gift_event" %}
+            <article class="product-card">
+              <strong>{{ card.gift.name }}</strong>
+              <span>Sent to @{{ card.recipient.username }} · {{ card.created_at|date:"M j, H:i" }}</span>
+            </article>
+          {% endif %}
+        {% empty %}
+          <div class="product-card">Nothing published here yet. This route is ready for live data as soon as creators or admins add it.</div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+
+  {% if feature_promos %}
+    <div class="product-section">
+      <h2>System promos</h2>
+      <div class="product-grid">
+        {% for promo in feature_promos %}
+          <a class="product-card" href="{{ promo.cta_url|default:'/support/' }}">
+            <strong>{{ promo.title }}</strong>
+            <span>{{ promo.body|truncatechars:100 }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  {% if feature_note %}
+    <div class="product-card muted-card">{{ feature_note }}</div>
   {% endif %}
 
   <div class="product-card muted-card">

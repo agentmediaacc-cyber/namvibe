@@ -19,6 +19,14 @@ def support_home_view(request):
         "supportapp/home.html",
         {
             "promo_cards": SystemPromoCard.objects.filter(is_active=True)[:6],
+            "support_routes": [
+                {"label": "Notifications", "copy": "Open follows, chats, comments, and wallet alerts.", "url_name": "notifications"},
+                {"label": "Wallet", "copy": "Review premium, gifts, and creator earnings.", "url_name": "wallet_home"},
+                {"label": "Premium plans", "copy": "Upgrade or review membership routes.", "url_name": "wallet_membership_plans"},
+                {"label": "Live home", "copy": "Open live discovery and viewer flows.", "url_name": "live_home"},
+                {"label": "Creator Studio", "copy": "Launch content and monetization tools.", "url_name": "studio"},
+                {"label": "Ads center", "copy": "Promotions, business tools, and feed ad routes.", "url_name": "ads_home"},
+            ],
             "open_routes": [
                 {"label": "Notifications", "url_name": "notifications"},
                 {"label": "Wallet", "url_name": "wallet_home"},
@@ -62,5 +70,16 @@ def support_control_view(request):
                 {"label": "Live rooms", "url": "/live/"},
             ],
             "team_roles": AccountRole.objects.exclude(role=AccountRole.Role.MEMBER).select_related("user")[:20],
+            "control_sections": [
+                {"title": "Moderation and reports", "copy": "Use Django admin today while moderation queues and report workflows deepen.", "url": "/admin/"},
+                {"title": "Premium approvals", "copy": "Review memberships, plans, and upgrade friction from one route group.", "url": "/wallet/membership/plans/"},
+                {"title": "Creator and streamer approvals", "copy": "Audit live hosts, creator roles, and monetization readiness.", "url": "/live/"},
+                {"title": "Homepage featured content", "copy": "Seed promo cards and sponsored surfaces without changing templates again.", "url": "/support/"},
+                {"title": "Broadcast and notifications", "copy": "Notifications and system promos can be reviewed from the social UX, not only admin.", "url": "/notifications/"},
+                {"title": "Ads and promotions", "copy": "Open ads routes and promotion starter pages for creator/business growth.", "url": "/ads/promotions/"},
+            ],
+            "recent_ads": Advertisement.objects.filter(status=Advertisement.Status.ACTIVE).order_by("-priority", "-created_at")[:6],
+            "recent_live": LiveSession.objects.exclude(status=LiveSession.Status.ENDED).select_related("host", "host__profile").order_by("-viewer_count", "-created_at")[:6],
+            "recent_posts": Post.objects.published().select_related("author", "author__profile").order_by("-published_at")[:6],
         },
     )

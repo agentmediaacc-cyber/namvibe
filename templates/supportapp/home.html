@@ -20,6 +20,18 @@
   </div>
 
   <div class="product-section">
+    <h2>Support routes</h2>
+    <div class="product-grid">
+      {% for item in support_routes %}
+        <a class="product-card" href="{% url item.url_name %}">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.copy }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
     <h2>System promo cards</h2>
     <div class="product-grid">
       {% for promo in promo_cards %}

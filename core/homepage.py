@@ -236,50 +236,51 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
     modules = []
     reels_by_id = {post.id: post for post in reels}
     post_bucket = list(posts)
-
+    lead_candidates = []
     if post_bucket:
-        modules.append({"kind": "post", "post": post_bucket.pop(0)})
+        first_post = post_bucket.pop(0)
+        lead_candidates.append({"kind": "reel" if first_post.id in reels_by_id else "post", "post": first_post})
     if live_sessions:
-        modules.append({"kind": "live", "session": live_sessions[0]})
-    if post_bucket:
-        modules.append({"kind": "post", "post": post_bucket.pop(0)})
-    if communities:
-        modules.append({"kind": "community", "community": communities[0]})
-    if post_bucket:
-        modules.append({"kind": "post", "post": post_bucket.pop(0)})
-    if dating_profiles:
-        modules.append({"kind": "dating", "profile": dating_profiles[0]})
-    if wallet_snapshot:
-        modules.append({"kind": "wallet", "wallet": wallet_snapshot})
+        lead_candidates.append({"kind": "live", "session": live_sessions[0]})
     if promos:
-        modules.append({"kind": "promo", "promo": promos[0]})
-
+        lead_candidates.append({"kind": "promo", "promo": promos[0]})
+    if communities:
+        lead_candidates.append({"kind": "community", "community": communities[0]})
+    if dating_profiles:
+        lead_candidates.append({"kind": "dating", "profile": dating_profiles[0]})
+    if wallet_snapshot:
+        lead_candidates.append({"kind": "wallet", "wallet": wallet_snapshot})
     if ads:
-        modules.append({"kind": "ad", "ad": ads[0]})
+        lead_candidates.append({"kind": "ad", "ad": ads[0]})
+    modules.extend(lead_candidates[:4])
 
+    cycle = []
     for post in post_bucket:
-        if post.id in reels_by_id:
-            modules.append({"kind": "reel", "post": post})
-        else:
-            modules.append({"kind": "post", "post": post})
+        cycle.append({"kind": "reel" if post.id in reels_by_id else "post", "post": post})
+    cycle.extend({"kind": "live", "session": session} for session in live_sessions[1:3])
+    cycle.extend({"kind": "community", "community": community} for community in communities[1:3])
+    cycle.extend({"kind": "dating", "profile": profile} for profile in dating_profiles[1:3])
+    cycle.extend({"kind": "promo", "promo": promo} for promo in promos[1:3])
+    cycle.extend({"kind": "ad", "ad": ad} for ad in ads[1:3])
 
-    for index, ad in enumerate(ads[1:], start=1):
-        insert_at = min(len(modules), 5 + (index * 4))
-        modules.insert(insert_at, {"kind": "ad", "ad": ad})
+    inserts = [1, 3, 5, 7]
+    for idx, item in enumerate(cycle):
+        insert_at = inserts[idx] if idx < len(inserts) else len(modules)
+        modules.insert(min(insert_at, len(modules)), item)
 
-    for index, promo in enumerate(promos[1:], start=1):
-        insert_at = min(len(modules), 3 + (index * 4))
-        modules.insert(insert_at, {"kind": "promo", "promo": promo})
-
-    for session in live_sessions[1:3]:
-        modules.append({"kind": "live", "session": session})
-
-    for community in communities[1:3]:
-        modules.append({"kind": "community", "community": community})
-
-    for profile in dating_profiles[1:3]:
-        modules.append({"kind": "dating", "profile": profile})
-
+    if not modules:
+        return [
+            {
+                "kind": "promo",
+                "promo": {
+                    "title": "Namvibe is ready for your first update",
+                    "body": "Add a story, post a reel, or explore creators and communities from the menu to bring the feed to life.",
+                    "cta_label": "Open Studio",
+                    "url": reverse("studio"),
+                    "dismissible": False,
+                },
+            }
+        ]
     return modules[:18]
 
 

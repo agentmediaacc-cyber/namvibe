@@ -127,3 +127,27 @@ class HomepageProductionTests(TestCase):
 
         self.assertEqual(click_response.status_code, 302)
         self.assertEqual(active_ad.click_count, 1)
+
+    def test_reels_route_renders_video_posts(self):
+        reel_post = Post.objects.create(
+            author=self.author,
+            title="Homepage reel",
+            caption="Short-form",
+            post_type=Post.PostType.REEL,
+            audience=Post.Audience.PUBLIC,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+
+        response = self.client.get(reverse("reels_feed"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reel_post.title)
+        self.assertContains(response, "Reels")
+
+    def test_feature_starter_routes_render_without_dead_end_copy(self):
+        response = self.client.get(reverse("channels"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Quick routes")
+        self.assertContains(response, "Channels")

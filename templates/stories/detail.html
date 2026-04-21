@@ -4,19 +4,60 @@
 
 {% block content %}
 <style>
-  .story-view{min-height:78vh;display:grid;place-items:center;padding:18px}.story-frame{width:min(480px,100%);min-height:680px;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,#111827,#020617);border-radius:24px;padding:18px;position:relative;display:flex;flex-direction:column;gap:14px}.progress{height:4px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden}.progress span{display:block;width:70%;height:100%;background:linear-gradient(135deg,#14b8a6,#f43f5e)}.story-media{flex:1;display:grid;place-items:center;border-radius:18px;background:rgba(255,255,255,.06);overflow:hidden}.story-media img,.story-media video{width:100%;height:100%;object-fit:cover}.story-actions,.story-nav{display:flex;gap:8px;flex-wrap:wrap}.story-actions button,.story-actions a,.story-nav a{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.1);color:white;border-radius:8px;padding:10px 12px;font-weight:800}.story-actions textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#081322;color:white;border-radius:8px;padding:10px}
+  .story-view{min-height:84vh;display:grid;place-items:center;padding:16px}
+  .story-frame{
+    width:min(520px,100%);min-height:min(86vh,760px);border:1px solid rgba(199,161,74,.24);
+    background:linear-gradient(180deg,#1f1a14,#3a2910);border-radius:28px;padding:16px;position:relative;display:flex;flex-direction:column;gap:14px;
+    box-shadow:0 24px 70px rgba(66,45,10,.2);color:#fffdf8
+  }
+  .progress{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .progress span{display:block;height:4px;border-radius:99px;background:rgba(255,255,255,.18)}
+  .progress span.active{background:linear-gradient(135deg,#f4e0a5,#c7a14a)}
+  .story-head,.story-nav,.story-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .story-nav{justify-content:space-between}
+  .story-nav-group{display:flex;gap:8px;flex-wrap:wrap}
+  .story-nav a,.story-nav button,.story-actions button,.story-actions a{
+    border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.12);color:#fffdf8;border-radius:999px;padding:10px 12px;font-weight:800;text-decoration:none
+  }
+  .story-author{display:flex;align-items:center;gap:12px}
+  .story-avatar{width:46px;height:46px;border-radius:16px;background:linear-gradient(135deg,#f4ead0,#c7a14a);display:grid;place-items:center;color:#5f4518;font-weight:900;overflow:hidden}
+  .story-avatar img{width:100%;height:100%;object-fit:cover}
+  .story-media{flex:1;display:grid;place-items:center;border-radius:22px;background:rgba(255,255,255,.08);overflow:hidden}
+  .story-media img,.story-media video{width:100%;height:100%;object-fit:cover}
+  .story-copy{display:grid;gap:10px}
+  .story-copy p{margin:0;line-height:1.6;color:rgba(255,249,240,.86)}
+  .story-stats{display:flex;gap:10px;flex-wrap:wrap;color:rgba(255,249,240,.82);font-size:13px}
+  .story-actions textarea{
+    width:100%;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#fffdf8;border-radius:18px;padding:12px;min-height:76px
+  }
+  .story-comments{display:grid;gap:10px}
+  .story-comment{padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+  @media (max-width: 640px){.story-view{padding:8px}.story-frame{min-height:calc(100vh - 92px);border-radius:22px;padding:12px}}
 </style>
 <section class="story-view">
   <article class="story-frame">
-    <div class="progress"><span></span></div>
+    <div class="progress"><span class="active"></span><span></span><span></span></div>
     <div class="story-nav">
-      <a href="/">Close</a>
-      {% if previous_story %}<a href="{% url 'story_detail' previous_story.id %}">Previous</a>{% endif %}
-      {% if next_story %}<a href="{% url 'story_detail' next_story.id %}">Next</a>{% endif %}
+      <div class="story-nav-group">
+        <a href="/">Close</a>
+        <a href="{% url 'story_create' %}">Add story</a>
+      </div>
+      <div class="story-nav-group">
+        {% if previous_story %}<a href="{% url 'story_detail' previous_story.id %}">Previous</a>{% endif %}
+        {% if next_story %}<a href="{% url 'story_detail' next_story.id %}">Next</a>{% endif %}
+      </div>
     </div>
-    <header>
-      <strong>@{{ story.author.profile.username|default:story.author.username }}</strong>
-      <small style="color:#cbd5e1;">{{ story.created_at|timesince }} ago</small>
+    <header class="story-head">
+      <div class="story-author">
+        <span class="story-avatar">
+          {% if story.author.profile.avatar %}<img src="{{ story.author.profile.avatar.url }}" alt="{{ story.author.profile.username }}">{% else %}{{ story.author.profile.username|first|upper }}{% endif %}
+        </span>
+        <div>
+          <strong>@{{ story.author.profile.username|default:story.author.username }}</strong><br>
+          <small style="color:rgba(255,249,240,.82);">{{ story.created_at|timesince }} ago</small>
+        </div>
+      </div>
+      <a href="{% url 'profile_detail' story.author.profile.username %}" class="story-nav">Profile</a>
     </header>
     <div class="story-media {{ story.background_style }}">
       {% if story.media_type == "photo" and story.file %}
@@ -27,15 +68,43 @@
         <h1 style="padding:22px;text-align:center;">{{ story.text_content }}</h1>
       {% endif %}
     </div>
-    {% if story.caption %}<p>{{ story.caption }}</p>{% endif %}
-    {% if story.link_url %}<a class="btn btn-main" href="{{ story.link_url }}">{{ story.link_label|default:"Open link" }}</a>{% endif %}
-    <div>{{ story.view_count }} views · {{ story.like_count }} likes · {{ story.comment_count }} replies · {{ story.share_count }} shares</div>
+    <div class="story-copy">
+      {% if story.caption %}<p>{{ story.caption }}</p>{% endif %}
+      {% if story.link_url %}<a class="btn btn-main" href="{{ story.link_url }}">{{ story.link_label|default:"Open link" }}</a>{% endif %}
+      <div class="story-stats">
+        <span>{{ story.view_count }} views</span>
+        <span>{{ story.like_count }} likes</span>
+        <span>{{ story.comment_count }} replies</span>
+        <span>{{ story.share_count }} shares</span>
+      </div>
+    </div>
     {% if request.user.is_authenticated %}
-      <form class="story-actions" method="post" action="{% url 'story_like' story.id %}">{% csrf_token %}<button name="reaction_type" value="like">Like</button><button name="reaction_type" value="fire">Fire</button></form>
-      <form class="story-actions" method="post" action="{% url 'story_comment' story.id %}">{% csrf_token %}<textarea name="body" rows="2" placeholder="Reply to story"></textarea><button type="submit">Reply</button></form>
-      <form class="story-actions" method="post" action="{% url 'story_share' story.id %}">{% csrf_token %}<button type="submit">Forward</button></form>
+      <form class="story-actions" method="post" action="{% url 'story_like' story.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button name="reaction_type" value="like">Like</button>
+        <button name="reaction_type" value="fire">Fire</button>
+        <button name="reaction_type" value="love">Love</button>
+      </form>
+      <form class="story-actions" method="post" action="{% url 'story_comment' story.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <textarea name="body" rows="2" placeholder="Reply to story"></textarea>
+        <button type="submit">Reply</button>
+      </form>
+      <form class="story-actions" method="post" action="{% url 'story_share' story.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit">Forward</button>
+      </form>
     {% endif %}
-    {% for comment in comments %}<p><strong>@{{ comment.author.username }}</strong> {{ comment.body }}</p>{% endfor %}
+    <div class="story-comments">
+      {% for comment in comments %}
+        <div class="story-comment"><strong>@{{ comment.author.username }}</strong> {{ comment.body }}</div>
+      {% empty %}
+        <div class="story-comment">Replies will appear here as people answer or react.</div>
+      {% endfor %}
+    </div>
   </article>
 </section>
 <script>

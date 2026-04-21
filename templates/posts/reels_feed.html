@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reels | Namvibe{% endblock %}
+
+{% block extra_head %}
+{% include "posts/post_styles.html" %}
+<style>
+  .reels-shell{max-width:1180px;margin:0 auto;padding:16px 12px 100px}
+  .reels-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+  .reels-stack{display:grid;gap:14px}
+  .reel-card{
+    position:relative;min-height:min(88vh,860px);border-radius:30px;overflow:hidden;
+    background:linear-gradient(180deg,#1f1a14 0%,#36260e 100%);color:#fffdf8;border:1px solid rgba(199,161,74,.22);
+    box-shadow:0 24px 70px rgba(66,45,10,.18)
+  }
+  .reel-video-wrap{position:absolute;inset:0;background:#120f0b}
+  .reel-video-wrap video,.reel-video-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+  .reel-overlay{position:relative;z-index:1;min-height:inherit;display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:linear-gradient(180deg,rgba(0,0,0,.12) 10%,rgba(0,0,0,.7) 100%)}
+  .reel-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .reel-chip,.reel-report{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,253,249,.18);backdrop-filter:blur(14px);color:#fffdf8;text-decoration:none;font-weight:800;border:1px solid rgba(255,255,255,.18)}
+  .reel-author{display:flex;align-items:center;gap:12px;color:#fffdf8;text-decoration:none}
+  .reel-avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#f4ead0,#c7a14a);color:#5f4518;display:grid;place-items:center;font-weight:900;overflow:hidden}
+  .reel-avatar img{width:100%;height:100%;object-fit:cover}
+  .reel-body{display:grid;gap:12px;max-width:620px}
+  .reel-body h1,.reel-body h2,.reel-body p{margin:0}
+  .reel-copy{color:rgba(255,249,240,.84);line-height:1.6}
+  .reel-tags{display:flex;flex-wrap:wrap;gap:8px}
+  .reel-tags span{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.14);font-size:12px;font-weight:700}
+  .reel-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .reel-actions form,.reel-actions a{margin:0}
+  .reel-actions button,.reel-actions a{
+    border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fffdf8;text-decoration:none;
+    border-radius:999px;padding:11px 14px;font-weight:900;display:inline-flex;align-items:center;gap:6px
+  }
+  .reel-actions .primary{background:linear-gradient(135deg,#f4e0a5,#c7a14a);border-color:transparent;color:#4f3912}
+  .reel-meta{display:flex;gap:12px;flex-wrap:wrap;color:rgba(255,249,240,.82);font-size:13px}
+  .reels-side{display:grid;gap:14px}
+  .reels-panel{
+    border:1px solid rgba(120,92,39,.14);background:rgba(255,253,249,.96);border-radius:24px;padding:16px;
+    box-shadow:0 16px 44px rgba(66,45,10,.06)
+  }
+  .reels-panel h3{margin:0 0 10px}
+  .reels-panel p{margin:0;color:#7a6d5b;line-height:1.6}
+  .reels-list{display:grid;gap:10px;margin-top:12px}
+  .reels-link{display:flex;justify-content:space-between;gap:10px;align-items:center;text-decoration:none;color:#2b2216;padding:10px 0;border-top:1px solid rgba(120,92,39,.08)}
+  .reels-link:first-child{border-top:0;padding-top:0}
+  .empty-reels{padding:20px;text-align:center}
+  @media (max-width: 980px){.reels-layout{grid-template-columns:1fr}.reels-side{display:none}}
+  @media (max-width: 640px){.reels-shell{padding-inline:8px}.reel-card{min-height:calc(100vh - 110px);border-radius:24px}.reel-overlay{padding:14px}}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="reels-shell">
+  <div class="reels-layout">
+    <div class="reels-stack">
+      {% for post in reels %}
+        <article class="reel-card" data-reel-card>
+          <div class="reel-video-wrap">
+            {% with media=post.media.first %}
+              {% if media and media.media_type == "video" %}
+                <video src="{{ media.file.url }}" muted loop playsinline preload="metadata" controls></video>
+              {% elif media %}
+                <img src="{{ media.file.url }}" alt="{{ post.title|default:post.caption }}" loading="lazy">
+              {% else %}
+                <div style="display:grid;place-items:center;height:100%;padding:28px;text-align:center;">
+                  <div>
+                    <h2>{{ post.title|default:"Short video update" }}</h2>
+                    <p>{{ post.caption|default:"Creator video content will appear here as reels publish." }}</p>
+                  </div>
+                </div>
+              {% endif %}
+            {% endwith %}
+          </div>
+          <div class="reel-overlay">
+            <div class="reel-top">
+              <a class="reel-author" href="{% url 'profile_detail' post.author.profile.username %}">
+                <span class="reel-avatar">
+                  {% if post.author.profile.avatar %}<img src="{{ post.author.profile.avatar.url }}" alt="{{ post.author.profile.username }}">{% else %}{{ post.author.profile.username|first|upper }}{% endif %}
+                </span>
+                <span>
+                  <strong>{{ post.author.profile.display_name|default:post.author.username }}</strong><br>
+                  <small>@{{ post.author.profile.username }}</small>
+                </span>
+              </a>
+              {% if request.user.is_authenticated %}
+                <form method="post" action="{% url 'report_post' post.uuid %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button class="reel-report" type="submit">Report</button>
+                </form>
+              {% endif %}
+            </div>
+            <div class="reel-body">
+              <span class="reel-chip">Reel feed</span>
+              <div>
+                <h1>{{ post.title|default:post.get_post_type_display }}</h1>
+                {% if post.caption %}<p class="reel-copy">{{ post.caption|truncatechars:220 }}</p>{% endif %}
+              </div>
+              <div class="reel-meta">
+                <span>{{ post.view_count }} views</span>
+                <span>{{ post.like_count }} likes</span>
+                <span>{{ post.comment_count }} comments</span>
+                <span>{{ post.share_count }} shares</span>
+              </div>
+              <div class="reel-tags">
+                {% for tag in post.hashtags|slice:":4" %}<span>{{ tag }}</span>{% empty %}<span>Short video</span>{% endfor %}
+              </div>
+              <div class="reel-actions">
+                <form method="post" action="{% url 'like_post' post.uuid %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit">Like</button>
+                </form>
+                <a href="{% url 'post_detail' post.uuid %}">Comment</a>
+                <form method="post" action="{% url 'save_post_toggle' post.uuid %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit">Save</button>
+                </form>
+                <form method="post" action="{% url 'share_post' post.uuid %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" name="target" value="feed">Share</button>
+                </form>
+                <a class="primary" href="{% url 'home' %}">Back home</a>
+              </div>
+            </div>
+          </div>
+        </article>
+      {% empty %}
+        <div class="reels-panel empty-reels">
+          <h2>No reels yet</h2>
+          <p>Short videos will appear here as creators publish reels or video posts. Use Studio to post the first one and keep the feed moving.</p>
+          <p style="margin-top:12px;"><a class="nv-btn primary" href="{% url 'studio' %}?type=reel">Create your first reel</a></p>
+        </div>
+      {% endfor %}
+    </div>
+
+    <aside class="reels-side">
+      <section class="reels-panel">
+        <h3>Keep scrolling</h3>
+        <p>Reels is tuned for fast video browsing. Tap into comments, save the ones you want to revisit, or jump back home for the mixed social feed.</p>
+        <div class="reels-list">
+          <a class="reels-link" href="{% url 'home' %}"><span>Back to home feed</span><strong>Home</strong></a>
+          <a class="reels-link" href="{% url 'studio' %}?type=reel"><span>Create a new reel</span><strong>Studio</strong></a>
+          <a class="reels-link" href="{% url 'live_home' %}"><span>Open live creators</span><strong>Live</strong></a>
+        </div>
+      </section>
+      <section class="reels-panel">
+        <h3>Suggested creators</h3>
+        <div class="reels-list">
+          {% for profile in suggested_people %}
+            <a class="reels-link" href="{% url 'profile_detail' profile.username %}">
+              <span>@{{ profile.username }}</span><strong>{{ profile.display_name|default:profile.username }}</strong>
+            </a>
+          {% empty %}
+            <p>No creator suggestions yet.</p>
+          {% endfor %}
+        </div>
+      </section>
+      <section class="reels-panel">
+        <h3>Community lanes</h3>
+        <div class="reels-list">
+          {% for community in suggested_communities %}
+            <a class="reels-link" href="{% url 'community_detail' community.slug %}">
+              <span>{{ community.member_count }} members</span><strong>{{ community.name }}</strong>
+            </a>
+          {% empty %}
+            <p>Community suggestions will appear here.</p>
+          {% endfor %}
+        </div>
+      </section>
+      {% if promo_cards %}
+        <section class="reels-panel">
+          <h3>System promos</h3>
+          <div class="reels-list">
+            {% for promo in promo_cards %}
+              <a class="reels-link" href="{{ promo.cta_url|default:'/support/' }}">
+                <span>{{ promo.cta_label }}</span><strong>{{ promo.title }}</strong>
+              </a>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function () {
+    const cards = document.querySelectorAll("[data-reel-card]");
+    if (!("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        const video = entry.target.querySelector("video");
+        if (!video) return;
+        if (entry.isIntersecting && entry.intersectionRatio > 0.75) {
+          video.play().catch(function(){});
+          document.body.dataset.focusUi = "true";
+        } else {
+          video.pause();
+          document.body.dataset.focusUi = "false";
+        }
+      });
+    }, { threshold: [0.25, 0.75, 1] });
+    cards.forEach(function(card) { observer.observe(card); });
+  }());
+</script>
+{% endblock %}

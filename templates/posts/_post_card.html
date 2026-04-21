@@ -66,12 +66,13 @@
         <span>{{ post.like_count }} likes</span>
         <span>{{ post.comment_count }} comments</span>
         <span>{{ post.share_count }} shares</span>
-        <a href="{% url 'post_detail' post.uuid %}">Open</a>
+        <a href="{% url 'post_detail' post.uuid %}">Open thread</a>
     </div>
     <form class="nv-mobile-actions" method="post">
         {% csrf_token %}
-        <button formaction="{% url 'like_post' post.uuid %}" name="next" value="{{ request.get_full_path }}">Like</button>
+        <button formaction="{% url 'like_post' post.uuid %}" name="reaction_type" value="love">Love</button>
         <button formaction="{% url 'save_post_toggle' post.uuid %}" name="next" value="{{ request.get_full_path }}">Save</button>
         <button formaction="{% url 'share_post' post.uuid %}" name="target" value="feed">Share</button>
+        <button formaction="{% url 'post_detail' post.uuid %}" formmethod="get">Comment</button>
     </form>
 </article>

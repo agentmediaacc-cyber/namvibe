@@ -9,22 +9,42 @@
   .feed-shell{max-width:1180px;margin:0 auto;padding:18px 14px 104px}
   .feed-layout{display:grid;grid-template-columns:220px minmax(0,1fr) 280px;gap:14px;align-items:start}
   .feed-sticky{position:sticky;top:78px}
-  .feed-panel,.feed-composer,.legacy-card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.07);border-radius:12px;padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.2)}
+  .feed-panel,.feed-composer,.legacy-card{
+    border:1px solid rgba(120,92,39,.14);
+    background:rgba(255,253,249,.95);
+    border-radius:22px;
+    padding:14px;
+    box-shadow:0 18px 42px rgba(66,45,10,.06)
+  }
   .feed-tabs{display:grid;gap:8px}
-  .feed-tabs a,.feed-actions a{color:white;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);padding:10px 12px;border-radius:8px;font-weight:800}
-  .feed-tabs a.active{background:linear-gradient(135deg,#14b8a6,#f43f5e);border:0}
+  .feed-tabs a,.feed-actions a{
+    color:#2b2216;text-decoration:none;background:#fff;border:1px solid rgba(120,92,39,.14);
+    padding:11px 12px;border-radius:16px;font-weight:800
+  }
+  .feed-tabs a.active{background:linear-gradient(135deg,#f8efd9,#edd29a);border-color:rgba(156,116,39,.26);color:#6d4e18}
   .feed-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
   .feed-head h1{margin:0;font-size:clamp(28px,4vw,42px)}
-  .feed-head p{margin:6px 0 0;color:#cbd5e1}
+  .feed-head p{margin:6px 0 0;color:#7a6d5b}
   .feed-composer{display:grid;gap:10px;margin-bottom:14px}
-  .feed-composer textarea,.feed-composer input,.feed-composer select{width:100%;border:1px solid rgba(255,255,255,.12);background:#0a1222;color:#fff;border-radius:8px;padding:12px}
-  .feed-composer button{border:0;border-radius:8px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#14b8a6,#f43f5e);color:white}
-  .drop-zone{border:1px dashed rgba(255,255,255,.24);border-radius:8px;padding:12px;background:rgba(255,255,255,.04)}
+  .feed-composer textarea,.feed-composer input,.feed-composer select{
+    width:100%;border:1px solid rgba(120,92,39,.14);background:#fffdf9;color:#1f1a14;border-radius:16px;padding:12px
+  }
+  .feed-composer button{
+    border:0;border-radius:16px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#c7a14a,#9c7427);color:#fffdf7
+  }
+  .drop-zone{border:1px dashed rgba(120,92,39,.28);border-radius:18px;padding:12px;background:#fbf7ef}
   .quick-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
   .side-list{display:grid;gap:10px}
-  .side-card{display:block;color:white;text-decoration:none;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.05);border-radius:8px;padding:10px}
+  .side-card{
+    display:block;color:#2b2216;text-decoration:none;border:1px solid rgba(120,92,39,.12);
+    background:#fffcf7;border-radius:18px;padding:12px;font-weight:700
+  }
   .mobile-feed-tabs{display:none;gap:8px;overflow:auto;margin-bottom:12px}
-  .mobile-feed-tabs a{white-space:nowrap;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.08);padding:9px 10px;border-radius:8px;font-weight:800}
+  .mobile-feed-tabs a{
+    white-space:nowrap;color:#2b2216;text-decoration:none;border:1px solid rgba(120,92,39,.14);
+    background:#fff;padding:10px 12px;border-radius:999px;font-weight:800
+  }
+  .mobile-feed-tabs a.active{background:#f7eed8;color:#6d4e18;border-color:rgba(156,116,39,.24)}
   @media(max-width:980px){.feed-layout{grid-template-columns:1fr}.feed-sticky{position:static}.left-rail{display:none}.mobile-feed-tabs{display:flex}.right-rail{order:3}}
   @media(max-width:620px){.quick-row{grid-template-columns:1fr}.feed-shell{padding-left:10px;padding-right:10px}}
 </style>
@@ -72,7 +92,7 @@
         <textarea name="content" rows="3" placeholder="Share a status, caption, emoji, image, or video..."></textarea>
         <div class="drop-zone" data-drop-zone>
           <strong>Upload media</strong>
-          <p style="margin:6px 0 10px;color:#cbd5e1;">Drag and drop an image or video here, or choose a file.</p>
+          <p style="margin:6px 0 10px;color:#7a6d5b;">Drag and drop an image or video here, or choose a file.</p>
           <input type="file" name="media" accept="image/*,video/*" data-drop-input>
         </div>
         <div class="quick-row">

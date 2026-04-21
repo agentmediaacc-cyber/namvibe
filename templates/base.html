@@ -8,20 +8,41 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <style>
         :root{
-            --nav-height: 60px;
-            --nav-bg: rgba(7,16,29,.88);
-            --nav-line: rgba(255,255,255,.10);
+            --nav-height: 64px;
+            --bg: #f7f3eb;
+            --surface: #fffdf9;
+            --surface-soft: #f8f3ea;
+            --surface-muted: #f2ebde;
+            --line: rgba(120, 92, 39, .16);
+            --line-strong: rgba(120, 92, 39, .24);
+            --text: #1f1a14;
+            --muted: #7a6d5b;
+            --gold: #c7a14a;
+            --gold-deep: #9c7427;
+            --gold-soft: #f4ead0;
+            --shadow: 0 20px 55px rgba(66, 45, 10, .08);
         }
         *{box-sizing:border-box}
-        body{margin:0;background:#f5f7fb;color:#0f172a}
+        html{scroll-behavior:smooth}
+        body{
+            margin:0;
+            background:
+                radial-gradient(circle at top left, rgba(199,161,74,.12), transparent 30%),
+                linear-gradient(180deg, #fffdfa, var(--bg));
+            color:var(--text);
+            font-family: "Inter", "Segoe UI", sans-serif;
+        }
+        body.drawer-open{overflow:hidden}
+        a{color:inherit}
         .site-header{
             position:sticky;
             top:0;
             z-index:3000;
-            background:rgba(255,255,255,.92);
+            background:rgba(255,253,249,.92);
             backdrop-filter:blur(14px);
-            border-bottom:1px solid rgba(15,23,42,.08);
+            border-bottom:1px solid var(--line);
             transition:transform .22s ease, box-shadow .22s ease;
+            box-shadow:0 4px 18px rgba(66,45,10,.04);
         }
         .site-header.header-hidden{transform:translateY(-100%)}
         .nav-wrap{
@@ -35,61 +56,84 @@
             padding:8px 0;
         }
         .menu-btn,.search-btn,.nav-link-btn{
-            border:1px solid rgba(15,23,42,.08);
-            background:rgba(255,255,255,.82);
-            color:#0f172a;
-            border-radius:10px;
+            border:1px solid var(--line);
+            background:rgba(255,253,249,.88);
+            color:var(--text);
+            border-radius:14px;
             padding:9px 11px;
             text-decoration:none;
             font-weight:700;
             cursor:pointer;
+            transition:background .18s ease, border-color .18s ease, transform .18s ease;
         }
-        .menu-btn{font-size:20px; line-height:1}
+        .menu-btn:hover,.nav-link-btn:hover{background:#fff;border-color:var(--line-strong);transform:translateY(-1px)}
+        .menu-btn{
+            font-size:20px;
+            line-height:1;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+        }
         .brand{
             display:flex;align-items:center;gap:10px;
-            text-decoration:none;color:#0f172a;min-width:0;
+            text-decoration:none;color:var(--text);min-width:0;
         }
         .brand-mark{
-            width:36px;height:36px;border-radius:10px;
-            display:grid;place-items:center;font-weight:900;
-            background:linear-gradient(135deg,#14b8a6,#f43f5e);
+            width:38px;height:38px;border-radius:12px;
+            display:grid;place-items:center;font-weight:900;color:#fff8ee;
+            background:linear-gradient(135deg,var(--gold),var(--gold-deep));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
             flex:0 0 auto;
         }
-        .brand small{display:block;color:#64748b;font-size:11px}
+        .brand strong{
+            display:block;
+            font-family:"Georgia", "Times New Roman", serif;
+            font-size:1.08rem;
+            letter-spacing:.02em;
+        }
+        .brand small{display:block;color:var(--muted);font-size:11px}
         .top-search{
             display:flex;align-items:center;gap:8px;
-            border:1px solid rgba(15,23,42,.08);
-            background:rgba(248,250,252,.95);
-            border-radius:12px;padding:4px 6px;
+            border:1px solid var(--line);
+            background:rgba(255,255,255,.92);
+            border-radius:16px;padding:4px 6px;
             min-width:0;
         }
         .top-search input{
             flex:1;min-width:0;border:0;background:transparent;
-            color:#0f172a;outline:0;padding:8px;
+            color:var(--text);outline:0;padding:8px 10px;
         }
+        .top-search input::placeholder{color:#958674}
         .top-search button{
-            border:0;border-radius:8px;padding:8px 10px;
-            background:rgba(15,23,42,.08);color:#0f172a;font-weight:800;
+            border:0;border-radius:12px;padding:8px 12px;
+            background:linear-gradient(135deg,var(--gold),var(--gold-deep));
+            color:#fffdf6;font-weight:800;
         }
         .top-actions{display:flex;align-items:center;gap:8px}
         .nav-icon-link{
             position:relative;display:inline-flex;align-items:center;justify-content:center;
-            min-width:42px;height:42px;
+            min-width:44px;height:44px;
+            padding:0;
         }
+        .nav-icon{
+            width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;
+        }
+        .nav-icon svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
         .nav-badge{
             position:absolute;top:-6px;right:-4px;
             min-width:18px;height:18px;padding:0 5px;border-radius:999px;
-            background:#f43f5e;color:#fff;font-size:11px;font-weight:900;
+            background:#d95757;color:#fffdf8;font-size:11px;font-weight:900;
             display:inline-flex;align-items:center;justify-content:center;
         }
         .nav-avatar{
-            width:28px;height:28px;border-radius:10px;
+            width:30px;height:30px;border-radius:10px;
             display:inline-flex;align-items:center;justify-content:center;
-            background:linear-gradient(135deg,#14b8a6,#f43f5e);font-weight:900;color:#08111f;
+            background:linear-gradient(135deg,#ead7a5,var(--gold));font-weight:900;color:#47351a;
         }
         .primary-btn{
-            background:linear-gradient(135deg,#14b8a6,#f43f5e)!important;
-            border:0!important;
+            background:linear-gradient(135deg,var(--gold),var(--gold-deep))!important;
+            border-color:transparent!important;
+            color:#fffdf8!important;
         }
         .drawer-overlay{
             position:fixed;inset:0;background:rgba(0,0,0,.6);
@@ -98,77 +142,113 @@
         .drawer-overlay.open{display:block}
         .drawer{
             position:fixed;top:0;left:0;bottom:0;
-            width:min(320px,88vw);
-            background:rgba(255,255,255,.98);
-            border-right:1px solid rgba(15,23,42,.08);
+            width:min(356px,90vw);
+            background:rgba(255,252,247,.98);
+            border-right:1px solid var(--line);
             z-index:3999;
             transform:translateX(-100%);
             transition:transform .22s ease;
-            padding:16px;
+            padding:18px 16px 20px;
             display:flex;flex-direction:column;gap:14px;
+            box-shadow:24px 0 60px rgba(66,45,10,.12);
         }
         .drawer.open{transform:translateX(0)}
-        .drawer-head{display:flex;align-items:center;justify-content:space-between}
+        .drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+        .drawer-copy{color:var(--muted);font-size:13px;line-height:1.55;margin-top:6px}
         .drawer-close{
-            border:1px solid rgba(255,255,255,.08);
-            background:rgba(255,255,255,.06);
-            color:#0f172a;border-radius:10px;
+            border:1px solid var(--line);
+            background:rgba(255,255,255,.7);
+            color:var(--text);border-radius:14px;
             width:40px;height:40px;cursor:pointer;
         }
-        .drawer-nav{display:grid;gap:8px}
-        .drawer-nav a{
-            color:#0f172a;text-decoration:none;
-            border:1px solid rgba(15,23,42,.08);
-            background:#f8fafc;
-            border-radius:10px;padding:12px;font-weight:800;
+        .drawer-body{overflow:auto;padding-right:4px}
+        .drawer-section{margin-top:18px}
+        .drawer-section:first-child{margin-top:0}
+        .drawer-section-title{
+            display:flex;align-items:center;justify-content:space-between;gap:8px;
+            margin:0 0 10px;
+            color:#8c7653;font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:900;
         }
-        .drawer-section{margin-top:10px;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+        .drawer-grid{display:grid;gap:8px}
+        .drawer-link{
+            color:var(--text);text-decoration:none;
+            border:1px solid transparent;
+            background:rgba(255,255,255,.78);
+            border-radius:18px;padding:12px 14px;font-weight:800;
+            display:flex;align-items:center;gap:12px;
+            box-shadow:0 10px 28px rgba(66,45,10,.04);
+            transition:transform .16s ease, border-color .16s ease, background .16s ease;
+        }
+        .drawer-link:hover{transform:translateY(-1px);border-color:var(--line)}
+        .drawer-link.active{
+            border-color:rgba(199,161,74,.34);
+            background:linear-gradient(135deg,#fffdf8,var(--gold-soft));
+            color:#6b4d16;
+        }
+        .drawer-link-icon{
+            width:36px;height:36px;border-radius:12px;
+            display:inline-flex;align-items:center;justify-content:center;
+            background:#f6efe1;color:#7d5c1d;flex:0 0 auto;
+        }
+        .drawer-link-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+        .drawer-link-copy{display:grid;gap:2px;min-width:0}
+        .drawer-link-copy small{color:var(--muted);font-weight:700;font-size:11px;line-height:1.25}
         .mobile-bottom-nav{
             position:fixed;left:0;right:0;bottom:0;z-index:2500;
             display:none;grid-template-columns:repeat(5,1fr);gap:0;
-            background:rgba(255,255,255,.96);backdrop-filter:blur(16px);
-            border-top:1px solid rgba(15,23,42,.08);
+            background:rgba(255,252,247,.96);backdrop-filter:blur(16px);
+            border-top:1px solid var(--line);
             padding:6px 6px calc(6px + env(safe-area-inset-bottom));
             transition:transform .2s ease;
+            box-shadow:0 -8px 24px rgba(66,45,10,.08);
         }
         .mobile-bottom-nav.nav-hidden{transform:translateY(120%)}
-        .mobile-bottom-nav a{
-            color:#334155;text-decoration:none;text-align:center;
-            font-size:11px;font-weight:800;padding:7px 4px;border-radius:8px;
+        .mobile-action,.mobile-action-trigger{
+            color:#5a4f41;text-decoration:none;text-align:center;
+            font-size:11px;font-weight:800;padding:7px 4px;border-radius:14px;
+            display:grid;place-items:center;gap:4px;cursor:pointer;
+            border:0;background:transparent;
         }
-        .mobile-bottom-nav span{display:block;font-size:17px;line-height:1.1}
+        .mobile-action.active,.mobile-action-trigger.active{
+            color:#6e4d11;
+            background:linear-gradient(135deg,#fff9ee,var(--gold-soft));
+        }
+        .mobile-action-icon{
+            width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+        }
+        .mobile-action-icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
         .product-shell{max-width:1180px;margin:0 auto;padding:28px 16px 104px}
         .product-hero,.product-card{
-            border:1px solid rgba(255,255,255,.1);
-            background:rgba(255,255,255,.07);
-            border-radius:12px;
+            border:1px solid var(--line);
+            background:var(--surface);
+            border-radius:18px;
             padding:18px;
-            box-shadow:0 24px 80px rgba(0,0,0,.22);
+            box-shadow:var(--shadow);
         }
         .product-hero h1{font-size:clamp(32px,5vw,58px);line-height:1;margin:8px 0}
-        .product-hero p,.product-card span,.muted-card{color:#cbd5e1;line-height:1.6}
-        .eyebrow{color:#67e8f9;font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:.08em}
+        .product-hero p,.product-card span,.muted-card{color:var(--muted);line-height:1.6}
+        .eyebrow{color:var(--gold-deep);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:.08em}
         .product-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
         .nv-btn{
             display:inline-flex;align-items:center;justify-content:center;
-            border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);
-            color:#fff;text-decoration:none;border-radius:8px;padding:10px 12px;font-weight:900;
+            border:1px solid var(--line);background:var(--surface-soft);
+            color:var(--text);text-decoration:none;border-radius:12px;padding:10px 12px;font-weight:900;
         }
-        .nv-btn.primary{background:linear-gradient(135deg,#14b8a6,#f43f5e);border:0}
+        .nv-btn.primary{background:linear-gradient(135deg,var(--gold),var(--gold-deep));border:0;color:#fffdf7}
         .product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px}
         .product-section{margin-top:20px}
         .product-section h2{margin:0 0 10px}
         main{min-height:100vh}
         .footer{
-            padding:40px 16px;background:#ffffff;color:#0f172a;
-            border-top:1px solid rgba(15,23,42,.08);
+            padding:40px 16px;background:#fffdf9;color:var(--text);
+            border-top:1px solid var(--line);
         }
         .footer-grid{
             width:min(1220px,100%);margin:0 auto;
             display:grid;grid-template-columns:2fr 1fr 1fr;gap:20px;
         }
-        .footer a{display:block;color:#64748b;text-decoration:none;margin:6px 0}
-        .footer-copy{width:min(1220px,100%);margin:18px auto 0;color:#94a3b8}
+        .footer a{display:block;color:var(--muted);text-decoration:none;margin:6px 0}
+        .footer-copy{width:min(1220px,100%);margin:18px auto 0;color:#988977}
 
         @media (max-width: 900px){
             .nav-wrap{grid-template-columns:auto auto 1fr auto}
@@ -191,58 +271,40 @@
     <div class="drawer-overlay" id="drawerOverlay"></div>
     <aside class="drawer" id="mainDrawer" aria-hidden="true">
         <div class="drawer-head">
-            <a class="brand" href="{% url 'home' %}">
-                <span class="brand-mark">N</span>
-                <span><strong>Namvibe</strong><small>Menu</small></span>
-            </a>
+            <div>
+                <a class="brand" href="{% url 'home' %}">
+                    <span class="brand-mark">N</span>
+                    <span><strong>Namvibe</strong><small>Premium social super app</small></span>
+                </a>
+                <div class="drawer-copy">Scroll-first social, creator tools, live, dating, communities, wallet, and support in one hub.</div>
+            </div>
             <button class="drawer-close" type="button" id="drawerClose">×</button>
         </div>
-        <nav class="drawer-nav">
-            <div class="drawer-section">Core</div>
-            <a href="{% url 'home' %}">Home</a>
-            <a href="{% url 'feed' %}">Feed</a>
-            <a href="{% url 'reels_feed' %}">Reels</a>
-            <a href="{% url 'story_create' %}">Stories</a>
-            <a href="{% url 'studio' %}">Create</a>
-            <a href="{% url 'notifications' %}">Notifications</a>
-            <div class="drawer-section">Social</div>
-            <a href="{% url 'dating' %}">Dating</a>
-            <a href="{% url 'live_home' %}">Live</a>
-            <a href="{% url 'live_studio' %}">Live Studio</a>
-            <a href="{% url 'community_list' %}">Communities</a>
-            <a href="{% url 'channels' %}">Channels</a>
-            <a href="{% url 'gaming' %}">Gaming</a>
-            {% if request.user.is_authenticated %}
-                <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
-            {% endif %}
-            <div class="drawer-section">Money and tools</div>
-            <a href="{% url 'wallet_home' %}">Wallet</a>
-            <a href="{% url 'wallet_membership' %}">Premium</a>
-            <a href="{% url 'ads_home' %}">Ads</a>
-            <a href="{% url 'gifting' %}">Gifting</a>
-            <a href="{% url 'coins' %}">Coins</a>
-            <a href="{% url 'photo_selling' %}">Photo Selling</a>
-            <a href="{% url 'flyer_tools' %}">Flyer Studio</a>
-            <a href="{% url 'image_tools' %}">Image Tools</a>
-            <div class="drawer-section">Account</div>
-            <a href="{% url 'settings' %}">Settings</a>
-            <a href="{% url 'support_help' %}">Support</a>
-            {% if request.user.is_authenticated and request.user.account_role.is_admin %}
-                <a href="{% url 'support_control' %}">Control</a>
-            {% endif %}
-            {% if request.user.is_authenticated %}
-                <a href="{{ smart_profile_url }}">Profile</a>
-                <a href="{% url 'logout' %}">Logout</a>
-            {% else %}
-                <a href="{{ smart_profile_url }}">Login</a>
-                <a href="{% url 'signup' %}">Sign Up</a>
-            {% endif %}
-        </nav>
+        <div class="drawer-body">
+            {% for group in app_drawer_groups %}
+                <section class="drawer-section">
+                    <h2 class="drawer-section-title">{{ group.title }}</h2>
+                    <nav class="drawer-grid">
+                        {% for item in group.items %}
+                            <a class="drawer-link {% if item.active %}active{% endif %}" href="{{ item.url }}">
+                                <span class="drawer-link-icon">{% include "partials/nav_icon.html" with icon=item.icon %}</span>
+                                <span class="drawer-link-copy">
+                                    <span>{{ item.label }}</span>
+                                    <small>{% if item.active %}Current page{% else %}Open {{ item.label|lower }}{% endif %}</small>
+                                </span>
+                            </a>
+                        {% endfor %}
+                    </nav>
+                </section>
+            {% endfor %}
+        </div>
     </aside>
 
     <header class="site-header" id="siteHeader">
         <div class="nav-wrap">
-            <button class="menu-btn" type="button" id="drawerOpen" aria-label="Open menu">☰</button>
+            <button class="menu-btn" type="button" id="drawerOpen" aria-label="Open menu">
+                <span class="nav-icon">{% include "partials/nav_icon.html" with icon="menu" %}</span>
+            </button>
 
             <a class="brand" href="{% url 'home' %}">
                 <span class="brand-mark">N</span>
@@ -258,11 +320,11 @@
                 <a class="nav-link-btn hide-mobile" href="{% url 'discover' %}">Discover</a>
                 {% if request.user.is_authenticated %}
                     <a class="nav-link-btn nav-icon-link hide-mobile" href="{{ nav_messages_url|default:smart_profile_url }}" aria-label="Messages">
-                        ✉
+                        <span class="nav-icon">{% include "partials/nav_icon.html" with icon="chat" %}</span>
                         {% if nav_message_count %}<span class="nav-badge">{{ nav_message_count }}</span>{% endif %}
                     </a>
                     <a class="nav-link-btn nav-icon-link hide-mobile" href="{% url 'notifications' %}" aria-label="Notifications">
-                        ◔
+                        <span class="nav-icon">{% include "partials/nav_icon.html" with icon="bell" %}</span>
                         {% if nav_notification_count %}<span class="nav-badge">{{ nav_notification_count }}</span>{% endif %}
                     </a>
                     <a class="nav-link-btn hide-mobile" href="{{ nav_wallet_url|default:'/wallet/' }}">Wallet</a>
@@ -276,11 +338,19 @@
     </header>
 
     <nav class="mobile-bottom-nav" aria-label="Primary mobile navigation">
-        <a href="{% url 'home' %}"><span>⌂</span>Home</a>
-        <a href="{% url 'reels_feed' %}"><span>▶</span>Reels</a>
-        <a href="{% url 'studio' %}"><span>＋</span>Create</a>
-        <a href="{% url 'live_home' %}"><span>⬤</span>Live</a>
-        <a href="{{ smart_profile_url }}"><span>●</span>Profile</a>
+        {% for item in mobile_action_items %}
+            {% if item.drawer_trigger %}
+                <button class="mobile-action-trigger {% if item.active %}active{% endif %}" type="button" data-drawer-trigger="true" aria-label="{{ item.label }}">
+                    <span class="mobile-action-icon">{% include "partials/nav_icon.html" with icon=item.icon %}</span>
+                    <span>{{ item.label }}</span>
+                </button>
+            {% else %}
+                <a class="mobile-action {% if item.active %}active{% endif %}" href="{{ item.url }}">
+                    <span class="mobile-action-icon">{% include "partials/nav_icon.html" with icon=item.icon %}</span>
+                    <span>{{ item.label }}</span>
+                </a>
+            {% endif %}
+        {% endfor %}
     </nav>
 
     <main>
@@ -325,17 +395,22 @@
                 drawer.classList.add("open");
                 overlay.classList.add("open");
                 drawer.setAttribute("aria-hidden", "false");
+                document.body.classList.add("drawer-open");
             }
 
             function closeDrawer() {
                 drawer.classList.remove("open");
                 overlay.classList.remove("open");
                 drawer.setAttribute("aria-hidden", "true");
+                document.body.classList.remove("drawer-open");
             }
 
             openBtn?.addEventListener("click", openDrawer);
             closeBtn?.addEventListener("click", closeDrawer);
             overlay?.addEventListener("click", closeDrawer);
+            document.querySelectorAll("[data-drawer-trigger='true']").forEach(function (trigger) {
+                trigger.addEventListener("click", openDrawer);
+            });
             const mobileNav = document.querySelector(".mobile-bottom-nav");
             const siteHeader = document.getElementById("siteHeader");
             let lastY = window.scrollY;

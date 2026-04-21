@@ -8,13 +8,22 @@
       <span class="eyebrow">Promotions starter</span>
       <h1>Plan promotions, homepage promos, and sponsored feed slots</h1>
       <p>This starter gives creators and admins a clean place to expand promotions without sending users to weak dead-end routes.</p>
+      <div class="product-actions">
+        <a class="nv-btn primary" href="{% url 'ads_home' %}">Ads home</a>
+        <a class="nv-btn" href="{% url 'support_help' %}">Support</a>
+      </div>
     </div>
+  </div>
+  <div class="product-grid">
+    <div class="product-card"><span>Active ads</span><strong>{{ active_ads|length }}</strong></div>
+    <div class="product-card"><span>Homepage promo hooks</span><strong>Ready</strong></div>
+    <div class="product-card"><span>Creator/business flow</span><strong>Connected</strong></div>
   </div>
   <div class="product-section">
     <h2>Active ads</h2>
     <div class="product-grid">
       {% for ad in active_ads %}
-        <article class="product-card"><strong>{{ ad.title }}</strong><span>{{ ad.sponsor_name }} · {{ ad.placement }}</span></article>
+        <article class="product-card"><strong>{{ ad.title }}</strong><span>{{ ad.sponsor_name }} · {{ ad.placement }}</span><span>{{ ad.description|default:"Sponsored content route ready for creator or business promotion."|truncatechars:90 }}</span></article>
       {% empty %}
         <div class="product-card">No active ads yet. Use Django admin or future internal tools to create them.</div>
       {% endfor %}

@@ -15,6 +15,12 @@
     </div>
   </div>
 
+  <div class="product-grid">
+    <div class="product-card"><span>Active discover ads</span><strong>{{ ads|length }}</strong></div>
+    <div class="product-card"><span>Placements</span><strong>{{ placements|length }}</strong></div>
+    <div class="product-card"><span>Feed-ready format</span><strong>Sponsored cards</strong></div>
+  </div>
+
   <div class="product-section">
     <h2>Discover placements</h2>
     <div class="product-grid">
@@ -22,6 +28,7 @@
         <a class="product-card" href="{% url 'ad_click' ad.id %}">
           <strong>{{ ad.title }}</strong>
           <span>{{ ad.sponsor_name }} · {{ ad.call_to_action }}</span>
+          <span>{{ ad.description|truncatechars:90 }}</span>
         </a>
       {% empty %}
         <div class="product-card">No active discover ads yet.</div>

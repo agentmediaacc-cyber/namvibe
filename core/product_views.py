@@ -3,13 +3,130 @@ from django.db.models import Sum
 from django.shortcuts import render
 
 from accounts.models import Follow, FriendRequest
+from communities.models import Community
 from dating.models import DatingLike
+from live.models import LiveSession
 from messaging.models import Message
 from posts.models import Post
 from posts.models import Comment
+from posts.services import trending_hashtags
 from supportapp.models import SystemPromoCard
 from wallet.models import GiftCatalog, GiftEvent, MembershipPlan, WalletTransaction
 from wallet.services import active_membership_for, ensure_wallet
+
+
+def _feature_page_context(request, key):
+    published_posts = Post.objects.visible_to(request.user).published().select_related("author", "author__profile", "community")
+    recent_posts = list(published_posts[:8])
+    recent_reels = list(
+        published_posts.filter(post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO]).prefetch_related("media")[:6]
+    )
+    public_communities = list(
+        Community.objects.filter(privacy=Community.Privacy.PUBLIC).select_related("owner").order_by("-member_count", "-created_at")[:6]
+    )
+    featured_live = list(
+        LiveSession.objects.exclude(status=LiveSession.Status.ENDED).select_related("host", "host__profile").order_by("-viewer_count", "-created_at")[:4]
+    )
+    promo_cards = list(SystemPromoCard.objects.filter(is_active=True).order_by("-priority", "-created_at")[:4])
+    context = {
+        "feature_metrics": [],
+        "feature_shortcuts": [],
+        "feature_sections": [],
+        "feature_note": "",
+        "feature_promos": promo_cards,
+    }
+
+    if key in {"channels", "gaming"}:
+        context["feature_metrics"] = [
+            {"label": "Live rooms", "value": len(featured_live)},
+            {"label": "Fresh posts", "value": len(recent_posts)},
+            {"label": "Trending tags", "value": len(trending_hashtags(6))},
+        ]
+        context["feature_shortcuts"] = [
+            {"label": "Open feed", "url": "/feed/"},
+            {"label": "Reels feed", "url": "/reels/"},
+            {"label": "Live now", "url": "/live/"},
+            {"label": "Creator Studio", "url": "/studio/"},
+        ]
+        context["feature_sections"] = [
+            {"title": "Trending creators", "cards": recent_posts, "kind": "post"},
+            {"title": "Communities to watch", "cards": public_communities, "kind": "community"},
+            {"title": "Featured live sessions", "cards": featured_live, "kind": "live"},
+        ]
+        context["feature_note"] = "These routes are starter hubs backed by real posts, communities, and live sessions so they stay useful while deeper creator-specific tooling expands."
+
+    elif key == "photo_selling":
+        photo_posts = list(
+            published_posts.filter(post_type__in=[Post.PostType.PHOTO, Post.PostType.PREMIUM]).prefetch_related("media")[:8]
+        )
+        context["feature_metrics"] = [
+            {"label": "Sell-ready posts", "value": len(photo_posts)},
+            {"label": "Creator tools", "value": 4},
+            {"label": "Communities", "value": len(public_communities)},
+        ]
+        context["feature_shortcuts"] = [
+            {"label": "Upload premium photo", "url": "/studio/?type=photo"},
+            {"label": "Open creator studio", "url": "/studio/"},
+            {"label": "Wallet earnings", "url": "/wallet/creator/earnings/"},
+        ]
+        context["feature_sections"] = [
+            {"title": "Recent creator galleries", "cards": photo_posts, "kind": "post"},
+            {"title": "Live creator promos", "cards": featured_live, "kind": "live"},
+        ]
+        context["feature_note"] = "Photo selling stays connected to the post, wallet, and creator studio systems instead of branching into a disconnected tool."
+
+    elif key in {"flyers", "image_tools"}:
+        flyer_posts = list(published_posts.filter(post_type=Post.PostType.FLYER).prefetch_related("media")[:8])
+        context["feature_metrics"] = [
+            {"label": "Published flyers", "value": len(flyer_posts)},
+            {"label": "Recent posts", "value": len(recent_posts)},
+            {"label": "Promos ready", "value": len(promo_cards)},
+        ]
+        context["feature_shortcuts"] = [
+            {"label": "Create flyer", "url": "/studio/?type=flyer"},
+            {"label": "Create photo", "url": "/studio/?type=photo"},
+            {"label": "Promote business", "url": "/ads/promotions/"},
+        ]
+        context["feature_sections"] = [
+            {"title": "Recent flyers", "cards": flyer_posts, "kind": "post"},
+            {"title": "Community promotion ideas", "cards": public_communities, "kind": "community"},
+        ]
+        context["feature_note"] = "These tools route directly back into the studio and ads flow so design work can turn into posts, promos, and community campaigns without dead ends."
+
+    elif key in {"gifting", "coins"} and request.user.is_authenticated:
+        wallet = ensure_wallet(request.user)
+        gift_catalog = list(GiftCatalog.objects.filter(is_active=True).order_by("coin_cost", "name")[:8])
+        gift_events = list(GiftEvent.objects.filter(sender=request.user).select_related("recipient", "gift").order_by("-created_at")[:8])
+        context["feature_metrics"] = [
+            {"label": "Wallet balance", "value": f"N${wallet.available_balance}"},
+            {"label": "Active gifts", "value": len(gift_catalog)},
+            {"label": "Sent events", "value": len(gift_events)},
+        ]
+        context["feature_shortcuts"] = [
+            {"label": "Wallet home", "url": "/wallet/"},
+            {"label": "Gift history", "url": "/wallet/gifts/"},
+            {"label": "Premium plans", "url": "/wallet/membership/plans/"},
+        ]
+        context["feature_sections"] = [
+            {"title": "Gift catalog", "cards": gift_catalog, "kind": "gift"},
+            {"title": "Recent sent gifts", "cards": gift_events, "kind": "gift_event"},
+        ]
+        context["feature_note"] = "Gifts, coins, and premium spend all flow through the same wallet so monetization stays understandable on mobile."
+    else:
+        context["feature_metrics"] = [
+            {"label": "Live routes", "value": len(featured_live)},
+            {"label": "Posts", "value": len(recent_posts)},
+            {"label": "Communities", "value": len(public_communities)},
+        ]
+        context["feature_shortcuts"] = [
+            {"label": "Open home", "url": "/"},
+            {"label": "Open feed", "url": "/feed/"},
+            {"label": "Open studio", "url": "/studio/"},
+        ]
+        context["feature_sections"] = [{"title": "Recent activity", "cards": recent_posts, "kind": "post"}]
+        context["feature_note"] = "This page is already wired to working routes and real content sources. It can deepen without forcing users into a broken branch."
+
+    return context
 
 
 def feature_page(request, key, title, subtitle, actions=None):
@@ -19,6 +136,7 @@ def feature_page(request, key, title, subtitle, actions=None):
         "subtitle": subtitle,
         "actions": actions or [],
     }
+    context.update(_feature_page_context(request, key))
 
     if key in {"flyers", "image_tools"}:
         context["recent_flyers"] = Post.objects.visible_to(request.user).filter(post_type=Post.PostType.FLYER).published()[:8]

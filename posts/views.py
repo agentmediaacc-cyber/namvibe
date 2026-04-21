@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 from communities.models import Community
 from accounts.models import Profile
+from supportapp.models import SystemPromoCard
 from .forms import POST_TYPE_FORMS
 from .models import Comment, Like, Post, PostMedia, Report, Save, Share
 from .services import (
@@ -384,8 +385,18 @@ def community_feed_view(request, slug):
 
 
 def reels_feed_view(request):
-    queryset = base_visible_posts(request.user).published().filter(post_type=Post.PostType.REEL)
-    return _paginated_feed(request, queryset, title="Reels Feed", subtitle="Short-form videos backed by unified posts.", active_feed="reels")
+    queryset = base_visible_posts(request.user).published().filter(post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO])
+    ranked_posts = FeedRankingService(request.user).rank(queryset, limit=80)
+    return render(
+        request,
+        "posts/reels_feed.html",
+        {
+            "reels": ranked_posts[:18],
+            "suggested_people": suggested_users_for(request.user, limit=8),
+            "suggested_communities": suggested_communities_for(request.user, limit=6),
+            "promo_cards": SystemPromoCard.objects.filter(is_active=True, placement=SystemPromoCard.Placement.HOMEPAGE_FEED)[:3],
+        },
+    )
 
 
 def discover_view(request):

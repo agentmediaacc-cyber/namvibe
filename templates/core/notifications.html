@@ -30,5 +30,14 @@
       {% endfor %}
     </div>
   </div>
+
+  <div class="product-section">
+    <h2>Keep moving</h2>
+    <div class="product-grid">
+      <a class="product-card" href="{% url 'home' %}"><strong>Home feed</strong><span>Return to the main social stream.</span></a>
+      <a class="product-card" href="{% url 'user_dashboard' %}?section=messages"><strong>Messages</strong><span>Jump into unread conversations and replies.</span></a>
+      <a class="product-card" href="{% url 'wallet_home' %}"><strong>Wallet</strong><span>Review gifts, premium, and creator earnings.</span></a>
+    </div>
+  </div>
 </section>
 {% endblock %}

@@ -23,10 +23,46 @@
   </div>
 
   <div class="product-section">
+    <h2>Control lanes</h2>
+    <div class="product-grid">
+      {% for item in control_sections %}
+        <a class="product-card" href="{{ item.url }}">
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.copy }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
     <h2>Quick links</h2>
     <div class="product-grid">
       {% for item in quick_links %}
         <a class="product-card" href="{{ item.url }}"><strong>{{ item.label }}</strong><span>Open route</span></a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Recent system activity</h2>
+    <div class="product-grid">
+      {% for post in recent_posts %}
+        <a class="product-card" href="{% url 'post_detail' post.uuid %}">
+          <strong>{{ post.title|default:post.get_post_type_display }}</strong>
+          <span>@{{ post.author.profile.username }}</span>
+        </a>
+      {% endfor %}
+      {% for session in recent_live %}
+        <a class="product-card" href="{% url 'live_room' session.uuid %}">
+          <strong>{{ session.title }}</strong>
+          <span>@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</span>
+        </a>
+      {% endfor %}
+      {% for ad in recent_ads %}
+        <a class="product-card" href="{% url 'ad_click' ad.id %}">
+          <strong>{{ ad.title }}</strong>
+          <span>{{ ad.sponsor_name }} · {{ ad.placement }}</span>
+        </a>
       {% endfor %}
     </div>
   </div>
