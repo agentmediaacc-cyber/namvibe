@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Collecting static..."
-python manage.py collectstatic --noinput
+export NAMVIBE_BUILD=1
 
-echo "Running migrations..."
-python manage.py migrate
+echo "Collecting static..."
+python3 manage.py collectstatic --noinput
+
+if [ -n "${DATABASE_URL:-}" ]; then
+  echo "Running migrations..."
+  python3 manage.py migrate
+else
+  echo "Skipping migrations during build because DATABASE_URL is not set."
+fi
 
 echo "Checking project..."
-python manage.py check
+python3 manage.py check

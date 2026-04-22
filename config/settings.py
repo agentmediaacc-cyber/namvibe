@@ -95,15 +95,18 @@ CHANNEL_LAYERS = {
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 RUNNING_TESTS = "test" in sys.argv
+BUILD_WITHOUT_DB = env_bool("NAMVIBE_BUILD", default=False)
 if not DATABASE_URL:
-    if DEBUG or RUNNING_TESTS:
+    if BUILD_WITHOUT_DB:
+        logger.warning("DATABASE_URL is not set. Using build-only SQLite because NAMVIBE_BUILD=1.")
+    elif DEBUG or RUNNING_TESTS:
         logger.warning("DATABASE_URL is not set. Falling back to local SQLite for local debug/test use only.")
     else:
         raise ImproperlyConfigured("DATABASE_URL must be configured for non-debug environments.")
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        default=f"sqlite:///{'/tmp/namvibe-build.sqlite3' if BUILD_WITHOUT_DB else BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600
     )
 }
