@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  html,body{background:#000;color:#fff}
+  .reel-wrap{min-height:100vh;background:#000;display:grid;grid-template-columns:1fr 360px}
+  .stage{position:relative;min-height:100vh;background:#000}
+  .preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+  .top,.bottom{position:absolute;left:0;right:0;z-index:10;padding:14px;display:flex;justify-content:space-between;gap:10px}
+  .top{top:0;background:linear-gradient(180deg,rgba(0,0,0,.5),transparent)}
+  .bottom{bottom:0;background:linear-gradient(0deg,rgba(0,0,0,.65),transparent)}
+  .btn{border:none;border-radius:999px;padding:10px 14px;background:rgba(0,0,0,.45);color:#fff;font-weight:800;border:1px solid rgba(255,255,255,.1);cursor:pointer}
+  .btn.primary{background:linear-gradient(135deg,#7c5cff,#46a0ff)}
+  .btn.green{background:linear-gradient(135deg,#16a85d,#25d366)}
+  .side{padding:16px;background:#0b1220;border-left:1px solid rgba(255,255,255,.08)}
+  .field{margin-bottom:12px}
+  .label{display:block;font-weight:850;margin-bottom:7px}
+  .input,.textarea{width:100%;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:#11192a;color:#fff;padding:12px 14px}
+  .textarea{min-height:90px}
+  .gallery-input{display:none}
+  @media (max-width:900px){.reel-wrap{grid-template-columns:1fr}.side{border-left:none;border-top:1px solid rgba(255,255,255,.08)}}
+</style>
+
+<div class="reel-wrap">
+  <form method="post" enctype="multipart/form-data" id="reelForm">
+    {% csrf_token %}
+    <div class="stage">
+      <video id="videoPreview" class="preview" playsinline controls></video>
+      <div class="top">
+        <a class="btn" href="/">Home</a>
+        <button type="button" class="btn primary" id="pickVideoBtn">Pick video</button>
+      </div>
+      <div class="bottom">
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button type="button" class="btn">Trim later</button>
+          <button type="button" class="btn">Cover frame</button>
+          <button type="submit" class="btn green">Post reel</button>
+        </div>
+      </div>
+      <input type="file" name="video" id="videoInput" class="gallery-input" accept="video/*" capture="environment">
+    </div>
+  </form>
+
+  <aside class="side">
+    <div class="field">
+      <label class="label">Caption</label>
+      <textarea class="textarea" name="caption" form="reelForm" placeholder="Write reel caption"></textarea>
+    </div>
+    <div class="field">
+      <label class="label">Music label</label>
+      <input class="input" name="music_label" form="reelForm" placeholder="Song name">
+    </div>
+    {% if posted %}
+    <div class="field"><div class="input">Reel submitted.</div></div>
+    {% endif %}
+  </aside>
+</div>
+
+<script>
+(() => {
+  const pickBtn = document.getElementById('pickVideoBtn');
+  const input = document.getElementById('videoInput');
+  const preview = document.getElementById('videoPreview');
+  pickBtn.addEventListener('click', () => input.click());
+  input.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    preview.src = URL.createObjectURL(file);
+  });
+})();
+</script>
+{% endblock %}

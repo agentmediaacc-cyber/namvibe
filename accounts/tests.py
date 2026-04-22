@@ -1,9 +1,12 @@
+from io import StringIO
 from unittest.mock import patch
 
+from django.core.management import call_command
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
-from .models import AccountProfile, Follow, Profile
+from .models import AccountProfile, AccountRole, Follow, Profile
+from .services import master_admin_dashboard_url
 
 
 class AccountAuthFlowTests(TestCase):
@@ -91,18 +94,14 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
 
-    @patch("core.views.count_public_posts", return_value=0)
-    @patch("core.views.get_public_posts", return_value=[])
-    def test_profile_link_for_logged_out_user_points_to_login_with_dashboard_next(self, _posts, _count):
+    def test_profile_link_for_logged_out_user_points_to_login_with_dashboard_next(self):
         response = self.client.get(reverse("home"))
 
         expected_url = f"{reverse('login')}?next=%2Faccounts%2Fdashboard%2F"
         self.assertContains(response, f'href="{expected_url}"')
         self.assertNotContains(response, "data-dashboard-section")
 
-    @patch("core.views.count_public_posts", return_value=0)
-    @patch("core.views.get_public_posts", return_value=[])
-    def test_profile_link_for_logged_in_user_points_to_dashboard(self, _posts, _count):
+    def test_profile_link_for_logged_in_user_points_to_dashboard(self):
         self.client.post(reverse("signup"), self._signup_payload())
 
         response = self.client.get(reverse("home"))
@@ -192,3 +191,59 @@ class SocialGraphTests(TestCase):
         self.assertFalse(Follow.objects.filter(follower=self.user, following=self.creator).exists())
         self.assertEqual(self.user.profile.following_count, 0)
         self.assertEqual(self.creator.profile.follower_count, 0)
+
+
+class MasterAdminFlowTests(TestCase):
+    def setUp(self):
+        self.master_user = User.objects.create_user(
+            username="kasera",
+            email="kasera@namvibe.com",
+            password="StrongPass1",
+        )
+        AccountProfile.objects.create(
+            user=self.master_user,
+            full_name="Kasera Namvibe",
+            email="kasera@namvibe.com",
+            phone_country_code="+264",
+            cellphone_number="+264811111111",
+            residential_address="",
+            country_of_origin="Namibia",
+            current_country="Namibia",
+        )
+
+    def test_master_admin_login_redirects_to_control_center(self):
+        response = self.client.post(
+            reverse("login"),
+            {"identifier": "kasera@namvibe.com", "password": "StrongPass1"},
+        )
+
+        self.assertRedirects(response, master_admin_dashboard_url(), fetch_redirect_response=False)
+        self.master_user.refresh_from_db()
+        self.assertEqual(self.master_user.account_role.role, AccountRole.Role.MASTER_ADMIN)
+
+    def test_master_admin_dashboard_route_redirects_to_control_center(self):
+        self.client.force_login(self.master_user)
+
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertRedirects(response, master_admin_dashboard_url(), fetch_redirect_response=False)
+
+    def test_master_admin_signup_route_redirects_to_control_center_when_authenticated(self):
+        self.client.force_login(self.master_user)
+
+        response = self.client.get(reverse("signup"))
+
+        self.assertRedirects(response, master_admin_dashboard_url(), fetch_redirect_response=False)
+
+    def test_diagnose_master_admin_command_reports_resolution(self):
+        self.master_user.account_role.supabase_uid = "2319f827-fc3c-46ce-9239-b350312a0d6f"
+        self.master_user.account_role.save(update_fields=["supabase_uid", "updated_at"])
+        stream = StringIO()
+
+        call_command("diagnose_master_admin", stdout=stream)
+
+        output = stream.getvalue()
+        self.assertIn("Configured master admin", output)
+        self.assertIn("kasera@namvibe.com", output)
+        self.assertIn("canonical local target", output.lower())
+        self.assertIn("Repair needed", output)

@@ -12,14 +12,36 @@ from .services import add_story_comment, can_view_story, mark_story_viewed, shar
 
 @login_required(login_url="login")
 def create_story_view(request):
-    form = StoryCreateForm(request.POST or None, request.FILES or None)
+    form_data = request.POST.copy() if request.method == "POST" else None
+    files_data = request.FILES.copy() if request.method == "POST" else None
+
+    if form_data is not None:
+        if form_data.get("story_kind") and not form_data.get("media_type"):
+            form_data["media_type"] = form_data.get("story_kind")
+        if form_data.get("content") and not form_data.get("text_content"):
+            form_data["text_content"] = form_data.get("content")
+        if form_data.get("duration") and not form_data.get("duration_hours"):
+            form_data["duration_hours"] = form_data.get("duration")
+
+    if files_data is not None and files_data.get("media") and not files_data.get("file"):
+        files_data["file"] = files_data.get("media")
+
+    form = StoryCreateForm(form_data or None, files_data or None)
     if request.method == "POST" and form.is_valid():
         story = form.save(commit=False)
         story.author = request.user
         story.save()
         messages.success(request, "Story published.")
         return redirect("story_detail", id=story.id)
-    return render(request, "stories/create.html", {"form": form})
+    return render(
+        request,
+        "stories/create.html",
+        {
+            "form": form,
+            "background_presets": ["midnight", "ember", "aurora", "onyx", "sunrise"],
+            "text_presets": ["clean", "headline", "glow", "mono"],
+        },
+    )
 
 
 def story_detail_view(request, id):
@@ -40,7 +62,15 @@ def story_detail_view(request, id):
     return render(
         request,
         "stories/detail.html",
-        {"story": story, "previous_story": previous_story, "next_story": next_story, "comments": story.comments.all()},
+        {
+            "story": story,
+            "previous_story": previous_story,
+            "next_story": next_story,
+            "comments": story.comments.all(),
+            "story_position": index + 1,
+            "story_total": len(siblings),
+            "story_siblings": siblings,
+        },
     )
 
 

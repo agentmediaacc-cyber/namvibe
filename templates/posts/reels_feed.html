@@ -8,19 +8,30 @@
 <style>
   .reels-shell{max-width:1180px;margin:0 auto;padding:16px 12px 100px}
   .reels-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+  .reels-hero{
+    display:grid;grid-template-columns:minmax(0,1.1fr) minmax(240px,.9fr);gap:14px;margin-bottom:16px
+  }
   .reels-stack{display:grid;gap:14px}
+  .reel-summary{
+    border:1px solid rgba(212,177,106,.16);background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(28,21,15,.94));
+    border-radius:28px;padding:18px;box-shadow:0 18px 48px rgba(0,0,0,.26);color:#f5efe2
+  }
+  .reel-summary p{margin:0;color:#a9a191;line-height:1.7}
+  .reel-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:14px}
+  .reel-summary-grid article{padding:12px;border-radius:18px;background:rgba(8,10,16,.82);border:1px solid rgba(212,177,106,.12)}
+  .reel-summary-grid span{display:block;color:#a9a191;font-size:12px;margin-bottom:4px}
   .reel-card{
     position:relative;min-height:min(88vh,860px);border-radius:30px;overflow:hidden;
-    background:linear-gradient(180deg,#2f1721 0%,#6f203f 100%);color:#fffdf8;border:1px solid rgba(242,108,127,.22);
-    box-shadow:0 24px 70px rgba(181,64,93,.2)
+    background:linear-gradient(180deg,#0b0e14 0%,#241a12 100%);color:#fffdf8;border:1px solid rgba(212,177,106,.22);
+    box-shadow:0 24px 70px rgba(0,0,0,.34)
   }
   .reel-video-wrap{position:absolute;inset:0;background:#120f0b}
   .reel-video-wrap video,.reel-video-wrap img{width:100%;height:100%;object-fit:cover;display:block}
   .reel-overlay{position:relative;z-index:1;min-height:inherit;display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:linear-gradient(180deg,rgba(0,0,0,.12) 10%,rgba(0,0,0,.7) 100%)}
   .reel-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-  .reel-chip,.reel-report{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(255,253,249,.18);backdrop-filter:blur(14px);color:#fffdf8;text-decoration:none;font-weight:800;border:1px solid rgba(255,255,255,.18)}
+  .reel-chip,.reel-report{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:rgba(10,12,17,.42);backdrop-filter:blur(14px);color:#fffdf8;text-decoration:none;font-weight:800;border:1px solid rgba(212,177,106,.18)}
   .reel-author{display:flex;align-items:center;gap:12px;color:#fffdf8;text-decoration:none}
-  .reel-avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#ffd0da,#f26c7f);color:#7a2340;display:grid;place-items:center;font-weight:900;overflow:hidden}
+  .reel-avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#f1d8a3,#d4b16a);color:#1c150c;display:grid;place-items:center;font-weight:900;overflow:hidden}
   .reel-avatar img{width:100%;height:100%;object-fit:cover}
   .reel-body{display:grid;gap:12px;max-width:620px}
   .reel-body h1,.reel-body h2,.reel-body p{margin:0}
@@ -33,26 +44,52 @@
     border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fffdf8;text-decoration:none;
     border-radius:999px;padding:11px 14px;font-weight:900;display:inline-flex;align-items:center;gap:6px
   }
-  .reel-actions .primary{background:linear-gradient(135deg,#f4e0a5,#c7a14a);border-color:transparent;color:#4f3912}
+  .reel-actions .primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:transparent;color:#120f09}
   .reel-meta{display:flex;gap:12px;flex-wrap:wrap;color:rgba(255,249,240,.82);font-size:13px}
   .reels-side{display:grid;gap:14px}
   .reels-panel{
-    border:1px solid rgba(226,112,132,.14);background:rgba(255,252,252,.96);border-radius:24px;padding:16px;
-    box-shadow:0 16px 44px rgba(181,64,93,.08)
+    border:1px solid rgba(212,177,106,.14);background:rgba(12,15,22,.96);border-radius:24px;padding:16px;
+    box-shadow:0 16px 44px rgba(0,0,0,.24);color:#f5efe2
   }
   .reels-panel h3{margin:0 0 10px}
-  .reels-panel p{margin:0;color:#7f6671;line-height:1.6}
+  .reels-panel p{margin:0;color:#a9a191;line-height:1.6}
   .reels-list{display:grid;gap:10px;margin-top:12px}
-  .reels-link{display:flex;justify-content:space-between;gap:10px;align-items:center;text-decoration:none;color:#2b2216;padding:10px 0;border-top:1px solid rgba(120,92,39,.08)}
+  .reels-link{display:flex;justify-content:space-between;gap:10px;align-items:center;text-decoration:none;color:#f5efe2;padding:10px 0;border-top:1px solid rgba(212,177,106,.08)}
   .reels-link:first-child{border-top:0;padding-top:0}
   .empty-reels{padding:20px;text-align:center}
-  @media (max-width: 980px){.reels-layout{grid-template-columns:1fr}.reels-side{display:none}}
+  @media (max-width: 980px){.reels-layout,.reels-hero{grid-template-columns:1fr}.reels-side{display:none}}
   @media (max-width: 640px){.reels-shell{padding-inline:8px}.reel-card{min-height:calc(100vh - 110px);border-radius:24px}.reel-overlay{padding:14px}}
 </style>
 {% endblock %}
 
 {% block content %}
 <section class="reels-shell">
+  <div class="reels-hero">
+    <section class="reel-summary">
+      <span class="reel-chip">Premium reels lane</span>
+      <h1 style="margin:10px 0 8px;font-size:clamp(1.8rem,4vw,3.2rem);">Swipe through video-first discovery without losing the social layer.</h1>
+      <p>Reels stays wired to post detail, reactions, saves, and creator profiles so short video never becomes a dead-end route.</p>
+      <div class="reel-summary-grid">
+        <article><span>Playback</span><strong>Autoplay on focus</strong></article>
+        <article><span>Actions</span><strong>Like, save, share</strong></article>
+        <article><span>Fallback</span><strong>{% if safe_mode_message %}Safe mode{% else %}Live data lane{% endif %}</strong></article>
+      </div>
+    </section>
+    <section class="reels-panel">
+      <h3>Quick jumps</h3>
+      <div class="reels-list">
+        <a class="reels-link" href="{% url 'studio' %}?type=reel"><span>Create</span><strong>New reel</strong></a>
+        <a class="reels-link" href="{% url 'feed_trending' %}"><span>Open social mix</span><strong>Trending feed</strong></a>
+        <a class="reels-link" href="{% url 'wallet_membership_plans' %}"><span>Boost reach</span><strong>Premium</strong></a>
+      </div>
+    </section>
+  </div>
+  {% if safe_mode_message %}
+    <div class="reels-panel" style="margin-bottom:14px;">
+      <h3>Reels safe mode</h3>
+      <p>Video content is temporarily unavailable while the database connection recovers.</p>
+    </div>
+  {% endif %}
   <div class="reels-layout">
     <div class="reels-stack">
       {% for post in reels %}
@@ -136,7 +173,7 @@
       {% empty %}
         <div class="reels-panel empty-reels">
           <h2>No reels yet</h2>
-          <p>Post your first reel and start building your video feed.</p>
+          <p>Post your first reel and start building your premium video lane with comments, saves, and creator discovery.</p>
           <p style="margin-top:12px;"><a class="nv-btn primary" href="{% url 'studio' %}?type=reel">Create your first reel</a></p>
         </div>
       {% endfor %}

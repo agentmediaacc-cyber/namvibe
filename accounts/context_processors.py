@@ -2,6 +2,7 @@ from urllib.parse import urlencode
 
 from django.urls import NoReverseMatch, reverse
 
+from .services import is_master_admin, master_admin_dashboard_url
 
 def _safe_reverse(name, fallback="#"):
     try:
@@ -69,7 +70,7 @@ def _drawer_groups(request, smart_profile_url):
     ]
     auth_items = []
     if request.user.is_authenticated:
-        if hasattr(request.user, "account_role") and request.user.account_role.is_admin:
+        if is_master_admin(request.user) or (hasattr(request.user, "account_role") and request.user.account_role.is_admin):
             auth_items.append({"label": "Control", "url": _safe_reverse("support_control"), "icon": "shield", "active": _is_active(route, "support_control")})
         auth_items.append({"label": "Logout", "url": _safe_reverse("logout"), "icon": "logout", "active": False})
     else:
@@ -155,7 +156,7 @@ def profile_navigation(request):
     dashboard_url = reverse("user_dashboard")
     login_url = reverse("login")
     if request.user.is_authenticated:
-        smart_profile_url = dashboard_url
+        smart_profile_url = master_admin_dashboard_url() if is_master_admin(request.user) else dashboard_url
     else:
         smart_profile_url = f"{login_url}?{urlencode({'next': dashboard_url})}"
 

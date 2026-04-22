@@ -9,47 +9,64 @@
   .feed-shell{max-width:1180px;margin:0 auto;padding:18px 14px 104px}
   .feed-layout{display:grid;grid-template-columns:220px minmax(0,1fr) 280px;gap:14px;align-items:start}
   .feed-sticky{position:sticky;top:78px}
-  .feed-panel,.feed-composer,.legacy-card{
-    border:1px solid rgba(120,92,39,.14);
-    background:rgba(255,253,249,.95);
-    border-radius:22px;
-    padding:14px;
-    box-shadow:0 18px 42px rgba(66,45,10,.06)
+  .feed-hero{
+    display:grid;grid-template-columns:minmax(0,1.15fr) minmax(240px,.85fr);gap:14px;margin-bottom:14px
   }
+  .feed-panel,.feed-composer,.legacy-card{
+    border:1px solid rgba(212,177,106,.16);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:26px;
+    padding:14px;
+    box-shadow:0 18px 42px rgba(0,0,0,.24);
+    color:#f5efe2
+  }
+  .feed-premium{
+    position:relative;overflow:hidden;
+    background:radial-gradient(circle at top left, rgba(212,177,106,.16), transparent 30%), linear-gradient(145deg,rgba(12,15,22,.96),rgba(32,24,17,.94));
+  }
+  .feed-premium::after{
+    content:"";position:absolute;right:-60px;top:-40px;width:220px;height:220px;border-radius:999px;
+    background:radial-gradient(circle, rgba(212,177,106,.18), transparent 66%);
+  }
+  .feed-premium > *{position:relative;z-index:1}
+  .feed-pulse-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:14px}
+  .feed-pulse{padding:12px;border-radius:18px;background:rgba(8,10,15,.78);border:1px solid rgba(212,177,106,.12)}
+  .feed-pulse span{display:block;color:#a9a191;font-size:12px;margin-bottom:4px}
+  .feed-pulse strong{font-size:1.05rem}
   .feed-tabs{display:grid;gap:8px}
   .feed-tabs a,.feed-actions a{
-    color:#2b2216;text-decoration:none;background:#fff;border:1px solid rgba(120,92,39,.14);
+    color:#f5efe2;text-decoration:none;background:rgba(9,12,17,.96);border:1px solid rgba(212,177,106,.16);
     padding:11px 12px;border-radius:16px;font-weight:800
   }
-  .feed-tabs a.active{background:linear-gradient(135deg,#f8efd9,#edd29a);border-color:rgba(156,116,39,.26);color:#6d4e18}
+  .feed-tabs a.active{background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:rgba(212,177,106,.26);color:#120f09}
   .feed-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
   .feed-head h1{margin:0;font-size:clamp(28px,4vw,42px)}
-  .feed-head p{margin:6px 0 0;color:#7a6d5b}
+  .feed-head p{margin:6px 0 0;color:#a9a191}
   .feed-composer{display:grid;gap:10px;margin-bottom:14px}
   .feed-composer textarea,.feed-composer input,.feed-composer select{
-    width:100%;border:1px solid rgba(120,92,39,.14);background:#fffdf9;color:#1f1a14;border-radius:16px;padding:12px
+    width:100%;border:1px solid rgba(212,177,106,.16);background:rgba(8,10,15,.96);color:#f5efe2;border-radius:16px;padding:12px
   }
   .feed-composer button{
-    border:0;border-radius:16px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#c7a14a,#9c7427);color:#fffdf7
+    border:0;border-radius:16px;padding:12px 16px;font-weight:900;background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09
   }
-  .drop-zone{border:1px dashed rgba(120,92,39,.28);border-radius:18px;padding:12px;background:#fbf7ef}
-  .composer-preview{display:none;gap:10px;padding:12px;border:1px solid rgba(226,112,132,.16);border-radius:18px;background:#fff7f8}
+  .drop-zone{border:1px dashed rgba(212,177,106,.28);border-radius:18px;padding:12px;background:rgba(16,19,27,.78)}
+  .composer-preview{display:none;gap:10px;padding:12px;border:1px solid rgba(212,177,106,.16);border-radius:18px;background:rgba(18,22,31,.92)}
   .composer-preview.visible{display:grid}
   .composer-preview img,.composer-preview video{width:100%;max-height:320px;object-fit:cover;border-radius:16px;background:#1f1720}
-  .composer-status{color:#7f6671;font-size:13px}
+  .composer-status{color:#a9a191;font-size:13px}
   .quick-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
   .side-list{display:grid;gap:10px}
   .side-card{
-    display:block;color:#2b2216;text-decoration:none;border:1px solid rgba(120,92,39,.12);
-    background:#fffcf7;border-radius:18px;padding:12px;font-weight:700
+    display:block;color:#f5efe2;text-decoration:none;border:1px solid rgba(212,177,106,.12);
+    background:rgba(9,12,17,.96);border-radius:18px;padding:12px;font-weight:700
   }
   .mobile-feed-tabs{display:none;gap:8px;overflow:auto;margin-bottom:12px}
   .mobile-feed-tabs a{
-    white-space:nowrap;color:#2b2216;text-decoration:none;border:1px solid rgba(120,92,39,.14);
-    background:#fff;padding:10px 12px;border-radius:999px;font-weight:800
+    white-space:nowrap;color:#f5efe2;text-decoration:none;border:1px solid rgba(212,177,106,.14);
+    background:rgba(9,12,17,.96);padding:10px 12px;border-radius:999px;font-weight:800
   }
-  .mobile-feed-tabs a.active{background:#f7eed8;color:#6d4e18;border-color:rgba(156,116,39,.24)}
-  @media(max-width:980px){.feed-layout{grid-template-columns:1fr}.feed-sticky{position:static}.left-rail{display:none}.mobile-feed-tabs{display:flex}.right-rail{order:3}}
+  .mobile-feed-tabs a.active{background:#d4b16a;color:#120f09;border-color:rgba(212,177,106,.24)}
+  @media(max-width:980px){.feed-layout,.feed-hero{grid-template-columns:1fr}.feed-sticky{position:static}.left-rail{display:none}.mobile-feed-tabs{display:flex}.right-rail{order:3}}
   @media(max-width:620px){.quick-row{grid-template-columns:1fr}.feed-shell{padding-left:10px;padding-right:10px}}
 </style>
 {% endblock %}
@@ -75,6 +92,35 @@
     <a class="{% if active_feed == 'trending' %}active{% endif %}" href="{% url 'feed_trending' %}">Trending</a>
     <a class="{% if active_feed == 'reels' %}active{% endif %}" href="{% url 'reels_feed' %}">Reels</a>
   </nav>
+
+  {% if safe_mode_message %}
+    <section class="feed-panel" style="margin-bottom:12px;">
+      <strong>Feed safe mode</strong>
+      <p style="margin:6px 0 0;color:#7a6d5b;">Live content is temporarily unavailable while the database connection recovers.</p>
+    </section>
+  {% endif %}
+
+  <section class="feed-hero">
+    <article class="feed-panel feed-premium">
+      <strong style="display:block;margin-bottom:8px;color:#f1d8a3;text-transform:uppercase;letter-spacing:.08em;font-size:12px;">Premium feed lane</strong>
+      <h2 style="margin:0 0 8px;font-size:clamp(1.5rem,4vw,2.6rem);">Mix public posts, short video, story momentum, and creator commerce in one scroll.</h2>
+      <p style="margin:0;color:#a9a191;line-height:1.7;">Your feed shell stays mobile-first and keeps detail pages, saves, comments, and live routes reachable without broken transitions.</p>
+      <div class="feed-pulse-grid">
+        <div class="feed-pulse"><span>Active lane</span><strong>{{ feed_title|default:"For You" }}</strong></div>
+        <div class="feed-pulse"><span>Mode</span><strong>{% if safe_mode_message %}Safe render{% else %}DB-backed feed{% endif %}</strong></div>
+        <div class="feed-pulse"><span>Creator CTA</span><strong>Post, reel, live, story</strong></div>
+      </div>
+    </article>
+    <article class="feed-panel">
+      <strong style="display:block;margin-bottom:8px;">Fast actions</strong>
+      <p style="margin:0;color:#a9a191;line-height:1.7;">Jump straight into the next social motion from the same feed surface.</p>
+      <div class="side-list" style="margin-top:12px;">
+        <a class="side-card" href="{% url 'feed_trending' %}">Open trending detail lane</a>
+        <a class="side-card" href="{% url 'story_create' %}">Record a story</a>
+        <a class="side-card" href="{% url 'wallet_home' %}">Check wallet and coins</a>
+      </div>
+    </article>
+  </section>
 
   <div class="feed-layout">
     <aside class="feed-panel feed-sticky left-rail">
@@ -134,7 +180,10 @@
               {% endif %}
             </article>
           {% empty %}
-            <div class="feed-panel">No posts yet. Start from Studio or create a quick update above.</div>
+            <div class="feed-panel">
+              <strong>Nothing has landed in this feed yet.</strong>
+              <p style="margin:8px 0 0;color:#a9a191;">Create a post, upload a story, or open discovery to start shaping your Namvibe timeline.</p>
+            </div>
           {% endfor %}
         {% endfor %}
       </div>

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .nv-feed-shell{max-width:1100px;margin:24px auto;padding:20px;color:#fff}
+  .nv-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+  .nv-tab{padding:10px 14px;border-radius:999px;background:#111a2b;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.1)}
+  .nv-tab.active{background:linear-gradient(135deg,#7c5cff,#46a0ff);border-color:transparent}
+  .nv-box{background:#0d1524;border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:20px}
+</style>
+
+<div class="nv-feed-shell">
+  <h1>Namvibe Feed</h1>
+  <div class="nv-tabs">
+    <a class="nv-tab {% if feed_tab == 'for_you' %}active{% endif %}" href="{% url 'feed' %}">For You</a>
+    <a class="nv-tab {% if feed_tab == 'following' %}active{% endif %}" href="{% url 'feed_following' %}">Following</a>
+    <a class="nv-tab {% if feed_tab == 'friends' %}active{% endif %}" href="{% url 'feed_friends' %}">Friends</a>
+    <a class="nv-tab {% if feed_tab == 'trending' %}active{% endif %}" href="{% url 'feed_trending' %}">Trending</a>
+    <a class="nv-tab {% if feed_tab == 'nearby' %}active{% endif %}" href="{% url 'feed_nearby' %}">Nearby</a>
+    <a class="nv-tab {% if feed_tab == 'videos' %}active{% endif %}" href="{% url 'feed_videos' %}">Videos</a>
+    <a class="nv-tab {% if feed_tab == 'live' %}active{% endif %}" href="{% url 'feed_live' %}">Live</a>
+    <a class="nv-tab {% if feed_tab == 'sponsored' %}active{% endif %}" href="{% url 'feed_sponsored' %}">Sponsored</a>
+  </div>
+  <div class="nv-box">
+    <p>Feed routes are stable again.</p>
+    <p>Active tab: <strong>{{ feed_tab }}</strong></p>
+  </div>
+</div>
+{% endblock %}

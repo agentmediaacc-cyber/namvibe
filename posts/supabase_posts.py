@@ -145,10 +145,11 @@ def count_public_posts():
     except Exception as exc:
         print("SUPABASE POSTS LEGACY COUNT ERROR:", exc)
 
-    return len(get_public_posts())
+    res = supabase.table("posts").select("id", count="exact").eq("privacy", "public").execute()
+    return res.count or 0
 
 
-def get_public_posts(limit=None):
+def get_public_posts(limit=20):
     params = {
         "select": "*",
         "audience": "eq.Public",
@@ -208,7 +209,7 @@ def get_posts_by_user(user_id):
 def get_post(post_id):
     rows = _request_posts({
         "select": "*",
-        "id": f"eq.{post_id}",
+        "id": f"eq.{str(post_id)}",
         "limit": "1",
     }) or []
     return rows[0] if rows else None

@@ -3,25 +3,41 @@
 {% block content %}
 {% include "wallet/_styles.html" %}
 <section class="wallet-shell">
-  <div class="wallet-hero">
-    <div><h1>Premium membership</h1><p class="muted">Use wallet balance for Namvibe premium access and creator features.</p></div>
-    <div class="money">N${{ wallet.available_balance }}</div>
+  <div class="wallet-hero wallet-hero-premium">
+    <div><h1>Premium membership</h1><p class="muted">Use wallet balance and Vibe Coin value to unlock discovery boosts, premium live access, and creator-grade perks.</p></div>
+    <div>
+      <div class="money">N${{ wallet.available_balance }}</div>
+      <div class="muted">{% widthratio wallet.available_balance 5 1 %} Vibe Coins at 1 coin = 5 NAD</div>
+    </div>
+  </div>
+  <div class="wallet-highlight-grid">
+    <div class="wallet-highlight"><span>Silver</span><strong>Trust, visibility, and clean discovery lift.</strong></div>
+    <div class="wallet-highlight"><span>VIP</span><strong>Premium live access and stronger social presence.</strong></div>
+    <div class="wallet-highlight"><span>Platinum</span><strong>Creator monetization and highest-tier control.</strong></div>
   </div>
   <div class="wallet-grid" style="margin-bottom:14px;">
-    <a class="wallet-card" href="{% url 'premium_tier' 'silver' %}"><strong>Silver</strong><p class="muted">Starter premium access.</p></a>
-    <a class="wallet-card" href="{% url 'premium_tier' 'vip' %}"><strong>VIP</strong><p class="muted">Live and discovery upgrades.</p></a>
-    <a class="wallet-card" href="{% url 'premium_tier' 'platinum' %}"><strong>Platinum</strong><p class="muted">Creator and monetization tools.</p></a>
+    <a class="wallet-card" href="{% url 'premium_tier' 'silver' %}"><strong>Silver</strong><p class="muted">Starter premium access, profile trust, and smoother discovery.</p></a>
+    <a class="wallet-card" href="{% url 'premium_tier' 'vip' %}"><strong>VIP</strong><p class="muted">Live access styling, stronger discovery, and elevated social presence.</p></a>
+    <a class="wallet-card" href="{% url 'premium_tier' 'platinum' %}"><strong>Platinum</strong><p class="muted">Creator monetization, premium tools, and the strongest upgrade path.</p></a>
   </div>
   {% if active_membership %}
     <div class="wallet-card"><strong>{{ active_membership.plan.name }} active</strong><p class="muted">Valid until {{ active_membership.ends_at|date:"M j, Y"|default:"ongoing" }}.</p></div>
   {% endif %}
+  <div class="wallet-grid" style="margin-bottom:14px;">
+    <div class="wallet-card"><span class="muted">Coin conversion</span><div class="money">5 NAD</div><p class="muted">1 Vibe Coin display value in wallet UI.</p></div>
+    <div class="wallet-card"><span class="muted">Premium access</span><div class="money">{% if active_membership %}Active{% else %}Available{% endif %}</div><p class="muted">Reuse wallet balance instead of separate payment logic.</p></div>
+    <div class="wallet-card"><span class="muted">Creator flow</span><div class="money">Linked</div><p class="muted">Premium, gifts, and live monetization stay connected.</p></div>
+  </div>
   <div class="plan-grid">
     {% for plan in plans %}
       <article class="wallet-card">
         <h2>{{ plan.name }}</h2>
         <p class="muted">{{ plan.description }}</p>
         <div class="money">N${{ plan.price }}</div>
-        <p class="muted">{{ plan.get_billing_period_display }}</p>
+        <p class="muted">{{ plan.get_billing_period_display }} · {% widthratio plan.price 5 1 %} Vibe Coins</p>
+        {% if plan.feature_flags %}
+          <p class="muted">Feature flags: {{ plan.feature_flags|length }}</p>
+        {% endif %}
         <form method="post" action="{% url 'wallet_membership_buy' plan.slug %}">{% csrf_token %}<button type="submit">Subscribe with wallet</button></form>
       </article>
     {% empty %}

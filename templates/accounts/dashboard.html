@@ -8,40 +8,53 @@
     <style>
         .account-shell{max-width:1180px;margin:0 auto;padding:20px 14px 90px}
         .account-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
-        .account-card,.account-panel{border:1px solid rgba(15,23,42,.08);background:#fff;border-radius:26px;padding:18px;box-shadow:0 20px 50px rgba(15,23,42,.06)}
+        .account-card,.account-panel{border:1px solid rgba(212,177,106,.14);background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));border-radius:26px;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.28);color:#f5efe2}
+        .account-hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(250px,.85fr);gap:14px}
+        .premium-note{padding:14px;border-radius:20px;border:1px solid rgba(212,177,106,.12);background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(28,21,15,.92))}
+        .premium-note span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
         .account-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
         .account-top h1{margin:0 0 6px;font-size:clamp(1.8rem,4vw,2.8rem)}
-        .account-copy{color:#64748b;line-height:1.65}
+        .account-copy{color:#a9a191;line-height:1.65}
         .action-row,.mini-grid,.progress-list,.dashboard-tabs{display:flex;gap:10px;flex-wrap:wrap}
         .mini-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-        .metric{padding:14px;border-radius:18px;background:#f8fbff;border:1px solid #dbe4f0}
-        .metric span{display:block;color:#64748b;font-size:12px;margin-bottom:6px}
+        .metric{padding:14px;border-radius:18px;background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.12)}
+        .metric span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
         .metric strong{font-size:1.35rem}
-        .dashboard-tabs button,.action-row a,.action-row button{border:1px solid #dbe4f0;background:#fff;color:#0f172a;border-radius:999px;padding:11px 14px;font-weight:800;cursor:pointer;text-decoration:none}
-        .dashboard-tabs button.active{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+        .dashboard-tabs button,.action-row a,.action-row button{border:1px solid rgba(212,177,106,.14);background:rgba(9,12,17,.96);color:#f5efe2;border-radius:999px;padding:11px 14px;font-weight:800;cursor:pointer;text-decoration:none}
+        .dashboard-tabs button.active{background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:transparent;color:#120f09}
         .account-panel{display:none}
         .account-panel.active{display:block}
         .progress-list{display:grid}
-        .progress-item{padding:14px;border-radius:18px;background:#f8fbff;border:1px solid #dbe4f0}
+        .progress-item{padding:14px;border-radius:18px;background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.12)}
         .progress-item strong{display:block}
-        .admin-chip{display:inline-flex;padding:6px 10px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:12px;font-weight:900}
-        @media (max-width: 820px){.mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        .admin-chip{display:inline-flex;padding:6px 10px;border-radius:999px;background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;font-size:12px;font-weight:900}
+        @media (max-width: 820px){.mini-grid,.account-hero-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media (max-width: 640px){.account-hero-grid{grid-template-columns:1fr}}
     </style>
 
     <div class="account-shell">
         <div class="account-grid">
             <section class="account-card">
-                <div class="account-top">
+                <div class="account-hero-grid">
                     <div>
-                        <span class="auth-badge">Private account</span>
-                        <h1>Welcome back, {{ profile.display_name|default:username }}</h1>
-                        <p class="account-copy">Your public profile stays username-first. Use this private shell to manage onboarding, content, wallet, messages, dating, and creator tools.</p>
+                        <div class="account-top">
+                            <div>
+                                <span class="auth-badge">Private account</span>
+                                <h1>Welcome back, {{ profile.display_name|default:username }}</h1>
+                                <p class="account-copy">Your public profile stays username-first. Use this private shell to manage onboarding, content, wallet, messages, dating, and creator tools.</p>
+                            </div>
+                            <div class="action-row">
+                                {% if account_role and account_role.is_admin %}<a href="{% url 'support_control' %}" class="admin-chip">Control</a>{% endif %}
+                                <a href="{% url 'home' %}">Home</a>
+                                <a href="{% url 'profile_edit' %}">Edit profile</a>
+                                <a href="{% url 'logout' %}">Logout</a>
+                            </div>
+                        </div>
                     </div>
-                    <div class="action-row">
-                        {% if account_role and account_role.is_admin %}<a href="{% url 'support_control' %}" class="admin-chip">Control</a>{% endif %}
-                        <a href="{% url 'home' %}">Home</a>
-                        <a href="{% url 'profile_edit' %}">Edit profile</a>
-                        <a href="{% url 'logout' %}">Logout</a>
+                    <div class="premium-note">
+                        <span>Premium account lane</span>
+                        <strong style="display:block;font-size:1.15rem;margin-bottom:6px;">Coins, creator tools, and private control stay in one mobile-ready shell.</strong>
+                        <p class="account-copy" style="margin:0;">Jump from stories to wallet, studio, saved posts, and support without losing your current context.</p>
                     </div>
                 </div>
                 <div class="mini-grid" style="margin-top:16px;">
@@ -51,6 +64,8 @@
                     <div class="metric"><span>Wallet</span><strong>N${{ wallet_balance }}</strong></div>
                     <div class="metric"><span>Saved</span><strong>{{ saved_post_count }}</strong></div>
                     <div class="metric"><span>Communities</span><strong>{{ community_count }}</strong></div>
+                    <div class="metric"><span>Vibe Coins</span><strong>{% widthratio wallet_balance 5 1 %}</strong></div>
+                    <div class="metric"><span>Pending</span><strong>N${{ pending_balance }}</strong></div>
                 </div>
                 <div class="action-row" style="margin-top:16px;">
                     <a href="{% url 'studio' %}">Create post</a>

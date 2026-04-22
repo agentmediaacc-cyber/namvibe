@@ -8,6 +8,9 @@
       <span class="eyebrow">Support Center</span>
       <h1>Help, safety, support, and system guidance</h1>
       <p>Use this hub for support, account safety, creator questions, premium guidance, and operational entry points.</p>
+      {% if safe_mode_message %}
+        <p class="muted-card">Safe mode is active for support promos while the database connection recovers.</p>
+      {% endif %}
       <div class="product-actions">
         {% for item in open_routes %}
           <a class="nv-btn primary" href="{% url item.url_name %}">{{ item.label }}</a>

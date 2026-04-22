@@ -230,11 +230,17 @@ def coins_view(request):
 
 
 def support_view(request):
+    safe_mode_message = ""
+    try:
+        promo_cards = list(SystemPromoCard.objects.filter(is_active=True)[:6])
+    except Exception as exc:
+        promo_cards = []
+        safe_mode_message = str(exc)
     return render(
         request,
         "supportapp/home.html",
         {
-            "promo_cards": SystemPromoCard.objects.filter(is_active=True)[:6],
+            "promo_cards": promo_cards,
             "open_routes": [
                 {"label": "Notifications", "url_name": "notifications"},
                 {"label": "Wallet", "url_name": "wallet_home"},
@@ -242,6 +248,7 @@ def support_view(request):
                 {"label": "Live home", "url_name": "live_home"},
                 {"label": "Creator Studio", "url_name": "studio"},
             ],
+            "safe_mode_message": safe_mode_message,
         },
     )
 

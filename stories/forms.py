@@ -21,7 +21,10 @@ class StoryCreateForm(forms.ModelForm):
             "audience",
         )
         widgets = {
-            "text_content": forms.Textarea(attrs={"rows": 5}),
+            "text_content": forms.Textarea(attrs={"rows": 5, "placeholder": "Tell your story"}),
+            "caption": forms.TextInput(attrs={"placeholder": "Add a caption"}),
+            "link_url": forms.URLInput(attrs={"placeholder": "https://"}),
+            "link_label": forms.TextInput(attrs={"placeholder": "Link label"}),
         }
 
     def clean(self):

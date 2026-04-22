@@ -25,9 +25,14 @@ from .forms import LoginForm, ProfileForm, SignupForm
 from .models import AccountProfile, Block, Follow, Profile
 from .services import (
     ensure_account_role,
+    is_master_admin,
     load_email_verification_token,
+    master_admin_dashboard_url,
+    master_admin_email,
+    master_admin_supabase_uid,
     next_auth_redirect,
     onboarding_items_for,
+    repair_master_admin_user,
     send_verification_email,
 )
 from .supabase import (
@@ -88,6 +93,20 @@ def _available_username(seed):
     return username
 
 
+def _master_admin_candidate():
+    email = master_admin_email()
+    uid = master_admin_supabase_uid()
+    if uid:
+        candidate = User.objects.filter(account_role__supabase_uid=uid).first()
+        if candidate:
+            return candidate
+    if email:
+        candidate = User.objects.filter(email__iexact=email).order_by("id").first()
+        if candidate:
+            return candidate
+    return None
+
+
 def _dashboard_metrics(user):
     wallet = ensure_wallet(user)
     onboarding_items, onboarding_progress = onboarding_items_for(user)
@@ -114,7 +133,15 @@ def _user_from_supabase_login(identifier, password, auth_payload, profile_payloa
         or email.split("@")[0]
     )
 
-    user = User.objects.filter(email__iexact=email).first()
+    master_uid = auth_user.get("id") or ""
+    user = None
+    if master_uid:
+        user = User.objects.filter(account_role__supabase_uid=master_uid).first()
+    if user is None and email:
+        if email == master_admin_email():
+            user = _master_admin_candidate()
+        if user is None:
+            user = User.objects.filter(email__iexact=email).first()
     if user is None:
         user = User.objects.create_user(
             username=_available_username(username),
@@ -158,13 +185,19 @@ def _user_from_supabase_login(identifier, password, auth_payload, profile_payloa
         account_profile.cellphone_number = phone
     account_profile.save()
 
-    ensure_account_role(user, supabase_uid=auth_user.get("id") or "")
+    if email == master_admin_email() or master_uid == master_admin_supabase_uid():
+        repair_master_admin_user(user, supabase_uid=master_uid, email=email)
+    else:
+        ensure_account_role(user, supabase_uid=master_uid)
     return user
 
 
 def login_view(request):
     if request.user.is_authenticated:
         _set_account_session(request, request.user)
+        ensure_account_role(request.user)
+        if is_master_admin(request.user):
+            return redirect(master_admin_dashboard_url())
         return redirect("user_dashboard")
 
     form = LoginForm(request.POST or None)
@@ -182,6 +215,8 @@ def login_view(request):
             else:
                 request.session.set_expiry(0)
             _set_account_session(request, user)
+            if is_master_admin(user):
+                repair_master_admin_user(user, supabase_uid=getattr(getattr(user, "account_role", None), "supabase_uid", ""), email=user.email)
             account_profile = getattr(user, "account_profile", None)
             if account_profile and not account_profile.email_verified:
                 messages.info(request, "Verify your email to unlock trusted account features and admin approvals.")
@@ -201,6 +236,8 @@ def login_view(request):
                 else:
                     request.session.set_expiry(0)
                 _set_account_session(request, user)
+                if is_master_admin(user):
+                    repair_master_admin_user(user, supabase_uid=auth_payload.get("user", {}).get("id", ""), email=user.email)
                 account_profile = getattr(user, "account_profile", None)
                 if account_profile and not account_profile.email_verified:
                     messages.info(request, "Verify your email to unlock trusted account features and admin approvals.")
@@ -224,6 +261,9 @@ def logout_view(request):
 def signup_view(request):
     if request.user.is_authenticated:
         _set_account_session(request, request.user)
+        ensure_account_role(request.user)
+        if is_master_admin(request.user):
+            return redirect(master_admin_dashboard_url())
         return redirect("user_dashboard")
 
     form = SignupForm(request.POST or None)
@@ -319,6 +359,9 @@ def verify_email_request_view(request):
 
 @login_required(login_url="login")
 def verify_email_notice_view(request):
+    ensure_account_role(request.user)
+    if is_master_admin(request.user):
+        return redirect(master_admin_dashboard_url())
     account_profile = getattr(request.user, "account_profile", None)
     if account_profile and account_profile.email_verified:
         messages.success(request, "Your email is already verified.")
@@ -362,6 +405,10 @@ def profile_completion_view(request):
     if not request.user.is_authenticated:
         return redirect(_login_url_with_next("profile_completion"))
 
+    ensure_account_role(request.user)
+    if is_master_admin(request.user):
+        repair_master_admin_user(request.user, supabase_uid=getattr(getattr(request.user, "account_role", None), "supabase_uid", ""), email=request.user.email)
+        return redirect(master_admin_dashboard_url())
     _set_account_session(request, request.user)
     account_profile = getattr(request.user, "account_profile", None)
     onboarding_items, onboarding_progress = onboarding_items_for(request.user)
@@ -389,8 +436,15 @@ def user_dashboard_view(request):
 
     _set_account_session(request, request.user)
     _ensure_auth_profile(request.user)
-    supabase_profile = ensure_supabase_profile(request.user) or get_supabase_profile(request.user)
     account_role = ensure_account_role(request.user)
+    if is_master_admin(request.user, role=account_role):
+        repair_master_admin_user(
+            request.user,
+            supabase_uid=getattr(account_role, "supabase_uid", ""),
+            email=request.user.email,
+        )
+        return redirect(master_admin_dashboard_url())
+    supabase_profile = ensure_supabase_profile(request.user) or get_supabase_profile(request.user)
 
     posts = []
     try:

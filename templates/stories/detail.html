@@ -5,112 +5,193 @@
 
 {% block content %}
 <style>
-  .story-view{min-height:84vh;display:grid;place-items:center;padding:16px}
-  .story-frame{
-    width:min(520px,100%);min-height:min(86vh,760px);border:1px solid rgba(199,161,74,.24);
-    background:linear-gradient(180deg,#1f1a14,#3a2910);border-radius:28px;padding:16px;position:relative;display:flex;flex-direction:column;gap:14px;
-    box-shadow:0 24px 70px rgba(66,45,10,.2);color:#fffdf8
+  .story-view-shell{max-width:1240px;margin:0 auto;padding:16px 12px 110px}
+  .story-view-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px}
+  .story-hero-note{
+    padding:14px 16px;border-radius:22px;border:1px solid rgba(212,177,106,.14);
+    background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(28,21,15,.92));color:#f5efe2
   }
-  .progress{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .progress span{display:block;height:4px;border-radius:99px;background:rgba(255,255,255,.18)}
-  .progress span.active{background:linear-gradient(135deg,#f4e0a5,#c7a14a)}
-  .story-head,.story-nav,.story-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .story-nav{justify-content:space-between}
-  .story-nav-group{display:flex;gap:8px;flex-wrap:wrap}
-  .story-nav a,.story-nav button,.story-actions button,.story-actions a{
-    border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.12);color:#fffdf8;border-radius:999px;padding:10px 12px;font-weight:800;text-decoration:none
+  .story-hero-note span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+  .story-frame,.story-side{
+    border:1px solid rgba(212,177,106,.18);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:28px;box-shadow:0 24px 60px rgba(0,0,0,.32);
   }
-  .story-author{display:flex;align-items:center;gap:12px}
-  .story-avatar{width:46px;height:46px;border-radius:16px;background:linear-gradient(135deg,#f4ead0,#c7a14a);display:grid;place-items:center;color:#5f4518;font-weight:900;overflow:hidden}
+  .story-frame{padding:14px;display:grid;gap:14px;min-height:min(86vh,860px)}
+  .story-progress{display:grid;grid-template-columns:repeat({{ story_total|default:1 }},1fr);gap:6px}
+  .story-progress span{display:block;height:5px;border-radius:999px;background:rgba(255,255,255,.12)}
+  .story-progress span.active{background:linear-gradient(135deg,#d4b16a,#f1d8a3)}
+  .story-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+  .story-stack{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .story-chip,.story-btn{
+    border:1px solid rgba(212,177,106,.18);background:rgba(16,19,28,.88);color:#f5efe2;
+    border-radius:999px;padding:10px 14px;text-decoration:none;font-weight:800;
+  }
+  .story-btn.primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border-color:transparent}
+  .story-media-wrap{
+    position:relative;overflow:hidden;border-radius:24px;min-height:min(72vh,720px);
+    background:linear-gradient(180deg,#090b10,#121722);display:grid;place-items:center;
+  }
+  .story-media-wrap img,.story-media-wrap video{width:100%;height:100%;object-fit:cover;display:block}
+  .story-text-surface{
+    width:100%;height:100%;display:grid;place-items:center;padding:34px;text-align:center;
+    color:#fff8eb;background:radial-gradient(circle at top,rgba(212,177,106,.16),transparent 28%),linear-gradient(180deg,#10131c,#1a1f2c);
+  }
+  .story-text-surface h1{margin:0;font-size:clamp(2rem,5vw,4rem);line-height:1.05}
+  .story-overlay{
+    position:absolute;left:16px;right:16px;bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;z-index:2;
+  }
+  .story-author{display:flex;gap:12px;align-items:center}
+  .story-avatar{width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg,#f1d8a3,#d4b16a);display:grid;place-items:center;color:#1c150c;font-weight:900;overflow:hidden}
   .story-avatar img{width:100%;height:100%;object-fit:cover}
-  .story-media{flex:1;display:grid;place-items:center;border-radius:22px;background:rgba(255,255,255,.08);overflow:hidden}
-  .story-media img,.story-media video{width:100%;height:100%;object-fit:cover}
-  .story-copy{display:grid;gap:10px}
-  .story-copy p{margin:0;line-height:1.6;color:rgba(255,249,240,.86)}
-  .story-stats{display:flex;gap:10px;flex-wrap:wrap;color:rgba(255,249,240,.82);font-size:13px}
-  .story-actions textarea{
-    width:100%;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#fffdf8;border-radius:18px;padding:12px;min-height:76px
+  .story-copy{color:#f5efe2}
+  .story-copy p{margin:0;color:#a9a191;line-height:1.6}
+  .story-side{padding:18px;display:grid;gap:16px;align-content:start}
+  .story-side h2,.story-side h3,.story-side p{margin:0}
+  .side-card{border:1px solid rgba(212,177,106,.14);border-radius:22px;padding:16px;background:rgba(8,10,15,.82)}
+  .stat-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .stat-card{border:1px solid rgba(212,177,106,.12);border-radius:18px;padding:12px;background:rgba(11,14,20,.84)}
+  .stat-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+  .stat-card strong{font-size:1.15rem}
+  .reply-form,.reaction-row{display:grid;gap:10px}
+  .reply-form textarea{
+    width:100%;border:1px solid rgba(212,177,106,.16);border-radius:18px;padding:12px;background:rgba(6,8,12,.92);color:#f5efe2;min-height:90px;
   }
-  .story-comments{display:grid;gap:10px}
-  .story-comment{padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
-  @media (max-width: 640px){.story-view{padding:8px}.story-frame{min-height:calc(100vh - 92px);border-radius:22px;padding:12px}}
+  .reaction-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .reply-list{display:grid;gap:10px}
+  .reply-item{padding:12px 14px;border-radius:18px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.88)}
+  .reply-item strong{display:block;margin-bottom:4px}
+  @media (max-width: 980px){.story-view-layout{grid-template-columns:1fr}.story-media-wrap{min-height:60vh}}
+  @media (max-width: 640px){.story-view-shell{padding-inline:8px}.story-frame,.story-side{border-radius:22px}.reaction-row{grid-template-columns:1fr}}
 </style>
-<section class="story-view">
-  <article class="story-frame">
-    <div class="progress"><span class="active"></span><span></span><span></span></div>
-    <div class="story-nav">
-      <div class="story-nav-group">
-        <a href="/">Close</a>
-        <a href="{% url 'story_create' %}">Add story</a>
+
+<section class="story-view-shell">
+  <div class="story-hero-note" style="margin-bottom:14px;">
+    <span>Story viewer</span>
+    <strong style="display:block;font-size:1.08rem;">Swipe-sized story playback with live stats, replies, and profile context kept in one premium surface.</strong>
+  </div>
+  <div class="story-view-layout">
+    <article class="story-frame">
+      <div class="story-progress">
+        {% for item in story_siblings %}
+          <span class="{% if item.id == story.id %}active{% endif %}"></span>
+        {% endfor %}
       </div>
-      <div class="story-nav-group">
-        {% if previous_story %}<a href="{% url 'story_detail' previous_story.id %}">Previous</a>{% endif %}
-        {% if next_story %}<a href="{% url 'story_detail' next_story.id %}">Next</a>{% endif %}
-      </div>
-    </div>
-    <header class="story-head">
-      <div class="story-author">
-        <span class="story-avatar">
-          <img src="{% avatar_url story.author.profile %}" alt="{{ story.author.profile.username }}">
-        </span>
-        <div>
-          <strong>@{{ story.author.profile.username|default:story.author.username }}</strong><br>
-          <small style="color:rgba(255,249,240,.82);">{{ story.created_at|timesince }} ago</small>
+
+      <div class="story-top">
+        <div class="story-stack">
+          <a class="story-btn" href="{% url 'feed' %}">Back to feed</a>
+          <a class="story-btn" href="{% url 'story_create' %}">Create story</a>
+          <span class="story-chip">{{ story_position }} / {{ story_total }}</span>
+        </div>
+        <div class="story-stack">
+          {% if previous_story %}<a class="story-btn" href="{% url 'story_detail' previous_story.id %}">Previous</a>{% endif %}
+          {% if next_story %}<a class="story-btn primary" href="{% url 'story_detail' next_story.id %}">Next</a>{% endif %}
         </div>
       </div>
-      <a href="{% url 'profile_detail' story.author.profile.username %}" class="story-nav">Profile</a>
-    </header>
-    <div class="story-media {{ story.background_style }}">
-      {% if story.media_type == "photo" and story.file and story.file|file_exists %}
-        <img src="{% file_url story.file 'images/default-media.svg' %}" alt="{{ story.caption }}">
-      {% elif story.media_type == "video" and story.file and story.file|file_exists %}
-        <video src="{% file_url story.file 'images/default-media.svg' %}" controls autoplay muted playsinline></video>
-      {% elif story.media_type != "text" %}
-        <img src="/static/images/default-media.svg" alt="{{ story.caption|default:'Story media unavailable' }}">
-      {% else %}
-        <h1 style="padding:22px;text-align:center;">{{ story.text_content }}</h1>
-      {% endif %}
-    </div>
-    <div class="story-copy">
-      {% if story.caption %}<p>{{ story.caption }}</p>{% endif %}
-      {% if story.link_url %}<a class="btn btn-main" href="{{ story.link_url }}">{{ story.link_label|default:"Open link" }}</a>{% endif %}
-      <div class="story-stats">
-        <span>{{ story.view_count }} views</span>
-        <span>{{ story.like_count }} likes</span>
-        <span>{{ story.comment_count }} replies</span>
-        <span>{{ story.share_count }} shares</span>
+
+      <div class="story-media-wrap">
+        {% if story.media_type == "photo" and story.file and story.file|file_exists %}
+          <img src="{% file_url story.file 'images/default-media.svg' %}" alt="{{ story.caption|default:'Story photo' }}">
+        {% elif story.media_type == "video" and story.file and story.file|file_exists %}
+          <video src="{% file_url story.file 'images/default-media.svg' %}" controls autoplay muted playsinline></video>
+        {% elif story.media_type != "text" %}
+          <img src="/static/images/default-media.svg" alt="{{ story.caption|default:'Story media unavailable' }}">
+        {% else %}
+          <div class="story-text-surface">
+            <h1>{{ story.text_content }}</h1>
+          </div>
+        {% endif %}
+
+        <div class="story-overlay">
+          <div class="story-author">
+            <span class="story-avatar">
+              {% if story.author.profile.avatar %}
+                <img src="{% avatar_url story.author.profile %}" alt="{{ story.author.profile.username }}">
+              {% else %}
+                {{ story.author.profile.username|default:story.author.username|first|upper }}
+              {% endif %}
+            </span>
+            <div class="story-copy">
+              <strong>@{{ story.author.profile.username|default:story.author.username }}</strong>
+              <p>{{ story.created_at|timesince }} ago{% if story.caption %} · {{ story.caption }}{% endif %}</p>
+            </div>
+          </div>
+          <a class="story-btn" href="{% url 'profile_detail' story.author.profile.username %}">Profile</a>
+        </div>
       </div>
-    </div>
-    {% if request.user.is_authenticated %}
-      <form class="story-actions" method="post" action="{% url 'story_like' story.id %}">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <button name="reaction_type" value="like">Like</button>
-        <button name="reaction_type" value="fire">Fire</button>
-        <button name="reaction_type" value="love">Love</button>
-      </form>
-      <form class="story-actions" method="post" action="{% url 'story_comment' story.id %}">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <textarea name="body" rows="2" placeholder="Reply to story"></textarea>
-        <button type="submit">Reply</button>
-      </form>
-      <form class="story-actions" method="post" action="{% url 'story_share' story.id %}">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <button type="submit">Forward</button>
-      </form>
-    {% endif %}
-    <div class="story-comments">
-      {% for comment in comments %}
-        <div class="story-comment"><strong>@{{ comment.author.username }}</strong> {{ comment.body }}</div>
-      {% empty %}
-        <div class="story-comment">No replies yet. Start the conversation.</div>
-      {% endfor %}
-    </div>
-  </article>
+    </article>
+
+    <aside class="story-side">
+      <div class="side-card">
+        <h2>Story activity</h2>
+        <p style="color:#a9a191;line-height:1.6;">Reactions, replies, and share actions stay on the existing Django story models.</p>
+        <div class="stat-row" style="margin-top:14px;">
+          <div class="stat-card"><span>Views</span><strong>{{ story.view_count }}</strong></div>
+          <div class="stat-card"><span>Reactions</span><strong>{{ story.like_count }}</strong></div>
+          <div class="stat-card"><span>Replies</span><strong>{{ story.comment_count }}</strong></div>
+          <div class="stat-card"><span>Shares</span><strong>{{ story.share_count }}</strong></div>
+        </div>
+      </div>
+
+      {% if story.link_url %}
+        <div class="side-card">
+          <h3>Attached link</h3>
+          <p style="color:#a9a191;line-height:1.6;">This story includes a direct destination.</p>
+          <a class="story-btn primary" style="margin-top:12px;display:inline-flex;" href="{{ story.link_url }}">{{ story.link_label|default:"Open link" }}</a>
+        </div>
+      {% endif %}
+
+      {% if request.user.is_authenticated %}
+        <form class="side-card reaction-row" method="post" action="{% url 'story_like' story.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="story-btn" name="reaction_type" value="like" type="submit">Like</button>
+          <button class="story-btn" name="reaction_type" value="fire" type="submit">Fire</button>
+          <button class="story-btn" name="reaction_type" value="love" type="submit">Love</button>
+        </form>
+
+        <form class="side-card reply-form" method="post" action="{% url 'story_comment' story.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <h3>Reply to story</h3>
+          <textarea name="body" placeholder="Send a quick reply"></textarea>
+          <button class="story-btn primary" type="submit">Send reply</button>
+        </form>
+
+        <form class="side-card" method="post" action="{% url 'story_share' story.id %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="story-btn" type="submit">Forward story</button>
+        </form>
+      {% endif %}
+
+      <div class="side-card">
+        <h3>Replies</h3>
+        <div class="reply-list" style="margin-top:12px;">
+          {% for comment in comments %}
+            <div class="reply-item">
+              <strong>@{{ comment.author.profile.username|default:comment.author.username }}</strong>
+              <span style="color:#a9a191;">{{ comment.body }}</span>
+            </div>
+          {% empty %}
+            <div class="reply-item">
+              <strong>No replies yet</strong>
+              <span style="color:#a9a191;">Start the conversation from the reply box.</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+  </div>
 </section>
+
 <script>
-  fetch("{% url 'story_view' story.id %}", {method:"POST", headers:{"X-CSRFToken":"{{ csrf_token }}"}}).catch(() => {});
+  fetch("{% url 'story_view' story.id %}", {
+    method: "POST",
+    headers: {
+      "X-CSRFToken": "{{ csrf_token }}"
+    }
+  }).catch(() => {});
 </script>
 {% endblock %}

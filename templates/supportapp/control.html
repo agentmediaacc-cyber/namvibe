@@ -1,92 +1,245 @@
 {% extends "base.html" %}
-{% block title %}Control | Namvibe{% endblock %}
+{% block title %}Master Control | Namvibe{% endblock %}
 
 {% block content %}
-<section class="product-shell">
-  <div class="product-hero">
-    <div>
-      <span class="eyebrow">Control</span>
-      <h1>Support and control center</h1>
-      <p>Manage moderation, support, promos, memberships, featured content, and broadcasts from one clean control surface.</p>
-      <div class="product-actions">
-        <a class="nv-btn primary" href="/admin/">Django admin</a>
-        <a class="nv-btn" href="{% url 'support_help' %}">Support home</a>
-        <a class="nv-btn" href="{% url 'ads_starter' %}">Create promotion</a>
+<style>
+  .control-shell{max-width:1240px;margin:0 auto;padding:18px 12px 110px}
+  .control-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+  .control-hero,.control-card,.control-panel{
+    border:1px solid rgba(212,177,106,.16);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:28px;
+    box-shadow:0 24px 60px rgba(0,0,0,.34);
+    color:#f5efe2;
+  }
+  .control-hero{padding:22px;position:relative;overflow:hidden}
+  .control-hero::after{
+    content:"";position:absolute;right:-50px;top:-30px;width:220px;height:220px;border-radius:999px;
+    background:radial-gradient(circle,rgba(212,177,106,.22),transparent 66%);
+  }
+  .control-hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:16px}
+  .eyebrow-chip,.control-btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;
+    border-radius:999px;text-decoration:none;font-weight:800;
+  }
+  .eyebrow-chip{background:rgba(212,177,106,.12);border:1px solid rgba(212,177,106,.18);color:#f1d8a3}
+  .control-btn{border:1px solid rgba(212,177,106,.14);background:rgba(10,12,18,.96);color:#f5efe2}
+  .control-btn.primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:transparent;color:#120f09}
+  .hero-actions,.metric-grid,.lane-grid,.activity-grid,.team-grid{display:grid;gap:12px}
+  .command-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:18px}
+  .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .metric-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .metric-card,.mini-card{
+    padding:14px;border-radius:20px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.88)
+  }
+  .command-card{
+    padding:14px 16px;border-radius:22px;border:1px solid rgba(212,177,106,.12);
+    background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(24,19,13,.92));
+  }
+  .command-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+  .command-card strong{display:block;font-size:1rem}
+  .metric-card span,.mini-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+  .metric-card strong,.mini-card strong{font-size:1.25rem}
+  .hero-side{display:grid;gap:12px}
+  .control-panel{padding:18px}
+  .control-panel h2,.control-panel h3,.control-panel p{margin:0}
+  .muted-copy{color:#a9a191;line-height:1.65}
+  .lane-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .lane-card,.activity-card,.team-card{
+    border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.88);border-radius:22px;padding:16px;color:#f5efe2;text-decoration:none
+  }
+  .lane-card strong,.activity-card strong,.team-card strong{display:block;margin-bottom:6px}
+  .activity-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .team-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+  .quick-links{display:flex;gap:10px;flex-wrap:wrap}
+  .section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+  .activity-card small,.team-card small{color:#a9a191}
+  .mobile-ops-nav{
+    display:none;gap:10px;overflow:auto;scrollbar-width:none;padding-bottom:4px
+  }
+  .mobile-ops-nav::-webkit-scrollbar{display:none}
+  @media (max-width: 900px){.control-hero-grid{grid-template-columns:1fr}}
+  @media (max-width: 720px){
+    .control-shell{padding-inline:8px}
+    .control-hero,.control-panel{border-radius:24px}
+    .mobile-ops-nav{display:flex}
+  }
+</style>
+
+<section class="control-shell">
+  <div class="control-grid">
+    <section class="control-hero">
+      <div class="control-hero-grid">
+        <div>
+          <span class="eyebrow-chip">Master Admin Control Center</span>
+          <h1 style="margin:12px 0 10px;font-size:clamp(2.2rem,5vw,4.3rem);line-height:.95;">Run Namvibe from one premium mobile-ready command surface.</h1>
+          <p class="muted-copy">Monitor users, content, stories, live rooms, memberships, promos, and support operations from a single control plane. Master-admin routing lands here directly after login.</p>
+          {% if safe_mode_message %}
+            <p class="muted-copy" style="margin-top:10px;">Safe mode is active for some metrics while the database connection recovers.</p>
+          {% endif %}
+          <div class="hero-actions">
+            <a class="control-btn primary" href="/admin/">Django admin</a>
+            <a class="control-btn" href="{% url 'support_help' %}">Support home</a>
+            <a class="control-btn" href="{% url 'ads_starter' %}">Promotions</a>
+            <a class="control-btn" href="{% url 'wallet_membership_plans' %}">Premium</a>
+          </div>
+          <div class="command-strip">
+            <div class="command-card">
+              <span>Admin route</span>
+              <strong>/support/control/</strong>
+            </div>
+            <div class="command-card">
+              <span>Master admin redirect</span>
+              <strong>Always lands here after login</strong>
+            </div>
+            <div class="command-card">
+              <span>Surface state</span>
+              <strong>{% if safe_mode_message %}Degraded safe mode{% else %}Live control surface{% endif %}</strong>
+            </div>
+          </div>
+        </div>
+        <div class="hero-side">
+          <div class="mini-card">
+            <span>Signed in as</span>
+            <strong>@{{ request.user.username }}</strong>
+            <span>{{ role.get_role_display }}</span>
+          </div>
+          <div class="mini-card">
+            <span>Admin powers</span>
+            <strong>{% if role.is_master_admin %}Master Admin{% else %}Platform Admin{% endif %}</strong>
+            <span>Promos, support, and moderation are enabled.</span>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+      <div class="metric-grid" style="margin-top:18px;">
+        {% for key,value in support_metrics.items %}
+          <div class="metric-card"><span>{{ key|title }}</span><strong>{{ value }}</strong></div>
+        {% endfor %}
+      </div>
+    </section>
 
-  <div class="product-grid">
-    {% for key,value in support_metrics.items %}
-      <div class="product-card"><span>{{ key|title }}</span><strong>{{ value }}</strong></div>
-    {% endfor %}
-  </div>
+    <section class="control-panel">
+      <div class="mobile-ops-nav" aria-label="Control navigation">
+        <a class="control-btn" href="#control-lanes">Lanes</a>
+        <a class="control-btn" href="#recent-activity">Activity</a>
+        <a class="control-btn" href="#promo-cards">Promos</a>
+        <a class="control-btn" href="#team-roles">Roles</a>
+      </div>
+    </section>
 
-  <div class="product-section">
-    <h2>Control lanes</h2>
-    <div class="product-grid">
-      {% for item in control_sections %}
-        <a class="product-card" href="{{ item.url }}">
-          <strong>{{ item.title }}</strong>
-          <span>{{ item.copy }}</span>
-        </a>
-      {% endfor %}
-    </div>
-  </div>
+    <section class="control-panel" id="control-lanes">
+      <div class="section-head">
+        <div>
+          <h2>Control Lanes</h2>
+          <p class="muted-copy">Fast entry points for moderation, premium operations, live oversight, and growth systems.</p>
+        </div>
+      </div>
+      <div class="lane-grid">
+        {% for item in control_sections %}
+          <a class="lane-card" href="{{ item.url }}">
+            <strong>{{ item.title }}</strong>
+            <span class="muted-copy">{{ item.copy }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
 
-  <div class="product-section">
-    <h2>Quick links</h2>
-    <div class="product-grid">
-      {% for item in quick_links %}
-        <a class="product-card" href="{{ item.url }}"><strong>{{ item.label }}</strong><span>Open route</span></a>
-      {% endfor %}
-    </div>
-  </div>
+    <section class="control-panel" id="recent-activity">
+      <div class="section-head">
+        <div>
+          <h2>Quick Links</h2>
+          <p class="muted-copy">Jump directly into admin, API, wallet, ads, and live operations.</p>
+        </div>
+      </div>
+      <div class="quick-links">
+        {% for item in quick_links %}
+          <a class="control-btn" href="{{ item.url }}">{{ item.label }}</a>
+        {% endfor %}
+      </div>
+    </section>
 
-  <div class="product-section">
-    <h2>Recent system activity</h2>
-    <div class="product-grid">
-      {% for post in recent_posts %}
-        <a class="product-card" href="{% url 'post_detail' post.uuid %}">
-          <strong>{{ post.title|default:post.get_post_type_display }}</strong>
-          <span>@{{ post.author.profile.username }}</span>
-        </a>
-      {% endfor %}
-      {% for session in recent_live %}
-        <a class="product-card" href="{% url 'live_room' session.uuid %}">
-          <strong>{{ session.title }}</strong>
-          <span>@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</span>
-        </a>
-      {% endfor %}
-      {% for ad in recent_ads %}
-        <a class="product-card" href="{% url 'ad_click' ad.id %}">
-          <strong>{{ ad.title }}</strong>
-          <span>{{ ad.sponsor_name }} · {{ ad.placement }}</span>
-        </a>
-      {% endfor %}
-    </div>
-  </div>
+    <section class="control-panel">
+      <div class="section-head">
+        <div>
+          <h2>Recent System Activity</h2>
+          <p class="muted-copy">Latest posts, live rooms, and ads surfaced in one operational timeline.</p>
+        </div>
+      </div>
+      <div class="activity-grid">
+        {% for post in recent_posts %}
+          <a class="activity-card" href="{% url 'post_detail' post.uuid %}">
+            <strong>{{ post.title|default:post.get_post_type_display }}</strong>
+            <span class="muted-copy">@{{ post.author.profile.username }} · Post</span>
+            <small>{{ post.published_at|date:"M j, Y H:i"|default:"Recent" }}</small>
+          </a>
+        {% endfor %}
+        {% for session in recent_live %}
+          <a class="activity-card" href="{% url 'live_room' session.uuid %}">
+            <strong>{{ session.title }}</strong>
+            <span class="muted-copy">@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</span>
+            <small>{{ session.created_at|date:"M j, Y H:i"|default:"Live now" }}</small>
+          </a>
+        {% endfor %}
+        {% for ad in recent_ads %}
+          <a class="activity-card" href="{% url 'ad_click' ad.id %}">
+            <strong>{{ ad.title }}</strong>
+            <span class="muted-copy">{{ ad.sponsor_name }} · {{ ad.placement }}</span>
+            <small>priority {{ ad.priority }}</small>
+          </a>
+        {% endfor %}
+        {% if not recent_posts and not recent_live and not recent_ads %}
+          <div class="activity-card">
+            <strong>No recent activity loaded</strong>
+            <span class="muted-copy">The control center will populate once database-backed activity is reachable.</span>
+          </div>
+        {% endif %}
+      </div>
+    </section>
 
-  <div class="product-section">
-    <h2>Promo cards</h2>
-    <div class="product-grid">
-      {% for promo in promo_cards %}
-        <article class="product-card"><strong>{{ promo.title }}</strong><span>{{ promo.get_placement_display }} · priority {{ promo.priority }}</span></article>
-      {% empty %}
-        <div class="product-card">No promo cards yet.</div>
-      {% endfor %}
-    </div>
-  </div>
+    <section class="control-panel" id="promo-cards">
+      <div class="section-head">
+        <div>
+          <h2>Promo Cards</h2>
+          <p class="muted-copy">Featured homepage and system promotional surfaces available for editorial control.</p>
+        </div>
+      </div>
+      <div class="activity-grid">
+        {% for promo in promo_cards %}
+          <article class="activity-card">
+            <strong>{{ promo.title }}</strong>
+            <span class="muted-copy">{{ promo.get_placement_display }} · priority {{ promo.priority }}</span>
+          </article>
+        {% empty %}
+          <div class="activity-card">
+            <strong>No promo cards yet</strong>
+            <span class="muted-copy">Add promo cards when the campaign queue is ready.</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
 
-  <div class="product-section">
-    <h2>Team roles</h2>
-    <div class="product-grid">
-      {% for row in team_roles %}
-        <article class="product-card"><strong>@{{ row.user.username }}</strong><span>{{ row.get_role_display }}</span></article>
-      {% empty %}
-        <div class="product-card">No elevated roles yet.</div>
-      {% endfor %}
-    </div>
+    <section class="control-panel" id="team-roles">
+      <div class="section-head">
+        <div>
+          <h2>Elevated Team Roles</h2>
+          <p class="muted-copy">Review every non-member role from the same control surface used by the master admin.</p>
+        </div>
+      </div>
+      <div class="team-grid">
+        {% for row in team_roles %}
+          <article class="team-card">
+            <strong>@{{ row.user.username }}</strong>
+            <span class="muted-copy">{{ row.get_role_display }}</span>
+            <small>{% if row.is_master_admin %}Pinned master route{% else %}Elevated staff path{% endif %}</small>
+          </article>
+        {% empty %}
+          <div class="team-card">
+            <strong>No elevated roles</strong>
+            <span class="muted-copy">Additional support and admin assignments will appear here.</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
   </div>
 </section>
 {% endblock %}

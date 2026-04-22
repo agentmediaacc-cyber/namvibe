@@ -2,17 +2,19 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.http import HttpResponseForbidden, JsonResponse
-from django.shortcuts import get_object_or_404, render, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
-from communities.models import Community
+from django.views.decorators.http import require_http_methods
+
 from accounts.models import Profile
 from accounts.supabase import supabase_profile_id_for_user
+from communities.models import Community
 from supportapp.models import SystemPromoCard
+
 from .forms import POST_TYPE_FORMS
 from .models import Comment, Like, Post, PostMedia, Report, Save, Share
 from .services import (
@@ -22,25 +24,24 @@ from .services import (
     can_interact_with_post,
     create_report,
     create_share,
+    delete_comment,
     suggested_communities_for,
     suggested_users_for,
     threaded_comments_for_post,
-    toggle_like,
     toggle_comment_reaction,
+    toggle_like,
     toggle_pin_comment,
     toggle_save,
     track_view,
     trending_hashtags,
-    delete_comment,
 )
-from .supabase_posts import get_public_posts, create_post
+from .supabase_posts import create_post, get_public_posts
 
 
 def _session_user(request):
     user_id = request.session.get("eharo_user_id", "")
     if not user_id:
         return None
-
     return {
         "user_id": user_id,
         "full_name": request.session.get("eharo_full_name", "Namvibe User"),
@@ -61,17 +62,64 @@ def _post_sync_identity(request):
     return _session_user(request)
 
 
+def _post_queryset_for_user(request):
+    return base_visible_posts(request.user)
+
+
+def _form_for_post_type(post_type):
+    return POST_TYPE_FORMS.get(post_type, POST_TYPE_FORMS[Post.PostType.TEXT])
+
+
+def _post_type_from_request(request, fallback=Post.PostType.TEXT):
+    value = request.POST.get("post_type") or request.GET.get("type") or fallback
+    if value == "live_announcement":
+        value = Post.PostType.LIVE
+    return value if value in POST_TYPE_FORMS else fallback
+
+
+def _paginated_feed(request, queryset, *, title, subtitle, active_feed):
+    safe_mode_message = ""
+    try:
+        ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
+        paginator = Paginator(ranked_posts, 15)
+        page_obj = paginator.get_page(request.GET.get("page"))
+    except Exception as exc:
+        safe_mode_message = str(exc)
+        page_obj = Paginator([], 15).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "posts/feed.html",
+        {
+            "page_obj": page_obj,
+            "posts": page_obj.object_list,
+            "legacy_posts": [],
+            "feed_title": title,
+            "feed_subtitle": subtitle,
+            "active_feed": active_feed,
+            "safe_mode_message": safe_mode_message,
+        },
+    )
+
+
+def _post_action_redirect(request, post):
+    return redirect(request.POST.get("next") or reverse("post_detail", kwargs={"uuid": post.uuid}))
+
+
 @require_http_methods(["GET"])
 def feed_view(request):
-    queryset = base_visible_posts(request.user).published()
-    ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
-    paginator = Paginator(ranked_posts, 15)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    safe_mode_message = ""
+    page_obj = Paginator([], 15).get_page(request.GET.get("page"))
     legacy_posts = []
-    if not ranked_posts:
-        legacy_posts = get_public_posts(limit=50)
-        if not isinstance(legacy_posts, list):
-            legacy_posts = []
+    try:
+        queryset = base_visible_posts(request.user).published()
+        ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
+        page_obj = Paginator(ranked_posts, 15).get_page(request.GET.get("page"))
+        if not ranked_posts:
+            legacy_posts = get_public_posts(limit=50)
+            if not isinstance(legacy_posts, list):
+                legacy_posts = []
+    except Exception as exc:
+        safe_mode_message = str(exc)
     return render(
         request,
         "posts/feed.html",
@@ -82,7 +130,73 @@ def feed_view(request):
             "feed_title": "For You",
             "feed_subtitle": "A ranked feed of public, followed, community, and creator posts.",
             "active_feed": "for_you",
+            "safe_mode_message": safe_mode_message,
         },
+    )
+
+
+def following_feed_view(request):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('login')}?next={request.path}")
+    followed_ids = request.user.following_edges.values_list("following_id", flat=True)
+    queryset = base_visible_posts(request.user).published().filter(author_id__in=followed_ids)
+    return _paginated_feed(
+        request,
+        queryset,
+        title="Following",
+        subtitle="Posts from creators and people you follow.",
+        active_feed="following",
+    )
+
+
+def friends_feed_view(request):
+    if not request.user.is_authenticated:
+        return redirect(f"{reverse('login')}?next={request.path}")
+    friend_pairs = request.user.sent_friend_requests.filter(status="accepted").values_list("to_user_id", flat=True)
+    reverse_pairs = request.user.received_friend_requests.filter(status="accepted").values_list("from_user_id", flat=True)
+    queryset = base_visible_posts(request.user).published().filter(
+        Q(author_id__in=friend_pairs) | Q(author_id__in=reverse_pairs)
+    )
+    return _paginated_feed(
+        request,
+        queryset,
+        title="Friends",
+        subtitle="Posts visible through accepted friendships.",
+        active_feed="friends",
+    )
+
+
+def trending_feed_view(request):
+    queryset = base_visible_posts(request.user).published().order_by(
+        "-like_count",
+        "-comment_count",
+        "-share_count",
+        "-published_at",
+    )
+    return _paginated_feed(
+        request,
+        queryset,
+        title="Trending",
+        subtitle="Posts gaining attention across Namvibe.",
+        active_feed="trending",
+    )
+
+
+def nearby_feed_view(request):
+    location = request.GET.get("location", "").strip()
+    if not location and request.user.is_authenticated:
+        location = getattr(getattr(request.user, "profile", None), "location", "")
+    queryset = base_visible_posts(request.user).published()
+    if location:
+        queryset = queryset.filter(
+            Q(author__profile__location__iexact=location) | Q(community__name__icontains=location)
+        )
+    return _paginated_feed(
+        request,
+        queryset,
+        title="Nearby Namibia",
+        subtitle=location or "Local creator posts and communities.",
+        active_feed="nearby",
     )
 
 
@@ -90,7 +204,6 @@ def feed_view(request):
 def create_post_view(request):
     if request.method == "GET":
         return redirect("studio")
-
     if not request.user.is_authenticated:
         messages.error(request, "Login required to create a post.")
         return redirect("login")
@@ -123,7 +236,9 @@ def create_post_view(request):
                     allow_sharing=True,
                 )
                 if media_file:
-                    media_type = PostMedia.MediaType.VIDEO if post_type == Post.PostType.VIDEO else PostMedia.MediaType.IMAGE
+                    media_type = (
+                        PostMedia.MediaType.VIDEO if post_type == Post.PostType.VIDEO else PostMedia.MediaType.IMAGE
+                    )
                     media = PostMedia.objects.create(post=post, media_type=media_type, file=media_file)
                     if not getattr(media.file, "name", ""):
                         raise ValueError("Uploaded media did not save correctly.")
@@ -142,7 +257,6 @@ def create_post_view(request):
                 caption=content,
                 media_file=media_file,
             )
-
     return redirect("feed")
 
 
@@ -156,7 +270,6 @@ def save_post_view(request):
     title = request.POST.get("title", "").strip()
     caption = request.POST.get("caption", "").strip()
     media_file = request.FILES.get("media_file") or request.FILES.get("media") or request.FILES.get("flyer_image")
-
     if title or caption or media_file or request.POST.get("flyer_title", "").strip() or request.POST.get("poll_question", "").strip():
         create_post(
             user_id=user["user_id"],
@@ -199,23 +312,7 @@ def save_post_view(request):
             save_draft="save_draft" in request.POST,
             media_file=media_file,
         )
-
     return redirect(f"{reverse('user_dashboard')}?section=posts")
-
-
-def _post_queryset_for_user(request):
-    return base_visible_posts(request.user)
-
-
-def _form_for_post_type(post_type):
-    return POST_TYPE_FORMS.get(post_type, POST_TYPE_FORMS[Post.PostType.TEXT])
-
-
-def _post_type_from_request(request, fallback=Post.PostType.TEXT):
-    value = request.POST.get("post_type") or request.GET.get("type") or fallback
-    if value == "live_announcement":
-        value = Post.PostType.LIVE
-    return value if value in POST_TYPE_FORMS else fallback
 
 
 @login_required(login_url="login")
@@ -232,15 +329,18 @@ def studio_view(request):
         messages.success(request, "Post published.")
         return redirect("post_detail", uuid=post.uuid)
 
-    context = {
-        "form": form,
-        "active_type": post_type,
-        "post_types": Post.PostType.choices,
-        "audiences": Post.Audience.choices,
-        "share_targets": Post.ShareTarget.choices,
-        "recent_drafts": Post.objects.filter(author=request.user, status=Post.Status.DRAFT).prefetch_related("media")[:6],
-    }
-    return render(request, "posts/creator_studio.html", context)
+    return render(
+        request,
+        "posts/creator_studio.html",
+        {
+            "form": form,
+            "active_type": post_type,
+            "post_types": Post.PostType.choices,
+            "audiences": Post.Audience.choices,
+            "share_targets": Post.ShareTarget.choices,
+            "recent_drafts": Post.objects.filter(author=request.user, status=Post.Status.DRAFT).prefetch_related("media")[:6],
+        },
+    )
 
 
 @login_required(login_url="login")
@@ -260,7 +360,17 @@ def save_draft_view(request):
         post = form.save()
         messages.success(request, "Draft saved.")
         return redirect("studio_draft", uuid=post.uuid)
-    return render(request, "posts/creator_studio.html", {"form": form, "active_type": post_type, "post_types": Post.PostType.choices, "audiences": Post.Audience.choices, "share_targets": Post.ShareTarget.choices})
+    return render(
+        request,
+        "posts/creator_studio.html",
+        {
+            "form": form,
+            "active_type": post_type,
+            "post_types": Post.PostType.choices,
+            "audiences": Post.Audience.choices,
+            "share_targets": Post.ShareTarget.choices,
+        },
+    )
 
 
 @login_required(login_url="login")
@@ -298,7 +408,18 @@ def edit_post_view(request, uuid):
         edited_post.save(update_fields=["is_edited", "updated_at"])
         messages.success(request, "Post updated.")
         return redirect("post_detail", uuid=post.uuid)
-    return render(request, "posts/creator_studio.html", {"form": form, "post": post, "active_type": post.post_type, "post_types": Post.PostType.choices, "audiences": Post.Audience.choices, "share_targets": Post.ShareTarget.choices})
+    return render(
+        request,
+        "posts/creator_studio.html",
+        {
+            "form": form,
+            "post": post,
+            "active_type": post.post_type,
+            "post_types": Post.PostType.choices,
+            "audiences": Post.Audience.choices,
+            "share_targets": Post.ShareTarget.choices,
+        },
+    )
 
 
 @login_required(login_url="login")
@@ -355,77 +476,46 @@ def community_posts_list_view(request, slug):
     return render(request, "posts/community_posts.html", {"community": community, "page_obj": page_obj})
 
 
-def _paginated_feed(request, queryset, *, title, subtitle, active_feed):
-    ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
-    paginator = Paginator(ranked_posts, 15)
-    page_obj = paginator.get_page(request.GET.get("page"))
-    return render(
-        request,
-        "posts/feed.html",
-        {
-            "page_obj": page_obj,
-            "posts": page_obj.object_list,
-            "legacy_posts": [],
-            "feed_title": title,
-            "feed_subtitle": subtitle,
-            "active_feed": active_feed,
-        },
-    )
-
-
-def following_feed_view(request):
-    if not request.user.is_authenticated:
-        return redirect(f"{reverse('login')}?next={request.path}")
-    followed_ids = request.user.following_edges.values_list("following_id", flat=True)
-    queryset = base_visible_posts(request.user).published().filter(author_id__in=followed_ids)
-    return _paginated_feed(request, queryset, title="Following", subtitle="Posts from creators and people you follow.", active_feed="following")
-
-
-def friends_feed_view(request):
-    if not request.user.is_authenticated:
-        return redirect(f"{reverse('login')}?next={request.path}")
-    friend_pairs = request.user.sent_friend_requests.filter(status="accepted").values_list("to_user_id", flat=True)
-    reverse_pairs = request.user.received_friend_requests.filter(status="accepted").values_list("from_user_id", flat=True)
-    queryset = base_visible_posts(request.user).published().filter(Q(author_id__in=friend_pairs) | Q(author_id__in=reverse_pairs))
-    return _paginated_feed(request, queryset, title="Friends", subtitle="Posts visible through accepted friendships.", active_feed="friends")
-
-
-def trending_feed_view(request):
-    queryset = (
-        base_visible_posts(request.user)
-        .published()
-        .order_by("-like_count", "-comment_count", "-share_count", "-published_at")
-    )
-    return _paginated_feed(request, queryset, title="Trending", subtitle="Posts gaining attention across Namvibe.", active_feed="trending")
-
-
-def nearby_feed_view(request):
-    location = request.GET.get("location", "").strip()
-    if not location and request.user.is_authenticated:
-        location = getattr(getattr(request.user, "profile", None), "location", "")
-    queryset = base_visible_posts(request.user).published()
-    if location:
-        queryset = queryset.filter(Q(author__profile__location__iexact=location) | Q(community__name__icontains=location))
-    return _paginated_feed(request, queryset, title="Nearby Namibia", subtitle=location or "Local creator posts and communities.", active_feed="nearby")
-
-
 def community_feed_view(request, slug):
     community = get_object_or_404(Community.objects.select_related("owner"), slug__iexact=slug)
     queryset = base_visible_posts(request.user).published().filter(community=community)
-    return _paginated_feed(request, queryset, title=f"{community.name} Feed", subtitle=community.description, active_feed="community")
+    return _paginated_feed(
+        request,
+        queryset,
+        title=f"{community.name} Feed",
+        subtitle=community.description,
+        active_feed="community",
+    )
 
 
 def reels_feed_view(request):
-    queryset = base_visible_posts(request.user).published().filter(post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO])
-    ranked_posts = FeedRankingService(request.user).rank(queryset, limit=80)
+    safe_mode_message = ""
+    try:
+        queryset = base_visible_posts(request.user).published().filter(
+            post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO]
+        )
+        ranked_posts = FeedRankingService(request.user).rank(queryset, limit=80)
+        suggested_people = suggested_users_for(request.user, limit=8)
+        suggested_communities = suggested_communities_for(request.user, limit=6)
+        promo_cards = SystemPromoCard.objects.filter(
+            is_active=True,
+            placement=SystemPromoCard.Placement.HOMEPAGE_FEED,
+        )[:3]
+    except Exception as exc:
+        safe_mode_message = str(exc)
+        ranked_posts = []
+        suggested_people = []
+        suggested_communities = []
+        promo_cards = []
     return render(
         request,
         "posts/reels_feed.html",
         {
             "reels": ranked_posts[:18],
-            "suggested_people": suggested_users_for(request.user, limit=8),
-            "suggested_communities": suggested_communities_for(request.user, limit=6),
-            "promo_cards": SystemPromoCard.objects.filter(is_active=True, placement=SystemPromoCard.Placement.HOMEPAGE_FEED)[:3],
+            "suggested_people": suggested_people,
+            "suggested_communities": suggested_communities,
+            "promo_cards": promo_cards,
+            "safe_mode_message": safe_mode_message,
         },
     )
 
@@ -460,7 +550,11 @@ def search_view(request):
         communities = Community.objects.select_related("owner").filter(
             Q(name__icontains=query) | Q(description__icontains=query) | Q(slug__icontains=query)
         )[:20]
-    return render(request, "posts/search.html", {"query": query, "users": users, "posts": posts, "communities": communities})
+    return render(
+        request,
+        "posts/search.html",
+        {"query": query, "users": users, "posts": posts, "communities": communities},
+    )
 
 
 @login_required(login_url="login")
@@ -472,14 +566,15 @@ def saved_posts_view(request):
         .order_by("-created_at")
     )
     saved_posts = [row.post for row in saves if row.post.status == Post.Status.PUBLISHED]
-    media_saved_posts = [post for post in saved_posts if post.post_type in {Post.PostType.PHOTO, Post.PostType.VIDEO, Post.PostType.REEL}]
+    media_saved_posts = [
+        post
+        for post in saved_posts
+        if post.post_type in {Post.PostType.PHOTO, Post.PostType.VIDEO, Post.PostType.REEL}
+    ]
     return render(
         request,
         "posts/saved.html",
-        {
-            "saved_posts": saved_posts,
-            "media_saved_posts": media_saved_posts,
-        },
+        {"saved_posts": saved_posts, "media_saved_posts": media_saved_posts},
     )
 
 
@@ -537,11 +632,7 @@ def media_album_detail_view(request, kind):
     return render(
         request,
         "posts/album_detail.html",
-        {
-            "album_kind": kind,
-            "album_title": kind.title(),
-            "posts": posts,
-        },
+        {"album_kind": kind, "album_title": kind.title(), "posts": posts},
     )
 
 
@@ -554,19 +645,27 @@ def hashtag_view(request, tag):
     ]
     paginator = Paginator(posts, 15)
     page_obj = paginator.get_page(request.GET.get("page"))
-    return render(request, "posts/hashtag.html", {"tag": normalized, "page_obj": page_obj, "posts": page_obj.object_list})
+    return render(
+        request,
+        "posts/hashtag.html",
+        {"tag": normalized, "page_obj": page_obj, "posts": page_obj.object_list},
+    )
 
 
 def people_suggestions_view(request):
-    return render(request, "posts/people_suggestions.html", {"suggested_people": suggested_users_for(request.user, limit=30)})
+    return render(
+        request,
+        "posts/people_suggestions.html",
+        {"suggested_people": suggested_users_for(request.user, limit=30)},
+    )
 
 
 def community_suggestions_view(request):
-    return render(request, "posts/community_suggestions.html", {"suggested_communities": suggested_communities_for(request.user, limit=30)})
-
-
-def _post_action_redirect(request, post):
-    return redirect(request.POST.get("next") or reverse("post_detail", kwargs={"uuid": post.uuid}))
+    return render(
+        request,
+        "posts/community_suggestions.html",
+        {"suggested_communities": suggested_communities_for(request.user, limit=30)},
+    )
 
 
 @login_required(login_url="login")
@@ -581,7 +680,13 @@ def like_post_view(request, uuid):
     like, active = toggle_like(request.user, post, reaction)
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
         post.refresh_from_db()
-        return JsonResponse({"liked": active, "like_count": post.like_count, "reaction_type": getattr(like, "reaction_type", "")})
+        return JsonResponse(
+            {
+                "liked": active,
+                "like_count": post.like_count,
+                "reaction_type": getattr(like, "reaction_type", ""),
+            }
+        )
     messages.success(request, "Reaction saved." if active else "Reaction removed.")
     return _post_action_redirect(request, post)
 
@@ -729,3 +834,9 @@ def report_user_view(request, username):
         messages.success(request, "Report submitted.")
         return redirect("profile_detail", username=profile.username)
     return render(request, "posts/report_user.html", {"profile": profile, "reasons": Report.Reason.choices})
+
+
+def reel_quick_create_view(request):
+    if request.method == "POST":
+        return render(request, "posts/reel_quick_create.html", {"posted": True})
+    return render(request, "posts/reel_quick_create.html")

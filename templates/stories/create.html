@@ -1,418 +1,471 @@
 {% extends "base.html" %}
-{% load media_helpers %}
-
-{% block title %}Create Story | Namvibe{% endblock %}
+{% block title %}Story Studio | Namvibe{% endblock %}
 
 {% block content %}
 <style>
-  .story-create-shell{max-width:1180px;margin:0 auto;padding:18px 12px 96px}
-  .story-create-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(320px,.95fr);gap:18px;align-items:start}
-  .story-create-panel,.story-preview-panel,.story-helper-card{
-    border:1px solid rgba(226,112,132,.14);background:rgba(255,252,252,.97);border-radius:28px;padding:18px;
-    box-shadow:0 20px 56px rgba(181,64,93,.08)
+  .story-studio-shell{max-width:1180px;margin:0 auto;padding:16px 12px 110px}
+  .story-studio-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:16px}
+  .story-stage,.story-panel{
+    border:1px solid rgba(212,177,106,.18);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:28px;
+    box-shadow:0 24px 60px rgba(0,0,0,.32);
   }
-  .story-create-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
-  .story-create-head h1{margin:0 0 8px;font-size:clamp(2rem,5vw,3.4rem)}
-  .story-muted{color:#7f6671;line-height:1.65}
-  .story-mode-grid,.story-style-grid,.story-chip-grid{display:grid;gap:10px}
-  .story-mode-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .story-style-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .story-chip-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .story-mode-btn,.story-style-btn,.story-chip-btn,.story-soft-btn{
-    border:1px solid rgba(226,112,132,.14);background:#fff;border-radius:20px;padding:14px;cursor:pointer;text-align:left;
-    font-weight:800;color:#2c1f28;transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease
+  .story-stage{position:relative;overflow:hidden;min-height:min(82vh,860px);display:flex;flex-direction:column}
+  .story-stage-media{position:relative;flex:1;background:linear-gradient(180deg,#090b10,#121722)}
+  #livePreview,#photoPreview,#videoPreview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#050608}
+  .hidden{display:none!important}
+  .story-stage-top,.story-stage-bottom{
+    position:absolute;left:0;right:0;z-index:10;padding:14px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
   }
-  .story-mode-btn.active,.story-style-btn.active,.story-chip-btn.active{
-    border-color:rgba(217,71,99,.3);background:linear-gradient(135deg,#fff7f8,#ffe8ee);box-shadow:0 12px 28px rgba(181,64,93,.1);transform:translateY(-1px)
+  .story-stage-top{top:0;background:linear-gradient(180deg,rgba(4,6,9,.74),transparent)}
+  .story-stage-bottom{bottom:0;flex-direction:column;align-items:stretch;background:linear-gradient(0deg,rgba(4,6,9,.86),transparent)}
+  .studio-chip,.studio-btn,.capture-btn,.style-pill{
+    border:1px solid rgba(212,177,106,.2);background:rgba(15,18,26,.82);color:#f5efe2;
+    border-radius:999px;padding:10px 14px;text-decoration:none;font-weight:800;cursor:pointer;
   }
-  .story-mode-btn small,.story-style-btn small,.story-soft-note,.story-chip-btn small{display:block;margin-top:4px;color:#7f6671;font-weight:600;line-height:1.45}
-  .story-section{margin-top:16px}
-  .story-section h2{margin:0 0 10px;font-size:1.08rem}
-  .story-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-  .story-field{display:grid;gap:8px}
-  .story-field.full{grid-column:1/-1}
-  .story-field label{font-weight:800;color:#442834}
-  .story-field input,.story-field textarea,.story-field select{
-    width:100%;min-width:0;border:1px solid rgba(226,112,132,.14);background:#fff;border-radius:18px;padding:13px 14px;color:#241b24
+  .studio-btn.primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border-color:transparent}
+  .studio-chip{font-size:12px;padding:7px 11px}
+  .stage-stack{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .overlay-text{
+    position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);
+    max-width:86%;text-align:center;font-weight:900;font-size:clamp(1.6rem,4vw,3rem);
+    line-height:1.08;color:#fff8eb;text-shadow:0 16px 40px rgba(0,0,0,.56);z-index:6;
   }
-  .story-field textarea{min-height:108px;resize:vertical}
-  .story-visual-upload{
-    border:1px dashed rgba(226,112,132,.24);border-radius:24px;padding:18px;background:linear-gradient(135deg,#fffdfd,#fff0f4);
-    display:grid;gap:12px
+  .overlay-caption{
+    position:absolute;left:16px;right:16px;bottom:118px;z-index:6;display:flex;justify-content:center;
   }
-  .story-upload-row{display:flex;gap:10px;flex-wrap:wrap}
-  .story-soft-btn{border-radius:999px;padding:11px 14px}
-  .story-preview-phone{
-    position:sticky;top:86px;min-height:74vh;border-radius:34px;padding:14px;background:linear-gradient(180deg,#351b27,#6a213d);color:#fffdf8;
-    box-shadow:0 28px 80px rgba(181,64,93,.24)
+  .overlay-caption span{
+    max-width:92%;padding:11px 16px;border-radius:999px;background:rgba(8,10,15,.56);
+    border:1px solid rgba(255,255,255,.08);color:#f5efe2;backdrop-filter:blur(12px);
   }
-  .story-preview-progress{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
-  .story-preview-progress span{height:4px;border-radius:999px;background:rgba(255,255,255,.18)}
-  .story-preview-progress span:first-child{background:linear-gradient(135deg,#f4e0a5,#c7a14a)}
-  .story-preview-meta{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-  .story-preview-avatar{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#ffd0da,#f26c7f);color:#7a2340;display:grid;place-items:center;font-weight:900;overflow:hidden}
-  .story-preview-avatar img{width:100%;height:100%;object-fit:cover}
-  .story-preview-card{
-    min-height:62vh;border-radius:28px;overflow:hidden;background:linear-gradient(135deg,#0f172a,#312e81);display:flex;align-items:center;justify-content:center;position:relative
+  .capture-row{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:10px}
+  .mode-quickbar{
+    display:flex;gap:8px;overflow:auto;scrollbar-width:none;justify-content:center
   }
-  .story-preview-card.theme-sunset{background:linear-gradient(135deg,#f97316,#ec4899)}
-  .story-preview-card.theme-ocean{background:linear-gradient(135deg,#0ea5e9,#1d4ed8)}
-  .story-preview-card.theme-gold{background:linear-gradient(135deg,#f4e0a5,#a16207)}
-  .story-preview-card.theme-midnight{background:linear-gradient(135deg,#0f172a,#312e81)}
-  .story-preview-card.theme-mint{background:linear-gradient(135deg,#34d399,#0f766e)}
-  .story-preview-card.theme-blush{background:linear-gradient(135deg,#fbcfe8,#f43f5e)}
-  .story-preview-text{padding:22px;text-align:center;font-size:clamp(1.2rem,3vw,2rem);font-weight:800;line-height:1.4;white-space:pre-wrap}
-  .story-preview-text.style-bold{font-weight:900;text-transform:uppercase;letter-spacing:.02em}
-  .story-preview-text.style-editorial{font-family:"Georgia","Times New Roman",serif;font-size:clamp(1.35rem,3vw,2.2rem)}
-  .story-preview-text.style-soft{font-weight:700;opacity:.92}
-  .story-preview-media,.story-preview-media img,.story-preview-media video{width:100%;height:100%;object-fit:cover}
-  .story-preview-caption{
-    position:absolute;left:14px;right:14px;bottom:14px;padding:12px 14px;border-radius:18px;background:rgba(31,26,20,.48);backdrop-filter:blur(12px);font-weight:700
+  .mode-quickbar::-webkit-scrollbar{display:none}
+  .quick-mode{
+    padding:9px 12px;border-radius:999px;border:1px solid rgba(212,177,106,.16);
+    background:rgba(8,10,16,.82);color:#f5efe2;font-size:12px;font-weight:800
   }
-  .story-helper-grid{display:grid;gap:12px;margin-top:14px}
-  .story-helper-card strong{display:block;margin-bottom:6px}
-  .story-helper-card p{margin:0;color:#7a6d5b;line-height:1.6}
-  .story-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
-  .story-submit,.story-draft{
-    border:0;border-radius:999px;padding:13px 18px;font-weight:900;cursor:pointer
+  .quick-mode.active{background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border-color:transparent}
+  .capture-btn{
+    width:92px;height:92px;padding:0;border-radius:999px;position:relative;background:#fff;
   }
-  .story-submit{background:linear-gradient(135deg,#f26c7f,#d94763);color:#fffdf7}
-  .story-draft{background:#fff0f4;color:#c23c5e}
-  .story-status-note{color:#8f6e79;font-size:13px}
-  .story-errors{margin-bottom:14px;padding:14px;border-radius:20px;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}
-  @media (max-width: 980px){.story-create-layout{grid-template-columns:1fr}.story-preview-phone{position:static;min-height:auto}}
-  @media (max-width: 720px){
-    .story-create-shell{padding-inline:8px}
-    .story-mode-grid,.story-style-grid,.story-chip-grid,.story-grid{grid-template-columns:1fr 1fr}
-    .story-preview-card{min-height:56vh}
+  .capture-btn::after{
+    content:"";position:absolute;inset:12px;border-radius:999px;background:linear-gradient(135deg,#d4b16a,#8f6a2a);
   }
-  @media (max-width: 560px){
-    .story-mode-grid,.story-style-grid,.story-chip-grid,.story-grid{grid-template-columns:1fr}
-    .story-create-panel,.story-preview-panel,.story-helper-card{padding:14px;border-radius:22px}
+  .capture-btn.recording::after{inset:24px;border-radius:18px;background:#dc5656}
+  .story-panel{padding:18px;display:grid;gap:16px}
+  .editor-rail{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px
+  }
+  .editor-mini{
+    padding:12px;border-radius:18px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.82)
+  }
+  .editor-mini span{display:block;color:#a9a191;font-size:12px;margin-bottom:4px}
+  .story-panel h1,.story-panel h2,.story-panel p{margin:0}
+  .panel-copy{color:#a9a191;line-height:1.65}
+  .mode-grid,.style-row,.mini-stats{display:flex;gap:10px;flex-wrap:wrap}
+  .mode-pill{
+    flex:1 1 120px;border:1px solid rgba(212,177,106,.16);background:rgba(17,21,29,.88);
+    border-radius:18px;padding:12px;color:#f5efe2;cursor:pointer;text-align:left;
+  }
+  .mode-pill.active{background:linear-gradient(135deg,rgba(40,32,20,.98),rgba(88,64,24,.92));border-color:rgba(212,177,106,.34)}
+  .panel-field{display:grid;gap:8px}
+  .panel-field label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#d4b16a;font-weight:900}
+  .panel-field textarea,.panel-field input,.panel-field select{
+    width:100%;border:1px solid rgba(212,177,106,.16);border-radius:18px;padding:12px 14px;
+    background:rgba(8,10,16,.92);color:#f5efe2;
+  }
+  .style-pill{border-radius:16px;padding:8px 12px}
+  .style-pill.active{background:rgba(212,177,106,.16);border-color:rgba(212,177,106,.34)}
+  .publish-grid{display:grid;gap:10px}
+  .mini-stats .story-panel-card{
+    flex:1 1 130px;border:1px solid rgba(212,177,106,.14);border-radius:18px;padding:12px;background:rgba(9,11,17,.88)
+  }
+  .story-panel-card strong{display:block;font-size:1.1rem}
+  .field-errors{display:grid;gap:6px;color:#ffb0b0;font-size:13px}
+  .gallery-input{display:none}
+  @media (max-width: 980px){
+    .story-studio-layout{grid-template-columns:1fr}
+    .story-stage{min-height:70vh}
+  }
+  @media (max-width: 640px){
+    .story-studio-shell{padding-inline:8px}
+    .story-stage,.story-panel{border-radius:22px}
+    .story-stage{min-height:calc(100vh - 180px)}
+    .capture-btn{width:84px;height:84px}
   }
 </style>
 
-<section class="story-create-shell">
-  <div class="story-create-layout">
-    <form class="story-create-panel" method="post" enctype="multipart/form-data" id="storyCreateForm">
+<section class="story-studio-shell">
+  <div class="story-studio-layout">
+    <form id="storyForm" class="story-stage" method="post" enctype="multipart/form-data">
       {% csrf_token %}
-      <div class="story-create-head">
-        <div>
-          <h1>Story Studio</h1>
-          <p class="story-muted">Pick a format, add media, and post your story in seconds.</p>
+      <div class="story-stage-media">
+        <video id="livePreview" autoplay muted playsinline></video>
+        <img id="photoPreview" class="hidden" alt="story preview">
+        <video id="videoPreview" class="hidden" playsinline controls></video>
+
+        <div class="story-stage-top">
+          <div class="stage-stack">
+            <a class="studio-btn" href="{% url 'home' %}">Close</a>
+            <span class="studio-chip">Story Studio</span>
+            <span class="studio-chip" id="deviceState">Camera ready</span>
+          </div>
+          <div class="stage-stack">
+            <button type="button" class="studio-btn" id="flipBtn">Flip</button>
+            <button type="button" class="studio-btn primary" id="galleryBtn">Gallery</button>
+          </div>
         </div>
-        <a class="story-soft-btn" href="{% url 'home' %}">Back to home</a>
+
+        <div class="overlay-text" id="overlayText">Tell a quick story</div>
+        <div class="overlay-caption"><span id="overlayCaption">Tap once for photo. Hold for video.</span></div>
+
+        <div class="story-stage-bottom">
+          <div class="capture-row">
+            <button type="button" class="studio-btn" id="clearBtn">Reset</button>
+            <button type="button" class="capture-btn" id="captureBtn" aria-label="Capture story"></button>
+            <button type="submit" class="studio-btn primary">Publish</button>
+          </div>
+          <div class="mode-quickbar" id="modeQuickbar">
+            <button type="button" class="quick-mode active" data-mode-shortcut="photo">Photo</button>
+            <button type="button" class="quick-mode" data-mode-shortcut="video">Video</button>
+            <button type="button" class="quick-mode" data-mode-shortcut="text">Text</button>
+            <button type="button" class="quick-mode" data-mode-shortcut="camera">Camera</button>
+            <span class="studio-chip">24h</span>
+          </div>
+        </div>
+      </div>
+
+      <input type="hidden" name="media_type" id="mediaType" value="photo">
+      <input type="hidden" name="background_style" id="backgroundStyle" value="midnight">
+      <input type="hidden" name="text_style" id="textStyle" value="clean">
+      <input type="hidden" name="duration_hours" value="24">
+      <input type="file" name="file" id="fileInput" class="hidden">
+      <input type="file" id="galleryInput" class="gallery-input" accept="image/*,video/*" capture="environment">
+    </form>
+
+    <aside class="story-panel">
+      <div>
+        <h1>Create a premium story</h1>
+        <p class="panel-copy">Capture quickly on mobile, switch to text mode when needed, and keep the publish flow compatible with your existing Django story backend.</p>
       </div>
 
       {% if form.errors %}
-        <div class="story-errors">{{ form.errors }}</div>
+        <div class="field-errors">
+          {% for field in form %}
+            {% for error in field.errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+        </div>
       {% endif %}
 
-      <section class="story-section">
-        <h2>Choose story type</h2>
-        <div class="story-mode-grid" id="storyModeGrid">
-          <button class="story-mode-btn active" type="button" data-story-mode="photo">
-            Photo Story
-            <small>Upload from gallery and publish with a caption.</small>
-          </button>
-          <button class="story-mode-btn" type="button" data-story-mode="video">
-            Video Story
-            <small>Short video update with autoplay-ready preview.</small>
-          </button>
-          <button class="story-mode-btn" type="button" data-story-mode="text">
-            Text Story
-            <small>Bold text with premium background themes.</small>
-          </button>
-          <button class="story-mode-btn" type="button" data-story-mode="camera">
-            Camera Capture
-            <small>Open device camera on supported phones.</small>
-          </button>
-        </div>
-        <input type="hidden" name="media_type" id="storyMediaType" value="{{ form.media_type.value|default:'photo' }}">
-      </section>
-
-      <section class="story-section">
-        <h2>Pick or capture media</h2>
-        <div class="story-visual-upload">
-          <div class="story-upload-row">
-            <button class="story-soft-btn" type="button" id="storyGalleryButton">Choose from gallery</button>
-            <button class="story-soft-btn" type="button" id="storyCameraButton">Use camera</button>
-            <button class="story-soft-btn" type="button" id="storyClearButton">Clear selection</button>
-          </div>
-          <p class="story-soft-note">Choose a clip or photo, then post when it looks right.</p>
-          <input type="file" id="storyFileInput" name="file" accept="image/*,video/*" hidden>
-          <div class="story-status-note" id="storyFileState">No media selected yet.</div>
-        </div>
-      </section>
-
-      <section class="story-section">
-        <h2>Story details</h2>
-        <div class="story-grid">
-          <div class="story-field full">
-            <label for="storyTextContent">Story text</label>
-            <textarea id="storyTextContent" name="text_content" placeholder="Write something worth opening...">{{ form.text_content.value|default:'' }}</textarea>
-          </div>
-          <div class="story-field full">
-            <label>Background theme</label>
-            <div class="story-style-grid" id="storyThemeGrid">
-              <button class="story-style-btn active" type="button" data-theme-value="midnight">Midnight<small>Deep premium navy</small></button>
-              <button class="story-style-btn" type="button" data-theme-value="sunset">Sunset<small>Warm orange to pink</small></button>
-              <button class="story-style-btn" type="button" data-theme-value="ocean">Ocean<small>Fresh blue gradient</small></button>
-              <button class="story-style-btn" type="button" data-theme-value="gold">Gold<small>Premium announcement tone</small></button>
-              <button class="story-style-btn" type="button" data-theme-value="mint">Mint<small>Calm creator update</small></button>
-              <button class="story-style-btn" type="button" data-theme-value="blush">Blush<small>Soft social highlight</small></button>
-            </div>
-            <input type="hidden" name="background_style" id="storyBackgroundStyle" value="{{ form.background_style.value|default:'midnight' }}">
-          </div>
-          <div class="story-field full">
-            <label>Text emphasis</label>
-            <div class="story-chip-grid" id="storyTextStyleGrid">
-              <button class="story-chip-btn active" type="button" data-text-style="clean">Clean<small>Balanced readable default</small></button>
-              <button class="story-chip-btn" type="button" data-text-style="bold">Bold<small>Big announcement energy</small></button>
-              <button class="story-chip-btn" type="button" data-text-style="editorial">Editorial<small>Magazine-style serif</small></button>
-              <button class="story-chip-btn" type="button" data-text-style="soft">Soft<small>Gentle diary tone</small></button>
-            </div>
-            <input type="hidden" name="text_style" id="storyTextStyle" value="{{ form.text_style.value|default:'clean' }}">
-          </div>
-          <div class="story-field">
-            <label for="storyCaption">Caption</label>
-            <input id="storyCaption" name="caption" value="{{ form.caption.value|default:'' }}" placeholder="Add a quick caption">
-          </div>
-          <div class="story-field">
-            <label for="storyAudience">Audience</label>
-            <select id="storyAudience" name="audience">
-              {% for value,label in form.audience.field.choices %}
-                <option value="{{ value }}" {% if form.audience.value == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="story-field">
-            <label for="storyDuration">Duration</label>
-            <select id="storyDuration" name="duration_hours">
-              <option value="6" {% if form.duration_hours.value == 6 %}selected{% endif %}>6 hours</option>
-              <option value="12" {% if form.duration_hours.value == 12 %}selected{% endif %}>12 hours</option>
-              <option value="24" {% if form.duration_hours.value|default:24 == 24 %}selected{% endif %}>24 hours</option>
-              <option value="48" {% if form.duration_hours.value == 48 %}selected{% endif %}>48 hours</option>
-            </select>
-          </div>
-          <div class="story-field">
-            <label for="storyLinkLabel">Link label</label>
-            <input id="storyLinkLabel" name="link_label" value="{{ form.link_label.value|default:'' }}" placeholder="Shop now / Read more">
-          </div>
-          <div class="story-field full">
-            <label for="storyLinkUrl">Link URL</label>
-            <input id="storyLinkUrl" name="link_url" value="{{ form.link_url.value|default:'' }}" placeholder="https://">
-          </div>
-        </div>
-      </section>
-
-      <section class="story-section">
-        <h2>Extras</h2>
-        <div class="story-helper-grid">
-          <div class="story-helper-card">
-            <strong>Sound</strong>
-            <p>Add a soundtrack later from your device or keep this story clean and direct.</p>
-          </div>
-          <div class="story-helper-card">
-            <strong>Draft memory</strong>
-            <p>Your text, caption, theme, and link stay saved on this device while you edit.</p>
-          </div>
-        </div>
-      </section>
-
-      <div class="story-actions">
-        <button class="story-submit" type="submit">Publish story</button>
-        <button class="story-draft" type="button" id="storySaveDraft">Save local draft</button>
-        <span class="story-status-note" id="storyDraftState">Preview updates instantly while you edit.</span>
+      <div class="mode-grid" id="modeGrid">
+        <button type="button" class="mode-pill active" data-mode="photo"><strong>Photo</strong><br><span class="panel-copy">Tap to capture or choose from gallery.</span></button>
+        <button type="button" class="mode-pill" data-mode="video"><strong>Video</strong><br><span class="panel-copy">Press and hold for short motion updates.</span></button>
+        <button type="button" class="mode-pill" data-mode="text"><strong>Text</strong><br><span class="panel-copy">Use backgrounds and bold typography when no media is needed.</span></button>
+        <button type="button" class="mode-pill" data-mode="camera"><strong>Camera</strong><br><span class="panel-copy">Return to live camera preview on supported devices.</span></button>
       </div>
-    </form>
 
-    <aside class="story-preview-panel">
-      <div class="story-preview-phone">
-        <div class="story-preview-progress"><span></span><span></span><span></span><span></span></div>
-        <div class="story-preview-meta">
-          <span class="story-preview-avatar">
-            <img src="{% avatar_url request.user.profile %}" alt="{{ request.user.profile.username }}">
-          </span>
-          <div>
-            <strong>@{{ request.user.profile.username }}</strong><br>
-            <small style="color:rgba(255,249,240,.82);">Story preview</small>
-          </div>
+      <div class="mini-stats">
+        <div class="story-panel-card"><span class="panel-copy">Audience</span><strong>Flexible</strong><small class="panel-copy">Public, followers, friends, or private.</small></div>
+        <div class="story-panel-card"><span class="panel-copy">Duration</span><strong>24h</strong><small class="panel-copy">Keeps existing story expiration model intact.</small></div>
+      </div>
+
+      <div class="editor-rail">
+        <article class="editor-mini">
+          <span>Capture flow</span>
+          <strong>Tap for photo, hold for video, gallery for fallback.</strong>
+        </article>
+        <article class="editor-mini">
+          <span>Publish state</span>
+          <strong id="publishState">Ready for a quick update.</strong>
+        </article>
+      </div>
+
+      <div class="panel-field">
+        <label for="textContent">Story Text</label>
+        <textarea id="textContent" name="text_content" form="storyForm" rows="4" placeholder="Write a headline, mood, update, or CTA">{{ form.text_content.value|default:'' }}</textarea>
+      </div>
+
+      <div class="panel-field">
+        <label for="captionInput">Caption</label>
+        <input id="captionInput" name="caption" form="storyForm" type="text" value="{{ form.caption.value|default:'' }}" placeholder="Add a short caption">
+      </div>
+
+      <div class="panel-field">
+        <label for="audienceSelect">Audience</label>
+        <select id="audienceSelect" name="audience" form="storyForm">
+          {% for value,label in form.audience.field.choices %}
+            <option value="{{ value }}" {% if form.audience.value|default:'public' == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="panel-field">
+        <label for="linkUrl">Story Link</label>
+        <input id="linkUrl" name="link_url" form="storyForm" type="url" value="{{ form.link_url.value|default:'' }}" placeholder="https://">
+      </div>
+
+      <div class="panel-field">
+        <label for="linkLabel">Link Label</label>
+        <input id="linkLabel" name="link_label" form="storyForm" type="text" value="{{ form.link_label.value|default:'' }}" placeholder="Open link">
+      </div>
+
+      <div class="panel-field">
+        <label>Background Style</label>
+        <div class="style-row" id="backgroundPresets">
+          {% for preset in background_presets %}
+            <button type="button" class="style-pill {% if preset == 'midnight' %}active{% endif %}" data-background="{{ preset }}">{{ preset|title }}</button>
+          {% endfor %}
         </div>
-        <div class="story-preview-card theme-midnight" id="storyPreviewCard">
-          <div class="story-preview-text" id="storyPreviewText">Write something worth opening.</div>
-          <div class="story-preview-media" id="storyPreviewMedia" hidden></div>
-          <div class="story-preview-caption" id="storyPreviewCaption" hidden></div>
+      </div>
+
+      <div class="panel-field">
+        <label>Text Style</label>
+        <div class="style-row" id="textPresets">
+          {% for preset in text_presets %}
+            <button type="button" class="style-pill {% if preset == 'clean' %}active{% endif %}" data-text-style="{{ preset }}">{{ preset|title }}</button>
+          {% endfor %}
         </div>
+      </div>
+
+      <div class="publish-grid">
+        <button type="submit" form="storyForm" class="studio-btn primary">Publish story</button>
+        <a class="studio-btn" href="{% url 'feed' %}">Back to feed</a>
       </div>
     </aside>
   </div>
 </section>
-{% endblock %}
 
-{% block extra_scripts %}
 <script>
-  (function () {
-    const form = document.getElementById("storyCreateForm");
-    const fileInput = document.getElementById("storyFileInput");
-    const galleryButton = document.getElementById("storyGalleryButton");
-    const cameraButton = document.getElementById("storyCameraButton");
-    const clearButton = document.getElementById("storyClearButton");
-    const mediaTypeInput = document.getElementById("storyMediaType");
-    const fileState = document.getElementById("storyFileState");
-    const previewCard = document.getElementById("storyPreviewCard");
-    const previewText = document.getElementById("storyPreviewText");
-    const previewMedia = document.getElementById("storyPreviewMedia");
-    const previewCaption = document.getElementById("storyPreviewCaption");
-    const textInput = document.getElementById("storyTextContent");
-    const captionInput = document.getElementById("storyCaption");
-    const backgroundInput = document.getElementById("storyBackgroundStyle");
-    const textStyleInput = document.getElementById("storyTextStyle");
-    const draftState = document.getElementById("storyDraftState");
-    const storageKey = "namvibe_story_draft_v1";
+(() => {
+  const livePreview = document.getElementById("livePreview");
+  const photoPreview = document.getElementById("photoPreview");
+  const videoPreview = document.getElementById("videoPreview");
+  const captureBtn = document.getElementById("captureBtn");
+  const galleryBtn = document.getElementById("galleryBtn");
+  const galleryInput = document.getElementById("galleryInput");
+  const flipBtn = document.getElementById("flipBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const deviceState = document.getElementById("deviceState");
+  const textContent = document.getElementById("textContent");
+  const captionInput = document.getElementById("captionInput");
+  const overlayText = document.getElementById("overlayText");
+  const overlayCaption = document.getElementById("overlayCaption");
+  const fileInput = document.getElementById("fileInput");
+  const mediaType = document.getElementById("mediaType");
+  const backgroundStyle = document.getElementById("backgroundStyle");
+  const textStyle = document.getElementById("textStyle");
+  const modeButtons = document.querySelectorAll("[data-mode]");
+  const modeShortcuts = document.querySelectorAll("[data-mode-shortcut]");
+  const backgroundButtons = document.querySelectorAll("[data-background]");
+  const textButtons = document.querySelectorAll("[data-text-style]");
+  const publishState = document.getElementById("publishState");
 
-    function updatePreview() {
-      const mode = mediaTypeInput.value || "photo";
-      const theme = backgroundInput.value || "midnight";
-      const textStyle = textStyleInput.value || "clean";
-      previewCard.className = "story-preview-card theme-" + theme;
-      previewText.className = "story-preview-text style-" + textStyle;
-      previewText.textContent = textInput.value.trim() || "Write something worth opening.";
-      const caption = captionInput.value.trim();
-      previewCaption.hidden = !caption;
-      previewCaption.textContent = caption;
-      previewText.style.display = mode === "text" ? "block" : "none";
+  let stream = null;
+  let recorder = null;
+  let recording = false;
+  let holdTimer = null;
+  let frontFacing = false;
+  let videoChunks = [];
+
+  function syncCopy() {
+    overlayText.textContent = textContent.value.trim() || "Tell a quick story";
+    overlayCaption.textContent = captionInput.value.trim() || "Tap once for photo. Hold for video.";
+    publishState.textContent = textContent.value.trim() || captionInput.value.trim() || "Ready for a quick update.";
+  }
+
+  function setMode(mode) {
+    mediaType.value = mode === "camera" ? "photo" : mode;
+    modeButtons.forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
+    modeShortcuts.forEach((button) => button.classList.toggle("active", button.dataset.modeShortcut === mode));
+    if (mode === "text") {
+      stopCamera();
+      livePreview.classList.add("hidden");
+      photoPreview.classList.add("hidden");
+      videoPreview.classList.add("hidden");
+      deviceState.textContent = "Text mode";
+    } else if (mode === "camera") {
+      startCamera();
     }
+  }
 
-    function updateMode(mode) {
-      mediaTypeInput.value = mode === "camera" ? "photo" : mode;
-      document.querySelectorAll("[data-story-mode]").forEach(function(button) {
-        button.classList.toggle("active", button.dataset.storyMode === mode);
+  function assignFile(file) {
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    fileInput.files = transfer.files;
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      deviceState.textContent = "Camera unsupported";
+      return;
+    }
+    stopCamera();
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: frontFacing ? "user" : "environment" },
+        audio: true
       });
-      if (mode === "video") {
-        fileInput.accept = "video/*";
-        fileInput.removeAttribute("capture");
-      } else if (mode === "camera") {
-        fileInput.accept = "image/*,video/*";
-        fileInput.setAttribute("capture", "environment");
-      } else {
-        fileInput.accept = "image/*";
-        fileInput.removeAttribute("capture");
-      }
-      updatePreview();
+      livePreview.srcObject = stream;
+      livePreview.classList.remove("hidden");
+      photoPreview.classList.add("hidden");
+      videoPreview.classList.add("hidden");
+      mediaType.value = "photo";
+      deviceState.textContent = frontFacing ? "Front camera" : "Rear camera";
+    } catch (error) {
+      deviceState.textContent = "Camera unavailable";
     }
+  }
 
-    function renderMedia(file) {
-      if (!file) {
-        previewMedia.hidden = true;
-        previewMedia.innerHTML = "";
-        fileState.textContent = "No media selected yet.";
-        return;
-      }
-      const url = URL.createObjectURL(file);
-      const isVideo = file.type.startsWith("video/");
-      previewMedia.hidden = false;
-      previewMedia.innerHTML = isVideo
-        ? '<video src="' + url + '" controls playsinline muted autoplay></video>'
-        : '<img src="' + url + '" alt="Story media preview">';
-      fileState.textContent = file.name + " selected and ready.";
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      stream = null;
     }
+  }
 
-    function saveDraft() {
-      const payload = {
-        media_type: mediaTypeInput.value,
-        text_content: textInput.value,
-        caption: captionInput.value,
-        background_style: backgroundInput.value,
-        text_style: textStyleInput.value,
-        audience: document.getElementById("storyAudience").value,
-        duration_hours: document.getElementById("storyDuration").value,
-        link_label: document.getElementById("storyLinkLabel").value,
-        link_url: document.getElementById("storyLinkUrl").value
+  function capturePhoto() {
+    if (!stream) {
+      galleryInput.click();
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = livePreview.videoWidth || 720;
+    canvas.height = livePreview.videoHeight || 1280;
+    const context = canvas.getContext("2d");
+    context.drawImage(livePreview, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `story_${Date.now()}.jpg`, { type: "image/jpeg" });
+      assignFile(file);
+      photoPreview.src = URL.createObjectURL(blob);
+      photoPreview.classList.remove("hidden");
+      livePreview.classList.add("hidden");
+      videoPreview.classList.add("hidden");
+      mediaType.value = "photo";
+      deviceState.textContent = "Photo ready";
+    }, "image/jpeg", 0.92);
+  }
+
+  function startRecording() {
+    if (!stream || recording) return;
+    try {
+      videoChunks = [];
+      recorder = new MediaRecorder(stream, { mimeType: "video/webm" });
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) videoChunks.push(event.data);
       };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
-      draftState.textContent = "Local draft saved on this device.";
+      recorder.onstop = () => {
+        const blob = new Blob(videoChunks, { type: "video/webm" });
+        const file = new File([blob], `story_${Date.now()}.webm`, { type: "video/webm" });
+        assignFile(file);
+        videoPreview.src = URL.createObjectURL(blob);
+        videoPreview.classList.remove("hidden");
+        livePreview.classList.add("hidden");
+        photoPreview.classList.add("hidden");
+        mediaType.value = "video";
+        captureBtn.classList.remove("recording");
+        recording = false;
+        deviceState.textContent = "Video ready";
+      };
+      recorder.start();
+      recording = true;
+      captureBtn.classList.add("recording");
+      deviceState.textContent = "Recording";
+    } catch (error) {
+      deviceState.textContent = "Video capture unavailable";
     }
+  }
 
-    function loadDraft() {
-      try {
-        const raw = localStorage.getItem(storageKey);
-        if (!raw) return;
-        const payload = JSON.parse(raw);
-        if (payload.text_content) textInput.value = payload.text_content;
-        if (payload.caption) captionInput.value = payload.caption;
-        if (payload.background_style) backgroundInput.value = payload.background_style;
-        if (payload.text_style) textStyleInput.value = payload.text_style;
-        if (payload.audience) document.getElementById("storyAudience").value = payload.audience;
-        if (payload.duration_hours) document.getElementById("storyDuration").value = payload.duration_hours;
-        if (payload.link_label) document.getElementById("storyLinkLabel").value = payload.link_label;
-        if (payload.link_url) document.getElementById("storyLinkUrl").value = payload.link_url;
-        updateMode(payload.media_type || "photo");
-        document.querySelectorAll("[data-theme-value]").forEach(function(button) {
-          button.classList.toggle("active", button.dataset.themeValue === backgroundInput.value);
-        });
-        document.querySelectorAll("[data-text-style]").forEach(function(button) {
-          button.classList.toggle("active", button.dataset.textStyle === textStyleInput.value);
-        });
-        updatePreview();
-      } catch (error) {}
+  function stopRecording() {
+    if (recorder && recording) recorder.stop();
+  }
+
+  captureBtn.addEventListener("mousedown", () => {
+    holdTimer = setTimeout(startRecording, 220);
+  });
+  captureBtn.addEventListener("touchstart", () => {
+    holdTimer = setTimeout(startRecording, 220);
+  }, { passive: true });
+  ["mouseup", "mouseleave", "touchend", "touchcancel"].forEach((eventName) => {
+    captureBtn.addEventListener(eventName, () => {
+      if (holdTimer) clearTimeout(holdTimer);
+      if (recording) stopRecording();
+      else capturePhoto();
+    });
+  });
+
+  galleryBtn.addEventListener("click", () => galleryInput.click());
+  galleryInput.addEventListener("change", (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    assignFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    if (file.type.startsWith("video/")) {
+      videoPreview.src = previewUrl;
+      videoPreview.classList.remove("hidden");
+      photoPreview.classList.add("hidden");
+      mediaType.value = "video";
+      deviceState.textContent = "Video selected";
+    } else {
+      photoPreview.src = previewUrl;
+      photoPreview.classList.remove("hidden");
+      videoPreview.classList.add("hidden");
+      mediaType.value = "photo";
+      deviceState.textContent = "Photo selected";
     }
+    livePreview.classList.add("hidden");
+    stopCamera();
+  });
 
-    document.querySelectorAll("[data-story-mode]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        updateMode(button.dataset.storyMode);
-      });
-    });
-    document.querySelectorAll("[data-theme-value]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        backgroundInput.value = button.dataset.themeValue;
-        document.querySelectorAll("[data-theme-value]").forEach(function(item) {
-          item.classList.toggle("active", item === button);
-        });
-        updatePreview();
-      });
-    });
-    document.querySelectorAll("[data-text-style]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        textStyleInput.value = button.dataset.textStyle;
-        document.querySelectorAll("[data-text-style]").forEach(function(item) {
-          item.classList.toggle("active", item === button);
-        });
-        updatePreview();
-      });
-    });
-    [textInput, captionInput].forEach(function(input) {
-      input.addEventListener("input", updatePreview);
-      input.addEventListener("input", saveDraft);
-    });
-    ["storyAudience", "storyDuration", "storyLinkLabel", "storyLinkUrl"].forEach(function(id) {
-      const element = document.getElementById(id);
-      element?.addEventListener("input", saveDraft);
-      element?.addEventListener("change", saveDraft);
-    });
-    fileInput?.addEventListener("change", function() {
-      renderMedia(fileInput.files && fileInput.files[0]);
-    });
-    galleryButton?.addEventListener("click", function() {
-      fileInput.removeAttribute("capture");
-      fileInput.click();
-    });
-    cameraButton?.addEventListener("click", function() {
-      updateMode("camera");
-      fileInput.click();
-    });
-    clearButton?.addEventListener("click", function() {
-      fileInput.value = "";
-      renderMedia(null);
-    });
-    document.getElementById("storySaveDraft")?.addEventListener("click", saveDraft);
-    form?.addEventListener("submit", function() {
-      draftState.textContent = "Publishing story...";
-    });
+  flipBtn.addEventListener("click", async () => {
+    frontFacing = !frontFacing;
+    await startCamera();
+  });
 
-    loadDraft();
-    updateMode("{{ form.media_type.value|default:'photo' }}");
-    updatePreview();
-  }());
+  clearBtn.addEventListener("click", async () => {
+    fileInput.value = "";
+    photoPreview.src = "";
+    videoPreview.src = "";
+    photoPreview.classList.add("hidden");
+    videoPreview.classList.add("hidden");
+    await startCamera();
+  });
+
+  modeButtons.forEach((button) => {
+    button.addEventListener("click", () => setMode(button.dataset.mode));
+  });
+  modeShortcuts.forEach((button) => {
+    button.addEventListener("click", () => setMode(button.dataset.modeShortcut));
+  });
+
+  backgroundButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      backgroundStyle.value = button.dataset.background;
+      backgroundButtons.forEach((node) => node.classList.toggle("active", node === button));
+    });
+  });
+
+  textButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      textStyle.value = button.dataset.textStyle;
+      textButtons.forEach((node) => node.classList.toggle("active", node === button));
+    });
+  });
+
+  [textContent, captionInput].forEach((field) => field.addEventListener("input", syncCopy));
+
+  syncCopy();
+  startCamera();
+})();
 </script>
 {% endblock %}

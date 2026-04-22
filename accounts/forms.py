@@ -3,8 +3,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-
 from .models import AccountProfile, Profile
+from .services import master_admin_email, master_admin_supabase_uid
 
 
 COUNTRY_CODE_CHOICES = [
@@ -106,7 +106,16 @@ class LoginForm(forms.Form):
 
         user = User.objects.filter(username__iexact=identifier).first()
         if user is None:
-            user = User.objects.filter(email__iexact=identifier).first()
+            normalized_identifier = identifier.lower().strip()
+            master_email = master_admin_email()
+            master_uid = master_admin_supabase_uid()
+            if normalized_identifier == master_email:
+                if master_uid:
+                    user = User.objects.filter(account_role__supabase_uid=master_uid).first()
+                if user is None:
+                    user = User.objects.filter(email__iexact=normalized_identifier).order_by("id").first()
+            else:
+                user = User.objects.filter(email__iexact=normalized_identifier).first()
 
         if user is None:
             raise forms.ValidationError("Account not recognized.")

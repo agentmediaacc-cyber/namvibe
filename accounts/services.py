@@ -1,4 +1,5 @@
 from urllib.parse import urlencode
+import logging
 
 from django.conf import settings
 from django.core import signing
@@ -14,6 +15,161 @@ from .models import AccountRole
 
 
 VERIFICATION_SALT = "namvibe-email-verification"
+logger = logging.getLogger(__name__)
+
+
+def master_admin_email():
+    return (getattr(settings, "MASTER_ADMIN_EMAIL", "") or "").lower().strip()
+
+
+def master_admin_supabase_uid():
+    return (getattr(settings, "MASTER_ADMIN_SUPABASE_UID", "") or "").strip()
+
+
+def master_admin_dashboard_url():
+    return reverse("support_control")
+
+
+def master_admin_diagnostic_snapshot():
+    configured_email = master_admin_email()
+    configured_uid = master_admin_supabase_uid()
+
+    matching_email_users = list(
+        AccountRole.objects.filter(user__email__iexact=configured_email)
+        .select_related("user")
+        .order_by("user__id")
+    ) if configured_email else []
+    matching_uid_roles = list(
+        AccountRole.objects.filter(supabase_uid=configured_uid).select_related("user").order_by("user__id")
+    ) if configured_uid else []
+
+    canonical_role = None
+    if matching_uid_roles:
+        canonical_role = matching_uid_roles[0]
+    elif matching_email_users:
+        canonical_role = matching_email_users[0]
+
+    bypass_roles = []
+    if canonical_role:
+        bypass_roles = [
+            role for role in matching_uid_roles
+            if role.user_id != canonical_role.user_id
+        ]
+
+    return {
+        "configured_email": configured_email,
+        "configured_supabase_uid": configured_uid,
+        "canonical_user": getattr(canonical_role, "user", None),
+        "canonical_role": canonical_role,
+        "matching_email_roles": matching_email_users,
+        "matching_uid_roles": matching_uid_roles,
+        "bypass_roles": bypass_roles,
+        "would_repair": bool(canonical_role)
+        and (
+            canonical_role.role != AccountRole.Role.MASTER_ADMIN
+            or canonical_role.supabase_uid != configured_uid
+            or any(bypass_roles)
+        ),
+    }
+
+
+def is_master_admin(user, role=None):
+    if not getattr(user, "is_authenticated", False):
+        return False
+    role = role or getattr(user, "account_role", None)
+    user_email = (getattr(user, "email", "") or "").lower().strip()
+    role_uid = (getattr(role, "supabase_uid", "") or "").strip()
+    configured_email = master_admin_email()
+    configured_uid = master_admin_supabase_uid()
+    if configured_email or configured_uid:
+        return bool(
+            (configured_email and user_email == configured_email)
+            or (configured_uid and role_uid == configured_uid)
+        )
+    return getattr(role, "role", "") == AccountRole.Role.MASTER_ADMIN
+
+
+def repair_master_admin_user(user, *, supabase_uid="", email=""):
+    role, _ = AccountRole.objects.get_or_create(user=user)
+    configured_email = master_admin_email()
+    configured_uid = master_admin_supabase_uid()
+    normalized_email = (email or user.email or configured_email).lower().strip()
+    normalized_uid = (supabase_uid or role.supabase_uid or configured_uid).strip()
+
+    if configured_email and normalized_email and user.email != configured_email:
+        user.email = configured_email
+        user.save(update_fields=["email"])
+
+    conflicting_qs = AccountRole.objects.filter(supabase_uid=configured_uid).exclude(user=user) if configured_uid else AccountRole.objects.none()
+    conflicting_count = conflicting_qs.count() if configured_uid else 0
+    if configured_uid:
+        conflicting_qs.update(
+            supabase_uid="",
+            role=AccountRole.Role.MEMBER,
+            can_manage_promos=False,
+            can_manage_support=False,
+            can_moderate_users=False,
+        )
+        if conflicting_count:
+            logger.warning(
+                "Normalized %s conflicting AccountRole rows away from master admin uid %s",
+                conflicting_count,
+                configured_uid,
+            )
+
+    role.supabase_uid = configured_uid or normalized_uid
+    role.role = AccountRole.Role.MASTER_ADMIN
+    role.can_manage_promos = True
+    role.can_manage_support = True
+    role.can_moderate_users = True
+    role.save(
+        update_fields=[
+            "supabase_uid",
+            "role",
+            "can_manage_promos",
+            "can_manage_support",
+            "can_moderate_users",
+            "updated_at",
+        ]
+    )
+
+    profile = getattr(user, "profile", None)
+    if profile:
+        updates = []
+        if not profile.is_verified:
+            profile.is_verified = True
+            updates.append("is_verified")
+        if not profile.is_creator:
+            profile.is_creator = True
+            updates.append("is_creator")
+        if updates:
+            updates.append("updated_at")
+            profile.save(update_fields=updates)
+
+    account_profile = getattr(user, "account_profile", None)
+    if account_profile:
+        updates = []
+        if configured_email and account_profile.email != configured_email:
+            account_profile.email = configured_email
+            updates.append("email")
+        if not account_profile.email_verified:
+            account_profile.email_verified = True
+            updates.append("email_verified")
+        if not account_profile.profile_completed:
+            account_profile.profile_completed = True
+            updates.append("profile_completed")
+        if updates:
+            updates.append("updated_at")
+            account_profile.save(update_fields=updates)
+
+    logger.info(
+        "Master admin repair applied to user_id=%s username=%s email=%s supabase_uid=%s",
+        user.id,
+        user.username,
+        user.email,
+        role.supabase_uid,
+    )
+    return role
 
 
 def email_backend_ready():
@@ -76,19 +232,19 @@ def ensure_account_role(user, *, supabase_uid=""):
         role.supabase_uid = supabase_uid
         updates.append("supabase_uid")
 
-    master_email = getattr(settings, "MASTER_ADMIN_EMAIL", "").lower().strip()
-    master_uid = getattr(settings, "MASTER_ADMIN_SUPABASE_UID", "").strip()
+    master_email = master_admin_email()
+    master_uid = master_admin_supabase_uid()
     user_email = (user.email or "").lower().strip()
 
     target_role = role.role
-    if master_email and user_email == master_email and master_uid and role.supabase_uid == master_uid:
-        target_role = AccountRole.Role.MASTER_ADMIN
-        role.can_manage_promos = True
-        role.can_manage_support = True
-        role.can_moderate_users = True
-        updates.extend(["can_manage_promos", "can_manage_support", "can_moderate_users"])
-    elif role.role == AccountRole.Role.MASTER_ADMIN and not (master_email and user_email == master_email and master_uid and role.supabase_uid == master_uid):
+    if (master_email and user_email == master_email) or (master_uid and role.supabase_uid == master_uid):
+        return repair_master_admin_user(user, supabase_uid=role.supabase_uid, email=user_email)
+    elif role.role == AccountRole.Role.MASTER_ADMIN and not ((master_email and user_email == master_email) or (master_uid and role.supabase_uid == master_uid)):
         target_role = AccountRole.Role.MEMBER
+        role.can_manage_promos = False
+        role.can_manage_support = False
+        role.can_moderate_users = False
+        updates.extend(["can_manage_promos", "can_manage_support", "can_moderate_users"])
 
     if target_role != role.role:
         role.role = target_role
@@ -149,6 +305,9 @@ def onboarding_items_for(user):
 
 
 def next_auth_redirect(request, user):
+    role = getattr(user, "account_role", None)
+    if is_master_admin(user, role=role):
+        return master_admin_dashboard_url()
     redirect_to = request.POST.get("next") or request.GET.get("next")
     if redirect_to and url_has_allowed_host_and_scheme(
         redirect_to,

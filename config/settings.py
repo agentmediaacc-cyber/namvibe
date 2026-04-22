@@ -1,8 +1,10 @@
 from pathlib import Path
 import logging
 import os
+import sys
 import dj_database_url
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -92,8 +94,12 @@ CHANNEL_LAYERS = {
 }
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
+RUNNING_TESTS = "test" in sys.argv
 if not DATABASE_URL:
-    logger.warning("DATABASE_URL is not set. Falling back to local SQLite.")
+    if DEBUG or RUNNING_TESTS:
+        logger.warning("DATABASE_URL is not set. Falling back to local SQLite for local debug/test use only.")
+    else:
+        raise ImproperlyConfigured("DATABASE_URL must be configured for non-debug environments.")
 
 DATABASES = {
     'default': dj_database_url.config(

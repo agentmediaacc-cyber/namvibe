@@ -7,32 +7,32 @@
 {% include "posts/post_styles.html" %}
 <style>
   :root{
-    --feed-bg:#fff6f8;
-    --card:#ffffff;
-    --card-soft:#fff1f4;
-    --line:#f0d4da;
-    --text:#201923;
-    --muted:#7c6672;
-    --accent:#ea4f70;
-    --accent-soft:#ffe8ee;
-    --pink:#f25d7d;
-    --gold:#ff8ca2;
+    --feed-bg:#07090d;
+    --card:rgba(14,17,24,.96);
+    --card-soft:rgba(19,23,33,.92);
+    --line:rgba(212,177,106,.16);
+    --text:#f5efe2;
+    --muted:#a9a191;
+    --accent:#d4b16a;
+    --accent-soft:rgba(212,177,106,.12);
+    --pink:#c79653;
+    --gold:#f1d8a3;
     --green:#19b88c;
   }
-  body{background:linear-gradient(180deg,#fffdfd,#fff4f6 44%,#f9eef1);color:var(--text)}
+  body{background:linear-gradient(180deg,#050609,#0a0d12 44%,#090b10);color:var(--text)}
   .home-shell{width:min(1120px,calc(100% - 12px));margin:0 auto;padding:10px 0 110px}
   .home-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
   .feed-column,.rail-column{min-width:0}
   .mobile-topbar,.stories-strip,.composer-mini,.feed-tabs-wrap,.feed-module,.rail-card{
     background:var(--card);
     border:1px solid var(--line);
-    border-radius:24px;
-    box-shadow:0 16px 40px rgba(15,23,42,.05);
+    border-radius:28px;
+    box-shadow:0 18px 44px rgba(0,0,0,.24);
   }
   .mobile-topbar{
     position:sticky;top:72px;z-index:25;
     display:flex;align-items:center;gap:10px;
-    padding:10px 12px;margin-bottom:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);
+    padding:10px 12px;margin-bottom:12px;background:rgba(12,15,22,.92);backdrop-filter:blur(16px);
   }
   .topbar-title{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
   .topbar-actions{margin-left:auto;display:flex;gap:8px}
@@ -41,9 +41,32 @@
   }
   .topbar-chip,.mini-pill,.tab-pill,.feed-action{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    border:1px solid var(--line);background:#fff6f8;border-radius:999px;padding:9px 12px;font-weight:700;
+    border:1px solid var(--line);background:rgba(20,23,33,.92);border-radius:999px;padding:9px 12px;font-weight:700;
   }
-  .topbar-chip .count{display:inline-flex;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--pink);color:#fff;font-size:11px;font-weight:900;align-items:center;justify-content:center}
+  .topbar-chip .count{display:inline-flex;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--accent);color:#140f08;font-size:11px;font-weight:900;align-items:center;justify-content:center}
+  .hero-band{
+    position:relative;
+    padding:20px;
+    margin-bottom:12px;
+    border-radius:28px;
+    background:radial-gradient(circle at top left, rgba(212,177,106,.16), transparent 28%), linear-gradient(135deg,rgba(16,20,29,.98),rgba(27,20,14,.94));
+    border:1px solid rgba(212,177,106,.18);
+    overflow:hidden;
+  }
+  .hero-band::after{
+    content:"";
+    position:absolute;right:-40px;top:-20px;width:180px;height:180px;border-radius:999px;
+    background:radial-gradient(circle, rgba(212,177,106,.26), transparent 66%);
+  }
+  .hero-grid{position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:16px;z-index:1}
+  .hero-actions,.hero-stats{display:flex;gap:10px;flex-wrap:wrap}
+  .hero-stat{
+    flex:1 1 110px;padding:12px 14px;border-radius:18px;border:1px solid rgba(212,177,106,.14);background:rgba(11,13,18,.72)
+  }
+  .hero-stat span{display:block;color:var(--muted);font-size:12px;margin-bottom:4px}
+  .hero-stat strong{font-size:1.2rem}
+  .hero-card{padding:16px;border-radius:22px;background:rgba(11,13,18,.76);border:1px solid rgba(212,177,106,.14);display:grid;gap:12px}
+  .hero-card .module-tags span{background:rgba(212,177,106,.12);color:#e6d2a1}
   .stories-strip{padding:12px;margin-bottom:12px;overflow:hidden}
   .stories-track,.feed-tabs{display:flex;gap:10px;overflow:auto;padding-bottom:2px;scrollbar-width:none}
   .stories-track::-webkit-scrollbar,.feed-tabs::-webkit-scrollbar{display:none}
@@ -73,9 +96,18 @@
   .composer-links{display:flex;gap:8px;overflow:auto;scrollbar-width:none}
   .composer-links::-webkit-scrollbar{display:none}
   .feed-tabs-wrap{padding:12px;margin-bottom:12px}
-  .tab-pill{white-space:nowrap;background:#fff}
+  .tab-pill{white-space:nowrap;background:rgba(13,16,22,.94)}
   .tab-pill.active{background:var(--accent-soft);border-color:#f4b7c5;color:#bc2d54}
   .feed-stack{display:grid;gap:12px}
+  .insight-band{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px
+  }
+  .insight-card{
+    padding:14px 16px;border-radius:24px;border:1px solid rgba(212,177,106,.14);
+    background:linear-gradient(145deg,rgba(11,13,18,.94),rgba(27,21,15,.92));
+  }
+  .insight-card span{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .insight-card strong{display:block;font-size:1.08rem}
   .feed-module{padding:14px}
   .module-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
   .module-kicker{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
@@ -93,10 +125,7 @@
   .reel-thumb,.live-thumb{
     margin-top:12px;height:min(58vw,420px);max-height:420px;border-radius:22px;overflow:hidden;background:#dbeafe;
   }
-  .live-module{
-    background:linear-gradient(160deg,#fff8fa 0%,#fff0f3 100%);
-    border-color:#f3c8d1;
-  }
+  .live-module{background:linear-gradient(160deg,rgba(18,17,19,.98) 0%,rgba(34,24,17,.96) 100%);border-color:rgba(212,177,106,.18)}
   .live-card-hero{
     margin-top:12px;
     display:grid;
@@ -104,8 +133,8 @@
     gap:12px;
     padding:14px;
     border-radius:22px;
-    background:linear-gradient(160deg,rgba(235,79,112,.12),rgba(255,255,255,.72));
-    border:1px solid rgba(235,79,112,.12);
+    background:linear-gradient(160deg,rgba(212,177,106,.16),rgba(17,20,28,.72));
+    border:1px solid rgba(212,177,106,.12);
   }
   .live-card-identity{display:flex;gap:12px;align-items:center}
   .live-card-avatar{
@@ -133,10 +162,8 @@
     min-height:42px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.92);color:#c23558;font-weight:900;text-decoration:none;
   }
   .reel-thumb video,.live-thumb video,.reel-thumb img,.live-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .promo-card{
-    background:linear-gradient(145deg,#ffffff,#fff0f4 80%);
-  }
-  .promo-card .feed-cta-row .mini-pill:first-child{background:var(--accent);border-color:var(--accent);color:#fff}
+  .promo-card{background:linear-gradient(145deg,rgba(16,19,27,.98),rgba(28,21,15,.96) 80%)}
+  .promo-card .feed-cta-row .mini-pill:first-child{background:var(--accent);border-color:var(--accent);color:#120f09}
   .rail-column{display:grid;gap:12px}
   .rail-card{padding:14px;position:sticky;top:86px}
   .rail-stack{display:grid;gap:14px}
@@ -147,13 +174,13 @@
   .rail-link:first-child{border-top:0;padding-top:0}
   .floating-promo{
     position:fixed;right:12px;bottom:86px;z-index:60;width:min(320px,calc(100vw - 24px));
-    padding:14px;border-radius:22px;background:rgba(255,255,255,.96);border:1px solid var(--line);box-shadow:0 24px 60px rgba(206,67,95,.16);
+    padding:14px;border-radius:22px;background:rgba(10,12,18,.96);border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.36);
     display:none;
   }
   .floating-promo.visible{display:block}
   .promo-dismiss{
-    position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#fff;
-    display:grid;place-items:center;font-weight:900;color:#475569;
+    position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#11151e;
+    display:grid;place-items:center;font-weight:900;color:#f5efe2;
   }
   .focus-media{margin-top:10px}
   .focus-media video{width:100%;border-radius:22px;max-height:min(72vh,560px);background:#000}
@@ -174,6 +201,7 @@
   }
   @media (max-width: 720px){
     .home-shell{width:calc(100% - 8px);padding-bottom:98px}
+    .hero-grid{grid-template-columns:1fr}
     .mobile-topbar{top:64px;padding:8px 10px}
     .topbar-title{display:none}
     .topbar-actions{gap:6px}
@@ -193,6 +221,46 @@
     <div class="topbar-actions">
       <a class="topbar-chip" href="{{ notifications_url }}">Alerts{% if nav_notification_count %}<span class="count">{{ nav_notification_count }}</span>{% endif %}</a>
       <a class="topbar-chip" href="{{ messages_url }}">Chat{% if nav_message_count %}<span class="count">{{ nav_message_count }}</span>{% endif %}</a>
+    </div>
+  </section>
+
+  <section class="hero-band">
+    <div class="hero-grid">
+      <div>
+        <span class="promo-badge">Namvibe premium social super app</span>
+        <h1 style="margin:12px 0 10px;font-size:clamp(2.2rem,5vw,4.6rem);line-height:.95;">Stories, feed, live, dating, wallet, and creator tools in one mobile-first shell.</h1>
+        <p class="feed-copy" style="max-width:720px;">Browse live story rails, watch trending video, join creators in real time, and move from content into coins, premium, and discovery without breaking context.</p>
+        <div class="hero-actions" style="margin-top:14px;">
+          <a class="mini-pill" href="{% url 'story_create' %}">Create story</a>
+          <a class="mini-pill" href="{% url 'studio' %}?type=reel">Drop a reel</a>
+          <a class="mini-pill" href="{% url 'live_start' %}">Start live</a>
+          <a class="mini-pill" href="{% url 'wallet_home' %}">Open wallet</a>
+        </div>
+        <div class="hero-stats" style="margin-top:16px;">
+          <div class="hero-stat"><span>Members</span><strong>{{ total_members }}</strong></div>
+          <div class="hero-stat"><span>Public posts</span><strong>{{ total_posts }}</strong></div>
+          <div class="hero-stat"><span>Live now</span><strong>{{ total_live }}</strong></div>
+          <div class="hero-stat"><span>Stories active</span><strong>{{ total_stories }}</strong></div>
+        </div>
+      </div>
+      <div class="hero-card">
+        <div class="module-head">
+          <span class="module-kicker">Wallet + premium snapshot</span>
+          <span class="soft-badge">{% if wallet_snapshot %}N${{ wallet_snapshot.account.available_balance }}{% else %}Ready{% endif %}</span>
+        </div>
+        <h3>{% if wallet_snapshot and wallet_snapshot.active_membership %}{{ wallet_snapshot.active_membership.plan.name }} active{% else %}Activate premium reach and creator tools{% endif %}</h3>
+        <p class="feed-copy">{% if wallet_snapshot %}Pending creator earnings N${{ wallet_snapshot.account.pending_balance }} · recent activity stays visible across gifts, premium, and live access.{% else %}Use wallet, gifts, and membership routes from a single monetization flow once you sign in.{% endif %}</p>
+        <div class="module-tags">
+          <span>1 Vibe Coin = 5 NAD</span>
+          <span>Premium tiers</span>
+          <span>Creator earnings</span>
+        </div>
+        <div class="feed-cta-row">
+          <a class="mini-pill" href="{% url 'wallet_home' %}">Wallet</a>
+          <a class="mini-pill" href="{% url 'wallet_membership_plans' %}">Premium</a>
+          <a class="mini-pill" href="{% url 'wallet_creator_earnings' %}">Earnings</a>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -247,6 +315,21 @@
         </div>
       </section>
 
+      <section class="insight-band">
+        <article class="insight-card">
+          <span>Discovery mix</span>
+          <strong>Stories, posts, live, and promos stay blended for faster browsing.</strong>
+        </article>
+        <article class="insight-card">
+          <span>Creator momentum</span>
+          <strong>Jump from feed to reel, wallet, gifts, or live without breaking flow.</strong>
+        </article>
+        <article class="insight-card">
+          <span>Premium layer</span>
+          <strong>Coins, memberships, and featured promos stay visible but not noisy.</strong>
+        </article>
+      </section>
+
       <section class="feed-tabs-wrap">
         <div class="feed-tabs">
           {% for tab in feed_tabs %}
@@ -254,6 +337,16 @@
           {% endfor %}
         </div>
       </section>
+
+      {% if safe_mode_message %}
+        <article class="feed-module promo-card">
+          <div class="module-head">
+            <span class="promo-badge">Safe mode</span>
+          </div>
+          <h3>Namvibe is keeping the shell online</h3>
+          <p class="feed-copy">Some live content is temporarily unavailable while the database connection recovers.</p>
+        </article>
+      {% endif %}
 
       <section class="feed-stack">
         {% for ad in top_ads %}
