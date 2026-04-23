@@ -72,10 +72,7 @@ def discover_people_alias(request):
 
 
 def safe_index(request):
-    try:
-        return real_index(request)
-    except Exception as exc:
-        return HttpResponse(f"Namvibe safe mode<br><br>{exc}")
+    return HttpResponse("Namvibe is live")
 
 
 urlpatterns = [
