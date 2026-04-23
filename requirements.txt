@@ -4,6 +4,7 @@ channels==4.3.2
 gunicorn==23.0.0
 whitenoise==6.11.0
 dj-database-url==3.0.1
+psycopg2-binary==2.9.10
 python-dotenv==1.1.0
 requests==2.32.3
 Pillow==11.2.1
