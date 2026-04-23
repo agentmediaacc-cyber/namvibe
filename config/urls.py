@@ -26,7 +26,6 @@ from core.views import (
     feed_videos_view,
     index as real_index,
 )
-
 from posts.views import (
     add_comment_view,
     author_posts_list_view,
@@ -82,7 +81,7 @@ def safe_index(request):
 urlpatterns = [
     path("", safe_index, name="home"),
     path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}images/favicon.svg", permanent=False)),
-    path('healthz', healthz, name='healthz'),
+    path("healthz", healthz, name="healthz"),
     path("healthz/", healthz),
     path("admin/", admin.site.urls),
     path("notifications/", notifications_view, name="notifications"),
