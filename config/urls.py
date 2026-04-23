@@ -20,7 +20,7 @@ from core.product_views import (
     premium_tier_view,
     support_view,
 )
-from core.views import (
+from core.views import (, healthz
     feed_live_view,
     feed_sponsored_view,
     feed_videos_view,
@@ -81,7 +81,7 @@ def safe_index(request):
 urlpatterns = [
     path("", safe_index, name="home"),
     path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}images/favicon.svg", permanent=False)),
-    path("healthz", healthz, name="healthz"),
+    path('healthz', healthz, name='healthz'),
     path("healthz/", healthz),
     path("admin/", admin.site.urls),
     path("notifications/", notifications_view, name="notifications"),

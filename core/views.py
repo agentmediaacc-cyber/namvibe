@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.http import HttpResponse
 from django.http import JsonResponse
 from .homepage import fallback_homepage_context, homepage_context
 
