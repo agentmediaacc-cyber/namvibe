@@ -13,10 +13,44 @@ from .models import LiveMessage, LiveReaction, LiveSession
 from .services import can_access_session, can_chat, create_chat_message, featured_sessions_for, live_now_for, related_sessions_for, scheduled_sessions_for
 
 
+LIVE_CATEGORIES = ["Music", "Dating Talk", "Lifestyle", "Night Vibes", "Fitness", "Comedy", "Fashion", "Gaming", "Communities"]
+
+
+def _safe_live_context(*, title="", safe_mode_message="", session=None, locked_premium=False):
+    return {
+        "title": title,
+        "session": session,
+        "live_sessions": [],
+        "scheduled_sessions": [],
+        "featured_sessions": [],
+        "sessions": [],
+        "messages": [],
+        "message_form": LiveMessageForm(),
+        "related_sessions": [],
+        "can_chat": False,
+        "is_host": False,
+        "is_following": False,
+        "locked_premium": locked_premium,
+        "live_access_price": default_live_access_price(session) if session else default_live_access_price(None),
+        "gift_catalog": [],
+        "recent_gifts": [],
+        "live_count": 0,
+        "categories": LIVE_CATEGORIES,
+        "safe_mode_message": safe_mode_message,
+    }
+
+
 def live_home_view(request):
-    live_sessions = live_now_for(request.user)
-    scheduled_sessions = scheduled_sessions_for(request.user)[:8]
-    featured_sessions = featured_sessions_for(request.user)[:6]
+    try:
+        live_sessions = list(live_now_for(request.user))
+        scheduled_sessions = list(scheduled_sessions_for(request.user)[:8])
+        featured_sessions = list(featured_sessions_for(request.user)[:6])
+        safe_mode_message = ""
+    except Exception as exc:
+        live_sessions = []
+        scheduled_sessions = []
+        featured_sessions = []
+        safe_mode_message = str(exc)
     return render(
         request,
         "live/home.html",
@@ -24,18 +58,31 @@ def live_home_view(request):
             "live_sessions": live_sessions,
             "scheduled_sessions": scheduled_sessions,
             "featured_sessions": featured_sessions,
-            "live_count": live_sessions.count(),
-            "categories": ["Music", "Dating Talk", "Lifestyle", "Night Vibes", "Fitness", "Comedy", "Fashion", "Gaming", "Communities"],
+            "live_count": len(live_sessions),
+            "categories": LIVE_CATEGORIES,
+            "safe_mode_message": safe_mode_message,
         },
     )
 
 
 def live_featured_view(request):
-    return render(request, "live/list.html", {"title": "Featured live creators", "sessions": featured_sessions_for(request.user)})
+    safe_mode_message = ""
+    try:
+        sessions = list(featured_sessions_for(request.user))
+    except Exception as exc:
+        sessions = []
+        safe_mode_message = str(exc)
+    return render(request, "live/list.html", {"title": "Featured live creators", "sessions": sessions, "safe_mode_message": safe_mode_message})
 
 
 def live_scheduled_view(request):
-    return render(request, "live/list.html", {"title": "Upcoming live sessions", "sessions": scheduled_sessions_for(request.user)})
+    safe_mode_message = ""
+    try:
+        sessions = list(scheduled_sessions_for(request.user))
+    except Exception as exc:
+        sessions = []
+        safe_mode_message = str(exc)
+    return render(request, "live/list.html", {"title": "Upcoming live sessions", "sessions": sessions, "safe_mode_message": safe_mode_message})
 
 
 @login_required(login_url="login")
@@ -49,57 +96,51 @@ def live_start_view(request):
 
 
 def live_room_view(request, uuid):
-    session = get_object_or_404(
-        LiveSession.objects.select_related("host", "host__profile").prefetch_related("messages__user__profile", "moderators__user"),
-        uuid=uuid,
-    )
-    locked_premium = session.access_type == LiveSession.AccessType.PREMIUM and not can_access_session(request.user, session)
-    if locked_premium and request.user.is_authenticated:
+    try:
+        session = get_object_or_404(
+            LiveSession.objects.select_related("host", "host__profile").prefetch_related("messages__user__profile", "moderators__user"),
+            uuid=uuid,
+        )
+        locked_premium = session.access_type == LiveSession.AccessType.PREMIUM and not can_access_session(request.user, session)
+        if locked_premium and request.user.is_authenticated:
+            context = _safe_live_context(title=session.title, session=session, locked_premium=True)
+            context.update(
+                {
+                    "related_sessions": list(related_sessions_for(request.user, session)),
+                    "is_following": Follow.objects.filter(follower=request.user, following=session.host).exists(),
+                }
+            )
+            return render(request, "live/room.html", context)
+        if not can_access_session(request.user, session):
+            if not request.user.is_authenticated:
+                return redirect(f"{reverse('login')}?next={request.path}")
+            return HttpResponseForbidden("This live room is not available.")
+        if session.status == LiveSession.Status.LIVE and (not request.user.is_authenticated or session.host_id != request.user.id):
+            LiveSession.objects.filter(pk=session.pk).update(
+                viewer_count=session.viewer_count + 1,
+                peak_viewer_count=max(session.peak_viewer_count, session.viewer_count + 1),
+            )
+            session.refresh_from_db()
+        is_following = request.user.is_authenticated and Follow.objects.filter(follower=request.user, following=session.host).exists()
         return render(
             request,
             "live/room.html",
             {
                 "session": session,
-                "messages": [],
+                "messages": session.messages.filter(is_deleted=False).select_related("user", "user__profile").order_by("-created_at")[:80],
                 "message_form": LiveMessageForm(),
                 "related_sessions": related_sessions_for(request.user, session),
-                "can_chat": False,
-                "is_host": False,
-                "is_following": Follow.objects.filter(follower=request.user, following=session.host).exists(),
-                "locked_premium": True,
+                "can_chat": can_chat(request.user, session),
+                "is_host": request.user.is_authenticated and request.user == session.host,
+                "is_following": is_following,
+                "locked_premium": False,
                 "live_access_price": default_live_access_price(session),
-                "gift_catalog": [],
-                "recent_gifts": [],
+                "gift_catalog": active_gifts(),
+                "recent_gifts": GiftEvent.objects.filter(live_session=session).select_related("sender", "gift").order_by("-created_at")[:8],
             },
         )
-    if not can_access_session(request.user, session):
-        if not request.user.is_authenticated:
-            return redirect(f"{reverse('login')}?next={request.path}")
-        return HttpResponseForbidden("This live room is not available.")
-    if session.status == LiveSession.Status.LIVE and (not request.user.is_authenticated or session.host_id != request.user.id):
-        LiveSession.objects.filter(pk=session.pk).update(
-            viewer_count=session.viewer_count + 1,
-            peak_viewer_count=max(session.peak_viewer_count, session.viewer_count + 1),
-        )
-        session.refresh_from_db()
-    is_following = request.user.is_authenticated and Follow.objects.filter(follower=request.user, following=session.host).exists()
-    return render(
-        request,
-        "live/room.html",
-        {
-            "session": session,
-            "messages": session.messages.filter(is_deleted=False).select_related("user", "user__profile").order_by("-created_at")[:80],
-            "message_form": LiveMessageForm(),
-            "related_sessions": related_sessions_for(request.user, session),
-            "can_chat": can_chat(request.user, session),
-            "is_host": request.user.is_authenticated and request.user == session.host,
-            "is_following": is_following,
-            "locked_premium": False,
-            "live_access_price": default_live_access_price(session),
-            "gift_catalog": active_gifts(),
-            "recent_gifts": GiftEvent.objects.filter(live_session=session).select_related("sender", "gift").order_by("-created_at")[:8],
-        },
-    )
+    except Exception as exc:
+        return render(request, "live/room.html", _safe_live_context(title="Live room", safe_mode_message=str(exc)))
 
 
 def live_chat_view(request, uuid):

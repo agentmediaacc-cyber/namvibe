@@ -5,6 +5,12 @@
 <section class="live-shell">
   <div class="live-tabs"><a href="{% url 'live_home' %}">Live</a><a href="{% url 'live_featured' %}">Featured</a><a href="{% url 'live_scheduled' %}">Scheduled</a><a class="primary" href="{% url 'live_start' %}">Start</a></div>
   <h1>{{ title }}</h1>
+  {% if safe_mode_message %}
+    <div class="live-panel" style="margin-bottom:14px;">
+      <span class="badge badge-scheduled">SAFE MODE</span>
+      <p class="muted">Live data is temporarily unavailable while the database connection recovers.</p>
+    </div>
+  {% endif %}
   <div class="live-grid">{% for session in sessions %}{% include "live/session_card.html" %}{% empty %}<div class="live-panel"><p class="muted">Nothing here yet.</p></div>{% endfor %}</div>
 </section>
 {% endblock %}

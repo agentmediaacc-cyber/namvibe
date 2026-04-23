@@ -3,46 +3,91 @@
 {% block title %}{{ community.name }} | Namvibe{% endblock %}
 
 {% block content %}
-<section style="max-width: 980px; margin:0 auto; padding:28px 18px 90px;">
-    <div style="border:1px solid rgba(120,92,39,.12); background:rgba(255,253,249,.97); border-radius:24px; overflow:hidden; box-shadow:0 16px 36px rgba(66,45,10,.05);">
-        <div style="height:210px; background:linear-gradient(135deg, rgba(20,184,166,.5), rgba(244,63,94,.45));">
-            {% if community.cover %}<img src="{{ community.cover.url }}" alt="" style="width:100%; height:100%; object-fit:cover;">{% endif %}
-        </div>
-        <div style="padding:22px;">
-            <div style="display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-                <div>
-                    <h1 style="margin:0 0 8px;">{{ community.name }}</h1>
-                    <p style="margin:0; color:#7a6d5b;">{{ community.member_count }} members · {{ community.get_privacy_display }} · owned by @{{ community.owner.username }}</p>
-                </div>
-                {% if request.user.is_authenticated %}
-                    <form method="post" action="{% url 'community_join' community.slug %}">
-                        {% csrf_token %}
-                        <button class="btn btn-main" type="submit">
-                            {% if membership.status == "active" %}Joined{% elif membership.status == "pending" %}Requested{% else %}Join{% endif %}
-                        </button>
-                    </form>
-                {% else %}
-                    <a class="btn btn-main" href="{% url 'login' %}?next={{ request.path }}">Join</a>
-                {% endif %}
-            </div>
-            {% if community.description %}
-                <p style="line-height:1.7; color:#554a3c; margin-top:22px;">{{ community.description }}</p>
-            {% endif %}
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:18px;">
-                <a href="{% url 'community_posts' community.slug %}" style="text-decoration:none;color:#2b2216;padding:16px;border-radius:18px;border:1px solid rgba(120,92,39,.1);background:#fff;">
-                    <strong>Community feed</strong>
-                    <p style="margin:6px 0 0;color:#7a6d5b;">Open posts and updates shared into this community lane.</p>
-                </a>
-                <div style="padding:16px;border-radius:18px;border:1px solid rgba(120,92,39,.1);background:#fff;">
-                    <strong>Members</strong>
-                    <p style="margin:6px 0 0;color:#7a6d5b;">See how many people are active in this community.</p>
-                </div>
-                <div style="padding:16px;border-radius:18px;border:1px solid rgba(120,92,39,.1);background:#fff;">
-                    <strong>Media</strong>
-                    <p style="margin:6px 0 0;color:#7a6d5b;">Photos, videos, reels, and flyers shared by members live here.</p>
-                </div>
-            </div>
-        </div>
+<style>
+  .community-detail-shell{max-width:1080px;margin:0 auto;padding:20px 12px 110px}
+  .community-hero,.community-lane{
+    border:1px solid rgba(212,177,106,.16);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:28px;
+    box-shadow:0 24px 60px rgba(0,0,0,.34);
+    color:#f5efe2;
+  }
+  .community-hero{overflow:hidden}
+  .community-cover{height:220px;background:linear-gradient(135deg,rgba(212,177,106,.24),rgba(91,33,182,.24));}
+  .community-cover img{width:100%;height:100%;object-fit:cover}
+  .community-body{padding:22px}
+  .community-meta,.community-actions,.community-grid{display:flex;gap:10px;flex-wrap:wrap}
+  .community-pill,.community-btn{
+    display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:800;
+  }
+  .community-pill{background:rgba(212,177,106,.12);border:1px solid rgba(212,177,106,.16);color:#f1d8a3}
+  .community-btn{background:rgba(10,12,18,.96);border:1px solid rgba(212,177,106,.16);color:#f5efe2}
+  .community-btn.primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border:0}
+  .community-copy{color:#a9a191;line-height:1.7}
+  .community-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}
+  .community-lane{padding:16px}
+  @media (max-width:720px){
+    .community-detail-shell{padding-inline:8px}
+    .community-cover{height:180px}
+  }
+</style>
+
+<section class="community-detail-shell">
+  <article class="community-hero">
+    <div class="community-cover">
+      {% if community.cover %}
+        <img src="{{ community.cover.url }}" alt="{{ community.name }}">
+      {% endif %}
     </div>
+    <div class="community-body">
+      <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+        <div>
+          <span class="eyebrow">Community lane</span>
+          <h1 style="margin:10px 0 8px;font-size:clamp(2rem,5vw,3.8rem);line-height:.96;">{{ community.name }}</h1>
+          <p class="community-copy">{{ community.description|default:"A Namvibe community for events, updates, media, and local conversation." }}</p>
+        </div>
+        {% if request.user.is_authenticated %}
+          <form method="post" action="{% url 'community_join' community.slug %}">
+            {% csrf_token %}
+            <button class="community-btn primary" type="submit">
+              {% if membership and membership.status == "active" %}Joined{% elif membership and membership.status == "pending" %}Requested{% else %}Join community{% endif %}
+            </button>
+          </form>
+        {% else %}
+          <a class="community-btn primary" href="{% url 'login' %}?next={{ request.path }}">Join community</a>
+        {% endif %}
+      </div>
+
+      <div class="community-meta" style="margin-top:14px;">
+        <span class="community-pill">{{ community.member_count }} members</span>
+        <span class="community-pill">{{ community.get_privacy_display }}</span>
+        <span class="community-pill">Owner @{{ community.owner.username }}</span>
+        {% if can_manage %}<span class="community-pill">Admin access</span>{% endif %}
+      </div>
+
+      <div class="community-actions" style="margin-top:16px;">
+        <a class="community-btn" href="{% url 'community_posts' community.slug %}">Community posts</a>
+        <a class="community-btn" href="{% url 'feed' %}?community={{ community.slug }}">Open in feed</a>
+        <a class="community-btn" href="{% url 'live_home' %}">Live events</a>
+      </div>
+    </div>
+  </article>
+
+  <section class="community-grid">
+    <article class="community-lane">
+      <strong>Community feed</strong>
+      <p class="community-copy">Open the post lane dedicated to this community and keep media, updates, and conversation in one place.</p>
+      <a class="community-btn" href="{% url 'community_posts' community.slug %}">Open feed</a>
+    </article>
+    <article class="community-lane">
+      <strong>Members and reach</strong>
+      <p class="community-copy">Track member growth, featured creators, and local conversation momentum from a cleaner shell.</p>
+    </article>
+    <article class="community-lane">
+      <strong>Media and live</strong>
+      <p class="community-copy">Use reels, stories, and live sessions to give the community a stronger real-time feel.</p>
+      <a class="community-btn" href="{% url 'live_start' %}">Go live</a>
+    </article>
+  </section>
 </section>
 {% endblock %}

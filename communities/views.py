@@ -10,13 +10,18 @@ from .models import Community, CommunityMembership
 
 def community_list_view(request):
     query = request.GET.get("q", "").strip()
-    communities = Community.objects.select_related("owner").annotate(
-        active_members=Count("memberships", filter=Q(memberships__status=CommunityMembership.Status.ACTIVE))
-    )
-    if query:
-        communities = communities.filter(Q(name__icontains=query) | Q(description__icontains=query))
-    communities = communities.order_by("-active_members", "-created_at")[:40]
-    return render(request, "communities/community_list.html", {"communities": communities, "query": query})
+    safe_mode_message = ""
+    try:
+        communities = Community.objects.select_related("owner").annotate(
+            active_members=Count("memberships", filter=Q(memberships__status=CommunityMembership.Status.ACTIVE))
+        )
+        if query:
+            communities = communities.filter(Q(name__icontains=query) | Q(description__icontains=query))
+        communities = list(communities.order_by("-active_members", "-created_at")[:40])
+    except Exception as exc:
+        communities = []
+        safe_mode_message = str(exc)
+    return render(request, "communities/community_list.html", {"communities": communities, "query": query, "safe_mode_message": safe_mode_message})
 
 
 def community_detail_view(request, slug):

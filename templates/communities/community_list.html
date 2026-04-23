@@ -3,35 +3,96 @@
 {% block title %}Communities | Namvibe{% endblock %}
 
 {% block content %}
-<section style="max-width: 1100px; margin: 0 auto; padding: 32px 18px 90px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
-        <div>
-            <h1 style="font-size:36px; margin:0 0 8px;">Communities</h1>
-            <p style="color:#7a6d5b; margin:0;">Find Namibian creators, local conversations, events, and niche circles.</p>
+<style>
+  .community-shell{max-width:1160px;margin:0 auto;padding:22px 12px 110px}
+  .community-head,.community-card,.community-search{
+    border:1px solid rgba(212,177,106,.16);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:28px;
+    box-shadow:0 24px 60px rgba(0,0,0,.34);
+    color:#f5efe2;
+  }
+  .community-head{padding:22px;display:grid;grid-template-columns:minmax(0,1.2fr) auto;gap:18px;align-items:end}
+  .community-head p,.community-copy,.community-empty{color:#a9a191;line-height:1.7}
+  .community-search{margin-top:14px;padding:12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+  .community-search input{
+    width:100%;min-width:0;border:1px solid rgba(212,177,106,.14);background:rgba(8,10,16,.9);
+    color:#f5efe2;border-radius:18px;padding:14px 16px;outline:none;
+  }
+  .community-search input::placeholder{color:#8e887b}
+  .community-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px}
+  .community-card{display:block;text-decoration:none;padding:14px;overflow:hidden}
+  .community-cover{height:112px;border-radius:20px;background:linear-gradient(135deg,rgba(212,177,106,.26),rgba(91,33,182,.22));overflow:hidden}
+  .community-cover img{width:100%;height:100%;object-fit:cover}
+  .community-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .community-pill{
+    display:inline-flex;align-items:center;padding:7px 10px;border-radius:999px;
+    background:rgba(212,177,106,.12);border:1px solid rgba(212,177,106,.16);color:#f1d8a3;font-size:12px;font-weight:800;
+  }
+  .community-card h2{margin:12px 0 8px;font-size:1.18rem}
+  .community-card:hover{transform:translateY(-2px);transition:transform .18s ease}
+  .community-cta{
+    display:inline-flex;align-items:center;justify-content:center;padding:11px 14px;border-radius:16px;
+    background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;text-decoration:none;font-weight:900;border:0;
+  }
+  .community-empty{padding:26px;text-align:center}
+  @media (max-width:720px){
+    .community-shell{padding-inline:8px}
+    .community-head{grid-template-columns:1fr}
+    .community-search{grid-template-columns:1fr}
+  }
+</style>
+
+<section class="community-shell">
+  <section class="community-head">
+    <div>
+      <span class="eyebrow">Namibian communities</span>
+      <h1 style="margin:10px 0 8px;font-size:clamp(2rem,5vw,3.8rem);line-height:.96;">Find local circles, creator groups, and niche conversations that feel alive.</h1>
+      <p class="community-copy">Explore public communities, open one for your people, and move straight into posts, media, and live moments without losing the premium Namvibe shell.</p>
+    </div>
+    {% if request.user.is_authenticated %}
+      <a class="community-cta" href="{% url 'community_create' %}">Create community</a>
+    {% else %}
+      <a class="community-cta" href="{% url 'login' %}?next={% url 'community_create' %}">Join to create</a>
+    {% endif %}
+  </section>
+
+  <form method="get" class="community-search">
+    <input name="q" value="{{ query }}" placeholder="Search communities, culture, creator circles, events, and clubs">
+    <button class="community-cta" type="submit">Search</button>
+  </form>
+
+  {% if safe_mode_message %}
+    <section class="community-head" style="margin-top:14px;">
+      <div>
+        <span class="eyebrow">Safe mode</span>
+        <h2 style="margin:10px 0 8px;">Community discovery is still online</h2>
+        <p class="community-copy">Live community data is temporarily unavailable while the database connection recovers.</p>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="community-grid">
+    {% for community in communities %}
+      <a href="{% url 'community_detail' community.slug %}" class="community-card">
+        <div class="community-cover">
+          {% if community.cover %}
+            <img src="{{ community.cover.url }}" alt="{{ community.name }}">
+          {% endif %}
         </div>
-        {% if request.user.is_authenticated %}
-            <a class="btn btn-main" href="{% url 'community_create' %}">Create community</a>
-        {% endif %}
-    </div>
-
-    <form method="get" style="margin:24px 0; display:flex; gap:10px;">
-        <input name="q" value="{{ query }}" placeholder="Search communities" style="flex:1; min-width:0; padding:14px 16px; border-radius:14px; border:1px solid rgba(120,92,39,.12); background:#fff; color:#1f1a14;">
-        <button class="btn btn-dark" type="submit">Search</button>
-    </form>
-
-    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:16px;">
-        {% for community in communities %}
-            <a href="{% url 'community_detail' community.slug %}" style="color:#2b2216; display:block; padding:18px; border:1px solid rgba(120,92,39,.12); background:rgba(255,253,249,.97); border-radius:22px; box-shadow:0 16px 36px rgba(66,45,10,.05);">
-                <div style="height:88px; border-radius:18px; background:linear-gradient(135deg, rgba(20,184,166,.45), rgba(244,63,94,.42)); overflow:hidden;">
-                    {% if community.cover %}<img src="{{ community.cover.url }}" alt="" style="width:100%; height:100%; object-fit:cover;">{% endif %}
-                </div>
-                <h2 style="font-size:20px; margin:14px 0 6px;">{{ community.name }}</h2>
-                <p style="color:#7a6d5b; margin:0 0 12px;">{{ community.description|truncatechars:100 }}</p>
-                <span style="color:#8b631d;">{{ community.member_count }} members · {{ community.get_privacy_display }}</span>
-            </a>
-        {% empty %}
-            <p style="color:#7a6d5b;">No communities found.</p>
-        {% endfor %}
-    </div>
+        <div class="community-meta">
+          <span class="community-pill">{{ community.active_members|default:community.member_count }} active</span>
+          <span class="community-pill">{{ community.get_privacy_display }}</span>
+        </div>
+        <h2>{{ community.name }}</h2>
+        <p class="community-copy">{{ community.description|default:"A Namvibe community for updates, live moments, and conversation."|truncatechars:120 }}</p>
+      </a>
+    {% empty %}
+      <div class="community-card community-empty">
+        <strong>No communities found</strong>
+        <p class="community-copy">Try a broader search or start the first community for your people, event, or creator circle.</p>
+      </div>
+    {% endfor %}
+  </section>
 </section>
 {% endblock %}

@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import include, path
 from django.views.generic import RedirectView
@@ -71,12 +70,8 @@ def discover_people_alias(request):
     return redirect("dating")
 
 
-def safe_index(request):
-    return HttpResponse("Namvibe is live")
-
-
 urlpatterns = [
-    path("", safe_index, name="home"),
+    path("", real_index, name="home"),
     path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}images/favicon.svg", permanent=False)),
     path("healthz", healthz, name="healthz"),
     path("healthz/", healthz),

@@ -19,6 +19,13 @@
       {% endfor %}
     </aside>
   </div>
+  {% if safe_mode_message %}
+    <div class="live-panel" style="margin-top:16px;">
+      <span class="badge badge-scheduled">SAFE MODE</span>
+      <h3>Live surfaces are staying online</h3>
+      <p class="muted">Some live data is temporarily unavailable while the database connection recovers.</p>
+    </div>
+  {% endif %}
   <div class="chip-row" style="margin-top:16px;">{% for category in categories %}<span class="chip">{{ category }}</span>{% endfor %}</div>
   <h2 id="live-now">Live now</h2>
   <div class="live-grid">

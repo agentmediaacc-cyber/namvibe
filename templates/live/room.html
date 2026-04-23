@@ -3,6 +3,14 @@
 {% block content %}
 {% include "live/_styles.html" %}
 <section class="live-shell">
+  {% if safe_mode_message %}
+    <div class="live-panel" style="margin-bottom:14px;">
+      <span class="badge badge-scheduled">SAFE MODE</span>
+      <h3>Live room data is temporarily unavailable</h3>
+      <p class="muted">The room shell is still online while the database connection recovers.</p>
+      <a class="primary" href="{% url 'live_home' %}">Back to live home</a>
+    </div>
+  {% endif %}
   <div class="room-layout">
     <main class="live-room-shell">
       <div class="player">

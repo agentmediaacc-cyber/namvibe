@@ -21,6 +21,15 @@
     <div class="product-card"><span>Feed-ready format</span><strong>Sponsored cards</strong></div>
   </div>
 
+  {% if safe_mode_message %}
+    <div class="product-section">
+      <div class="product-card">
+        <strong>Safe mode</strong>
+        <span>Ads data is temporarily unavailable while the database connection recovers.</span>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="product-section">
     <h2>Discover placements</h2>
     <div class="product-grid">

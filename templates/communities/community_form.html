@@ -3,13 +3,51 @@
 {% block title %}Create Community | Namvibe{% endblock %}
 
 {% block content %}
-<section style="max-width: 760px; margin:0 auto; padding:32px 18px 90px;">
-    <h1 style="font-size:34px; margin:0 0 10px;">Create community</h1>
-    <p style="color:#cbd5e1; margin:0 0 24px;">Start a space for people, places, events, and creator circles in Namibia.</p>
-    <form method="post" enctype="multipart/form-data" style="display:grid; gap:16px; padding:22px; border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.07); border-radius:24px;">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button class="btn btn-main" type="submit">Create community</button>
+<style>
+  .community-form-shell{max-width:760px;margin:0 auto;padding:24px 12px 110px}
+  .community-form-card{
+    border:1px solid rgba(212,177,106,.16);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:28px;
+    box-shadow:0 24px 60px rgba(0,0,0,.34);
+    color:#f5efe2;padding:22px;
+  }
+  .community-form-grid{display:grid;gap:14px;margin-top:18px}
+  .community-field{display:grid;gap:8px}
+  .community-field label{font-weight:800}
+  .community-field input,.community-field textarea,.community-field select{
+    width:100%;border:1px solid rgba(212,177,106,.14);background:rgba(8,10,16,.92);color:#f5efe2;
+    border-radius:18px;padding:14px 16px;outline:none;
+  }
+  .community-field textarea{min-height:130px;resize:vertical}
+  .community-field .helptext{color:#a9a191;font-size:12px}
+  .community-error{color:#f4a6a6;font-size:13px}
+  .community-submit{
+    display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:18px;
+    background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border:0;font-weight:900;
+  }
+  @media (max-width:720px){.community-form-shell{padding-inline:8px}}
+</style>
+
+<section class="community-form-shell">
+  <div class="community-form-card">
+    <span class="eyebrow">Create a Namvibe community</span>
+    <h1 style="margin:10px 0 8px;font-size:clamp(2rem,5vw,3.4rem);line-height:.98;">Build a local circle for your people, topic, event, or creator movement.</h1>
+    <p style="color:#a9a191;line-height:1.7;">Set the basics, choose the privacy level, add cover media, and launch a polished community space that connects naturally with posts, live, and discovery.</p>
+
+    <form method="post" enctype="multipart/form-data" class="community-form-grid">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="community-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="helptext">{{ field.help_text }}</div>{% endif %}
+          {% for error in field.errors %}<div class="community-error">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+      {% for error in form.non_field_errors %}<div class="community-error">{{ error }}</div>{% endfor %}
+      <button class="community-submit" type="submit">Create community</button>
     </form>
+  </div>
 </section>
 {% endblock %}
