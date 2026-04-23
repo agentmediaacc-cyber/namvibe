@@ -135,23 +135,36 @@ def feature_page(request, key, title, subtitle, actions=None):
         "title": title,
         "subtitle": subtitle,
         "actions": actions or [],
+        "safe_mode_message": "",
+        "feature_metrics": [],
+        "feature_shortcuts": [],
+        "feature_sections": [],
+        "feature_note": "",
+        "feature_promos": [],
     }
-    context.update(_feature_page_context(request, key))
+    try:
+        context.update(_feature_page_context(request, key))
 
-    if key in {"flyers", "image_tools"}:
-        context["recent_flyers"] = Post.objects.visible_to(request.user).filter(post_type=Post.PostType.FLYER).published()[:8]
-    if key in {"channels", "gaming"}:
-        context["recent_posts"] = Post.objects.visible_to(request.user).published()[:8]
-    if key in {"gifting", "coins"} and request.user.is_authenticated:
-        wallet = ensure_wallet(request.user)
-        context["wallet"] = wallet
-        context["gift_catalog"] = GiftCatalog.objects.filter(is_active=True).order_by("coin_cost", "name")
-        context["gift_events"] = GiftEvent.objects.filter(sender=request.user).select_related("recipient", "gift")[:8]
-    if key == "notifications" and request.user.is_authenticated:
-        context["notifications"] = []
-        context["message"] = "Notifications will appear here when someone follows, messages, reacts, gifts, or matches with you."
-    if key == "support":
-        context["message"] = "Support requests can be routed here without breaking navigation."
+        if key in {"flyers", "image_tools"}:
+            context["recent_flyers"] = list(
+                Post.objects.visible_to(request.user).filter(post_type=Post.PostType.FLYER).published()[:8]
+            )
+        if key in {"channels", "gaming"}:
+            context["recent_posts"] = list(Post.objects.visible_to(request.user).published()[:8])
+        if key in {"gifting", "coins"} and request.user.is_authenticated:
+            wallet = ensure_wallet(request.user)
+            context["wallet"] = wallet
+            context["gift_catalog"] = list(GiftCatalog.objects.filter(is_active=True).order_by("coin_cost", "name"))
+            context["gift_events"] = list(GiftEvent.objects.filter(sender=request.user).select_related("recipient", "gift")[:8])
+        if key == "notifications" and request.user.is_authenticated:
+            context["notifications"] = []
+            context["message"] = "Notifications will appear here when someone follows, messages, reacts, gifts, or matches with you."
+        if key == "support":
+            context["message"] = "Support requests can be routed here without breaking navigation."
+    except Exception as exc:
+        context["safe_mode_message"] = str(exc)
+        context["feature_note"] = "This route is staying online in safe mode while the database connection recovers."
+        context["message"] = "Core content is temporarily unavailable, but navigation and product entry points remain online."
 
     return render(request, "core/product_page.html", context)
 
@@ -163,27 +176,31 @@ def notifications_view(request):
         "actions": [{"label": "Open messages", "url_name": "user_dashboard", "query": "?section=messages"}],
         "notification_items": [],
         "notification_groups": [],
+        "safe_mode_message": "",
     }
     if request.user.is_authenticated:
-        latest_messages = Message.objects.filter(conversation__participants=request.user).exclude(sender=request.user).select_related("sender").order_by("-created_at")[:8]
-        follows = Follow.objects.filter(following=request.user).select_related("follower", "follower__profile").order_by("-created_at")[:6]
-        friend_requests = FriendRequest.objects.filter(to_user=request.user, status=FriendRequest.Status.PENDING).select_related("from_user", "from_user__profile").order_by("-created_at")[:6]
-        dating_likes = DatingLike.objects.filter(to_user=request.user).select_related("from_user", "from_user__profile").order_by("-created_at")[:6]
-        post_comments = Comment.objects.filter(post__author=request.user).exclude(author=request.user).select_related("author", "author__profile", "post").order_by("-created_at")[:8]
-        items = []
-        items.extend({"group": "Messages", "title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages"} for row in latest_messages)
-        items.extend({"group": "Follows", "title": f"@{row.follower.profile.username} followed you", "meta": row.created_at, "copy": "Open profile", "href": f"/profile/{row.follower.profile.username}/"} for row in follows)
-        items.extend({"group": "Friends", "title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review in dashboard", "href": "/accounts/dashboard/?section=friends"} for row in friend_requests)
-        items.extend({"group": "Dating", "title": f"@{row.from_user.profile.username} liked your dating profile", "meta": row.created_at, "copy": "Open dating likes", "href": "/dating/likes/"} for row in dating_likes)
-        items.extend({"group": "Comments", "title": f"@{row.author.profile.username} commented on your post", "meta": row.created_at, "copy": row.body[:80], "href": f"/post/{row.post.uuid}/"} for row in post_comments)
-        ordered_items = sorted(items, key=lambda item: item["meta"], reverse=True)[:20]
-        context["notification_items"] = ordered_items
-        groups = []
-        for group_name in ["Messages", "Comments", "Follows", "Friends", "Dating"]:
-            grouped = [item for item in ordered_items if item["group"] == group_name]
-            if grouped:
-                groups.append({"title": group_name, "items": grouped[:6]})
-        context["notification_groups"] = groups
+        try:
+            latest_messages = list(Message.objects.filter(conversation__participants=request.user).exclude(sender=request.user).select_related("sender").order_by("-created_at")[:8])
+            follows = list(Follow.objects.filter(following=request.user).select_related("follower", "follower__profile").order_by("-created_at")[:6])
+            friend_requests = list(FriendRequest.objects.filter(to_user=request.user, status=FriendRequest.Status.PENDING).select_related("from_user", "from_user__profile").order_by("-created_at")[:6])
+            dating_likes = list(DatingLike.objects.filter(to_user=request.user).select_related("from_user", "from_user__profile").order_by("-created_at")[:6])
+            post_comments = list(Comment.objects.filter(post__author=request.user).exclude(author=request.user).select_related("author", "author__profile", "post").order_by("-created_at")[:8])
+            items = []
+            items.extend({"group": "Messages", "title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages"} for row in latest_messages)
+            items.extend({"group": "Follows", "title": f"@{row.follower.profile.username} followed you", "meta": row.created_at, "copy": "Open profile", "href": f"/profile/{row.follower.profile.username}/"} for row in follows)
+            items.extend({"group": "Friends", "title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review in dashboard", "href": "/accounts/dashboard/?section=friends"} for row in friend_requests)
+            items.extend({"group": "Dating", "title": f"@{row.from_user.profile.username} liked your dating profile", "meta": row.created_at, "copy": "Open dating likes", "href": "/dating/likes/"} for row in dating_likes)
+            items.extend({"group": "Comments", "title": f"@{row.author.profile.username} commented on your post", "meta": row.created_at, "copy": row.body[:80], "href": f"/post/{row.post.uuid}/"} for row in post_comments)
+            ordered_items = sorted(items, key=lambda item: item["meta"], reverse=True)[:20]
+            context["notification_items"] = ordered_items
+            groups = []
+            for group_name in ["Messages", "Comments", "Follows", "Friends", "Dating"]:
+                grouped = [item for item in ordered_items if item["group"] == group_name]
+                if grouped:
+                    groups.append({"title": group_name, "items": grouped[:6]})
+            context["notification_groups"] = groups
+        except Exception as exc:
+            context["safe_mode_message"] = str(exc)
     return render(request, "core/notifications.html", context)
 
 

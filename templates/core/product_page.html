@@ -38,6 +38,12 @@
     </div>
   {% endif %}
 
+  {% if safe_mode_message %}
+    <div class="product-card muted-card">
+      Some live product data is temporarily unavailable while the database connection recovers.
+    </div>
+  {% endif %}
+
   {% if message %}
     <div class="product-card">{{ message }}</div>
   {% endif %}

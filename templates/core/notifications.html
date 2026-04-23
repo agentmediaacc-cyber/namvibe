@@ -18,6 +18,11 @@
 
   <div class="product-section">
     <h2>Activity center</h2>
+    {% if safe_mode_message %}
+      <div class="product-grid" style="grid-template-columns:1fr; margin-bottom:14px;">
+        <div class="product-card">Notifications are temporarily running in safe mode while the database connection recovers.</div>
+      </div>
+    {% endif %}
     {% if notification_groups %}
       {% for group in notification_groups %}
         <div style="margin-bottom:16px;">
