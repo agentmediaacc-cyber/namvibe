@@ -15,7 +15,7 @@
         .account-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
         .account-top h1{margin:0 0 6px;font-size:clamp(1.8rem,4vw,2.8rem)}
         .account-copy{color:#a9a191;line-height:1.65}
-        .action-row,.mini-grid,.progress-list,.dashboard-tabs{display:flex;gap:10px;flex-wrap:wrap}
+        .action-row,.mini-grid,.progress-list,.dashboard-tabs,.identity-row{display:flex;gap:10px;flex-wrap:wrap}
         .mini-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
         .metric{padding:14px;border-radius:18px;background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.12)}
         .metric span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
@@ -28,8 +28,16 @@
         .progress-item{padding:14px;border-radius:18px;background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.12)}
         .progress-item strong{display:block}
         .admin-chip{display:inline-flex;padding:6px 10px;border-radius:999px;background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;font-size:12px;font-weight:900}
+        .identity-chip,.thread-link{display:inline-flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.92);text-decoration:none;color:#f5efe2}
+        .identity-chip strong,.thread-link strong{display:block;font-size:14px}
+        .identity-chip small,.thread-link small{display:block;color:#a9a191}
+        .identity-avatar,.thread-avatar{width:36px;height:36px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(212,177,106,.3),rgba(212,177,106,.08));font-weight:900;color:#f3d8a6}
+        .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+        .summary-card{padding:14px;border-radius:20px;background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(24,19,13,.92));border:1px solid rgba(212,177,106,.12)}
+        .summary-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+        .summary-card strong{font-size:1.05rem}
         @media (max-width: 820px){.mini-grid,.account-hero-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media (max-width: 640px){.account-hero-grid{grid-template-columns:1fr}}
+        @media (max-width: 640px){.account-hero-grid,.summary-grid{grid-template-columns:1fr}}
     </style>
 
     <div class="account-shell">
@@ -78,16 +86,16 @@
                 </div>
             </section>
 
-            <div class="dashboard-tabs">
-                <button type="button" class="active" data-panel="overview">Overview</button>
-                <button type="button" data-panel="profile">Profile</button>
-                <button type="button" data-panel="posts">Studio</button>
-                <button type="button" data-panel="messages">Messages</button>
-                <button type="button" data-panel="wallet">Wallet</button>
-                <button type="button" data-panel="support">Support</button>
+                <div class="dashboard-tabs">
+                <button type="button" class="{% if active_panel == 'overview' %}active{% endif %}" data-panel="overview">Overview</button>
+                <button type="button" class="{% if active_panel == 'profile' %}active{% endif %}" data-panel="profile">Profile</button>
+                <button type="button" class="{% if active_panel == 'posts' %}active{% endif %}" data-panel="posts">Studio</button>
+                <button type="button" class="{% if active_panel == 'messages' %}active{% endif %}" data-panel="messages">Messages</button>
+                <button type="button" class="{% if active_panel == 'wallet' %}active{% endif %}" data-panel="wallet">Wallet</button>
+                <button type="button" class="{% if active_panel == 'support' %}active{% endif %}" data-panel="support">Support</button>
             </div>
 
-            <section id="overview" class="account-panel active">
+            <section id="overview" class="account-panel {% if active_panel == 'overview' %}active{% endif %}">
                 <div class="account-card">
                     <h2 style="margin-top:0;">Next steps</h2>
                     <div class="progress-list">
@@ -99,10 +107,27 @@
                             </div>
                         {% endfor %}
                     </div>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <span>Social graph</span>
+                            <strong>{{ follower_preview|length }} recent followers · {{ following_preview|length }} following lanes</strong>
+                            <p class="account-copy">Keep new chats and follow-back moments close while your profile grows.</p>
+                        </div>
+                        <div class="summary-card">
+                            <span>Messages</span>
+                            <strong>{{ chat_unread_total }} unread across {{ chat_unread_threads }} threads</strong>
+                            <p class="account-copy">Private replies, creator outreach, and supporter messages stay inside your account shell.</p>
+                        </div>
+                        <div class="summary-card">
+                            <span>Creator lane</span>
+                            <strong>{{ draft_posts|length }} drafts · {{ community_count }} communities</strong>
+                            <p class="account-copy">Move from stories to studio, live, ads, and premium without leaving this dashboard.</p>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <section id="profile" class="account-panel">
+            <section id="profile" class="account-panel {% if active_panel == 'profile' %}active{% endif %}">
                 <div class="account-card">
                     <h2 style="margin-top:0;">Private account summary</h2>
                     <div class="mini-grid">
@@ -116,10 +141,38 @@
                         <a href="{% url 'verify_email_notice' %}">Verification</a>
                         <a href="{% url 'settings' %}">Settings</a>
                     </div>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <span>Recent followers</span>
+                            <div class="identity-row">
+                                {% for edge in follower_preview %}
+                                    <a class="identity-chip" href="{% url 'profile_detail' edge.follower.profile.username %}">
+                                        <span class="identity-avatar">{{ edge.follower.profile.username|slice:":1"|upper }}</span>
+                                        <span><strong>@{{ edge.follower.profile.username }}</strong><small>{{ edge.follower.profile.display_name|default:edge.follower.username }}</small></span>
+                                    </a>
+                                {% empty %}
+                                    <p class="account-copy" style="margin:0;">Followers will appear here as your community grows.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <span>Following lanes</span>
+                            <div class="identity-row">
+                                {% for edge in following_preview %}
+                                    <a class="identity-chip" href="{% url 'profile_detail' edge.following.profile.username %}">
+                                        <span class="identity-avatar">{{ edge.following.profile.username|slice:":1"|upper }}</span>
+                                        <span><strong>@{{ edge.following.profile.username }}</strong><small>{{ edge.following.profile.display_name|default:edge.following.username }}</small></span>
+                                    </a>
+                                {% empty %}
+                                    <p class="account-copy" style="margin:0;">Follow creators and communities to shape a stronger feed.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <section id="posts" class="account-panel">
+            <section id="posts" class="account-panel {% if active_panel == 'posts' %}active{% endif %}">
                 <div class="account-card">
                     <h2 style="margin-top:0;">Creator Studio</h2>
                     <p class="account-copy">Open studio, reels, Flyer builder, and live tools from one place and keep your drafts moving.</p>
@@ -146,11 +199,11 @@
                 </div>
             </section>
 
-            <section id="messages" class="account-panel">
+            <section id="messages" class="account-panel {% if active_panel == 'messages' %}active{% endif %}">
                 {% include "messaging/dashboard_messages.html" %}
             </section>
 
-            <section id="wallet" class="account-panel">
+            <section id="wallet" class="account-panel {% if active_panel == 'wallet' %}active{% endif %}">
                 <div class="account-card">
                     <h2 style="margin-top:0;">Wallet and monetization</h2>
                     <div class="mini-grid">
@@ -168,7 +221,7 @@
                 </div>
             </section>
 
-            <section id="support" class="account-panel">
+            <section id="support" class="account-panel {% if active_panel == 'support' %}active{% endif %}">
                 <div class="account-card">
                     <h2 style="margin-top:0;">Support and control</h2>
                     <p class="account-copy">Use support for account help, notifications, creator approvals, promo cards, moderation entry points, and system controls.</p>
@@ -199,9 +252,16 @@
         }
         buttons.forEach(function (button) {
             button.addEventListener("click", function () {
+                const url = new URL(window.location.href);
+                url.searchParams.set("section", button.dataset.panel);
+                if (button.dataset.panel !== "messages") {
+                    url.searchParams.delete("conversation");
+                }
+                window.history.replaceState({}, "", url);
                 openPanel(button.dataset.panel);
             });
         });
+        openPanel("{{ active_panel|escapejs }}");
     }());
 </script>
 {% endblock %}

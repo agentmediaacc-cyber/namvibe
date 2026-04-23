@@ -29,6 +29,7 @@
   .command-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:18px}
   .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
   .metric-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
   .metric-card,.mini-card{
     padding:14px;border-radius:20px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.88)
   }
@@ -54,6 +55,12 @@
   .quick-links{display:flex;gap:10px;flex-wrap:wrap}
   .section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
   .activity-card small,.team-card small{color:#a9a191}
+  .ops-card{
+    padding:16px;border-radius:22px;border:1px solid rgba(212,177,106,.12);
+    background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(24,19,13,.92));
+  }
+  .ops-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+  .ops-card strong{display:block;font-size:1.3rem;margin-bottom:6px}
   .mobile-ops-nav{
     display:none;gap:10px;overflow:auto;scrollbar-width:none;padding-bottom:4px
   }
@@ -140,6 +147,24 @@
             <strong>{{ item.title }}</strong>
             <span class="muted-copy">{{ item.copy }}</span>
           </a>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="control-panel">
+      <div class="section-head">
+        <div>
+          <h2>Creator And Operations Snapshot</h2>
+          <p class="muted-copy">Watch creator readiness, verification depth, draft pressure, and support coverage from the same control lane.</p>
+        </div>
+      </div>
+      <div class="ops-grid">
+        {% for item in creator_insights %}
+          <article class="ops-card">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+            <p class="muted-copy">{{ item.copy }}</p>
+          </article>
         {% endfor %}
       </div>
     </section>

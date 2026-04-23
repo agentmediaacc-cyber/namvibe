@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 
-from accounts.models import AccountRole
+from accounts.models import AccountRole, Profile
 from accounts.services import ensure_account_role, is_master_admin, master_admin_dashboard_url, repair_master_admin_user
 from ads.models import Advertisement
 from live.models import LiveSession
@@ -74,6 +74,12 @@ def support_control_view(request):
             "ads": Advertisement.objects.filter(status=Advertisement.Status.ACTIVE).count(),
             "plans": MembershipPlan.objects.filter(is_active=True).count(),
         }
+        creator_insights = [
+            {"label": "Creator accounts", "value": Profile.objects.filter(is_creator=True).count(), "copy": "Profiles already flagged for creator tools and monetization."},
+            {"label": "Verified profiles", "value": Profile.objects.filter(is_verified=True).count(), "copy": "Trusted accounts ready for premium discovery and admin review."},
+            {"label": "Draft posts", "value": Post.objects.filter(status=Post.Status.DRAFT).count(), "copy": "Unpublished creator work waiting inside studio flows."},
+            {"label": "Support staff", "value": AccountRole.objects.exclude(role=AccountRole.Role.MEMBER).count(), "copy": "Elevated support and admin lanes currently active."},
+        ]
         promo_cards = list(SystemPromoCard.objects.all()[:12])
         team_roles = list(AccountRole.objects.exclude(role=AccountRole.Role.MEMBER).select_related("user")[:20])
         recent_ads = list(Advertisement.objects.filter(status=Advertisement.Status.ACTIVE).order_by("-priority", "-created_at")[:6])
@@ -97,6 +103,12 @@ def support_control_view(request):
             "ads": 0,
             "plans": 0,
         }
+        creator_insights = [
+            {"label": "Creator accounts", "value": 0, "copy": "Creator insights return when the database is reachable."},
+            {"label": "Verified profiles", "value": 0, "copy": "Verification insights return when the database is reachable."},
+            {"label": "Draft posts", "value": 0, "copy": "Draft content insights return when the database is reachable."},
+            {"label": "Support staff", "value": 0, "copy": "Role insights return when the database is reachable."},
+        ]
         promo_cards = []
         team_roles = []
         recent_ads = []
@@ -119,6 +131,7 @@ def support_control_view(request):
                 {"label": "Live rooms", "url": "/live/"},
             ],
             "team_roles": team_roles,
+            "creator_insights": creator_insights,
             "control_sections": [
                 {"title": "Moderation and reports", "copy": "Use Django admin today while moderation queues and report workflows deepen.", "url": "/admin/"},
                 {"title": "Premium approvals", "copy": "Review memberships, plans, and upgrade friction from one route group.", "url": "/wallet/membership/plans/"},

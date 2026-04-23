@@ -1,9 +1,33 @@
+<style>
+    .chat-summary-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+    .chat-summary-card{padding:12px 14px;border-radius:18px;border:1px solid rgba(212,177,106,.12);background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(24,19,13,.92));color:#f5efe2}
+    .chat-summary-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+    .chat-summary-card strong{font-size:1.1rem}
+    .chat-presence{display:inline-flex;align-items:center;gap:8px;color:#a9a191;font-size:12px}
+    .chat-presence::before{content:"";width:8px;height:8px;border-radius:999px;background:#71d69e;box-shadow:0 0 0 4px rgba(113,214,158,.12)}
+    @media (max-width: 640px){.chat-summary-strip{grid-template-columns:1fr}}
+</style>
+
 <div class="messages-shell {% if active_conversation %}has-active-chat{% else %}no-active-chat{% endif %}">
     <aside class="chat-list-panel">
+        <div class="chat-summary-strip">
+            <div class="chat-summary-card">
+                <span>Unread</span>
+                <strong>{{ chat_unread_total }}</strong>
+            </div>
+            <div class="chat-summary-card">
+                <span>Threads</span>
+                <strong>{{ chat_conversations|length }}</strong>
+            </div>
+            <div class="chat-summary-card">
+                <span>Messages</span>
+                <strong>{{ chat_total_messages }}</strong>
+            </div>
+        </div>
         <div class="chat-list-head">
             <div>
                 <h3>Messages</h3>
-                <p>One-to-one Namvibe chats</p>
+                <p>One-to-one Namvibe chats with creator, support, and community carryover.</p>
             </div>
             <span class="chat-count">{{ chat_conversations|length }}</span>
         </div>
@@ -11,7 +35,7 @@
         <div class="chat-start-box">
             <div class="chat-start-title">
                 <span>Start Chat</span>
-                <small>Choose a member</small>
+                <small>Followers, creators, and recent connections</small>
             </div>
             <div class="member-quick-list">
                 {% for chat_user in all_chat_users %}
@@ -65,6 +89,7 @@
                 <div class="chat-thread-title">
                     <h3>{{ active_chat_other.get_full_name|default:active_chat_other.username|default:"Namvibe Member" }}</h3>
                     <p>@{{ active_chat_other.username }} · private chat</p>
+                    <span class="chat-presence">Private thread ready</span>
                 </div>
                 <div class="message-actions">
                     <a class="tool-btn" href="{% url 'messaging:call_gate' active_chat_other.id 'voice' %}">Voice call</a>
@@ -169,12 +194,12 @@
                     <input type="file" name="attachment" id="messageAttachment" hidden onchange="previewAttachment(event)">
                     <button class="send-btn" type="submit">Send</button>
                 </div>
-                <small class="compose-hint">Press Enter to send. Use Shift+Enter for a new line.</small>
+                <small class="compose-hint">Press Enter to send. Use Shift+Enter for a new line. {{ chat_media_messages }} media items are visible in this thread.</small>
             </form>
         {% else %}
             <div class="chat-empty-thread full">
                 <h3>Select a chat</h3>
-                <p>Choose a recent conversation or start a new private chat from the member list.</p>
+                <p>Choose a recent conversation or start a new private chat from the member list. Your creator, wallet, and support activity stays one tap away from this dashboard lane.</p>
             </div>
         {% endif %}
     </section>

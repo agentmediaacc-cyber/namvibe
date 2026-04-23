@@ -467,6 +467,21 @@ def user_dashboard_view(request):
     post_count = max(profile.post_count, len(posts))
     dashboard_metrics = _dashboard_metrics(request.user)
 
+    active_panel = request.GET.get("section") or ("messages" if request.GET.get("conversation") else "overview")
+    if active_panel not in {"overview", "profile", "posts", "messages", "wallet", "support"}:
+        active_panel = "overview"
+
+    following_preview = list(
+        Follow.objects.filter(follower=request.user)
+        .select_related("following__profile")
+        .order_by("-created_at")[:6]
+    )
+    follower_preview = list(
+        Follow.objects.filter(following=request.user)
+        .select_related("follower__profile")
+        .order_by("-created_at")[:6]
+    )
+
     context = {
         "full_name": full_name,
         "username": username,
@@ -480,6 +495,9 @@ def user_dashboard_view(request):
         "draft_posts": Post.objects.filter(author=request.user, status=Post.Status.DRAFT).prefetch_related("media")[:8],
         "saved_post_count": request.user.post_saves.count(),
         "community_count": CommunityMembership.objects.filter(user=request.user, status=CommunityMembership.Status.ACTIVE).count(),
+        "active_panel": active_panel,
+        "following_preview": following_preview,
+        "follower_preview": follower_preview,
         **dashboard_metrics,
         **messaging_dashboard_context(request.user, request.GET.get("conversation")),
     }
@@ -512,6 +530,23 @@ def public_profile_view(request, username):
         .select_related("community")
         .order_by("-created_at")[:6]
     )
+    recent_followers = list(
+        Follow.objects.filter(following=profile.user)
+        .select_related("follower__profile")
+        .order_by("-created_at")[:6]
+    )
+    following_preview = list(
+        Follow.objects.filter(follower=profile.user)
+        .select_related("following__profile")
+        .order_by("-created_at")[:6]
+    )
+    related_creators = list(
+        Profile.objects.exclude(pk=profile.pk)
+        .filter(is_creator=True)
+        .select_related("user")
+        .order_by("-follower_count", "-post_count")[:6]
+    )
+    dating_profile = getattr(profile.user, "dating_profile", None)
 
     context = {
         "profile": profile,
@@ -525,6 +560,10 @@ def public_profile_view(request, username):
         "current_live": current_live,
         "upcoming_live": upcoming_live,
         "active_membership": active_membership_for(profile.user),
+        "recent_followers": recent_followers,
+        "following_preview": following_preview,
+        "related_creators": related_creators,
+        "dating_profile_visible": bool(dating_profile and dating_profile.is_visible),
     }
     return render(request, "accounts/profile_detail.html", context)
 

@@ -6,160 +6,249 @@
 {% block content %}
 {% include "posts/post_styles.html" %}
 <style>
-    .profile-shell{max-width:980px;margin:0 auto;padding:24px 16px 88px}
-    .profile-card{
-        border:1px solid rgba(226,112,132,.14);
-        background:rgba(255,252,252,.96);
+    .profile-shell{max-width:1160px;margin:0 auto;padding:18px 12px 110px}
+    .profile-stack{display:grid;gap:16px}
+    .profile-hero,.profile-panel{
+        border:1px solid rgba(212,177,106,.14);
+        background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
         border-radius:28px;
-        overflow:hidden;
-        box-shadow:0 20px 48px rgba(181,64,93,.08);
+        box-shadow:0 22px 60px rgba(0,0,0,.34);
+        color:#f5efe2;
     }
-    .profile-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
-    .profile-tabs a{
-        border:1px solid rgba(226,112,132,.14);background:#fff;border-radius:999px;padding:10px 14px;color:#2c1f28;font-weight:800;text-decoration:none
+    .profile-hero{overflow:hidden}
+    .profile-cover{
+        min-height:220px;
+        background:radial-gradient(circle at top left,rgba(212,177,106,.24),transparent 38%),linear-gradient(135deg,#1a120d,#291d12 42%,#0f141f);
     }
-    .profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:14px}
-    .profile-section{
-        margin-top:18px;border:1px solid rgba(226,112,132,.14);background:rgba(255,252,252,.96);border-radius:24px;padding:18px;
-        box-shadow:0 16px 40px rgba(181,64,93,.06)
+    .profile-cover img{width:100%;height:260px;object-fit:cover;display:block}
+    .profile-head{padding:0 18px 22px;margin-top:-54px}
+    .profile-head-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:16px;align-items:end}
+    .profile-identity{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+    .profile-avatar{
+        width:112px;height:112px;border-radius:28px;border:4px solid rgba(14,17,24,.92);
+        overflow:hidden;background:linear-gradient(135deg,#f0d4a0,#b88a33);display:grid;place-items:center;
+        font-size:38px;font-weight:900;color:#20160a;box-shadow:0 16px 40px rgba(0,0,0,.28)
     }
-    .profile-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.profile-actions a,.profile-actions button{border-radius:8px}
-    .profile-meta,.profile-safe-links{display:flex;gap:12px;flex-wrap:wrap;color:#7f6671}
-    .profile-safe-links a{color:#c23c5e}
+    .profile-avatar img{width:100%;height:100%;object-fit:cover}
+    .eyebrow-row,.profile-stats,.profile-links,.action-row,.identity-row,.section-tabs{display:flex;gap:10px;flex-wrap:wrap}
+    .eyebrow-pill,.profile-links span,.profile-links a,.section-tabs a{
+        display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;border:1px solid rgba(212,177,106,.12);background:rgba(9,12,17,.92);text-decoration:none;color:#f5efe2;font-weight:700
+    }
+    .eyebrow-pill{color:#f1d8a3;background:rgba(212,177,106,.1)}
+    .profile-copy{color:#a9a191;line-height:1.7}
+    .profile-actions a,.profile-actions button{
+        border-radius:999px;border:1px solid rgba(212,177,106,.14);background:rgba(9,12,17,.96);color:#f5efe2;padding:11px 16px;font-weight:800;text-decoration:none;cursor:pointer
+    }
+    .profile-actions .primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:transparent;color:#120f09}
+    .profile-side{display:grid;gap:12px}
+    .profile-mini,.profile-panel{padding:18px}
+    .profile-mini{border-radius:22px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.88)}
+    .profile-mini span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+    .profile-mini strong{font-size:1.05rem}
+    .profile-stats strong{display:inline-flex;align-items:center;padding:12px 14px;border-radius:18px;background:rgba(8,10,16,.88);border:1px solid rgba(212,177,106,.12)}
+    .profile-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+    .content-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+    .identity-chip,.creator-card{
+        display:flex;align-items:center;gap:12px;padding:14px;border-radius:20px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.88);text-decoration:none;color:#f5efe2
+    }
+    .identity-avatar{width:40px;height:40px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(212,177,106,.3),rgba(212,177,106,.08));font-weight:900;color:#f3d8a6}
+    .identity-chip strong,.creator-card strong{display:block}
+    .identity-chip small,.creator-card small{display:block;color:#a9a191}
+    @media (max-width: 940px){.profile-head-grid,.profile-grid{grid-template-columns:1fr}}
+    @media (max-width: 640px){
+        .profile-shell{padding-inline:8px}
+        .profile-hero,.profile-panel{border-radius:24px}
+        .profile-cover img{height:210px}
+        .profile-avatar{width:92px;height:92px;border-radius:24px}
+    }
 </style>
 <section class="profile-shell">
-    <div class="profile-card">
-        <div style="min-height: 180px; background: linear-gradient(135deg, #ffe4ea, #f8b6c4);">
-            <img src="{% cover_url profile %}" alt="" style="width:100%; height:240px; object-fit:cover;">
-        </div>
-        <div style="padding: 0 22px 24px;">
-            <div style="display:flex; gap:18px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; margin-top:-52px;">
-                <div style="display:flex; align-items:flex-end; gap:16px;">
-                    <div style="width:108px; height:108px; border-radius:24px; background:#f7ead0; border:4px solid rgba(255,255,255,.92); overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:38px; font-weight:800; color:#5f4518;">
-                        <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}" style="width:100%; height:100%; object-fit:cover;">
+    <div class="profile-stack">
+        <section class="profile-hero">
+            <div class="profile-cover">
+                <img src="{% cover_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+            </div>
+            <div class="profile-head">
+                <div class="profile-head-grid">
+                    <div>
+                        <div class="profile-identity">
+                            <div class="profile-avatar">
+                                <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+                            </div>
+                            <div>
+                                <div class="eyebrow-row">
+                                    <span class="eyebrow-pill">@{{ profile.username }}</span>
+                                    {% if profile.is_verified %}<span class="eyebrow-pill">Verified</span>{% endif %}
+                                    {% if active_membership %}<span class="eyebrow-pill">Premium</span>{% endif %}
+                                    {% if profile.is_creator %}<span class="eyebrow-pill">Creator</span>{% endif %}
+                                    {% if profile.is_private %}<span class="eyebrow-pill">Private</span>{% endif %}
+                                </div>
+                                <h1 style="margin:12px 0 6px;font-size:clamp(2rem,5vw,3.6rem);line-height:.95;">{{ profile.display_name|default:profile.username }}</h1>
+                                <p class="profile-copy" style="margin:0 0 12px;">{{ profile.bio|default:"This member is building a premium Namvibe presence across posts, stories, live, and community." }}</p>
+                                <div class="profile-stats">
+                                    <strong>{{ profile.post_count }} posts</strong>
+                                    <strong>{{ profile.follower_count }} followers</strong>
+                                    <strong>{{ profile.following_count }} following</strong>
+                                </div>
+                                {% if current_live %}
+                                    <div class="action-row" style="margin-top:12px;">
+                                        <div class="profile-actions"><a class="primary" href="{% url 'live_room' current_live.uuid %}">LIVE now · {{ current_live.title }}</a></div>
+                                    </div>
+                                {% elif upcoming_live %}
+                                    <div class="action-row" style="margin-top:12px;">
+                                        <div class="profile-actions"><a href="{% url 'live_room' upcoming_live.uuid %}">Upcoming live {{ upcoming_live.starts_at|date:"M j H:i" }}</a></div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <div style="padding-bottom:8px;">
-                        <h1 style="margin:0; font-size:30px; color:#1f1a14;">{{ profile.display_name }}</h1>
-                        <p style="margin:5px 0 0; color:#7a6d5b;">@{{ profile.username }}{% if profile.is_verified %} · verified{% endif %}</p>
-                        {% if current_live %}
-                            <a class="btn btn-main" style="margin-top:8px;" href="{% url 'live_room' current_live.uuid %}">LIVE now · {{ current_live.title }}</a>
-                        {% elif upcoming_live %}
-                            <a class="btn btn-dark" style="margin-top:8px;" href="{% url 'live_room' upcoming_live.uuid %}">Upcoming live {{ upcoming_live.starts_at|date:"M j H:i" }}</a>
-                        {% endif %}
+                    <div class="profile-side">
+                        <div class="profile-mini">
+                            <span>Profile lane</span>
+                            <strong>{% if can_edit %}Owner control{% else %}Public social profile{% endif %}</strong>
+                            <span>{{ joined_communities|length }} communities visible · {{ live_posts|length }} live announcements</span>
+                        </div>
+                        <div class="profile-mini">
+                            <span>Actions</span>
+                            <div class="profile-actions action-row">
+                                {% if can_edit %}
+                                    <a class="primary" href="{% url 'profile_edit' %}">Edit profile</a>
+                                    <a href="{% url 'studio' %}">Create post</a>
+                                    <a href="{% url 'live_start' %}">Go live</a>
+                                {% elif request.user.is_authenticated %}
+                                    <form method="post" action="{% url 'follow_toggle' profile.username %}">
+                                        {% csrf_token %}
+                                        <button class="primary" type="submit">{% if is_following %}Following{% else %}Follow{% endif %}</button>
+                                    </form>
+                                    <a href="{% url 'messaging:start_chat' profile.user.id %}">Message</a>
+                                {% else %}
+                                    <a class="primary" href="{% url 'login' %}?next={{ request.path }}">Follow</a>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="profile-actions">
-                    {% if can_edit %}
-                        <a class="btn btn-main" href="{% url 'profile_edit' %}">Edit profile</a>
-                        <a class="btn btn-dark" href="{% url 'studio' %}">Create post</a>
-                        <a class="btn btn-dark" href="{% url 'live_home' %}">Go Live</a>
-                    {% elif request.user.is_authenticated %}
-                        <form method="post" action="{% url 'follow_toggle' profile.username %}">
-                            {% csrf_token %}
-                            <button class="btn btn-main" type="submit">{% if is_following %}Following{% else %}Follow{% endif %}</button>
-                        </form>
-                        <a class="btn btn-dark" href="{% url 'messaging:start_chat' profile.user.id %}">Message</a>
-                    {% else %}
-                        <a class="btn btn-main" href="{% url 'login' %}?next={{ request.path }}">Follow</a>
-                    {% endif %}
+                <div class="profile-links" style="margin-top:14px;">
+                    {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
+                    {% if profile.website %}<a href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
+                    {% if dating_profile_visible %}<a href="{% url 'dating_profile_detail' profile.username %}">Dating profile</a>{% endif %}
+                    <a href="#posts">Posts</a>
+                    <a href="#social">Social graph</a>
+                    <a href="#about">About</a>
                 </div>
             </div>
+        </section>
 
-            <div class="profile-meta" style="margin:22px 0;">
-                <strong>{{ profile.post_count }} posts</strong>
-                <strong>{{ profile.follower_count }} followers</strong>
-                <strong>{{ profile.following_count }} following</strong>
+        <nav class="section-tabs" aria-label="Profile sections">
+            <a href="#posts">Posts</a>
+            <a href="#media">Media</a>
+            <a href="#reels">Reels</a>
+            <a href="#communities">Communities</a>
+            <a href="#social">Social</a>
+            <a href="#about">About</a>
+        </nav>
+
+        <div class="profile-grid">
+            <div class="profile-stack">
+                <section class="profile-panel" id="posts">
+                    <h2 style="margin-top:0;">Posts</h2>
+                    <div class="content-grid">
+                        {% for post in profile_posts %}
+                            {% include "posts/_post_card.html" with post=post %}
+                        {% empty %}
+                            <div class="nv-empty">No visible posts yet.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="profile-panel" id="media">
+                    <h2 style="margin-top:0;">Media</h2>
+                    <div class="content-grid">
+                        {% for post in media_posts %}
+                            {% include "posts/_post_card.html" with post=post %}
+                        {% empty %}
+                            <div class="nv-empty">No visible media posts yet.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="profile-panel" id="reels">
+                    <h2 style="margin-top:0;">Reels</h2>
+                    <div class="content-grid">
+                        {% for post in reel_posts %}
+                            {% include "posts/_post_card.html" with post=post %}
+                        {% empty %}
+                            <div class="nv-empty">No visible reels yet.</div>
+                        {% endfor %}
+                    </div>
+                </section>
             </div>
 
-            {% if profile.bio %}<p style="line-height:1.7; color:#554a3c;">{{ profile.bio }}</p>{% endif %}
-            <div class="profile-safe-links">
-                {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
-                {% if profile.website %}<a href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
-                {% if active_membership %}<span>Premium</span>{% endif %}
-                {% if profile.is_creator %}<span>Creator</span>{% endif %}
-                {% if profile.is_private %}<span>Private</span>{% endif %}
-                {% if profile.user.dating_profile and profile.user.dating_profile.is_visible %}
-                    <a href="{% url 'dating_profile_detail' profile.username %}">Dating profile available</a>
-                {% endif %}
+            <div class="profile-stack">
+                <section class="profile-panel" id="communities">
+                    <h2 style="margin-top:0;">Communities</h2>
+                    <div class="content-grid">
+                        {% for membership in joined_communities %}
+                            <a class="creator-card" href="{% url 'community_detail' membership.community.slug %}">
+                                <span class="identity-avatar">{{ membership.community.name|slice:":1"|upper }}</span>
+                                <span><strong>{{ membership.community.name }}</strong><small>{{ membership.community.member_count }} members · {{ membership.community.get_privacy_display }}</small></span>
+                            </a>
+                        {% empty %}
+                            <div class="nv-empty">No visible communities yet.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="profile-panel" id="social">
+                    <h2 style="margin-top:0;">Social graph</h2>
+                    <div class="content-grid">
+                        {% for edge in recent_followers %}
+                            <a class="identity-chip" href="{% url 'profile_detail' edge.follower.profile.username %}">
+                                <span class="identity-avatar">{{ edge.follower.profile.username|slice:":1"|upper }}</span>
+                                <span><strong>@{{ edge.follower.profile.username }}</strong><small>Followed recently</small></span>
+                            </a>
+                        {% empty %}
+                            <div class="nv-empty">Follower activity will appear here.</div>
+                        {% endfor %}
+                    </div>
+                    <div class="content-grid" style="margin-top:14px;">
+                        {% for edge in following_preview %}
+                            <a class="identity-chip" href="{% url 'profile_detail' edge.following.profile.username %}">
+                                <span class="identity-avatar">{{ edge.following.profile.username|slice:":1"|upper }}</span>
+                                <span><strong>@{{ edge.following.profile.username }}</strong><small>Following</small></span>
+                            </a>
+                        {% empty %}
+                            <div class="nv-empty">Following activity will appear here.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="profile-panel">
+                    <h2 style="margin-top:0;">Suggested creators</h2>
+                    <div class="content-grid">
+                        {% for creator in related_creators %}
+                            <a class="creator-card" href="{% url 'profile_detail' creator.username %}">
+                                <span class="identity-avatar">{{ creator.username|slice:":1"|upper }}</span>
+                                <span><strong>{{ creator.display_name|default:creator.username }}</strong><small>@{{ creator.username }} · {{ creator.follower_count }} followers</small></span>
+                            </a>
+                        {% empty %}
+                            <div class="nv-empty">Creator suggestions will appear here.</div>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="profile-panel" id="about">
+                    <h2 style="margin-top:0;">About</h2>
+                    <p class="profile-copy">{{ profile.bio|default:"This member is building their Namvibe presence across feed, reels, live, and community." }}</p>
+                    <div class="profile-links">
+                        {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
+                        {% if profile.website %}<a href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
+                        {% if profile.is_creator %}<span>Creator account</span>{% endif %}
+                        {% if active_membership %}<span>Premium member</span>{% endif %}
+                    </div>
+                </section>
             </div>
         </div>
     </div>
-
-    <nav class="profile-tabs" aria-label="Profile sections">
-        <a href="#posts">Posts</a>
-        <a href="#media">Media</a>
-        <a href="#reels">Reels</a>
-        <a href="#communities">Communities</a>
-        <a href="#live">Live</a>
-        <a href="#about">About</a>
-    </nav>
-
-    <section class="profile-section" id="posts">
-        <h2 style="margin-top:0;">Posts</h2>
-        <div class="profile-grid">
-            {% for post in profile_posts %}
-                {% include "posts/_post_card.html" with post=post %}
-            {% empty %}
-                <div class="nv-empty">No visible posts yet.</div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="profile-section" id="media">
-        <h2 style="margin-top:0;">Media</h2>
-        <div class="profile-grid">
-            {% for post in media_posts %}
-                {% include "posts/_post_card.html" with post=post %}
-            {% empty %}
-                <div class="nv-empty">No visible media posts yet.</div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="profile-section" id="reels">
-        <h2 style="margin-top:0;">Reels</h2>
-        <div class="profile-grid">
-            {% for post in reel_posts %}
-                {% include "posts/_post_card.html" with post=post %}
-            {% empty %}
-                <div class="nv-empty">No visible reels yet.</div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="profile-section" id="communities">
-        <h2 style="margin-top:0;">Communities</h2>
-        <div class="profile-grid">
-            {% for membership in joined_communities %}
-                <a class="nv-empty" href="{% url 'community_detail' membership.community.slug %}">
-                    <strong>{{ membership.community.name }}</strong>
-                    <p>{{ membership.community.member_count }} members · {{ membership.community.get_privacy_display }}</p>
-                </a>
-            {% empty %}
-                <div class="nv-empty">No visible communities yet.</div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="profile-section" id="live">
-        <h2 style="margin-top:0;">Live</h2>
-        <div class="profile-grid">
-            {% for post in live_posts %}
-                {% include "posts/_post_card.html" with post=post %}
-            {% empty %}
-                <div class="nv-empty">No live announcements yet.</div>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="profile-section" id="about">
-        <h2 style="margin-top:0;">About</h2>
-        <p style="color:#554a3c;line-height:1.7;">{{ profile.bio|default:"This member is building their Namvibe presence." }}</p>
-        <div class="profile-safe-links">
-            {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
-            {% if profile.website %}<a href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
-            {% if profile.is_creator %}<span>Creator account</span>{% endif %}
-        </div>
-    </section>
 </section>
 {% endblock %}
