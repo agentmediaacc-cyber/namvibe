@@ -7,7 +7,6 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 from accounts.views import public_profile_view
-from config.health import healthz
 from core.product_views import (
     channels_view,
     coins_view,
@@ -59,6 +58,10 @@ from posts.views import (
 from supportapp.views import support_control_view
 
 
+def healthz(request):
+    return HttpResponse("ok")
+
+
 def community_list_alias(request):
     return redirect("community_list")
 
@@ -79,7 +82,7 @@ urlpatterns = [
     path("", safe_index, name="home"),
     path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}images/favicon.svg", permanent=False)),
     path("healthz", healthz, name="healthz"),
-    path("healthz/", healthz),
+    
     path("admin/", admin.site.urls),
     path("notifications/", notifications_view, name="notifications"),
     path("channels/", channels_view, name="channels"),
