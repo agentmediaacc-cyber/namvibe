@@ -26,6 +26,17 @@ def env_list(name, default=None):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def merged_env_list(name, default=None, extra=None):
+    items = list(default or [])
+    items.extend(env_list(name))
+    items.extend(extra or [])
+    merged = []
+    for item in items:
+        if item and item not in merged:
+            merged.append(item)
+    return merged
+
+
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key")
 DEBUG = env_bool("DEBUG", default=False)
 if SECRET_KEY == "django-insecure-dev-key":
@@ -151,8 +162,15 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-default_allowed_hosts = ["localhost", "127.0.0.1", "testserver", ".railway.app", "www.namvibe.com", "namvibe.com"]
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", default_allowed_hosts)
+railway_hosts = [
+    os.getenv("RAILWAY_PUBLIC_DOMAIN", ""),
+    os.getenv("RAILWAY_PRIVATE_DOMAIN", ""),
+    ".up.railway.app",
+    ".railway.app",
+    ".railway.internal",
+]
+default_allowed_hosts = ["localhost", "127.0.0.1", "testserver", "0.0.0.0", "www.namvibe.com", "namvibe.com"]
+ALLOWED_HOSTS = merged_env_list("ALLOWED_HOSTS", default_allowed_hosts, railway_hosts)
 if DEBUG and "*" not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append("*")
 
@@ -162,6 +180,9 @@ default_csrf_origins = [
     "https://www.namvibe.com",
     "https://namvibe.com",
 ]
-CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", default_csrf_origins)
+railway_csrf_origins = []
+if os.getenv("RAILWAY_PUBLIC_DOMAIN"):
+    railway_csrf_origins.append(f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN')}")
+CSRF_TRUSTED_ORIGINS = merged_env_list("CSRF_TRUSTED_ORIGINS", default_csrf_origins, railway_csrf_origins)
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
