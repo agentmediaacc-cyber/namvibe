@@ -1,6 +1,4 @@
 from django.shortcuts import render
-from django.http import HttpResponse
-from django.http import JsonResponse
 from .homepage import fallback_homepage_context, homepage_context
 
 def index(request):
@@ -50,6 +48,3 @@ def dating_view(request):
 
 def live_home_view(request):
     return render(request, "core/live_home.html")
-
-def healthz(request):
-    return JsonResponse({"ok": True})

@@ -21,7 +21,6 @@ from core.product_views import (
     support_view,
 )
 from core.views import (
-    healthz,
     feed_live_view,
     feed_sponsored_view,
     feed_videos_view,
