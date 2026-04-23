@@ -20,12 +20,14 @@ from core.product_views import (
     premium_tier_view,
     support_view,
 )
-from core.views import healthz
+from core.views import (
+    healthz,
     feed_live_view,
     feed_sponsored_view,
     feed_videos_view,
     index as real_index,
 )
+
 from posts.views import (
     add_comment_view,
     author_posts_list_view,
