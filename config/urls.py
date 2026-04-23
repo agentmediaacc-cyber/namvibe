@@ -20,7 +20,7 @@ from core.product_views import (
     premium_tier_view,
     support_view,
 )
-from core.views import (, healthz
+from core.views import healthz
     feed_live_view,
     feed_sponsored_view,
     feed_videos_view,
