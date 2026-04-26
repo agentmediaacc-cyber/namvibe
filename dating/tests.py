@@ -1,12 +1,21 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Block
-from .models import DatingLike, DatingPass, DatingPreference, DatingProfile, Match
-from .services import discovery_queryset_for, like_user, pass_user
+from .models import DatingCoinBalance, DatingLike, DatingPass, DatingPreference, DatingProfile, Match
+from .services import (
+    BOOST_COST_COINS,
+    SUPER_LIKE_COST_COINS,
+    coin_balance_for,
+    discovery_queryset_for,
+    like_user,
+    likes_used_today,
+    pass_user,
+)
 
 
 class DatingSystemTests(TestCase):
@@ -42,7 +51,7 @@ class DatingSystemTests(TestCase):
         self.client.force_login(new_user)
 
         response = self.client.post(
-            reverse("dating_profile_edit"),
+            reverse("dating"),
             {
                 "display_name": "New Date",
                 "birth_date": "1999-02-02",
@@ -66,9 +75,21 @@ class DatingSystemTests(TestCase):
         )
 
         profile = DatingProfile.objects.get(user=new_user)
-        self.assertRedirects(response, reverse("dating_profile_detail", kwargs={"username": new_user.profile.username}), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("dating"), fetch_redirect_response=False)
         self.assertTrue(profile.is_visible)
         self.assertEqual(profile.interests, ["travel", "food"])
+
+    def test_new_users_get_zero_coin_balance(self):
+        balance = DatingCoinBalance.objects.get(user=self.viewer)
+        self.assertEqual(balance.balance, 0)
+
+    def test_coin_balance_is_recreated_when_missing(self):
+        DatingCoinBalance.objects.filter(user=self.viewer).delete()
+
+        balance = coin_balance_for(self.viewer)
+
+        self.assertEqual(balance.balance, 0)
+        self.assertTrue(DatingCoinBalance.objects.filter(user=self.viewer).exists())
 
     def test_under_18_profile_blocked_from_visibility(self):
         teen = User.objects.create_user(username="teen_date", password="Pass12345")
@@ -125,4 +146,191 @@ class DatingSystemTests(TestCase):
         response = self.client.get(reverse("dating_matches"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Alex")
+        self.assertContains(response, self.alex.profile.display_name)
+
+    def test_free_tier_has_daily_like_limit(self):
+        self.viewer_profile.premium_tier = DatingProfile.PremiumTier.FREE
+        self.viewer_profile.save(update_fields=["premium_tier"])
+        extra_users = []
+        for idx in range(25):
+            user = User.objects.create_user(username=f"free_like_{idx}", password="Pass12345")
+            extra_users.append(user)
+            self._profile(user, f"Free {idx}", "woman", visible=True)
+            like, _match = like_user(self.viewer, user)
+            self.assertIsNotNone(like)
+
+        blocked_user = User.objects.create_user(username="free_like_blocked", password="Pass12345")
+        self._profile(blocked_user, "Blocked", "woman", visible=True)
+        like, _match = like_user(self.viewer, blocked_user)
+        self.assertIsNone(like)
+
+    def test_daily_like_limit_resets_on_new_local_day(self):
+        self.viewer_profile.premium_tier = DatingProfile.PremiumTier.FREE
+        self.viewer_profile.save(update_fields=["premium_tier"])
+
+        yesterday = timezone.now() - timedelta(days=1)
+        for idx in range(25):
+            user = User.objects.create_user(username=f"yesterday_like_{idx}", password="Pass12345")
+            self._profile(user, f"Yesterday {idx}", "woman", visible=True)
+            like, _match = like_user(self.viewer, user)
+            self.assertIsNotNone(like)
+            DatingLike.objects.filter(pk=like.pk).update(created_at=yesterday)
+
+        self.assertEqual(likes_used_today(self.viewer), 0)
+
+        today_user = User.objects.create_user(username="today_like_reset", password="Pass12345")
+        self._profile(today_user, "Today Reset", "woman", visible=True)
+        like, _match = like_user(self.viewer, today_user)
+        self.assertIsNotNone(like)
+
+    def test_gold_tier_has_unlimited_likes(self):
+        self.viewer_profile.premium_tier = DatingProfile.PremiumTier.GOLD
+        self.viewer_profile.save(update_fields=["premium_tier"])
+        for idx in range(30):
+            user = User.objects.create_user(username=f"gold_like_{idx}", password="Pass12345")
+            self._profile(user, f"Gold {idx}", "woman", visible=True)
+            like, _match = like_user(self.viewer, user)
+            self.assertIsNotNone(like)
+
+    def test_silver_tier_has_higher_daily_like_limit(self):
+        self.viewer_profile.premium_tier = DatingProfile.PremiumTier.SILVER
+        self.viewer_profile.save(update_fields=["premium_tier"])
+        for idx in range(100):
+            user = User.objects.create_user(username=f"silver_like_{idx}", password="Pass12345")
+            self._profile(user, f"Silver {idx}", "woman", visible=True)
+            like, _match = like_user(self.viewer, user)
+            self.assertIsNotNone(like)
+
+        blocked_user = User.objects.create_user(username="silver_like_blocked", password="Pass12345")
+        self._profile(blocked_user, "Blocked Silver", "woman", visible=True)
+        like, _match = like_user(self.viewer, blocked_user)
+        self.assertIsNone(like)
+
+    def test_vip_tier_has_unlimited_likes(self):
+        self.viewer_profile.premium_tier = DatingProfile.PremiumTier.VIP
+        self.viewer_profile.save(update_fields=["premium_tier"])
+        for idx in range(40):
+            user = User.objects.create_user(username=f"vip_like_{idx}", password="Pass12345")
+            self._profile(user, f"VIP {idx}", "woman", visible=True)
+            like, _match = like_user(self.viewer, user)
+            self.assertIsNotNone(like)
+
+    def test_boost_costs_coins_and_sets_boosted_at(self):
+        self.client.force_login(self.viewer)
+        balance = DatingCoinBalance.objects.get(user=self.viewer)
+        balance.balance = BOOST_COST_COINS
+        balance.save(update_fields=["balance"])
+
+        response = self.client.post(reverse("dating_boost"))
+
+        self.assertRedirects(response, reverse("dating"), fetch_redirect_response=False)
+        self.viewer_profile.refresh_from_db()
+        balance.refresh_from_db()
+        self.assertIsNotNone(self.viewer_profile.boosted_at)
+        self.assertEqual(balance.balance, 0)
+
+    def test_boost_respects_existing_cooldown_without_deducting(self):
+        self.client.force_login(self.viewer)
+        self.viewer_profile.boosted_at = timezone.now()
+        self.viewer_profile.save(update_fields=["boosted_at"])
+        balance = DatingCoinBalance.objects.get(user=self.viewer)
+        balance.balance = BOOST_COST_COINS
+        balance.save(update_fields=["balance"])
+
+        self.client.post(reverse("dating_boost"))
+
+        balance.refresh_from_db()
+        self.assertEqual(balance.balance, BOOST_COST_COINS)
+
+    def test_super_like_costs_coins_and_marks_like(self):
+        self.client.force_login(self.viewer)
+        balance = DatingCoinBalance.objects.get(user=self.viewer)
+        balance.balance = SUPER_LIKE_COST_COINS
+        balance.save(update_fields=["balance"])
+
+        response = self.client.post(reverse("dating_super_like", kwargs={"username": self.alex.profile.username}))
+
+        self.assertRedirects(response, reverse("dating_discover"), fetch_redirect_response=False)
+        like = DatingLike.objects.get(from_user=self.viewer, to_user=self.alex)
+        balance.refresh_from_db()
+        self.assertTrue(like.is_super_like)
+        self.assertEqual(balance.balance, 0)
+
+    def test_super_like_ajax_rejects_duplicate_charge(self):
+        self.client.force_login(self.viewer)
+        balance = DatingCoinBalance.objects.get(user=self.viewer)
+        balance.balance = SUPER_LIKE_COST_COINS * 2
+        balance.save(update_fields=["balance"])
+        DatingLike.objects.create(from_user=self.viewer, to_user=self.alex, is_super_like=True)
+
+        response = self.client.post(
+            reverse("dating_super_like", kwargs={"username": self.alex.profile.username}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        balance.refresh_from_db()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(balance.balance, SUPER_LIKE_COST_COINS * 2)
+
+    def test_duplicate_super_like_does_not_require_new_balance_or_charge_again(self):
+        self.client.force_login(self.viewer)
+        DatingLike.objects.create(from_user=self.viewer, to_user=self.alex, is_super_like=True)
+        balance = DatingCoinBalance.objects.get(user=self.viewer)
+        balance.balance = 0
+        balance.save(update_fields=["balance"])
+
+        response = self.client.post(reverse("dating_super_like", kwargs={"username": self.alex.profile.username}))
+
+        balance.refresh_from_db()
+        self.assertRedirects(response, reverse("dating_discover"), fetch_redirect_response=False)
+        self.assertEqual(balance.balance, 0)
+
+    def test_ajax_like_returns_json_when_limit_is_reached(self):
+        self.client.force_login(self.viewer)
+        self.viewer_profile.premium_tier = DatingProfile.PremiumTier.FREE
+        self.viewer_profile.save(update_fields=["premium_tier"])
+
+        for idx in range(25):
+            user = User.objects.create_user(username=f"ajax_like_limit_{idx}", password="Pass12345")
+            self._profile(user, f"Ajax Limit {idx}", "woman", visible=True)
+            like, _match = like_user(self.viewer, user)
+            self.assertIsNotNone(like)
+
+        blocked_user = User.objects.create_user(username="ajax_like_limit_blocked", password="Pass12345")
+        self._profile(blocked_user, "Ajax Blocked", "woman", visible=True)
+
+        response = self.client.post(
+            reverse("dating_like", kwargs={"username": blocked_user.profile.username}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertJSONEqual(response.content, {"ok": False, "error": "Daily like limit reached for your current tier."})
+
+    def test_ajax_pass_returns_json_successfully(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.post(
+            reverse("dating_pass", kwargs={"username": self.alex.profile.username}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(response.content, {"ok": True})
+
+    def test_ajax_super_like_returns_json_when_insufficient_coins(self):
+        self.client.force_login(self.viewer)
+        balance = DatingCoinBalance.objects.get(user=self.viewer)
+        balance.balance = 0
+        balance.save(update_fields=["balance"])
+
+        response = self.client.post(
+            reverse("dating_super_like", kwargs={"username": self.alex.profile.username}),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertJSONEqual(
+            response.content,
+            {"ok": False, "error": f"You need {SUPER_LIKE_COST_COINS} coins to send a Super Like."},
+        )

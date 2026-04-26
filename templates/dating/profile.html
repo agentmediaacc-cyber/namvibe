@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Namvibe Dating | Premium{% endblock %}
+
+{% block content %}
+<style>
+  .dating-wrap{max-width:1180px;margin:0 auto;padding:18px}
+  .dating-hero{background:linear-gradient(135deg,#111827,#7c2d12,#be123c);border-radius:28px;padding:24px;color:white;box-shadow:0 20px 60px rgba(0,0,0,.22)}
+  .dating-top{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}
+  .pill{display:inline-flex;gap:7px;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.14);backdrop-filter:blur(10px)}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin-top:20px}
+  .card{background:white;color:#111827;border-radius:24px;padding:18px;box-shadow:0 12px 35px rgba(15,23,42,.12);border:1px solid #f1f5f9}
+  .profile-head{display:flex;gap:14px;align-items:center}
+  .avatar{width:76px;height:76px;border-radius:24px;background:linear-gradient(135deg,#fb7185,#f97316);display:grid;place-items:center;font-size:34px;font-weight:900;color:white}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+  .stat{background:#fff7ed;border-radius:18px;padding:12px;text-align:center}
+  .stat b{font-size:22px;display:block}
+  .wallet-strip{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{border:0;border-radius:16px;padding:12px 14px;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+  .btn-main{background:#111827;color:white}
+  .btn-hot{background:#e11d48;color:white}
+  .btn-soft{background:#f1f5f9;color:#111827}
+  .btn-outline{background:transparent;color:#111827;border:1px solid #e5e7eb}
+  .tabs{display:flex;gap:10px;overflow-x:auto;margin:18px 0}
+  .tabs a{white-space:nowrap;text-decoration:none;color:#111827;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:10px 14px;font-weight:800}
+  .tabs a.active{background:#111827;color:#fff}
+  .tabs a.cta-tab{background:#e11d48;color:#fff;border-color:#e11d48}
+  .main-grid{display:grid;grid-template-columns:1fr 390px;gap:18px}
+  .discover-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .match-card{border-radius:24px;padding:16px;min-height:220px;color:white;background:linear-gradient(135deg,#be123c,#f97316);display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;z-index:1}
+  .match-card-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;opacity:.6}
+  .match-card:nth-child(2){background:linear-gradient(135deg,#2563eb,#7c3aed)}
+  .match-card:nth-child(3){background:linear-gradient(135deg,#065f46,#16a34a)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label{font-size:13px;font-weight:800;color:#475569}
+  input,select,textarea{width:100%;box-sizing:border-box;border:1px solid #e5e7eb;border-radius:16px;padding:12px;font:inherit;background:#f8fafc}
+  textarea{min-height:96px;resize:vertical}
+  .full{grid-column:1/-1}
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tool{background:#f8fafc;border-radius:18px;padding:12px;font-weight:800}
+  .hint{color:#64748b;font-size:14px}
+  .progress{height:10px;background:#f1f5f9;border-radius:999px;overflow:hidden;margin:12px 0}
+  .progress span{display:block;height:100%;background:linear-gradient(135deg,#fb7185,#f97316)}
+  .premium-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .premium-card{background:linear-gradient(180deg,#fff7ed,#ffffff);border:1px solid #fed7aa;border-radius:22px;padding:16px;min-height:146px;display:flex;flex-direction:column;justify-content:space-between}
+  .premium-card.dark{background:linear-gradient(160deg,#111827,#1f2937);color:white;border-color:#1f2937}
+  .premium-card h4{margin:0;font-size:14px;text-transform:uppercase;letter-spacing:.06em;opacity:.78}
+  .premium-card b{font-size:28px;line-height:1.1}
+  .premium-meta{font-size:13px;color:#64748b}
+  .premium-card.dark .premium-meta{color:#cbd5e1}
+  .tier-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.18);font-size:13px;font-weight:800}
+  .mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+  .mini-stat{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:14px}
+  .mini-stat b{display:block;font-size:22px}
+  .status-inline{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .status-chip{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;background:#fff7ed;color:#9a3412;font-size:13px;font-weight:800}
+  @media(max-width:900px){
+    .hero-grid,.main-grid{grid-template-columns:1fr}
+    .discover-grid{grid-template-columns:1fr}
+  }
+  @media(max-width:520px){
+    .dating-wrap{padding:10px}
+    .dating-hero{border-radius:22px;padding:18px}
+    .form-grid,.tools,.stats{grid-template-columns:1fr}
+    .premium-stack,.mini-grid{grid-template-columns:1fr}
+    .actions .btn{width:100%}
+    .wallet-strip,.status-inline{flex-direction:column;align-items:stretch}
+    .tabs a{padding:10px 12px}
+    .match-card{min-height:200px}
+  }
+</style>
+
+<div class="dating-wrap">
+  <section class="dating-hero">
+    <div class="dating-top">
+      <div>
+        <span class="pill">💘 Namvibe Dating Premium</span>
+        <h1 style="margin:14px 0 6px;font-size:clamp(30px,5vw,58px)">Meet real people. Match smarter. Chat safely.</h1>
+        <p style="margin:0;color:#ffe4e6">Dating, followers, profile boosts, likes, matches, and private messaging in one premium space.</p>
+      </div>
+      <a class="btn btn-soft" href="{% url 'user_dashboard' %}">Dashboard</a>
+    </div>
+
+    <div class="hero-grid">
+      <div class="card">
+        <div class="profile-head">
+          <div class="avatar">{{ request.user.username|first|upper }}</div>
+          <div>
+            <h2 style="margin:0">{{ request.user.username|default:"Namvibe User" }}</h2>
+            <p class="hint" style="margin:5px 0">
+              {% if dating_profile and dating_profile.city %}
+                {{ dating_profile.city }}{% if dating_profile.region %} • {{ dating_profile.region }}{% endif %}{% if dating_profile.country %} • {{ dating_profile.country }}{% endif %}
+              {% elif dating_profile and dating_profile.country %}
+                {{ dating_profile.country }}
+              {% else %}
+                Complete your profile to improve discovery
+              {% endif %}
+            </p>
+            <div>
+              {% if dating_profile and dating_profile.has_premium_badge %}
+                <span class="pill" style="background:#fff7ed;color:#9a3412">👑 {{ dating_profile.premium_badge_label }}</span>
+              {% else %}
+                <span class="pill" style="background:#fff7ed;color:#9a3412">🆓 Free tier</span>
+              {% endif %}
+              <span class="pill" style="background:#ecfdf5;color:#047857">
+                {% if dating_profile and dating_profile.is_verified_dating %}✅ Verified dating{% else %}📝 Profile setup{% endif %}
+              </span>
+              {% if dating_profile.boosted_at %}
+                <span class="pill" style="background:#fef2f2;color:#991b1b">🚀 Boosted</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <a href="{% url 'dating_views' %}" class="stat" style="text-decoration:none; color:inherit"><b>{{ views_count|default:0 }}</b><span>Views</span></a>
+          <div class="stat"><b>{{ likes_count|default:0 }}</b><span>Likes</span></div>
+          <div class="stat"><b>{{ matches_count|default:0 }}</b><span>Matches</span></div>
+        </div>
+
+        <div class="progress"><span style="width: {{ profile_strength|default:0 }}%"></span></div>
+        <p class="hint">Profile strength: <b>{{ profile_strength|default:0 }}%</b> — add 3 photos, interests, and a short intro to unlock stronger discovery.</p>
+        <div class="wallet-strip">
+          <span class="pill" style="background:#eff6ff;color:#1d4ed8">🪙 {{ coin_balance.balance }} coins available</span>
+          <span class="pill" style="background:#f8fafc;color:#0f172a">
+            {% if dating_profile and dating_profile.has_unlimited_likes %}
+              Unlimited likes
+            {% elif dating_profile %}
+              {{ likes_used_today }} used today · {{ remaining_likes_today }} left
+            {% else %}
+              Create a profile to unlock likes
+            {% endif %}
+          </span>
+        </div>
+
+        <div class="mini-grid">
+          <div class="mini-stat">
+            <span class="hint">Super Likes sent</span>
+            <b>{{ super_likes_sent }}</b>
+          </div>
+          <div class="mini-stat">
+            <span class="hint">Super Likes received</span>
+            <b>{{ super_likes_received }}</b>
+          </div>
+        </div>
+
+        <div class="status-inline">
+          <span class="status-chip">👑 {{ premium_tier_label }} tier</span>
+          {% if dating_profile and boost_hours_left %}
+            <span class="status-chip">⏳ Boost cooldown: {{ boost_hours_left }}h left</span>
+          {% elif dating_profile and dating_profile.boosted_at %}
+            <span class="status-chip">🚀 Boost ready again</span>
+          {% else %}
+            <span class="status-chip">🚀 No active boost yet</span>
+          {% endif %}
+        </div>
+
+        <div class="actions">
+          <form action="{% url 'dating_boost' %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button class="btn btn-hot" type="submit">Boost Profile · {{ boost_cost_coins }} coins</button>
+          </form>
+          <a class="btn btn-main" href="{% url 'dating_discover' %}">Open Discover</a>
+          <a class="btn btn-soft" href="{% url 'dating_likes' %}">View Likes</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Premium Status</h3>
+        <div class="premium-stack">
+          <div class="premium-card dark">
+            <div>
+              <h4>Coin Balance</h4>
+              <b>{{ coin_balance.balance }}</b>
+            </div>
+            <div class="premium-meta">Use coins for boosts and Super Likes.</div>
+          </div>
+          <div class="premium-card">
+            <div>
+              <h4>Current Tier</h4>
+              <b>{{ premium_tier_label }}</b>
+            </div>
+            <div class="premium-meta">
+              {% if dating_profile and dating_profile.has_unlimited_likes %}
+                Unlimited daily likes enabled.
+              {% else %}
+                {% if dating_profile %}{{ remaining_likes_today }} normal likes left today.{% else %}Create a profile to unlock likes.{% endif %}
+              {% endif %}
+            </div>
+          </div>
+          <div class="premium-card">
+            <div>
+              <h4>Boost Status</h4>
+              <b>
+                {% if dating_profile and boost_hours_left %}
+                  {{ boost_hours_left }}h
+                {% elif dating_profile and dating_profile.boosted_at %}
+                  Ready
+                {% else %}
+                  Available
+                {% endif %}
+              </b>
+            </div>
+            <div class="premium-meta">
+              {% if dating_profile and boost_hours_left %}
+                Your next paid boost unlocks after the 24-hour cooldown finishes.
+              {% else %}
+                Boost now for {{ boost_cost_coins }} coins to move higher in discovery.
+              {% endif %}
+            </div>
+          </div>
+          <div class="premium-card">
+            <div>
+              <h4>Super Likes</h4>
+              <b>{{ super_likes_sent }}/{{ super_likes_received }}</b>
+            </div>
+            <div class="premium-meta">Sent / received. Each Super Like costs {{ super_like_cost_coins }} coins.</div>
+          </div>
+        </div>
+        <div class="tools" style="margin-top:12px">
+          <a href="{% url 'dating_views' %}" class="tool" style="text-decoration:none; color:inherit">👀 Who viewed me</a>
+          <a href="{% url 'dating_matches' %}" class="tool" style="text-decoration:none; color:inherit">💬 Open matches</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs" id="dashboard-tabs">
+    <a class="active" href="{% url 'dating' %}">Dashboard</a>
+    <a href="{% url 'dating' %}#my-profile">My Profile</a>
+    <a href="{% url 'dating_matches' %}">Matches</a>
+    <a href="{% url 'dating_likes' %}">Likes</a>
+    <a href="{% url 'dating_discover' %}" class="cta-tab">🔥 Start Swiping</a>
+  </nav>
+
+  <div class="main-grid">
+    <section class="card">
+      <h2 style="margin-top:0">Recent Matches</h2>
+      <p class="hint">People you have matched with. Start a conversation!</p>
+      <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;">
+        {% for match in recent_matches %}
+          {% if match.user_one == request.user %}{% with other=match.user_two %}{% include "dating/match_card_mini.html" %}{% endwith %}{% else %}{% with other=match.user_one %}{% include "dating/match_card_mini.html" %}{% endwith %}{% endif %}
+        {% empty %}
+          <p class="hint">No matches yet. Swipe to find someone!</p>
+        {% endfor %}
+      </div>
+
+      <div style="display:flex; justify-content: space-between; align-items: center; margin-top:24px">
+        <div>
+          <h2 style="margin:0">Smart Discover</h2>
+          <p class="hint" style="margin: 5px 0 0">Premium cards for people nearby, trending profiles, and social matches.</p>
+        </div>
+        <a href="{% url 'dating_discover' %}" class="btn btn-hot">Start Swiping 🔥</a>
+      </div>
+
+      <div class="discover-grid" style="margin-top: 15px;">
+        {% for profile in discovery_profiles %}
+          <div class="match-card" style="background: linear-gradient(135deg, {% if forloop.counter == 1 %}#be123c,#f97316{% elif forloop.counter == 2 %}#2563eb,#7c3aed{% else %}#065f46,#16a34a{% endif %});">
+            {% with photo=profile.primary_photo %}
+              {% if photo %}
+                <img src="{{ photo.image.url }}" class="match-card-bg" alt="{{ profile.display_name }}">
+              {% endif %}
+            {% endwith %}
+            <div>
+              <span class="pill">{% if profile.user.profile.is_creator %}💫 Creator{% else %}🔥 Nearby{% endif %}</span>
+              {% if profile.has_premium_badge %}<span class="pill" style="background:rgba(255,255,255,.16);margin-left:6px;">👑 {{ profile.premium_badge_label }}</span>{% endif %}
+              <h3 style="margin:10px 0 4px">{{ profile.display_name|default:profile.user.username }}</h3>
+              <p style="margin:0;font-size:14px;opacity:.9">{{ profile.interests|slice:":3"|join:" • " }}</p>
+            </div>
+            <div class="actions">
+              <a href="{% url 'dating_message_match' profile.user.profile.username %}" class="btn btn-soft">Chat</a>
+              <form action="{% url 'dating_like' profile.user.profile.username %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'dating' %}">
+                <button class="btn btn-soft" type="submit">Like</button>
+              </form>
+              <form action="{% url 'follow_toggle' profile.user.profile.username %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button class="btn btn-soft" type="submit">Follow</button>
+              </form>
+            </div>
+          </div>
+        {% empty %}
+          <div class="full" style="padding:40px;text-align:center;background:#f8fafc;border-radius:24px;">
+            <p class="hint">No new profiles found nearby right now. Check back later!</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="card" id="my-profile">
+      <h2 style="margin-top:0">My Dating Profile</h2>
+
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div class="full">
+            <label>Display name</label>
+            <input name="display_name" placeholder="Your dating name" value="{{ form.display_name.value|default:request.user.username }}">
+          </div>
+
+          <div>
+            <label>Birth date</label>
+            <input type="date" name="birth_date" value="{{ form.birth_date.value|date:'Y-m-d' }}">
+          </div>
+
+          <div>
+            <label>Gender</label>
+            <select name="gender">
+              {% for val, label in form.fields.gender.choices %}
+                <option value="{{ val }}" {% if form.gender.value == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label>Goal</label>
+            <select name="relationship_goal">
+              {% for val, label in form.fields.relationship_goal.choices %}
+                <option value="{{ val }}" {% if form.relationship_goal.value == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label>City</label>
+            <input name="city" value="{{ form.city.value|default:'' }}">
+          </div>
+
+          <div>
+            <label>Region</label>
+            <input name="region" value="{{ form.region.value|default:'' }}">
+          </div>
+
+          <div class="full">
+            <label>Occupation</label>
+            <input name="occupation" placeholder="Creator / Entrepreneur" value="{{ form.occupation.value|default:'' }}">
+          </div>
+
+          <div class="full">
+            <label>Photos</label>
+            <input type="file" name="photos" multiple accept="image/*">
+          </div>
+
+          <div class="full">
+            <label>Bio</label>
+            <textarea name="bio" placeholder="Tell people your vibe...">{{ form.bio.value|default:'' }}</textarea>
+          </div>
+
+          <div class="full">
+            <label>Interests</label>
+            <input name="interests_text" value="{{ form.interests_text.value|default:'' }}">
+          </div>
+
+          <div class="full" style="margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
+            <h3 style="margin:0 0 10px">Discovery Preferences</h3>
+            <p class="hint">Who do you want to meet?</p>
+          </div>
+
+          <div>
+            <label>Min Age</label>
+            <input type="number" name="pref-age_min" value="{{ preference_form.age_min.value|default:18 }}">
+          </div>
+
+          <div>
+            <label>Max Age</label>
+            <input type="number" name="pref-age_max" value="{{ preference_form.age_max.value|default:99 }}">
+          </div>
+
+          <div>
+            <label>Preferred City</label>
+            <input name="pref-preferred_city" value="{{ preference_form.preferred_city.value|default:'' }}">
+          </div>
+
+          <div>
+            <label>Max Distance (km)</label>
+            <input type="number" name="pref-distance_km" value="{{ preference_form.distance_km.value|default:100 }}">
+          </div>
+
+          <div class="full actions">
+            <button class="btn btn-hot" type="submit">Save profile</button>
+            <a class="btn btn-outline" href="{% url 'dating_profile_detail' request.user.profile.username %}">Preview public card</a>
+          </div>
+        </div>
+      </form>
+    </aside>
+  </div>
+</div>
+{% endblock %}

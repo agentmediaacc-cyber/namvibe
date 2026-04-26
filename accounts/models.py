@@ -41,6 +41,8 @@ class Profile(models.Model):
     avatar = models.ImageField(upload_to="profiles/avatars/", blank=True, validators=[validate_image_file])
     cover_image = models.ImageField(upload_to="profiles/covers/", blank=True, validators=[validate_image_file])
     website = models.URLField(blank=True)
+    town = models.CharField(max_length=120, blank=True, db_index=True)
+    region = models.CharField(max_length=120, blank=True, db_index=True)
     location = models.CharField(max_length=120, blank=True, db_index=True)
     is_verified = models.BooleanField(default=False)
     is_creator = models.BooleanField(default=False)
@@ -55,6 +57,7 @@ class Profile(models.Model):
         indexes = [
             models.Index(fields=["username"]),
             models.Index(fields=["is_creator", "is_verified"]),
+            models.Index(fields=["town", "region"]),
             models.Index(fields=["location"]),
         ]
 

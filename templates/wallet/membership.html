@@ -7,7 +7,7 @@
     <div><h1>Premium membership</h1><p class="muted">Use wallet balance and Vibe Coin value to unlock discovery boosts, premium live access, and creator-grade perks.</p></div>
     <div>
       <div class="money">N${{ wallet.available_balance }}</div>
-      <div class="muted">{% widthratio wallet.available_balance 5 1 %} Vibe Coins at 1 coin = 5 NAD</div>
+      <div class="muted">{% widthratio wallet.available_balance coin_display_rate 1 %} Vibe Coins at the current wallet display rate</div>
     </div>
   </div>
   <div class="wallet-highlight-grid">
@@ -24,7 +24,7 @@
     <div class="wallet-card"><strong>{{ active_membership.plan.name }} active</strong><p class="muted">Valid until {{ active_membership.ends_at|date:"M j, Y"|default:"ongoing" }}.</p></div>
   {% endif %}
   <div class="wallet-grid" style="margin-bottom:14px;">
-    <div class="wallet-card"><span class="muted">Coin conversion</span><div class="money">5 NAD</div><p class="muted">1 Vibe Coin display value in wallet UI.</p></div>
+    <div class="wallet-card"><span class="muted">Coin display</span><div class="money">Wallet-linked</div><p class="muted">Coin display uses the shared wallet UI rate.</p></div>
     <div class="wallet-card"><span class="muted">Premium access</span><div class="money">{% if active_membership %}Active{% else %}Available{% endif %}</div><p class="muted">Reuse wallet balance instead of separate payment logic.</p></div>
     <div class="wallet-card"><span class="muted">Creator flow</span><div class="money">Linked</div><p class="muted">Premium, gifts, and live monetization stay connected.</p></div>
   </div>
@@ -34,7 +34,7 @@
         <h2>{{ plan.name }}</h2>
         <p class="muted">{{ plan.description }}</p>
         <div class="money">N${{ plan.price }}</div>
-        <p class="muted">{{ plan.get_billing_period_display }} · {% widthratio plan.price 5 1 %} Vibe Coins</p>
+        <p class="muted">{{ plan.get_billing_period_display }} · {% widthratio plan.price coin_display_rate 1 %} Vibe Coins</p>
         {% if plan.feature_flags %}
           <p class="muted">Feature flags: {{ plan.feature_flags|length }}</p>
         {% endif %}

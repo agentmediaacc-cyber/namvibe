@@ -14,12 +14,12 @@ from live.services import featured_sessions_for, live_now_for
 from messaging.models import Message
 from messaging.services import conversations_for_user
 from posts.models import Comment, Post
-from posts.services import FeedRankingService, suggested_communities_for, suggested_users_for, trending_hashtags
+from posts.services import base_visible_posts, suggested_communities_for, suggested_users_for, trending_hashtags
 from stories.models import StoryItem
 from stories.services import story_rail_for
 from supportapp.models import SystemPromoCard
 from wallet.models import MembershipPlan, WalletTransaction
-from wallet.services import active_membership_for, ensure_wallet
+from wallet.services import VIBE_COIN_DISPLAY_RATE, active_membership_for, ensure_wallet
 
 
 def _dashboard_section_url(section, **params):
@@ -138,7 +138,6 @@ def _feed_tabs():
 
 
 def _quick_actions(user):
-    dashboard_posts = reverse("dashboard_posts")
     return [
         {"label": "Post", "icon": "✎", "url": f"{reverse('studio')}?type=text"},
         {"label": "Reel", "icon": "▶", "url": f"{reverse('studio')}?type=reel"},
@@ -150,7 +149,7 @@ def _quick_actions(user):
         {"label": "Premium", "icon": "★", "url": reverse("wallet_membership")},
         {"label": "Studio", "icon": "◌", "url": reverse("studio")},
         {"label": "Sell", "icon": "▣", "url": reverse("photo_selling")},
-        {"label": "Jobs", "icon": "↗", "url": dashboard_posts},
+        {"label": "Communities", "icon": "↗", "url": reverse("community_list")},
         {"label": "Support", "icon": "?", "url": reverse("support_help")},
     ]
 
@@ -290,14 +289,13 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
 
 def homepage_context(request):
     user = request.user
-    public_posts = (
-        Post.objects.filter(status=Post.Status.PUBLISHED, audience=Post.Audience.PUBLIC, published_at__isnull=False)
-        .select_related("author", "author__profile", "community")
-        .prefetch_related("media", "poll__options")
+    visible_posts = (
+        base_visible_posts(user)
+        .published()
+        .order_by("-published_at", "-created_at")
     )
-    ranked_posts = FeedRankingService(user).rank(public_posts, limit=80)
-    primary_posts = ranked_posts[:10]
-    reel_preview = [post for post in ranked_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
+    primary_posts = list(visible_posts[:12])
+    reel_preview = [post for post in primary_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
     active_stories = StoryItem.objects.visible_to(user)
     live_now, featured_live = _live_preview(user)
     story_rail = story_rail_for(user, limit=18)
@@ -316,7 +314,7 @@ def homepage_context(request):
     membership_plans = list(MembershipPlan.objects.filter(is_active=True).order_by("price", "name")[:3])
 
     current_profile = getattr(user, "profile", None) if user.is_authenticated else None
-    following_count = Follow.objects.filter(follower=user).count() if user.is_authenticated else 0
+    following_count = current_profile.following_count if current_profile else 0
     friend_count = Match.objects.filter(Q(user_one=user) | Q(user_two=user), is_active=True).count() if user.is_authenticated else 0
     conversations = list(conversations_for_user(user)[:5]) if user.is_authenticated else []
     top_conversation = conversations[0] if conversations else None
@@ -348,7 +346,7 @@ def homepage_context(request):
         "following_count": following_count,
         "friend_count": friend_count,
         "total_members": User.objects.count(),
-        "total_posts": Post.objects.filter(status=Post.Status.PUBLISHED, audience=Post.Audience.PUBLIC).count(),
+        "total_posts": visible_posts.count(),
         "total_live": len(live_now),
         "total_stories": active_stories.count(),
         "nav_notification_count": header_counts["notifications"],
@@ -363,6 +361,7 @@ def homepage_context(request):
         "notifications_url": reverse("notifications"),
         "wallet_url": reverse("wallet_home"),
         "premium_url": reverse("wallet_membership"),
+        "coin_display_rate": VIBE_COIN_DISPLAY_RATE,
         "jobs_url": reverse("dashboard_posts"),
         "discover_url": reverse("discover"),
         "nearby_url": reverse("feed_nearby"),
@@ -410,6 +409,7 @@ def fallback_homepage_context(request, error_message=""):
         "notifications_url": reverse("notifications"),
         "wallet_url": reverse("wallet_home"),
         "premium_url": reverse("wallet_membership"),
+        "coin_display_rate": VIBE_COIN_DISPLAY_RATE,
         "jobs_url": reverse("dashboard_posts"),
         "discover_url": reverse("discover"),
         "nearby_url": reverse("feed_nearby"),

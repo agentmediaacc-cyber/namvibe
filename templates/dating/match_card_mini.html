@@ -1,0 +1,7 @@
+<div style="min-width:140px;background:#f8fafc;border-radius:18px;padding:14px;text-align:center;border:1px solid #e5e7eb;">
+  <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#be123c,#f97316);margin:0 auto 10px;display:grid;place-items:center;color:white;font-weight:900;font-size:24px;">
+    {{ other.profile.display_name|default:other.username|first|upper }}
+  </div>
+  <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ other.profile.display_name|default:other.username }}</div>
+  <a href="{% url 'dating_message_match' other.profile.username %}" class="btn btn-soft" style="margin-top:10px;padding:6px 10px;font-size:12px;width:100%;">Chat</a>
+</div>

@@ -17,7 +17,6 @@ from core.product_views import (
     notifications_view,
     photo_selling_view,
     premium_tier_view,
-    support_view,
 )
 from core.views import (
     feed_live_view,
@@ -55,7 +54,7 @@ from posts.views import (
     studio_view,
     track_post_view,
 )
-from supportapp.views import support_control_view
+from supportapp.views import support_control_view, support_home_view
 
 
 def community_list_alias(request):
@@ -71,6 +70,8 @@ def discover_people_alias(request):
 
 
 urlpatterns = [
+    path("health/", include("ehealth.urls")),
+
     path("", real_index, name="home"),
     path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}images/favicon.svg", permanent=False)),
     path("healthz", healthz, name="healthz"),
@@ -84,7 +85,7 @@ urlpatterns = [
     path("image-tools/", image_tools_view, name="image_tools"),
     path("gifting/", gifting_view, name="gifting"),
     path("coins/", coins_view, name="coins"),
-    path("support/", support_view, name="support_help"),
+    path("support/", support_home_view, name="support_help"),
     path("support/control/", support_control_view, name="support_control"),
     path("premium/<str:tier>/", premium_tier_view, name="premium_tier"),
     path("community-list/", community_list_alias, name="community_list_alias"),

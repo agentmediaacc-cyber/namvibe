@@ -1,5 +1,8 @@
+from functools import wraps
+
 from django.http import JsonResponse
 
+from accounts.services import ensure_account_role
 from accounts.models import Profile
 from ads.models import Advertisement
 from communities.models import Community
@@ -8,6 +11,18 @@ from posts.models import Comment, Post, Report
 from stories.models import StoryItem
 from supportapp.models import SystemPromoCard
 from wallet.models import MembershipPlan, UserMembership, WalletAccount, WalletTransaction
+
+
+def dashboard_api_protected(view_func):
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({"ok": False, "error": "Authentication required."}, status=401)
+        role = ensure_account_role(request.user)
+        if not getattr(role, "is_admin", False):
+            return JsonResponse({"ok": False, "error": "Admin access required."}, status=403)
+        return view_func(request, *args, **kwargs)
+    return _wrapped
 
 
 def _dashboard_payload(section, *, extra=None, safe_mode_message=""):
@@ -43,6 +58,7 @@ def api_root(request):
     return JsonResponse(_dashboard_payload("root", extra=payload, safe_mode_message=safe_mode_message))
 
 
+@dashboard_api_protected
 def dashboard_home(request):
     safe_mode_message = ""
     try:
@@ -62,6 +78,7 @@ def dashboard_home(request):
     return JsonResponse(_dashboard_payload("dashboard", extra=payload, safe_mode_message=safe_mode_message))
 
 
+@dashboard_api_protected
 def dashboard_users(request):
     safe_mode_message = ""
     try:
@@ -76,6 +93,7 @@ def dashboard_users(request):
     return JsonResponse(_dashboard_payload("dashboard_users", extra=payload, safe_mode_message=safe_mode_message))
 
 
+@dashboard_api_protected
 def dashboard_posts(request):
     safe_mode_message = ""
     try:
@@ -91,6 +109,7 @@ def dashboard_posts(request):
     return JsonResponse(_dashboard_payload("dashboard_posts", extra=payload, safe_mode_message=safe_mode_message))
 
 
+@dashboard_api_protected
 def dashboard_wallet(request):
     safe_mode_message = ""
     try:
@@ -106,6 +125,7 @@ def dashboard_wallet(request):
     return JsonResponse(_dashboard_payload("dashboard_wallet", extra=payload, safe_mode_message=safe_mode_message))
 
 
+@dashboard_api_protected
 def dashboard_support(request):
     safe_mode_message = ""
     try:
@@ -120,6 +140,7 @@ def dashboard_support(request):
     return JsonResponse(_dashboard_payload("dashboard_support", extra=payload, safe_mode_message=safe_mode_message))
 
 
+@dashboard_api_protected
 def dashboard_reports(request):
     safe_mode_message = ""
     try:

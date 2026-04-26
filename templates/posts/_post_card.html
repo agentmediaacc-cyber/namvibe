@@ -60,6 +60,20 @@
         </div>
     {% endif %}
 
+    <div class="nv-comment-preview">
+        {% for comment in post.comments.all|slice:":4" %}
+            {% if not comment.parent_id and not comment.is_deleted %}
+                <div style="padding:10px 0;border-top:1px solid rgba(212,177,106,.08);">
+                    <strong>@{{ comment.author.profile.username }}</strong>
+                    <small style="color:#8b7b65;"> · {{ comment.created_at|date:"M j" }}</small>
+                    <div>{{ comment.body|truncatechars:120 }}</div>
+                </div>
+            {% endif %}
+        {% empty %}
+            <div style="padding:10px 0;color:#8b7b65;">No comments yet. Start the thread.</div>
+        {% endfor %}
+    </div>
+
     <div class="nv-tags">
         {% for tag in post.hashtags %}<span>{{ tag }}</span>{% endfor %}
         {% if post.premium_badge %}<span>Premium</span>{% endif %}

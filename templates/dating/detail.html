@@ -13,6 +13,11 @@
     </div>
     <div>
       <h1>{{ dating_profile.display_name }}{% if dating_profile.show_age %}, {{ dating_profile.age }}{% endif %}</h1>
+      <div class="chip-row" style="margin-bottom:10px;">
+        {% if dating_profile.has_premium_badge %}<span class="chip">👑 {{ dating_profile.premium_badge_label }}</span>{% endif %}
+        {% if dating_profile.is_verified_dating %}<span class="chip">✓ Verified</span>{% endif %}
+        {% if dating_profile.boosted_at %}<span class="chip">🚀 Boosted</span>{% endif %}
+      </div>
       <p class="dating-muted">{{ dating_profile.city }}{% if dating_profile.region %}, {{ dating_profile.region }}{% endif %} · {{ dating_profile.get_relationship_goal_display }}</p>
       <p>{{ dating_profile.bio }}</p>
       <div class="chip-row">{% for interest in dating_profile.interests %}<span class="chip">{{ interest }}</span>{% endfor %}</div>
@@ -20,6 +25,10 @@
         {% if dating_profile.user != request.user %}
           <form method="post" action="{% url 'dating_pass' dating_profile.user.profile.username %}">{% csrf_token %}<button type="submit">{% if passed %}Passed{% else %}Pass{% endif %}</button></form>
           <form method="post" action="{% url 'dating_like' dating_profile.user.profile.username %}">{% csrf_token %}<button class="dating-primary" type="submit">{% if liked %}Liked{% else %}Like{% endif %}</button></form>
+          <form method="post" action="{% url 'dating_super_like' dating_profile.user.profile.username %}">{% csrf_token %}<button type="submit">⭐ {% if super_liked %}Super Liked{% else %}Super Like · {{ super_like_cost_coins }} coins{% endif %}</button></form>
+          {% if is_match %}
+            <a class="dating-primary btn" href="{% url 'dating_message_match' dating_profile.user.profile.username %}" style="text-decoration:none;padding:12px 20px;border-radius:12px;font-weight:800;display:inline-flex;align-items:center;">Chat</a>
+          {% endif %}
         {% else %}
           <a class="dating-primary" href="{% url 'dating_profile_edit' %}">Edit profile</a>
         {% endif %}

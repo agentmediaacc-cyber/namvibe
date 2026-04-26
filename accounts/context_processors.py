@@ -39,7 +39,7 @@ def _drawer_groups(request, smart_profile_url):
                 {"label": "Discover", "url": _safe_reverse("discover"), "icon": "discover", "active": _is_active(route, "discover", "discover_search", "posts_discover")},
                 {"label": "Dating", "url": _safe_reverse("dating"), "icon": "heart", "active": _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
                 {"label": "Live", "url": _safe_reverse("live_home"), "icon": "live", "active": _is_active(route, "live_home", "live_room", "live_featured", "live_scheduled")},
-                {"label": "Live Studio", "url": _safe_reverse("live_studio"), "icon": "broadcast", "active": _is_active(route, "live_studio", "live_start", "legacy_live_studio")},
+                {"label": "Live Studio", "url": _safe_reverse("live_start"), "icon": "broadcast", "active": _is_active(route, "live_start", "legacy_live_studio")},
                 {"label": "Communities", "url": _safe_reverse("community_list"), "icon": "community", "active": _is_active(route, "community_list", "community_detail", "community_create")},
                 {"label": "Channels", "url": _safe_reverse("channels"), "icon": "channel", "active": _is_active(route, "channels")},
                 {"label": "Gaming", "url": _safe_reverse("gaming"), "icon": "gaming", "active": _is_active(route, "gaming")},

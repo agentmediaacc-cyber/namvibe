@@ -8,6 +8,8 @@ from django.utils import timezone
 from live.models import LiveAccessPurchase, LiveGift, LiveSession
 from .models import CreatorEntitlement, GiftCatalog, GiftEvent, MembershipPlan, UserMembership, WalletAccount, WalletTransaction
 
+VIBE_COIN_DISPLAY_RATE = 5
+
 
 class WalletError(Exception):
     pass

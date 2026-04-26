@@ -108,18 +108,17 @@ def _post_action_redirect(request, post):
 @require_http_methods(["GET"])
 def feed_view(request):
     safe_mode_message = ""
-    page_obj = Paginator([], 15).get_page(request.GET.get("page"))
     legacy_posts = []
     try:
-        queryset = base_visible_posts(request.user).published()
-        ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
-        page_obj = Paginator(ranked_posts, 15).get_page(request.GET.get("page"))
-        if not ranked_posts:
+        queryset = base_visible_posts(request.user).published().order_by("-published_at", "-created_at")
+        page_obj = Paginator(queryset, 15).get_page(request.GET.get("page"))
+        if not page_obj.object_list:
             legacy_posts = get_public_posts(limit=50)
             if not isinstance(legacy_posts, list):
                 legacy_posts = []
     except Exception as exc:
         safe_mode_message = str(exc)
+        page_obj = Paginator([], 15).get_page(request.GET.get("page"))
     return render(
         request,
         "posts/feed.html",

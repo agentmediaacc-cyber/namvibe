@@ -1,25 +1,3 @@
-{% extends "base.html" %}
-{% block title %}Verify Email | Namvibe{% endblock %}
 
-{% block content %}
-<section class="auth-shell">
-    <div class="auth-card premium-auth-card">
-        <span class="auth-badge">Email verification</span>
-        <h1>Verify your email</h1>
-        <p>Verification keeps creator access, support routing, and trust-sensitive features safer. We send emails from <strong>support@namvibe.com</strong> when SMTP is configured.</p>
-        <div class="profile-summary">
-            <div><span>Private email</span><strong>{{ account_profile.email }}</strong></div>
-            <div><span>Status</span><strong>{% if account_profile.email_verified %}Verified{% else %}Waiting for confirmation{% endif %}</strong></div>
-            <div><span>Last sent</span><strong>{{ account_profile.verification_sent_at|date:"M j, Y H:i"|default:"Not sent yet" }}</strong></div>
-        </div>
-        <form method="post" action="{% url 'verify_email_resend' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-main auth-submit">Resend verification email</button>
-        </form>
-        <div class="auth-bottom-links" style="margin-top:16px;">
-            <a href="{% url 'user_dashboard' %}">Back to account</a>
-            <a href="{% url 'support_help' %}">Need help?</a>
-        </div>
-    </div>
-</section>
-{% endblock %}
+<h1>Email Verification Required</h1>
+<p>Please verify your email to continue using all features.</p>

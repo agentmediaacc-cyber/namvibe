@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from .models import GiftEvent, MembershipPlan, UserMembership, WalletTransaction
-from .services import InsufficientFunds, active_membership_for, active_plans, ensure_wallet, purchase_membership
+from .services import VIBE_COIN_DISPLAY_RATE, InsufficientFunds, active_membership_for, active_plans, ensure_wallet, purchase_membership
 
 
 @login_required(login_url="login")
@@ -21,6 +21,7 @@ def wallet_home_view(request):
             "active_membership": active_membership_for(request.user),
             "sent_gifts_count": GiftEvent.objects.filter(sender=request.user).count(),
             "received_gifts_count": GiftEvent.objects.filter(recipient=request.user).count(),
+            "coin_display_rate": VIBE_COIN_DISPLAY_RATE,
         },
     )
 
@@ -52,13 +53,18 @@ def membership_overview_view(request):
             "active_membership": active_membership_for(request.user),
             "plans": active_plans(),
             "memberships": memberships,
+            "coin_display_rate": VIBE_COIN_DISPLAY_RATE,
         },
     )
 
 
 @login_required(login_url="login")
 def membership_plans_view(request):
-    return render(request, "wallet/membership_plans.html", {"plans": active_plans(), "wallet": ensure_wallet(request.user)})
+    return render(
+        request,
+        "wallet/membership_plans.html",
+        {"plans": active_plans(), "wallet": ensure_wallet(request.user), "coin_display_rate": VIBE_COIN_DISPLAY_RATE},
+    )
 
 
 @login_required(login_url="login")
@@ -68,7 +74,11 @@ def membership_history_view(request):
         wallet=ensure_wallet(request.user),
         transaction_type=WalletTransaction.Type.PREMIUM_MEMBERSHIP_PURCHASE,
     )[:50]
-    return render(request, "wallet/membership_history.html", {"memberships": memberships, "transactions": transactions})
+    return render(
+        request,
+        "wallet/membership_history.html",
+        {"memberships": memberships, "transactions": transactions, "coin_display_rate": VIBE_COIN_DISPLAY_RATE},
+    )
 
 
 @login_required(login_url="login")
@@ -105,5 +115,6 @@ def creator_earnings_view(request):
             "wallet": wallet,
             "received_gifts": received_gifts,
             "earning_transactions": earning_transactions,
+            "coin_display_rate": VIBE_COIN_DISPLAY_RATE,
         },
     )

@@ -1,3 +1,10 @@
+from django.conf import settings
+from django.core.mail import send_mail
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.tokens import default_token_generator
+from .email_utils import send_verification_email
+from .tokens import email_verification_token
 from urllib.parse import urlencode
 import logging
 
@@ -7,6 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
+from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -14,7 +22,9 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from live.models import LiveSession
+from messaging.models import Message
 from messaging.services import messaging_dashboard_context
+from dating.models import DatingCoinBalance, DatingLike, DatingProfileView, Match
 from posts.models import Post
 from posts.services import base_visible_posts
 from posts.supabase_posts import get_posts_by_user
@@ -446,16 +456,23 @@ def user_dashboard_view(request):
         return redirect(master_admin_dashboard_url())
     supabase_profile = ensure_supabase_profile(request.user) or get_supabase_profile(request.user)
 
-    posts = []
-    try:
-        posts = get_posts_by_user(request.session.get("eharo_user_id"))
-        if not posts:
-            posts = get_posts_by_user(str(supabase_profile_id_for_user(request.user)))
-    except Exception as exc:
-        logger.warning("LOAD POSTS ERROR: %s", exc)
-
     profile = request.user.profile
     account_profile = getattr(request.user, "account_profile", None)
+    local_posts_qs = (
+        Post.objects.filter(author=request.user)
+        .select_related("author", "author__profile", "community")
+        .prefetch_related("media", "poll__options")
+        .order_by("-published_at", "-created_at")
+    )
+    local_posts = list(local_posts_qs[:12])
+    legacy_posts = []
+    if not local_posts:
+        try:
+            legacy_posts = get_posts_by_user(request.session.get("eharo_user_id"))
+            if not legacy_posts:
+                legacy_posts = get_posts_by_user(str(supabase_profile_id_for_user(request.user)))
+        except Exception as exc:
+            logger.warning("LOAD POSTS ERROR: %s", exc)
     full_name = (
         (supabase_profile or {}).get("full_name")
         or getattr(account_profile, "full_name", "")
@@ -464,12 +481,88 @@ def user_dashboard_view(request):
     )
     username = (supabase_profile or {}).get("username") or profile.username or request.user.username
     email = (supabase_profile or {}).get("email") or getattr(account_profile, "email", "") or request.user.email
-    post_count = max(profile.post_count, len(posts))
+    published_post_count = local_posts_qs.filter(status=Post.Status.PUBLISHED).count()
+    post_count = max(profile.post_count, published_post_count, len(local_posts), len(legacy_posts))
     dashboard_metrics = _dashboard_metrics(request.user)
-
     active_panel = request.GET.get("section") or ("messages" if request.GET.get("conversation") else "overview")
     if active_panel not in {"overview", "profile", "posts", "messages", "wallet", "support"}:
         active_panel = "overview"
+    coin_balance = DatingCoinBalance.for_user(request.user)
+    dating_profile = getattr(request.user, "dating_profile", None)
+    dating_views_count = (
+        DatingProfileView.objects.filter(viewed_profile=dating_profile).values("viewer_id").distinct().count()
+        if dating_profile
+        else 0
+    )
+    profile_views_count = (
+        Post.objects.filter(author=request.user, status=Post.Status.PUBLISHED).aggregate(total=Sum("view_count")).get("total")
+        or 0
+    )
+    notifications_preview = []
+    if active_panel == "messages":
+        unread_threads = messaging_dashboard_context(request.user, request.GET.get("conversation"))
+    else:
+        unread_total = Message.objects.filter(
+            conversation__participants=request.user,
+            read_at__isnull=True,
+        ).exclude(sender=request.user).count()
+        unread_threads = {
+            "chat_conversations": [],
+            "active_conversation": None,
+            "has_selected_conversation": False,
+            "active_chat_other": None,
+            "active_messages": [],
+            "message_form": None,
+            "all_chat_users": [],
+            "chat_unread_total": unread_total,
+            "chat_unread_threads": unread_total,
+            "chat_total_messages": 0,
+            "chat_media_messages": 0,
+        }
+    if unread_threads["chat_unread_total"]:
+        notifications_preview.append({
+            "title": "Unread messages",
+            "copy": f"{unread_threads['chat_unread_total']} new messages across your chat threads.",
+            "url": f"{reverse('user_dashboard')}?section=messages",
+        })
+    pending_follows = Follow.objects.filter(following=request.user).select_related("follower__profile").order_by("-created_at")[:3]
+    for edge in pending_follows:
+        notifications_preview.append({
+            "title": f"@{edge.follower.profile.username} followed you",
+            "copy": "Open your profile to follow back or start a chat.",
+            "url": reverse("profile_detail", kwargs={"username": edge.follower.profile.username}),
+        })
+    recent_dating_likes = DatingLike.objects.filter(to_user=request.user).select_related("from_user__profile").order_by("-created_at")[:2]
+    for like in recent_dating_likes:
+        notifications_preview.append({
+            "title": f"Dating like from @{like.from_user.profile.username}",
+            "copy": "A new dating interaction is waiting in your likes view.",
+            "url": reverse("dating_likes"),
+        })
+    activity_items = []
+    recent_posts = list(local_posts_qs[:3])
+    for post in recent_posts:
+        activity_items.append({
+            "title": post.title or post.caption[:72] or post.get_post_type_display(),
+            "meta": f"{post.get_post_type_display()} · {post.published_at or post.created_at}",
+            "url": reverse("post_detail", kwargs={"uuid": post.uuid}),
+        })
+    active_matches = Match.objects.filter(
+        Q(user_one=request.user) | Q(user_two=request.user),
+        is_active=True,
+    ).count()
+    if not activity_items and active_matches:
+        activity_items.append({
+            "title": "Dating activity",
+            "meta": f"{active_matches} active matches available now.",
+            "url": reverse("dating_matches"),
+        })
+    if not activity_items:
+        activity_items.append({
+            "title": "Start your first activity",
+            "meta": "Create a post, update your profile, or open dating discovery.",
+            "url": reverse("studio"),
+        })
 
     following_preview = list(
         Follow.objects.filter(follower=request.user)
@@ -489,7 +582,8 @@ def user_dashboard_view(request):
         "profile": profile,
         "supabase_profile": supabase_profile,
         "account_profile": account_profile,
-        "user_posts": posts,
+        "user_posts": local_posts,
+        "legacy_user_posts": legacy_posts,
         "post_count": post_count,
         "account_role": account_role,
         "draft_posts": Post.objects.filter(author=request.user, status=Post.Status.DRAFT).prefetch_related("media")[:8],
@@ -498,8 +592,15 @@ def user_dashboard_view(request):
         "active_panel": active_panel,
         "following_preview": following_preview,
         "follower_preview": follower_preview,
+        "coin_balance": coin_balance,
+        "dating_profile": dating_profile,
+        "dating_views_count": dating_views_count,
+        "profile_views_count": profile_views_count,
+        "notifications_preview": notifications_preview[:5],
+        "activity_items": activity_items,
+        "active_match_count": active_matches,
         **dashboard_metrics,
-        **messaging_dashboard_context(request.user, request.GET.get("conversation")),
+        **unread_threads,
     }
     return render(request, "accounts/dashboard.html", context)
 
@@ -547,6 +648,11 @@ def public_profile_view(request, username):
         .order_by("-follower_count", "-post_count")[:6]
     )
     dating_profile = getattr(profile.user, "dating_profile", None)
+    public_post_count = Post.objects.filter(author=profile.user, status=Post.Status.PUBLISHED).count()
+    profile_views_count = (
+        Post.objects.filter(author=profile.user, status=Post.Status.PUBLISHED).aggregate(total=Sum("view_count")).get("total")
+        or 0
+    )
 
     context = {
         "profile": profile,
@@ -560,10 +666,13 @@ def public_profile_view(request, username):
         "current_live": current_live,
         "upcoming_live": upcoming_live,
         "active_membership": active_membership_for(profile.user),
+        "public_post_count": public_post_count,
         "recent_followers": recent_followers,
         "following_preview": following_preview,
         "related_creators": related_creators,
         "dating_profile_visible": bool(dating_profile and dating_profile.is_visible),
+        "dating_profile": dating_profile,
+        "profile_views_count": profile_views_count,
     }
     return render(request, "accounts/profile_detail.html", context)
 
@@ -603,3 +712,13 @@ def follow_toggle_view(request, username):
         follow.delete()
         messages.success(request, f"You unfollowed @{target_profile.username}.")
     return redirect("profile_detail", username=target_profile.username)
+
+
+def profile_shortcut_view(request):
+    return redirect("user_dashboard")
+
+def account_profile_detail(request, username):
+    return public_profile_view(request, username)
+
+def follow_toggle(request, username):
+    return follow_toggle_view(request, username)

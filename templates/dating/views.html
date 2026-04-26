@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Who Viewed Me | Namvibe{% endblock %}
+{% block content %}
+{% include "dating/_styles.html" %}
+<section class="dating-shell">
+  <div class="dating-tabs">
+    <a href="{% url 'dating' %}">Dashboard</a>
+    <a href="{% url 'dating_discover' %}">Discover</a>
+    <a href="{% url 'dating_matches' %}">Matches</a>
+    <a href="{% url 'dating_likes' %}">Likes</a>
+    <a class="dating-primary" href="{% url 'dating_views' %}">Views</a>
+  </div>
+  
+  <div class="dating-panel" style="margin-top:16px;">
+    <h1>Who viewed your profile</h1>
+    <p class="dating-muted">People who recently visited your dating profile.</p>
+    
+    <div style="margin-top:20px;">
+      {% for view in views %}
+        <div class="match-row">
+          <div style="display:flex;gap:12px;align-items:center;">
+            <span class="avatar">
+                {% if view.viewer.profile.avatar %}
+                    <img src="{{ view.viewer.profile.avatar.url }}" alt="{{ view.viewer.username }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                {% else %}
+                    {{ view.viewer.profile.display_name|default:view.viewer.username|first|upper }}
+                {% endif %}
+            </span>
+            <span>
+              <strong>{{ view.viewer.profile.display_name|default:view.viewer.username }}</strong><br>
+              <small>{{ view.viewer.dating_profile.city|default:view.viewer.profile.location|default:"Namibia" }} · viewed {{ view.created_at|timesince }} ago</small>
+            </span>
+          </div>
+          <div class="dating-actions">
+            <a href="{% url 'dating_profile_detail' view.viewer.profile.username %}">Profile</a>
+          </div>
+        </div>
+      {% empty %}
+        <p class="dating-muted">No one has viewed your profile recently. Try boosting your visibility!</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

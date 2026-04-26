@@ -7,11 +7,11 @@
   <div class="dating-layout">
     <section class="dating-panel">
       <h2>People you liked</h2>
-      {% for like in sent_likes %}<a class="match-row" href="{% url 'dating_profile_detail' like.to_user.profile.username %}">@{{ like.to_user.profile.username }}<small>{{ like.created_at|date:"M j" }}</small></a>{% empty %}<p class="dating-muted">No likes sent yet.</p>{% endfor %}
+      {% for like in sent_likes %}<a class="match-row" href="{% url 'dating_profile_detail' like.to_user.profile.username %}">@{{ like.to_user.profile.username }}{% if like.is_super_like %} <strong>⭐ Super Like</strong>{% endif %}{% if like.to_user.dating_profile.has_premium_badge %} <strong>· {{ like.to_user.dating_profile.premium_badge_label }}</strong>{% endif %}<small>{{ like.created_at|date:"M j" }}</small></a>{% empty %}<p class="dating-muted">No likes sent yet.</p>{% endfor %}
     </section>
     <section class="dating-panel">
       <h2>Liked you</h2>
-      {% for like in received_likes %}<a class="match-row" href="{% url 'dating_profile_detail' like.from_user.profile.username %}">@{{ like.from_user.profile.username }}<small>{{ like.created_at|date:"M j" }}</small></a>{% empty %}<p class="dating-muted">No received likes yet.</p>{% endfor %}
+      {% for like in received_likes %}<a class="match-row" href="{% url 'dating_profile_detail' like.from_user.profile.username %}">@{{ like.from_user.profile.username }}{% if like.is_super_like %} <strong>⭐ Super Liked You</strong>{% endif %}{% if like.from_user.dating_profile.has_premium_badge %} <strong>· {{ like.from_user.dating_profile.premium_badge_label }}</strong>{% endif %}<small>{{ like.created_at|date:"M j" }}</small></a>{% empty %}<p class="dating-muted">No received likes yet.</p>{% endfor %}
     </section>
     <section class="dating-panel">
       <h2>Passed</h2>

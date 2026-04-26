@@ -141,6 +141,8 @@ class ProfileForm(forms.ModelForm):
             "avatar",
             "cover_image",
             "website",
+            "town",
+            "region",
             "location",
             "is_creator",
             "is_private",

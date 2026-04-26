@@ -8,7 +8,7 @@
       <h1>Wallet</h1>
       <p class="muted">Manage Vibe Coins, premium access, live gifts, creator earnings, and wallet activity from one polished money layer.</p>
       <div class="wallet-highlight-grid">
-        <div class="wallet-highlight"><span>Coin display</span><strong>1 Vibe Coin = 5 NAD</strong></div>
+        <div class="wallet-highlight"><span>Coin display</span><strong>Wallet-linked display rate</strong></div>
         <div class="wallet-highlight"><span>Premium layer</span><strong>Wallet, membership, and gifting stay linked.</strong></div>
         <div class="wallet-highlight"><span>Creator path</span><strong>Track pending and lifetime earnings together.</strong></div>
       </div>
@@ -17,7 +17,7 @@
   </div>
   <div class="wallet-grid">
     <div class="wallet-card"><span class="muted">Available</span><div class="money">N${{ wallet.available_balance }}</div></div>
-    <div class="wallet-card"><span class="muted">Vibe Coins</span><div class="money">{% widthratio wallet.available_balance 5 1 %}</div><p class="muted">UI rate: 1 Vibe Coin = 5 NAD.</p></div>
+    <div class="wallet-card"><span class="muted">Vibe Coins</span><div class="money">{% widthratio wallet.available_balance coin_display_rate 1 %}</div><p class="muted">Display rate is centrally defined for the wallet UI.</p></div>
     <div class="wallet-card"><span class="muted">Pending creator earnings</span><div class="money">N${{ wallet.pending_balance }}</div></div>
     <div class="wallet-card"><span class="muted">Lifetime earned</span><div class="money">N${{ wallet.lifetime_earned }}</div></div>
     <div class="wallet-card"><span class="muted">Lifetime spent</span><div class="money">N${{ wallet.lifetime_spent }}</div></div>
