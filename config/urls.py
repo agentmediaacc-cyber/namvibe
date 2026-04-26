@@ -7,7 +7,6 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 from accounts.views import public_profile_view
-from config.health import health_db, healthz
 from core.product_views import (
     channels_view,
     coins_view,
