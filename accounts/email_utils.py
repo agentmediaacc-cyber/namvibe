@@ -5,7 +5,7 @@ from django.urls import reverse
 
 def send_verification_email(request, user, token):
     link = request.build_absolute_uri(
-        reverse("verify_email_confirm", args=[user.pk, token])
+        reverse("verify_email_confirm", kwargs={"token": token})
     )
 
     subject = "Verify your Namvibe account"

@@ -118,11 +118,17 @@ if not DATABASE_URL:
         raise ImproperlyConfigured("DATABASE_URL must be configured for non-debug environments.")
 
 DATABASES = {
-    'default': dj_database_url.config(
+    "default": dj_database_url.config(
         default=f"sqlite:///{'/tmp/namvibe-build.sqlite3' if BUILD_WITHOUT_DB else BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600
+        conn_max_age=600,
+        ssl_require=not DEBUG,
     )
 }
+logger.info(
+    "Database configuration ready. DATABASE_URL exists=%s engine=%s",
+    "yes" if bool(DATABASE_URL) else "no",
+    DATABASES["default"].get("ENGINE", "unknown"),
+)
 
 AUTH_PASSWORD_VALIDATORS = []
 LANGUAGE_CODE = 'en-us'

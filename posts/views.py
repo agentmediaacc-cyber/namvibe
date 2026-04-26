@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -36,6 +37,12 @@ from .services import (
     trending_hashtags,
 )
 from .supabase_posts import create_post, get_public_posts
+
+
+def _handle_feed_exception(exc):
+    if not settings.DEBUG:
+        raise
+    return str(exc)
 
 
 def _session_user(request):
@@ -84,7 +91,7 @@ def _paginated_feed(request, queryset, *, title, subtitle, active_feed):
         paginator = Paginator(ranked_posts, 15)
         page_obj = paginator.get_page(request.GET.get("page"))
     except Exception as exc:
-        safe_mode_message = str(exc)
+        safe_mode_message = _handle_feed_exception(exc)
         page_obj = Paginator([], 15).get_page(request.GET.get("page"))
     return render(
         request,
@@ -117,7 +124,7 @@ def feed_view(request):
             if not isinstance(legacy_posts, list):
                 legacy_posts = []
     except Exception as exc:
-        safe_mode_message = str(exc)
+        safe_mode_message = _handle_feed_exception(exc)
         page_obj = Paginator([], 15).get_page(request.GET.get("page"))
     return render(
         request,
@@ -501,7 +508,7 @@ def reels_feed_view(request):
             placement=SystemPromoCard.Placement.HOMEPAGE_FEED,
         )[:3]
     except Exception as exc:
-        safe_mode_message = str(exc)
+        safe_mode_message = _handle_feed_exception(exc)
         ranked_posts = []
         suggested_people = []
         suggested_communities = []

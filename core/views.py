@@ -1,12 +1,20 @@
+import logging
+
+from django.conf import settings
 from django.shortcuts import render
 
 from .homepage import fallback_homepage_context, homepage_context
+
+logger = logging.getLogger(__name__)
 
 
 def index(request):
     try:
         context = homepage_context(request)
     except Exception as exc:
+        logger.exception("Homepage context failed with %s", exc.__class__.__name__)
+        if not settings.DEBUG:
+            raise
         context = fallback_homepage_context(request, str(exc))
     return render(request, "core/home_production.html", context)
 

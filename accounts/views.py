@@ -1,10 +1,3 @@
-from django.conf import settings
-from django.core.mail import send_mail
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
-from django.contrib.auth.tokens import default_token_generator
-from .email_utils import send_verification_email
-from .tokens import email_verification_token
 from urllib.parse import urlencode
 import logging
 
@@ -90,6 +83,48 @@ def _ensure_auth_profile(user):
             "display_name": user.username,
         },
     )
+
+
+def _ensure_account_profile(user):
+    account_profile, _created = AccountProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            "full_name": user.get_full_name() or user.username,
+            "email": (user.email or f"{user.username}@local.invalid").lower(),
+            "phone_country_code": "+264",
+            "cellphone_number": f"+264{user.pk or 0}",
+            "residential_address": "",
+            "country_of_origin": "Namibia",
+            "current_country": "Namibia",
+            "profile_completed": False,
+            "email_verified": False,
+        },
+    )
+    return account_profile
+
+
+def _ensure_user_bootstrap(user):
+    _ensure_auth_profile(user)
+    account_profile = _ensure_account_profile(user)
+    DatingCoinBalance.for_user(user)
+    ensure_account_role(user)
+    return account_profile
+
+
+def _safe_sync_supabase_profile(user):
+    try:
+        return ensure_supabase_profile(user)
+    except Exception as exc:
+        logger.exception("Supabase profile sync crashed for user_id=%s with %s", user.pk, exc.__class__.__name__)
+        return None
+
+
+def _safe_send_verification_email(request, user):
+    try:
+        return send_verification_email(request, user)
+    except Exception as exc:
+        logger.exception("Verification email flow crashed for user_id=%s with %s", user.pk, exc.__class__.__name__)
+        return False, "Your account was created, but verification email could not be sent right now."
 
 
 def _available_username(seed):
@@ -216,9 +251,8 @@ def login_view(request):
     if request.method == "POST":
         if form.is_valid():
             user = form.cleaned_data["user"]
-            _ensure_auth_profile(user)
-            ensure_supabase_profile(user)
-            ensure_account_role(user)
+            _ensure_user_bootstrap(user)
+            _safe_sync_supabase_profile(user)
             django_login(request, user)
             if form.cleaned_data.get("remember_me"):
                 request.session.set_expiry(60 * 60 * 24 * 30)
@@ -239,7 +273,8 @@ def login_view(request):
             auth_payload, auth_error = sign_in_supabase_auth(identifier, password)
             if auth_payload:
                 user = _user_from_supabase_login(identifier, password, auth_payload, supabase_profile)
-                ensure_supabase_profile(user)
+                _ensure_user_bootstrap(user)
+                _safe_sync_supabase_profile(user)
                 django_login(request, user)
                 if request.POST.get("remember_me"):
                     request.session.set_expiry(60 * 60 * 24 * 30)
@@ -315,13 +350,12 @@ def signup_view(request):
                 "An account with those details already exists. Check username, email, and cellphone number.",
             )
         else:
-            _ensure_auth_profile(user)
-            ensure_supabase_profile(user)
-            ensure_account_role(user)
+            _ensure_user_bootstrap(user)
+            _safe_sync_supabase_profile(user)
             django_login(request, user)
             request.session.set_expiry(60 * 60 * 24 * 14)
             _set_account_session(request, user)
-            sent, note = send_verification_email(request, user)
+            sent, note = _safe_send_verification_email(request, user)
             if note:
                 if sent:
                     messages.success(request, note)
@@ -415,16 +449,16 @@ def profile_completion_view(request):
     if not request.user.is_authenticated:
         return redirect(_login_url_with_next("profile_completion"))
 
-    ensure_account_role(request.user)
+    account_profile = _ensure_user_bootstrap(request.user)
     if is_master_admin(request.user):
         repair_master_admin_user(request.user, supabase_uid=getattr(getattr(request.user, "account_role", None), "supabase_uid", ""), email=request.user.email)
         return redirect(master_admin_dashboard_url())
     _set_account_session(request, request.user)
-    account_profile = getattr(request.user, "account_profile", None)
     onboarding_items, onboarding_progress = onboarding_items_for(request.user)
     if request.method == "POST":
-        account_profile.profile_completed = True
-        account_profile.save(update_fields=["profile_completed", "updated_at"])
+        if account_profile:
+            account_profile.profile_completed = True
+            account_profile.save(update_fields=["profile_completed", "updated_at"])
         messages.success(request, "Your onboarding shell is ready.")
         return redirect("user_dashboard")
 
@@ -445,7 +479,7 @@ def user_dashboard_view(request):
         return redirect(_login_url_with_next("user_dashboard"))
 
     _set_account_session(request, request.user)
-    _ensure_auth_profile(request.user)
+    _ensure_user_bootstrap(request.user)
     account_role = ensure_account_role(request.user)
     if is_master_admin(request.user, role=account_role):
         repair_master_admin_user(
@@ -454,7 +488,7 @@ def user_dashboard_view(request):
             email=request.user.email,
         )
         return redirect(master_admin_dashboard_url())
-    supabase_profile = ensure_supabase_profile(request.user) or get_supabase_profile(request.user)
+    supabase_profile = _safe_sync_supabase_profile(request.user) or get_supabase_profile(request.user)
 
     profile = request.user.profile
     account_profile = getattr(request.user, "account_profile", None)

@@ -5,6 +5,8 @@ from django.core.management import call_command
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
+from dating.models import DatingCoinBalance
+
 from .models import AccountProfile, AccountRole, Follow, Profile
 from .services import master_admin_dashboard_url
 
@@ -29,7 +31,15 @@ class AccountAuthFlowTests(TestCase):
         self.assertRedirects(response, reverse("profile_completion"), fetch_redirect_response=False)
         self.assertTrue(User.objects.filter(username="mina_test", email="mina@example.com").exists())
         self.assertTrue(AccountProfile.objects.filter(cellphone_number="+264811234567").exists())
+        self.assertTrue(DatingCoinBalance.objects.filter(user__username="mina_test").exists())
         self.assertEqual(self.client.session["eharo_username"], "mina_test")
+
+    @patch("accounts.views.send_verification_email", side_effect=RuntimeError("smtp down"))
+    def test_signup_survives_verification_email_failure(self, _send_verification):
+        response = self.client.post(reverse("signup"), self._signup_payload(username="mina_mail", email="mina_mail@example.com"))
+
+        self.assertRedirects(response, reverse("profile_completion"), fetch_redirect_response=False)
+        self.assertTrue(User.objects.filter(username="mina_mail").exists())
 
     def test_signup_rejects_duplicate_email_username_and_cellphone(self):
         self.client.post(reverse("signup"), self._signup_payload())
@@ -136,6 +146,22 @@ class AccountAuthFlowTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
+
+    def test_login_repairs_missing_account_profile_and_coin_balance(self):
+        user = User.objects.create_user(username="legacymina", email="legacy@example.com", password="StrongPass1")
+        DatingCoinBalance.objects.filter(user=user).delete()
+        AccountProfile.objects.filter(user=user).delete()
+        self.assertFalse(AccountProfile.objects.filter(user=user).exists())
+        self.assertFalse(DatingCoinBalance.objects.filter(user=user).exists())
+
+        response = self.client.post(
+            reverse("login"),
+            {"identifier": "legacymina", "password": "StrongPass1"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(AccountProfile.objects.filter(user=user).exists())
+        self.assertTrue(DatingCoinBalance.objects.filter(user=user).exists())
 
     def test_dashboard_redirects_logged_out_user_to_login_with_next(self):
         response = self.client.get(reverse("user_dashboard"))
