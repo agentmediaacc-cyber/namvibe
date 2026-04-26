@@ -10,27 +10,31 @@
     <style>
         :root{
             --nav-height: 64px;
-            --bg: #08090d;
-            --surface: rgba(15, 18, 26, .92);
-            --surface-soft: rgba(20, 24, 34, .88);
-            --surface-muted: rgba(33, 38, 52, .82);
-            --line: rgba(192, 163, 95, .18);
-            --line-strong: rgba(235, 203, 126, .34);
-            --text: #f5efe2;
-            --muted: #a9a191;
-            --gold: #d4b16a;
-            --gold-deep: #8f6a2a;
-            --gold-soft: rgba(212, 177, 106, .12);
-            --shadow: 0 24px 70px rgba(0, 0, 0, .38);
+            --bg: #120014;
+            --bg-deep: #160018;
+            --surface: rgba(255, 255, 255, .08);
+            --surface-soft: rgba(255, 255, 255, .06);
+            --surface-muted: rgba(53, 17, 70, .78);
+            --line: rgba(255, 255, 255, .12);
+            --line-strong: rgba(236, 72, 153, .42);
+            --text: #ffffff;
+            --muted: #cbd5e1;
+            --purple: #7c3aed;
+            --pink: #ec4899;
+            --rose: #f43f5e;
+            --gold: #facc15;
+            --gold-soft: rgba(250, 204, 21, .14);
+            --shadow: 0 24px 70px rgba(0, 0, 0, .4);
         }
         *{box-sizing:border-box}
         html{scroll-behavior:smooth}
         body{
             margin:0;
             background:
-                radial-gradient(circle at top left, rgba(212,177,106,.14), transparent 26%),
-                radial-gradient(circle at top right, rgba(108,55,24,.26), transparent 30%),
-                linear-gradient(180deg, #040507, var(--bg));
+                radial-gradient(circle at top left, rgba(124,58,237,.24), transparent 26%),
+                radial-gradient(circle at top right, rgba(236,72,153,.22), transparent 30%),
+                radial-gradient(circle at 50% 100%, rgba(244,63,94,.16), transparent 34%),
+                linear-gradient(180deg, #09000d, var(--bg-deep));
             color:var(--text);
             font-family: "Manrope", "Avenir Next", "Segoe UI", sans-serif;
         }
@@ -39,7 +43,7 @@
             position:fixed;inset:0;
             background:
                 linear-gradient(120deg, rgba(255,255,255,.02), transparent 24%),
-                radial-gradient(circle at 20% 10%, rgba(212,177,106,.08), transparent 18%);
+                radial-gradient(circle at 20% 10%, rgba(124,58,237,.12), transparent 18%);
             pointer-events:none;
             z-index:-1;
         }
@@ -49,7 +53,7 @@
             position:sticky;
             top:0;
             z-index:3000;
-            background:rgba(8,10,14,.82);
+            background:rgba(18,0,20,.82);
             backdrop-filter:blur(14px);
             border-bottom:1px solid var(--line);
             transition:transform .22s ease, box-shadow .22s ease;
@@ -58,7 +62,7 @@
         .site-header::after{
             content:"";
             position:absolute;left:0;right:0;bottom:0;height:1px;
-            background:linear-gradient(90deg, transparent, rgba(212,177,106,.42), transparent);
+            background:linear-gradient(90deg, transparent, rgba(236,72,153,.42), transparent);
         }
         .site-header.header-hidden{transform:translateY(-100%)}
         .nav-wrap{
@@ -73,7 +77,7 @@
         }
         .menu-btn,.search-btn,.nav-link-btn{
             border:1px solid var(--line);
-            background:rgba(19,22,30,.9);
+            background:rgba(255,255,255,.07);
             color:var(--text);
             border-radius:14px;
             padding:9px 11px;
@@ -82,7 +86,7 @@
             cursor:pointer;
             transition:background .18s ease, border-color .18s ease, transform .18s ease;
         }
-        .menu-btn:hover,.nav-link-btn:hover{background:rgba(31,35,46,.96);border-color:var(--line-strong);transform:translateY(-1px)}
+        .menu-btn:hover,.nav-link-btn:hover{background:rgba(255,255,255,.11);border-color:var(--line-strong);transform:translateY(-1px)}
         .menu-btn{
             font-size:20px;
             line-height:1;
@@ -96,9 +100,9 @@
         }
         .brand-mark{
             width:38px;height:38px;border-radius:12px;
-            display:grid;place-items:center;font-weight:900;color:#110d08;
-            background:linear-gradient(135deg,#f3d7a0,var(--gold));
-            box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+            display:grid;place-items:center;font-weight:900;color:#fff;
+            background:linear-gradient(135deg,var(--purple),var(--pink),var(--rose));
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.18), 0 12px 32px rgba(124,58,237,.28);
             flex:0 0 auto;
         }
         .brand strong{
@@ -111,7 +115,7 @@
         .top-search{
             display:flex;align-items:center;gap:8px;
             border:1px solid var(--line);
-            background:rgba(16,19,28,.94);
+            background:rgba(255,255,255,.06);
             border-radius:16px;padding:4px 6px;
             min-width:0;
         }
@@ -119,11 +123,11 @@
             flex:1;min-width:0;border:0;background:transparent;
             color:var(--text);outline:0;padding:8px 10px;
         }
-        .top-search input::placeholder{color:#8e887b}
+        .top-search input::placeholder{color:#aeb9cc}
         .top-search button{
             border:0;border-radius:12px;padding:8px 12px;
-            background:linear-gradient(135deg,var(--gold),var(--gold-deep));
-            color:#110d08;font-weight:800;
+            background:linear-gradient(135deg,var(--purple),var(--pink));
+            color:#fff;font-weight:800;
         }
         .top-actions{display:flex;align-items:center;gap:8px}
         .nav-icon-link{
@@ -138,18 +142,18 @@
         .nav-badge{
             position:absolute;top:-6px;right:-4px;
             min-width:18px;height:18px;padding:0 5px;border-radius:999px;
-            background:#d4b16a;color:#120f09;font-size:11px;font-weight:900;
+            background:linear-gradient(135deg,var(--pink),var(--rose));color:#fff;font-size:11px;font-weight:900;
             display:inline-flex;align-items:center;justify-content:center;
         }
         .nav-avatar{
             width:30px;height:30px;border-radius:10px;
             display:inline-flex;align-items:center;justify-content:center;
-            background:linear-gradient(135deg,#f0d4a0,var(--gold));font-weight:900;color:#22180d;
+            background:linear-gradient(135deg,var(--purple),var(--pink));font-weight:900;color:#fff;
         }
         .primary-btn{
-            background:linear-gradient(135deg,var(--gold),var(--gold-deep))!important;
+            background:linear-gradient(135deg,var(--purple),var(--pink))!important;
             border-color:transparent!important;
-            color:#120f09!important;
+            color:#fff!important;
         }
         .drawer-overlay{
             position:fixed;inset:0;background:rgba(0,0,0,.6);
@@ -159,7 +163,7 @@
         .drawer{
             position:fixed;top:0;left:0;bottom:0;
             width:min(356px,90vw);
-            background:rgba(8,10,15,.98);
+            background:rgba(18,0,20,.98);
             border-right:1px solid var(--line);
             z-index:3999;
             transform:translateX(-100%);
@@ -173,7 +177,7 @@
         .drawer-copy{color:var(--muted);font-size:13px;line-height:1.55;margin-top:6px}
         .drawer-close{
             border:1px solid var(--line);
-            background:rgba(17,20,28,.7);
+            background:rgba(255,255,255,.06);
             color:var(--text);border-radius:14px;
             width:40px;height:40px;cursor:pointer;
         }
@@ -183,13 +187,13 @@
         .drawer-section-title{
             display:flex;align-items:center;justify-content:space-between;gap:8px;
             margin:0 0 10px;
-            color:#d4b16a;font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:900;
+            color:#f9a8d4;font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:900;
         }
         .drawer-grid{display:grid;gap:8px}
         .drawer-link{
             color:var(--text);text-decoration:none;
             border:1px solid transparent;
-            background:rgba(17,20,28,.92);
+            background:rgba(255,255,255,.06);
             border-radius:18px;padding:12px 14px;font-weight:800;
             display:flex;align-items:center;gap:12px;
             box-shadow:0 10px 28px rgba(0,0,0,.18);
@@ -197,14 +201,14 @@
         }
         .drawer-link:hover{transform:translateY(-1px);border-color:var(--line)}
         .drawer-link.active{
-            border-color:rgba(199,161,74,.34);
-            background:linear-gradient(135deg,rgba(36,30,18,.96),var(--gold-soft));
-            color:#f3d8a6;
+            border-color:rgba(236,72,153,.34);
+            background:linear-gradient(135deg,rgba(124,58,237,.24),rgba(236,72,153,.18));
+            color:#fff;
         }
         .drawer-link-icon{
             width:36px;height:36px;border-radius:12px;
             display:inline-flex;align-items:center;justify-content:center;
-            background:rgba(212,177,106,.14);color:#d4b16a;flex:0 0 auto;
+            background:rgba(124,58,237,.24);color:#f9a8d4;flex:0 0 auto;
         }
         .drawer-link-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
         .drawer-link-copy{display:grid;gap:2px;min-width:0}
@@ -212,7 +216,7 @@
         .mobile-bottom-nav{
             position:fixed;left:0;right:0;bottom:0;z-index:2500;
             display:none;grid-template-columns:repeat(5,1fr);gap:0;
-            background:rgba(10,12,18,.96);backdrop-filter:blur(16px);
+            background:rgba(18,0,20,.96);backdrop-filter:blur(16px);
             border-top:1px solid var(--line);
             padding:6px 6px calc(6px + env(safe-area-inset-bottom));
             transition:transform .2s ease;
@@ -220,14 +224,14 @@
         }
         .mobile-bottom-nav.nav-hidden{transform:translateY(120%)}
         .mobile-action,.mobile-action-trigger{
-            color:#b5ac9f;text-decoration:none;text-align:center;
+            color:#cbd5e1;text-decoration:none;text-align:center;
             font-size:11px;font-weight:800;padding:7px 4px;border-radius:14px;
             display:grid;place-items:center;gap:4px;cursor:pointer;
             border:0;background:transparent;
         }
         .mobile-action.active,.mobile-action-trigger.active{
-            color:#f3d8a6;
-            background:linear-gradient(135deg,rgba(32,27,18,.96),var(--gold-soft));
+            color:#fff;
+            background:linear-gradient(135deg,rgba(124,58,237,.28),rgba(236,72,153,.18));
         }
         .mobile-action-icon{
             width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
@@ -244,20 +248,20 @@
         }
         .product-hero h1{font-size:clamp(32px,5vw,58px);line-height:1;margin:8px 0}
         .product-hero p,.product-card span,.muted-card{color:var(--muted);line-height:1.6}
-        .eyebrow{color:var(--gold-deep);font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:.08em}
+        .eyebrow{color:#f9a8d4;font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:.08em}
         .product-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
         .nv-btn{
             display:inline-flex;align-items:center;justify-content:center;
             border:1px solid var(--line);background:var(--surface-soft);
             color:var(--text);text-decoration:none;border-radius:12px;padding:10px 12px;font-weight:900;
         }
-        .nv-btn.primary{background:linear-gradient(135deg,var(--gold),#f3d8a6);border:0;color:#120f09}
+        .nv-btn.primary{background:linear-gradient(135deg,var(--purple),var(--pink));border:0;color:#fff}
         .product-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px}
         .product-section{margin-top:20px}
         .product-section h2{margin:0 0 10px}
         main{min-height:100vh}
         .footer{
-            padding:40px 16px;background:rgba(7,8,12,.94);color:var(--text);
+            padding:40px 16px;background:rgba(18,0,20,.94);color:var(--text);
             border-top:1px solid var(--line);
         }
         .footer-grid{

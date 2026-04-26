@@ -7,19 +7,20 @@
 {% include "posts/post_styles.html" %}
 <style>
   :root{
-    --feed-bg:#07090d;
-    --card:rgba(14,17,24,.96);
-    --card-soft:rgba(19,23,33,.92);
-    --line:rgba(212,177,106,.16);
-    --text:#f5efe2;
-    --muted:#a9a191;
-    --accent:#d4b16a;
-    --accent-soft:rgba(212,177,106,.12);
-    --pink:#c79653;
-    --gold:#f1d8a3;
+    --feed-bg:#120014;
+    --card:rgba(27,3,35,.96);
+    --card-soft:rgba(35,6,44,.92);
+    --line:rgba(255,255,255,.14);
+    --text:#ffffff;
+    --muted:#cbd5e1;
+    --accent:#7c3aed;
+    --accent-soft:rgba(124,58,237,.18);
+    --pink:#ec4899;
+    --gold:#facc15;
+    --rose:#f43f5e;
     --green:#19b88c;
   }
-  body{background:linear-gradient(180deg,#050609,#0a0d12 44%,#090b10);color:var(--text)}
+  body{background:linear-gradient(180deg,#0b000d,#120014 44%,#160018);color:var(--text)}
   .home-shell{width:min(1120px,calc(100% - 12px));margin:0 auto;padding:10px 0 110px}
   .home-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
   .feed-column,.rail-column{min-width:0}
@@ -32,65 +33,65 @@
   .mobile-topbar{
     position:sticky;top:72px;z-index:25;
     display:flex;align-items:center;gap:10px;
-    padding:10px 12px;margin-bottom:12px;background:rgba(12,15,22,.92);backdrop-filter:blur(16px);
+    padding:10px 12px;margin-bottom:12px;background:rgba(27,3,35,.92);backdrop-filter:blur(16px);
   }
   .topbar-title{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
   .topbar-actions{margin-left:auto;display:flex;gap:8px}
-  .topbar-chip,.story-item,.mini-pill,.tab-pill,.rail-link,.floating-promo,.promo-dismiss,.feed-action{
+  .topbar-chip,.story-item,.mini-pill,.tab-pill,.rail-link,.promo-dismiss,.feed-action{
     text-decoration:none;color:inherit;
   }
   .topbar-chip,.mini-pill,.tab-pill,.feed-action{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    border:1px solid var(--line);background:rgba(20,23,33,.92);border-radius:999px;padding:9px 12px;font-weight:700;
+    border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:999px;padding:9px 12px;font-weight:700;
   }
-  .topbar-chip .count{display:inline-flex;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:var(--accent);color:#140f08;font-size:11px;font-weight:900;align-items:center;justify-content:center}
+  .topbar-chip .count{display:inline-flex;min-width:18px;height:18px;padding:0 6px;border-radius:999px;background:linear-gradient(135deg,var(--pink),var(--rose));color:#fff;font-size:11px;font-weight:900;align-items:center;justify-content:center}
   .hero-band{
     position:relative;
     padding:20px;
     margin-bottom:12px;
     border-radius:28px;
-    background:radial-gradient(circle at top left, rgba(212,177,106,.16), transparent 28%), linear-gradient(135deg,rgba(16,20,29,.98),rgba(27,20,14,.94));
-    border:1px solid rgba(212,177,106,.18);
+    background:radial-gradient(circle at top left, rgba(124,58,237,.22), transparent 28%), linear-gradient(135deg,rgba(28,4,36,.98),rgba(70,8,42,.92));
+    border:1px solid rgba(255,255,255,.14);
     overflow:hidden;
   }
   .hero-band::after{
     content:"";
     position:absolute;right:-40px;top:-20px;width:180px;height:180px;border-radius:999px;
-    background:radial-gradient(circle, rgba(212,177,106,.26), transparent 66%);
+    background:radial-gradient(circle, rgba(236,72,153,.22), transparent 66%);
   }
   .hero-grid{position:relative;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:16px;z-index:1}
   .hero-actions,.hero-stats{display:flex;gap:10px;flex-wrap:wrap}
   .hero-stat{
-    flex:1 1 110px;padding:12px 14px;border-radius:18px;border:1px solid rgba(212,177,106,.14);background:rgba(11,13,18,.72)
+    flex:1 1 110px;padding:12px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)
   }
   .hero-stat span{display:block;color:var(--muted);font-size:12px;margin-bottom:4px}
   .hero-stat strong{font-size:1.2rem}
-  .hero-card{padding:16px;border-radius:22px;background:rgba(11,13,18,.76);border:1px solid rgba(212,177,106,.14);display:grid;gap:12px}
-  .hero-card .module-tags span{background:rgba(212,177,106,.12);color:#e6d2a1}
+  .hero-card{padding:16px;border-radius:22px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);display:grid;gap:12px}
+  .hero-card .module-tags span{background:rgba(236,72,153,.14);color:#fbcfe8}
   .stories-strip{padding:12px;margin-bottom:12px;overflow:hidden}
   .stories-track,.feed-tabs{display:flex;gap:10px;overflow:auto;padding-bottom:2px;scrollbar-width:none}
   .stories-track::-webkit-scrollbar,.feed-tabs::-webkit-scrollbar{display:none}
   .stories-empty{
-    margin-top:10px;padding:12px 14px;border-radius:18px;border:1px dashed rgba(212,177,106,.18);
-    background:rgba(18,22,31,.86);color:var(--muted);font-size:13px;line-height:1.55
+    margin-top:10px;padding:12px 14px;border-radius:18px;border:1px dashed rgba(255,255,255,.18);
+    background:rgba(255,255,255,.04);color:var(--muted);font-size:13px;line-height:1.55
   }
   .story-item{
     min-width:78px;width:78px;display:grid;gap:8px;justify-items:center;
   }
   .story-ring{
     width:72px;height:72px;border-radius:999px;padding:3px;
-    background:linear-gradient(135deg,var(--accent),var(--pink),var(--gold));
+    background:linear-gradient(135deg,var(--accent),var(--pink),var(--rose));
   }
   .story-core{
     width:100%;height:100%;border-radius:999px;background:#fff;display:grid;place-items:center;overflow:hidden;
   }
   .story-core img,.mini-avatar img,.rail-avatar img,.reel-thumb img,.live-thumb img{width:100%;height:100%;object-fit:cover}
   .story-core span,.mini-avatar,.rail-avatar{
-    width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,#dbeafe,#fde7f3);font-weight:900;color:#1e293b;
+    width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,#7c3aed,#ec4899);font-weight:900;color:#fff;
   }
   .story-item strong{font-size:12px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .story-item small{font-size:11px;color:var(--muted);line-height:1.25;text-align:center}
-  .story-live{display:inline-flex;padding:3px 7px;border-radius:999px;background:#ffe1e8;color:#cf365e;font-size:10px;font-weight:900}
+  .story-live{display:inline-flex;padding:3px 7px;border-radius:999px;background:rgba(244,63,94,.16);color:#fecdd3;font-size:10px;font-weight:900}
   .composer-mini{padding:14px;margin-bottom:12px;display:grid;gap:12px}
   .composer-row{display:flex;gap:10px;align-items:center}
   .mini-avatar,.rail-avatar{width:44px;height:44px;border-radius:16px;overflow:hidden;flex:0 0 auto}
@@ -100,15 +101,15 @@
   .composer-links{display:flex;gap:8px;overflow:auto;scrollbar-width:none}
   .composer-links::-webkit-scrollbar{display:none}
   .feed-tabs-wrap{padding:12px;margin-bottom:12px}
-  .tab-pill{white-space:nowrap;background:rgba(13,16,22,.94)}
-  .tab-pill.active{background:var(--accent-soft);border-color:#f4b7c5;color:#bc2d54}
+  .tab-pill{white-space:nowrap;background:rgba(255,255,255,.06)}
+  .tab-pill.active{background:var(--accent-soft);border-color:rgba(236,72,153,.28);color:#fff}
   .feed-stack{display:grid;gap:12px}
   .insight-band{
     display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:12px
   }
   .insight-card{
-    padding:14px 16px;border-radius:24px;border:1px solid rgba(212,177,106,.14);
-    background:linear-gradient(145deg,rgba(11,13,18,.94),rgba(27,21,15,.92));
+    padding:14px 16px;border-radius:24px;border:1px solid rgba(255,255,255,.12);
+    background:linear-gradient(145deg,rgba(27,3,35,.94),rgba(70,8,42,.84));
   }
   .insight-card span{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
   .insight-card strong{display:block;font-size:1.08rem}
@@ -118,18 +119,18 @@
   .live-badge,.promo-badge,.soft-badge{
     display:inline-flex;align-items:center;justify-content:center;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:900;
   }
-  .live-badge{background:#ffdde5;color:#cb234f}
-  .promo-badge{background:#fff0f4;color:#c23558}
-  .soft-badge{background:#fdf1f4;color:#7b5a65}
+  .live-badge{background:rgba(244,63,94,.16);color:#fecdd3}
+  .promo-badge{background:rgba(236,72,153,.16);color:#fbcfe8}
+  .soft-badge{background:rgba(255,255,255,.08);color:#cbd5e1}
   .feed-module h3,.feed-module p{margin:0}
   .feed-copy{color:var(--muted);line-height:1.6}
   .module-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-  .module-tags span{padding:6px 10px;border-radius:999px;background:#fff4f6;color:#7c6672;font-size:12px}
+  .module-tags span{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);color:#e2e8f0;font-size:12px}
   .feed-cta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   .reel-thumb,.live-thumb{
     margin-top:12px;height:min(58vw,420px);max-height:420px;border-radius:22px;overflow:hidden;background:#dbeafe;
   }
-  .live-module{background:linear-gradient(160deg,rgba(18,17,19,.98) 0%,rgba(34,24,17,.96) 100%);border-color:rgba(212,177,106,.18)}
+  .live-module{background:linear-gradient(160deg,rgba(28,4,36,.98) 0%,rgba(70,8,42,.92) 100%);border-color:rgba(255,255,255,.14)}
   .live-card-hero{
     margin-top:12px;
     display:grid;
@@ -137,19 +138,19 @@
     gap:12px;
     padding:14px;
     border-radius:22px;
-    background:linear-gradient(160deg,rgba(212,177,106,.16),rgba(17,20,28,.72));
-    border:1px solid rgba(212,177,106,.12);
+    background:linear-gradient(160deg,rgba(124,58,237,.18),rgba(255,255,255,.06));
+    border:1px solid rgba(255,255,255,.12);
   }
   .live-card-identity{display:flex;gap:12px;align-items:center}
   .live-card-avatar{
     width:52px;height:52px;border-radius:18px;overflow:hidden;flex:0 0 auto;
-    background:linear-gradient(135deg,#ffc1cd,#ea4f70);display:grid;place-items:center;color:#fff;font-weight:900;
+    background:linear-gradient(135deg,#7c3aed,#ec4899);display:grid;place-items:center;color:#fff;font-weight:900;
   }
   .live-card-avatar img{width:100%;height:100%;object-fit:cover}
   .live-card-stats{display:grid;gap:8px;justify-items:end}
   .live-card-preview{
     margin-top:12px;height:min(54vw,320px);max-height:320px;border-radius:24px;overflow:hidden;
-    background:linear-gradient(145deg,#271a26,#6c1f3c 55%,#f35f7f 100%);position:relative;
+    background:linear-gradient(145deg,#200223,#6b0f4f 55%,#f43f5e 100%);position:relative;
   }
   .live-card-preview img{width:100%;height:100%;object-fit:cover;display:block}
   .live-card-preview::after{
@@ -163,40 +164,34 @@
   }
   .live-card-join{
     display:inline-flex;align-items:center;justify-content:center;
-    min-height:42px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.92);color:#c23558;font-weight:900;text-decoration:none;
+    min-height:42px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.92);color:#8b0f5b;font-weight:900;text-decoration:none;
   }
   .reel-thumb video,.live-thumb video,.reel-thumb img,.live-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .promo-card{background:linear-gradient(145deg,rgba(16,19,27,.98),rgba(28,21,15,.96) 80%)}
-  .promo-card .feed-cta-row .mini-pill:first-child{background:var(--accent);border-color:var(--accent);color:#120f09}
+  .promo-card{background:linear-gradient(145deg,rgba(28,4,36,.98),rgba(70,8,42,.9) 80%)}
+  .promo-card .feed-cta-row .mini-pill:first-child{background:linear-gradient(135deg,var(--accent),var(--pink));border-color:transparent;color:#fff}
   .rail-column{display:grid;gap:12px}
   .rail-card{padding:14px;position:sticky;top:86px}
   .rail-stack{display:grid;gap:14px}
   .rail-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
   .rail-head h3{margin:0;font-size:15px}
   .rail-note{font-size:13px;color:var(--muted);line-height:1.55}
-  .rail-link{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #edf2f7}
+  .rail-link{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
   .rail-link:first-child{border-top:0;padding-top:0}
-  .floating-promo{
-    position:fixed;right:12px;bottom:86px;z-index:60;width:min(320px,calc(100vw - 24px));
-    padding:14px;border-radius:22px;background:rgba(10,12,18,.96);border:1px solid var(--line);box-shadow:0 24px 60px rgba(0,0,0,.36);
-    display:none;
-  }
-  .floating-promo.visible{display:block}
   .promo-dismiss{
-    position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:#11151e;
-    display:grid;place-items:center;font-weight:900;color:#f5efe2;
+    position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:999px;border:1px solid var(--line);background:rgba(18,0,20,.9);
+    display:grid;place-items:center;font-weight:900;color:#fff;
   }
   .focus-media{margin-top:10px}
   .focus-media video{width:100%;border-radius:22px;max-height:min(72vh,560px);background:#000}
-  .home-mobile-nav{position:fixed;left:10px;right:10px;bottom:10px;z-index:80;display:none;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px;background:rgba(255,255,255,.94);border:1px solid var(--line);border-radius:24px;backdrop-filter:blur(14px);transition:transform .2s ease}
+  .home-mobile-nav{position:fixed;left:10px;right:10px;bottom:10px;z-index:80;display:none;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px;background:rgba(18,0,20,.94);border:1px solid var(--line);border-radius:24px;backdrop-filter:blur(14px);transition:transform .2s ease}
   .home-mobile-nav.nav-hidden{transform:translateY(120%)}
   .mobile-nav-item,.mobile-create-toggle,.mobile-create-menu a{
-    text-decoration:none;color:#5a4d58;font-size:11px;font-weight:800;text-align:center;border-radius:16px;background:#fff5f7;padding:8px 4px;display:grid;place-items:center;gap:4px;
+    text-decoration:none;color:#cbd5e1;font-size:11px;font-weight:800;text-align:center;border-radius:16px;background:rgba(255,255,255,.06);padding:8px 4px;display:grid;place-items:center;gap:4px;
   }
   .mobile-create{position:relative}
-  .mobile-create-toggle{border:0;width:100%;background:linear-gradient(135deg,#ea4f70,#d43f61);color:#fff}
+  .mobile-create-toggle{border:0;width:100%;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff}
   .mobile-create-menu{
-    position:absolute;left:50%;bottom:64px;transform:translateX(-50%);display:none;min-width:220px;padding:10px;border-radius:20px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 60px rgba(15,23,42,.16);
+    position:absolute;left:50%;bottom:64px;transform:translateX(-50%);display:none;min-width:220px;padding:10px;border-radius:20px;background:rgba(18,0,20,.98);border:1px solid var(--line);box-shadow:0 20px 60px rgba(15,23,42,.16);
   }
   .mobile-create.open .mobile-create-menu{display:grid;gap:8px}
   @media (max-width: 980px){
@@ -232,8 +227,8 @@
     <div class="hero-grid">
       <div>
         <span class="promo-badge">Namvibe premium social super app</span>
-        <h1 style="margin:12px 0 10px;font-size:clamp(2.2rem,5vw,4.6rem);line-height:.95;">Stories, feed, live, dating, wallet, and creator tools in one mobile-first shell.</h1>
-        <p class="feed-copy" style="max-width:720px;">Browse live story rails, watch trending video, join creators in real time, and move from content into coins, premium, and discovery without breaking context.</p>
+        <h1 style="margin:12px 0 10px;font-size:clamp(2.2rem,5vw,4.6rem);line-height:.95;">One premium purple social stack for feed, live, dating, coins, and creator growth.</h1>
+        <p class="feed-copy" style="max-width:720px;">Move from stories into reels, live rooms, wallet rewards, and discovery without broken context, noisy promo popups, or unfinished screens.</p>
         <div class="hero-actions" style="margin-top:14px;">
           <a class="mini-pill" href="{% url 'story_create' %}">Create story</a>
           <a class="mini-pill" href="{% url 'studio' %}?type=reel">Drop a reel</a>
@@ -346,13 +341,13 @@
       </section>
 
       {% if safe_mode_message %}
-        <article class="feed-module promo-card">
-          <div class="module-head">
-            <span class="promo-badge">Safe mode</span>
-          </div>
+      <article class="feed-module promo-card" style="border-style:solid;">
+        <div class="module-head">
+            <span class="promo-badge">System notice</span>
+        </div>
           <h3>Namvibe is keeping the shell online</h3>
-          <p class="feed-copy">Some live content is temporarily unavailable while the database connection recovers.</p>
-        </article>
+          <p class="feed-copy">Some live content is temporarily unavailable while the database connection recovers. Core navigation, feed structure, and premium surfaces remain available.</p>
+      </article>
       {% endif %}
 
       <section class="feed-stack">
@@ -549,6 +544,19 @@
               <div class="rail-note">Catch featured rooms as soon as creators start streaming.</div>
             {% endfor %}
           </section>
+          {% if floating_promos %}
+            <section class="feed-module promo-card" style="padding:12px;">
+              <div class="module-head">
+                <span class="promo-badge">Sponsored</span>
+                <span class="soft-badge">Inline slot</span>
+              </div>
+              <h3 style="font-size:1rem;">{{ floating_promos.0.title }}</h3>
+              <p class="feed-copy">{{ floating_promos.0.body }}</p>
+              <div class="feed-cta-row">
+                <a class="mini-pill" href="{{ floating_promos.0.url }}">{{ floating_promos.0.cta_label }}</a>
+              </div>
+            </section>
+          {% endif %}
           <section>
             <div class="rail-head"><h3>People to follow</h3><a class="mini-pill" href="{% url 'discover' %}">Discover</a></div>
             {% for creator in creators|slice:":4" %}
@@ -560,18 +568,6 @@
     </aside>
   </div>
 </main>
-
-{% if floating_promos %}
-  <aside class="floating-promo visible" id="floatingPromo">
-    <button class="promo-dismiss" type="button" id="floatingPromoDismiss">×</button>
-    <span class="promo-badge">Suggested next step</span>
-    <h3 style="margin:10px 0 6px;">{{ floating_promos.0.title }}</h3>
-    <p class="feed-copy">{{ floating_promos.0.body }}</p>
-    <div class="feed-cta-row">
-      <a class="mini-pill" href="{{ floating_promos.0.url }}">{{ floating_promos.0.cta_label }}</a>
-    </div>
-  </aside>
-{% endif %}
 
 <nav class="home-mobile-nav" id="homeMobileNav" aria-label="Main mobile navigation">
   <a class="mobile-nav-item" href="{% url 'home' %}"><span>⌂</span><small>Home</small></a>
@@ -593,8 +589,6 @@
   (function () {
     const createMenu = document.getElementById("mobileCreateMenu");
     const createToggle = document.getElementById("mobileCreateToggle");
-    const floatingPromo = document.getElementById("floatingPromo");
-    const floatingDismiss = document.getElementById("floatingPromoDismiss");
     const mobileNav = document.getElementById("homeMobileNav");
 
     if (createMenu && createToggle) {
@@ -612,10 +606,6 @@
       button.addEventListener("click", function () {
         button.closest(".promo-dismissible")?.remove();
       });
-    });
-
-    floatingDismiss?.addEventListener("click", function () {
-      floatingPromo?.remove();
     });
 
     let lastY = window.scrollY;

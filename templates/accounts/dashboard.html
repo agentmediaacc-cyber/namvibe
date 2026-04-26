@@ -7,29 +7,29 @@
 <style>
   .dash-shell{max-width:1180px;margin:0 auto;padding:18px 12px 110px}
   .dash-hero,.dash-card{
-    border:1px solid rgba(212,177,106,.14);
-    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border:1px solid rgba(255,255,255,.14);
+    background:linear-gradient(145deg,rgba(27,3,35,.96),rgba(18,0,24,.92));
     border-radius:28px;
     box-shadow:0 22px 60px rgba(0,0,0,.34);
-    color:#f5efe2;
+    color:#fff;
   }
   .dash-hero{padding:20px}
   .dash-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:16px;margin-top:16px}
   .dash-card{padding:16px}
   .dash-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
-  .dash-stat{padding:14px;border-radius:20px;background:rgba(8,10,16,.88);border:1px solid rgba(212,177,106,.12)}
-  .dash-stat span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+  .dash-stat{padding:14px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)}
+  .dash-stat span{display:block;color:#cbd5e1;font-size:12px;margin-bottom:6px}
   .dash-stat strong{font-size:1.18rem}
   .dash-actions,.dash-tabs,.dash-links{display:flex;gap:10px;flex-wrap:wrap}
   .dash-actions a,.dash-tabs a,.dash-links a{
     display:inline-flex;align-items:center;justify-content:center;
     padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:800;
-    background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.14);color:#f5efe2;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;
   }
   .dash-actions a.primary,.dash-tabs a.active{
-    background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:transparent;color:#120f09;
+    background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent;color:#fff;
   }
-  .dash-copy{color:#a9a191;line-height:1.7}
+  .dash-copy{color:#cbd5e1;line-height:1.7}
   .dash-panel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
   .dash-list{display:grid;gap:10px}
   .dash-list-item{
@@ -38,13 +38,13 @@
   }
   .dash-list-item:first-child{border-top:0;padding-top:0}
   .dash-meta{display:grid;gap:4px}
-  .dash-meta small{color:#a9a191}
+  .dash-meta small{color:#cbd5e1}
   .dash-panel-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
   .dash-panel-title h2{margin:0}
   .dash-empty{
     padding:16px;border-radius:20px;
-    background:linear-gradient(145deg,rgba(10,13,19,.9),rgba(28,22,15,.86));
-    border:1px dashed rgba(212,177,106,.18);color:#c9c0b2
+    background:linear-gradient(145deg,rgba(27,3,35,.9),rgba(70,8,42,.8));
+    border:1px dashed rgba(255,255,255,.18);color:#cbd5e1
   }
   @media (max-width: 940px){
     .dash-grid{grid-template-columns:1fr}
@@ -63,7 +63,7 @@
   <div class="dash-hero">
     <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;">
       <div>
-        <span style="display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(212,177,106,.12);color:#f1d8a3;font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;">Namvibe Dashboard</span>
+        <span style="display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(236,72,153,.14);color:#fbcfe8;font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;">Namvibe Dashboard</span>
         <h1 style="margin:12px 0 8px;font-size:clamp(2rem,5vw,4rem);line-height:.96;">{{ profile.display_name|default:username }}</h1>
         <p class="dash-copy" style="margin:0;max-width:760px;">Your account, posts, wallet, dating activity, messages, and settings stay reachable from one stable dashboard route.</p>
       </div>
@@ -192,12 +192,12 @@
           <a href="{% url 'profile_edit' %}">Edit profile</a>
         </div>
         <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-          <div style="width:86px;height:86px;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#f0d4a0,#b88a33);display:grid;place-items:center;color:#20160a;font-size:32px;font-weight:900;">
+          <div style="width:86px;height:86px;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#7c3aed,#ec4899);display:grid;place-items:center;color:#fff;font-size:32px;font-weight:900;">
             <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}" style="width:100%;height:100%;object-fit:cover;">
           </div>
           <div>
             <strong style="display:block;font-size:1.25rem;">{{ profile.display_name|default:profile.username }}</strong>
-            <small style="color:#a9a191;">@{{ profile.username }}</small>
+            <small style="color:#cbd5e1;">@{{ profile.username }}</small>
             <p class="dash-copy" style="margin:8px 0 0;">{{ profile.bio|default:"Add a short bio to strengthen your public profile and discovery presence." }}</p>
           </div>
         </div>
