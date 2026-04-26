@@ -149,3 +149,8 @@ from config.health import db_env_debug
 urlpatterns += [
     path("health/db-env", db_env_debug),
 ]
+
+# Railway healthcheck
+urlpatterns += [
+    path("healthz", healthz, name="healthz"),
+]
