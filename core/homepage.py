@@ -289,6 +289,16 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
 
 def homepage_context(request):
     user = request.user
+    
+    # TikTok-style public feed for discovery
+    public_feed_items = list(
+        Post.objects.published()
+        .filter(audience=Post.Audience.PUBLIC)
+        .select_related("author", "author__profile")
+        .prefetch_related("media", "likes", "comments")
+        .order_by("-published_at", "-created_at")[:15]
+    )
+
     visible_posts = (
         base_visible_posts(user)
         .published()
@@ -325,6 +335,7 @@ def homepage_context(request):
     )
 
     return {
+        "public_feed_items": public_feed_items,
         "story_rail": story_rail,
         "quick_actions": _quick_actions(user),
         "composer_actions": _composer_actions(user),
@@ -373,6 +384,7 @@ def fallback_homepage_context(request, error_message=""):
     user = request.user
     current_profile = getattr(user, "profile", None) if user.is_authenticated else None
     return {
+        "public_feed_items": [],
         "story_rail": [],
         "quick_actions": _quick_actions(user),
         "composer_actions": _composer_actions(user),

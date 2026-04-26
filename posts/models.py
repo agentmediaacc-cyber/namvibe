@@ -98,6 +98,8 @@ class Post(models.Model):
     allow_sharing = models.BooleanField(default=True)
     save_to_story = models.BooleanField(default=False)
     premium_badge = models.BooleanField(default=False)
+    is_ai_generated = models.BooleanField(default=False)
+    is_public_preview = models.BooleanField(default=True)
     is_sensitive = models.BooleanField(default=False)
     is_edited = models.BooleanField(default=False)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
