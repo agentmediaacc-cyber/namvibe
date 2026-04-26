@@ -1,267 +1,344 @@
 {% extends "base.html" %}
-{% block title %}Namvibe | Account{% endblock %}
+{% load media_helpers %}
+
+{% block title %}Dashboard | Namvibe{% endblock %}
 
 {% block content %}
-<section class="premium-dash">
-    {% include "partials/contextual_drawer.html" with nav_context="dashboard" drawer_title="Account Menu" drawer_label="Account navigation" %}
+<style>
+  .dash-shell{max-width:1180px;margin:0 auto;padding:18px 12px 110px}
+  .dash-hero,.dash-card{
+    border:1px solid rgba(212,177,106,.14);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border-radius:28px;
+    box-shadow:0 22px 60px rgba(0,0,0,.34);
+    color:#f5efe2;
+  }
+  .dash-hero{padding:20px}
+  .dash-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:16px;margin-top:16px}
+  .dash-card{padding:16px}
+  .dash-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
+  .dash-stat{padding:14px;border-radius:20px;background:rgba(8,10,16,.88);border:1px solid rgba(212,177,106,.12)}
+  .dash-stat span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
+  .dash-stat strong{font-size:1.18rem}
+  .dash-actions,.dash-tabs,.dash-links{display:flex;gap:10px;flex-wrap:wrap}
+  .dash-actions a,.dash-tabs a,.dash-links a{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:800;
+    background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.14);color:#f5efe2;
+  }
+  .dash-actions a.primary,.dash-tabs a.active{
+    background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:transparent;color:#120f09;
+  }
+  .dash-copy{color:#a9a191;line-height:1.7}
+  .dash-panel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .dash-list{display:grid;gap:10px}
+  .dash-list-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:12px 0;border-top:1px solid rgba(212,177,106,.1)
+  }
+  .dash-list-item:first-child{border-top:0;padding-top:0}
+  .dash-meta{display:grid;gap:4px}
+  .dash-meta small{color:#a9a191}
+  .dash-panel-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .dash-panel-title h2{margin:0}
+  .dash-empty{
+    padding:16px;border-radius:20px;
+    background:linear-gradient(145deg,rgba(10,13,19,.9),rgba(28,22,15,.86));
+    border:1px dashed rgba(212,177,106,.18);color:#c9c0b2
+  }
+  @media (max-width: 940px){
+    .dash-grid{grid-template-columns:1fr}
+    .dash-actions,.dash-tabs,.dash-links{gap:8px}
+    .dash-actions a,.dash-tabs a,.dash-links a{flex:1 1 calc(50% - 8px)}
+  }
+  @media (max-width: 620px){
+    .dash-shell{padding:12px 8px 104px}
+    .dash-hero,.dash-card{border-radius:24px}
+    .dash-actions a,.dash-tabs a,.dash-links a{flex:1 1 100%}
+    .dash-list-item{align-items:flex-start;flex-direction:column}
+  }
+</style>
 
-    <style>
-        .account-shell{max-width:1180px;margin:0 auto;padding:20px 14px 90px}
-        .account-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
-        .account-card,.account-panel{border:1px solid rgba(212,177,106,.14);background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));border-radius:26px;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.28);color:#f5efe2}
-        .account-hero-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(250px,.85fr);gap:14px}
-        .premium-note{padding:14px;border-radius:20px;border:1px solid rgba(212,177,106,.12);background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(28,21,15,.92))}
-        .premium-note span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
-        .account-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
-        .account-top h1{margin:0 0 6px;font-size:clamp(1.8rem,4vw,2.8rem)}
-        .account-copy{color:#a9a191;line-height:1.65}
-        .action-row,.mini-grid,.progress-list,.dashboard-tabs,.identity-row{display:flex;gap:10px;flex-wrap:wrap}
-        .mini-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-        .metric{padding:14px;border-radius:18px;background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.12)}
-        .metric span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
-        .metric strong{font-size:1.35rem}
-        .dashboard-tabs button,.action-row a,.action-row button{border:1px solid rgba(212,177,106,.14);background:rgba(9,12,17,.96);color:#f5efe2;border-radius:999px;padding:11px 14px;font-weight:800;cursor:pointer;text-decoration:none}
-        .dashboard-tabs button.active{background:linear-gradient(135deg,#d4b16a,#f1d8a3);border-color:transparent;color:#120f09}
-        .account-panel{display:none}
-        .account-panel.active{display:block}
-        .progress-list{display:grid}
-        .progress-item{padding:14px;border-radius:18px;background:rgba(8,10,16,.92);border:1px solid rgba(212,177,106,.12)}
-        .progress-item strong{display:block}
-        .admin-chip{display:inline-flex;padding:6px 10px;border-radius:999px;background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;font-size:12px;font-weight:900}
-        .identity-chip,.thread-link{display:inline-flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.92);text-decoration:none;color:#f5efe2}
-        .identity-chip strong,.thread-link strong{display:block;font-size:14px}
-        .identity-chip small,.thread-link small{display:block;color:#a9a191}
-        .identity-avatar,.thread-avatar{width:36px;height:36px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(212,177,106,.3),rgba(212,177,106,.08));font-weight:900;color:#f3d8a6}
-        .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
-        .summary-card{padding:14px;border-radius:20px;background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(24,19,13,.92));border:1px solid rgba(212,177,106,.12)}
-        .summary-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
-        .summary-card strong{font-size:1.05rem}
-        @media (max-width: 820px){.mini-grid,.account-hero-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-        @media (max-width: 640px){.account-hero-grid,.summary-grid{grid-template-columns:1fr}}
-    </style>
-
-    <div class="account-shell">
-        <div class="account-grid">
-            <section class="account-card">
-                <div class="account-hero-grid">
-                    <div>
-                        <div class="account-top">
-                            <div>
-                                <span class="auth-badge">Private account</span>
-                                <h1>Welcome back, {{ profile.display_name|default:username }}</h1>
-                                <p class="account-copy">Your public profile stays username-first. Use this private shell to manage onboarding, content, wallet, messages, dating, and creator tools.</p>
-                            </div>
-                            <div class="action-row">
-                                {% if account_role and account_role.is_admin %}<a href="{% url 'support_control' %}" class="admin-chip">Control</a>{% endif %}
-                                <a href="{% url 'home' %}">Home</a>
-                                <a href="{% url 'profile_edit' %}">Edit profile</a>
-                                <a href="{% url 'logout' %}">Logout</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="premium-note">
-                        <span>Premium account lane</span>
-                        <strong style="display:block;font-size:1.15rem;margin-bottom:6px;">Coins, creator tools, and private control stay in one mobile-ready shell.</strong>
-                        <p class="account-copy" style="margin:0;">Jump from stories to wallet, studio, saved posts, and support without losing your current context.</p>
-                    </div>
-                </div>
-                <div class="mini-grid" style="margin-top:16px;">
-                    <div class="metric"><span>Onboarding</span><strong>{{ onboarding_progress }}%</strong></div>
-                    <div class="metric"><span>Followers</span><strong>{{ profile.follower_count }}</strong></div>
-                    <div class="metric"><span>Posts</span><strong>{{ post_count }}</strong></div>
-                    <div class="metric"><span>Wallet</span><strong>N${{ wallet_balance }}</strong></div>
-                    <div class="metric"><span>Saved</span><strong>{{ saved_post_count }}</strong></div>
-                    <div class="metric"><span>Communities</span><strong>{{ community_count }}</strong></div>
-                    <div class="metric"><span>Vibe Coins</span><strong>{% widthratio wallet_balance 5 1 %}</strong></div>
-                    <div class="metric"><span>Pending</span><strong>N${{ pending_balance }}</strong></div>
-                </div>
-                <div class="action-row" style="margin-top:16px;">
-                    <a href="{% url 'studio' %}">Create post</a>
-                    <a href="{% url 'story_create' %}">Add story</a>
-                    <a href="{% url 'live_start' %}">Go live</a>
-                    <a href="{% url 'dating_profile_edit' %}">Dating profile</a>
-                    <a href="{% url 'wallet_home' %}">Wallet</a>
-                    <a href="{% url 'saved_posts' %}">Saved</a>
-                    <a href="{% url 'media_albums' %}">Albums</a>
-                </div>
-            </section>
-
-                <div class="dashboard-tabs">
-                <button type="button" class="{% if active_panel == 'overview' %}active{% endif %}" data-panel="overview">Overview</button>
-                <button type="button" class="{% if active_panel == 'profile' %}active{% endif %}" data-panel="profile">Profile</button>
-                <button type="button" class="{% if active_panel == 'posts' %}active{% endif %}" data-panel="posts">Studio</button>
-                <button type="button" class="{% if active_panel == 'messages' %}active{% endif %}" data-panel="messages">Messages</button>
-                <button type="button" class="{% if active_panel == 'wallet' %}active{% endif %}" data-panel="wallet">Wallet</button>
-                <button type="button" class="{% if active_panel == 'support' %}active{% endif %}" data-panel="support">Support</button>
-            </div>
-
-            <section id="overview" class="account-panel {% if active_panel == 'overview' %}active{% endif %}">
-                <div class="account-card">
-                    <h2 style="margin-top:0;">Next steps</h2>
-                    <div class="progress-list">
-                        {% for item in onboarding_items %}
-                            <div class="progress-item">
-                                <strong>{{ item.label }}{% if item.done %} · Complete{% endif %}</strong>
-                                <p class="account-copy">{{ item.description }}</p>
-                                <a href="{{ item.url }}" class="btn btn-dark">{% if item.done %}Review{% else %}Open{% endif %}</a>
-                            </div>
-                        {% endfor %}
-                    </div>
-                    <div class="summary-grid">
-                        <div class="summary-card">
-                            <span>Social graph</span>
-                            <strong>{{ follower_preview|length }} recent followers · {{ following_preview|length }} following lanes</strong>
-                            <p class="account-copy">Keep new chats and follow-back moments close while your profile grows.</p>
-                        </div>
-                        <div class="summary-card">
-                            <span>Messages</span>
-                            <strong>{{ chat_unread_total }} unread across {{ chat_unread_threads }} threads</strong>
-                            <p class="account-copy">Private replies, creator outreach, and supporter messages stay inside your account shell.</p>
-                        </div>
-                        <div class="summary-card">
-                            <span>Creator lane</span>
-                            <strong>{{ draft_posts|length }} drafts · {{ community_count }} communities</strong>
-                            <p class="account-copy">Move from stories to studio, live, ads, and premium without leaving this dashboard.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="profile" class="account-panel {% if active_panel == 'profile' %}active{% endif %}">
-                <div class="account-card">
-                    <h2 style="margin-top:0;">Private account summary</h2>
-                    <div class="mini-grid">
-                        <div class="metric"><span>Username</span><strong>@{{ username }}</strong></div>
-                        <div class="metric"><span>Private email</span><strong>{{ email }}</strong></div>
-                        <div class="metric"><span>Email status</span><strong>{% if account_profile.email_verified %}Verified{% else %}Pending{% endif %}</strong></div>
-                        <div class="metric"><span>Membership</span><strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}None{% endif %}</strong></div>
-                    </div>
-                    <div class="action-row" style="margin-top:16px;">
-                        <a href="{% url 'profile_edit' %}">Edit public profile</a>
-                        <a href="{% url 'verify_email_notice' %}">Verification</a>
-                        <a href="{% url 'settings' %}">Settings</a>
-                    </div>
-                    <div class="summary-grid">
-                        <div class="summary-card">
-                            <span>Recent followers</span>
-                            <div class="identity-row">
-                                {% for edge in follower_preview %}
-                                    <a class="identity-chip" href="{% url 'profile_detail' edge.follower.profile.username %}">
-                                        <span class="identity-avatar">{{ edge.follower.profile.username|slice:":1"|upper }}</span>
-                                        <span><strong>@{{ edge.follower.profile.username }}</strong><small>{{ edge.follower.profile.display_name|default:edge.follower.username }}</small></span>
-                                    </a>
-                                {% empty %}
-                                    <p class="account-copy" style="margin:0;">Followers will appear here as your community grows.</p>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="summary-card">
-                            <span>Following lanes</span>
-                            <div class="identity-row">
-                                {% for edge in following_preview %}
-                                    <a class="identity-chip" href="{% url 'profile_detail' edge.following.profile.username %}">
-                                        <span class="identity-avatar">{{ edge.following.profile.username|slice:":1"|upper }}</span>
-                                        <span><strong>@{{ edge.following.profile.username }}</strong><small>{{ edge.following.profile.display_name|default:edge.following.username }}</small></span>
-                                    </a>
-                                {% empty %}
-                                    <p class="account-copy" style="margin:0;">Follow creators and communities to shape a stronger feed.</p>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section id="posts" class="account-panel {% if active_panel == 'posts' %}active{% endif %}">
-                <div class="account-card">
-                    <h2 style="margin-top:0;">Creator Studio</h2>
-                    <p class="account-copy">Open studio, reels, Flyer builder, and live tools from one place and keep your drafts moving.</p>
-                    <div class="action-row">
-                        <a href="{% url 'studio' %}">Open studio</a>
-                        <a href="{% url 'studio' %}?type=reel">New reel</a>
-                        <a href="{% url 'studio' %}?type=flyer">Flyer</a>
-                        <a href="{% url 'live_start' %}">Live setup</a>
-                        <a href="{% url 'saved_posts' %}">Saved content</a>
-                        <a href="{% url 'media_albums' %}">My albums</a>
-                    </div>
-                    {% if draft_posts %}
-                        <div class="progress-list" style="margin-top:16px;">
-                            {% for draft in draft_posts %}
-                                <div class="progress-item">
-                                    <strong>{{ draft.title|default:draft.get_post_type_display }}</strong>
-                                    <p class="account-copy">{{ draft.get_post_type_display }} · Draft</p>
-                                    <a href="{% url 'studio_draft' draft.uuid %}" class="btn btn-dark">Resume</a>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                    <p class="account-copy" style="margin-top:14px;">Motion, poll, and engagement stay close while drafts, reels, and live updates remain ready to publish from the same flow.</p>
-                </div>
-            </section>
-
-            <section id="messages" class="account-panel {% if active_panel == 'messages' %}active{% endif %}">
-                {% include "messaging/dashboard_messages.html" %}
-            </section>
-
-            <section id="wallet" class="account-panel {% if active_panel == 'wallet' %}active{% endif %}">
-                <div class="account-card">
-                    <h2 style="margin-top:0;">Wallet and monetization</h2>
-                    <div class="mini-grid">
-                        <div class="metric"><span>Available</span><strong>N${{ wallet_balance }}</strong></div>
-                        <div class="metric"><span>Pending</span><strong>N${{ pending_balance }}</strong></div>
-                        <div class="metric"><span>Membership</span><strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}Inactive{% endif %}</strong></div>
-                        <div class="metric"><span>Role</span><strong>{% if profile.is_creator %}Creator{% else %}Member{% endif %}</strong></div>
-                    </div>
-                    <div class="action-row" style="margin-top:16px;">
-                        <a href="{% url 'wallet_home' %}">Wallet home</a>
-                        <a href="{% url 'wallet_membership_plans' %}">Premium plans</a>
-                        <a href="{% url 'wallet_creator_earnings' %}">Creator earnings</a>
-                        <a href="{% url 'ads_starter' %}">Create promotion</a>
-                    </div>
-                </div>
-            </section>
-
-            <section id="support" class="account-panel {% if active_panel == 'support' %}active{% endif %}">
-                <div class="account-card">
-                    <h2 style="margin-top:0;">Support and control</h2>
-                    <p class="account-copy">Use support for account help, notifications, creator approvals, promo cards, moderation entry points, and system controls.</p>
-                    <div class="action-row">
-                        <a href="{% url 'support_help' %}">Support home</a>
-                        <a href="{% url 'notifications' %}">Notifications</a>
-                        {% if account_role and account_role.is_admin %}
-                            <a href="{% url 'support_control' %}">Admin control</a>
-                        {% endif %}
-                    </div>
-                </div>
-            </section>
-        </div>
+<section class="dash-shell">
+  <div class="dash-hero">
+    <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+      <div>
+        <span style="display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(212,177,106,.12);color:#f1d8a3;font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;">Namvibe Dashboard</span>
+        <h1 style="margin:12px 0 8px;font-size:clamp(2rem,5vw,4rem);line-height:.96;">{{ profile.display_name|default:username }}</h1>
+        <p class="dash-copy" style="margin:0;max-width:760px;">Your account, posts, wallet, dating activity, messages, and settings stay reachable from one stable dashboard route.</p>
+      </div>
+      <div class="dash-actions">
+        <a class="primary" href="{% url 'profile_detail' profile.username %}">Open profile</a>
+        <a href="{% url 'profile_edit' %}">Settings</a>
+        <a href="{% url 'wallet_home' %}">Wallet</a>
+        <a href="{% url 'dating' %}">Dating</a>
+      </div>
     </div>
-</section>
 
-<script>
-    (function () {
-        const buttons = document.querySelectorAll("[data-panel]");
-        const panels = document.querySelectorAll(".account-panel");
-        function openPanel(id) {
-            panels.forEach(function (panel) {
-                panel.classList.toggle("active", panel.id === id);
-            });
-            buttons.forEach(function (button) {
-                button.classList.toggle("active", button.dataset.panel === id);
-            });
-        }
-        buttons.forEach(function (button) {
-            button.addEventListener("click", function () {
-                const url = new URL(window.location.href);
-                url.searchParams.set("section", button.dataset.panel);
-                if (button.dataset.panel !== "messages") {
-                    url.searchParams.delete("conversation");
-                }
-                window.history.replaceState({}, "", url);
-                openPanel(button.dataset.panel);
-            });
-        });
-        openPanel("{{ active_panel|escapejs }}");
-    }());
-</script>
+    <div class="dash-summary">
+      <div class="dash-stat">
+        <span>Posts</span>
+        <strong>{{ post_count }}</strong>
+      </div>
+      <div class="dash-stat">
+        <span>Profile views</span>
+        <strong>{{ profile_views_count }}</strong>
+      </div>
+      <div class="dash-stat">
+        <span>Saved posts</span>
+        <strong>{{ saved_post_count }}</strong>
+      </div>
+      <div class="dash-stat">
+        <span>Communities</span>
+        <strong>{{ community_count }}</strong>
+      </div>
+      <div class="dash-stat">
+        <span>Wallet balance</span>
+        <strong>N${{ wallet_balance }}</strong>
+      </div>
+      <div class="dash-stat">
+        <span>Dating coins</span>
+        <strong>{{ coin_balance.balance }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <nav class="dash-tabs" style="margin:16px 0;" aria-label="Dashboard sections">
+    <a class="{% if active_panel == 'overview' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=overview" data-dashboard-section="overview">Overview</a>
+    <a class="{% if active_panel == 'profile' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=profile" data-dashboard-section="profile">Profile</a>
+    <a class="{% if active_panel == 'posts' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=posts" data-dashboard-section="posts">Posts</a>
+    <a class="{% if active_panel == 'messages' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=messages" data-dashboard-section="messages">Messages</a>
+    <a class="{% if active_panel == 'wallet' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=wallet" data-dashboard-section="wallet">Wallet</a>
+    <a class="{% if active_panel == 'support' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=support" data-dashboard-section="support">Support</a>
+    <a href="{% url 'profile_edit' %}" data-dashboard-section="settings">Settings</a>
+  </nav>
+
+  <div class="dash-grid">
+    <main class="dash-card">
+      {% if active_panel == 'messages' %}
+        {% include "messaging/dashboard_messages.html" %}
+      {% elif active_panel == 'posts' %}
+        <div class="dash-panel-title">
+          <h2>Posts</h2>
+          <a href="{% url 'studio' %}">Create post</a>
+        </div>
+        <p class="dash-copy">Creator Studio is linked here for fast post publishing. Flyer builder, Motion, poll, and engagement tools stay tied to your current account lane.</p>
+        <div class="dash-panel-grid" style="margin-top:14px;">
+          <div class="dash-stat">
+            <span>Total posts</span>
+            <strong>{{ post_count }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Drafts</span>
+            <strong>{{ draft_posts|length }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Saved</span>
+            <strong>{{ saved_post_count }}</strong>
+          </div>
+        </div>
+        <div class="dash-list" style="margin-top:18px;">
+          {% for post in draft_posts %}
+            <div class="dash-list-item">
+              <div class="dash-meta">
+                <strong>{{ post.title|default:post.get_post_type_display }}</strong>
+                <small>{{ post.get_post_type_display }} draft</small>
+              </div>
+              <a href="{% url 'studio_draft' post.uuid %}">Open</a>
+            </div>
+          {% empty %}
+            <div class="dash-empty">No drafts right now. Use Studio to create your next post, reel, or flyer.</div>
+          {% endfor %}
+        </div>
+      {% elif active_panel == 'wallet' %}
+        <div class="dash-panel-title">
+          <h2>Wallet</h2>
+          <a href="{% url 'wallet_home' %}">Open wallet</a>
+        </div>
+        <div class="dash-panel-grid">
+          <div class="dash-stat">
+            <span>Available</span>
+            <strong>N${{ wallet_balance }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Pending</span>
+            <strong>N${{ pending_balance }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Membership</span>
+            <strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}None{% endif %}</strong>
+          </div>
+        </div>
+        <div class="dash-links" style="margin-top:16px;">
+          <a href="{% url 'wallet_transactions' %}">Transactions</a>
+          <a href="{% url 'wallet_gifts' %}">Gifts</a>
+          <a href="{% url 'wallet_membership' %}">Premium</a>
+          <a href="{% url 'wallet_creator_earnings' %}">Creator earnings</a>
+        </div>
+      {% elif active_panel == 'support' %}
+        <div class="dash-panel-title">
+          <h2>Support</h2>
+          <a href="{% url 'support_help' %}">Open support</a>
+        </div>
+        <p class="dash-copy">Use support for account help, safety, promotions, creator issues, and operational entry points.</p>
+        <div class="dash-links" style="margin-top:16px;">
+          <a href="{% url 'support_help' %}">Support home</a>
+          <a href="{% url 'notifications' %}">Notifications</a>
+          <a href="{% url 'profile_edit' %}">Settings</a>
+        </div>
+      {% elif active_panel == 'profile' %}
+        <div class="dash-panel-title">
+          <h2>Profile</h2>
+          <a href="{% url 'profile_edit' %}">Edit profile</a>
+        </div>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+          <div style="width:86px;height:86px;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#f0d4a0,#b88a33);display:grid;place-items:center;color:#20160a;font-size:32px;font-weight:900;">
+            <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}" style="width:100%;height:100%;object-fit:cover;">
+          </div>
+          <div>
+            <strong style="display:block;font-size:1.25rem;">{{ profile.display_name|default:profile.username }}</strong>
+            <small style="color:#a9a191;">@{{ profile.username }}</small>
+            <p class="dash-copy" style="margin:8px 0 0;">{{ profile.bio|default:"Add a short bio to strengthen your public profile and discovery presence." }}</p>
+          </div>
+        </div>
+        <div class="dash-links" style="margin-top:16px;">
+          <a href="{% url 'profile_detail' profile.username %}">Public profile</a>
+          <a href="{% url 'dating' %}">Dating profile</a>
+          <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
+        </div>
+        <div class="dash-panel-grid" style="margin-top:16px;">
+          <div class="dash-stat">
+            <span>Town</span>
+            <strong>{{ profile.town|default:"Not set" }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Region</span>
+            <strong>{{ profile.region|default:"Not set" }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Location</span>
+            <strong>{{ profile.location|default:"Not set" }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Badges</span>
+            <strong>
+              {% if active_membership %}Premium{% else %}Standard{% endif %}
+              {% if dating_profile and dating_profile.is_visible %} · Dating{% endif %}
+            </strong>
+          </div>
+        </div>
+      {% else %}
+        <div class="dash-panel-title">
+          <h2>Overview</h2>
+          <a href="{% url 'studio' %}">Create</a>
+        </div>
+        <p class="dash-copy">Quick access to the account surfaces you use most often.</p>
+        <div class="dash-panel-grid" style="margin-top:14px;">
+          <a class="dash-stat" href="{% url 'wallet_home' %}" style="text-decoration:none;color:inherit;">
+            <span>Wallet</span>
+            <strong>N${{ wallet_balance }}</strong>
+          </a>
+          <a class="dash-stat" href="{% url 'dating' %}" style="text-decoration:none;color:inherit;">
+            <span>Dating</span>
+            <strong>Open hub</strong>
+          </a>
+          <a class="dash-stat" href="{% url 'user_dashboard' %}?section=messages" style="text-decoration:none;color:inherit;">
+            <span>Unread chats</span>
+            <strong>{{ chat_unread_total }}</strong>
+          </a>
+          <a class="dash-stat" href="{% url 'profile_edit' %}" style="text-decoration:none;color:inherit;">
+            <span>Settings</span>
+            <strong>Profile edit</strong>
+          </a>
+        </div>
+        <div class="dash-panel-grid" style="margin-top:16px;">
+          <div class="dash-stat">
+            <span>Coins</span>
+            <strong>{{ coin_balance.balance }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Notifications</span>
+            <strong>{{ notifications_preview|length }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Dating views</span>
+            <strong>{{ dating_views_count }}</strong>
+          </div>
+          <div class="dash-stat">
+            <span>Matches</span>
+            <strong>{{ active_match_count }}</strong>
+          </div>
+        </div>
+        <div class="dash-panel-title" style="margin-top:18px;">
+          <h2 style="font-size:1.1rem;">Activity</h2>
+        </div>
+        <div class="dash-list">
+          {% for item in activity_items %}
+            <div class="dash-list-item">
+              <div class="dash-meta">
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.meta }}</small>
+              </div>
+              <a href="{{ item.url }}">Open</a>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="dash-panel-title" style="margin-top:18px;">
+          <h2 style="font-size:1.1rem;">Notifications Preview</h2>
+        </div>
+        <div class="dash-list">
+          {% for item in notifications_preview %}
+            <div class="dash-list-item">
+              <div class="dash-meta">
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.copy }}</small>
+              </div>
+              <a href="{{ item.url }}">Open</a>
+            </div>
+          {% empty %}
+            <div class="dash-empty">No fresh notifications right now. New follows, dating likes, and unread chats will surface here.</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </main>
+
+    <aside class="dash-card">
+      <div class="dash-panel-title">
+        <h2>Quick Links</h2>
+      </div>
+      <div class="dash-links" style="margin-bottom:16px;">
+        <a href="{% url 'wallet_home' %}">Wallet / Coins</a>
+        <a href="{% url 'dating' %}">Dating</a>
+        <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
+        <a href="{% url 'profile_edit' %}">Settings</a>
+        <a href="{% url 'support_help' %}">Support</a>
+      </div>
+
+      <div class="dash-panel-grid" style="margin-bottom:16px;">
+        <div class="dash-stat">
+          <span>Tier</span>
+          <strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}Free{% endif %}</strong>
+        </div>
+        <div class="dash-stat">
+          <span>Coins</span>
+          <strong>{{ coin_balance.balance }}</strong>
+        </div>
+      </div>
+
+      <div class="dash-list">
+        {% for item in onboarding_items %}
+          <div class="dash-list-item">
+            <div class="dash-meta">
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.copy }}</small>
+            </div>
+            <span>{% if item.done %}Done{% else %}Open{% endif %}</span>
+          </div>
+        {% empty %}
+          <div class="dash-empty">Your key setup actions will appear here.</div>
+        {% endfor %}
+      </div>
+    </aside>
+  </div>
+</section>
 {% endblock %}

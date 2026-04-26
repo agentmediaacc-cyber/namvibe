@@ -60,6 +60,10 @@
     display:block;color:#f5efe2;text-decoration:none;border:1px solid rgba(212,177,106,.12);
     background:rgba(9,12,17,.96);border-radius:18px;padding:12px;font-weight:700
   }
+  .feed-empty{
+    padding:18px;border-radius:22px;border:1px dashed rgba(212,177,106,.24);
+    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(30,22,15,.92))
+  }
   .mobile-feed-tabs{display:none;gap:8px;overflow:auto;margin-bottom:12px}
   .mobile-feed-tabs a{
     white-space:nowrap;color:#f5efe2;text-decoration:none;border:1px solid rgba(212,177,106,.14);
@@ -180,9 +184,13 @@
               {% endif %}
             </article>
           {% empty %}
-            <div class="feed-panel">
-              <strong>Nothing has landed in this feed yet.</strong>
-              <p style="margin:8px 0 0;color:#a9a191;">Create a post, upload a story, or open discovery to start shaping your Namvibe timeline.</p>
+            <div class="feed-panel feed-premium feed-empty">
+              <strong>No posts yet in this feed lane.</strong>
+              <p style="margin:8px 0 0;color:#a9a191;">Create the first post, drop a story, or upload an image/video to bring your premium Namvibe feed to life.</p>
+              <div class="feed-actions" style="margin-top:12px;">
+                <a href="{% url 'studio' %}">Open studio</a>
+                <a href="{% url 'story_create' %}">Add story</a>
+              </div>
             </div>
           {% endfor %}
         {% endfor %}
@@ -195,7 +203,7 @@
         <a class="side-card" href="{% url 'studio' %}?type=photo">Create photo post</a>
         <a class="side-card" href="{% url 'studio' %}?type=reel">Create reel</a>
         <a class="side-card" href="{% url 'story_create' %}">Upload story</a>
-        <a class="side-card" href="{% url 'live_studio' %}">Open live studio</a>
+        <a class="side-card" href="{% url 'live_start' %}">Open live studio</a>
         <a class="side-card" href="{% url 'dating_discover' %}">Dating discover</a>
         <a class="side-card" href="{% url 'wallet_membership' %}">Premium membership</a>
       </div>

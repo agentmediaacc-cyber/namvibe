@@ -70,6 +70,10 @@
   .stories-strip{padding:12px;margin-bottom:12px;overflow:hidden}
   .stories-track,.feed-tabs{display:flex;gap:10px;overflow:auto;padding-bottom:2px;scrollbar-width:none}
   .stories-track::-webkit-scrollbar,.feed-tabs::-webkit-scrollbar{display:none}
+  .stories-empty{
+    margin-top:10px;padding:12px 14px;border-radius:18px;border:1px dashed rgba(212,177,106,.18);
+    background:rgba(18,22,31,.86);color:var(--muted);font-size:13px;line-height:1.55
+  }
   .story-item{
     min-width:78px;width:78px;display:grid;gap:8px;justify-items:center;
   }
@@ -251,7 +255,7 @@
         <h3>{% if wallet_snapshot and wallet_snapshot.active_membership %}{{ wallet_snapshot.active_membership.plan.name }} active{% else %}Activate premium reach and creator tools{% endif %}</h3>
         <p class="feed-copy">{% if wallet_snapshot %}Pending creator earnings N${{ wallet_snapshot.account.pending_balance }} · recent activity stays visible across gifts, premium, and live access.{% else %}Use wallet, gifts, and membership routes from a single monetization flow once you sign in.{% endif %}</p>
         <div class="module-tags">
-          <span>1 Vibe Coin = 5 NAD</span>
+          <span>Wallet-linked coin display</span>
           <span>Premium tiers</span>
           <span>Creator earnings</span>
         </div>
@@ -295,6 +299,9 @@
             </a>
           {% endfor %}
         </div>
+        {% if not story_rail %}
+          <div class="stories-empty">No stories are active right now. Add the first one or come back after creators post new moments.</div>
+        {% endif %}
       </section>
 
       <section class="composer-mini">

@@ -60,6 +60,11 @@
         .profile-hero,.profile-panel{border-radius:24px}
         .profile-cover img{height:210px}
         .profile-avatar{width:92px;height:92px;border-radius:24px}
+        .profile-actions{width:100%}
+        .profile-actions a,.profile-actions button{width:100%;justify-content:center}
+        .profile-links,.section-tabs{overflow:auto;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none}
+        .profile-links::-webkit-scrollbar,.section-tabs::-webkit-scrollbar{display:none}
+        .content-grid{grid-template-columns:1fr}
     }
 </style>
 <section class="profile-shell">
@@ -79,16 +84,18 @@
                                 <div class="eyebrow-row">
                                     <span class="eyebrow-pill">@{{ profile.username }}</span>
                                     {% if profile.is_verified %}<span class="eyebrow-pill">Verified</span>{% endif %}
-                                    {% if active_membership %}<span class="eyebrow-pill">Premium</span>{% endif %}
+                                    {% if active_membership %}<span class="eyebrow-pill">{{ active_membership.plan.name }}</span>{% endif %}
                                     {% if profile.is_creator %}<span class="eyebrow-pill">Creator</span>{% endif %}
                                     {% if profile.is_private %}<span class="eyebrow-pill">Private</span>{% endif %}
+                                    {% if dating_profile and dating_profile.is_visible %}<span class="eyebrow-pill">Dating active</span>{% endif %}
                                 </div>
                                 <h1 style="margin:12px 0 6px;font-size:clamp(2rem,5vw,3.6rem);line-height:.95;">{{ profile.display_name|default:profile.username }}</h1>
                                 <p class="profile-copy" style="margin:0 0 12px;">{{ profile.bio|default:"This member is building a premium Namvibe presence across posts, stories, live, and community." }}</p>
                                 <div class="profile-stats">
-                                    <strong>{{ profile.post_count }} posts</strong>
+                                    <strong>{{ public_post_count }} posts</strong>
                                     <strong>{{ profile.follower_count }} followers</strong>
                                     <strong>{{ profile.following_count }} following</strong>
+                                    <strong>{{ profile_views_count }} profile views</strong>
                                 </div>
                                 {% if current_live %}
                                     <div class="action-row" style="margin-top:12px;">
@@ -129,6 +136,8 @@
                     </div>
                 </div>
                 <div class="profile-links" style="margin-top:14px;">
+                    {% if profile.town %}<span>{{ profile.town }}</span>{% endif %}
+                    {% if profile.region %}<span>{{ profile.region }}</span>{% endif %}
                     {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
                     {% if profile.website %}<a href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
                     {% if dating_profile_visible %}<a href="{% url 'dating_profile_detail' profile.username %}">Dating profile</a>{% endif %}
@@ -241,10 +250,13 @@
                     <h2 style="margin-top:0;">About</h2>
                     <p class="profile-copy">{{ profile.bio|default:"This member is building their Namvibe presence across feed, reels, live, and community." }}</p>
                     <div class="profile-links">
+                        {% if profile.town %}<span>{{ profile.town }}</span>{% endif %}
+                        {% if profile.region %}<span>{{ profile.region }}</span>{% endif %}
                         {% if profile.location %}<span>{{ profile.location }}</span>{% endif %}
                         {% if profile.website %}<a href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
                         {% if profile.is_creator %}<span>Creator account</span>{% endif %}
-                        {% if active_membership %}<span>Premium member</span>{% endif %}
+                        {% if active_membership %}<span>{{ active_membership.plan.name }} member</span>{% endif %}
+                        {% if dating_profile and dating_profile.is_visible %}<span>Dating badge active</span>{% endif %}
                     </div>
                 </section>
             </div>

@@ -1,369 +1,191 @@
 {% extends "base.html" %}
-
-{% block title %}Creator Studio | Namvibe{% endblock %}
-
 {% block content %}
 <style>
-  .studio-shell{max-width:1220px;margin:0 auto;padding:18px 12px 98px}
-  .studio-layout{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(340px,.92fr);gap:18px;align-items:start}
-  .studio-panel,.studio-preview,.studio-drafts{
-    border:1px solid rgba(226,112,132,.14);background:rgba(255,252,252,.97);border-radius:30px;padding:18px;
-    box-shadow:0 20px 56px rgba(181,64,93,.08)
-  }
-  .studio-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:16px}
-  .studio-head h1{margin:0 0 8px;font-size:clamp(2rem,5vw,3.4rem)}
-  .studio-muted{color:#7f6671;line-height:1.65}
-  .studio-mode-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
-  .studio-mode-btn,.studio-chip,.studio-soft-btn,.studio-tool{
-    border:1px solid rgba(226,112,132,.14);background:#fff;border-radius:20px;padding:14px;cursor:pointer;color:#2c1f28;font-weight:800;text-align:left
-  }
-  .studio-mode-btn.active,.studio-chip.active{background:linear-gradient(135deg,#fff7f8,#ffe8ee);border-color:rgba(217,71,99,.3);box-shadow:0 12px 28px rgba(181,64,93,.1)}
-  .studio-mode-btn small,.studio-chip small,.studio-tool small{display:block;margin-top:4px;color:#7f6671;font-weight:600;line-height:1.45}
-  .studio-section{margin-top:16px}
-  .studio-section h2{margin:0 0 10px;font-size:1.08rem}
-  .studio-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-  .studio-field{display:grid;gap:8px}
-  .studio-field.full{grid-column:1/-1}
-  .studio-field label{font-weight:800;color:#442834}
-  .studio-field input,.studio-field textarea,.studio-field select{
-    width:100%;min-width:0;border:1px solid rgba(226,112,132,.14);background:#fff;border-radius:18px;padding:13px 14px;color:#241b24
-  }
-  .studio-field textarea{min-height:110px;resize:vertical}
-  .studio-upload{
-    border:1px dashed rgba(226,112,132,.24);border-radius:24px;padding:18px;background:linear-gradient(135deg,#fffdfd,#fff0f4);display:grid;gap:12px
-  }
-  .studio-upload-actions,.studio-action-row,.studio-chip-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .studio-soft-btn{border-radius:999px;padding:11px 14px}
-  .studio-preview-phone{
-    position:sticky;top:86px;padding:14px;border-radius:36px;background:linear-gradient(180deg,#351b27,#6a213d);color:#fffdf8;min-height:78vh;
-    box-shadow:0 28px 80px rgba(181,64,93,.24)
-  }
-  .studio-preview-top{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
-  .studio-preview-chip{display:inline-flex;align-items:center;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.14);font-weight:800}
-  .studio-preview-card{border-radius:28px;overflow:hidden;background:rgba(255,255,255,.08);min-height:48vh;display:flex;align-items:center;justify-content:center;position:relative}
-  .studio-preview-media,.studio-preview-media img,.studio-preview-media video{width:100%;height:100%;object-fit:cover}
-  .studio-preview-copy{padding:18px}
-  .studio-preview-copy h2,.studio-preview-copy p{margin:0}
-  .studio-preview-copy p{margin-top:8px;color:rgba(255,249,240,.86);line-height:1.6}
-  .studio-preview-actions{display:flex;gap:10px;flex-wrap:wrap;color:rgba(255,249,240,.82);font-size:13px;margin-top:12px}
-  .studio-tool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .studio-tool{cursor:default;background:#fffcf7}
-  .studio-advanced{display:none}
-  .studio-advanced.active{display:block}
-  .studio-toggle-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-  .studio-toggle{display:flex;gap:8px;align-items:center;padding:12px;border-radius:18px;background:#fff;border:1px solid rgba(120,92,39,.12)}
-  .studio-submit-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
-  .studio-submit,.studio-draft-btn{border:0;border-radius:999px;padding:13px 18px;font-weight:900;cursor:pointer}
-  .studio-submit{background:linear-gradient(135deg,#f26c7f,#d94763);color:#fffdf7}
-  .studio-draft-btn{background:#fff0f4;color:#c23c5e}
-  .studio-note{font-size:13px;color:#8f6e79}
-  .studio-errors{margin-bottom:14px;padding:14px;border-radius:20px;background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}
-  .studio-drafts a{display:block;padding:10px 0;border-top:1px solid rgba(120,92,39,.08);text-decoration:none;color:#2b2216}
-  .studio-drafts a:first-of-type{border-top:0;padding-top:0}
-  @media (max-width: 980px){.studio-layout{grid-template-columns:1fr}.studio-preview-phone{position:static;min-height:auto}}
-  @media (max-width: 760px){
-    .studio-shell{padding-inline:8px}
-    .studio-mode-grid,.studio-grid,.studio-tool-grid,.studio-toggle-row{grid-template-columns:1fr 1fr}
-  }
-  @media (max-width: 560px){
-    .studio-mode-grid,.studio-grid,.studio-tool-grid,.studio-toggle-row{grid-template-columns:1fr}
-    .studio-panel,.studio-preview,.studio-drafts{padding:14px;border-radius:22px}
-  }
+body{background:#07101d;color:white}
+.studio{max-width:1180px;margin:18px auto;padding:14px}
+.head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
+.btn{border:1px solid rgba(255,255,255,.14);background:#101b2e;color:white;border-radius:999px;padding:11px 15px;font-weight:800;text-decoration:none;cursor:pointer}
+.btn.green{background:linear-gradient(135deg,#16a85d,#25d366)}
+.btn.blue{background:linear-gradient(135deg,#7c5cff,#46a0ff)}
+.grid{display:grid;grid-template-columns:1fr 340px;gap:14px}
+.cam{position:relative;background:#000;border-radius:26px;overflow:hidden;min-height:72vh;border:1px solid rgba(255,255,255,.08)}
+.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.top,.bottom{position:absolute;left:0;right:0;z-index:5;padding:14px;display:flex;justify-content:space-between;gap:8px}
+.top{top:0;background:linear-gradient(180deg,rgba(0,0,0,.6),transparent)}
+.bottom{bottom:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);flex-direction:column;align-items:center}
+.capture{width:82px;height:82px;border-radius:999px;border:5px solid white;background:#ff3153}
+.capture.recording{border-radius:22px;width:70px;height:70px}
+.overlay{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:4;text-align:center;font-size:34px;font-weight:900;text-shadow:0 8px 30px #000;max-width:86%}
+.watermark{position:absolute;right:14px;bottom:112px;z-index:4;background:rgba(0,0,0,.45);padding:8px 12px;border-radius:999px;font-weight:900}
+.timer{position:absolute;left:14px;top:70px;z-index:6;background:rgba(255,0,70,.8);padding:8px 12px;border-radius:999px;font-weight:900}
+.panel{background:#0d1728;border:1px solid rgba(255,255,255,.08);border-radius:26px;padding:16px}
+.field{margin-bottom:13px}
+.label{display:block;font-weight:850;margin-bottom:7px}
+.input,.select{width:100%;border:1px solid rgba(255,255,255,.1);background:#101b2e;color:#fff;border-radius:15px;padding:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid rgba(255,255,255,.1);background:#101b2e;color:#fff;border-radius:999px;padding:9px 11px;cursor:pointer}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:50;background:#081525;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:14px 18px;display:none}
+.hidden{display:none!important}
+.studio-links{display:flex;gap:8px;flex-wrap:wrap}
+.studio-note{margin-top:12px;padding:12px 14px;border-radius:18px;background:rgba(16,27,46,.72);border:1px solid rgba(255,255,255,.08);color:#b8c5da;line-height:1.55}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.cam{min-height:68vh}}
+@media(max-width:640px){
+  .studio{padding:10px}
+  .head{align-items:flex-start}
+  .studio-links{width:100%}
+  .studio-links .btn{flex:1 1 calc(50% - 8px);text-align:center}
+  .top,.bottom{padding:10px}
+  .bottom > div:last-child{width:100%;justify-content:stretch}
+  .bottom > div:last-child .btn{flex:1}
+}
 </style>
 
-<section class="studio-shell">
-  <div class="studio-layout">
-    <form class="studio-panel" method="post" enctype="multipart/form-data" action="{% url 'studio' %}" id="creatorStudioForm">
-      {% csrf_token %}
-      <div class="studio-head">
-        <div>
-          <h1>Creator Studio</h1>
-          <p class="studio-muted">Create a post, reel, flyer, poll, or live update from one fast mobile flow.</p>
-        </div>
-        <a class="studio-soft-btn" href="{% url 'home' %}">Back to feed</a>
-      </div>
-
-      {% if form.errors %}
-        <div class="studio-errors">{{ form.errors }}</div>
-      {% endif %}
-
-      <section class="studio-section">
-        <h2>Pick a format</h2>
-        <div class="studio-mode-grid" id="studioModeGrid">
-          {% for value,label in post_types %}
-            <button class="studio-mode-btn {% if active_type == value %}active{% endif %}" type="button" data-post-type="{{ value }}">
-              {{ label }}
-              <small>
-                {% if value == 'reel' %}Short-form vertical video
-                {% elif value == 'video' %}Longer clip with richer caption
-                {% elif value == 'photo' %}Photo-first post
-                {% elif value == 'flyer' %}Promotion or event graphic
-                {% elif value == 'poll' %}Audience interaction
-                {% elif value == 'live' %}Live announcement
-                {% else %}Status update or social post{% endif %}
-              </small>
-            </button>
-          {% endfor %}
-        </div>
-        <input type="hidden" name="post_type" id="studioPostType" value="{{ active_type }}">
-      </section>
-
-      <section class="studio-section">
-        <h2>Media source</h2>
-        <div class="studio-upload">
-          <div class="studio-upload-actions">
-            <button class="studio-soft-btn" type="button" id="studioGalleryButton">Pick from gallery</button>
-            <button class="studio-soft-btn" type="button" id="studioCameraButton">Use camera</button>
-            <button class="studio-soft-btn" type="button" id="studioVideoButton">Record video</button>
-            <button class="studio-soft-btn" type="button" id="studioResetMedia">Clear media</button>
-          </div>
-          <p class="studio-note" id="studioUploadNote">Choose media, check the preview, then publish.</p>
-          <input type="file" id="studioMediaInput" name="media_file" accept="image/*,video/*,audio/*" hidden>
-        </div>
-      </section>
-
-      <section class="studio-section">
-        <h2>Main post details</h2>
-        <div class="studio-grid">
-          <div class="studio-field">
-            <label for="studioTitle">Title</label>
-            <input id="studioTitle" name="title" value="{{ form.title.value|default:'' }}" placeholder="Add a strong title">
-          </div>
-          <div class="studio-field">
-            <label for="studioAudience">Audience</label>
-            <select id="studioAudience" name="audience">
-              {% for value,label in audiences %}<option value="{{ value }}" {% if form.audience.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="studio-field full">
-            <label for="studioCaption">Caption</label>
-            <textarea id="studioCaption" name="caption" placeholder="Tell the story behind the post, reel, or announcement">{{ form.caption.value|default:'' }}</textarea>
-          </div>
-          <div class="studio-field">
-            <label for="studioHashtags">Hashtags</label>
-            <input id="studioHashtags" name="hashtags_text" value="{{ form.hashtags_text.value|default:'' }}" placeholder="#namvibe #windhoek #creator">
-          </div>
-          <div class="studio-field">
-            <label for="studioMentions">Mentions</label>
-            <input id="studioMentions" name="mentions_text" value="{{ form.mentions_text.value|default:'' }}" placeholder="@creator @friend">
-          </div>
-          <div class="studio-field">
-            <label for="studioShareTarget">Share target</label>
-            <select id="studioShareTarget" name="share_target">
-              {% for value,label in share_targets %}<option value="{{ value }}" {% if form.share_target.value == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="studio-field">
-            <label for="studioTargetUsername">Specific user</label>
-            <input id="studioTargetUsername" name="target_username" value="{{ form.target_username.value|default:'' }}" placeholder="@username">
-          </div>
-          <div class="studio-field full">
-            <label for="studioCommunitySlug">Community</label>
-            <input id="studioCommunitySlug" name="community_slug" value="{{ form.community_slug.value|default:'' }}" placeholder="community-slug">
-          </div>
-        </div>
-      </section>
-
-      <section class="studio-section studio-advanced" id="studioReelTools">
-        <h2>Reel and video tools</h2>
-        <div class="studio-tool-grid">
-          <div class="studio-tool"><strong>Trim</strong><small>Keep your clip tight before you post.</small></div>
-          <div class="studio-tool"><strong>Cover image</strong><small>Choose the frame people see first.</small></div>
-          <div class="studio-tool"><strong>Audio</strong><small>Post with sound or keep it quiet.</small></div>
-          <div class="studio-tool"><strong>Effects</strong><small>Keep the look clean and focused.</small></div>
-        </div>
-      </section>
-
-      <section class="studio-section studio-advanced" id="studioFlyerTools">
-        <h2>Flyer builder</h2>
-        <div class="studio-grid">
-          <div class="studio-field"><label>Flyer title</label><input name="flyer_title" value="{{ form.flyer_title.value|default:'' }}" placeholder="Event, drop, promo, or announcement"></div>
-          <div class="studio-field"><label>CTA</label><input name="flyer_cta" value="{{ form.flyer_cta.value|default:'' }}" placeholder="Book now / Join / Shop"></div>
-          <div class="studio-field full"><label>Flyer body</label><textarea name="flyer_body" placeholder="Add the flyer details">{{ form.flyer_body.value|default:'' }}</textarea></div>
-          <div class="studio-field"><label>Background</label><input name="flyer_background" value="{{ form.flyer_background.value|default:'gradient-violet' }}"></div>
-          <div class="studio-field"><label>Text color</label><input name="flyer_text_color" value="{{ form.flyer_text_color.value|default:'#ffffff' }}"></div>
-          <div class="studio-field full"><label>Layout</label><input name="flyer_layout" value="{{ form.flyer_layout.value|default:'centered' }}"></div>
-        </div>
-      </section>
-
-      <section class="studio-section studio-advanced" id="studioPollTools">
-        <h2>Poll builder</h2>
-        <div class="studio-grid">
-          <div class="studio-field full"><label>Question</label><input name="poll_question" value="{{ form.poll_question.value|default:'' }}" placeholder="Ask the audience something real"></div>
-          <div class="studio-field full"><label>Options</label><textarea name="poll_options" placeholder="One option per line">{{ form.poll_options.value|default:'' }}</textarea></div>
-          <div class="studio-field"><label>Close at</label><input type="datetime-local" name="poll_closes_at" value="{{ form.poll_closes_at.value|default:'' }}"></div>
-          <div class="studio-field"><label style="visibility:hidden;">Multi</label><div class="studio-toggle"><input type="checkbox" name="poll_multiple_choice" {% if form.poll_multiple_choice.value %}checked{% endif %}> Allow multiple choice</div></div>
-        </div>
-      </section>
-
-      <section class="studio-section studio-advanced" id="studioLiveAnnouncement">
-        <h2>Live announcement details</h2>
-        <div class="studio-grid">
-          <div class="studio-field"><label>Stream title</label><input name="stream_title" value="{{ form.stream_title.value|default:'' }}" placeholder="Tonight with the Namvibe crew"></div>
-          <div class="studio-field"><label>Scheduled for</label><input type="datetime-local" name="scheduled_for" value="{{ form.scheduled_for.value|default:'' }}"></div>
-          <div class="studio-field"><label>Access type</label><select name="access_type"><option value="public">Public</option><option value="private">Private</option><option value="vip">VIP</option><option value="paid">Paid</option></select></div>
-          <div class="studio-field"><label>Ticket price</label><input type="number" min="0" step="0.01" name="ticket_price" value="{{ form.ticket_price.value|default:'' }}" placeholder="0.00"></div>
-        </div>
-      </section>
-
-      <section class="studio-section">
-        <h2>Publishing options</h2>
-        <div class="studio-toggle-row">
-          <label class="studio-toggle"><input type="checkbox" name="allow_comments" checked> Comments</label>
-          <label class="studio-toggle"><input type="checkbox" name="allow_sharing" checked> Sharing</label>
-          <label class="studio-toggle"><input type="checkbox" name="save_to_story" {% if form.save_to_story.value %}checked{% endif %}> Add to story</label>
-          <label class="studio-toggle"><input type="checkbox" name="premium_badge" {% if form.premium_badge.value %}checked{% endif %}> Premium badge</label>
-        </div>
-      </section>
-
-      <div class="studio-submit-row">
-        <button class="studio-submit" type="submit">Publish now</button>
-        <button class="studio-draft-btn" type="submit" formaction="{% url 'save_draft' %}">Save draft</button>
-        <span class="studio-note" id="studioStatusNote">Preview updates as you edit.</span>
-      </div>
-    </form>
-
-    <aside class="studio-preview">
-      <div class="studio-preview-phone">
-        <div class="studio-preview-top">
-          <span class="studio-preview-chip" id="studioPreviewType">Post preview</span>
-          <span class="studio-preview-chip" id="studioPreviewAudience">Public</span>
-        </div>
-        <div class="studio-preview-card">
-          <div class="studio-preview-media" id="studioPreviewMedia" hidden></div>
-          <div class="studio-preview-copy" id="studioPreviewCopy">
-            <h2 id="studioPreviewTitle">Give this post a strong title.</h2>
-            <p id="studioPreviewCaption">Add a caption, choose your audience, and publish when it feels right.</p>
-            <div class="studio-preview-actions">
-              <span id="studioPreviewMeta">Ready to publish</span>
-            </div>
-          </div>
-        </div>
-        <div class="studio-section">
-          <h2 style="color:#fffdf8;">Creator flow</h2>
-          <div class="studio-tool-grid">
-            <div class="studio-tool"><strong>Promote content</strong><small>Move finished posts into ads when you want more reach.</small></div>
-            <div class="studio-tool"><strong>Go live next</strong><small>Jump into Live Studio after posting a reel or update.</small></div>
-            <div class="studio-tool"><strong>Wallet</strong><small>Keep premium, gifting, and earnings one tap away.</small></div>
-            <div class="studio-tool"><strong>Permissions</strong><small>Camera and gallery access are ready for mobile capture.</small></div>
-          </div>
-        </div>
-      </div>
-    </aside>
+<div class="studio">
+  <div class="head">
+    <div>
+      <div style="display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(124,92,255,.18);font-weight:900;letter-spacing:.05em;text-transform:uppercase;font-size:12px;">Creator Studio</div>
+      <h1 style="margin:0">Namvibe Camera</h1>
+      <p style="margin:5px 0 0;color:#aebbd2">Tap photo • hold video • music preview • watermark • caption inside camera</p>
+    </div>
+    <div class="studio-links">
+      <a class="btn" href="{% url 'home' %}">Home</a>
+      <a class="btn" href="{% url 'user_dashboard' %}">Dashboard</a>
+      <a class="btn" href="{% url 'profile_shortcut' %}">Profile</a>
+    </div>
   </div>
 
-  {% if recent_drafts %}
-    <section class="studio-drafts" style="margin-top:18px;">
-      <h2 style="margin-top:0;">Recent drafts</h2>
-      {% for draft in recent_drafts %}
-        <a href="{% url 'studio_draft' draft.uuid %}">{{ draft.title|default:draft.get_post_type_display }}</a>
-      {% endfor %}
-    </section>
-  {% endif %}
-</section>
-{% endblock %}
+  <form id="studioForm" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="grid">
+      <section class="cam">
+        <video id="live" autoplay muted playsinline></video>
+        <video id="playback" class="hidden" controls playsinline></video>
+        <canvas id="photoCanvas" class="hidden"></canvas>
 
-{% block extra_scripts %}
+        <div class="top">
+          <button type="button" class="btn blue" id="openBtn">Open Camera</button>
+          <button type="button" class="btn" id="flipBtn">Flip</button>
+        </div>
+
+        <div class="timer hidden" id="timer">00:00</div>
+        <div class="overlay" id="captionOverlay">Write caption here</div>
+        <div class="watermark">Namvibe Camera</div>
+
+        <div class="bottom">
+          <div id="hint" style="background:rgba(0,0,0,.48);padding:9px 13px;border-radius:999px">Open camera first</div>
+          <button type="button" class="capture" id="captureBtn"></button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+            <button type="button" class="btn" id="retakeBtn">Retake</button>
+            <button type="submit" class="btn green">Post / Save</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="studio-note">
+          Capture in full screen, then post straight to your feed. For more detailed layouts, reels, flyers, and drafts, open the main studio from your dashboard after recording.
+        </div>
+        <div class="field">
+          <label class="label">Mode</label>
+          <select class="select" id="modeSelect" name="mode">
+            <option value="auto">Auto tap photo / hold video</option>
+            <option value="photo">Photo only</option>
+            <option value="video">Video only</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="label">Caption / words inside camera</label>
+          <input class="input" id="captionInput" name="caption" placeholder="Write caption">
+        </div>
+
+        <div class="field">
+          <label class="label">Music preview</label>
+          <select class="select" id="musicSelect" name="music_title">
+            <option value="">No music</option>
+            <option value="https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73467.mp3">Calm Ambient</option>
+            <option value="https://cdn.pixabay.com/audio/2022/10/25/audio_946b732052.mp3">Soft Cinematic</option>
+            <option value="https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3">Afro Vibe</option>
+          </select>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button type="button" class="btn" id="playMusicBtn">Play</button>
+            <button type="button" class="btn" id="stopMusicBtn">Stop</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label">Start song at second</label>
+          <input class="input" type="number" id="musicStart" value="0" min="0">
+        </div>
+
+        <div class="field">
+          <label class="label">Look</label>
+          <div class="chips">
+            <button type="button" class="chip" data-filter="none">Normal</button>
+            <button type="button" class="chip" data-filter="brightness(1.25)">Bright</button>
+            <button type="button" class="chip" data-filter="sepia(.35)">Warm</button>
+            <button type="button" class="chip" data-filter="contrast(1.25)">Sharp</button>
+          </div>
+        </div>
+
+        <input type="file" name="video" id="videoFile" class="hidden">
+      </aside>
+    </div>
+  </form>
+</div>
+
+<div class="toast" id="toast">Uploading to Namvibe… your post is going live.</div>
+<audio id="musicPlayer" loop></audio>
+
 <script>
-  (function () {
-    const form = document.getElementById("creatorStudioForm");
-    const typeInput = document.getElementById("studioPostType");
-    const mediaInput = document.getElementById("studioMediaInput");
-    const previewMedia = document.getElementById("studioPreviewMedia");
-    const previewTitle = document.getElementById("studioPreviewTitle");
-    const previewCaption = document.getElementById("studioPreviewCaption");
-    const previewType = document.getElementById("studioPreviewType");
-    const previewAudience = document.getElementById("studioPreviewAudience");
-    const previewMeta = document.getElementById("studioPreviewMeta");
-    const uploadNote = document.getElementById("studioUploadNote");
-    const sections = {
-      reel: document.getElementById("studioReelTools"),
-      video: document.getElementById("studioReelTools"),
-      flyer: document.getElementById("studioFlyerTools"),
-      poll: document.getElementById("studioPollTools"),
-      live: document.getElementById("studioLiveAnnouncement")
-    };
+(() => {
+  const live=document.getElementById("live"), playback=document.getElementById("playback");
+  const openBtn=document.getElementById("openBtn"), flipBtn=document.getElementById("flipBtn");
+  const captureBtn=document.getElementById("captureBtn"), retakeBtn=document.getElementById("retakeBtn");
+  const videoFile=document.getElementById("videoFile"), hint=document.getElementById("hint");
+  const timer=document.getElementById("timer"), captionInput=document.getElementById("captionInput"), captionOverlay=document.getElementById("captionOverlay");
+  const musicSelect=document.getElementById("musicSelect"), musicPlayer=document.getElementById("musicPlayer"), musicStart=document.getElementById("musicStart");
+  const playMusicBtn=document.getElementById("playMusicBtn"), stopMusicBtn=document.getElementById("stopMusicBtn"), modeSelect=document.getElementById("modeSelect");
+  const toast=document.getElementById("toast"), form=document.getElementById("studioForm");
 
-    function setPostType(type) {
-      typeInput.value = type;
-      document.querySelectorAll("[data-post-type]").forEach(function(button) {
-        button.classList.toggle("active", button.dataset.postType === type);
-      });
-      Object.values(sections).forEach(function(section) {
-        if (section) section.classList.remove("active");
-      });
-      if (sections[type]) sections[type].classList.add("active");
-      previewType.textContent = type.charAt(0).toUpperCase() + type.slice(1) + " preview";
-      previewMeta.textContent = type === "reel" ? "Vertical video flow" : type === "live" ? "Live announcement flow" : "Ready to publish";
-      if (type === "reel" || type === "video") {
-        mediaInput.accept = "video/*";
-        uploadNote.textContent = "Use gallery or camera recording for reels and video posts.";
-      } else if (type === "photo" || type === "story" || type === "flyer") {
-        mediaInput.accept = "image/*";
-        uploadNote.textContent = "Choose a photo from gallery or camera. Image posts preserve the current upload flow and social visibility rules.";
-      } else {
-        mediaInput.accept = "image/*,video/*,audio/*";
-        uploadNote.textContent = "This format stays compatible with the existing post pipeline and creator tools.";
-      }
-    }
+  let stream=null, recorder=null, chunks=[], recording=false, holdTimer=null, front=false, sec=0, tick=null;
 
-    function renderPreview(file) {
-      if (!file) {
-        previewMedia.hidden = true;
-        previewMedia.innerHTML = "";
-        return;
-      }
-      const url = URL.createObjectURL(file);
-      const isVideo = file.type.startsWith("video/");
-      previewMedia.hidden = false;
-      previewMedia.innerHTML = isVideo
-        ? '<video src="' + url + '" controls muted playsinline></video>'
-        : '<img src="' + url + '" alt="Studio media preview">';
-    }
+  async function openCamera(){
+    stopCamera();
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:front?"user":"environment",width:{ideal:1280},height:{ideal:720}},audio:true});
+      live.srcObject=stream; live.classList.remove("hidden"); playback.classList.add("hidden");
+      hint.textContent="Ready: tap photo / hold video";
+    }catch(e){hint.textContent="Camera blocked. Allow permission."; console.error(e);}
+  }
+  function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;} stopMusic();}
+  function attach(blob,name,type){const f=new File([blob],name,{type});const dt=new DataTransfer();dt.items.add(f);videoFile.files=dt.files;}
+  function playMusic(){if(!musicSelect.value)return;musicPlayer.src=musicSelect.value;musicPlayer.currentTime=Number(musicStart.value||0);musicPlayer.play().catch(()=>{});}
+  function stopMusic(){try{musicPlayer.pause();}catch(e){}}
+  function startTimer(){sec=0;timer.classList.remove("hidden");tick=setInterval(()=>{sec++;timer.textContent=`00:${String(sec).padStart(2,"0")}`},1000)}
+  function stopTimer(){clearInterval(tick);timer.classList.add("hidden")}
+  function takePhoto(){if(!stream)return;const c=document.createElement("canvas");c.width=live.videoWidth||720;c.height=live.videoHeight||1280;c.getContext("2d").drawImage(live,0,0,c.width,c.height);c.toBlob(b=>{attach(b,`namvibe_photo_${Date.now()}.jpg`,"image/jpeg");hint.textContent="Photo captured. Post or retake.";}, "image/jpeg", .92);}
+  function startRecording(){
+    if(!stream||recording)return; playMusic(); startTimer(); chunks=[];
+    recorder=new MediaRecorder(stream,{mimeType:"video/webm"});
+    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+    recorder.onstop=()=>{stopTimer();stopMusic();const b=new Blob(chunks,{type:"video/webm"});attach(b,`namvibe_video_${Date.now()}.webm`,"video/webm");playback.src=URL.createObjectURL(b);playback.classList.remove("hidden");live.classList.add("hidden");hint.textContent="Video ready. Post or retake.";recording=false;captureBtn.classList.remove("recording")};
+    recorder.start(); recording=true; captureBtn.classList.add("recording"); hint.textContent="Recording… release to stop";
+  }
+  function stopRecording(){if(recorder&&recording)recorder.stop();}
 
-    function syncPreview() {
-      previewTitle.textContent = document.getElementById("studioTitle").value.trim() || "Give this post a strong title.";
-      previewCaption.textContent = document.getElementById("studioCaption").value.trim() || "Add a caption, choose your audience, and publish when it feels right.";
-      previewAudience.textContent = document.getElementById("studioAudience").selectedOptions[0].textContent;
-    }
+  openBtn.onclick=openCamera;
+  flipBtn.onclick=()=>{front=!front;openCamera()};
+  retakeBtn.onclick=()=>{videoFile.value="";openCamera()};
+  captionInput.oninput=()=>{captionOverlay.textContent=captionInput.value||"Write caption here"};
+  playMusicBtn.onclick=playMusic; stopMusicBtn.onclick=stopMusic;
 
-    document.querySelectorAll("[data-post-type]").forEach(function(button) {
-      button.addEventListener("click", function() {
-        setPostType(button.dataset.postType);
-      });
-    });
-    ["studioTitle", "studioCaption", "studioAudience"].forEach(function(id) {
-      const input = document.getElementById(id);
-      input?.addEventListener("input", syncPreview);
-      input?.addEventListener("change", syncPreview);
-    });
-    document.getElementById("studioGalleryButton")?.addEventListener("click", function() {
-      mediaInput.removeAttribute("capture");
-      mediaInput.click();
-    });
-    document.getElementById("studioCameraButton")?.addEventListener("click", function() {
-      mediaInput.accept = "image/*";
-      mediaInput.setAttribute("capture", "environment");
-      mediaInput.click();
-    });
-    document.getElementById("studioVideoButton")?.addEventListener("click", function() {
-      mediaInput.accept = "video/*";
-      mediaInput.setAttribute("capture", "environment");
-      mediaInput.click();
-    });
-    document.getElementById("studioResetMedia")?.addEventListener("click", function() {
-      mediaInput.value = "";
-      renderPreview(null);
-    });
-    mediaInput?.addEventListener("change", function() {
-      renderPreview(mediaInput.files && mediaInput.files[0]);
-    });
-    form?.addEventListener("submit", function() {
-      document.getElementById("studioStatusNote").textContent = "Publishing now...";
-    });
-
-    setPostType("{{ active_type|default:'text' }}");
-    syncPreview();
-  }());
+  document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{live.style.filter=b.dataset.filter;playback.style.filter=b.dataset.filter});
+  captureBtn.addEventListener("mousedown",()=>{if(modeSelect.value==="photo")return takePhoto();holdTimer=setTimeout(startRecording,260)});
+  captureBtn.addEventListener("touchstart",()=>{if(modeSelect.value==="photo")return takePhoto();holdTimer=setTimeout(startRecording,260)},{passive:true});
+  ["mouseup","mouseleave","touchend","touchcancel"].forEach(e=>captureBtn.addEventListener(e,()=>{clearTimeout(holdTimer);if(recording)stopRecording();else if(modeSelect.value!=="video")takePhoto()}));
+  form.onsubmit=()=>{toast.style.display="block";return true};
+  window.addEventListener("beforeunload",stopCamera);
+})();
 </script>
 {% endblock %}

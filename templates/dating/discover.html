@@ -1,77 +1,772 @@
 {% extends "base.html" %}
-{% block title %}Discover Dating | Namvibe{% endblock %}
+{% load static %}
 {% block content %}
-{% include "dating/_styles.html" %}
-<section class="dating-shell">
-  <div class="dating-tabs">
-    <a class="dating-primary" href="{% url 'dating_discover' %}">Discover</a>
-    <a href="{% url 'dating_profile_edit' %}">My Dating Profile</a>
-    <a href="{% url 'dating_matches' %}">Matches</a>
-    <a href="{% url 'dating_likes' %}">Likes</a>
-  </div>
-  <div class="dating-layout">
-    <aside class="dating-panel">
-      <h2>Filters</h2>
-      <form class="filter-form" method="get">
-        <input name="age_min" value="{{ filters.age_min }}" placeholder="Min age">
-        <input name="age_max" value="{{ filters.age_max }}" placeholder="Max age">
-        <select name="gender"><option value="">Any gender</option>{% for value,label in gender_choices %}<option value="{{ value }}" {% if filters.gender == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-        <input name="city" value="{{ filters.city }}" placeholder="City">
-        <input name="region" value="{{ filters.region }}" placeholder="Region">
-        <select name="relationship_goal"><option value="">Any goal</option>{% for value,label in goal_choices %}<option value="{{ value }}" {% if filters.relationship_goal == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-        <label><input type="checkbox" name="verified" value="1" {% if filters.verified %}checked{% endif %}> Verified only</label>
-        <label><input type="checkbox" name="creator" value="1" {% if filters.creator %}checked{% endif %}> Creators</label>
-        <button class="dating-primary" type="submit">Apply</button>
-      </form>
-    </aside>
-    <main>
-      {% if primary_profile %}
-        <article class="dating-card">
-          <div class="dating-photo">
-            {% with photo=primary_profile.primary_photo %}
-              {% if photo %}<img src="{{ photo.image.url }}" alt="{{ primary_profile.display_name }}">{% else %}<span class="avatar">{{ primary_profile.display_name|first|upper }}</span>{% endif %}
-            {% endwith %}
-          </div>
-          <h1>{{ primary_profile.display_name }}{% if primary_profile.show_age %}, {{ primary_profile.age }}{% endif %}</h1>
-          <p class="dating-muted">{{ primary_profile.city }}{% if primary_profile.region %}, {{ primary_profile.region }}{% endif %} · {{ primary_profile.get_relationship_goal_display }}</p>
-          <p>{{ primary_profile.bio }}</p>
-          <div class="chip-row">{% for interest in primary_profile.interests %}<span class="chip">{{ interest }}</span>{% endfor %}</div>
-          <div class="dating-actions" style="margin-top:14px;">
-            <form method="post" action="{% url 'dating_pass' primary_profile.user.profile.username %}">{% csrf_token %}<button type="submit">Pass</button></form>
-            <form method="post" action="{% url 'dating_like' primary_profile.user.profile.username %}">{% csrf_token %}<button class="dating-primary" type="submit">Like</button></form>
-            <a href="{% url 'dating_profile_detail' primary_profile.user.profile.username %}">View profile</a>
-          </div>
-        </article>
-      {% else %}
-        <div class="dating-panel"><h2>No profiles found</h2><p class="dating-muted">Adjust your filters or check back soon.</p></div>
-      {% endif %}
-      <div class="dating-grid" style="margin-top:14px;">
-        {% for profile in profiles|slice:"1:" %}
-          <article class="dating-card">
-            <div class="dating-photo">{% with photo=profile.primary_photo %}{% if photo %}<img src="{{ photo.image.url }}" alt="{{ profile.display_name }}">{% else %}<span class="avatar">{{ profile.display_name|first|upper }}</span>{% endif %}{% endwith %}</div>
-            <h2>{{ profile.display_name }}{% if profile.show_age %}, {{ profile.age }}{% endif %}</h2>
-            <p class="dating-muted">{{ profile.city }} · {{ profile.get_relationship_goal_display }}</p>
-            <div class="dating-actions"><a href="{% url 'dating_profile_detail' profile.user.profile.username %}">Open</a></div>
-          </article>
-        {% endfor %}
-      </div>
-    </main>
-    <aside class="dating-panel">
-      <h2>Recent matches</h2>
-      {% for match in recent_matches %}
-        {% if match.user_one == request.user %}
-          {% with user=match.user_two %}
-            <a class="match-row" href="{% url 'dating_profile_detail' user.profile.username %}"><span>@{{ user.profile.username }}</span><small>{{ match.created_at|date:"M j" }}</small></a>
-          {% endwith %}
-        {% else %}
-          {% with user=match.user_one %}
-          <a class="match-row" href="{% url 'dating_profile_detail' user.profile.username %}"><span>@{{ user.profile.username }}</span><small>{{ match.created_at|date:"M j" }}</small></a>
-          {% endwith %}
-        {% endif %}
-      {% empty %}
-        <p class="dating-muted">Mutual matches will appear here.</p>
-      {% endfor %}
-    </aside>
-  </div>
-</section>
+<style>
+/* Full-screen UI overrides */
+body { 
+    background: #000; 
+    color: white; 
+    overflow: hidden; 
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
+    font-family: 'Inter', sans-serif;
+}
+
+.site-header, .footer, .mobile-bottom-nav {
+    display: none !important;
+}
+
+.dating-shell { 
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Close/Back Button */
+.discover-exit {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    background: rgba(0,0,0,0.4);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-decoration: none;
+    font-size: 20px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.discover-status {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100vw - 96px);
+}
+
+.status-pill {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.48);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(10px);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.discover-alert {
+    position: absolute;
+    top: 78px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 120;
+    min-width: min(88vw, 420px);
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: rgba(127, 29, 29, 0.92);
+    border: 1px solid rgba(252, 165, 165, 0.35);
+    color: white;
+    text-align: center;
+    display: none;
+}
+
+/* Card Stack Container */
+.discover-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 120px; /* Space for buttons */
+}
+
+.card-stack {
+    position: relative;
+    width: min(450px, 95vw);
+    height: min(750px, 80vh);
+    perspective: 1000px;
+}
+
+/* Individual Card */
+.swipe-card {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: #111;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    transform-origin: center bottom;
+    z-index: 2;
+}
+
+.swipe-card:active { cursor: grabbing; }
+
+.swipe-card.next-card {
+    transform: scale(0.9) translateY(20px);
+    opacity: 0.6;
+    z-index: 1;
+}
+
+.photo-gallery {
+    flex: 1;
+    position: relative;
+    background-color: #0a0a0a;
+}
+
+.card-image {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.card-image.active {
+    opacity: 1;
+}
+
+.gallery-controls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    z-index: 5;
+    display: flex;
+}
+
+.gallery-tap {
+    flex: 1;
+}
+
+.gallery-indicators {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+}
+
+.gallery-dot {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+}
+
+.gallery-dot.active {
+    background: white;
+}
+
+.premium-badges {
+    position: absolute;
+    top: 25px;
+    left: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 10;
+}
+
+.badge-item {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    backdrop-filter: blur(8px);
+}
+
+.badge-verified { background: rgba(37, 211, 102, 0.2); color: #25d366; border: 1px solid rgba(37, 211, 102, 0.3); }
+.badge-premium { background: rgba(212, 177, 106, 0.2); color: #f1d8a3; border: 1px solid rgba(212, 177, 106, 0.3); }
+.badge-boosted { background: rgba(255, 79, 79, 0.2); color: #ff4f4f; border: 1px solid rgba(255, 79, 79, 0.3); }
+
+.card-gradient {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 40%, transparent 100%);
+    z-index: 6;
+}
+
+.card-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 24px;
+    color: white;
+    z-index: 7;
+}
+
+.card-info h3 { margin: 0; font-size: 2.2rem; font-weight: 800; }
+.card-info p { margin: 6px 0 0; opacity: 0.8; font-size: 1.1rem; font-weight: 500; }
+
+/* Action Buttons Overlay */
+.bottom-actions {
+    position: absolute;
+    bottom: 30px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 25px;
+    z-index: 100;
+}
+
+.action-btn {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    transition: transform 0.2s, background-color 0.2s;
+    background: #1a1a1a;
+    color: white;
+}
+
+.action-btn:hover { transform: scale(1.1); }
+.action-btn:active { transform: scale(0.9); }
+.action-btn.pass { border: 2px solid #ff4f4f; color: #ff4f4f; background: rgba(255, 79, 79, 0.05); }
+.action-btn.like { border: 2px solid #25d366; color: #25d366; background: rgba(37, 211, 102, 0.05); }
+.action-btn.super-like { border: 2px solid #fbbf24; color: #fbbf24; background: rgba(251, 191, 36, 0.08); }
+
+/* Indicators */
+.swipe-indicator {
+    position: absolute;
+    top: 60px;
+    padding: 10px 20px;
+    border: 5px solid;
+    border-radius: 12px;
+    font-size: 48px;
+    font-weight: 900;
+    text-transform: uppercase;
+    opacity: 0;
+    z-index: 10;
+    pointer-events: none;
+}
+.swipe-indicator.like { left: 40px; border-color: #25d366; color: #25d366; transform: rotate(-20deg); }
+.swipe-indicator.pass { right: 40px; border-color: #ff4f4f; color: #ff4f4f; transform: rotate(20deg); }
+
+/* Empty State */
+.empty-stack {
+    text-align: center;
+    padding: 40px;
+    display: none;
+    max-width: 320px;
+}
+.empty-stack h3 { font-size: 1.8rem; margin-bottom: 15px; }
+.empty-stack p { color: #888; margin-bottom: 30px; line-height: 1.5; }
+.empty-actions { display: flex; flex-direction: column; gap: 15px; }
+
+/* Match Modal */
+.match-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+.match-modal.show {
+    display: flex;
+    animation: modalFadeIn 0.5s ease forwards;
+}
+
+.match-modal h2 {
+    font-size: 3.5rem;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #ff4f8b, #7c5cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -2px;
+}
+
+.match-modal p {
+    font-size: 1.2rem;
+    color: #aaa;
+    margin-bottom: 40px;
+}
+
+.match-avatars {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 50px;
+    position: relative;
+}
+
+.match-avatar-container {
+    position: relative;
+    width: 140px;
+    height: 140px;
+}
+
+.match-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 5px solid #fff;
+    object-fit: cover;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+    background: #222;
+}
+
+.match-avatar-container:first-child {
+    transform: translateX(20px);
+    z-index: 1;
+}
+
+.match-avatar-container:last-child {
+    transform: translateX(-20px);
+    z-index: 2;
+}
+
+.match-heart {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ff4f8b;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    z-index: 3;
+    border: 4px solid #000;
+    animation: heartBeat 1.5s infinite;
+}
+
+.match-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 320px;
+}
+
+.match-btn {
+    padding: 18px;
+    border-radius: 999px;
+    font-weight: 800;
+    text-decoration: none;
+    font-size: 1.1rem;
+    transition: transform 0.2s, background-color 0.2s;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+}
+
+.match-btn:active { transform: scale(0.95); }
+.btn-chat { background: linear-gradient(135deg, #ff4f8b, #7c5cff); color: white; box-shadow: 0 10px 25px rgba(255, 79, 139, 0.4); }
+.btn-keep { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+.btn-keep:hover { background: rgba(255,255,255,0.2); }
+
+@keyframes modalFadeIn { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
+@keyframes heartBeat { 
+    0% { transform: translate(-50%, -50%) scale(1); }
+    15% { transform: translate(-50%, -50%) scale(1.3); }
+    30% { transform: translate(-50%, -50%) scale(1); }
+    45% { transform: translate(-50%, -50%) scale(1.15); }
+    60% { transform: translate(-50%, -50%) scale(1); }
+}
+
+@media(max-height: 750px) {
+    .card-stack { height: 75vh; }
+    .action-btn { width: 64px; height: 64px; font-size: 24px; }
+    .match-modal h2 { font-size: 2.5rem; }
+    .match-avatar-container { width: 110px; height: 110px; }
+}
+</style>
+
+<!-- Premium Match Modal -->
+<div id="matchModal" class="match-modal">
+    <h2>🔥 It's a Match!</h2>
+    <p>You and <span id="matchName">them</span> liked each other.</p>
+    <div class="match-avatars">
+        <div class="match-avatar-container">
+            <img id="myMatchAvatar" src="{% if request.user.dating_profile.primary_photo %}{{ request.user.dating_profile.primary_photo.image.url }}{% elif request.user.profile.avatar %}{{ request.user.profile.avatar.url }}{% else %}{% static 'images/default-avatar.svg' %}{% endif %}" class="match-avatar">
+        </div>
+        <div class="match-heart">❤️</div>
+        <div class="match-avatar-container">
+            <img id="theirMatchAvatar" src="{% static 'images/default-avatar.svg' %}" class="match-avatar">
+        </div>
+    </div>
+    <div class="match-actions">
+        <a id="matchChatBtn" href="{% url 'dating_matches' %}" class="match-btn btn-chat">Send a Message</a>
+        <button onclick="closeMatchModal()" class="match-btn btn-keep">Keep Swiping</button>
+    </div>
+</div>
+
+<div class="dating-shell">
+    <a href="{% url 'dating' %}" class="discover-exit">✕</a>
+    <div class="discover-status">
+        <div class="status-pill">🪙 {{ coin_balance.balance }} coins</div>
+        <div class="status-pill">
+            {% if remaining_likes_today == None %}
+                Unlimited likes
+            {% else %}
+                {{ remaining_likes_today }} likes left today
+            {% endif %}
+        </div>
+    </div>
+    <div class="discover-alert" id="discoverAlert"></div>
+
+    <div class="discover-container">
+        <div class="card-stack" id="cardStack">
+            {% for profile in profiles %}
+            <div class="swipe-card" data-username="{{ profile.user.profile.username }}" data-displayname="{{ profile.display_name }}" style="z-index: {{ forloop.revindex }}">
+                <div class="photo-gallery">
+                    <div class="gallery-indicators">
+                        {% for photo in profile.photos.all %}
+                            <div class="gallery-dot {% if forloop.first %}active{% endif %}"></div>
+                        {% empty %}
+                            <div class="gallery-dot active"></div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="premium-badges">
+                        {% if profile.is_verified_dating %}<span class="badge-item badge-verified">✓ Verified</span>{% endif %}
+                        {% if profile.has_premium_badge %}<span class="badge-item badge-premium">👑 {{ profile.premium_badge_label }}</span>{% endif %}
+                        {% if profile.boosted_at %}<span class="badge-item badge-boosted">🚀 Boosted</span>{% endif %}
+                    </div>
+
+                    <div class="gallery-controls">
+                        <div class="gallery-tap prev" onclick="cyclePhoto(this, -1)"></div>
+                        <div class="gallery-tap next" onclick="cyclePhoto(this, 1)"></div>
+                    </div>
+
+                    {% for photo in profile.photos.all %}
+                        <div class="card-image {% if forloop.first %}active{% endif %}" style="background-image: url('{{ photo.image.url }}')"></div>
+                    {% empty %}
+                        <div class="card-image active" style="background-color: #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 5rem;">
+                            {{ profile.display_name|first|upper }}
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="swipe-indicator like">LIKE</div>
+                    <div class="swipe-indicator pass">NOPE</div>
+                    <div class="card-gradient"></div>
+                    <div class="card-info">
+                        <h3>{{ profile.display_name }}, {{ profile.age }}</h3>
+                        <p>{{ profile.city }}{% if profile.occupation %} • {{ profile.occupation }}{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <div class="empty-stack" id="emptyStack" {% if not profiles %}style="display:block;"{% endif %}>
+                <h3>No more vibes nearby!</h3>
+                <p>You've seen everyone for now. Try expanding your filters or check back later.</p>
+                <div class="empty-actions">
+                    <a href="{% url 'dating_discover' %}" class="match-btn btn-chat">Refresh Discovery</a>
+                    <a href="{% url 'dating' %}" class="match-btn btn-keep">Back to Hub</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-actions" id="mainActions">
+        <button type="button" class="action-btn pass" id="btnPass" title="Pass">❌</button>
+        <button type="button" class="action-btn super-like" id="btnSuperLike" title="Super Like">⭐</button>
+        <button type="button" class="action-btn like" id="btnLike" title="Like">❤️</button>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const stack = document.getElementById('cardStack');
+    const emptyStack = document.getElementById('emptyStack');
+    const mainActions = document.getElementById('mainActions');
+    const matchModal = document.getElementById('matchModal');
+    const discoverAlert = document.getElementById('discoverAlert');
+    const csrfToken = '{{ csrf_token }}';
+    
+    let cards = Array.from(stack.querySelectorAll('.swipe-card'));
+
+    function showAlert(message) {
+        if (!discoverAlert) return;
+        discoverAlert.textContent = message;
+        discoverAlert.style.display = 'block';
+        window.clearTimeout(showAlert.timer);
+        showAlert.timer = window.setTimeout(() => {
+            discoverAlert.style.display = 'none';
+        }, 2600);
+    }
+    
+    function updateStackUI() {
+        cards.forEach((card, index) => {
+            card.classList.remove('next-card');
+            card.style.zIndex = index + 2;
+            if (index === cards.length - 2) {
+                card.classList.add('next-card');
+            }
+        });
+        
+        if (cards.length === 0) {
+            emptyStack.style.display = 'block';
+            mainActions.style.display = 'none';
+        }
+    }
+
+    function initCard(card) {
+        if (!card) return;
+        let startX, startY, moveX, moveY;
+        const likeIndicator = card.querySelector('.swipe-indicator.like');
+        const passIndicator = card.querySelector('.swipe-indicator.pass');
+
+        const handleStart = (x, y) => {
+            if (matchModal.classList.contains('show')) return;
+            startX = x;
+            startY = y;
+            card.style.transition = 'none';
+        };
+
+        const handleMove = (x, y) => {
+            if (startX === undefined) return;
+            moveX = x - startX;
+            moveY = y - startY;
+            
+            const rotate = moveX / 20;
+            card.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotate}deg)`;
+            
+            // Indicators
+            if (moveX > 40) {
+                if (likeIndicator) likeIndicator.style.opacity = Math.min(moveX / 120, 1);
+                if (passIndicator) passIndicator.style.opacity = 0;
+            } else if (moveX < -40) {
+                if (passIndicator) passIndicator.style.opacity = Math.min(Math.abs(moveX) / 120, 1);
+                if (likeIndicator) likeIndicator.style.opacity = 0;
+            } else {
+                if (likeIndicator) likeIndicator.style.opacity = 0;
+                if (passIndicator) passIndicator.style.opacity = 0;
+            }
+        };
+
+        const handleEnd = () => {
+            if (startX === undefined) return;
+            card.style.transition = '';
+            if (Math.abs(moveX) > 120) {
+                completeSwipe(card, moveX > 0 ? 'like' : 'pass', moveX, moveY);
+            } else {
+                card.style.transform = '';
+                if (likeIndicator) likeIndicator.style.opacity = 0;
+                if (passIndicator) passIndicator.style.opacity = 0;
+            }
+            startX = startY = moveX = moveY = undefined;
+        };
+
+        card.addEventListener('touchstart', e => handleStart(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+        card.addEventListener('touchmove', e => handleMove(e.touches[0].clientX, e.touches[0].clientY), {passive: true});
+        card.addEventListener('touchend', handleEnd);
+
+        card.addEventListener('mousedown', e => {
+            if (e.target.classList.contains('gallery-tap')) return;
+            handleStart(e.clientX, e.clientY);
+            const mouseMove = me => handleMove(me.clientX, me.clientY);
+            const mouseUp = () => {
+                document.removeEventListener('mousemove', mouseMove);
+                document.removeEventListener('mouseup', mouseUp);
+                handleEnd();
+            };
+            document.addEventListener('mousemove', mouseMove);
+            document.addEventListener('mouseup', mouseUp);
+        });
+    }
+
+    async function completeSwipe(card, action, x = 0, y = 0) {
+        if (!card) return;
+        if (card.dataset.actionPending === '1') return;
+        card.dataset.actionPending = '1';
+        card.style.pointerEvents = 'none';
+        const outX = x === 0 ? (action === 'pass' ? -1200 : 1200) : (x > 0 ? 1200 : -1200);
+        const outY = y === 0 ? -100 : y;
+        const result = await submitAction(card.dataset.username, card.dataset.displayname, action);
+        if (!result.ok) {
+            const likeIndicator = card.querySelector('.swipe-indicator.like');
+            const passIndicator = card.querySelector('.swipe-indicator.pass');
+            card.dataset.actionPending = '0';
+            card.style.pointerEvents = '';
+            card.style.transform = '';
+            if (likeIndicator) likeIndicator.style.opacity = 0;
+            if (passIndicator) passIndicator.style.opacity = 0;
+            showAlert(result.error || 'Action failed.');
+            return;
+        }
+
+        card.style.transition = 'transform 0.6s ease-in, opacity 0.4s';
+        card.style.transform = `translate(${outX}px, ${outY}px) rotate(${outX/10}deg)`;
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+
+        cards = cards.filter(c => c !== card);
+        setTimeout(() => {
+            if (card.parentNode) card.remove();
+            updateStackUI();
+        }, 600);
+
+        if (result.match) {
+            const activePhoto = card.querySelector('.card-image.active');
+            let photoUrl = '';
+            if (activePhoto && activePhoto.style.backgroundImage) {
+                photoUrl = activePhoto.style.backgroundImage.replace(/url\(['"]?(.*?)['"]?\)/i, '$1');
+            }
+            showMatchModal(card.dataset.username, card.dataset.displayname, photoUrl);
+        }
+    }
+
+    async function submitAction(username, displayname, action) {
+        let url = `/dating/action/pass/${username}/`;
+        if (action === 'like') url = `/dating/action/like/${username}/`;
+        if (action === 'super-like') url = `/dating/action/super-like/${username}/`;
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', csrfToken);
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            let data = {};
+            try {
+                data = await response.json();
+            } catch (_error) {
+                data = {};
+            }
+            if (!response.ok) {
+                return {ok: false, error: data.error || 'Action failed.'};
+            }
+            return data;
+        } catch (e) {
+            console.error('Action failed', e);
+            return {ok: false, error: 'Network error. Please try again.'};
+        }
+    }
+
+    function showMatchModal(username, displayname, photoUrl) {
+        const theirAvatar = document.getElementById('theirMatchAvatar');
+        const nameSpan = document.getElementById('matchName');
+        const chatBtn = document.getElementById('matchChatBtn');
+        
+        if (theirAvatar) theirAvatar.src = photoUrl || "{% static 'images/default-avatar.svg' %}";
+        if (nameSpan) nameSpan.textContent = displayname || username;
+        if (chatBtn) chatBtn.href = `/dating/${username}/message/`;
+        
+        matchModal.classList.add('show');
+    }
+
+    window.closeMatchModal = () => {
+        matchModal.classList.remove('show');
+    };
+
+    window.cyclePhoto = (tapEl, dir) => {
+        const gallery = tapEl.closest('.photo-gallery');
+        if (!gallery) return;
+        const images = Array.from(gallery.querySelectorAll('.card-image'));
+        const dots = Array.from(gallery.querySelectorAll('.gallery-dot'));
+        if (images.length <= 1) return;
+
+        const activeIdx = images.findIndex(img => img.classList.contains('active'));
+        let nextIdx = activeIdx + dir;
+        
+        if (nextIdx < 0) nextIdx = images.length - 1;
+        if (nextIdx >= images.length) nextIdx = 0;
+        
+        images[activeIdx].classList.remove('active');
+        if (dots[activeIdx]) dots[activeIdx].classList.remove('active');
+        images[nextIdx].classList.add('active');
+        if (dots[nextIdx]) dots[nextIdx].classList.add('active');
+    };
+
+    // Initial UI state
+    cards.forEach(initCard);
+    updateStackUI();
+
+    // Bottom buttons
+    const btnLike = document.getElementById('btnLike');
+    const btnPass = document.getElementById('btnPass');
+    const btnSuperLike = document.getElementById('btnSuperLike');
+    
+    if (btnLike) {
+        btnLike.onclick = () => {
+            const topCard = cards[cards.length - 1];
+            if (topCard) {
+                const indicator = topCard.querySelector('.swipe-indicator.like');
+                if (indicator) indicator.style.opacity = 1;
+                completeSwipe(topCard, 'like');
+            }
+        };
+    }
+    
+    if (btnPass) {
+        btnPass.onclick = () => {
+            const topCard = cards[cards.length - 1];
+            if (topCard) {
+                const indicator = topCard.querySelector('.swipe-indicator.pass');
+                if (indicator) indicator.style.opacity = 1;
+                completeSwipe(topCard, 'pass');
+            }
+        };
+    }
+
+    if (btnSuperLike) {
+        btnSuperLike.onclick = () => {
+            const topCard = cards[cards.length - 1];
+            if (topCard) {
+                completeSwipe(topCard, 'super-like');
+            }
+        };
+    }
+});
+</script>
 {% endblock %}
