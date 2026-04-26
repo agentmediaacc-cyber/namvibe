@@ -18,3 +18,13 @@ def db_env_debug(request):
 
 def healthz(request):
     return JsonResponse({"status": "ok"})
+
+from django.db import connection
+
+def health_db(request):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        return JsonResponse({"database": "ok"})
+    except Exception as e:
+        return JsonResponse({"database": "fail", "error": str(e)})
