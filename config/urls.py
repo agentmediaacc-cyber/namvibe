@@ -1,3 +1,4 @@
+from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -143,3 +144,10 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# --- DB DEBUG ROUTE ---
+from config.health import db_env_debug
+
+urlpatterns += [
+    path("health/db-env", db_env_debug),
+]
