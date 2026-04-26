@@ -15,3 +15,6 @@ def db_env_debug(request):
         "engine_host": settings.DATABASES["default"].get("HOST", ""),
         "engine_port": settings.DATABASES["default"].get("PORT", ""),
     })
+
+def healthz(request):
+    return JsonResponse({"status": "ok"})

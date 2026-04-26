@@ -74,8 +74,6 @@ urlpatterns = [
 
     path("", real_index, name="home"),
     path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}images/favicon.svg", permanent=False)),
-    path("healthz", healthz, name="healthz"),
-    path("healthz/", healthz),
     path("health/db", health_db, name="health_db"),
     path("health/db/", health_db),
     path("admin/", admin.site.urls),
