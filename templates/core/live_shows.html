@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Live Shows | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero" style="background:linear-gradient(135deg,rgba(124,58,237,.24),rgba(236,72,153,.14),rgba(255,255,255,.04));">
+    <span class="eyebrow">Live programming</span>
+    <h1>Live Shows</h1>
+    <p>Dating formats, creator live rooms, and music-first social shows in one premium discovery layer. If there is no active live data yet, the show cards still stay polished and ready.</p>
+    <div class="product-actions">
+      <a class="nv-btn primary" href="{% url 'live_home' %}">Open live</a>
+      <a class="nv-btn" href="{% url 'pink_friday' %}">Pink Friday</a>
+      <a class="nv-btn" href="{% url 'dating_live_match' %}">Live Match Show</a>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Featured formats</h2>
+    <div class="product-grid">
+      {% for item in live_teasers %}
+        <a class="product-card" href="{{ item.url }}">
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.description }}</span>
+          <span>{{ item.meta }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Always-on show lanes</h2>
+    <div class="product-grid">
+      <article class="product-card"><strong>Live Dating Show</strong><span>Fast chemistry rounds, intros, and audience feedback.</span></article>
+      <article class="product-card"><strong>Soulmate Selection</strong><span>Premium shortlist reveal format for serious matching.</span></article>
+      <article class="product-card"><strong>Creator Live</strong><span>Launches, previews, Q&A, and gift-ready creator rooms.</span></article>
+      <article class="product-card"><strong>Music Rooms</strong><span>Playlist battles, vibe curation, and crowd-led room energy.</span></article>
+    </div>
+  </div>
+</section>
+{% endblock %}

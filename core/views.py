@@ -1,6 +1,5 @@
 import logging
 
-from django.conf import settings
 from django.shortcuts import render
 
 from .homepage import fallback_homepage_context, homepage_context
@@ -8,14 +7,16 @@ from .homepage import fallback_homepage_context, homepage_context
 logger = logging.getLogger(__name__)
 
 
-def index(request):
+def _safe_homepage_payload(request):
     try:
-        context = homepage_context(request)
+        return homepage_context(request)
     except Exception as exc:
         logger.exception("Homepage context failed with %s", exc.__class__.__name__)
-        if not settings.DEBUG:
-            raise
-        context = fallback_homepage_context(request, str(exc))
+        return fallback_homepage_context(request, str(exc))
+
+
+def index(request):
+    context = _safe_homepage_payload(request)
     return render(request, "core/home_production.html", context)
 
 
@@ -74,10 +75,20 @@ def live_home_view(request):
 
 
 def pink_friday_view(request):
-    context = homepage_context(request)
+    context = _safe_homepage_payload(request)
     return render(request, "core/pink_friday.html", context)
 
 
 def games_view(request):
-    context = homepage_context(request)
+    context = _safe_homepage_payload(request)
     return render(request, "core/games_home.html", context)
+
+
+def live_shows_view(request):
+    context = _safe_homepage_payload(request)
+    return render(request, "core/live_shows.html", context)
+
+
+def dating_live_match_view(request):
+    context = _safe_homepage_payload(request)
+    return render(request, "core/dating_live_match.html", context)

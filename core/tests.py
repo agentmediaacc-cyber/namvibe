@@ -151,3 +151,17 @@ class HomepageProductionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Quick routes")
         self.assertContains(response, "Channels")
+
+    def test_new_feature_routes_render(self):
+        routes = [
+            (reverse("pink_friday"), "Pink Friday"),
+            (reverse("games_home"), "Games"),
+            (reverse("live_shows"), "Live Shows"),
+            (reverse("dating_live_match"), "Live Match Show"),
+        ]
+
+        for url, label in routes:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, label)

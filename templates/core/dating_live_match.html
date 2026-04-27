@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Dating Live Match | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero" style="background:linear-gradient(135deg,rgba(236,72,153,.2),rgba(124,58,237,.18),rgba(255,255,255,.04));">
+    <span class="eyebrow">Dating live format</span>
+    <h1>Live Match Show</h1>
+    <p>A premium landing page for public chemistry rounds, shortlist reveals, and guided matching energy. This is a safe launch surface for now, not the full real-time engine yet.</p>
+    <div class="product-actions">
+      <a class="nv-btn primary" href="{% url 'dating' %}">Open dating</a>
+      <a class="nv-btn" href="{% url 'pink_friday' %}">Pink Friday</a>
+      <a class="nv-btn" href="{% url 'live_shows' %}">Live Shows</a>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Show format</h2>
+    <div class="product-grid">
+      <article class="product-card"><strong>Profile reveal</strong><span>Open with public-safe intros and first vibe previews.</span></article>
+      <article class="product-card"><strong>Shortlist round</strong><span>Hosts narrow choices while the audience stays engaged.</span></article>
+      <article class="product-card"><strong>Live chemistry</strong><span>Guided prompts, reactions, and music-backed energy.</span></article>
+      <article class="product-card"><strong>Next move</strong><span>Login to match, message, and continue on the dating side.</span></article>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Preview cards</h2>
+    <div class="product-grid">
+      {% for item in dating_teasers %}
+        <a class="product-card" href="{{ item.url }}">
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.description }}</span>
+          <span>{{ item.display_name }} · {{ item.region }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -763,6 +763,8 @@ def public_profile_view(request, username):
         "create_post": _safe_reverse("studio"),
         "go_live": _safe_reverse("live_start"),
         "dating_profile": _safe_reverse("dating_profile_edit") if request.user == profile.user else _safe_reverse("dating_profile_detail", username=profile.username),
+        "pink_friday": _safe_reverse("pink_friday"),
+        "live_shows": _safe_reverse("live_shows"),
         "wallet": _safe_reverse("wallet_home"),
         "messages": _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
         "games": _safe_reverse("games_home"),

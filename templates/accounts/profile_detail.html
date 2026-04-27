@@ -139,6 +139,8 @@
                 <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating Profile</a>
                 <a class="profile-action" href="{{ action_urls.wallet }}">Wallet</a>
                 <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
+                <a class="profile-action" href="{{ action_urls.games }}">Games</a>
+                <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
               {% elif request.user.is_authenticated %}
                 <form method="post" action="{% url 'follow_toggle' profile.username %}">
                   {% csrf_token %}
@@ -147,11 +149,13 @@
                 <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
                 <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating Profile</a>
                 <a class="profile-action" href="{{ action_urls.games }}">Games</a>
+                <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
               {% else %}
                 <a class="profile-action primary" href="{% url 'login' %}?next={{ request.path }}">Login to interact</a>
                 <a class="profile-action" href="{% url 'signup' %}">Create account</a>
                 <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating Preview</a>
                 <a class="profile-action" href="{{ action_urls.games }}">Games</a>
+                <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
               {% endif %}
             </div>
           </div>
@@ -261,6 +265,10 @@
     <section class="profile-panel" id="live">
       <h2 class="section-title">Live</h2>
       <div class="content-grid">
+        <a class="identity-chip" href="{{ action_urls.live_shows }}">
+          <span class="identity-mark">S</span>
+          <span><strong>Live Shows</strong><small>Dating, creator, and music room programming</small></span>
+        </a>
         {% if current_live %}
           <a class="identity-chip" href="{% url 'live_room' current_live.uuid %}">
             <span class="identity-mark">L</span>

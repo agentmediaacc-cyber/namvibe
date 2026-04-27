@@ -229,6 +229,48 @@ def _pink_friday_teasers():
         {"title": "Live Date Show", "meta": "8:30 PM", "description": "Hosted chemistry rounds with live reactions.", "url": _safe_reverse("pink_friday")},
         {"title": "Music Battle", "meta": "9:00 PM", "description": "Couples and creators face off on crowd energy.", "url": _safe_reverse("pink_friday")},
         {"title": "Couple Story", "meta": "9:30 PM", "description": "Best moments, votes, and weekly prizes.", "url": _safe_reverse("pink_friday")},
+        {"title": "Prize Moment", "meta": "10:00 PM", "description": "Crowd favorites, gifts, and premium winner callouts.", "url": _safe_reverse("pink_friday")},
+    ]
+
+
+def _creator_earning_teasers():
+    return [
+        {
+            "title": "Creator Studio",
+            "description": "Post reels, stories, flyers, and premium drops from one creation flow.",
+            "url": _safe_reverse("studio"),
+            "cta": "Open studio",
+        },
+        {
+            "title": "Go live and receive gifts",
+            "description": "Host live rooms, run premium access, and grow your creator earnings on-air.",
+            "url": _safe_reverse("live_start"),
+            "cta": "Start live",
+        },
+        {
+            "title": "Wallet and premium tools",
+            "description": "Track earnings, gifts, memberships, and creator perks without leaving Namvibe.",
+            "url": _safe_reverse("wallet_home"),
+            "cta": "Open wallet",
+        },
+    ]
+
+
+def _profile_shortcuts(user):
+    if user.is_authenticated:
+        return [
+            {"label": "Profile", "url": _safe_profile_url(user)},
+            {"label": "Create Post", "url": _safe_reverse("studio")},
+            {"label": "Go Live", "url": _safe_reverse("live_start")},
+            {"label": "Wallet", "url": _safe_reverse("wallet_home")},
+            {"label": "Pink Friday", "url": _safe_reverse("pink_friday")},
+        ]
+    return [
+        {"label": "Join Now", "url": _safe_reverse("signup")},
+        {"label": "Login", "url": _safe_reverse("login")},
+        {"label": "Explore", "url": _safe_reverse("discover")},
+        {"label": "Dating", "url": _safe_reverse("dating")},
+        {"label": "Pink Friday", "url": _safe_reverse("pink_friday")},
     ]
 
 
@@ -457,6 +499,8 @@ def homepage_context(request):
     game_teasers = _game_teasers()
     pink_friday_teasers = _pink_friday_teasers()
     region_teasers = _region_teasers()
+    creator_earning_teasers = _creator_earning_teasers()
+    profile_shortcuts = _profile_shortcuts(user)
 
     return {
         "public_feed_items": public_feed_items,
@@ -477,6 +521,8 @@ def homepage_context(request):
         "game_teasers": game_teasers,
         "pink_friday_teasers": pink_friday_teasers,
         "region_teasers": region_teasers,
+        "creator_earning_teasers": creator_earning_teasers,
+        "profile_shortcuts": profile_shortcuts,
         "wallet_snapshot": wallet_snapshot,
         "top_ads": top_ads,
         "sidebar_ads": sidebar_ads,
@@ -503,8 +549,10 @@ def homepage_context(request):
         "feed_url": _safe_reverse("feed"),
         "dating_url": _safe_reverse("dating"),
         "live_url": _safe_reverse("live_home"),
+        "live_shows_url": _safe_reverse("live_shows"),
         "games_url": _safe_reverse("games_home"),
         "pink_friday_url": _safe_reverse("pink_friday"),
+        "dating_live_match_url": _safe_reverse("dating_live_match"),
         "profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "messages_url": messages_url,
         "notifications_url": reverse("notifications"),
@@ -540,6 +588,8 @@ def fallback_homepage_context(request, error_message=""):
         "game_teasers": _game_teasers(),
         "pink_friday_teasers": _pink_friday_teasers(),
         "region_teasers": _region_teasers(),
+        "creator_earning_teasers": _creator_earning_teasers(),
+        "profile_shortcuts": _profile_shortcuts(user),
         "wallet_snapshot": None,
         "top_ads": [],
         "sidebar_ads": [],
@@ -566,8 +616,10 @@ def fallback_homepage_context(request, error_message=""):
         "feed_url": _safe_reverse("feed"),
         "dating_url": _safe_reverse("dating"),
         "live_url": _safe_reverse("live_home"),
+        "live_shows_url": _safe_reverse("live_shows"),
         "games_url": _safe_reverse("games_home"),
         "pink_friday_url": _safe_reverse("pink_friday"),
+        "dating_live_match_url": _safe_reverse("dating_live_match"),
         "profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "messages_url": _dashboard_section_url("messages") if user.is_authenticated else _login_dashboard_url(),
         "notifications_url": reverse("notifications"),

@@ -139,7 +139,7 @@
     <div class="hero-grid">
       <div>
         <span class="eyebrow">Namibia's live discovery platform</span>
-        <h1>Namvibe — where stories, love, live shows and games meet</h1>
+        <h1>Namvibe — stories, love, live shows and games in one vibe</h1>
         <p class="hero-copy">Open the feed, preview videos and stories, meet real people nearby, see what is live, and feel the energy before you even create an account.</p>
         <div class="cta-row">
           <a class="cta-btn" href="{{ join_url }}">Join Now</a>
@@ -160,6 +160,7 @@
             <a class="nav-pill" href="{{ feed_url }}">Feed</a>
             <a class="nav-pill" href="{{ dating_url }}">Dating</a>
             <a class="nav-pill" href="{{ live_url }}">Live</a>
+            <a class="nav-pill" href="{{ live_shows_url }}">Live Shows</a>
             <a class="nav-pill" href="{{ games_url }}">Games</a>
             <a class="nav-pill" href="{{ pink_friday_url }}">Pink Friday</a>
           </div>
@@ -171,7 +172,7 @@
           <p class="section-copy">Every Friday the platform turns into a polished date-night showcase with match rounds, music battles, couple stories, and live audience reactions.</p>
           <div class="inline-actions">
             <a class="cta-btn" href="{{ pink_friday_url }}">Join Pink Friday</a>
-            <a class="ghost-btn" href="{{ live_url }}">Watch Live</a>
+            <a class="ghost-btn" href="{{ live_shows_url }}">Watch Live Shows</a>
           </div>
         </article>
       </div>
@@ -355,6 +356,30 @@
   <section class="section-block">
     <div class="section-head">
       <div>
+        <h2>Creator and earnings preview</h2>
+        <p class="section-copy">Namvibe is not only for watching. Creators can post, go live, receive gifts, and grow into premium visibility.</p>
+      </div>
+      <div class="nav-pills">
+        <a class="nav-pill" href="{% url 'studio' %}">Studio</a>
+        <a class="nav-pill" href="{% url 'live_start' %}">Go Live</a>
+        <a class="nav-pill" href="{% url 'wallet_home' %}">Wallet</a>
+      </div>
+    </div>
+    <div class="teaser-grid">
+      {% for item in creator_earning_teasers %}
+        <a class="teaser-card" href="{{ item.url }}">
+          <span class="teaser-badge">Creator lane</span>
+          <strong>{{ item.title }}</strong>
+          <p class="teaser-copy">{{ item.description }}</p>
+          <small>{{ item.cta }}</small>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="section-head">
+      <div>
         <h2>Find your vibe</h2>
         <p class="section-copy">Browse real profiles and premium dating formats before signing in. Anonymous users can preview, but matching and messages require login.</p>
       </div>
@@ -419,7 +444,10 @@
         <h2>Built for Namibia</h2>
         <p class="section-copy">Local discovery with safety, privacy, and trust controls that support real communities and real people.</p>
       </div>
-      <a class="ghost-btn" href="{{ join_url }}">Create account</a>
+      <div class="nav-pills">
+        <a class="ghost-btn" href="{{ join_url }}">Create account</a>
+        <a class="ghost-btn" href="{{ live_shows_url }}">Live shows</a>
+      </div>
     </div>
     <div class="trust-grid">
       {% for item in region_teasers %}

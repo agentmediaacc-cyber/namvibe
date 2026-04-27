@@ -164,10 +164,21 @@ def profile_navigation(request):
 
     current_route = _current_route(request)
     page_kind, bottom_actions = _bottom_actions(request, smart_profile_url)
+    primary_nav_links = [
+        {"label": "Home", "url": _safe_reverse("home"), "active": _is_active(current_route, "home", "/")},
+        {"label": "Feed", "url": _safe_reverse("feed"), "active": _is_active(current_route, "feed", "feed_following", "feed_friends", "feed_trending", "feed_nearby")},
+        {"label": "Dating", "url": _safe_reverse("dating"), "active": _is_active(current_route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
+        {"label": "Live", "url": _safe_reverse("live_home"), "active": _is_active(current_route, "live_home", "live_room", "live_featured", "live_scheduled")},
+        {"label": "Games", "url": _safe_reverse("games_home"), "active": _is_active(current_route, "games_home", "gaming")},
+        {"label": "Pink Friday", "url": _safe_reverse("pink_friday"), "active": _is_active(current_route, "pink_friday")},
+        {"label": "Wallet", "url": _safe_reverse("wallet_home"), "active": _is_active(current_route, "wallet_home", "wallet_transactions", "wallet_gifts", "wallet_membership", "wallet_membership_plans", "wallet_creator_earnings")},
+        {"label": "Profile", "url": smart_profile_url, "active": _is_active(current_route, "user_dashboard", "profile_detail", "profile_edit")},
+    ]
     return {
         "smart_profile_url": smart_profile_url,
         "profile_dashboard_url": dashboard_url,
         "current_route": current_route,
+        "primary_nav_links": primary_nav_links,
         "app_drawer_groups": _drawer_groups(request, smart_profile_url),
         "mobile_action_page": page_kind,
         "mobile_action_items": bottom_actions,
