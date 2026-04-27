@@ -112,10 +112,27 @@ def _ensure_account_profile(user):
 
 
 def _ensure_user_bootstrap(user):
-    _ensure_auth_profile(user)
-    account_profile = _ensure_account_profile(user)
-    DatingCoinBalance.for_user(user)
-    ensure_account_role(user)
+    try:
+        _ensure_auth_profile(user)
+    except Exception as exc:
+        logger.error("Bootstrap: _ensure_auth_profile failed for %s: %s", user.username, exc)
+
+    try:
+        account_profile = _ensure_account_profile(user)
+    except Exception as exc:
+        logger.error("Bootstrap: _ensure_account_profile failed for %s: %s", user.username, exc)
+        account_profile = getattr(user, "account_profile", None)
+
+    try:
+        DatingCoinBalance.for_user(user)
+    except Exception as exc:
+        logger.error("Bootstrap: DatingCoinBalance.for_user failed for %s: %s", user.username, exc)
+
+    try:
+        ensure_account_role(user)
+    except Exception as exc:
+        logger.error("Bootstrap: ensure_account_role failed for %s: %s", user.username, exc)
+
     return account_profile
 
 
@@ -247,8 +264,12 @@ def _user_from_supabase_login(identifier, password, auth_payload, profile_payloa
 
 def login_view(request):
     if request.user.is_authenticated:
-        _set_account_session(request, request.user)
-        ensure_account_role(request.user)
+        try:
+            _set_account_session(request, request.user)
+            ensure_account_role(request.user)
+        except Exception as exc:
+            logger.error("Login authenticated: failed setting session/role: %s", exc)
+        
         if is_master_admin(request.user):
             return redirect(master_admin_dashboard_url())
         return redirect("user_dashboard")
@@ -259,16 +280,25 @@ def login_view(request):
     if request.method == "POST":
         if form.is_valid():
             user = form.cleaned_data["user"]
-            _ensure_user_bootstrap(user)
-            _safe_sync_supabase_profile(user)
+            try:
+                _ensure_user_bootstrap(user)
+                _safe_sync_supabase_profile(user)
+            except Exception as exc:
+                logger.error("Login POST: bootstrap failed for %s: %s", user.username, exc)
+
             django_login(request, user)
             if form.cleaned_data.get("remember_me"):
                 request.session.set_expiry(60 * 60 * 24 * 30)
             else:
                 request.session.set_expiry(0)
-            _set_account_session(request, user)
-            if is_master_admin(user):
-                repair_master_admin_user(user, supabase_uid=getattr(getattr(user, "account_role", None), "supabase_uid", ""), email=user.email)
+            
+            try:
+                _set_account_session(request, user)
+                if is_master_admin(user):
+                    repair_master_admin_user(user, supabase_uid=getattr(getattr(user, "account_role", None), "supabase_uid", ""), email=user.email)
+            except Exception as exc:
+                logger.error("Login POST: session/master-repair failed for %s: %s", user.username, exc)
+
             account_profile = getattr(user, "account_profile", None)
             if account_profile and not account_profile.email_verified:
                 messages.info(request, "Verify your email to unlock trusted account features and admin approvals.")
@@ -281,16 +311,25 @@ def login_view(request):
             auth_payload, auth_error = sign_in_supabase_auth(identifier, password)
             if auth_payload:
                 user = _user_from_supabase_login(identifier, password, auth_payload, supabase_profile)
-                _ensure_user_bootstrap(user)
-                _safe_sync_supabase_profile(user)
+                try:
+                    _ensure_user_bootstrap(user)
+                    _safe_sync_supabase_profile(user)
+                except Exception as exc:
+                    logger.error("Login Supabase: bootstrap failed for %s: %s", user.username, exc)
+
                 django_login(request, user)
                 if request.POST.get("remember_me"):
                     request.session.set_expiry(60 * 60 * 24 * 30)
                 else:
                     request.session.set_expiry(0)
-                _set_account_session(request, user)
-                if is_master_admin(user):
-                    repair_master_admin_user(user, supabase_uid=auth_payload.get("user", {}).get("id", ""), email=user.email)
+                
+                try:
+                    _set_account_session(request, user)
+                    if is_master_admin(user):
+                        repair_master_admin_user(user, supabase_uid=auth_payload.get("user", {}).get("id", ""), email=user.email)
+                except Exception as exc:
+                    logger.error("Login Supabase: session/master-repair failed for %s: %s", user.username, exc)
+
                 account_profile = getattr(user, "account_profile", None)
                 if account_profile and not account_profile.email_verified:
                     messages.info(request, "Verify your email to unlock trusted account features and admin approvals.")
@@ -313,8 +352,12 @@ def logout_view(request):
 
 def signup_view(request):
     if request.user.is_authenticated:
-        _set_account_session(request, request.user)
-        ensure_account_role(request.user)
+        try:
+            _set_account_session(request, request.user)
+            ensure_account_role(request.user)
+        except Exception as exc:
+            logger.error("Signup authenticated: failed setting session/role: %s", exc)
+        
         if is_master_admin(request.user):
             return redirect(master_admin_dashboard_url())
         return redirect("user_dashboard")
@@ -352,17 +395,21 @@ def signup_view(request):
                     profile_completed=False,
                     email_verified=False,
                 )
-        except IntegrityError:
-            messages.error(
-                request,
-                "An account with those details already exists. Check username, email, and cellphone number.",
-            )
-        else:
-            _ensure_user_bootstrap(user)
-            _safe_sync_supabase_profile(user)
+            
+            try:
+                _ensure_user_bootstrap(user)
+                _safe_sync_supabase_profile(user)
+            except Exception as exc:
+                logger.error("Signup: bootstrap failed for %s: %s", user.username, exc)
+
             django_login(request, user)
             request.session.set_expiry(60 * 60 * 24 * 14)
-            _set_account_session(request, user)
+
+            try:
+                _set_account_session(request, user)
+            except Exception as exc:
+                logger.error("Signup: _set_account_session failed for %s: %s", user.username, exc)
+
             sent, note = _safe_send_verification_email(request, user)
             if note:
                 if sent:
@@ -371,6 +418,12 @@ def signup_view(request):
                     messages.info(request, note)
             messages.success(request, "Your account is ready. Finish the quick setup to unlock your best Namvibe experience.")
             return redirect("profile_completion")
+
+        except IntegrityError:
+            messages.error(
+                request,
+                "An account with those details already exists. Check username, email, and cellphone number.",
+            )
 
     return render(request, "accounts/signup.html", {"form": form})
 
@@ -690,11 +743,31 @@ def public_profile_view(request, username):
         .order_by("-follower_count", "-post_count")[:6]
     )
     dating_profile = getattr(profile.user, "dating_profile", None)
+    wallet = getattr(
+        profile.user,
+        "wallet",
+        SimpleNamespace(available_balance=0, pending_balance=0, lifetime_earned=0),
+    )
+    dating_coin_balance = getattr(profile.user, "dating_coins", SimpleNamespace(balance=0))
     public_post_count = Post.objects.filter(author=profile.user, status=Post.Status.PUBLISHED).count()
     profile_views_count = (
         Post.objects.filter(author=profile.user, status=Post.Status.PUBLISHED).aggregate(total=Sum("view_count")).get("total")
         or 0
     )
+    dating_views_count = dating_profile.views.count() if dating_profile else 0
+    photo_posts = [post for post in visible_posts if post.post_type == Post.PostType.PHOTO]
+    action_urls = {
+        "edit_profile": _safe_reverse("profile_edit"),
+        "upload_avatar": _safe_reverse("profile_edit"),
+        "upload_cover": _safe_reverse("profile_edit"),
+        "create_post": _safe_reverse("studio"),
+        "go_live": _safe_reverse("live_start"),
+        "dating_profile": _safe_reverse("dating_profile_edit") if request.user == profile.user else _safe_reverse("dating_profile_detail", username=profile.username),
+        "wallet": _safe_reverse("wallet_home"),
+        "messages": _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
+        "games": _safe_reverse("games_home"),
+        "about": _safe_reverse("profile_detail", username=profile.username),
+    }
 
     context = {
         "profile": profile,
@@ -702,6 +775,7 @@ def public_profile_view(request, username):
         "can_edit": request.user.is_authenticated and request.user == profile.user,
         "profile_posts": visible_posts,
         "media_posts": media_posts,
+        "photo_posts": photo_posts,
         "reel_posts": [post for post in visible_posts if post.post_type == Post.PostType.REEL],
         "live_posts": live_posts,
         "joined_communities": joined_communities,
@@ -714,7 +788,11 @@ def public_profile_view(request, username):
         "related_creators": related_creators,
         "dating_profile_visible": bool(dating_profile and dating_profile.is_visible),
         "dating_profile": dating_profile,
+        "dating_views_count": dating_views_count,
+        "wallet_summary": wallet,
+        "dating_coin_balance": dating_coin_balance,
         "profile_views_count": profile_views_count,
+        "action_urls": action_urls,
     }
     return render(request, "accounts/profile_detail.html", context)
 
@@ -743,31 +821,11 @@ def follow_toggle_view(request, username):
         messages.error(request, "You cannot follow yourself.")
         return redirect("profile_detail", username=target_profile.username)
 
-    wallet = getattr(
-        profile.user,
-        "wallet",
-        SimpleNamespace(available_balance=0, pending_balance=0, lifetime_earned=0),
-    )
-    dating_coin_balance = getattr(profile.user, "dating_coins", SimpleNamespace(balance=0))
     if Block.objects.filter(blocker__in=[request.user, target_user], blocked__in=[request.user, target_user]).exists():
         messages.error(request, "This profile is not available.")
         return redirect("profile_detail", username=target_profile.username)
 
     follow, created = Follow.objects.get_or_create(follower=request.user, following=target_user)
-    dating_views_count = dating_profile.views.count() if dating_profile else 0
-    photo_posts = [post for post in visible_posts if post.post_type == Post.PostType.PHOTO]
-    action_urls = {
-        "edit_profile": _safe_reverse("profile_edit"),
-        "upload_avatar": _safe_reverse("profile_edit"),
-        "upload_cover": _safe_reverse("profile_edit"),
-        "create_post": _safe_reverse("studio"),
-        "go_live": _safe_reverse("live_start"),
-        "dating_profile": _safe_reverse("dating_profile_edit") if request.user == profile.user else _safe_reverse("dating_profile_detail", username=profile.username),
-        "wallet": _safe_reverse("wallet_home"),
-        "messages": _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
-        "games": _safe_reverse("games_home"),
-        "about": _safe_reverse("profile_detail", username=profile.username),
-    }
     if created:
         messages.success(request, f"You are now following @{target_profile.username}.")
     else:
@@ -775,7 +833,6 @@ def follow_toggle_view(request, username):
         messages.success(request, f"You unfollowed @{target_profile.username}.")
     return redirect("profile_detail", username=target_profile.username)
 
-        "photo_posts": photo_posts,
 
 def profile_shortcut_view(request):
     return redirect("user_dashboard")
@@ -785,7 +842,3 @@ def account_profile_detail(request, username):
 
 def follow_toggle(request, username):
     return follow_toggle_view(request, username)
-        "dating_views_count": dating_views_count,
-        "wallet_summary": wallet,
-        "dating_coin_balance": dating_coin_balance,
-        "action_urls": action_urls,

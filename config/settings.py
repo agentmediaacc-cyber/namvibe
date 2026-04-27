@@ -117,13 +117,19 @@ if not DATABASE_URL:
     else:
         raise ImproperlyConfigured("DATABASE_URL must be configured for non-debug environments.")
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{'/tmp/namvibe-build.sqlite3' if BUILD_WITHOUT_DB else BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-        ssl_require=not DEBUG,
-    )
-}
+default_database = dj_database_url.config(
+    default=f"sqlite:///{'/tmp/namvibe-build.sqlite3' if BUILD_WITHOUT_DB else BASE_DIR / 'db.sqlite3'}",
+    conn_max_age=600,
+    conn_health_checks=True,
+    ssl_require=not DEBUG,
+)
+if default_database.get("ENGINE") == "django.db.backends.postgresql":
+    default_database.setdefault("OPTIONS", {})
+    default_database["OPTIONS"].setdefault("connect_timeout", 20)
+    if not DEBUG:
+        default_database["OPTIONS"]["sslmode"] = "require"
+
+DATABASES = {"default": default_database}
 logger.info(
     "Database configuration ready. DATABASE_URL exists=%s engine=%s",
     "yes" if bool(DATABASE_URL) else "no",

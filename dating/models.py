@@ -1,6 +1,9 @@
+import logging
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+
+logger = logging.getLogger(__name__)
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -257,4 +260,7 @@ class DatingCoinBalance(models.Model):
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def ensure_dating_models(sender, instance, created, **kwargs):
-    DatingCoinBalance.objects.get_or_create(user=instance)
+    try:
+        DatingCoinBalance.objects.get_or_create(user=instance)
+    except Exception as exc:
+        logger.error("Failed to ensure DatingCoinBalance for user %s: %s", instance.username, exc)
