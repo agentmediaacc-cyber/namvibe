@@ -2,7 +2,7 @@ from urllib.parse import urlencode
 
 from django.contrib.auth.models import User
 from django.db.models import F, Q, Sum
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
 from accounts.models import Follow, FriendRequest, Profile
@@ -37,6 +37,13 @@ def _safe_profile_url(user):
 
 def _login_dashboard_url():
     return f"{reverse('login')}?next=%2Faccounts%2Fdashboard%2F"
+
+
+def _safe_reverse(name, fallback=None, **kwargs):
+    try:
+        return reverse(name, kwargs=kwargs or None)
+    except NoReverseMatch:
+        return fallback or reverse("home")
 
 
 def _active_ads(placement, limit=2):
@@ -123,6 +130,106 @@ def _live_preview(user, live_limit=4, featured_limit=4):
         featured_ids = {item.id for item in featured}
         live_now = sorted(live_now, key=lambda item: (item.id not in featured_ids, -item.viewer_count, -item.starts_at.timestamp()))
     return live_now, featured
+
+
+def _public_post_url(post):
+    return _safe_reverse("post_detail", uuid=post.uuid)
+
+
+def _region_teasers():
+    return [
+        {
+            "name": "Windhoek Pulse",
+            "subtitle": "Creators, nightlife, startup energy, and premium live drops.",
+            "accent": "Rose",
+        },
+        {
+            "name": "Walvis Bay Coast",
+            "subtitle": "Ocean stories, music rooms, and dating discovery near the coast.",
+            "accent": "Gold",
+        },
+        {
+            "name": "Oshana Vibes",
+            "subtitle": "Local culture, community clips, and real matches from the north.",
+            "accent": "Purple",
+        },
+        {
+            "name": "Swakop Creative",
+            "subtitle": "Photography, lifestyle reels, and polished creator launches.",
+            "accent": "Pink",
+        },
+    ]
+
+
+def _live_teasers(live_preview, featured_live):
+    sessions = list(featured_live or live_preview)[:4]
+    teasers = []
+    titles = ["Live Dating Show", "Pink Friday Live", "Music Rooms", "Creator Live"]
+    descriptions = [
+        "Real chemistry, public intros, and community reactions in one room.",
+        "Weekly premium romance night with prizes, games, and instant matches.",
+        "Afrobeats, amapiano, gospel, and local playlists hosted live.",
+        "Creators preview drops, answer chats, and collect gifts live.",
+    ]
+    for idx, title in enumerate(titles):
+        session = sessions[idx] if idx < len(sessions) else None
+        teasers.append(
+            {
+                "title": title,
+                "eyebrow": "Live now" if session and session.status == session.Status.LIVE else "Coming soon",
+                "description": (session.description or descriptions[idx]) if session else descriptions[idx],
+                "host": session.host.profile.display_name if session else "Namvibe Studio",
+                "meta": f"{session.viewer_count} watching" if session else "Weekly show schedule",
+                "url": _safe_reverse("live_room", uuid=session.uuid) if session else _safe_reverse("live_home"),
+                "is_live": bool(session and session.status == session.Status.LIVE),
+            }
+        )
+    return teasers
+
+
+def _dating_teasers(dating_profiles):
+    cards = [
+        ("Swipe Match", "Fast likes, clean profiles, and preview chemistry in seconds."),
+        ("Soulmate Live Selection", "Shortlisted profiles with a premium live reveal format."),
+        ("Love Story", "Profiles built for compatibility, personality, and story-first intros."),
+        ("Nearby Matches", "Discover people around your town and region across Namibia."),
+    ]
+    teasers = []
+    for idx, (title, fallback_body) in enumerate(cards):
+        profile = dating_profiles[idx] if idx < len(dating_profiles) else None
+        teasers.append(
+            {
+                "title": title,
+                "description": (profile.bio or fallback_body) if profile else fallback_body,
+                "display_name": profile.display_name if profile else "Preview open",
+                "region": f"{profile.city}, {profile.region}".strip(", ") if profile else "Namibia-wide discovery",
+                "badge": profile.premium_badge_label if profile and profile.has_premium_badge else ("Verified" if profile and profile.is_verified_dating else "Preview"),
+                "url": _safe_reverse("dating_profile_detail", username=profile.user.profile.username) if profile else _safe_reverse("dating"),
+                "profile": profile,
+            }
+        )
+    return teasers
+
+
+def _game_teasers():
+    games_home = _safe_reverse("games_home")
+    return [
+        {"title": "Ludo", "description": "Quick rooms, friend invites, and local leaderboard energy.", "url": games_home},
+        {"title": "Cards", "description": "Casual multiplayer tables with chat-first social play.", "url": games_home},
+        {"title": "Love texting game", "description": "Icebreakers, timed prompts, and flirt rounds.", "url": games_home},
+        {"title": "Music challenge", "description": "Guess the track, defend your taste, win your round.", "url": games_home},
+        {"title": "Spin match", "description": "Fast challenge wheel for discovery, dares, and pairing.", "url": games_home},
+        {"title": "Balloon pop match", "description": "Lightweight reaction game with romance-themed twists.", "url": games_home},
+    ]
+
+
+def _pink_friday_teasers():
+    return [
+        {"title": "Match Round", "meta": "8:00 PM", "description": "Fast introductions and audience picks.", "url": _safe_reverse("pink_friday")},
+        {"title": "Live Date Show", "meta": "8:30 PM", "description": "Hosted chemistry rounds with live reactions.", "url": _safe_reverse("pink_friday")},
+        {"title": "Music Battle", "meta": "9:00 PM", "description": "Couples and creators face off on crowd energy.", "url": _safe_reverse("pink_friday")},
+        {"title": "Couple Story", "meta": "9:30 PM", "description": "Best moments, votes, and weekly prizes.", "url": _safe_reverse("pink_friday")},
+    ]
 
 
 def _feed_tabs():
@@ -289,15 +396,26 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
 
 def homepage_context(request):
     user = request.user
-    
-    # TikTok-style public feed for discovery
-    public_feed_items = list(
+
+    # Video/reel-first public feed for discovery while keeping text/photo posts visible.
+    raw_public_feed = list(
         Post.objects.published()
         .filter(audience=Post.Audience.PUBLIC)
         .select_related("author", "author__profile")
         .prefetch_related("media", "likes", "comments")
-        .order_by("-published_at", "-created_at")[:15]
+        .order_by("-published_at", "-created_at")[:24]
     )
+    priority = {
+        Post.PostType.REEL: 0,
+        Post.PostType.VIDEO: 0,
+        Post.PostType.LIVE: 1,
+        Post.PostType.PHOTO: 2,
+        Post.PostType.TEXT: 3,
+    }
+    public_feed_items = sorted(
+        raw_public_feed,
+        key=lambda post: (priority.get(post.post_type, 4), -(post.published_at or post.created_at).timestamp()),
+    )[:15]
 
     visible_posts = (
         base_visible_posts(user)
@@ -334,8 +452,15 @@ def homepage_context(request):
         else _dashboard_section_url("messages")
     )
 
+    live_teasers = _live_teasers(live_now, featured_live)
+    dating_teasers = _dating_teasers(dating_profiles)
+    game_teasers = _game_teasers()
+    pink_friday_teasers = _pink_friday_teasers()
+    region_teasers = _region_teasers()
+
     return {
         "public_feed_items": public_feed_items,
+        "preview_limit": 5,
         "story_rail": story_rail,
         "quick_actions": _quick_actions(user),
         "composer_actions": _composer_actions(user),
@@ -344,9 +469,14 @@ def homepage_context(request):
         "floating_promos": [promo for promo in promos if promo.get("dismissible")][:2],
         "featured_live": featured_live,
         "live_preview": live_now,
+        "live_teasers": live_teasers,
         "communities": communities,
         "creators": creators,
         "dating_suggestions": dating_profiles,
+        "dating_teasers": dating_teasers,
+        "game_teasers": game_teasers,
+        "pink_friday_teasers": pink_friday_teasers,
+        "region_teasers": region_teasers,
         "wallet_snapshot": wallet_snapshot,
         "top_ads": top_ads,
         "sidebar_ads": sidebar_ads,
@@ -367,6 +497,14 @@ def homepage_context(request):
         "nav_profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "nav_profile_label": (current_profile.display_name or current_profile.username) if current_profile else "Guest",
         "nav_search_placeholder": "Search people, communities, creators, and live rooms",
+        "join_url": reverse("signup"),
+        "login_url": reverse("login"),
+        "explore_url": reverse("discover"),
+        "feed_url": _safe_reverse("feed"),
+        "dating_url": _safe_reverse("dating"),
+        "live_url": _safe_reverse("live_home"),
+        "games_url": _safe_reverse("games_home"),
+        "pink_friday_url": _safe_reverse("pink_friday"),
         "profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "messages_url": messages_url,
         "notifications_url": reverse("notifications"),
@@ -385,6 +523,7 @@ def fallback_homepage_context(request, error_message=""):
     current_profile = getattr(user, "profile", None) if user.is_authenticated else None
     return {
         "public_feed_items": [],
+        "preview_limit": 5,
         "story_rail": [],
         "quick_actions": _quick_actions(user),
         "composer_actions": _composer_actions(user),
@@ -393,9 +532,14 @@ def fallback_homepage_context(request, error_message=""):
         "floating_promos": [],
         "featured_live": [],
         "live_preview": [],
+        "live_teasers": _live_teasers([], []),
         "communities": [],
         "creators": [],
         "dating_suggestions": [],
+        "dating_teasers": _dating_teasers([]),
+        "game_teasers": _game_teasers(),
+        "pink_friday_teasers": _pink_friday_teasers(),
+        "region_teasers": _region_teasers(),
         "wallet_snapshot": None,
         "top_ads": [],
         "sidebar_ads": [],
@@ -416,6 +560,14 @@ def fallback_homepage_context(request, error_message=""):
         "nav_profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "nav_profile_label": (current_profile.display_name or current_profile.username) if current_profile else "Guest",
         "nav_search_placeholder": "Search people, communities, creators, and live rooms",
+        "join_url": reverse("signup"),
+        "login_url": reverse("login"),
+        "explore_url": reverse("discover"),
+        "feed_url": _safe_reverse("feed"),
+        "dating_url": _safe_reverse("dating"),
+        "live_url": _safe_reverse("live_home"),
+        "games_url": _safe_reverse("games_home"),
+        "pink_friday_url": _safe_reverse("pink_friday"),
         "profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "messages_url": _dashboard_section_url("messages") if user.is_authenticated else _login_dashboard_url(),
         "notifications_url": reverse("notifications"),

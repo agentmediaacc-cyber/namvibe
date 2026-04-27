@@ -20,10 +20,12 @@ from core.product_views import (
     premium_tier_view,
 )
 from core.views import (
+    games_view,
     feed_live_view,
     feed_sponsored_view,
     feed_videos_view,
     index as real_index,
+    pink_friday_view,
 )
 from posts.views import (
     add_comment_view,
@@ -96,9 +98,11 @@ urlpatterns = [
     path("reels/", reels_feed_view, name="reels_feed"),
     path("discover/", discover_view, name="discover"),
     path("discover/search/", search_view, name="discover_search"),
+    path("games/", games_view, name="games_home"),
     path("feed/videos/", feed_videos_view, name="feed_videos"),
     path("feed/live/", feed_live_view, name="feed_live"),
     path("feed/sponsored/", feed_sponsored_view, name="feed_sponsored"),
+    path("pink-friday/", pink_friday_view, name="pink_friday"),
     path("studio/", studio_view, name="studio"),
     path("studio/create/", studio_view, name="studio_create"),
     path("studio/draft/<uuid:uuid>/", studio_draft_view, name="studio_draft"),

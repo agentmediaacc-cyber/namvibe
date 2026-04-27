@@ -34,22 +34,24 @@ def _drawer_groups(request, smart_profile_url):
             "items": [
                 {"label": "Home", "url": _safe_reverse("home"), "icon": "home", "active": _is_active(route, "home", "/")},
                 {"label": "Feed", "url": _safe_reverse("feed"), "icon": "spark", "active": _is_active(route, "feed", "feed_following", "feed_friends", "feed_trending", "feed_nearby")},
-                {"label": "Reels / Videos", "url": _safe_reverse("reels_feed"), "icon": "play", "active": _is_active(route, "reels_feed", "posts_reels_feed")},
-                {"label": "Stories", "url": _safe_reverse("story_create"), "icon": "story", "active": _is_active(route, "story_create", "story_detail")},
-                {"label": "Discover", "url": _safe_reverse("discover"), "icon": "discover", "active": _is_active(route, "discover", "discover_search", "posts_discover")},
+                {"label": "Explore", "url": _safe_reverse("discover"), "icon": "discover", "active": _is_active(route, "discover", "discover_search", "posts_discover", "reels_feed")},
                 {"label": "Dating", "url": _safe_reverse("dating"), "icon": "heart", "active": _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
                 {"label": "Live", "url": _safe_reverse("live_home"), "icon": "live", "active": _is_active(route, "live_home", "live_room", "live_featured", "live_scheduled")},
-                {"label": "Live Studio", "url": _safe_reverse("live_start"), "icon": "broadcast", "active": _is_active(route, "live_start", "legacy_live_studio")},
+                {"label": "Games", "url": _safe_reverse("games_home"), "icon": "gaming", "active": _is_active(route, "games_home", "gaming")},
+                {"label": "Pink Friday", "url": _safe_reverse("pink_friday"), "icon": "premium", "active": _is_active(route, "pink_friday")},
                 {"label": "Communities", "url": _safe_reverse("community_list"), "icon": "community", "active": _is_active(route, "community_list", "community_detail", "community_create")},
-                {"label": "Channels", "url": _safe_reverse("channels"), "icon": "channel", "active": _is_active(route, "channels")},
-                {"label": "Gaming", "url": _safe_reverse("gaming"), "icon": "gaming", "active": _is_active(route, "gaming")},
+                {"label": "Reels / Videos", "url": _safe_reverse("reels_feed"), "icon": "play", "active": _is_active(route, "reels_feed", "posts_reels_feed")},
+                {"label": "Stories", "url": _safe_reverse("story_create"), "icon": "story", "active": _is_active(route, "story_create", "story_detail")},
             ],
         },
         {
             "title": "Create and Earn",
             "items": [
+                {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
                 {"label": "Wallet", "url": _safe_reverse("wallet_home"), "icon": "wallet", "active": _is_active(route, "wallet_home", "wallet_transactions", "wallet_gifts", "wallet_membership", "wallet_membership_plans", "wallet_creator_earnings")},
                 {"label": "Premium", "url": _safe_reverse("wallet_membership_plans"), "icon": "premium", "active": _is_active(route, "wallet_membership", "wallet_membership_plans", "premium_tier")},
+                {"label": "Live Studio", "url": _safe_reverse("live_start"), "icon": "broadcast", "active": _is_active(route, "live_start", "legacy_live_studio")},
+                {"label": "Channels", "url": _safe_reverse("channels"), "icon": "channel", "active": _is_active(route, "channels")},
                 {"label": "Gifting", "url": _safe_reverse("gifting"), "icon": "gift", "active": _is_active(route, "gifting")},
                 {"label": "Coins", "url": _safe_reverse("coins"), "icon": "coin", "active": _is_active(route, "coins")},
                 {"label": "Photo Selling", "url": _safe_reverse("photo_selling"), "icon": "camera", "active": _is_active(route, "photo_selling")},
@@ -89,9 +91,9 @@ def _bottom_actions(request, smart_profile_url):
     page = "default"
     actions = [
         {"label": "Home", "url": _safe_reverse("home"), "icon": "home", "active": _is_active(route, "home")},
-        {"label": "Videos", "url": _safe_reverse("reels_feed"), "icon": "play", "active": _is_active(route, "reels_feed")},
+        {"label": "Explore", "url": _safe_reverse("discover"), "icon": "discover", "active": _is_active(route, "discover", "discover_search", "reels_feed")},
         {"label": "Create", "url": _safe_reverse("studio"), "icon": "plus", "active": _is_active(route, "studio")},
-        {"label": "Live", "url": _safe_reverse("live_home"), "icon": "live", "active": _is_active(route, "live_home", "live_room")},
+        {"label": "Dating", "url": _safe_reverse("dating"), "icon": "heart", "active": _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
         {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
     ]
 

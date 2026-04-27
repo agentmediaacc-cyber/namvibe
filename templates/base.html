@@ -338,7 +338,12 @@
             </form>
 
             <div class="top-actions">
-                <a class="nav-link-btn hide-mobile" href="{% url 'discover' %}">Discover</a>
+                <a class="nav-link-btn hide-mobile" href="{% url 'home' %}">Home</a>
+                <a class="nav-link-btn hide-mobile" href="{% url 'feed' %}">Feed</a>
+                <a class="nav-link-btn hide-mobile" href="{% url 'dating' %}">Dating</a>
+                <a class="nav-link-btn hide-mobile" href="{% url 'live_home' %}">Live</a>
+                <a class="nav-link-btn hide-mobile" href="{% url 'games_home' %}">Games</a>
+                <a class="nav-link-btn hide-mobile" href="{% url 'pink_friday' %}">Pink Friday</a>
                 {% if request.user.is_authenticated %}
                     <a class="nav-link-btn nav-icon-link hide-mobile" href="{{ nav_messages_url|default:smart_profile_url }}" aria-label="Messages">
                         <span class="nav-icon">{% include "partials/nav_icon.html" with icon="chat" %}</span>
@@ -390,11 +395,14 @@
                 <a href="{% url 'feed' %}">Feed</a>
                 <a href="{% url 'dating' %}">Dating</a>
                 <a href="{% url 'live_home' %}">Live</a>
+                <a href="{% url 'games_home' %}">Games</a>
+                <a href="{% url 'pink_friday' %}">Pink Friday</a>
             </div>
             <div>
                 <h4>Account</h4>
                 {% if request.user.is_authenticated %}
                     <a href="{{ smart_profile_url }}">Profile</a>
+                    <a href="{% url 'wallet_home' %}">Wallet</a>
                     <a href="{% url 'logout' %}">Logout</a>
                 {% else %}
                     <a href="{{ smart_profile_url }}">Login</a>

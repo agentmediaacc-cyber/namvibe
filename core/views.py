@@ -71,3 +71,13 @@ def dating_view(request):
 
 def live_home_view(request):
     return render(request, "core/live_home.html")
+
+
+def pink_friday_view(request):
+    context = homepage_context(request)
+    return render(request, "core/pink_friday.html", context)
+
+
+def games_view(request):
+    context = homepage_context(request)
+    return render(request, "core/games_home.html", context)

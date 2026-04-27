@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Pink Friday | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero" style="background:linear-gradient(135deg,rgba(124,58,237,.24),rgba(236,72,153,.2),rgba(244,63,94,.16));">
+    <span class="eyebrow">Weekly event</span>
+    <h1>Pink Friday</h1>
+    <p>Weekly love, live shows, prizes and matches. Preview the schedule, warm up your profile, and join the main event when you are ready.</p>
+    <div class="product-actions">
+      <a class="nv-btn primary" href="{% url 'signup' %}">Join Pink Friday</a>
+      <a class="nv-btn" href="{% url 'live_home' %}">Open Live</a>
+      <a class="nv-btn" href="{% url 'dating' %}">Open Dating</a>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Show flow</h2>
+    <div class="product-grid">
+      {% for item in pink_friday_teasers %}
+        <article class="product-card">
+          <span>{{ item.meta }}</span>
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.description }}</span>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Why it feels different</h2>
+    <div class="product-grid">
+      <article class="product-card"><strong>Match Round</strong><span>Fast introductions, audience reactions, and featured profile reveals.</span></article>
+      <article class="product-card"><strong>Live Date Show</strong><span>Hosted chemistry segments with creator energy and premium production.</span></article>
+      <article class="product-card"><strong>Music Battle</strong><span>Music taste, banter, and live chat momentum bring the room alive.</span></article>
+      <article class="product-card"><strong>Prize Moments</strong><span>Badges, gifts, and premium callouts for crowd favorites.</span></article>
+    </div>
+  </div>
+</section>
+{% endblock %}

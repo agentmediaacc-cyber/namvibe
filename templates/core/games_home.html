@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Games | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero" style="background:linear-gradient(135deg,rgba(124,58,237,.22),rgba(255,255,255,.05));">
+    <span class="eyebrow">Games preview</span>
+    <h1>Games on Namvibe</h1>
+    <p>Social-first games for flirting, friendly competition, and community energy. These routes are lightweight teaser hubs for now, with premium styling and room to expand safely.</p>
+    <div class="product-actions">
+      <a class="nv-btn primary" href="{% url 'signup' %}">Join to play</a>
+      <a class="nv-btn" href="{% url 'home' %}">Back to home</a>
+      <a class="nv-btn" href="{% url 'dating' %}">Dating</a>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Featured teasers</h2>
+    <div class="product-grid">
+      {% for item in game_teasers %}
+        <article class="product-card">
+          <strong>{{ item.title }}</strong>
+          <span>{{ item.description }}</span>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>How it fits the platform</h2>
+    <div class="product-grid">
+      <article class="product-card"><strong>Quick rounds</strong><span>Designed to stay fast on mobile and easy to open from the feed or profile.</span></article>
+      <article class="product-card"><strong>Dating crossover</strong><span>Games can become icebreakers for matches, couples, and community events.</span></article>
+      <article class="product-card"><strong>Live ready</strong><span>Game rooms can grow into hosted live challenges and creator formats later.</span></article>
+    </div>
+  </div>
+</section>
+{% endblock %}

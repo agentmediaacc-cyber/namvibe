@@ -1,5 +1,6 @@
 from urllib.parse import urlencode
 import logging
+from types import SimpleNamespace
 
 from django.contrib import messages
 from django.contrib.auth import login as django_login, logout as django_logout
@@ -9,7 +10,7 @@ from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
@@ -62,6 +63,13 @@ def _safe_redirect(request, fallback="user_dashboard"):
 
 def _login_url_with_next(route_name):
     return f"{reverse('login')}?{urlencode({'next': reverse(route_name)})}"
+
+
+def _safe_reverse(name, fallback="user_dashboard", **kwargs):
+    try:
+        return reverse(name, kwargs=kwargs or None)
+    except NoReverseMatch:
+        return reverse(fallback)
 
 
 def _set_account_session(request, user):
@@ -735,11 +743,31 @@ def follow_toggle_view(request, username):
         messages.error(request, "You cannot follow yourself.")
         return redirect("profile_detail", username=target_profile.username)
 
+    wallet = getattr(
+        profile.user,
+        "wallet",
+        SimpleNamespace(available_balance=0, pending_balance=0, lifetime_earned=0),
+    )
+    dating_coin_balance = getattr(profile.user, "dating_coins", SimpleNamespace(balance=0))
     if Block.objects.filter(blocker__in=[request.user, target_user], blocked__in=[request.user, target_user]).exists():
         messages.error(request, "This profile is not available.")
         return redirect("profile_detail", username=target_profile.username)
 
     follow, created = Follow.objects.get_or_create(follower=request.user, following=target_user)
+    dating_views_count = dating_profile.views.count() if dating_profile else 0
+    photo_posts = [post for post in visible_posts if post.post_type == Post.PostType.PHOTO]
+    action_urls = {
+        "edit_profile": _safe_reverse("profile_edit"),
+        "upload_avatar": _safe_reverse("profile_edit"),
+        "upload_cover": _safe_reverse("profile_edit"),
+        "create_post": _safe_reverse("studio"),
+        "go_live": _safe_reverse("live_start"),
+        "dating_profile": _safe_reverse("dating_profile_edit") if request.user == profile.user else _safe_reverse("dating_profile_detail", username=profile.username),
+        "wallet": _safe_reverse("wallet_home"),
+        "messages": _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
+        "games": _safe_reverse("games_home"),
+        "about": _safe_reverse("profile_detail", username=profile.username),
+    }
     if created:
         messages.success(request, f"You are now following @{target_profile.username}.")
     else:
@@ -747,6 +775,7 @@ def follow_toggle_view(request, username):
         messages.success(request, f"You unfollowed @{target_profile.username}.")
     return redirect("profile_detail", username=target_profile.username)
 
+        "photo_posts": photo_posts,
 
 def profile_shortcut_view(request):
     return redirect("user_dashboard")
@@ -756,3 +785,7 @@ def account_profile_detail(request, username):
 
 def follow_toggle(request, username):
     return follow_toggle_view(request, username)
+        "dating_views_count": dating_views_count,
+        "wallet_summary": wallet,
+        "dating_coin_balance": dating_coin_balance,
+        "action_urls": action_urls,
