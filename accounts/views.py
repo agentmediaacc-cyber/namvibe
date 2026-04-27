@@ -756,6 +756,10 @@ def public_profile_view(request, username):
     )
     dating_views_count = dating_profile.views.count() if dating_profile else 0
     photo_posts = [post for post in visible_posts if post.post_type == Post.PostType.PHOTO]
+    show_wallet_summary = any(
+        getattr(wallet, field, 0) > 0
+        for field in ("available_balance", "pending_balance", "lifetime_earned")
+    )
     action_urls = {
         "edit_profile": _safe_reverse("profile_edit"),
         "upload_avatar": _safe_reverse("profile_edit"),
@@ -792,6 +796,7 @@ def public_profile_view(request, username):
         "dating_profile": dating_profile,
         "dating_views_count": dating_views_count,
         "wallet_summary": wallet,
+        "show_wallet_summary": show_wallet_summary,
         "dating_coin_balance": dating_coin_balance,
         "profile_views_count": profile_views_count,
         "action_urls": action_urls,

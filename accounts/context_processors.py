@@ -28,52 +28,24 @@ def _is_active(route, *names):
 
 def _drawer_groups(request, smart_profile_url):
     route = _current_route(request)
-    items = [
-        {
-            "title": "Watch",
-            "items": [
-                {"label": "Home", "url": _safe_reverse("home"), "icon": "home", "active": _is_active(route, "home", "/")},
-                {"label": "Feed", "url": _safe_reverse("feed"), "icon": "spark", "active": _is_active(route, "feed", "feed_following", "feed_friends", "feed_trending", "feed_nearby")},
-                {"label": "Explore", "url": _safe_reverse("discover"), "icon": "discover", "active": _is_active(route, "discover", "discover_search", "posts_discover", "reels_feed")},
-                {"label": "Dating", "url": _safe_reverse("dating"), "icon": "heart", "active": _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
-                {"label": "Live", "url": _safe_reverse("live_home"), "icon": "live", "active": _is_active(route, "live_home", "live_room", "live_featured", "live_scheduled")},
-                {"label": "Games", "url": _safe_reverse("games_home"), "icon": "gaming", "active": _is_active(route, "games_home", "gaming")},
-                {"label": "Pink Friday", "url": _safe_reverse("pink_friday"), "icon": "premium", "active": _is_active(route, "pink_friday")},
-                {"label": "Communities", "url": _safe_reverse("community_list"), "icon": "community", "active": _is_active(route, "community_list", "community_detail", "community_create")},
-                {"label": "Reels / Videos", "url": _safe_reverse("reels_feed"), "icon": "play", "active": _is_active(route, "reels_feed", "posts_reels_feed")},
-                {"label": "Stories", "url": _safe_reverse("story_create"), "icon": "story", "active": _is_active(route, "story_create", "story_detail")},
-            ],
-        },
-        {
-            "title": "Create and Earn",
-            "items": [
-                {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
-                {"label": "Wallet", "url": _safe_reverse("wallet_home"), "icon": "wallet", "active": _is_active(route, "wallet_home", "wallet_transactions", "wallet_gifts", "wallet_membership", "wallet_membership_plans", "wallet_creator_earnings")},
-                {"label": "Premium", "url": _safe_reverse("wallet_membership_plans"), "icon": "premium", "active": _is_active(route, "wallet_membership", "wallet_membership_plans", "premium_tier")},
-                {"label": "Live Studio", "url": _safe_reverse("live_start"), "icon": "broadcast", "active": _is_active(route, "live_start", "legacy_live_studio")},
-                {"label": "Channels", "url": _safe_reverse("channels"), "icon": "channel", "active": _is_active(route, "channels")},
-                {"label": "Gifting", "url": _safe_reverse("gifting"), "icon": "gift", "active": _is_active(route, "gifting")},
-                {"label": "Coins", "url": _safe_reverse("coins"), "icon": "coin", "active": _is_active(route, "coins")},
-                {"label": "Photo Selling", "url": _safe_reverse("photo_selling"), "icon": "camera", "active": _is_active(route, "photo_selling")},
-                {"label": "Flyer Studio", "url": _safe_reverse("flyer_tools"), "icon": "flyer", "active": _is_active(route, "flyer_tools")},
-                {"label": "Image Tools", "url": _safe_reverse("image_tools"), "icon": "image", "active": _is_active(route, "image_tools")},
-                {"label": "Studio / Creator Tools", "url": _safe_reverse("studio"), "icon": "studio", "active": _is_active(route, "studio", "studio_create", "posts_studio", "posts_studio_create", "posts_studio_draft")},
-                {"label": "Ads / Promotions", "url": _safe_reverse("ads_home"), "icon": "megaphone", "active": _is_active(route, "ads_home", "ads_starter")},
-            ],
-        },
-        {
-            "title": "Account",
-            "items": [
-                {"label": "Support", "url": _safe_reverse("support_help"), "icon": "support", "active": _is_active(route, "support_help", "support_center", "support_control")},
-                {"label": "Settings", "url": _safe_reverse("settings"), "icon": "settings", "active": _is_active(route, "settings", "profile_edit")},
-                {"label": "Profile / Account", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
-            ],
-        },
-    ]
+    items = [{
+        "title": "Navigation",
+        "items": [
+            {"label": "Home", "url": _safe_reverse("home"), "icon": "home", "active": _is_active(route, "home", "/")},
+            {"label": "Feed", "url": _safe_reverse("feed"), "icon": "spark", "active": _is_active(route, "feed", "feed_following", "feed_friends", "feed_trending", "feed_nearby", "reels_feed")},
+            {"label": "Dating", "url": _safe_reverse("dating"), "icon": "heart", "active": _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
+            {"label": "Live", "url": _safe_reverse("live_home"), "icon": "live", "active": _is_active(route, "live_home", "live_room", "live_featured", "live_scheduled", "live_shows")},
+            {"label": "Games", "url": _safe_reverse("games_home"), "icon": "gaming", "active": _is_active(route, "games_home", "gaming")},
+            {"label": "Pink Friday", "url": _safe_reverse("pink_friday"), "icon": "premium", "active": _is_active(route, "pink_friday")},
+        ],
+    }]
+    if request.user.is_authenticated:
+        items[0]["items"].extend([
+            {"label": "Wallet", "url": _safe_reverse("wallet_home"), "icon": "wallet", "active": _is_active(route, "wallet_home", "wallet_transactions", "wallet_gifts", "wallet_membership", "wallet_membership_plans", "wallet_creator_earnings")},
+            {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
+        ])
     auth_items = []
     if request.user.is_authenticated:
-        if is_master_admin(request.user) or (hasattr(request.user, "account_role") and request.user.account_role.is_admin):
-            auth_items.append({"label": "Control", "url": _safe_reverse("support_control"), "icon": "shield", "active": _is_active(route, "support_control")})
         auth_items.append({"label": "Logout", "url": _safe_reverse("logout"), "icon": "logout", "active": False})
     else:
         auth_items.extend(
@@ -88,7 +60,6 @@ def _drawer_groups(request, smart_profile_url):
 
 def _bottom_actions(request, smart_profile_url):
     route = _current_route(request)
-    page = "default"
     actions = [
         {"label": "Home", "url": _safe_reverse("home"), "icon": "home", "active": _is_active(route, "home")},
         {"label": "Explore", "url": _safe_reverse("discover"), "icon": "discover", "active": _is_active(route, "discover", "discover_search", "reels_feed")},
@@ -96,62 +67,7 @@ def _bottom_actions(request, smart_profile_url):
         {"label": "Dating", "url": _safe_reverse("dating"), "icon": "heart", "active": _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
         {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
     ]
-
-    if _is_active(route, "profile_detail", "profile_edit"):
-        page = "profile"
-        actions = [
-            {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": True},
-            {"label": "Edit", "url": _safe_reverse("profile_edit"), "icon": "edit", "active": _is_active(route, "profile_edit")},
-            {"label": "Posts", "url": request.path + "#posts", "icon": "spark", "active": False},
-            {"label": "Activity", "url": _safe_reverse("notifications"), "icon": "bell", "active": False},
-            {"label": "Menu", "url": "#", "icon": "menu", "active": False, "drawer_trigger": True},
-        ]
-    elif _is_active(route, "live_home", "live_room", "live_start", "live_studio", "legacy_live_studio"):
-        page = "live"
-        actions = [
-            {"label": "Explore", "url": _safe_reverse("live_home"), "icon": "discover", "active": _is_active(route, "live_home", "live_room")},
-            {"label": "Go Live", "url": _safe_reverse("live_start"), "icon": "broadcast", "active": _is_active(route, "live_start", "live_studio", "legacy_live_studio")},
-            {"label": "Chats", "url": _safe_reverse("user_dashboard") + "?section=messages", "icon": "chat", "active": False},
-            {"label": "Gifts", "url": _safe_reverse("wallet_gifts"), "icon": "gift", "active": False},
-            {"label": "Menu", "url": "#", "icon": "menu", "active": False, "drawer_trigger": True},
-        ]
-    elif route["namespace"] == "messaging" or _is_active(route, "user_dashboard"):
-        page = "messaging"
-        actions = [
-            {"label": "Chats", "url": _safe_reverse("user_dashboard") + "?section=messages", "icon": "chat", "active": True},
-            {"label": "Calls", "url": _safe_reverse("user_dashboard") + "?section=messages", "icon": "phone", "active": False},
-            {"label": "Video", "url": _safe_reverse("user_dashboard") + "?section=messages", "icon": "video", "active": False},
-            {"label": "Contacts", "url": _safe_reverse("discover"), "icon": "community", "active": False},
-            {"label": "Menu", "url": "#", "icon": "menu", "active": False, "drawer_trigger": True},
-        ]
-    elif _is_active(route, "wallet_home", "wallet_transactions", "wallet_gifts", "wallet_membership", "wallet_membership_plans", "wallet_creator_earnings"):
-        page = "wallet"
-        actions = [
-            {"label": "Wallet", "url": _safe_reverse("wallet_home"), "icon": "wallet", "active": True},
-            {"label": "Send", "url": _safe_reverse("wallet_gifts"), "icon": "gift", "active": False},
-            {"label": "Buy", "url": _safe_reverse("wallet_membership_plans"), "icon": "premium", "active": False},
-            {"label": "History", "url": _safe_reverse("wallet_transactions"), "icon": "history", "active": False},
-            {"label": "Menu", "url": "#", "icon": "menu", "active": False, "drawer_trigger": True},
-        ]
-    elif _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit"):
-        page = "dating"
-        actions = [
-            {"label": "Discover", "url": _safe_reverse("dating_discover"), "icon": "discover", "active": _is_active(route, "dating", "dating_discover")},
-            {"label": "Likes", "url": _safe_reverse("dating_likes"), "icon": "heart", "active": _is_active(route, "dating_likes")},
-            {"label": "Matches", "url": _safe_reverse("dating_matches"), "icon": "spark", "active": _is_active(route, "dating_matches")},
-            {"label": "Profile", "url": _safe_reverse("dating_profile_edit"), "icon": "user", "active": _is_active(route, "dating_profile_edit", "dating_profile_detail")},
-            {"label": "Menu", "url": "#", "icon": "menu", "active": False, "drawer_trigger": True},
-        ]
-    elif _is_active(route, "community_detail", "community_list", "community_create"):
-        page = "community"
-        actions = [
-            {"label": "Feed", "url": _safe_reverse("community_list"), "icon": "spark", "active": _is_active(route, "community_list", "community_detail")},
-            {"label": "Members", "url": request.path + "#members", "icon": "community", "active": False},
-            {"label": "Media", "url": request.path + "#media", "icon": "image", "active": False},
-            {"label": "Events", "url": _safe_reverse("live_home"), "icon": "live", "active": False},
-            {"label": "Menu", "url": "#", "icon": "menu", "active": False, "drawer_trigger": True},
-        ]
-    return page, actions
+    return "default", actions
 
 
 def profile_navigation(request):
@@ -171,9 +87,12 @@ def profile_navigation(request):
         {"label": "Live", "url": _safe_reverse("live_home"), "active": _is_active(current_route, "live_home", "live_room", "live_featured", "live_scheduled")},
         {"label": "Games", "url": _safe_reverse("games_home"), "active": _is_active(current_route, "games_home", "gaming")},
         {"label": "Pink Friday", "url": _safe_reverse("pink_friday"), "active": _is_active(current_route, "pink_friday")},
-        {"label": "Wallet", "url": _safe_reverse("wallet_home"), "active": _is_active(current_route, "wallet_home", "wallet_transactions", "wallet_gifts", "wallet_membership", "wallet_membership_plans", "wallet_creator_earnings")},
-        {"label": "Profile", "url": smart_profile_url, "active": _is_active(current_route, "user_dashboard", "profile_detail", "profile_edit")},
     ]
+    if request.user.is_authenticated:
+        primary_nav_links.extend([
+            {"label": "Wallet", "url": _safe_reverse("wallet_home"), "active": _is_active(current_route, "wallet_home", "wallet_transactions", "wallet_gifts", "wallet_membership", "wallet_membership_plans", "wallet_creator_earnings")},
+            {"label": "Profile", "url": smart_profile_url, "active": _is_active(current_route, "user_dashboard", "profile_detail", "profile_edit")},
+        ])
     return {
         "smart_profile_url": smart_profile_url,
         "profile_dashboard_url": dashboard_url,

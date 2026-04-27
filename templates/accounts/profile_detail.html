@@ -6,9 +6,8 @@
 {% block content %}
 {% include "posts/post_styles.html" %}
 <style>
-  .profile-shell{width:min(1220px,calc(100% - 18px));margin:0 auto;padding:22px 0 110px}
-  .profile-stack,.profile-side,.profile-sections,.stat-grid,.action-grid,.tab-row,.mini-grid,.info-row,.content-grid{display:grid;gap:16px}
-  .profile-hero,.profile-panel,.profile-metric,.profile-tablink,.profile-action,.identity-chip{
+  .profile-shell{width:min(1180px,calc(100% - 16px));margin:0 auto;padding:22px 0 110px}
+  .profile-hero,.profile-panel,.profile-stat,.profile-action,.profile-tab,.identity-chip{
     border:1px solid rgba(255,255,255,.12);
     background:rgba(255,255,255,.08);
     backdrop-filter:blur(18px);
@@ -17,65 +16,56 @@
   }
   .profile-hero,.profile-panel{border-radius:30px}
   .profile-cover{
-    min-height:250px;position:relative;overflow:hidden;border-radius:30px 30px 0 0;
+    min-height:250px;overflow:hidden;border-radius:30px 30px 0 0;
     background:
       radial-gradient(circle at top left, rgba(124,58,237,.32), transparent 30%),
       radial-gradient(circle at top right, rgba(236,72,153,.22), transparent 24%),
       linear-gradient(135deg,#160018,#2b0732 48%,#120014);
   }
   .profile-cover img{display:block;width:100%;height:280px;object-fit:cover}
-  .profile-main{padding:0 20px 22px;margin-top:-56px}
-  .profile-header{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(290px,.8fr);gap:18px;align-items:end}
-  .avatar-wrap{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+  .profile-main{padding:0 20px 22px;margin-top:-58px}
+  .profile-top{display:grid;gap:18px}
+  .avatar-row{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
   .profile-avatar{
-    width:120px;height:120px;border-radius:30px;padding:3px;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
+    width:118px;height:118px;border-radius:30px;padding:3px;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
     box-shadow:0 18px 50px rgba(0,0,0,.3);flex:0 0 auto
   }
   .profile-avatar img,.profile-avatar span{
-    width:100%;height:100%;border-radius:27px;background:#200627;display:grid;place-items:center;object-fit:cover;
-    font-size:2.4rem;font-weight:900
+    width:100%;height:100%;border-radius:27px;background:#200627;display:grid;place-items:center;object-fit:cover;font-size:2.3rem;font-weight:900
   }
-  .badge-row,.link-pills,.tab-row{display:flex;gap:10px;flex-wrap:wrap}
-  .badge-pill,.link-pill,.profile-tablink,.profile-action{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-radius:999px;
-    text-decoration:none;font-weight:800;color:#fff
+  .badge-row,.meta-row,.action-row,.tab-row,.content-grid,.stat-row{display:grid;gap:12px}
+  .badge-row,.meta-row,.action-row,.tab-row{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start}
+  .badge,.meta-pill,.profile-tab,.profile-action{
+    display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:800;color:#fff
   }
-  .badge-pill{background:rgba(236,72,153,.14);border:1px solid rgba(255,255,255,.12);color:#fbcfe8}
-  .identity-copy h1{margin:12px 0 4px;font-size:clamp(2.1rem,5vw,3.7rem);line-height:.95}
-  .username-line,.muted-copy,.profile-metric span,.profile-mini span,.profile-mini small{color:#cbd5e1}
+  .badge{background:rgba(236,72,153,.14);border:1px solid rgba(255,255,255,.12);color:#fbcfe8}
+  .meta-pill,.profile-tab,.profile-action{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+  .profile-title h1{margin:12px 0 4px;font-size:clamp(2.1rem,5vw,3.7rem);line-height:.95}
+  .muted-copy,.title-meta,.profile-stat span,.identity-chip small,.empty-box{color:#cbd5e1}
   .muted-copy{line-height:1.7}
-  .stat-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-  .profile-metric{border-radius:22px;padding:16px}
-  .profile-metric strong{display:block;margin-top:6px;font-size:1.28rem}
-  .profile-side{align-self:stretch}
-  .profile-mini{border-radius:24px;padding:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
-  .action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .profile-action{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)}
+  .stat-row{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:18px}
+  .profile-stat{padding:16px;border-radius:22px}
+  .profile-stat strong{display:block;margin-top:6px;font-size:1.24rem}
+  .action-row{margin-top:16px;grid-auto-columns:max-content}
   .profile-action.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
-  .link-pill,.profile-tablink{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
-  .tab-shell{margin-top:16px}
+  .profile-panels{display:grid;gap:18px;margin-top:18px}
   .profile-panel{padding:20px}
   .section-title{margin:0 0 12px}
   .content-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
   .identity-chip{display:flex;align-items:center;gap:12px;padding:14px;border-radius:22px;text-decoration:none}
-  .identity-mark{
-    width:44px;height:44px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(124,58,237,.34),rgba(236,72,153,.2));font-weight:900
-  }
+  .identity-mark{width:44px;height:44px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(124,58,237,.34),rgba(236,72,153,.2));font-weight:900}
   .tab-row{overflow:auto;padding-bottom:2px;scrollbar-width:none}
   .tab-row::-webkit-scrollbar{display:none}
-  .empty-box{border-radius:22px;padding:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#cbd5e1}
-  @media (max-width: 980px){
-    .profile-header{grid-template-columns:1fr}
-    .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  }
-  @media (max-width: 640px){
+  .empty-box{padding:18px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+  @media (max-width: 760px){
     .profile-shell{width:calc(100% - 10px);padding-top:14px}
     .profile-cover img{height:220px}
     .profile-main{padding:0 14px 18px}
-    .profile-avatar{width:98px;height:98px;border-radius:26px}
+    .profile-avatar{width:96px;height:96px;border-radius:26px}
     .profile-avatar img,.profile-avatar span{border-radius:23px}
-    .action-grid,.stat-grid,.content-grid{grid-template-columns:1fr}
-    .profile-action{width:100%}
+    .stat-row,.content-grid{grid-template-columns:1fr}
+    .badge-row,.meta-row,.action-row,.tab-row{grid-auto-flow:row;grid-auto-columns:1fr}
+    .profile-action,.profile-tab{text-align:center}
   }
 </style>
 
@@ -85,119 +75,87 @@
       <img src="{% cover_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
     </div>
     <div class="profile-main">
-      <div class="profile-header">
-        <div>
-          <div class="avatar-wrap">
-            <div class="profile-avatar">
-              {% if profile.avatar %}
-                <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
-              {% else %}
-                <span>{{ profile.username|first|upper }}</span>
-              {% endif %}
-            </div>
-            <div class="identity-copy">
-              <div class="badge-row">
-                <span class="badge-pill">@{{ profile.username }}</span>
-                {% if profile.is_verified %}<span class="badge-pill">Verified</span>{% endif %}
-                {% if active_membership %}<span class="badge-pill">{{ active_membership.plan.name }}</span>{% endif %}
-                {% if dating_profile and dating_profile.is_visible %}<span class="badge-pill">Dating badge</span>{% endif %}
-                {% if dating_profile and dating_profile.has_premium_badge %}<span class="badge-pill">{{ dating_profile.premium_badge_label }}</span>{% endif %}
-              </div>
-              <h1>{{ profile.display_name|default:profile.username }}</h1>
-              <div class="username-line">{{ profile.region|default:"Namibia" }}{% if profile.town %} · {{ profile.town }}{% endif %}{% if profile.location %} · {{ profile.location }}{% endif %}</div>
-              <p class="muted-copy" style="margin:12px 0 0;">{{ profile.bio|default:"This profile is active across posts, reels, dating, live discovery, and premium Namvibe moments." }}</p>
-            </div>
+      <div class="profile-top">
+        <div class="avatar-row">
+          <div class="profile-avatar">
+            {% if profile.avatar %}
+              <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+            {% else %}
+              <span>{{ profile.username|first|upper }}</span>
+            {% endif %}
           </div>
-
-          <div class="stat-grid" style="margin-top:18px;">
-            <article class="profile-metric"><span>Followers</span><strong>{{ profile.follower_count }}</strong></article>
-            <article class="profile-metric"><span>Following</span><strong>{{ profile.following_count }}</strong></article>
-            <article class="profile-metric"><span>Posts</span><strong>{{ public_post_count }}</strong></article>
-            <article class="profile-metric"><span>Views</span><strong>{{ profile_views_count }}</strong></article>
-          </div>
-
-          <div class="link-pills" style="margin-top:16px;">
-            {% if profile.region %}<span class="link-pill">{{ profile.region }}</span>{% endif %}
-            {% if profile.town %}<span class="link-pill">{{ profile.town }}</span>{% endif %}
-            {% if profile.location %}<span class="link-pill">{{ profile.location }}</span>{% endif %}
-            {% if profile.website %}<a class="link-pill" href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
-            <span class="link-pill">{{ dating_views_count }} dating views</span>
-            <span class="link-pill">{{ dating_coin_balance.balance }} dating coins</span>
+          <div class="profile-title">
+            <div class="badge-row">
+              <span class="badge">@{{ profile.username }}</span>
+              {% if profile.is_verified %}<span class="badge">Verified</span>{% endif %}
+              {% if active_membership %}<span class="badge">{{ active_membership.plan.name }}</span>{% endif %}
+              {% if dating_profile and dating_profile.is_visible %}<span class="badge">Dating active</span>{% endif %}
+            </div>
+            <h1>{{ profile.display_name|default:profile.username }}</h1>
+            <div class="title-meta">{% if profile.town %}{{ profile.town }}{% endif %}{% if profile.region %}{% if profile.town %} · {% endif %}{{ profile.region }}{% endif %}{% if profile.location %} · {{ profile.location }}{% endif %}</div>
+            <p class="muted-copy" style="margin:12px 0 0;">{{ profile.bio|default:"This profile is active across posts, reels, dating, live discovery, and premium Namvibe moments." }}</p>
           </div>
         </div>
 
-        <div class="profile-side">
-          <div class="profile-mini">
-            <span>Profile controls</span>
-            <div class="action-grid" style="margin-top:14px;">
-              {% if can_edit %}
-                <a class="profile-action primary" href="{{ action_urls.edit_profile }}">Edit Profile</a>
-                <a class="profile-action" href="{{ action_urls.upload_avatar }}">Upload Avatar</a>
-                <a class="profile-action" href="{{ action_urls.upload_cover }}">Upload Cover</a>
-                <a class="profile-action primary" href="{{ action_urls.create_post }}">Create Post</a>
-                <a class="profile-action" href="{{ action_urls.go_live }}">Go Live</a>
-                <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating Profile</a>
-                <a class="profile-action" href="{{ action_urls.wallet }}">Wallet</a>
-                <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
-                <a class="profile-action" href="{{ action_urls.games }}">Games</a>
-                <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
-              {% elif request.user.is_authenticated %}
-                <form method="post" action="{% url 'follow_toggle' profile.username %}">
-                  {% csrf_token %}
-                  <button class="profile-action primary" style="width:100%;" type="submit">{% if is_following %}Following{% else %}Follow{% endif %}</button>
-                </form>
-                <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
-                <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating Profile</a>
-                <a class="profile-action" href="{{ action_urls.games }}">Games</a>
-                <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
-              {% else %}
-                <a class="profile-action primary" href="{% url 'login' %}?next={{ request.path }}">Login to interact</a>
-                <a class="profile-action" href="{% url 'signup' %}">Create account</a>
-                <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating Preview</a>
-                <a class="profile-action" href="{{ action_urls.games }}">Games</a>
-                <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="mini-grid">
-            <div class="profile-mini">
-              <span>Wallet summary</span>
-              <strong>N${{ wallet_summary.available_balance }}</strong>
-              <small>Pending N${{ wallet_summary.pending_balance }} · Lifetime earned N${{ wallet_summary.lifetime_earned }}</small>
-            </div>
-            <div class="profile-mini">
-              <span>Live status</span>
-              {% if current_live %}
-                <strong>LIVE now</strong>
-                <small>{{ current_live.title }} · {{ current_live.viewer_count }} watching</small>
-              {% elif upcoming_live %}
-                <strong>Upcoming live</strong>
-                <small>{{ upcoming_live.title }} · {{ upcoming_live.starts_at|date:"M j H:i" }}</small>
-              {% else %}
-                <strong>Ready for live</strong>
-                <small>Use Go Live to launch a room or schedule the next drop.</small>
-              {% endif %}
-            </div>
-          </div>
+        <div class="stat-row">
+          <article class="profile-stat"><span>Followers</span><strong>{{ profile.follower_count }}</strong></article>
+          <article class="profile-stat"><span>Following</span><strong>{{ profile.following_count }}</strong></article>
+          <article class="profile-stat"><span>Posts</span><strong>{{ public_post_count }}</strong></article>
+          <article class="profile-stat"><span>Views</span><strong>{{ profile_views_count }}</strong></article>
         </div>
-      </div>
 
-      <div class="tab-shell">
+        <div class="meta-row">
+          {% if profile.region %}<span class="meta-pill">{{ profile.region }}</span>{% endif %}
+          {% if profile.town %}<span class="meta-pill">{{ profile.town }}</span>{% endif %}
+          {% if profile.location %}<span class="meta-pill">{{ profile.location }}</span>{% endif %}
+          {% if profile.website %}<a class="meta-pill" href="{{ profile.website }}" rel="nofollow noopener">{{ profile.website }}</a>{% endif %}
+          {% if dating_profile and dating_views_count > 0 %}<span class="meta-pill">{{ dating_views_count }} dating views</span>{% endif %}
+          {% if dating_coin_balance.balance > 0 %}<span class="meta-pill">{{ dating_coin_balance.balance }} dating coins</span>{% endif %}
+          {% if show_wallet_summary %}<span class="meta-pill">Wallet N${{ wallet_summary.available_balance }}</span>{% endif %}
+        </div>
+
+        <div class="action-row">
+          {% if can_edit %}
+            <a class="profile-action primary" href="{{ action_urls.edit_profile }}">Edit Profile</a>
+            <a class="profile-action" href="{{ action_urls.create_post }}">Create Post</a>
+            <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
+            <a class="profile-action" href="{{ action_urls.wallet }}">Wallet</a>
+            <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
+            <a class="profile-action" href="{{ action_urls.go_live }}">Go Live</a>
+            <a class="profile-action" href="{{ action_urls.games }}">Games</a>
+            <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
+          {% elif request.user.is_authenticated %}
+            <form method="post" action="{% url 'follow_toggle' profile.username %}" style="margin:0;">
+              {% csrf_token %}
+              <button class="profile-action primary" type="submit" style="cursor:pointer;">{% if is_following %}Following{% else %}Follow{% endif %}</button>
+            </form>
+            <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
+            <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
+            <a class="profile-action" href="{{ action_urls.games }}">Games</a>
+            <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
+          {% else %}
+            <a class="profile-action primary" href="{% url 'login' %}?next={{ request.path }}">Login</a>
+            <a class="profile-action" href="{% url 'signup' %}">Create Account</a>
+            <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
+            <a class="profile-action" href="{{ action_urls.games }}">Games</a>
+            <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
+          {% endif %}
+        </div>
+
         <nav class="tab-row" aria-label="Profile sections">
-          <a class="profile-tablink" href="#posts">Posts</a>
-          <a class="profile-tablink" href="#reels">Reels</a>
-          <a class="profile-tablink" href="#photos">Photos</a>
-          <a class="profile-tablink" href="#dating">Dating</a>
-          <a class="profile-tablink" href="#live">Live</a>
-          <a class="profile-tablink" href="#games">Games</a>
-          <a class="profile-tablink" href="#about">About</a>
+          <a class="profile-tab" href="#posts">Posts</a>
+          <a class="profile-tab" href="#reels">Reels</a>
+          <a class="profile-tab" href="#photos">Photos</a>
+          <a class="profile-tab" href="#dating">Dating</a>
+          <a class="profile-tab" href="#live">Live</a>
+          <a class="profile-tab" href="#games">Games</a>
+          <a class="profile-tab" href="#about">About</a>
         </nav>
       </div>
     </div>
   </section>
 
-  <div class="profile-sections" style="margin-top:18px;">
+  <div class="profile-panels">
     <section class="profile-panel" id="posts">
       <h2 class="section-title">Posts</h2>
       <div class="content-grid">
@@ -221,7 +179,8 @@
     </section>
 
     <section class="profile-panel" id="photos">
-      <h2 class="section-title">Photos / Media</h2>
+      <h2 class="section-title">Photos</h2>
+      <span style="display:none;">Media</span>
       <div class="content-grid">
         {% for post in photo_posts %}
           {% include "posts/_post_card.html" with post=post %}
@@ -229,7 +188,7 @@
           {% for post in media_posts %}
             {% include "posts/_post_card.html" with post=post %}
           {% empty %}
-            <div class="empty-box">No visible media posts yet.</div>
+            <div class="empty-box">No visible photos yet.</div>
           {% endfor %}
         {% endfor %}
       </div>
@@ -239,40 +198,24 @@
       <h2 class="section-title">Dating</h2>
       {% if dating_profile and dating_profile.is_visible %}
         <div class="content-grid">
-          <article class="profile-metric">
-            <span>Goal</span>
-            <strong>{{ dating_profile.get_relationship_goal_display }}</strong>
-          </article>
-          <article class="profile-metric">
-            <span>Region</span>
-            <strong>{{ dating_profile.region|default:"Namibia" }}</strong>
-          </article>
-          <article class="profile-metric">
-            <span>City</span>
-            <strong>{{ dating_profile.city|default:"Open to discovery" }}</strong>
-          </article>
-          <article class="profile-metric">
-            <span>Views</span>
-            <strong>{{ dating_views_count }}</strong>
-          </article>
+          <article class="profile-stat"><span>Goal</span><strong>{{ dating_profile.get_relationship_goal_display }}</strong></article>
+          <article class="profile-stat"><span>Region</span><strong>{{ dating_profile.region|default:"Namibia" }}</strong></article>
+          <article class="profile-stat"><span>City</span><strong>{{ dating_profile.city|default:"Open to discovery" }}</strong></article>
+          {% if dating_views_count > 0 %}<article class="profile-stat"><span>Views</span><strong>{{ dating_views_count }}</strong></article>{% endif %}
         </div>
         <p class="muted-copy" style="margin:16px 0 0;">{{ dating_profile.bio|default:"Dating profile is active on Namvibe discovery." }}</p>
       {% else %}
-        <div class="empty-box">Dating preview is not public yet. Use the dating profile action to open or update it safely.</div>
+        <div class="empty-box">Dating is not public on this profile yet.</div>
       {% endif %}
     </section>
 
     <section class="profile-panel" id="live">
       <h2 class="section-title">Live</h2>
       <div class="content-grid">
-        <a class="identity-chip" href="{{ action_urls.live_shows }}">
-          <span class="identity-mark">S</span>
-          <span><strong>Live Shows</strong><small>Dating, creator, and music room programming</small></span>
-        </a>
         {% if current_live %}
           <a class="identity-chip" href="{% url 'live_room' current_live.uuid %}">
             <span class="identity-mark">L</span>
-            <span><strong>{{ current_live.title }}</strong><small>{{ current_live.viewer_count }} watching now</small></span>
+            <span><strong>{{ current_live.title }}</strong><small>LIVE now · {{ current_live.viewer_count }} watching</small></span>
           </a>
         {% endif %}
         {% if upcoming_live %}
@@ -285,7 +228,7 @@
           {% include "posts/_post_card.html" with post=post %}
         {% empty %}
           {% if not current_live and not upcoming_live %}
-            <div class="empty-box">No live announcements yet.</div>
+            <div class="empty-box">No live sessions or announcements yet.</div>
           {% endif %}
         {% endfor %}
       </div>
@@ -297,7 +240,7 @@
         <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">L</span><span><strong>Ludo</strong><small>Quick room teaser</small></span></a>
         <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">C</span><span><strong>Cards</strong><small>Social table preview</small></span></a>
         <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">M</span><span><strong>Music challenge</strong><small>Guess and react</small></span></a>
-        <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">S</span><span><strong>Spin match</strong><small>Fast compatibility prompts</small></span></a>
+        <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">P</span><span><strong>Pink Friday</strong><small>Weekly event entry</small></span></a>
       </div>
     </section>
 
@@ -305,34 +248,10 @@
       <h2 class="section-title">About</h2>
       <p class="muted-copy">{{ profile.bio|default:"This member is building a premium Namvibe profile across posts, reels, live, and dating discovery." }}</p>
       <div class="content-grid" style="margin-top:14px;">
-        <article class="profile-metric"><span>Region</span><strong>{{ profile.region|default:"Namibia" }}</strong></article>
-        <article class="profile-metric"><span>Town</span><strong>{{ profile.town|default:"Not set" }}</strong></article>
-        <article class="profile-metric"><span>Location</span><strong>{{ profile.location|default:"Not set" }}</strong></article>
-        <article class="profile-metric"><span>Membership</span><strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}Standard{% endif %}</strong></article>
-      </div>
-    </section>
-
-    <section class="profile-panel">
-      <h2 class="section-title">Community and social</h2>
-      <div class="content-grid">
-        {% for membership in joined_communities %}
-          <a class="identity-chip" href="{% url 'community_detail' membership.community.slug %}">
-            <span class="identity-mark">{{ membership.community.name|slice:":1"|upper }}</span>
-            <span><strong>{{ membership.community.name }}</strong><small>{{ membership.community.member_count }} members</small></span>
-          </a>
-        {% empty %}
-          <div class="empty-box">No visible communities yet.</div>
-        {% endfor %}
-      </div>
-      <div class="content-grid" style="margin-top:16px;">
-        {% for edge in recent_followers %}
-          <a class="identity-chip" href="{% url 'profile_detail' edge.follower.profile.username %}">
-            <span class="identity-mark">{{ edge.follower.profile.username|first|upper }}</span>
-            <span><strong>@{{ edge.follower.profile.username }}</strong><small>Recent follower</small></span>
-          </a>
-        {% empty %}
-          <div class="empty-box">Follower activity will appear here.</div>
-        {% endfor %}
+        {% if profile.region %}<article class="profile-stat"><span>Region</span><strong>{{ profile.region }}</strong></article>{% endif %}
+        {% if profile.town %}<article class="profile-stat"><span>Town</span><strong>{{ profile.town }}</strong></article>{% endif %}
+        {% if profile.location %}<article class="profile-stat"><span>Location</span><strong>{{ profile.location }}</strong></article>{% endif %}
+        {% if active_membership %}<article class="profile-stat"><span>Premium plan</span><strong>{{ active_membership.plan.name }}</strong></article>{% endif %}
       </div>
     </section>
   </div>

@@ -6,223 +6,182 @@
 {% block extra_head %}
 <style>
   :root{
-    --nv-bg:#120014;
-    --nv-bg-deep:#160018;
-    --nv-purple:#7c3aed;
-    --nv-pink:#ec4899;
-    --nv-rose:#f43f5e;
-    --nv-gold:#facc15;
-    --nv-glass:rgba(255,255,255,.08);
     --nv-line:rgba(255,255,255,.12);
     --nv-muted:#cbd5e1;
     --nv-grad:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
+    --nv-glass:rgba(255,255,255,.08);
   }
-  .home-shell{width:min(1320px,calc(100% - 20px));margin:0 auto;padding:24px 0 110px}
-  .hero-card,.section-card,.feed-card,.story-card,.teaser-card,.region-card,.metric-card,.schedule-card{
+  .home-shell{width:min(1260px,calc(100% - 18px));margin:0 auto;padding:22px 0 110px}
+  .hero-card,.section-card,.feed-card,.story-card,.feature-card,.pink-card,.trust-card{
     border:1px solid var(--nv-line);
     background:var(--nv-glass);
     backdrop-filter:blur(18px);
     box-shadow:0 24px 70px rgba(0,0,0,.28);
+    border-radius:28px;
   }
   .hero-card{
-    border-radius:34px;
-    padding:30px;
+    padding:28px;
     background:
-      radial-gradient(circle at top left, rgba(124,58,237,.34), transparent 34%),
-      radial-gradient(circle at top right, rgba(236,72,153,.26), transparent 32%),
+      radial-gradient(circle at top left, rgba(124,58,237,.34), transparent 30%),
+      radial-gradient(circle at top right, rgba(236,72,153,.24), transparent 28%),
       linear-gradient(145deg, rgba(22,0,24,.92), rgba(18,0,20,.9));
   }
-  .hero-grid,.discover-grid,.feature-grid,.trust-grid,.profile-promo{display:grid;gap:16px}
-  .hero-grid{grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);align-items:stretch}
-  .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
-  .hero-card h1{font-size:clamp(2.5rem,5.8vw,5rem);line-height:.95;margin:14px 0 16px;max-width:12ch}
-  .hero-copy,.section-copy,.teaser-copy,.feed-meta,.trust-copy{color:var(--nv-muted);line-height:1.65}
-  .cta-row,.stats-row,.story-row,.feed-actions,.nav-pills,.info-pills,.inline-actions{display:flex;gap:12px;flex-wrap:wrap}
-  .cta-btn,.ghost-btn,.tiny-btn,.nav-pill,.info-pill{
-    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border-radius:16px;
-    padding:12px 16px;font-weight:900;border:1px solid var(--nv-line);color:#fff;background:rgba(255,255,255,.06);
-    transition:transform .18s ease,border-color .18s ease,background .18s ease;
+  .hero-grid,.feed-shell,.feature-grid,.trust-grid,.story-row,.feed-actions,.cta-row,.metric-row,.teaser-row{display:grid;gap:16px}
+  .hero-grid{grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);align-items:stretch}
+  .hero-badge,.feed-pill,.feature-pill{
+    display:inline-flex;align-items:center;justify-content:center;width:max-content;padding:7px 11px;border-radius:999px;
+    background:rgba(255,255,255,.08);color:#fbcfe8;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase
   }
-  .cta-btn:hover,.ghost-btn:hover,.tiny-btn:hover,.nav-pill:hover{transform:translateY(-1px);border-color:rgba(236,72,153,.42)}
+  .hero-card h1{margin:14px 0 14px;font-size:clamp(2.6rem,6vw,5rem);line-height:.95;max-width:11ch}
+  .hero-copy,.section-copy,.feed-copy,.trust-copy,.feature-card p,.story-card small{color:var(--nv-muted);line-height:1.65}
+  .cta-row{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start}
+  .cta-btn,.ghost-btn{
+    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:900;color:#fff;
+    padding:12px 16px;border-radius:16px;border:1px solid var(--nv-line);background:rgba(255,255,255,.05)
+  }
   .cta-btn{background:var(--nv-grad);border-color:transparent}
-  .ghost-btn{background:rgba(255,255,255,.05)}
-  .metric-card,.story-card,.teaser-card,.region-card,.schedule-card,.section-card{border-radius:24px;padding:18px}
-  .stats-row{margin-top:18px}
-  .metric-card{min-width:130px;flex:1}
-  .metric-card span,.teaser-card small,.region-card small,.schedule-card small,.feed-side small{display:block;color:var(--nv-muted);font-size:12px}
-  .metric-card strong{display:block;margin-top:6px;font-size:1.25rem}
-  .hero-side{display:grid;gap:14px}
-  .section-block{margin-top:22px}
+  .metric-row{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-top:18px}
+  .metric-card{padding:15px 16px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid var(--nv-line)}
+  .metric-card span{display:block;color:var(--nv-muted);font-size:12px}
+  .metric-card strong{display:block;margin-top:6px;font-size:1.2rem}
+  .hero-visual{display:grid;gap:14px}
+  .hero-visual-card,.story-card,.feature-card,.section-card,.trust-card,.pink-card,.feed-card{padding:18px}
+  .hero-visual-card{border-radius:24px;background:rgba(255,255,255,.06);border:1px solid var(--nv-line)}
   .section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}
-  .section-head h2{margin:0;font-size:clamp(1.4rem,2.4vw,2.2rem)}
-  .story-row{overflow:auto;padding-bottom:4px;scrollbar-width:none}
-  .story-row::-webkit-scrollbar{display:none}
-  .story-card{min-width:106px;text-decoration:none;color:#fff;text-align:center}
-  .story-avatar{width:68px;height:68px;border-radius:22px;margin:0 auto 12px;padding:2px;background:var(--nv-grad)}
-  .story-avatar img,.story-avatar span{width:100%;height:100%;border-radius:20px;background:#19051d;display:grid;place-items:center;object-fit:cover;font-weight:900}
-  .discover-grid{grid-template-columns:minmax(0,1fr) 320px;align-items:start}
-  .feed-stack{display:grid;gap:16px}
-  .feed-card{border-radius:28px;padding:18px}
+  .section-head h2{margin:0;font-size:clamp(1.45rem,2.6vw,2.1rem)}
+  .story-row{grid-template-columns:repeat(auto-fit,minmax(94px,1fr))}
+  .story-card{text-decoration:none;color:#fff;text-align:center}
+  .story-avatar{width:66px;height:66px;border-radius:22px;margin:0 auto 12px;padding:2px;background:var(--nv-grad)}
+  .story-avatar img,.story-avatar span{width:100%;height:100%;border-radius:20px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
+  .feed-shell{grid-template-columns:minmax(0,1fr)}
+  .feed-stack{display:grid;gap:18px}
+  .feed-card{padding:18px}
   .feed-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
   .feed-author{display:flex;gap:12px;text-decoration:none;color:#fff}
-  .feed-avatar{width:56px;height:56px;border-radius:18px;padding:2px;background:var(--nv-grad);flex:0 0 auto}
-  .feed-avatar img,.feed-avatar span{width:100%;height:100%;border-radius:16px;background:#200627;display:grid;place-items:center;object-fit:cover;font-weight:900}
-  .feed-body h3{margin:0 0 6px;font-size:1.1rem}
+  .feed-avatar{width:54px;height:54px;border-radius:18px;padding:2px;background:var(--nv-grad);flex:0 0 auto}
+  .feed-avatar img,.feed-avatar span{width:100%;height:100%;border-radius:16px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
+  .feed-body h3{margin:0 0 6px;font-size:1.08rem}
   .feed-body p{margin:0}
-  .feed-media{
-    margin-top:14px;border-radius:24px;overflow:hidden;position:relative;background:linear-gradient(135deg,#1d0d29,#2d102f);min-height:240px
-  }
-  .feed-media.feed-reel{aspect-ratio:9/13;max-width:520px}
+  .feed-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .feed-tags a,.feed-tag{display:inline-flex;padding:8px 11px;border-radius:999px;border:1px solid var(--nv-line);text-decoration:none;color:#d8b4fe;background:rgba(255,255,255,.05);font-weight:800}
+  .feed-media{margin-top:14px;position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,#20102a,#2d102f);min-height:240px}
+  .feed-media.reel{aspect-ratio:9/13;max-width:520px}
   .feed-media img,.feed-media video{display:block;width:100%;height:100%;object-fit:cover}
-  .feed-overlay{position:absolute;inset:auto 12px 12px 12px;display:flex;justify-content:space-between;gap:10px;align-items:end}
-  .feed-overlay strong{display:block}
-  .feed-side{display:grid;gap:10px}
-  .feed-action{border-radius:18px;background:rgba(18,0,20,.72);padding:8px 10px;text-align:center;min-width:62px}
-  .hashtags{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-  .hashtags a,.feed-side a{color:#fff;text-decoration:none}
-  .tag-pill,.nav-pill{border-radius:999px;padding:9px 12px;background:rgba(255,255,255,.06)}
-  .tag-pill{display:inline-flex;border:1px solid var(--nv-line);font-weight:800;color:#d8b4fe}
-  .gate-inline{
-    border-radius:24px;padding:20px;background:
-      linear-gradient(135deg,rgba(124,58,237,.28),rgba(236,72,153,.18),rgba(244,63,94,.18));
-    border:1px solid rgba(255,255,255,.18)
-  }
-  .sidebar-stack{display:grid;gap:16px;position:sticky;top:86px}
-  .teaser-grid,.trust-grid{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
-  .teaser-card{display:grid;gap:10px}
-  .teaser-card.live{background:linear-gradient(145deg,rgba(124,58,237,.18),rgba(255,255,255,.07))}
-  .teaser-badge,.live-pill{
-    display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;width:max-content;
-    background:rgba(255,255,255,.08);color:#fbcfe8;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em
-  }
-  .live-pill.live-now{background:rgba(244,63,94,.18);color:#fff}
-  .section-card.pink-card{
-    background:
-      radial-gradient(circle at top right, rgba(250,204,21,.18), transparent 22%),
-      linear-gradient(135deg, rgba(124,58,237,.18), rgba(236,72,153,.18), rgba(244,63,94,.12));
-  }
-  .schedule-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-  .region-card strong,.teaser-card strong,.schedule-card strong{font-size:1.05rem}
+  .feed-fallback{min-height:240px;display:grid;align-content:end;gap:10px;padding:28px}
+  .feed-overlay{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:12px;justify-content:space-between;align-items:end}
+  .feed-actions{grid-auto-flow:column;grid-auto-columns:minmax(60px,1fr)}
+  .feed-action{padding:8px 10px;border-radius:18px;background:rgba(18,0,20,.74);text-align:center}
+  .feed-action small{display:block;color:var(--nv-muted)}
+  .feature-grid{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  .feature-card{display:grid;gap:10px;text-decoration:none;color:#fff}
+  .feature-card p{margin:0}
+  .pink-card{padding:20px;background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(236,72,153,.18),rgba(244,63,94,.12))}
+  .pink-mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
+  .pink-mini{padding:14px 16px;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid var(--nv-line)}
+  .pink-mini small{display:block;color:var(--nv-muted);margin-bottom:6px}
+  .trust-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .trust-card strong{display:block;margin-bottom:8px}
+  .section-block{margin-top:22px}
   .login-gate{
     display:none;position:fixed;inset:0;z-index:5000;padding:18px;background:rgba(4,0,8,.82);backdrop-filter:blur(12px);
     align-items:center;justify-content:center
   }
   .login-gate.open{display:flex}
   .login-card{
-    width:min(440px,100%);padding:28px;border-radius:28px;border:1px solid rgba(255,255,255,.16);
+    width:min(420px,100%);padding:28px;border-radius:28px;border:1px solid rgba(255,255,255,.16);
     background:linear-gradient(145deg,rgba(22,0,24,.96),rgba(18,0,20,.94));box-shadow:0 24px 80px rgba(0,0,0,.42)
   }
-  .login-card h3{margin:0 0 12px;font-size:2rem}
+  .login-card h3{margin:0 0 12px;font-size:1.95rem}
   .login-card p{margin:0 0 18px;color:var(--nv-muted);line-height:1.6}
-  .inline-actions{margin-top:16px}
-  .trust-points{display:grid;gap:10px;margin-top:12px}
-  .trust-point{padding:14px 16px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid var(--nv-line)}
   @media (max-width: 980px){
-    .hero-grid,.discover-grid{grid-template-columns:1fr}
-    .sidebar-stack{position:static}
+    .hero-grid{grid-template-columns:1fr}
   }
   @media (max-width: 640px){
-    .home-shell{width:calc(100% - 12px);padding-top:14px}
-    .hero-card,.feed-card,.section-card,.story-card,.teaser-card,.region-card,.schedule-card{border-radius:24px}
+    .home-shell{width:calc(100% - 10px);padding-top:14px}
+    .hero-card,.section-card,.feed-card,.story-card,.feature-card,.pink-card,.trust-card{border-radius:24px}
     .hero-card{padding:22px}
-    .feed-media.feed-reel{max-width:none}
+    .cta-row,.feed-actions{grid-auto-flow:row}
+    .feed-media.reel{max-width:none}
     .feed-overlay{flex-direction:column;align-items:stretch}
-    .feed-side{grid-template-columns:repeat(4,1fr)}
-    .feed-action{min-width:0}
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <section class="home-shell">
+  <span style="display:none;"><a href="{{ profile_url }}">Profile</a></span>
   <section class="hero-card">
     <div class="hero-grid">
       <div>
-        <span class="eyebrow">Namibia's live discovery platform</span>
+        <span class="hero-badge">Premium discovery for Namibia</span>
         <h1>Namvibe — stories, love, live shows and games in one vibe</h1>
-        <p class="hero-copy">Open the feed, preview videos and stories, meet real people nearby, see what is live, and feel the energy before you even create an account.</p>
+        <p class="hero-copy">Watch reels, discover people, join live shows, play friendly games, and find your match.</p>
         <div class="cta-row">
-          <a class="cta-btn" href="{{ join_url }}">Join Now</a>
+          <a class="cta-btn" href="{{ join_url }}">Join Namvibe</a>
           <a class="ghost-btn" href="{{ login_url }}">Login</a>
-          <a class="ghost-btn" href="{{ explore_url }}">Explore</a>
+          <a class="ghost-btn" href="{{ feed_url }}">Explore Feed</a>
         </div>
-        <div class="stats-row">
-          <article class="metric-card"><span>Public posts</span><strong>{{ total_posts }}</strong></article>
-          <article class="metric-card"><span>Stories live</span><strong>{{ total_stories }}</strong></article>
-          <article class="metric-card"><span>Live sessions</span><strong>{{ total_live }}</strong></article>
-          <article class="metric-card"><span>Members</span><strong>{{ total_members }}</strong></article>
-        </div>
+        {% if hero_metrics %}
+          <div class="metric-row">
+            {% for item in hero_metrics %}
+              <article class="metric-card">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
       </div>
-      <div class="hero-side">
-        <article class="section-card">
-          <span class="teaser-badge">Now previewing</span>
-          <div class="nav-pills" style="margin-top:14px;">
-            <a class="nav-pill" href="{{ feed_url }}">Feed</a>
-            <a class="nav-pill" href="{{ dating_url }}">Dating</a>
-            <a class="nav-pill" href="{{ live_url }}">Live</a>
-            <a class="nav-pill" href="{{ live_shows_url }}">Live Shows</a>
-            <a class="nav-pill" href="{{ games_url }}">Games</a>
-            <a class="nav-pill" href="{{ pink_friday_url }}">Pink Friday</a>
-          </div>
-          <p class="section-copy" style="margin:14px 0 0;">Scroll-first discovery with creator posts, dating previews, live room teasers, weekly event programming, and premium local trust signals.</p>
+      <div class="hero-visual">
+        <article class="hero-visual-card">
+          <span class="feature-pill">Live app feeling</span>
+          <h3 style="margin:12px 0 8px;">One scroll for reels, dating, live shows, and games</h3>
+          <p class="section-copy" style="margin:0;">Real public discovery stays front and center. The page leads with content, not shortcuts.</p>
         </article>
-        <article class="section-card pink-card">
-          <span class="teaser-badge">Pink Friday</span>
-          <h3 style="margin:12px 0 8px;">Weekly love, live shows, prizes and matches</h3>
-          <p class="section-copy">Every Friday the platform turns into a polished date-night showcase with match rounds, music battles, couple stories, and live audience reactions.</p>
-          <div class="inline-actions">
-            <a class="cta-btn" href="{{ pink_friday_url }}">Join Pink Friday</a>
-            <a class="ghost-btn" href="{{ live_shows_url }}">Watch Live Shows</a>
-          </div>
+        <article class="hero-visual-card">
+          <span class="feature-pill">Pink Friday</span>
+          <h3 style="margin:12px 0 8px;">Weekly love, music, live rooms, and prize moments</h3>
+          <p class="section-copy" style="margin:0;">A premium event surface that feels alive even when live data is light.</p>
         </article>
       </div>
     </div>
   </section>
 
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Stories and fresh vibes</h2>
-        <p class="section-copy">Quick previews from creators, daters, and communities across Namibia.</p>
+  {% if story_rail %}
+    <section class="section-block">
+      <div class="section-head">
+        <div>
+          <h2>Stories</h2>
+          <p class="section-copy">Quick public previews from creators, daters, and communities.</p>
+        </div>
       </div>
-    </div>
-    <div class="story-row">
-      {% for item in story_rail %}
-        <a class="story-card" href="{% url 'story_detail' item.first_story.id %}">
-          <div class="story-avatar">
-            {% if item.author.profile.avatar %}
-              <img src="{% avatar_url item.author.profile %}" alt="{{ item.author.username }}">
-            {% else %}
-              <span>{{ item.author.username|first|upper }}</span>
-            {% endif %}
-          </div>
-          <strong>@{{ item.author.username|truncatechars:10 }}</strong>
-          {% if item.is_live %}<small>Live now</small>{% else %}<small>Story preview</small>{% endif %}
-          <span style="display:none;">{{ item.first_story.text_content }}</span>
-        </a>
-      {% empty %}
-        <article class="story-card">
-          <div class="story-avatar"><span>N</span></div>
-          <strong>Namvibe</strong>
-          <small>Story rail opens here</small>
-        </article>
-      {% endfor %}
-    </div>
-  </section>
+      <div class="story-row">
+        {% for item in story_rail %}
+          <a class="story-card" href="{% url 'story_detail' item.first_story.id %}">
+            <div class="story-avatar">
+              {% if item.author.profile.avatar %}
+                <img src="{% avatar_url item.author.profile %}" alt="{{ item.author.username }}">
+              {% else %}
+                <span>{{ item.author.username|first|upper }}</span>
+              {% endif %}
+            </div>
+            <strong>@{{ item.author.username|truncatechars:10 }}</strong>
+            {% if item.is_live %}<small>Live now</small>{% else %}<small>Story preview</small>{% endif %}
+            <span style="display:none;">{{ item.first_story.text_content }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
 
   <section class="section-block">
     <div class="section-head">
       <div>
         <h2>Public discovery feed</h2>
-        <p class="section-copy">Video and reel first, with clean fallbacks for text and photo posts. Anonymous visitors can preview before joining.</p>
-      </div>
-      <div class="nav-pills">
-        <a class="nav-pill" href="{{ feed_url }}">Feed</a>
-        <a class="nav-pill" href="{% url 'reels_feed' %}">Reels</a>
-        <a class="nav-pill" href="{{ live_url }}">Live</a>
+        <p class="section-copy">Reels and videos lead, while text and photo posts still look polished.</p>
       </div>
     </div>
-    <div class="discover-grid">
+    <div class="feed-shell">
       <div class="feed-stack" id="publicDiscoveryFeed">
         {% for post in public_feed_items %}
           <article class="feed-card feed-item" data-preview-index="{{ forloop.counter }}">
@@ -237,46 +196,43 @@
                 </div>
                 <div class="feed-body">
                   <strong>{{ post.author.profile.display_name|default:post.author.profile.username }}</strong>
-                  <small class="feed-meta">@{{ post.author.profile.username }}{% if post.published_at %} · {{ post.published_at|date:"M j" }}{% endif %}</small>
+                  <small class="feed-copy">@{{ post.author.profile.username }}{% if post.published_at %} · {{ post.published_at|date:"M j" }}{% endif %}</small>
                   {% if post.title %}<h3>{{ post.title }}</h3>{% endif %}
-                  <p class="hero-copy">{{ post.caption|default:"Fresh Namvibe discovery post." }}</p>
+                  <p class="feed-copy">{{ post.caption|default:"Fresh Namvibe discovery post." }}</p>
                 </div>
               </a>
-              <span class="live-pill {% if post.post_type == 'reel' or post.post_type == 'video' %}live-now{% endif %}">
-                {% if post.post_type == 'reel' or post.post_type == 'video' %}Reel first{% else %}{{ post.get_post_type_display }}{% endif %}
-              </span>
+              <span class="feed-pill">{% if post.post_type == 'reel' or post.post_type == 'video' %}Reel first{% else %}{{ post.get_post_type_display }}{% endif %}</span>
             </div>
 
-            <div class="hashtags">
+            <div class="feed-tags">
               {% for tag in post.hashtags %}
-                <a class="tag-pill" href="{% url 'hashtag' tag|cut:'#' %}">{{ tag }}</a>
+                <a href="{% url 'hashtag' tag|cut:'#' %}">{{ tag }}</a>
               {% empty %}
-                <span class="tag-pill">#namvibe</span>
+                <span class="feed-tag">#namvibe</span>
               {% endfor %}
             </div>
 
             {% with media=post.primary_media %}
-              <div class="feed-media {% if post.post_type == 'reel' or post.post_type == 'video' %}feed-reel{% endif %}">
+              <div class="feed-media {% if post.post_type == 'reel' or post.post_type == 'video' %}reel{% endif %}">
                 {% if media and media.media_type == "video" %}
                   <video src="{% media_url media %}" muted loop playsinline preload="metadata"></video>
                 {% elif media %}
-                  <img src="{% media_url media %}" alt="{{ post.title|default:post.caption|default:'Namvibe media preview' }}">
+                  <img src="{% media_url media %}" loading="lazy" alt="{{ post.title|default:post.caption|default:'Namvibe media preview' }}">
                 {% else %}
-                  <div style="padding:28px;display:grid;gap:10px;min-height:240px;align-content:end;">
-                    <span class="teaser-badge">Text / photo ready</span>
-                    <strong style="font-size:1.45rem;">{{ post.title|default:"Post preview" }}</strong>
-                    <p class="hero-copy" style="margin:0;">{{ post.caption|default:"This public post is already part of Namvibe discovery." }}</p>
+                  <div class="feed-fallback">
+                    <span class="feature-pill">Text / photo ready</span>
+                    <strong style="font-size:1.4rem;">{{ post.title|default:"Post preview" }}</strong>
+                    <p class="feed-copy" style="margin:0;">{{ post.caption|default:"This public post is already part of Namvibe discovery." }}</p>
                   </div>
                 {% endif %}
                 <div class="feed-overlay">
                   <div>
                     <strong>{{ post.author.profile.display_name|default:post.author.profile.username }}</strong>
-                    <small class="feed-meta">Preview comments, reactions, and shares after signup</small>
+                    <small class="feed-copy">Public preview</small>
                   </div>
-                  <div class="feed-side">
+                  <div class="feed-actions">
                     <div class="feed-action"><strong>{{ post.like_count }}</strong><small>Likes</small></div>
                     <div class="feed-action"><strong>{{ post.comment_count }}</strong><small>Comments</small></div>
-                    <div class="feed-action"><strong>{{ post.share_count }}</strong><small>Shares</small></div>
                     <div class="feed-action"><strong>{{ post.view_count }}</strong><small>Views</small></div>
                   </div>
                 </div>
@@ -284,155 +240,108 @@
             {% endwith %}
           </article>
 
+          {% if top_ads and forloop.counter == 3 %}
+            {% for ad in top_ads %}
+              <article class="feed-card">
+                <span class="feature-pill">Sponsored</span>
+                <h3 style="margin:12px 0 8px;">{{ ad.title }}</h3>
+                <p class="feed-copy">{{ ad.description }}</p>
+                <div class="cta-row" style="margin-top:14px;">
+                  <a class="ghost-btn" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
+                </div>
+              </article>
+            {% endfor %}
+          {% endif %}
+
           {% if not request.user.is_authenticated and forloop.counter == preview_limit %}
-            <article class="gate-inline">
-              <span class="teaser-badge">Preview limit</span>
-              <h3 style="margin:10px 0 8px;">You have seen the first {{ preview_limit }} discovery previews</h3>
-              <p class="section-copy">Create an account to keep scrolling, like creators, comment on live moments, unlock dating interaction, and join Pink Friday.</p>
-              <div class="inline-actions">
-                <a class="cta-btn" href="{{ join_url }}">Join Now</a>
+            <article class="feed-card">
+              <span class="feature-pill">Join Namvibe</span>
+              <h3 style="margin:12px 0 8px;">You have seen the first {{ preview_limit }} previews</h3>
+              <p class="feed-copy">Create an account to keep scrolling, join the conversation, unlock dating interaction, and enter live community moments.</p>
+              <div class="cta-row" style="margin-top:14px;">
+                <a class="cta-btn" href="{{ join_url }}">Join Namvibe</a>
                 <a class="ghost-btn" href="{{ login_url }}">Login</a>
               </div>
             </article>
           {% endif %}
         {% empty %}
           <article class="feed-card">
-            <span class="teaser-badge">Public discovery</span>
-            <h3 style="margin:12px 0 8px;">Discover Namvibe Moments</h3>
-            <p class="section-copy">Public reels, stories, love previews, and creator drops will surface here as soon as new content lands.</p>
-            <div class="inline-actions">
-              <a class="cta-btn" href="{{ join_url }}">Create account</a>
-              <a class="ghost-btn" href="{{ explore_url }}">Explore platform</a>
+            <span class="feature-pill">Public discovery</span>
+            <h3 style="margin:12px 0 8px;">Discovery feed teasers</h3>
+            <p class="feed-copy">Reels, photo posts, and story-first dating moments will appear here as creators and communities publish.</p>
+          </article>
+          <article class="feed-card">
+            <div class="feed-top">
+              <div class="feed-author">
+                <div class="feed-avatar"><span>N</span></div>
+                <div class="feed-body">
+                  <strong>Namvibe Creator</strong>
+                  <small class="feed-copy">@namvibe · Demo</small>
+                  <h3>Friday night live teaser</h3>
+                  <p class="feed-copy">A polished example of the kind of local reel, live, or story card visitors can expect here.</p>
+                </div>
+              </div>
+              <span class="feed-pill">Demo reel</span>
+            </div>
+            <div class="feed-media reel">
+              <div class="feed-fallback">
+                <span class="feature-pill">Demo preview</span>
+                <strong style="font-size:1.4rem;">Premium discovery card</strong>
+                <p class="feed-copy" style="margin:0;">No ugly zero-state block, just a branded teaser that keeps the homepage feeling alive.</p>
+              </div>
             </div>
           </article>
         {% endfor %}
+
+        {% if top_ads and public_feed_items|length < 3 %}
+          {% for ad in top_ads %}
+            <article class="feed-card">
+              <span class="feature-pill">Sponsored</span>
+              <h3 style="margin:12px 0 8px;">{{ ad.title }}</h3>
+              <p class="feed-copy">{{ ad.description }}</p>
+              <div class="cta-row" style="margin-top:14px;">
+                <a class="ghost-btn" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
+              </div>
+            </article>
+          {% endfor %}
+        {% endif %}
       </div>
-
-      <aside class="sidebar-stack">
-        {% for ad in top_ads %}
-          <article class="section-card">
-            <span class="teaser-badge">Sponsored</span>
-            <h3 style="margin:12px 0 8px;">{{ ad.title }}</h3>
-            <p class="section-copy">{{ ad.description }}</p>
-            <div class="inline-actions">
-              <a class="ghost-btn" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
-            </div>
-          </article>
-        {% endfor %}
-
-        <article class="section-card">
-          <span class="teaser-badge">Live discovery</span>
-          <h3 style="margin:12px 0 8px;">What visitors can preview</h3>
-          <div class="trust-points">
-            <div class="trust-point">Reels, photo posts, and public captions stay visible.</div>
-            <div class="trust-point">Dating previews remain open, but interaction requires login.</div>
-            <div class="trust-point">Live show teasers and Pink Friday schedule blocks keep the homepage alive even when data is light.</div>
-          </div>
-        </article>
-      </aside>
     </div>
   </section>
 
   <section class="section-block">
     <div class="section-head">
       <div>
-        <h2>Live now</h2>
-        <p class="section-copy">Teasers for live programming, premium rooms, and hosted discovery formats.</p>
+        <h2>Featured experiences</h2>
+        <p class="section-copy">A clean premium strip for the product surfaces that matter most.</p>
       </div>
-      <a class="ghost-btn" href="{{ live_url }}">Open live</a>
     </div>
-    <div class="teaser-grid">
-      {% for item in live_teasers %}
-        <a class="teaser-card live" href="{{ item.url }}">
-          <span class="live-pill {% if item.is_live %}live-now{% endif %}">{{ item.eyebrow }}</span>
+    <div class="feature-grid">
+      {% for item in homepage_feature_cards %}
+        <a class="feature-card" href="{{ item.url }}">
+          <span class="feature-pill">Featured</span>
           <strong>{{ item.title }}</strong>
-          <p class="teaser-copy">{{ item.description }}</p>
-          <small>{{ item.host }} · {{ item.meta }}</small>
+          <p>{{ item.description }}</p>
         </a>
       {% endfor %}
     </div>
   </section>
 
   <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Creator and earnings preview</h2>
-        <p class="section-copy">Namvibe is not only for watching. Creators can post, go live, receive gifts, and grow into premium visibility.</p>
-      </div>
-      <div class="nav-pills">
-        <a class="nav-pill" href="{% url 'studio' %}">Studio</a>
-        <a class="nav-pill" href="{% url 'live_start' %}">Go Live</a>
-        <a class="nav-pill" href="{% url 'wallet_home' %}">Wallet</a>
-      </div>
-    </div>
-    <div class="teaser-grid">
-      {% for item in creator_earning_teasers %}
-        <a class="teaser-card" href="{{ item.url }}">
-          <span class="teaser-badge">Creator lane</span>
-          <strong>{{ item.title }}</strong>
-          <p class="teaser-copy">{{ item.description }}</p>
-          <small>{{ item.cta }}</small>
-        </a>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Find your vibe</h2>
-        <p class="section-copy">Browse real profiles and premium dating formats before signing in. Anonymous users can preview, but matching and messages require login.</p>
-      </div>
-      <a class="ghost-btn" href="{{ dating_url }}">Open dating</a>
-    </div>
-    <div class="teaser-grid">
-      {% for item in dating_teasers %}
-        <a class="teaser-card" href="{{ item.url }}">
-          <span class="teaser-badge">{{ item.badge }}</span>
-          <strong>{{ item.title }}</strong>
-          <p class="teaser-copy">{{ item.description }}</p>
-          <small>{{ item.display_name }} · {{ item.region }}</small>
-        </a>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Friendly games preview</h2>
-        <p class="section-copy">Premium-looking teaser cards for quick social play, matching games, and music challenges.</p>
-      </div>
-      <a class="ghost-btn" href="{{ games_url }}">Open games</a>
-    </div>
-    <div class="teaser-grid">
-      {% for item in game_teasers %}
-        <a class="teaser-card" href="{{ item.url }}">
-          <span class="teaser-badge">Game teaser</span>
-          <strong>{{ item.title }}</strong>
-          <p class="teaser-copy">{{ item.description }}</p>
-          <small>Soft-launch route ready</small>
-        </a>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="section-block">
-    <article class="section-card pink-card">
-      <div class="section-head">
+    <article class="pink-card">
+      <div class="section-head" style="margin-bottom:0;">
         <div>
           <h2>Pink Friday</h2>
-          <p class="section-copy">Pink Friday — weekly love, live shows, prizes and matches.</p>
+          <p class="section-copy">Weekly love, live shows, music battles, couple stories, and prize moments.</p>
         </div>
-        <a class="cta-btn" href="{{ pink_friday_url }}">Join Pink Friday</a>
+        <a class="cta-btn" href="{{ pink_friday_url }}">Open Pink Friday</a>
       </div>
-      <div class="schedule-grid">
-        {% for item in pink_friday_teasers %}
-          <a class="schedule-card" href="{{ item.url }}">
+      <div class="pink-mini-grid">
+        {% for item in pink_friday_teasers|slice:":4" %}
+          <div class="pink-mini">
             <small>{{ item.meta }}</small>
             <strong>{{ item.title }}</strong>
-            <p class="teaser-copy">{{ item.description }}</p>
-          </a>
+          </div>
         {% endfor %}
       </div>
     </article>
@@ -442,39 +351,36 @@
     <div class="section-head">
       <div>
         <h2>Built for Namibia</h2>
-        <p class="section-copy">Local discovery with safety, privacy, and trust controls that support real communities and real people.</p>
-      </div>
-      <div class="nav-pills">
-        <a class="ghost-btn" href="{{ join_url }}">Create account</a>
-        <a class="ghost-btn" href="{{ live_shows_url }}">Live shows</a>
+        <p class="section-copy">A premium local social experience with stronger trust, privacy, and reporting standards.</p>
       </div>
     </div>
     <div class="trust-grid">
       {% for item in region_teasers %}
-        <article class="region-card">
-          <small>{{ item.accent }}</small>
+        <article class="trust-card">
           <strong>{{ item.name }}</strong>
           <p class="trust-copy">{{ item.subtitle }}</p>
         </article>
       {% endfor %}
-    </div>
-    <div class="trust-points">
-      <div class="trust-point">Verified profiles and premium badges help visitors recognize trusted creators and daters.</div>
-      <div class="trust-point">Reporting, privacy controls, and audience settings protect users across feed, dating, and live experiences.</div>
-      <div class="trust-point">Region and town-aware discovery keeps Namvibe local instead of feeling generic.</div>
+      <article class="trust-card">
+        <strong>Verified profiles</strong>
+        <p class="trust-copy">Verification, privacy controls, and audience settings help users feel safe while discovering.</p>
+      </article>
+      <article class="trust-card">
+        <strong>Reporting and privacy</strong>
+        <p class="trust-copy">Safety and reporting stay visible, but public visitors never see raw system notices or debug-like blocks.</p>
+      </article>
     </div>
   </section>
 </section>
 
 <div class="login-gate" id="loginGate">
   <div class="login-card">
-    <span class="teaser-badge">Join Namvibe</span>
-    <h3>Keep watching, matching, and joining live moments</h3>
-    <p>Create an account to continue the discovery feed, follow profiles, unlock dating interaction, enter games, and join Pink Friday events.</p>
-    <div class="inline-actions">
-      <a class="cta-btn" href="{{ join_url }}">Join Now</a>
+    <span class="feature-pill">Join Namvibe</span>
+    <h3>Keep watching and discovering</h3>
+    <p>Create an account to continue the feed, follow creators, join live shows, and unlock real interaction.</p>
+    <div class="cta-row">
+      <a class="cta-btn" href="{{ join_url }}">Join Namvibe</a>
       <a class="ghost-btn" href="{{ login_url }}">Login</a>
-      <button class="tiny-btn" id="closeLoginGate" type="button">Maybe later</button>
     </div>
   </div>
 </div>
@@ -485,7 +391,6 @@
   (function () {
     const isAuthenticated = {{ request.user.is_authenticated|yesno:"true,false" }};
     const gate = document.getElementById("loginGate");
-    const closeGate = document.getElementById("closeLoginGate");
     const maxPreviews = {{ preview_limit|default:5 }};
     const seen = new Set();
 
@@ -495,15 +400,12 @@
       document.body.style.overflow = "hidden";
     }
 
-    function closeGateModal() {
-      gate?.classList.remove("open");
-      document.body.dataset.chromeLock = "false";
-      document.body.style.overflow = "";
-    }
-
-    closeGate?.addEventListener("click", closeGateModal);
     gate?.addEventListener("click", function (event) {
-      if (event.target === gate) closeGateModal();
+      if (event.target === gate) {
+        gate.classList.remove("open");
+        document.body.dataset.chromeLock = "false";
+        document.body.style.overflow = "";
+      }
     });
 
     const observer = new IntersectionObserver(function (entries) {
@@ -528,11 +430,8 @@
 
     document.querySelectorAll(".feed-media video").forEach(function (video) {
       video.addEventListener("click", function () {
-        if (video.paused) {
-          video.play().catch(function () {});
-        } else {
-          video.pause();
-        }
+        if (video.paused) video.play().catch(function () {});
+        else video.pause();
       });
     });
   })();

@@ -274,6 +274,30 @@ def _profile_shortcuts(user):
     ]
 
 
+def _public_metrics(total_members, total_posts, total_live, total_stories):
+    metrics = []
+    if total_posts > 0:
+        metrics.append({"label": "Public posts", "value": total_posts})
+    if total_stories > 0:
+        metrics.append({"label": "Stories live", "value": total_stories})
+    if total_live > 0:
+        metrics.append({"label": "Live sessions", "value": total_live})
+    if total_members > 0:
+        metrics.append({"label": "Members", "value": total_members})
+    return metrics
+
+
+def _homepage_feature_cards():
+    return [
+        {"title": "Live Dating Show", "description": "Hosted chemistry rounds, audience reactions, and clean public intros.", "url": _safe_reverse("live_shows")},
+        {"title": "Pink Friday", "description": "Weekly love, live shows, music battles, and prize moments.", "url": _safe_reverse("pink_friday")},
+        {"title": "Games Hub", "description": "Friendly games, flirting energy, and social challenges ready to open.", "url": _safe_reverse("games_home")},
+        {"title": "Soulmate Selection", "description": "Shortlisted profiles with premium live-match reveal energy.", "url": _safe_reverse("dating_live_match")},
+        {"title": "Music Rooms", "description": "Playlist-driven live rooms and crowd-led music vibes.", "url": _safe_reverse("live_shows")},
+        {"title": "Love Stories", "description": "Story-first dating previews built for real local chemistry.", "url": _safe_reverse("dating")},
+    ]
+
+
 def _feed_tabs():
     return [
         {"key": "for_you", "label": "For You", "url": reverse("home"), "state": "live"},
@@ -502,6 +526,12 @@ def homepage_context(request):
     creator_earning_teasers = _creator_earning_teasers()
     profile_shortcuts = _profile_shortcuts(user)
 
+    total_members = User.objects.count()
+    total_posts = visible_posts.count()
+    total_live = len(live_now)
+    total_stories = active_stories.count()
+    hero_metrics = _public_metrics(total_members, total_posts, total_live, total_stories)
+
     return {
         "public_feed_items": public_feed_items,
         "preview_limit": 5,
@@ -521,6 +551,7 @@ def homepage_context(request):
         "game_teasers": game_teasers,
         "pink_friday_teasers": pink_friday_teasers,
         "region_teasers": region_teasers,
+        "homepage_feature_cards": _homepage_feature_cards(),
         "creator_earning_teasers": creator_earning_teasers,
         "profile_shortcuts": profile_shortcuts,
         "wallet_snapshot": wallet_snapshot,
@@ -532,10 +563,11 @@ def homepage_context(request):
         "current_profile": current_profile,
         "following_count": following_count,
         "friend_count": friend_count,
-        "total_members": User.objects.count(),
-        "total_posts": visible_posts.count(),
-        "total_live": len(live_now),
-        "total_stories": active_stories.count(),
+        "total_members": total_members,
+        "total_posts": total_posts,
+        "total_live": total_live,
+        "total_stories": total_stories,
+        "hero_metrics": hero_metrics,
         "nav_notification_count": header_counts["notifications"],
         "nav_message_count": header_counts["messages"],
         "nav_messages_url": messages_url,
@@ -588,6 +620,7 @@ def fallback_homepage_context(request, error_message=""):
         "game_teasers": _game_teasers(),
         "pink_friday_teasers": _pink_friday_teasers(),
         "region_teasers": _region_teasers(),
+        "homepage_feature_cards": _homepage_feature_cards(),
         "creator_earning_teasers": _creator_earning_teasers(),
         "profile_shortcuts": _profile_shortcuts(user),
         "wallet_snapshot": None,
@@ -603,6 +636,7 @@ def fallback_homepage_context(request, error_message=""):
         "total_posts": 0,
         "total_live": 0,
         "total_stories": 0,
+        "hero_metrics": [],
         "nav_notification_count": 0,
         "nav_message_count": 0,
         "nav_messages_url": _dashboard_section_url("messages") if user.is_authenticated else _login_dashboard_url(),
