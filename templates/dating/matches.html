@@ -9,7 +9,14 @@
     {% for match in matches %}
       {% if match.user_one == request.user %}{% with user=match.user_two %}{% include "dating/match_row.html" %}{% endwith %}{% else %}{% with user=match.user_one %}{% include "dating/match_row.html" %}{% endwith %}{% endif %}
     {% empty %}
-      <p class="dating-muted">No matches yet. Keep discovering.</p>
+      <div class="dating-empty">
+        <strong>Your matches will land here</strong>
+        <p class="dating-muted">Keep discovering profiles, send likes, and open Pink Friday or Live Match formats to improve your chances.</p>
+        <div class="dating-actions">
+          <a class="dating-primary" href="{% url 'dating_discover' %}">Discover people</a>
+          <a href="{% url 'dating_live_match' %}">Live Match Show</a>
+        </div>
+      </div>
     {% endfor %}
   </div>
 </section>

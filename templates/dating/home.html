@@ -5,18 +5,51 @@
 <section class="dating-shell">
   <div class="dating-hero">
     <div>
+      <span class="dating-chip">Dating on Namvibe</span>
       <h1>Meet people with real profiles, shared interests, and Namibian energy.</h1>
-      <p class="dating-muted">Dating on Namvibe connects romance, friendship, creators, and community in one safe social space.</p>
+      <p class="dating-muted">Build your dating profile, discover nearby people, join live match formats, and move into real conversations once you match.</p>
       <div class="dating-actions">
         <a class="dating-primary" href="{% url 'signup' %}">Join Now</a>
         <a href="{% url 'login' %}?next={% url 'dating_profile_edit' %}">Create dating profile</a>
+        <a href="{% url 'dating_live_match' %}">Live Match Show</a>
       </div>
     </div>
     <div class="dating-panel">
       <strong>Already a member?</strong>
-      <p class="dating-muted">Sign in to browse matches, like profiles, and start real conversations after matching.</p>
-      <a class="dating-primary" href="{% url 'login' %}?next={% url 'dating_discover' %}">Open Dating</a>
+      <p class="dating-muted">Sign in to browse discover cards, send likes, see who viewed you, and open your existing matches.</p>
+      <div class="dating-actions">
+        <a class="dating-primary" href="{% url 'login' %}?next={% url 'dating_discover' %}">Open Dating</a>
+        <a href="{% url 'pink_friday' %}">Pink Friday</a>
+      </div>
     </div>
+  </div>
+
+  <div class="dating-layout" style="margin-top:18px;">
+    <section class="dating-panel">
+      <h2>What you can do</h2>
+      <div class="dating-grid">
+        <article class="dating-card">
+          <strong>Discover</strong>
+          <p class="dating-muted">Swipe through real profiles with photos, bios, interests, and location.</p>
+        </article>
+        <article class="dating-card">
+          <strong>Live Match Show</strong>
+          <p class="dating-muted">Watch chemistry-driven dating formats and move into matching when you are ready.</p>
+        </article>
+        <article class="dating-card">
+          <strong>Pink Friday</strong>
+          <p class="dating-muted">Weekly love, live, prizes, and audience-favorite moments in one event lane.</p>
+        </article>
+      </div>
+    </section>
+    <section class="dating-panel">
+      <h2>Built for a clean start</h2>
+      <p class="dating-muted">Namvibe dating stays profile-first and mobile-friendly. Public previews stay polished, while likes, chats, and matching unlock after login.</p>
+      <div class="dating-actions">
+        <a class="dating-primary" href="{% url 'signup' %}">Create account</a>
+        <a href="{% url 'login' %}">Login</a>
+      </div>
+    </section>
   </div>
 </section>
 {% endblock %}

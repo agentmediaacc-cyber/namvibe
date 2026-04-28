@@ -5,41 +5,38 @@
 <section class="live-shell">
   <div class="live-hero">
     <div>
-      <span class="badge badge-live">{{ live_count }} LIVE</span>
+      <span class="badge badge-live">{% if live_count %}{{ live_count }} LIVE{% else %}SHOW LINEUP{% endif %}</span>
       <h1>Drop into live rooms with chat, reactions, gifts, and creator energy.</h1>
       <p class="muted">Join active broadcasts, catch upcoming sessions, or start your own room in one tap.</p>
-      <div class="live-actions"><a class="primary" href="#live-now">Browse lives</a><a href="{% url 'live_start' %}">Start live</a><a href="{% url 'live_scheduled' %}">Upcoming</a></div>
+      <div class="live-actions"><a class="primary" href="{% url 'live_shows' %}">Browse shows</a><a href="{% url 'live_start' %}">Start live</a><a href="{% url 'live_scheduled' %}">Upcoming</a></div>
     </div>
     <aside class="live-panel">
       <h2>Featured</h2>
       {% for session in featured_sessions %}
         <a class="live-card" style="display:block;margin-bottom:10px;" href="{% url 'live_room' session.uuid %}"><span class="badge badge-live">{{ session.status|upper }}</span><h3>{{ session.title }}</h3><p class="muted">@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</p></a>
       {% empty %}
-        <p class="muted">The strongest rooms and rising hosts show up here.</p>
+        <div class="live-card" style="display:block;margin-bottom:10px;">
+          <span class="badge badge-scheduled">COMING SOON</span>
+          <h3>Creator Live</h3>
+          <p class="muted">Launches, audience chat, and premium creator energy will surface here as rooms go live.</p>
+        </div>
       {% endfor %}
     </aside>
   </div>
-  {% if safe_mode_message %}
-    <div class="live-panel" style="margin-top:16px;">
-      <span class="badge badge-scheduled">SAFE MODE</span>
-      <h3>Live surfaces are staying online</h3>
-      <p class="muted">Some live data is temporarily unavailable while the database connection recovers.</p>
-    </div>
-  {% endif %}
   <div class="chip-row" style="margin-top:16px;">{% for category in categories %}<span class="chip">{{ category }}</span>{% endfor %}</div>
   <h2 id="live-now">Live now</h2>
   <div class="live-grid">
     {% for session in live_sessions %}
       {% include "live/session_card.html" %}
     {% empty %}
-      <div class="live-panel"><h3>No one is live right now</h3><p class="muted">Start a room or check upcoming sessions.</p><a class="primary" href="{% url 'live_start' %}">Go Live</a></div>
+      <div class="live-panel"><h3>Tonight's rooms are warming up</h3><p class="muted">Follow the live show lineup, open scheduled sessions, or start your own room when you are ready.</p><div class="live-actions"><a class="primary" href="{% url 'live_shows' %}">View show lineup</a><a href="{% url 'live_start' %}">Go Live</a></div></div>
     {% endfor %}
   </div>
   <h2>Scheduled</h2>
   <div class="live-grid">
     {% for session in scheduled_sessions %}
       {% include "live/session_card.html" %}
-    {% empty %}<div class="live-panel"><p class="muted">No scheduled sessions yet.</p></div>{% endfor %}
+    {% empty %}<div class="live-panel"><h3>Upcoming sessions will land here</h3><p class="muted">Creators, music rooms, and dating formats will appear once hosts lock their schedules.</p></div>{% endfor %}
   </div>
 </section>
 {% endblock %}

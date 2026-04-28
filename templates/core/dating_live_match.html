@@ -12,6 +12,7 @@
       <a class="nv-btn primary" href="{% url 'dating' %}">Open dating</a>
       <a class="nv-btn" href="{% url 'pink_friday' %}">Pink Friday</a>
       <a class="nv-btn" href="{% url 'live_shows' %}">Live Shows</a>
+      <a class="nv-btn" href="{% url 'signup' %}">Create account</a>
     </div>
   </div>
 
@@ -34,6 +35,8 @@
           <span>{{ item.description }}</span>
           <span>{{ item.display_name }} · {{ item.region }}</span>
         </a>
+      {% empty %}
+        <article class="product-card"><strong>Soulmate Live Selection</strong><span>Profiles, chemistry prompts, and shortlists will surface here when dating previews are active.</span><span>Coming soon</span></article>
       {% endfor %}
     </div>
   </div>

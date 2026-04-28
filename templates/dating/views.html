@@ -4,7 +4,7 @@
 {% include "dating/_styles.html" %}
 <section class="dating-shell">
   <div class="dating-tabs">
-    <a href="{% url 'dating' %}">Dashboard</a>
+    <a href="{% url 'dating' %}">My Dating</a>
     <a href="{% url 'dating_discover' %}">Discover</a>
     <a href="{% url 'dating_matches' %}">Matches</a>
     <a href="{% url 'dating_likes' %}">Likes</a>
@@ -36,7 +36,14 @@
           </div>
         </div>
       {% empty %}
-        <p class="dating-muted">No one has viewed your profile recently. Try boosting your visibility!</p>
+        <div class="dating-empty">
+          <strong>No recent profile views</strong>
+          <p class="dating-muted">Add photos, finish your bio, or boost your profile when you want stronger visibility.</p>
+          <div class="dating-actions">
+            <a class="dating-primary" href="{% url 'dating' %}">Update profile</a>
+            <a href="{% url 'dating_discover' %}">Open discover</a>
+          </div>
+        </div>
       {% endfor %}
     </div>
   </div>
