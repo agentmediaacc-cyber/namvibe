@@ -122,7 +122,7 @@
         <div class="progress"><span style="width: {{ profile_strength|default:0 }}%"></span></div>
         <p class="hint">Profile strength: <b>{{ profile_strength|default:0 }}%</b> — add 3 photos, interests, and a short intro to unlock stronger discovery.</p>
         <div class="wallet-strip">
-          <span class="pill" style="background:rgba(124,58,237,.16);color:#e9d5ff">🪙 {{ coin_balance.balance }} coins available</span>
+          <span class="pill" style="background:rgba(124,58,237,.16);color:#e9d5ff">🪙 {{ coin_balance.balance|default:0 }} coins available</span>
           <span class="pill" style="background:rgba(255,255,255,.08);color:#fff">
             {% if dating_profile and dating_profile.has_unlimited_likes %}
               Unlimited likes
@@ -172,7 +172,7 @@
           <div class="premium-card dark">
             <div>
               <h4>Coin Balance</h4>
-              <b>{{ coin_balance.balance }}</b>
+              <b>{{ coin_balance.balance|default:0 }}</b>
             </div>
             <div class="premium-meta">Use coins for boosts and Super Likes.</div>
           </div>
@@ -228,7 +228,7 @@
 
   <nav class="tabs" id="dashboard-tabs">
     <a class="active" href="{% url 'dating' %}">Dashboard</a>
-    <a href="{% url 'dating' %}#my-profile">My Profile</a>
+    <a href="{% url 'dating_profile' %}">My Profile</a>
     <a href="{% url 'dating_matches' %}">Matches</a>
     <a href="{% url 'dating_likes' %}">Likes</a>
     <a href="{% url 'dating_discover' %}" class="cta-tab">🔥 Start Swiping</a>

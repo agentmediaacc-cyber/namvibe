@@ -1,0 +1,20 @@
+[Unit]
+Description=Namvibe Gunicorn service
+After=network.target
+
+[Service]
+User=namvibe
+Group=www-data
+WorkingDirectory=/srv/namvibe/app
+EnvironmentFile=/srv/namvibe/.env
+ExecStart=/srv/namvibe/venv/bin/gunicorn config.wsgi:application \
+  --bind 127.0.0.1:8000 \
+  --workers 3 \
+  --timeout 120 \
+  --access-logfile - \
+  --error-logfile -
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

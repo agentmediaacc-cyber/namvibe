@@ -1,6 +1,6 @@
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -29,6 +29,7 @@ from .services import (
 
 from django.db.models import Q
 
+
 def _dashboard_messages_url(conversation):
     return f"{reverse('user_dashboard')}?section=messages&conversation={conversation.pk}"
 
@@ -37,30 +38,91 @@ def _is_ajax(request):
     return request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
 
+def onboarding_items_for(user):
+    items = []
+    progress_steps = 0
+    total_steps = 4
+    profile = None
+
+    try:
+        profile = DatingProfile.objects.filter(user=user).prefetch_related("photos").first()
+    except Exception:
+        return ([{"label": "Create dating profile", "done": False, "url": reverse("dating_profile")}], 0)
+
+    if profile:
+        progress_steps += 1
+        items.append({"label": "Create dating profile", "done": True, "url": reverse("dating_profile")})
+    else:
+        items.append({"label": "Create dating profile", "done": False, "url": reverse("dating_profile")})
+
+    has_bio = bool(profile and profile.bio)
+    has_interests = bool(profile and profile.interests)
+    has_photo = bool(profile and profile.photos.exists())
+
+    progress_steps += int(has_bio)
+    progress_steps += int(has_interests)
+    progress_steps += int(has_photo)
+
+    items.extend(
+        [
+            {"label": "Add a short bio", "done": has_bio, "url": reverse("dating_profile")},
+            {"label": "Pick your interests", "done": has_interests, "url": reverse("dating_profile")},
+            {"label": "Upload a dating photo", "done": has_photo, "url": reverse("dating_profile")},
+        ]
+    )
+
+    return items, int((progress_steps / total_steps) * 100)
+
+
+def _anonymous_dating_context():
+    return {
+        "onboarding_items": [],
+        "onboarding_progress": 0,
+        "profile": None,
+        "dating_profile": None,
+        "coin_balance": None,
+        "discovery_profiles": [],
+        "suggested_profiles": [],
+        "recent_matches": [],
+        "likes_count": 0,
+        "matches_count": 0,
+        "views_count": 0,
+        "profile_strength": 0,
+        "boost_cost_coins": BOOST_COST_COINS,
+        "super_like_cost_coins": SUPER_LIKE_COST_COINS,
+        "likes_used_today": 0,
+        "remaining_likes_today": 0,
+        "super_likes_sent": 0,
+        "super_likes_received": 0,
+        "boost_hours_left": 0,
+        "premium_tier_label": DatingProfile.PremiumTier.FREE.title(),
+    }
+
+
+def _safe_conversation_redirect(request_user, target_user):
+    conversation = get_or_create_direct_conversation(request_user, target_user)
+    return redirect(_dashboard_messages_url(conversation))
+
+
 def dating_home_view(request):
     if not request.user.is_authenticated:
-        return render(request, "dating/home.html")
-    
+        return render(request, "dating/home.html", _anonymous_dating_context())
+
     profile = getattr(request.user, "dating_profile", None)
     coin_balance = coin_balance_for(request.user)
-    
-    # Statistics
+    onboarding_items, onboarding_progress = onboarding_items_for(request.user)
+
     likes_count = DatingLike.objects.filter(to_user=request.user).count()
     matches_count = Match.objects.filter(
         Q(user_one=request.user) | Q(user_two=request.user),
         is_active=True
     ).count()
-    
-    # Unique views count
+
     views_count = 0
     if profile:
         views_count = DatingProfileView.objects.filter(viewed_profile=profile).values("viewer").distinct().count()
-    
-    
-    # Discovery profiles
+
     discovery_profiles = discovery_queryset_for(request.user)[:3]
-    
-    # Recent matches
     recent_matches = matches_for(request.user)[:5]
 
     sent_likes_qs = DatingLike.objects.filter(from_user=request.user)
@@ -89,13 +151,17 @@ def dating_home_view(request):
         request, 
         "dating/profile.html", 
         {
+            "profile": profile,
             "dating_profile": profile,
             "form": form,
             "preference_form": preference_form,
+            "onboarding_items": onboarding_items,
+            "onboarding_progress": onboarding_progress,
             "likes_count": likes_count,
             "matches_count": matches_count,
             "views_count": views_count,
             "discovery_profiles": discovery_profiles,
+            "suggested_profiles": discovery_profiles,
             "profile_strength": profile_strength,
             "recent_matches": recent_matches,
             "coin_balance": coin_balance,
@@ -112,9 +178,13 @@ def dating_home_view(request):
 
 
 @login_required(login_url="login")
+def dating_profile_view(request):
+    return dating_home_view(request)
+
+
+@login_required(login_url="login")
 def dating_profile_edit_view(request):
-    # Redirect to the unified dashboard where the form lives
-    return redirect("dating")
+    return redirect("dating_profile")
 
 
 @login_required(login_url="login")
@@ -296,13 +366,16 @@ def dating_pass_view(request, username):
 
 
 @login_required(login_url="login")
-def dating_message_match_view(request, username):
+def dating_message_match_view(request, username=None):
+    if not username:
+        messages.info(request, "Open a match first to start chatting.")
+        return redirect("dating_matches")
     target = get_object_or_404(get_user_model(), profile__username__iexact=username)
     user_one, user_two = (request.user, target) if request.user.id < target.id else (target, request.user)
     if not Match.objects.filter(user_one=user_one, user_two=user_two, is_active=True).exists():
-        return HttpResponseForbidden("You can message after matching.")
-    conversation = get_or_create_direct_conversation(request.user, target)
-    return redirect(_dashboard_messages_url(conversation))
+        messages.info(request, "You can message after matching.")
+        return redirect("dating_profile_detail", username=username)
+    return _safe_conversation_redirect(request.user, target)
 
 
 @login_required(login_url="login")
@@ -319,11 +392,7 @@ def dating_send_message(request, username):
         return redirect("dating_message_match", username=username)
 
     conversation = get_or_create_direct_conversation(request.user, target)
-    Message.objects.create(
-        conversation=conversation,
-        sender=request.user,
-        text=text
-    )
-    conversation.save() # Update updated_at
+    Message.objects.create(conversation=conversation, sender=request.user, text=text)
+    conversation.save()
     messages.success(request, "Message sent.")
     return redirect(_dashboard_messages_url(conversation))

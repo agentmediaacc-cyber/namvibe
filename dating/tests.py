@@ -79,6 +79,20 @@ class DatingSystemTests(TestCase):
         self.assertTrue(profile.is_visible)
         self.assertEqual(profile.interests, ["travel", "food"])
 
+    def test_dating_home_loads_for_anonymous_user(self):
+        response = self.client.get(reverse("dating"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dating on Namvibe")
+
+    def test_dating_profile_alias_loads_for_authenticated_user(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("dating_profile"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Namvibe Dating")
+
     def test_new_users_get_zero_coin_balance(self):
         balance = DatingCoinBalance.objects.get(user=self.viewer)
         self.assertEqual(balance.balance, 0)
@@ -147,6 +161,36 @@ class DatingSystemTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.alex.profile.display_name)
+
+    def test_message_match_without_username_redirects_to_matches(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("dating_message_match"))
+
+        self.assertRedirects(response, reverse("dating_matches"), fetch_redirect_response=False)
+
+    def test_message_match_redirects_to_dashboard_conversation_for_match(self):
+        like_user(self.viewer, self.alex)
+        like_user(self.alex, self.viewer)
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("dating_message_match", kwargs={"username": self.alex.profile.username}))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("user_dashboard"), response["Location"])
+
+    def test_send_message_creates_message_for_match(self):
+        like_user(self.viewer, self.alex)
+        like_user(self.alex, self.viewer)
+        self.client.force_login(self.viewer)
+
+        response = self.client.post(
+            reverse("dating_send_message", kwargs={"username": self.alex.profile.username}),
+            {"text": "Hello there"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(self.viewer.sent_messages.filter(text="Hello there").exists())
 
     def test_free_tier_has_daily_like_limit(self):
         self.viewer_profile.premium_tier = DatingProfile.PremiumTier.FREE
