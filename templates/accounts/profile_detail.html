@@ -116,14 +116,10 @@
 
         <div class="action-row">
           {% if can_edit %}
-            <a class="profile-action primary" href="{{ action_urls.edit_profile }}">Edit Profile</a>
+            <a class="profile-action primary" href="{{ action_urls.account_hub }}">Open Account Hub</a>
+            <a class="profile-action" href="{{ action_urls.edit_profile }}">Edit Profile</a>
             <a class="profile-action" href="{{ action_urls.create_post }}">Create Post</a>
-            <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
-            <a class="profile-action" href="{{ action_urls.wallet }}">Wallet</a>
-            <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
             <a class="profile-action" href="{{ action_urls.go_live }}">Go Live</a>
-            <a class="profile-action" href="{{ action_urls.games }}">Games</a>
-            <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
           {% elif request.user.is_authenticated %}
             <form method="post" action="{% url 'follow_toggle' profile.username %}" style="margin:0;">
               {% csrf_token %}

@@ -4,11 +4,11 @@ from django.urls import NoReverseMatch, reverse
 
 from .services import is_master_admin, master_admin_dashboard_url
 
-def _safe_reverse(name, fallback="#"):
+def _safe_reverse(name, fallback="home"):
     try:
         return reverse(name)
     except NoReverseMatch:
-        return fallback
+        return reverse(fallback)
 
 
 def _current_route(request):

@@ -147,8 +147,25 @@ class ProfileForm(forms.ModelForm):
             "is_creator",
             "is_private",
         )
+        labels = {
+            "avatar": "Profile Picture",
+            "cover_image": "Cover Image",
+        }
         widgets = {
             "bio": forms.Textarea(attrs={"rows": 4}),
+            "avatar": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/*",
+                    "capture": "user",
+                    "class": "profile-upload-input",
+                }
+            ),
+            "cover_image": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/*",
+                    "class": "profile-upload-input",
+                }
+            ),
         }
 
     def clean_username(self):

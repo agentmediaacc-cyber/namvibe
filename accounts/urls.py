@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    account_gallery_view,
     forgot_password_view,
     login_view,
     logout_view,
@@ -26,6 +27,7 @@ urlpatterns = [
     path("dashboard/", user_dashboard_view, name="user_dashboard"),
 
     path("profile/", profile_shortcut_view, name="profile_shortcut"),
+    path("profile/gallery/", account_gallery_view, name="profile_gallery"),
     path("profile/edit/", edit_profile_view, name="profile_edit"),
     path("profile/<str:username>/", account_profile_detail, name="account_profile_detail"),
     path("profile/<str:username>/follow/", follow_toggle, name="follow_toggle"),

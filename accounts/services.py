@@ -270,7 +270,7 @@ def onboarding_items_for(user):
             "url": reverse("verify_email_notice"),
         },
         {
-            "label": "Add avatar",
+            "label": "Add profile picture",
             "done": bool(profile and profile.avatar),
             "description": "Make your profile recognizable in stories, comments, and live.",
             "url": reverse("profile_edit"),
@@ -315,9 +315,6 @@ def next_auth_redirect(request, user):
         require_https=request.is_secure(),
     ):
         return redirect_to
-    account_profile = getattr(user, "account_profile", None)
-    if account_profile and (not account_profile.profile_completed or not account_profile.email_verified):
-        return reverse("profile_completion")
     return reverse("user_dashboard")
 
 

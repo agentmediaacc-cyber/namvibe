@@ -1,344 +1,530 @@
 {% extends "base.html" %}
 {% load media_helpers %}
 
-{% block title %}Dashboard | Namvibe{% endblock %}
+{% block title %}My Account | Namvibe{% endblock %}
 
 {% block content %}
 <style>
-  .dash-shell{max-width:1180px;margin:0 auto;padding:18px 12px 110px}
-  .dash-hero,.dash-card{
-    border:1px solid rgba(255,255,255,.14);
-    background:linear-gradient(145deg,rgba(27,3,35,.96),rgba(18,0,24,.92));
-    border-radius:28px;
-    box-shadow:0 22px 60px rgba(0,0,0,.34);
+  .hub-shell{width:min(1180px,calc(100% - 12px));margin:0 auto;padding:18px 0 110px}
+  .hub-layout{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px}
+  .hub-card,.hub-cover,.hub-section-card,.hub-menu-link,.hub-stat,.hub-chip,.hub-action,.hub-gallery-card{
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);
+    backdrop-filter:blur(18px);
+    box-shadow:0 24px 70px rgba(0,0,0,.26);
     color:#fff;
   }
-  .dash-hero{padding:20px}
-  .dash-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:16px;margin-top:16px}
-  .dash-card{padding:16px}
-  .dash-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
-  .dash-stat{padding:14px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)}
-  .dash-stat span{display:block;color:#cbd5e1;font-size:12px;margin-bottom:6px}
-  .dash-stat strong{font-size:1.18rem}
-  .dash-actions,.dash-tabs,.dash-links{display:flex;gap:10px;flex-wrap:wrap}
-  .dash-actions a,.dash-tabs a,.dash-links a{
-    display:inline-flex;align-items:center;justify-content:center;
-    padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:800;
-    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;
+  .hub-card,.hub-section-card{border-radius:28px}
+  .hub-hero{overflow:hidden}
+  .hub-cover{
+    min-height:220px;border-radius:30px 30px 0 0;
+    background:
+      radial-gradient(circle at top left, rgba(124,58,237,.34), transparent 32%),
+      radial-gradient(circle at top right, rgba(236,72,153,.24), transparent 28%),
+      linear-gradient(135deg,#160018,#2a0830 48%,#120014);
   }
-  .dash-actions a.primary,.dash-tabs a.active{
-    background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent;color:#fff;
+  .hub-cover img{display:block;width:100%;height:240px;object-fit:cover}
+  .hub-hero-main{padding:0 18px 20px;margin-top:-52px}
+  .hub-profile-pic{
+    width:108px;height:108px;border-radius:30px;padding:3px;
+    background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
+    box-shadow:0 18px 50px rgba(0,0,0,.34);
   }
-  .dash-copy{color:#cbd5e1;line-height:1.7}
-  .dash-panel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-  .dash-list{display:grid;gap:10px}
-  .dash-list-item{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    padding:12px 0;border-top:1px solid rgba(212,177,106,.1)
+  .hub-profile-pic-inner{
+    width:100%;height:100%;border-radius:27px;background:#210428;
+    display:grid;place-items:center;overflow:hidden;font-size:2rem;font-weight:900;
   }
-  .dash-list-item:first-child{border-top:0;padding-top:0}
-  .dash-meta{display:grid;gap:4px}
-  .dash-meta small{color:#cbd5e1}
-  .dash-panel-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-  .dash-panel-title h2{margin:0}
-  .dash-empty{
-    padding:16px;border-radius:20px;
-    background:linear-gradient(145deg,rgba(27,3,35,.9),rgba(70,8,42,.8));
-    border:1px dashed rgba(255,255,255,.18);color:#cbd5e1
+  .hub-profile-pic-inner img{width:100%;height:100%;object-fit:cover}
+  .hub-name-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .hub-title h1{margin:12px 0 4px;font-size:clamp(2rem,5vw,3.4rem);line-height:.94}
+  .hub-title p,.hub-muted,.hub-empty p,.hub-next-copy,.hub-meta small,.hub-menu-copy{color:#cbd5e1;line-height:1.65}
+  .hub-badges,.hub-actions,.hub-top-actions,.hub-progress-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .hub-badge,.hub-chip,.hub-action,.hub-menu-link{
+    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:800;
   }
-  @media (max-width: 940px){
-    .dash-grid{grid-template-columns:1fr}
-    .dash-actions,.dash-tabs,.dash-links{gap:8px}
-    .dash-actions a,.dash-tabs a,.dash-links a{flex:1 1 calc(50% - 8px)}
+  .hub-badge,.hub-chip,.hub-action{padding:10px 14px;border-radius:999px}
+  .hub-badge.member{background:rgba(34,197,94,.14);color:#bbf7d0;border:1px solid rgba(34,197,94,.22)}
+  .hub-badge.wallet{background:rgba(226,232,240,.16);color:#f8fafc;border:1px solid rgba(226,232,240,.26)}
+  .hub-badge.premium{background:rgba(250,204,21,.16);color:#fde68a;border:1px solid rgba(250,204,21,.28)}
+  .hub-actions{margin-top:16px}
+  .hub-action{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff}
+  .hub-action.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+  .hub-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+  .hub-stat{padding:14px;border-radius:22px}
+  .hub-stat span{display:block;color:#cbd5e1;font-size:12px}
+  .hub-stat strong{display:block;margin-top:6px;font-size:1.16rem}
+  .hub-progress-wrap{margin-top:18px;padding:16px;border-radius:24px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+  .hub-progress-bar{height:11px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:12px}
+  .hub-progress-bar span{display:block;height:100%;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e)}
+  .hub-sidebar{display:grid;gap:16px;align-content:start}
+  .hub-sidebar-card,.hub-section-card{padding:18px}
+  .hub-sidebar-card{border-radius:28px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);box-shadow:0 24px 70px rgba(0,0,0,.26)}
+  .hub-menu-header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .hub-menu-toggle{
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);
+    color:#fff;border-radius:16px;padding:10px 14px;font-weight:900;cursor:pointer;
   }
-  @media (max-width: 620px){
-    .dash-shell{padding:12px 8px 104px}
-    .dash-hero,.dash-card{border-radius:24px}
-    .dash-actions a,.dash-tabs a,.dash-links a{flex:1 1 100%}
-    .dash-list-item{align-items:flex-start;flex-direction:column}
+  .hub-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.52);display:none;z-index:3900}
+  .hub-menu-overlay.open{display:block}
+  .hub-menu-drawer{
+    position:fixed;left:0;right:0;bottom:0;z-index:3901;
+    transform:translateY(105%);transition:transform .22s ease;
+    padding:16px 12px calc(18px + env(safe-area-inset-bottom));
+  }
+  .hub-menu-drawer.open{transform:translateY(0)}
+  .hub-menu-panel{
+    max-height:min(82vh,680px);overflow:auto;
+    border-radius:28px 28px 0 0;padding:18px;
+    background:rgba(18,0,20,.98);border:1px solid rgba(255,255,255,.1);
+    box-shadow:0 -24px 60px rgba(0,0,0,.36)
+  }
+  .hub-menu-section{margin-top:14px}
+  .hub-menu-section:first-child{margin-top:0}
+  .hub-menu-section h3{margin:0 0 8px;color:#f9a8d4;font-size:11px;text-transform:uppercase;letter-spacing:.12em}
+  .hub-menu-grid{display:grid;gap:8px}
+  .hub-menu-link{justify-content:flex-start;padding:14px 16px;border-radius:18px;color:#fff}
+  .hub-menu-link.active{background:linear-gradient(135deg,rgba(124,58,237,.32),rgba(236,72,153,.18));border:1px solid rgba(236,72,153,.32)}
+  .hub-section-card h2{margin:0 0 8px}
+  .hub-grid-2,.hub-grid-3,.hub-grid-4{display:grid;gap:12px}
+  .hub-grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hub-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .hub-grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .hub-section-list{display:grid;gap:10px}
+  .hub-list-item,.hub-gallery-card{
+    padding:14px;border-radius:20px;text-decoration:none;color:#fff;
+  }
+  .hub-list-item{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .hub-gallery-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .hub-gallery-card figure{margin:0;height:180px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.06)}
+  .hub-gallery-card img{width:100%;height:100%;object-fit:cover}
+  .hub-gallery-card video{width:100%;height:100%;object-fit:cover}
+  .hub-empty{padding:18px;border-radius:22px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.18)}
+  .hub-settings-links{display:grid;gap:10px}
+  .hub-settings-links a{display:flex;justify-content:space-between;gap:12px;align-items:center;text-decoration:none;color:#fff;padding:14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)}
+  .hub-meta{display:grid;gap:4px}
+  @media (max-width: 980px){
+    .hub-layout{grid-template-columns:1fr}
+    .hub-sidebar{display:none}
+  }
+  @media (max-width: 760px){
+    .hub-shell{width:calc(100% - 10px);padding-top:12px}
+    .hub-cover img{height:190px}
+    .hub-hero-main{padding:0 14px 18px}
+    .hub-stats,.hub-grid-4,.hub-grid-3,.hub-grid-2{grid-template-columns:1fr 1fr}
+    .hub-actions .hub-action,.hub-top-actions .hub-action{flex:1 1 calc(50% - 10px)}
+  }
+  @media (max-width: 560px){
+    .hub-stats,.hub-grid-4,.hub-grid-3,.hub-grid-2{grid-template-columns:1fr}
+    .hub-actions .hub-action,.hub-top-actions .hub-action{flex:1 1 100%}
+    .hub-hero-main{margin-top:-44px}
+    .hub-profile-pic{width:94px;height:94px;border-radius:26px}
+    .hub-profile-pic-inner{border-radius:23px}
   }
 </style>
 
-<section class="dash-shell">
-  <div class="dash-hero">
-    <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;">
-      <div>
-        <span style="display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(236,72,153,.14);color:#fbcfe8;font-size:12px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;">Namvibe Dashboard</span>
-        <h1 style="margin:12px 0 8px;font-size:clamp(2rem,5vw,4rem);line-height:.96;">{{ profile.display_name|default:username }}</h1>
-        <p class="dash-copy" style="margin:0;max-width:760px;">Your account, posts, wallet, dating activity, messages, and settings stay reachable from one stable dashboard route.</p>
-      </div>
-      <div class="dash-actions">
-        <a class="primary" href="{% url 'profile_detail' profile.username %}">Open profile</a>
-        <a href="{% url 'profile_edit' %}">Settings</a>
-        <a href="{% url 'wallet_home' %}">Wallet</a>
-        <a href="{% url 'dating' %}">Dating</a>
-      </div>
-    </div>
-
-    <div class="dash-summary">
-      <div class="dash-stat">
-        <span>Posts</span>
-        <strong>{{ post_count }}</strong>
-      </div>
-      <div class="dash-stat">
-        <span>Profile views</span>
-        <strong>{{ profile_views_count }}</strong>
-      </div>
-      <div class="dash-stat">
-        <span>Saved posts</span>
-        <strong>{{ saved_post_count }}</strong>
-      </div>
-      <div class="dash-stat">
-        <span>Communities</span>
-        <strong>{{ community_count }}</strong>
-      </div>
-      <div class="dash-stat">
-        <span>Wallet balance</span>
-        <strong>N${{ wallet_balance }}</strong>
-      </div>
-      <div class="dash-stat">
-        <span>Dating coins</span>
-        <strong>{{ coin_balance.balance }}</strong>
-      </div>
-    </div>
-  </div>
-
-  <nav class="dash-tabs" style="margin:16px 0;" aria-label="Dashboard sections">
-    <a class="{% if active_panel == 'overview' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=overview" data-dashboard-section="overview">Overview</a>
-    <a class="{% if active_panel == 'profile' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=profile" data-dashboard-section="profile">Profile</a>
-    <a class="{% if active_panel == 'posts' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=posts" data-dashboard-section="posts">Posts</a>
-    <a class="{% if active_panel == 'messages' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=messages" data-dashboard-section="messages">Messages</a>
-    <a class="{% if active_panel == 'wallet' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=wallet" data-dashboard-section="wallet">Wallet</a>
-    <a class="{% if active_panel == 'support' %}active{% endif %}" href="{% url 'user_dashboard' %}?section=support" data-dashboard-section="support">Support</a>
-    <a href="{% url 'profile_edit' %}" data-dashboard-section="settings">Settings</a>
-  </nav>
-
-  <div class="dash-grid">
-    <main class="dash-card">
-      {% if active_panel == 'messages' %}
-        {% include "messaging/dashboard_messages.html" %}
-      {% elif active_panel == 'posts' %}
-        <div class="dash-panel-title">
-          <h2>Posts</h2>
-          <a href="{% url 'studio' %}">Create post</a>
-        </div>
-        <p class="dash-copy">Creator Studio is linked here for fast post publishing. Flyer builder, Motion, poll, and engagement tools stay tied to your current account lane.</p>
-        <div class="dash-panel-grid" style="margin-top:14px;">
-          <div class="dash-stat">
-            <span>Total posts</span>
-            <strong>{{ post_count }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Drafts</span>
-            <strong>{{ draft_posts|length }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Saved</span>
-            <strong>{{ saved_post_count }}</strong>
-          </div>
-        </div>
-        <div class="dash-list" style="margin-top:18px;">
-          {% for post in draft_posts %}
-            <div class="dash-list-item">
-              <div class="dash-meta">
-                <strong>{{ post.title|default:post.get_post_type_display }}</strong>
-                <small>{{ post.get_post_type_display }} draft</small>
-              </div>
-              <a href="{% url 'studio_draft' post.uuid %}">Open</a>
-            </div>
-          {% empty %}
-            <div class="dash-empty">No drafts right now. Use Studio to create your next post, reel, or flyer.</div>
-          {% endfor %}
-        </div>
-      {% elif active_panel == 'wallet' %}
-        <div class="dash-panel-title">
-          <h2>Wallet</h2>
-          <a href="{% url 'wallet_home' %}">Open wallet</a>
-        </div>
-        <div class="dash-panel-grid">
-          <div class="dash-stat">
-            <span>Available</span>
-            <strong>N${{ wallet_balance }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Pending</span>
-            <strong>N${{ pending_balance }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Membership</span>
-            <strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}None{% endif %}</strong>
-          </div>
-        </div>
-        <div class="dash-links" style="margin-top:16px;">
-          <a href="{% url 'wallet_transactions' %}">Transactions</a>
-          <a href="{% url 'wallet_gifts' %}">Gifts</a>
-          <a href="{% url 'wallet_membership' %}">Premium</a>
-          <a href="{% url 'wallet_creator_earnings' %}">Creator earnings</a>
-        </div>
-      {% elif active_panel == 'support' %}
-        <div class="dash-panel-title">
-          <h2>Support</h2>
-          <a href="{% url 'support_help' %}">Open support</a>
-        </div>
-        <p class="dash-copy">Use support for account help, safety, promotions, creator issues, and operational entry points.</p>
-        <div class="dash-links" style="margin-top:16px;">
-          <a href="{% url 'support_help' %}">Support home</a>
-          <a href="{% url 'notifications' %}">Notifications</a>
-          <a href="{% url 'profile_edit' %}">Settings</a>
-        </div>
-      {% elif active_panel == 'profile' %}
-        <div class="dash-panel-title">
-          <h2>Profile</h2>
-          <a href="{% url 'profile_edit' %}">Edit profile</a>
-        </div>
-        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-          <div style="width:86px;height:86px;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,#7c3aed,#ec4899);display:grid;place-items:center;color:#fff;font-size:32px;font-weight:900;">
-            <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}" style="width:100%;height:100%;object-fit:cover;">
-          </div>
+<div class="hub-shell">
+  <div class="hub-layout">
+    <aside class="hub-sidebar">
+      <section class="hub-sidebar-card">
+        <div class="hub-menu-header">
           <div>
-            <strong style="display:block;font-size:1.25rem;">{{ profile.display_name|default:profile.username }}</strong>
-            <small style="color:#cbd5e1;">@{{ profile.username }}</small>
-            <p class="dash-copy" style="margin:8px 0 0;">{{ profile.bio|default:"Add a short bio to strengthen your public profile and discovery presence." }}</p>
+            <small class="hub-muted">Account center</small>
+            <h2 style="margin:4px 0 0;">Menu</h2>
           </div>
+          <button class="hub-menu-toggle" type="button" data-hub-menu-open>Menu</button>
         </div>
-        <div class="dash-links" style="margin-top:16px;">
-          <a href="{% url 'profile_detail' profile.username %}">Public profile</a>
-          <a href="{% url 'dating' %}">Dating profile</a>
-          <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
-        </div>
-        <div class="dash-panel-grid" style="margin-top:16px;">
-          <div class="dash-stat">
-            <span>Town</span>
-            <strong>{{ profile.town|default:"Not set" }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Region</span>
-            <strong>{{ profile.region|default:"Not set" }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Location</span>
-            <strong>{{ profile.location|default:"Not set" }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Badges</span>
-            <strong>
-              {% if active_membership %}Premium{% else %}Standard{% endif %}
-              {% if dating_profile and dating_profile.is_visible %} · Dating{% endif %}
-            </strong>
-          </div>
-        </div>
-      {% else %}
-        <div class="dash-panel-title">
-          <h2>Overview</h2>
-          <a href="{% url 'studio' %}">Create</a>
-        </div>
-        <p class="dash-copy">Quick access to the account surfaces you use most often.</p>
-        <div class="dash-panel-grid" style="margin-top:14px;">
-          <a class="dash-stat" href="{% url 'wallet_home' %}" style="text-decoration:none;color:inherit;">
-            <span>Wallet</span>
-            <strong>N${{ wallet_balance }}</strong>
-          </a>
-          <a class="dash-stat" href="{% url 'dating' %}" style="text-decoration:none;color:inherit;">
-            <span>Dating</span>
-            <strong>Open hub</strong>
-          </a>
-          <a class="dash-stat" href="{% url 'user_dashboard' %}?section=messages" style="text-decoration:none;color:inherit;">
-            <span>Unread chats</span>
-            <strong>{{ chat_unread_total }}</strong>
-          </a>
-          <a class="dash-stat" href="{% url 'profile_edit' %}" style="text-decoration:none;color:inherit;">
-            <span>Settings</span>
-            <strong>Profile edit</strong>
-          </a>
-        </div>
-        <div class="dash-panel-grid" style="margin-top:16px;">
-          <div class="dash-stat">
-            <span>Coins</span>
-            <strong>{{ coin_balance.balance }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Notifications</span>
-            <strong>{{ notifications_preview|length }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Dating views</span>
-            <strong>{{ dating_views_count }}</strong>
-          </div>
-          <div class="dash-stat">
-            <span>Matches</span>
-            <strong>{{ active_match_count }}</strong>
-          </div>
-        </div>
-        <div class="dash-panel-title" style="margin-top:18px;">
-          <h2 style="font-size:1.1rem;">Activity</h2>
-        </div>
-        <div class="dash-list">
-          {% for item in activity_items %}
-            <div class="dash-list-item">
-              <div class="dash-meta">
-                <strong>{{ item.title }}</strong>
-                <small>{{ item.meta }}</small>
-              </div>
-              <a href="{{ item.url }}">Open</a>
+        {% for group in account_section_groups %}
+          <div class="hub-menu-section">
+            <h3>{{ group.title }}</h3>
+            <div class="hub-menu-grid">
+              {% for item in group.items %}
+                <a class="hub-menu-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+              {% endfor %}
             </div>
-          {% endfor %}
-        </div>
-        <div class="dash-panel-title" style="margin-top:18px;">
-          <h2 style="font-size:1.1rem;">Notifications Preview</h2>
-        </div>
-        <div class="dash-list">
-          {% for item in notifications_preview %}
-            <div class="dash-list-item">
-              <div class="dash-meta">
-                <strong>{{ item.title }}</strong>
-                <small>{{ item.copy }}</small>
-              </div>
-              <a href="{{ item.url }}">Open</a>
-            </div>
-          {% empty %}
-            <div class="dash-empty">No fresh notifications right now. New follows, dating likes, and unread chats will surface here.</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    </main>
-
-    <aside class="dash-card">
-      <div class="dash-panel-title">
-        <h2>Quick Links</h2>
-      </div>
-      <div class="dash-links" style="margin-bottom:16px;">
-        <a href="{% url 'wallet_home' %}">Wallet / Coins</a>
-        <a href="{% url 'dating' %}">Dating</a>
-        <a href="{% url 'user_dashboard' %}?section=messages">Messages</a>
-        <a href="{% url 'profile_edit' %}">Settings</a>
-        <a href="{% url 'support_help' %}">Support</a>
-      </div>
-
-      <div class="dash-panel-grid" style="margin-bottom:16px;">
-        <div class="dash-stat">
-          <span>Tier</span>
-          <strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}Free{% endif %}</strong>
-        </div>
-        <div class="dash-stat">
-          <span>Coins</span>
-          <strong>{{ coin_balance.balance }}</strong>
-        </div>
-      </div>
-
-      <div class="dash-list">
-        {% for item in onboarding_items %}
-          <div class="dash-list-item">
-            <div class="dash-meta">
-              <strong>{{ item.title }}</strong>
-              <small>{{ item.copy }}</small>
-            </div>
-            <span>{% if item.done %}Done{% else %}Open{% endif %}</span>
           </div>
-        {% empty %}
-          <div class="dash-empty">Your key setup actions will appear here.</div>
         {% endfor %}
-      </div>
+      </section>
+      <section class="hub-sidebar-card">
+        <small class="hub-muted">Next step</small>
+        <h3 style="margin:6px 0 8px;">{% if completion.next_action %}{{ completion.next_action.label }}{% else %}Your account is looking complete{% endif %}</h3>
+        <p class="hub-next-copy">{% if completion.next_action %}A stronger Namvibe profile helps people recognize you across posts, live, messages, and dating.{% else %}You have already covered the main profile setup steps.{% endif %}</p>
+        {% if completion.next_action %}
+          <div class="hub-actions">
+            <a class="hub-action primary" href="{{ completion.next_action.url }}">Continue</a>
+          </div>
+        {% endif %}
+      </section>
     </aside>
+
+    <main class="hub-main">
+      <section class="hub-card hub-hero">
+        <div class="hub-cover">
+          {% if profile.cover_image %}
+            <img src="{% cover_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+          {% endif %}
+        </div>
+        <div class="hub-hero-main">
+          <div class="hub-profile-pic">
+            <div class="hub-profile-pic-inner">
+              {% if profile.avatar %}
+                <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+              {% else %}
+                {{ profile.username|first|upper }}
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="hub-name-row">
+            <div class="hub-title">
+              <div class="hub-badges">
+                <span class="hub-badge {{ account_badge.tone }}">{{ account_badge.icon }} {{ account_badge.label }}</span>
+                <span class="hub-chip">@{{ profile.username }}</span>
+              </div>
+              <h1>{{ profile.display_name|default:username }}</h1>
+              <p style="margin:0;">{{ profile.bio|default:"Manage your profile, messages, wallet, dating, live, and creator tools from one clean Namvibe account hub." }}</p>
+            </div>
+            <div class="hub-top-actions">
+              <button class="hub-menu-toggle" type="button" data-hub-menu-open>Menu</button>
+              <a class="hub-action primary" href="{% url 'profile_edit' %}">Edit Profile</a>
+            </div>
+          </div>
+
+          <div class="hub-stats">
+            <article class="hub-stat"><span>Posts</span><strong>{{ post_count }}</strong></article>
+            <article class="hub-stat"><span>Followers</span><strong>{{ profile.follower_count }}</strong></article>
+            <article class="hub-stat"><span>Following</span><strong>{{ profile.following_count }}</strong></article>
+            <article class="hub-stat"><span>Views</span><strong>{{ profile_views_count }}</strong></article>
+          </div>
+
+          <div class="hub-progress-wrap">
+            <div class="hub-progress-head">
+              <strong>Profile completion {{ completion.percentage }}%</strong>
+              {% if completion.next_action %}<span class="hub-chip">{{ completion.next_action.label }}</span>{% endif %}
+            </div>
+            <div class="hub-progress-bar"><span style="width:{{ completion.percentage }}%;"></span></div>
+          </div>
+
+          <div class="hub-actions">
+            <a class="hub-action" href="{% url 'profile_edit' %}">Update Profile Picture</a>
+            <a class="hub-action" href="{% url 'profile_edit' %}">Update Cover Image</a>
+            <a class="hub-action" href="{% url 'studio' %}">Create Post</a>
+            <a class="hub-action" href="{% url 'live_start' %}">Go Live</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="hub-section-card" style="margin-top:16px;">
+        {% if active_panel == "gallery" %}
+          <h2>Gallery</h2>
+          <p class="hub-muted">Your uploaded profile visuals, post media, reels, and stories live here.</p>
+          {% if gallery_items %}
+            <div class="hub-gallery-grid" style="margin-top:14px;">
+              {% for item in gallery_items %}
+                <a class="hub-gallery-card" href="{{ item.target }}">
+                  <figure>
+                    <img src="{{ item.url }}" alt="{{ item.caption|default:item.kind }}">
+                  </figure>
+                  <div class="hub-meta" style="margin-top:10px;">
+                    <strong>{{ item.kind }}</strong>
+                    <small>{{ item.caption|default:"Open item" }}</small>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="hub-empty">
+              <strong>Your gallery will show your photos, videos, reels, and stories.</strong>
+              <p>Add a profile picture, cover image, or create your first post to start filling this space.</p>
+              <div class="hub-actions">
+                <a class="hub-action primary" href="{% url 'studio' %}">Create Post</a>
+                <a class="hub-action" href="{% url 'profile_edit' %}">Upload Photo or Video</a>
+              </div>
+            </div>
+          {% endif %}
+        {% elif active_panel == "posts" %}
+          <h2>Posts</h2>
+          <p class="hub-muted">Creator Studio, Flyer builder, Motion, poll, and engagement tools stay connected to your published and draft posts.</p>
+          <div class="hub-actions" style="margin-bottom:14px;">
+            <a class="hub-action primary" href="{% url 'studio' %}">Open Creator Studio</a>
+            <a class="hub-action" href="{% url 'saved_posts' %}">Saved Posts</a>
+          </div>
+          <div class="hub-section-list">
+            {% for post in user_posts %}
+              <a class="hub-list-item" href="{% url 'post_detail' post.uuid %}">
+                <div class="hub-meta">
+                  <strong>{{ post.title|default:post.get_post_type_display }}</strong>
+                  <small>{{ post.get_post_type_display }} · {{ post.published_at|default:post.created_at|date:"M j, H:i" }}</small>
+                </div>
+                <span class="hub-chip">{{ post.view_count }} views</span>
+              </a>
+            {% empty %}
+              <div class="hub-empty"><strong>No posts yet</strong><p>Create your first photo, reel, flyer, or update.</p></div>
+            {% endfor %}
+          </div>
+        {% elif active_panel == "reels" %}
+          <h2>Reels</h2>
+          <p class="hub-muted">Short-form video content and reel-ready posts.</p>
+          {% if reel_posts %}
+            <div class="hub-section-list" style="margin-top:14px;">
+              {% for post in reel_posts %}
+                <a class="hub-list-item" href="{% url 'post_detail' post.uuid %}">
+                  <div class="hub-meta">
+                    <strong>{{ post.title|default:"Reel" }}</strong>
+                    <small>{{ post.caption|default:"Open reel" }}</small>
+                  </div>
+                  <span class="hub-chip">Reel</span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="hub-empty"><strong>No reels yet</strong><p>Your reel posts will appear here once you publish them.</p></div>
+          {% endif %}
+        {% elif active_panel == "stories" %}
+          <h2>Stories</h2>
+          <p class="hub-muted">Quick daily story content with audience controls.</p>
+          <div class="hub-actions" style="margin-bottom:14px;">
+            <a class="hub-action primary" href="{% url 'story_create' %}">Create Story</a>
+          </div>
+          {% if story_items %}
+            <div class="hub-section-list">
+              {% for story in story_items %}
+                <a class="hub-list-item" href="{% url 'story_detail' story.id %}">
+                  <div class="hub-meta">
+                    <strong>{{ story.caption|default:"Story update" }}</strong>
+                    <small>{{ story.media_type|title }} · {{ story.created_at|date:"M j, H:i" }}</small>
+                  </div>
+                  <span class="hub-chip">{{ story.view_count }} views</span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="hub-empty"><strong>No stories yet</strong><p>Stories are great for fast updates and short-lived moments.</p></div>
+          {% endif %}
+        {% elif active_panel == "dating" %}
+          <h2>Dating</h2>
+          <p class="hub-muted">Connect your Namvibe profile to dating without rebuilding your identity from scratch.</p>
+          {% if dating_profile %}
+            <div class="hub-grid-3" style="margin-top:14px;">
+              <article class="hub-stat"><span>Status</span><strong>{% if dating_profile.is_visible %}Active{% else %}Private{% endif %}</strong></article>
+              <article class="hub-stat"><span>Goal</span><strong>{{ dating_profile.get_relationship_goal_display }}</strong></article>
+              <article class="hub-stat"><span>Views</span><strong>{{ dating_views_count }}</strong></article>
+            </div>
+            <div class="hub-actions" style="margin-top:16px;">
+              <a class="hub-action primary" href="{% url 'dating_profile' %}">Open Dating</a>
+              <a class="hub-action" href="{% url 'dating_matches' %}">Matches</a>
+              <a class="hub-action" href="{% url 'dating_live_match' %}">Live Match Show</a>
+            </div>
+          {% else %}
+            <div class="hub-empty">
+              <strong>Connect Namvibe profile to Dating</strong>
+              <p>Your display name, bio, region, town, and profile picture are ready to support a smoother dating setup.</p>
+              <div class="hub-actions">
+                <a class="hub-action primary" href="{% url 'dating_profile' %}">Connect Dating</a>
+              </div>
+            </div>
+          {% endif %}
+        {% elif active_panel == "wallet" %}
+          <h2>Wallet</h2>
+          <p class="hub-muted">Balance, coins, subscription, and creator access in one place.</p>
+          <div class="hub-grid-4" style="margin-top:14px;">
+            <article class="hub-stat"><span>Available</span><strong>N${{ wallet_balance }}</strong></article>
+            <article class="hub-stat"><span>Pending</span><strong>N${{ pending_balance }}</strong></article>
+            <article class="hub-stat"><span>Coins</span><strong>{{ coin_balance.balance }}</strong></article>
+            <article class="hub-stat"><span>Subscription</span><strong>{% if active_membership %}{{ active_membership.plan.name }}{% else %}Inactive{% endif %}</strong></article>
+          </div>
+          <div class="hub-actions" style="margin-top:16px;">
+            <a class="hub-action primary" href="{% url 'wallet_home' %}">Open Wallet</a>
+            <a class="hub-action" href="{% url 'wallet_membership_plans' %}">Subscription Plans</a>
+            <a class="hub-action" href="{% url 'wallet_creator_earnings' %}">Creator Earnings</a>
+          </div>
+        {% elif active_panel == "messages" %}
+          <h2>Messages</h2>
+          <p class="hub-muted">Private conversations, unread counts, call gates, and message access all sit inside this account hub.</p>
+          <div class="hub-grid-3" style="margin:14px 0;">
+            <article class="hub-stat"><span>Unread</span><strong>{{ chat_unread_total }}</strong></article>
+            <article class="hub-stat"><span>Free chat quota</span><strong>{% if free_message_quota_remaining == None %}Unlimited{% else %}{{ free_message_quota_remaining }} left{% endif %}</strong></article>
+            <article class="hub-stat"><span>Access</span><strong>{% if can_open_messages %}Open{% else %}Upgrade{% endif %}</strong></article>
+          </div>
+          {% if not has_active_subscription and free_message_quota_remaining != None %}
+            <div class="hub-empty" style="margin-bottom:14px;">
+              <strong>Free chat limits apply</strong>
+              <p>New users can start a limited number of free conversations. Premium members get normal unlimited messaging access.</p>
+            </div>
+          {% endif %}
+          {% include "messaging/dashboard_messages.html" %}
+        {% elif active_panel == "notifications" %}
+          <h2>Notifications</h2>
+          <p class="hub-muted">Message activity, dating actions, wallet updates, and profile reminders.</p>
+          {% if notifications_preview %}
+            <div class="hub-section-list" style="margin-top:14px;">
+              {% for item in notifications_preview %}
+                <a class="hub-list-item" href="{{ item.url }}">
+                  <div class="hub-meta">
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ item.copy }}</small>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="hub-empty"><strong>No new notifications</strong><p>Message alerts, dating likes, wallet reminders, and completion nudges will show here when they exist.</p></div>
+          {% endif %}
+        {% elif active_panel == "creator" %}
+          <h2>Creator</h2>
+          <p class="hub-muted">Creator status, publishing flow, and premium-ready activity.</p>
+          <div class="hub-grid-3" style="margin-top:14px;">
+            <article class="hub-stat"><span>Status</span><strong>{% if profile.is_creator %}Creator{% else %}Standard{% endif %}</strong></article>
+            <article class="hub-stat"><span>Posts</span><strong>{{ post_count }}</strong></article>
+            <article class="hub-stat"><span>Earnings</span><strong>{% if active_membership %}Ready{% else %}Not active{% endif %}</strong></article>
+          </div>
+          <div class="hub-actions" style="margin-top:16px;">
+            <a class="hub-action primary" href="{% url 'studio' %}">Open Creator Studio</a>
+            <a class="hub-action" href="{% url 'wallet_creator_earnings' %}">Creator Earnings</a>
+          </div>
+          {% if not profile.is_creator %}
+            <div class="hub-empty" style="margin-top:14px;"><strong>Become a creator</strong><p>Start publishing consistently, update your public profile, and use wallet/premium tools when you are ready.</p></div>
+          {% endif %}
+        {% elif active_panel == "live" %}
+          <h2>Live</h2>
+          <p class="hub-muted">Launch rooms, review your live sessions, and stay ready for future audio/video upgrades.</p>
+          <div class="hub-actions" style="margin-bottom:14px;">
+            <a class="hub-action primary" href="{% url 'live_start' %}">Go Live</a>
+            <a class="hub-action" href="{% url 'live_shows' %}">Live Shows</a>
+          </div>
+          {% if live_sessions %}
+            <div class="hub-section-list">
+              {% for session in live_sessions %}
+                <a class="hub-list-item" href="{% url 'live_room' session.uuid %}">
+                  <div class="hub-meta">
+                    <strong>{{ session.title }}</strong>
+                    <small>{{ session.get_status_display }} · {{ session.starts_at|date:"M j, H:i" }}</small>
+                  </div>
+                  <span class="hub-chip">{{ session.viewer_count }} watching</span>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="hub-empty"><strong>No live sessions yet</strong><p>Your live rooms and show entries will appear here. Audio Call and Video Call remain upgrade-ready through the messaging call gates.</p></div>
+          {% endif %}
+        {% elif active_panel == "games" %}
+          <h2>Games</h2>
+          <p class="hub-muted">Friendly mobile-first games and event-ready teasers.</p>
+          <div class="hub-gallery-grid" style="margin-top:14px;">
+            <a class="hub-gallery-card" href="{% url 'games_home' %}"><div class="hub-meta"><strong>Ludo</strong><small>Coming soon</small></div></a>
+            <a class="hub-gallery-card" href="{% url 'games_home' %}"><div class="hub-meta"><strong>Cards</strong><small>Login to play</small></div></a>
+            <a class="hub-gallery-card" href="{% url 'games_home' %}"><div class="hub-meta"><strong>Love texting</strong><small>Icebreaker teaser</small></div></a>
+            <a class="hub-gallery-card" href="{% url 'games_home' %}"><div class="hub-meta"><strong>Music challenge</strong><small>Fast rounds</small></div></a>
+            <a class="hub-gallery-card" href="{% url 'games_home' %}"><div class="hub-meta"><strong>Spin match</strong><small>Coming soon</small></div></a>
+            <a class="hub-gallery-card" href="{% url 'games_home' %}"><div class="hub-meta"><strong>Balloon pop match</strong><small>Event teaser</small></div></a>
+          </div>
+        {% elif active_panel == "support" %}
+          <h2>Support</h2>
+          <p class="hub-muted">Safety, account help, support, and important platform routes.</p>
+          <div class="hub-settings-links" style="margin-top:14px;">
+            <a href="{{ support_center_url }}"><span>Support Center</span><small>Open help</small></a>
+            <a href="{% url 'verify_email_notice' %}"><span>Email Verification</span><small>Trusted account status</small></a>
+            <a href="{% url 'notifications' %}"><span>Notifications</span><small>Alerts and reminders</small></a>
+          </div>
+        {% elif active_panel == "settings" %}
+          <h2>Settings</h2>
+          <p class="hub-muted">Privacy, account settings, edit profile, and session controls.</p>
+          <div class="hub-settings-links" style="margin-top:14px;">
+            <a href="{% url 'profile_edit' %}"><span>Edit Profile</span><small>Profile picture, cover image, bio</small></a>
+            <a href="{% url 'verify_email_notice' %}"><span>Verification</span><small>Email and account trust</small></a>
+            <a href="{% url 'logout' %}"><span>Logout</span><small>End this session safely</small></a>
+          </div>
+        {% else %}
+          <h2>Profile Overview</h2>
+          <p class="hub-muted">Your account center keeps only the selected content in view so the experience stays clean on mobile and laptop.</p>
+          <div class="hub-grid-2" style="margin-top:14px;">
+            <article class="hub-stat"><span>Wallet balance</span><strong>N${{ wallet_balance }}</strong></article>
+            <article class="hub-stat"><span>Dating connected</span><strong>{% if dating_profile %}Yes{% else %}No{% endif %}</strong></article>
+            <article class="hub-stat"><span>Unread chats</span><strong>{{ chat_unread_total }}</strong></article>
+            <article class="hub-stat"><span>Stories</span><strong>{{ story_items|length }}</strong></article>
+          </div>
+          <div class="hub-progress-wrap" style="margin-top:16px;">
+            <div class="hub-progress-head">
+              <strong>Recent activity</strong>
+              {% if completion.next_action %}<a class="hub-action" href="{{ completion.next_action.url }}">Recommended: {{ completion.next_action.label }}</a>{% endif %}
+            </div>
+            <div class="hub-section-list" style="margin-top:12px;">
+              {% for item in activity_items %}
+                <a class="hub-list-item" href="{{ item.url }}">
+                  <div class="hub-meta">
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ item.meta }}</small>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="hub-progress-wrap" style="margin-top:16px;">
+            <div class="hub-progress-head">
+              <strong>Completion reminders</strong>
+            </div>
+            <div class="hub-section-list" style="margin-top:12px;">
+              {% for item in completion.checks %}
+                {% if not item.done %}
+                  <a class="hub-list-item" href="{{ item.url }}">
+                    <div class="hub-meta">
+                      <strong>{{ item.label }}</strong>
+                      <small>Still recommended for a stronger account presence.</small>
+                    </div>
+                    <span class="hub-chip">Open</span>
+                  </a>
+                {% endif %}
+              {% empty %}
+                <div class="hub-empty"><strong>Everything important is in place</strong><p>Your account already covers the main completion steps.</p></div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </section>
+    </main>
   </div>
-</section>
+</div>
+
+<div class="hub-menu-overlay" id="hubMenuOverlay"></div>
+<div class="hub-menu-drawer" id="hubMenuDrawer" aria-hidden="true">
+  <div class="hub-menu-panel">
+    <div class="hub-menu-header">
+      <div>
+        <small class="hub-muted">Menu</small>
+        <h2 style="margin:4px 0 0;">My Account</h2>
+      </div>
+      <button class="hub-menu-toggle" type="button" data-hub-menu-close>Close</button>
+    </div>
+    {% for group in account_section_groups %}
+      <div class="hub-menu-section">
+        <h3>{{ group.title }}</h3>
+        <div class="hub-menu-grid">
+          {% for item in group.items %}
+            <a class="hub-menu-link {% if item.active %}active{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  (function () {
+    const overlay = document.getElementById("hubMenuOverlay");
+    const drawer = document.getElementById("hubMenuDrawer");
+    function openMenu() {
+      overlay?.classList.add("open");
+      drawer?.classList.add("open");
+      document.body.classList.add("drawer-open");
+    }
+    function closeMenu() {
+      overlay?.classList.remove("open");
+      drawer?.classList.remove("open");
+      document.body.classList.remove("drawer-open");
+    }
+    document.querySelectorAll("[data-hub-menu-open]").forEach(btn => btn.addEventListener("click", openMenu));
+    document.querySelectorAll("[data-hub-menu-close]").forEach(btn => btn.addEventListener("click", closeMenu));
+    overlay?.addEventListener("click", closeMenu);
+  }());
+</script>
 {% endblock %}

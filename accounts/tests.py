@@ -28,7 +28,7 @@ class AccountAuthFlowTests(TestCase):
     def test_signup_creates_user_profile_and_redirects(self):
         response = self.client.post(reverse("signup"), self._signup_payload())
 
-        self.assertRedirects(response, reverse("profile_completion"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
         self.assertTrue(User.objects.filter(username="mina_test", email="mina@example.com").exists())
         self.assertTrue(AccountProfile.objects.filter(cellphone_number="+264811234567").exists())
         self.assertTrue(DatingCoinBalance.objects.filter(user__username="mina_test").exists())
@@ -38,7 +38,7 @@ class AccountAuthFlowTests(TestCase):
     def test_signup_survives_verification_email_failure(self, _send_verification):
         response = self.client.post(reverse("signup"), self._signup_payload(username="mina_mail", email="mina_mail@example.com"))
 
-        self.assertRedirects(response, reverse("profile_completion"), fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
         self.assertTrue(User.objects.filter(username="mina_mail").exists())
 
     def test_signup_rejects_duplicate_email_username_and_cellphone(self):
@@ -60,14 +60,14 @@ class AccountAuthFlowTests(TestCase):
             "identifier": "mina_test",
             "password": "StrongPass1",
         })
-        self.assertRedirects(username_response, reverse("profile_completion"), fetch_redirect_response=False)
+        self.assertRedirects(username_response, reverse("user_dashboard"), fetch_redirect_response=False)
 
         self.client.logout()
         email_response = self.client.post(reverse("login"), {
             "identifier": "mina@example.com",
             "password": "StrongPass1",
         })
-        self.assertRedirects(email_response, reverse("profile_completion"), fetch_redirect_response=False)
+        self.assertRedirects(email_response, reverse("user_dashboard"), fetch_redirect_response=False)
 
     def test_login_rejects_invalid_credentials(self):
         response = self.client.post(reverse("login"), {
@@ -127,10 +127,10 @@ class AccountAuthFlowTests(TestCase):
 
         response = self.client.get(reverse("user_dashboard"))
 
-        self.assertContains(response, 'data-dashboard-section="profile"')
-        self.assertContains(response, 'data-dashboard-section="posts"')
-        self.assertContains(response, 'data-dashboard-section="settings"')
-        self.assertNotContains(response, 'data-section="gallery"')
+        self.assertContains(response, "Profile Overview")
+        self.assertContains(response, "Gallery")
+        self.assertContains(response, "Messages")
+        self.assertContains(response, "Settings")
         self.assertNotContains(response, 'data-section="anonymous"')
 
     def test_login_next_redirects_to_dashboard_after_profile_click(self):
