@@ -1,0 +1,218 @@
+{% load media_helpers static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}My Account | Namvibe{% endblock %}</title>
+  <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml">
+  <style>
+    :root{
+      --profile-bg:#120014;
+      --profile-bg-deep:#160018;
+      --profile-line:rgba(255,255,255,.12);
+      --profile-surface:rgba(255,255,255,.08);
+      --profile-soft:rgba(255,255,255,.05);
+      --profile-muted:#cbd5e1;
+      --profile-purple:#7c3aed;
+      --profile-pink:#ec4899;
+      --profile-rose:#f43f5e;
+      --profile-gold:#facc15;
+      --profile-shadow:0 24px 70px rgba(0,0,0,.34);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#120014;color:#fff}
+    body{
+      min-height:100vh;
+      overflow-x:hidden;
+      font-family:"Manrope","Avenir Next","Segoe UI",sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(124,58,237,.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(236,72,153,.16), transparent 26%),
+        linear-gradient(180deg,#0b000d,var(--profile-bg-deep));
+    }
+    body.menu-open{overflow:hidden}
+    a{color:inherit}
+    .profile-shell{min-height:100vh}
+    .profile-topbar{
+      position:sticky;top:0;z-index:3000;
+      background:rgba(18,0,20,.94);backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--profile-line);
+    }
+    .profile-topbar-inner{
+      width:min(1160px,calc(100% - 12px));margin:0 auto;min-height:72px;
+      display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+      padding:10px 0;
+    }
+    .profile-brand{
+      display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff;min-width:0;
+    }
+    .profile-brand-mark{
+      width:40px;height:40px;border-radius:14px;display:grid;place-items:center;font-weight:900;
+      background:linear-gradient(135deg,var(--profile-purple),var(--profile-pink),var(--profile-rose));
+      box-shadow:0 12px 32px rgba(124,58,237,.28);
+    }
+    .profile-brand-copy strong{display:block;font-size:1rem}
+    .profile-brand-copy small,.profile-subtitle,.profile-drawer-link small{color:var(--profile-muted)}
+    .profile-topbar-copy{min-width:0}
+    .profile-topbar-copy h1{margin:0;font-size:1rem}
+    .profile-subtitle{margin:2px 0 0;font-size:12px;line-height:1.5}
+    .profile-topbar-actions{display:flex;align-items:center;gap:10px}
+    .profile-mini-avatar{
+      width:38px;height:38px;border-radius:14px;padding:2px;
+      background:linear-gradient(135deg,var(--profile-purple),var(--profile-pink),var(--profile-rose));
+    }
+    .profile-mini-avatar-inner{
+      width:100%;height:100%;border-radius:12px;background:#220428;
+      overflow:hidden;display:grid;place-items:center;font-weight:900;
+    }
+    .profile-mini-avatar-inner img{width:100%;height:100%;object-fit:cover}
+    .profile-menu-btn,.profile-chip-btn{
+      display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
+      min-height:46px;padding:11px 14px;border-radius:16px;border:1px solid var(--profile-line);
+      background:rgba(255,255,255,.06);color:#fff;font-weight:900;cursor:pointer;
+    }
+    .profile-content{
+      width:min(1160px,calc(100% - 12px));margin:0 auto;padding:16px 0 104px;
+    }
+    .profile-card,.profile-panel,.profile-drawer-panel{
+      border:1px solid var(--profile-line);
+      background:var(--profile-surface);
+      backdrop-filter:blur(18px);
+      box-shadow:var(--profile-shadow);
+      border-radius:28px;
+      color:#fff;
+    }
+    .profile-drawer-overlay{
+      position:fixed;inset:0;z-index:3900;background:rgba(0,0,0,.62);display:none;
+    }
+    .profile-drawer-overlay.open{display:block}
+    .profile-drawer{
+      position:fixed;right:0;top:0;bottom:0;z-index:3901;width:min(370px,92vw);
+      transform:translateX(104%);transition:transform .22s ease;padding:12px;
+    }
+    .profile-drawer.open{transform:translateX(0)}
+    .profile-drawer-panel{
+      height:100%;padding:18px;background:rgba(18,0,20,.98);overflow:auto;
+    }
+    .profile-drawer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .profile-drawer-group{margin-top:18px}
+    .profile-drawer-group:first-of-type{margin-top:14px}
+    .profile-drawer-group h2{
+      margin:0 0 10px;color:#f9a8d4;font-size:11px;text-transform:uppercase;letter-spacing:.12em;
+    }
+    .profile-drawer-grid{display:grid;gap:8px}
+    .profile-drawer-link{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;
+      padding:14px 16px;border-radius:18px;border:1px solid var(--profile-line);background:var(--profile-soft);
+    }
+    .profile-drawer-link.active{
+      border-color:rgba(236,72,153,.34);
+      background:linear-gradient(135deg,rgba(124,58,237,.24),rgba(236,72,153,.18));
+    }
+    @media (max-width: 720px){
+      .profile-topbar-inner{grid-template-columns:auto 1fr auto}
+      .profile-subtitle{display:none}
+      .profile-content{padding-top:12px}
+      .profile-card,.profile-panel,.profile-drawer-panel{border-radius:24px}
+      .profile-menu-btn{padding:11px 12px}
+    }
+  </style>
+  {% block profile_extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="profile-shell">
+    <header class="profile-topbar">
+      <div class="profile-topbar-inner">
+        <a class="profile-brand" href="{% url 'home' %}">
+          <span class="profile-brand-mark">N</span>
+          <span class="profile-brand-copy">
+            <strong>Namvibe</strong>
+            <small>Account hub</small>
+          </span>
+        </a>
+        <div class="profile-topbar-copy">
+          <h1>{{ account_shell_title|default:"My Account" }}</h1>
+          <p class="profile-subtitle">{{ account_shell_subtitle|default:"Clean profile index and smart feature routing" }}</p>
+        </div>
+        <div class="profile-topbar-actions">
+          <div class="profile-mini-avatar" aria-hidden="true">
+            <div class="profile-mini-avatar-inner">
+              {% if profile.avatar %}
+                <img src="{% avatar_url profile %}" alt="{{ profile.username }}">
+              {% else %}
+                {{ profile.username|first|upper }}
+              {% endif %}
+            </div>
+          </div>
+          <button class="profile-menu-btn" type="button" data-profile-menu-open>☰ Menu</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="profile-content">
+      {% block profile_content %}{% endblock %}
+    </main>
+  </div>
+
+  <div class="profile-drawer-overlay" id="profileDrawerOverlay"></div>
+  <aside class="profile-drawer" id="profileDrawer" aria-hidden="true">
+    <div class="profile-drawer-panel">
+      <div class="profile-drawer-head">
+        <div>
+          <strong>Account Menu</strong>
+          <p class="profile-subtitle" style="display:block;margin-top:6px;">Route to dedicated pages without loading every feature inside your profile.</p>
+        </div>
+        <button class="profile-menu-btn" type="button" data-profile-menu-close>Close</button>
+      </div>
+      {% for group in profile_menu_groups %}
+        <section class="profile-drawer-group">
+          <h2>{{ group.title }}</h2>
+          <div class="profile-drawer-grid">
+            {% for item in group.items %}
+              <a class="profile-drawer-link {% if item.active %}active{% endif %}" href="{{ item.url }}">
+                <strong>{{ item.label }}</strong>
+                <small>Open</small>
+              </a>
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <script>
+    (function () {
+      const body = document.body;
+      const overlay = document.getElementById("profileDrawerOverlay");
+      const drawer = document.getElementById("profileDrawer");
+      function openMenu() {
+        overlay?.classList.add("open");
+        drawer?.classList.add("open");
+        drawer?.setAttribute("aria-hidden", "false");
+        body.classList.add("menu-open");
+      }
+      function closeMenu() {
+        overlay?.classList.remove("open");
+        drawer?.classList.remove("open");
+        drawer?.setAttribute("aria-hidden", "true");
+        body.classList.remove("menu-open");
+      }
+      document.querySelectorAll("[data-profile-menu-open]").forEach(function (button) {
+        button.addEventListener("click", openMenu);
+      });
+      document.querySelectorAll("[data-profile-menu-close]").forEach(function (button) {
+        button.addEventListener("click", closeMenu);
+      });
+      drawer?.querySelectorAll("a").forEach(function (link) {
+        link.addEventListener("click", closeMenu);
+      });
+      overlay?.addEventListener("click", closeMenu);
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") closeMenu();
+      });
+    }());
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

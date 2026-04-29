@@ -1,0 +1,66 @@
+{% extends "accounts/profile_base.html" %}
+{% load media_helpers %}
+
+{% block title %}Gallery | Namvibe{% endblock %}
+
+{% block profile_extra_head %}
+<style>
+  .gallery-card{padding:18px}
+  .gallery-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .gallery-item{
+    display:grid;gap:10px;text-decoration:none;color:#fff;
+    padding:12px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);
+  }
+  .gallery-item img,.gallery-item video{
+    width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:16px;background:rgba(255,255,255,.06);
+  }
+  .gallery-item small,.gallery-empty p{color:#cbd5e1;line-height:1.6}
+  .gallery-empty{
+    padding:18px;border-radius:22px;border:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.05);
+  }
+  .action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .action-btn{
+    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:900;color:#fff;
+    padding:11px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);
+  }
+  .action-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+  @media (max-width: 640px){
+    .gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+</style>
+{% endblock %}
+
+{% block profile_content %}
+<section class="profile-card gallery-card">
+  <h2 style="margin:0 0 8px;">Gallery / Album</h2>
+  <p style="margin:0;color:#cbd5e1;">Profile picture, cover image, post media, reels, and stories stay here in one clean album view.</p>
+  {% if gallery_items %}
+    <div class="gallery-grid" style="margin-top:16px;">
+      {% for item in gallery_items %}
+        <a class="gallery-item" href="{{ item.target }}">
+          {% if item.type == "video" %}
+            <video preload="metadata" muted playsinline>
+              <source src="{{ item.url }}">
+            </video>
+          {% else %}
+            <img src="{{ item.url }}" alt="{{ item.caption|default:item.kind }}" loading="lazy">
+          {% endif %}
+          <div>
+            <strong>{{ item.kind }}</strong>
+            <small style="display:block;margin-top:4px;">{{ item.caption|default:"Open item" }}</small>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="gallery-empty" style="margin-top:16px;">
+      <strong>Your photos and videos will appear here.</strong>
+      <p>Your gallery will show your profile picture, cover, post media, reels, and stories.</p>
+      <div class="action-row">
+        <a class="action-btn primary" href="{% url 'profile_edit' %}">Update Profile Picture</a>
+        <a class="action-btn" href="{% url 'studio' %}">Create Post</a>
+      </div>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

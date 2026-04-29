@@ -1,0 +1,65 @@
+{% extends "accounts/profile_base.html" %}
+
+{% block title %}Followers | Namvibe{% endblock %}
+
+{% block profile_extra_head %}
+<style>
+  .followers-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+  .followers-card{padding:18px}
+  .followers-list{display:grid;gap:10px}
+  .followers-row{
+    display:flex;justify-content:space-between;gap:12px;align-items:flex-start;text-decoration:none;color:#fff;
+    padding:14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);
+  }
+  .followers-row small,.followers-empty p{color:#cbd5e1;line-height:1.6}
+  .followers-empty{padding:18px;border-radius:20px;border:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.05)}
+  @media (max-width: 760px){.followers-layout{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block profile_content %}
+<section class="followers-layout">
+  <article class="profile-card followers-card">
+    <h2 style="margin:0 0 8px;">Followers</h2>
+    {% if followers %}
+      <div class="followers-list">
+        {% for edge in followers %}
+          <a class="followers-row" href="{% url 'profile_detail' edge.follower.profile.username %}">
+            <div>
+              <strong>{{ edge.follower.profile.display_name|default:edge.follower.username }}</strong>
+              <small style="display:block;">@{{ edge.follower.profile.username }}</small>
+            </div>
+            <small>{{ edge.created_at|date:"M j" }}</small>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="followers-empty">
+        <strong>No followers yet.</strong>
+        <p>Your followers will appear here as your Namvibe profile grows.</p>
+      </div>
+    {% endif %}
+  </article>
+  <article class="profile-card followers-card">
+    <h2 style="margin:0 0 8px;">Following</h2>
+    {% if following %}
+      <div class="followers-list">
+        {% for edge in following %}
+          <a class="followers-row" href="{% url 'profile_detail' edge.following.profile.username %}">
+            <div>
+              <strong>{{ edge.following.profile.display_name|default:edge.following.username }}</strong>
+              <small style="display:block;">@{{ edge.following.profile.username }}</small>
+            </div>
+            <small>{{ edge.created_at|date:"M j" }}</small>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="followers-empty">
+        <strong>You are not following anyone yet.</strong>
+        <p>Follow creators, friends, and communities from discovery and public profiles.</p>
+      </div>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

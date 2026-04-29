@@ -29,6 +29,7 @@ from communities.models import CommunityMembership
 from .forms import LoginForm, ProfileForm, SignupForm
 from .models import AccountProfile, Block, Follow, Profile
 from .services import (
+    account_rank_for_value,
     ensure_account_role,
     is_valid_uuid,
     is_master_admin,
@@ -88,6 +89,122 @@ def _safe_reverse(name, fallback="user_dashboard", **kwargs):
         return reverse(name, kwargs=kwargs or None)
     except NoReverseMatch:
         return reverse(fallback)
+
+
+def _profile_edit_url(tab=""):
+    url = reverse("profile_edit")
+    if tab:
+        return f"{url}?tab={tab}"
+    return url
+
+
+def _account_path_active(request, route_name):
+    match = getattr(request, "resolver_match", None)
+    return getattr(match, "url_name", "") == route_name
+
+
+def _account_rank(profile, wallet, coin_balance):
+    balance_candidates = [
+        getattr(coin_balance, "balance", 0),
+        getattr(wallet, "available_balance", 0),
+        getattr(wallet, "pending_balance", 0),
+    ]
+    numeric_balance = 0
+    for value in balance_candidates:
+        try:
+            numeric_balance = max(numeric_balance, int(float(value or 0)))
+        except (TypeError, ValueError):
+            continue
+    rank = account_rank_for_value(numeric_balance)
+    if getattr(profile, "is_verified", False) and rank["label"] == "Namvibe":
+        rank = {**rank, "icon": "✓"}
+    return rank
+
+
+def _profile_menu_groups(request):
+    settings_url = reverse("account_settings")
+    privacy_url = reverse("account_privacy")
+    security_url = reverse("account_security")
+    groups = [
+        {
+            "title": "Account",
+            "items": [
+                {"label": "Overview", "url": reverse("user_dashboard")},
+                {"label": "Edit Profile", "url": settings_url},
+                {"label": "Profile Picture", "url": _profile_edit_url("picture")},
+                {"label": "Cover Image", "url": _profile_edit_url("cover")},
+                {"label": "Privacy Settings", "url": privacy_url},
+                {"label": "Security / PIN Reset", "url": security_url},
+            ],
+        },
+        {
+            "title": "Social",
+            "items": [
+                {"label": "Gallery", "url": reverse("profile_gallery")},
+                {"label": "Posts", "url": reverse("author_posts", kwargs={"username": request.user.profile.username})},
+                {"label": "Messages", "url": _section_url("messages")},
+                {"label": "Notifications", "url": reverse("notifications")},
+                {"label": "Followers", "url": reverse("account_followers")},
+            ],
+        },
+        {
+            "title": "Money / Access",
+            "items": [
+                {"label": "Wallet", "url": reverse("wallet_home")},
+                {"label": "Coins", "url": reverse("coins")},
+                {"label": "Upgrade Account", "url": reverse("wallet_membership_plans")},
+                {"label": "Subscription", "url": reverse("wallet_membership")},
+            ],
+        },
+        {
+            "title": "Creator / Model",
+            "items": [
+                {"label": "Become Creator", "url": reverse("studio")},
+                {"label": "Model / Streamer Application", "url": reverse("account_model_application")},
+                {"label": "Verification Status", "url": reverse("verify_email_notice")},
+                {"label": "Live Studio", "url": reverse("live_start")},
+            ],
+        },
+        {
+            "title": "Entertainment",
+            "items": [
+                {"label": "Dating", "url": reverse("dating")},
+                {"label": "Games", "url": reverse("games_home")},
+                {"label": "Pink Friday", "url": reverse("pink_friday")},
+                {"label": "Live Shows", "url": reverse("live_shows")},
+            ],
+        },
+        {
+            "title": "Help",
+            "items": [
+                {"label": "Support", "url": reverse("support_help")},
+                {"label": "Logout", "url": reverse("logout")},
+            ],
+        },
+    ]
+    for group in groups:
+        for item in group["items"]:
+            item["active"] = request.path == item["url"] or (
+                item["url"] == reverse("user_dashboard") and _account_path_active(request, "user_dashboard")
+            )
+    return groups
+
+
+def _dashboard_route_cards(request, profile, completion, rank, gallery_count, unread_count):
+    cards = [
+        {"title": "Profile Settings", "emoji": "⚙️", "url": reverse("account_settings"), "meta": "Profile, privacy, security"},
+        {"title": "Gallery / Album", "emoji": "🖼️", "url": reverse("profile_gallery"), "meta": f"{gallery_count} items" if gallery_count else "Open album"},
+        {"title": "Wallet", "emoji": "💳", "url": reverse("wallet_home"), "meta": "Balance and membership"},
+        {"title": "Messages", "emoji": "💬", "url": _section_url("messages"), "meta": f"{unread_count} unread" if unread_count else "Open inbox"},
+        {"title": "Notifications", "emoji": "🔔", "url": reverse("notifications"), "meta": "Activity and alerts"},
+        {"title": "Dating", "emoji": "💕", "url": reverse("dating"), "meta": "Discovery and matches"},
+        {"title": "Model / Streamer", "emoji": "🎤", "url": reverse("account_model_application"), "meta": "Apply safely"},
+        {"title": "Live", "emoji": "📡", "url": reverse("live_home"), "meta": "Rooms and go live"},
+        {"title": "Games", "emoji": "🎮", "url": reverse("games_home"), "meta": "Friendly social games"},
+        {"title": "Pink Friday", "emoji": "🌸", "url": reverse("pink_friday"), "meta": "Weekly event"},
+        {"title": "Support", "emoji": "🛟", "url": reverse("support_help"), "meta": "Help and account safety"},
+    ]
+    return cards
 
 
 def _set_account_session(request, user):
@@ -709,6 +826,36 @@ def profile_completion_view(request):
     return redirect(f"{reverse('user_dashboard')}?section=overview")
 
 
+def _account_shell_context(request, profile, account_profile=None, coin_balance=None):
+    wallet = ensure_wallet(request.user)
+    if coin_balance is None:
+        try:
+            coin_balance = DatingCoinBalance.for_user(request.user)
+        except Exception:
+            coin_balance = SimpleNamespace(balance=0)
+    published_post_count = Post.objects.filter(author=request.user, status=Post.Status.PUBLISHED).count()
+    completion = _profile_completion_snapshot(
+        request.user,
+        profile,
+        account_profile,
+        getattr(request.user, "dating_profile", None),
+        published_post_count,
+    )
+    rank = _account_rank(profile, wallet, coin_balance)
+    return {
+        "profile": profile,
+        "account_profile": account_profile,
+        "profile_completion": completion,
+        "completion": completion,
+        "account_rank": rank,
+        "profile_menu_groups": _profile_menu_groups(request),
+        "account_shell_title": "My Account",
+        "account_shell_subtitle": "Profile, settings, and feature routing",
+        "wallet_account": wallet,
+        "coin_balance": coin_balance,
+    }
+
+
 def user_dashboard_view(request):
     if not request.user.is_authenticated:
         return redirect(_login_url_with_next("user_dashboard"))
@@ -868,21 +1015,26 @@ def user_dashboard_view(request):
     story_posts = [post for post in local_posts if post.post_type == Post.PostType.STORY]
     media_posts = [post for post in local_posts if post.post_type in {Post.PostType.PHOTO, Post.PostType.VIDEO, Post.PostType.REEL}]
     completion = _profile_completion_snapshot(request.user, profile, account_profile, dating_profile, published_post_count)
-    badge = _account_level_badge(request.user, ensure_wallet(request.user), dashboard_metrics["active_membership"])
+    wallet = ensure_wallet(request.user)
+    rank = _account_rank(profile, wallet, coin_balance)
+    badge = _account_level_badge(request.user, wallet, dashboard_metrics["active_membership"])
     gallery_items = _gallery_items_for(profile, local_posts, user_stories)
-    active_panel = requested_section or ("messages" if conversation_id else ("gallery" if gallery_items else "overview"))
-    if active_panel not in {"overview", "gallery", "posts", "reels", "stories", "dating", "wallet", "messages", "notifications", "creator", "live", "games", "support", "settings"}:
-        active_panel = "gallery" if gallery_items else "overview"
-    section_groups = _dashboard_section_groups()
-    for group in section_groups:
-        for item in group["items"]:
-            item["url"] = item.get("url") or _section_url(item["key"])
-            item["active"] = item["key"] == active_panel
+    active_panel = requested_section or ("messages" if conversation_id else "overview")
+    if active_panel not in {"overview", "gallery", "posts", "messages"}:
+        active_panel = "overview"
     recent_message_partners = []
     for item in unread_threads.get("chat_conversations", [])[:5]:
         if item.get("other") is not None:
             recent_message_partners.append(item)
     message_quota_remaining = free_message_quota_remaining(request.user)
+    dashboard_cards = _dashboard_route_cards(
+        request,
+        profile,
+        completion,
+        rank,
+        len(gallery_items),
+        unread_threads.get("chat_unread_total", 0),
+    )
 
     context = {
         "full_name": full_name,
@@ -909,8 +1061,11 @@ def user_dashboard_view(request):
         "activity_items": activity_items,
         "active_match_count": active_matches,
         "completion": completion,
+        "profile_completion": completion,
         "account_badge": badge,
+        "account_rank": rank,
         "gallery_items": gallery_items,
+        "gallery_preview_items": gallery_items[:4],
         "story_items": user_stories,
         "reel_posts": reel_posts,
         "story_posts": story_posts,
@@ -919,13 +1074,18 @@ def user_dashboard_view(request):
         "support_center_url": reverse("support_help"),
         "settings_url": reverse("profile_edit"),
         "profile_gallery_url": reverse("profile_gallery"),
-        "account_section_groups": section_groups,
+        "account_section_groups": _dashboard_section_groups(),
+        "profile_menu_groups": _profile_menu_groups(request),
+        "dashboard_cards": dashboard_cards,
         "recent_message_partners": recent_message_partners,
+        "messages_preview": recent_message_partners[:2],
         "has_active_subscription": has_active_subscription(request.user),
         "free_message_quota_remaining": message_quota_remaining,
         "can_open_messages": can_open_messages(request.user),
         "audio_call_url": reverse("messaging:call_gate", kwargs={"user_id": request.user.id, "mode": "voice"}),
         "video_call_url": reverse("messaging:call_gate", kwargs={"user_id": request.user.id, "mode": "video"}),
+        "account_shell_title": "My Account",
+        "account_shell_subtitle": "Clean profile index and smart routing",
         **dashboard_metrics,
         **unread_threads,
     }
@@ -1038,18 +1198,144 @@ def public_profile_view(request, username):
 
 
 @login_required(login_url="login")
+def account_gallery_view(request):
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    user_posts = list(
+        Post.objects.filter(author=request.user)
+        .prefetch_related("media")
+        .order_by("-published_at", "-created_at")[:20]
+    )
+    user_stories = list(StoryItem.objects.filter(author=request.user).order_by("-created_at")[:12])
+    gallery_items = _gallery_items_for(profile, user_posts, user_stories)
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "gallery_items": gallery_items,
+        "account_shell_title": "Gallery / Album",
+        "account_shell_subtitle": "Photos, videos, reels, and stories",
+    }
+    return render(request, "accounts/profile_gallery.html", context)
+
+
+@login_required(login_url="login")
+def account_followers_view(request):
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    followers = list(
+        Follow.objects.filter(following=request.user)
+        .select_related("follower__profile")
+        .order_by("-created_at")[:24]
+    )
+    following = list(
+        Follow.objects.filter(follower=request.user)
+        .select_related("following__profile")
+        .order_by("-created_at")[:24]
+    )
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "followers": followers,
+        "following": following,
+        "account_shell_title": "Followers",
+        "account_shell_subtitle": "People connected to your profile",
+    }
+    return render(request, "accounts/account_followers.html", context)
+
+
+@login_required(login_url="login")
+def account_privacy_view(request):
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "account_shell_title": "Privacy Settings",
+        "account_shell_subtitle": "Current visibility and safe placeholders",
+        "privacy_rows": [
+            {
+                "label": "Who can view profile",
+                "value": "Approved followers only" if profile.is_private else "Public profile",
+                "note": "Controlled by your profile privacy mode.",
+            },
+            {
+                "label": "Who can message me",
+                "value": "Members and matches",
+                "note": "Granular message privacy can be added later without changing your routing.",
+            },
+            {
+                "label": "Who can see my posts",
+                "value": "Per-post audience controls",
+                "note": "Photo, reel, story, and post privacy stay on each post flow.",
+            },
+        ],
+    }
+    return render(request, "accounts/account_privacy.html", context)
+
+
+@login_required(login_url="login")
+def account_security_view(request):
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "account_shell_title": "Security / PIN Reset",
+        "account_shell_subtitle": "Safe placeholders only",
+    }
+    return render(request, "accounts/account_security.html", context)
+
+
+@login_required(login_url="login")
+def account_model_application_view(request):
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "account_shell_title": "Model / Streamer Application",
+        "account_shell_subtitle": "Private foundation for future approval flows",
+        "application_status": "Not started",
+        "service_options": [
+            "Live streaming",
+            "Online friend chat",
+            "Music / live rooms",
+            "Game battles",
+            "Pink Friday appearances",
+            "Tour guide / walk with me service",
+        ],
+        "verification_requirements": [
+            "Certified ID copy",
+            "Live camera ID capture placeholder",
+            "Admin approval before public listing",
+            "Private review and status updates",
+        ],
+    }
+    return render(request, "accounts/account_model_application.html", context)
+
+
+@login_required(login_url="login")
 def edit_profile_view(request):
     profile = request.user.profile
     account_profile = getattr(request.user, "account_profile", None)
     form = ProfileForm(request.POST or None, request.FILES or None, instance=profile)
+    requested_tab = request.GET.get("tab", "").strip().lower()
     if request.method == "POST" and form.is_valid():
         form.save()
         if account_profile:
+            requested_country = (request.POST.get("current_country") or "").strip()
+            if requested_country:
+                account_profile.current_country = requested_country
             account_profile.profile_completed = True
-            account_profile.save(update_fields=["profile_completed", "updated_at"])
+            account_profile.save(update_fields=["current_country", "profile_completed", "updated_at"])
         messages.success(request, "Profile updated.")
         return redirect("user_dashboard")
-    return render(request, "accounts/profile_edit.html", {"form": form, "profile": profile, "account_profile": account_profile})
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "form": form,
+        "profile": profile,
+        "account_profile": account_profile,
+        "requested_tab": requested_tab,
+        "current_country": getattr(account_profile, "current_country", "Namibia"),
+        "account_shell_title": "Profile Settings",
+        "account_shell_subtitle": "Identity, privacy, and image updates",
+    }
+    return render(request, "accounts/profile_edit.html", context)
 
 
 @login_required(login_url="login")
@@ -1076,11 +1362,6 @@ def follow_toggle_view(request, username):
 
 def profile_shortcut_view(request):
     return redirect("user_dashboard")
-
-
-@login_required(login_url="login")
-def account_gallery_view(request):
-    return redirect(f"{reverse('user_dashboard')}?section=gallery")
 
 def account_profile_detail(request, username):
     return public_profile_view(request, username)

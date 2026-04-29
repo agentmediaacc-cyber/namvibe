@@ -1,0 +1,35 @@
+{% extends "accounts/profile_base.html" %}
+
+{% block title %}Model / Streamer Application | Namvibe{% endblock %}
+
+{% block profile_content %}
+<section class="profile-card" style="padding:18px;">
+  <h2 style="margin:0 0 8px;">Model / Streamer Application</h2>
+  <p style="margin:0;color:#cbd5e1;">Open a safe foundation for future approval-based services without exposing sensitive verification uploads yet.</p>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-top:16px;">
+    <article style="padding:16px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);">
+      <strong>Status</strong>
+      <div style="margin-top:8px;font-size:1.1rem;">{{ application_status }}</div>
+      <small style="display:block;margin-top:6px;color:#cbd5e1;">Admin approval is required before any public listing or paid activation.</small>
+    </article>
+    <article style="padding:16px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);">
+      <strong>Verification requirements</strong>
+      <ul style="margin:10px 0 0;padding-left:18px;line-height:1.7;color:#cbd5e1;">
+        {% for item in verification_requirements %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </article>
+  </div>
+  <div style="padding:16px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);margin-top:16px;">
+    <strong>Application tracks</strong>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px;">
+      {% for item in service_options %}
+        <article style="padding:14px;border-radius:18px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);">
+          {{ item }}
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -27,6 +27,23 @@ def is_valid_uuid(value):
         return False
 
 
+def account_rank_for_value(value):
+    try:
+        score = int(float(value or 0))
+    except (TypeError, ValueError):
+        score = 0
+
+    if score >= 2000:
+        return {"label": "King", "tone": "king", "icon": "👑", "score": score}
+    if score >= 1000:
+        return {"label": "Legend", "tone": "legend", "icon": "★", "score": score}
+    if score >= 500:
+        return {"label": "Vibe Knight", "tone": "knight", "icon": "⬢", "score": score}
+    if score >= 200:
+        return {"label": "Vibe", "tone": "vibe", "icon": "✦", "score": score}
+    return {"label": "Namvibe", "tone": "namvibe", "icon": "●", "score": score}
+
+
 def master_admin_email():
     return (getattr(settings, "MASTER_ADMIN_EMAIL", "") or "").lower().strip()
 

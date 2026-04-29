@@ -1,9 +1,9 @@
-{% extends "base.html" %}
+{% extends "accounts/profile_base.html" %}
 {% load media_helpers %}
 
-{% block title %}Edit Profile | Namvibe{% endblock %}
+{% block title %}Profile Settings | Namvibe{% endblock %}
 
-{% block content %}
+{% block profile_extra_head %}
 <style>
   .edit-shell{width:min(980px,calc(100% - 14px));margin:0 auto;padding:14px 0 110px}
   .edit-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:16px;align-items:start}
@@ -84,11 +84,13 @@
     .dropzone-box{padding:14px 12px}
   }
 </style>
+{% endblock %}
 
+{% block profile_content %}
 <section class="edit-shell">
   <div style="margin-bottom:16px;">
-    <h1 style="font-size:clamp(2rem,6vw,3.4rem);margin:0 0 8px;">Edit your Namvibe profile</h1>
-    <p class="edit-tip" style="margin:0;">Update your profile picture, cover image, bio, and public details from one clean mobile-friendly screen.</p>
+    <h1 style="font-size:clamp(2rem,6vw,3.4rem);margin:0 0 8px;">Profile Settings</h1>
+    <p class="edit-tip" style="margin:0;">Update your profile picture, cover, identity details, and privacy-safe account information from one clean mobile-first page.</p>
   </div>
 
   <div class="edit-grid">
@@ -130,6 +132,9 @@
       <div class="edit-section-note">
         Your account hub uses this information for profile completion, gallery preview, messages identity, and dating connection.
       </div>
+      <div class="edit-section-note">
+        Privacy, messaging permissions, and security placeholders live in dedicated pages so this settings screen stays focused.
+      </div>
     </section>
   </div>
 
@@ -142,7 +147,7 @@
     </div>
 
     <div class="edit-form-grid">
-      <details class="edit-group" open>
+      <details class="edit-group" {% if requested_tab == "picture" or not requested_tab %}open{% endif %}>
         <summary>Profile Picture <span>+</span></summary>
         <div class="edit-group-body">
           <div class="upload-dropzone" style="padding:0;">
@@ -154,7 +159,7 @@
           </div>
         </div>
       </details>
-      <details class="edit-group">
+      <details class="edit-group" {% if requested_tab == "cover" %}open{% endif %}>
         <summary>Cover Image <span>+</span></summary>
         <div class="edit-group-body">
           <div class="upload-dropzone" style="padding:0;">
@@ -166,7 +171,7 @@
           </div>
         </div>
       </details>
-      <details class="edit-group" open>
+      <details class="edit-group" {% if requested_tab == "basic" or not requested_tab %}open{% endif %}>
         <summary>Basic Info <span>+</span></summary>
         <div class="edit-group-body">
           <div class="edit-field-grid">
@@ -200,6 +205,10 @@
       <details class="edit-group">
         <summary>Location <span>+</span></summary>
         <div class="edit-group-body">
+          <div>
+            <label for="id_current_country">Country</label>
+            <input id="id_current_country" name="current_country" type="text" value="{{ current_country|default:'Namibia' }}">
+          </div>
           <div class="edit-field-grid">
             <div>
               <label for="{{ form.location.id_for_label }}">{{ form.location.label }}</label>
@@ -226,6 +235,17 @@
           </div>
         </div>
       </details>
+    </div>
+
+    <div class="edit-form-grid" style="margin-top:12px;">
+      <article class="edit-group" style="padding:18px;">
+        <strong>Privacy controls</strong>
+        <p class="edit-tip" style="margin:8px 0 0;">Profile visibility is connected to your current private/public profile mode. Deeper messaging and post privacy rules can be added safely later without changing your account routes.</p>
+        <div class="edit-actions" style="margin-top:14px;">
+          <a class="edit-btn" href="{% url 'account_privacy' %}">Open Privacy Settings</a>
+          <a class="edit-btn" href="{% url 'account_security' %}">Security / PIN Reset</a>
+        </div>
+      </article>
     </div>
 
     <div class="edit-actions">

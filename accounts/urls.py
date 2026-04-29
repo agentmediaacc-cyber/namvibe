@@ -1,7 +1,11 @@
 from django.urls import path
 
 from .views import (
+    account_followers_view,
     account_gallery_view,
+    account_model_application_view,
+    account_privacy_view,
+    account_security_view,
     forgot_password_view,
     login_view,
     logout_view,
@@ -25,6 +29,11 @@ urlpatterns = [
     path("forgot-password/", forgot_password_view, name="forgot_password"),
     path("complete-profile/", profile_completion_view, name="profile_completion"),
     path("dashboard/", user_dashboard_view, name="user_dashboard"),
+    path("settings/", edit_profile_view, name="account_settings"),
+    path("settings/privacy/", account_privacy_view, name="account_privacy"),
+    path("settings/security/", account_security_view, name="account_security"),
+    path("followers/", account_followers_view, name="account_followers"),
+    path("model-application/", account_model_application_view, name="account_model_application"),
 
     path("profile/", profile_shortcut_view, name="profile_shortcut"),
     path("profile/gallery/", account_gallery_view, name="profile_gallery"),

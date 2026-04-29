@@ -8,7 +8,7 @@ from django.urls import reverse
 from dating.models import DatingCoinBalance
 
 from .models import AccountProfile, AccountRole, Follow, Profile
-from .services import is_valid_uuid, master_admin_dashboard_url
+from .services import account_rank_for_value, is_valid_uuid, master_admin_dashboard_url
 
 
 class AccountAuthFlowTests(TestCase):
@@ -132,6 +132,7 @@ class AccountAuthFlowTests(TestCase):
         self.assertContains(response, "Messages")
         self.assertContains(response, "Settings")
         self.assertNotContains(response, 'data-section="anonymous"')
+        self.assertNotContains(response, "© 2026 Namvibe")
 
     @patch("accounts.views.get_posts_by_user", return_value=[])
     @patch("accounts.views.get_supabase_profile", return_value=None)
@@ -204,6 +205,36 @@ class AccountAuthFlowTests(TestCase):
         self.assertContains(response, "@mina_test")
         self.assertNotContains(response, "mina@example.com")
         self.assertNotContains(response, "+264811234567")
+
+    def test_rank_helper_defaults_to_namvibe(self):
+        rank = account_rank_for_value(0)
+
+        self.assertEqual(rank["label"], "Namvibe")
+        self.assertEqual(rank["tone"], "namvibe")
+
+    def test_profile_settings_route_renders(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="settings_user", email="settings@example.com"))
+
+        response = self.client.get(reverse("account_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Profile Settings")
+
+    def test_model_application_route_renders(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="model_user", email="model@example.com"))
+
+        response = self.client.get(reverse("account_model_application"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Model / Streamer Application")
+
+    def test_gallery_route_renders(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="gallery_user", email="gallery@example.com"))
+
+        response = self.client.get(reverse("profile_gallery"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Gallery / Album")
 
 
 class SocialGraphTests(TestCase):
