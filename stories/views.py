@@ -7,7 +7,25 @@ from django.views.decorators.http import require_http_methods
 
 from .forms import StoryCreateForm
 from .models import StoryItem, StoryReaction
-from .services import add_story_comment, can_view_story, mark_story_viewed, share_story, toggle_story_like, visible_stories_for
+from .services import add_story_comment, can_view_story, mark_story_viewed, share_story, story_rail_for, toggle_story_like, visible_stories_for
+
+
+@login_required(login_url="login")
+def stories_home_view(request):
+    from accounts.views import _account_shell_context
+
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    story_groups = story_rail_for(request.user, limit=18)
+    recent_stories = list(visible_stories_for(request.user).order_by("-created_at")[:18])
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "story_groups": story_groups,
+        "recent_stories": recent_stories,
+        "account_shell_title": "Stories",
+        "account_shell_subtitle": "Short moments, reels, and story updates",
+    }
+    return render(request, "stories/home.html", context)
 
 
 @login_required(login_url="login")

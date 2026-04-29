@@ -133,6 +133,7 @@ def _profile_menu_groups(request):
                 {"label": "Edit Profile", "url": settings_url},
                 {"label": "Profile Picture", "url": _profile_edit_url("picture")},
                 {"label": "Cover Image", "url": _profile_edit_url("cover")},
+                {"label": "Settings", "url": settings_url},
                 {"label": "Privacy Settings", "url": privacy_url},
                 {"label": "Security / PIN Reset", "url": security_url},
             ],
@@ -140,11 +141,15 @@ def _profile_menu_groups(request):
         {
             "title": "Social",
             "items": [
+                {"label": "Feed", "url": reverse("feed")},
                 {"label": "Gallery", "url": reverse("profile_gallery")},
                 {"label": "Posts", "url": reverse("author_posts", kwargs={"username": request.user.profile.username})},
-                {"label": "Messages", "url": _section_url("messages")},
+                {"label": "Stories", "url": reverse("stories_home")},
+                {"label": "Reels", "url": reverse("reels_feed")},
+                {"label": "Messages", "url": reverse("messages_home")},
                 {"label": "Notifications", "url": reverse("notifications")},
                 {"label": "Followers", "url": reverse("account_followers")},
+                {"label": "Groups / Communities", "url": reverse("community_list")},
             ],
         },
         {
@@ -195,7 +200,7 @@ def _dashboard_route_cards(request, profile, completion, rank, gallery_count, un
         {"title": "Profile Settings", "emoji": "⚙️", "url": reverse("account_settings"), "meta": "Profile, privacy, security"},
         {"title": "Gallery / Album", "emoji": "🖼️", "url": reverse("profile_gallery"), "meta": f"{gallery_count} items" if gallery_count else "Open album"},
         {"title": "Wallet", "emoji": "💳", "url": reverse("wallet_home"), "meta": "Balance and membership"},
-        {"title": "Messages", "emoji": "💬", "url": _section_url("messages"), "meta": f"{unread_count} unread" if unread_count else "Open inbox"},
+        {"title": "Messages", "emoji": "💬", "url": reverse("messages_home"), "meta": f"{unread_count} unread" if unread_count else "Open inbox"},
         {"title": "Notifications", "emoji": "🔔", "url": reverse("notifications"), "meta": "Activity and alerts"},
         {"title": "Dating", "emoji": "💕", "url": reverse("dating"), "meta": "Discovery and matches"},
         {"title": "Model / Streamer", "emoji": "🎤", "url": reverse("account_model_application"), "meta": "Apply safely"},

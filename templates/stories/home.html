@@ -1,0 +1,116 @@
+{% extends "accounts/profile_base.html" %}
+{% load media_helpers %}
+{% block title %}Stories | Namvibe{% endblock %}
+{% block profile_extra_head %}
+  <style>
+    .stories-shell{display:grid;gap:18px}
+    .stories-panel{
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:28px;
+      background:rgba(255,255,255,.06);
+      box-shadow:0 24px 70px rgba(0,0,0,.28);
+      padding:18px;
+    }
+    .stories-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+    .stories-head h2{margin:0;font-size:1.1rem}
+    .stories-head p{margin:6px 0 0;color:#cbd5e1}
+    .stories-cta{
+      display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
+      min-height:46px;padding:11px 16px;border-radius:16px;font-weight:900;
+      background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);color:#fff;
+    }
+    .stories-rail,.stories-grid{display:grid;gap:12px}
+    .stories-rail{grid-template-columns:repeat(auto-fit,minmax(148px,1fr));margin-top:18px}
+    .stories-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .story-author-card,.story-media-card{
+      border:1px solid rgba(255,255,255,.1);border-radius:22px;
+      background:rgba(255,255,255,.04);overflow:hidden;text-decoration:none;color:#fff;
+    }
+    .story-author-media,.story-media-thumb{
+      aspect-ratio:1/1;background:linear-gradient(135deg,rgba(124,58,237,.28),rgba(236,72,153,.24),rgba(244,63,94,.22));
+      display:grid;place-items:center;overflow:hidden;
+    }
+    .story-author-media img,.story-media-thumb img,.story-media-thumb video{width:100%;height:100%;object-fit:cover}
+    .story-author-copy,.story-media-copy{padding:12px 13px}
+    .story-author-copy strong,.story-media-copy strong{display:block}
+    .story-author-copy small,.story-media-copy small{color:#cbd5e1}
+    .stories-empty{
+      padding:22px;border-radius:22px;border:1px dashed rgba(255,255,255,.18);
+      color:#cbd5e1;background:rgba(255,255,255,.03)
+    }
+    @media (min-width: 900px){
+      .stories-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    }
+  </style>
+{% endblock %}
+{% block profile_content %}
+  <div class="stories-shell">
+    <section class="stories-panel">
+      <div class="stories-head">
+        <div>
+          <h2>Stories</h2>
+          <p>Quick moments from people you follow and your recent community.</p>
+        </div>
+        <a class="stories-cta" href="{% url 'story_create' %}">Create Story</a>
+      </div>
+
+      {% if story_groups %}
+        <div class="stories-rail">
+          {% for item in story_groups %}
+            <a class="story-author-card" href="{% url 'story_detail' item.first_story.id %}">
+              <div class="story-author-media">
+                {% if item.author.profile.avatar %}
+                  <img src="{% avatar_url item.author.profile %}" alt="{{ item.author.username }}">
+                {% else %}
+                  <strong>@{{ item.author.username|slice:":1"|upper }}</strong>
+                {% endif %}
+              </div>
+              <div class="story-author-copy">
+                <strong>@{{ item.author.username }}</strong>
+                <small>{{ item.story_count }} story{{ item.story_count|pluralize }}</small>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="stories-empty">No active stories yet. Your next photo, short clip, or text moment will appear here.</div>
+      {% endif %}
+    </section>
+
+    <section class="stories-panel">
+      <div class="stories-head">
+        <div>
+          <h2>Recent Story Media</h2>
+          <p>Open any story to react, comment, or share it safely.</p>
+        </div>
+      </div>
+      {% if recent_stories %}
+        <div class="stories-grid">
+          {% for story in recent_stories %}
+            <a class="story-media-card" href="{% url 'story_detail' story.id %}">
+              <div class="story-media-thumb">
+                {% if story.file %}
+                  {% if story.media_type == "video" %}
+                    <video muted playsinline preload="metadata">
+                      <source src="{{ story.file.url }}">
+                    </video>
+                  {% else %}
+                    <img src="{{ story.file.url }}" alt="{{ story.author.username }}">
+                  {% endif %}
+                {% else %}
+                  <strong>{{ story.text_content|default:"Story"|truncatechars:18 }}</strong>
+                {% endif %}
+              </div>
+              <div class="story-media-copy">
+                <strong>@{{ story.author.username }}</strong>
+                <small>{{ story.created_at|date:"M j, H:i" }}</small>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="stories-empty">Your photos and videos will appear here once stories start rolling.</div>
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

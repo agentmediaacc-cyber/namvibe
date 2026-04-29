@@ -5,6 +5,7 @@ from . import views
 app_name = "messaging"
 
 urlpatterns = [
+    path("", views.messages_home_view, name="messages_home"),
     path("conversation/<int:conversation_id>/", views.conversation_redirect, name="conversation"),
     path("conversation/<int:conversation_id>/send/", views.send_message, name="send_message"),
     path("message/<int:message_id>/delete/", views.delete_message, name="delete_message"),

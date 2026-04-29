@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.shortcuts import redirect
-from django.urls import include, path
+from django.urls import include, path, reverse
 from django.views.generic import RedirectView
 
 from accounts.views import public_profile_view
@@ -29,6 +29,7 @@ from core.views import (
     live_shows_view,
     pink_friday_view,
 )
+from messaging.views import messages_home_view
 from posts.views import (
     add_comment_view,
     author_posts_list_view,
@@ -74,6 +75,22 @@ def discover_people_alias(request):
     return redirect("dating")
 
 
+def dashboard_alias(request):
+    return redirect("user_dashboard")
+
+
+def profile_alias(request):
+    return redirect("user_dashboard")
+
+
+def profile_edit_alias(request):
+    return redirect("profile_edit")
+
+
+def profile_upload_photo_alias(request):
+    return redirect(f"{reverse('profile_edit')}?tab=picture")
+
+
 urlpatterns = [
     path("health/", include("ehealth.urls")),
 
@@ -94,7 +111,12 @@ urlpatterns = [
     path("support/control/", support_control_view, name="support_control"),
     path("premium/<str:tier>/", premium_tier_view, name="premium_tier"),
     path("community-list/", community_list_alias, name="community_list_alias"),
+    path("dashboard/", dashboard_alias, name="dashboard"),
+    path("profile/", profile_alias, name="profile_root"),
+    path("profile/edit/", profile_edit_alias, name="profile_edit_root"),
+    path("profile/upload-photo/", profile_upload_photo_alias, name="profile_upload_photo"),
     path("settings/", settings_alias, name="settings"),
+    path("messages/", messages_home_view, name="messages_home"),
     path("discover/people/", discover_people_alias, name="discover_people"),
     path("hashtags/<str:tag>/", hashtag_view, name="hashtag"),
     path("reels/", reels_feed_view, name="reels_feed"),

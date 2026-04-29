@@ -11,12 +11,29 @@ from django.shortcuts import render
 
 from .forms import MessageForm, attachment_type_for
 from .models import Conversation, Message
-from .services import call_gate_state, get_or_create_direct_conversation
+from .services import call_gate_state, get_or_create_direct_conversation, messaging_dashboard_context
 
 
 def _dashboard_messages_url(conversation):
     query = urlencode({"section": "messages", "conversation": conversation.pk})
     return f"{reverse('user_dashboard')}?{query}"
+
+
+@login_required(login_url="login")
+def messages_home_view(request):
+    from accounts.views import _account_shell_context
+
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    conversation_id = request.GET.get("conversation")
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        **call_gate_state(request.user, "voice"),
+        **messaging_dashboard_context(request.user, conversation_id),
+        "account_shell_title": "Messages",
+        "account_shell_subtitle": "Private chats, previews, and safe call gates",
+    }
+    return render(request, "messaging/home.html", context)
 
 
 @login_required(login_url="login")

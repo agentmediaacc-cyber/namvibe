@@ -236,6 +236,43 @@ class AccountAuthFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Gallery / Album")
 
+    def test_root_dashboard_alias_redirects_to_account_dashboard(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="alias_user", email="alias@example.com"))
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
+
+    def test_root_profile_alias_redirects_to_account_dashboard(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="profile_alias", email="profile_alias@example.com"))
+
+        response = self.client.get(reverse("profile_root"))
+
+        self.assertRedirects(response, reverse("user_dashboard"), fetch_redirect_response=False)
+
+    def test_root_profile_upload_photo_alias_redirects_to_picture_tab(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="picture_alias", email="picture_alias@example.com"))
+
+        response = self.client.get(reverse("profile_upload_photo"))
+
+        self.assertRedirects(response, f"{reverse('profile_edit')}?tab=picture", fetch_redirect_response=False)
+
+    def test_messages_home_route_renders(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="messages_user", email="messages@example.com"))
+
+        response = self.client.get(reverse("messages_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Messages")
+
+    def test_stories_home_route_renders(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="stories_user", email="stories@example.com"))
+
+        response = self.client.get(reverse("stories_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Stories")
+
 
 class SocialGraphTests(TestCase):
     def setUp(self):

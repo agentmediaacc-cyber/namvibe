@@ -1,0 +1,28 @@
+{% extends "accounts/profile_base.html" %}
+{% block title %}Messages | Namvibe{% endblock %}
+{% block profile_extra_head %}
+  <style>
+    .message-home-card{
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:28px;
+      background:rgba(255,255,255,.06);
+      box-shadow:0 24px 70px rgba(0,0,0,.28);
+      padding:18px;
+    }
+    .message-home-pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.28);
+      color:#e9d5ff;font-weight:800;font-size:12px;margin-bottom:14px;
+    }
+  </style>
+{% endblock %}
+{% block profile_content %}
+  <section class="message-home-card">
+    <div class="message-home-pill">
+      {{ chat_unread_total|default:0 }} unread
+      {% if wallet %}· wallet ready{% endif %}
+    </div>
+    {% include "messaging/dashboard_messages.html" %}
+  </section>
+{% endblock %}
