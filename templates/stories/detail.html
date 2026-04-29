@@ -5,184 +5,126 @@
 
 {% block content %}
 <style>
-  .story-view-shell{max-width:1240px;margin:0 auto;padding:16px 12px 110px}
-  .story-view-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px}
-  .story-frame,.story-side{
-    border:1px solid rgba(212,177,106,.18);
-    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
-    border-radius:28px;box-shadow:0 24px 60px rgba(0,0,0,.32);
+  body{margin:0;padding:0;background:#000;overflow:hidden;height:100vh;width:100vw;position:fixed}
+  .story-viewer{
+    position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;
+    z-index:9000;user-select:none;touch-action:none;
   }
-  .story-frame{padding:14px;display:grid;gap:14px;min-height:min(86vh,860px)}
-  .story-progress{display:grid;grid-template-columns:repeat({{ story_total|default:1 }},1fr);gap:6px}
-  .story-progress span{display:block;height:5px;border-radius:999px;background:rgba(255,255,255,.12)}
-  .story-progress span.active{background:linear-gradient(135deg,#d4b16a,#f1d8a3)}
-  .story-top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-  .story-stack{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .story-chip,.story-btn{
-    border:1px solid rgba(212,177,106,.18);background:rgba(16,19,28,.88);color:#f5efe2;
-    border-radius:999px;padding:10px 14px;text-decoration:none;font-weight:800;
+  .story-container{
+    position:relative;width:100%;height:100%;max-width:520px;margin:0 auto;
+    display:flex;flex-direction:column;overflow:hidden;
   }
-  .story-btn.primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border-color:transparent}
-  .story-media-wrap{
-    position:relative;overflow:hidden;border-radius:24px;min-height:min(72vh,720px);
-    background:linear-gradient(180deg,#090b10,#121722);display:grid;place-items:center;
+  .story-media-box{flex:1;position:relative;background:#050505;display:grid;place-items:center}
+  .story-media-box img,.story-media-box video{width:100%;height:100%;object-fit:cover;display:block}
+  .story-progress-bar{
+    position:absolute;top:10px;left:10px;right:10px;display:flex;gap:4px;z-index:100;
   }
-  .story-media-wrap img,.story-media-wrap video{width:100%;height:100%;object-fit:cover;display:block}
-  .story-text-surface{
-    width:100%;height:100%;display:grid;place-items:center;padding:34px;text-align:center;
-    color:#fff8eb;background:radial-gradient(circle at top,rgba(212,177,106,.16),transparent 28%),linear-gradient(180deg,#10131c,#1a1f2c);
+  .story-progress-seg{height:2px;flex:1;background:rgba(255,255,255,.3);border-radius:10px;overflow:hidden}
+  .story-progress-fill{height:100%;background:#fff;width:0%}
+  .story-progress-seg.active .story-progress-fill{width:100%;transition:width 5s linear}
+  .story-progress-seg.seen .story-progress-fill{width:100%}
+  
+  .story-nav{position:absolute;inset:0;display:flex;z-index:50}
+  .story-nav-left,.story-nav-right{flex:1;cursor:pointer}
+  
+  .story-header{
+    position:absolute;top:24px;left:10px;right:10px;z-index:100;
+    display:flex;align-items:center;justify-content:space-between;
   }
-  .story-text-surface h1{margin:0;font-size:clamp(2rem,5vw,4rem);line-height:1.05}
-  .story-overlay{
-    position:absolute;left:16px;right:16px;bottom:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:10px;z-index:2;
+  .story-user{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff}
+  .story-avatar-mini{width:36px;height:36px;border-radius:50%;border:2px solid #ec4899;overflow:hidden}
+  .story-avatar-mini img{width:100%;height:100%;object-fit:cover}
+  
+  .story-footer{
+    position:absolute;bottom:0;left:0;right:0;padding:20px 10px 40px;z-index:100;
+    background:linear-gradient(0deg,rgba(0,0,0,.9),transparent);
+    display:grid;gap:12px;
   }
-  .story-author{display:flex;gap:12px;align-items:center}
-  .story-avatar{width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg,#f1d8a3,#d4b16a);display:grid;place-items:center;color:#1c150c;font-weight:900;overflow:hidden}
-  .story-avatar img{width:100%;height:100%;object-fit:cover}
-  .story-copy{color:#f5efe2}
-  .story-copy p{margin:0;color:#a9a191;line-height:1.6}
-  .story-side{padding:18px;display:grid;gap:16px;align-content:start}
-  .story-side h2,.story-side h3,.story-side p{margin:0}
-  .side-card{border:1px solid rgba(212,177,106,.14);border-radius:22px;padding:16px;background:rgba(8,10,15,.82)}
-  .stat-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .stat-card{border:1px solid rgba(212,177,106,.12);border-radius:18px;padding:12px;background:rgba(11,14,20,.84)}
-  .stat-card span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
-  .stat-card strong{font-size:1.15rem}
-  .reply-form,.reaction-row{display:grid;gap:10px}
-  .reply-form textarea{
-    width:100%;border:1px solid rgba(212,177,106,.16);border-radius:18px;padding:12px;background:rgba(6,8,12,.92);color:#f5efe2;min-height:90px;
+  .story-caption-box{color:#fff;font-size:14px;line-height:1.4}
+  .story-reply-row{display:flex;gap:10px;align-items:center}
+  .story-reply-input{
+    flex:1;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+    border-radius:24px;padding:10px 16px;color:#fff;font-size:14px;outline:none;
   }
-  .reaction-row{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .reply-list{display:grid;gap:10px}
-  .reply-item{padding:12px 14px;border-radius:18px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.88)}
-  .reply-item strong{display:block;margin-bottom:4px}
-  @media (max-width: 980px){.story-view-layout{grid-template-columns:1fr}.story-media-wrap{min-height:60vh}}
-  @media (max-width: 640px){.story-view-shell{padding-inline:8px}.story-frame,.story-side{border-radius:22px}.reaction-row{grid-template-columns:1fr}}
+  .story-close{
+    position:absolute;top:10px;right:10px;z-index:200;background:rgba(0,0,0,.4);
+    color:#fff;border:0;width:32px;height:32px;border-radius:50%;font-size:20px;cursor:pointer;
+  }
+  .story-text-center{
+    padding:40px;text-align:center;color:#fff;font-size:2rem;font-weight:900;line-height:1.1;
+  }
 </style>
 
-<section class="story-view-shell">
-  <div class="story-view-layout">
-    <article class="story-frame">
-      <div class="story-progress">
-        {% for item in story_siblings %}
-          <span class="{% if item.id == story.id %}active{% endif %}"></span>
-        {% endfor %}
-      </div>
-
-      <div class="story-top">
-        <div class="story-stack">
-          <a class="story-btn" href="{% url 'feed' %}">Back to feed</a>
-          <a class="story-btn" href="{% url 'story_create' %}">Create story</a>
-          <span class="story-chip">{{ story_position }} / {{ story_total }}</span>
+<div class="story-viewer">
+  <button class="story-close" onclick="window.location.href='{% url 'home' %}'">×</button>
+  <div class="story-container">
+    <div class="story-progress-bar">
+      {% for item in story_siblings %}
+        <div class="story-progress-seg {% if forloop.counter < story_position %}seen{% elif item.id == story.id %}active{% endif %}">
+          <div class="story-progress-fill"></div>
         </div>
-        <div class="story-stack">
-          {% if previous_story %}<a class="story-btn" href="{% url 'story_detail' previous_story.id %}">Previous</a>{% endif %}
-          {% if next_story %}<a class="story-btn primary" href="{% url 'story_detail' next_story.id %}">Next</a>{% endif %}
-        </div>
-      </div>
+      {% endfor %}
+    </div>
 
-      <div class="story-media-wrap">
-        {% if story.media_type == "photo" and story.file and story.file|file_exists %}
-          <img src="{% file_url story.file 'images/default-media.svg' %}" alt="{{ story.caption|default:'Story photo' }}">
-        {% elif story.media_type == "video" and story.file and story.file|file_exists %}
-          <video src="{% file_url story.file 'images/default-media.svg' %}" controls autoplay muted playsinline></video>
-        {% elif story.media_type != "text" %}
-          <img src="/static/images/default-media.svg" alt="{{ story.caption|default:'Story media unavailable' }}">
-        {% else %}
-          <div class="story-text-surface">
-            <h1>{{ story.text_content }}</h1>
-          </div>
-        {% endif %}
-
-        <div class="story-overlay">
-          <div class="story-author">
-            <span class="story-avatar">
-              {% if story.author.profile.avatar %}
-                <img src="{% avatar_url story.author.profile %}" alt="{{ story.author.profile.username }}">
-              {% else %}
-                {{ story.author.profile.username|default:story.author.username|first|upper }}
-              {% endif %}
-            </span>
-            <div class="story-copy">
-              <strong>@{{ story.author.profile.username|default:story.author.username }}</strong>
-              <p>{{ story.created_at|timesince }} ago{% if story.caption %} · {{ story.caption }}{% endif %}</p>
-            </div>
-          </div>
-          <a class="story-btn" href="{% url 'profile_detail' story.author.profile.username %}">Profile</a>
+    <div class="story-header">
+      <a class="story-user" href="{% url 'profile_detail' story.author.profile.username %}">
+        <div class="story-avatar-mini">
+          {% if story.author.profile.avatar %}
+            <img src="{% avatar_url story.author.profile %}" alt="{{ story.author.username }}">
+          {% else %}
+            <div style="width:100%;height:100%;background:#555;display:grid;place-items:center;">{{ story.author.username|first|upper }}</div>
+          {% endif %}
         </div>
-      </div>
-    </article>
-
-    <aside class="story-side">
-      <div class="side-card">
-        <h2>Story activity</h2>
-        <p style="color:#a9a191;line-height:1.6;">Reactions, comments, and shares stay attached to this story detail page.</p>
-        <div class="stat-row" style="margin-top:14px;">
-          <div class="stat-card"><span>Views</span><strong>{{ story.view_count }}</strong></div>
-          <div class="stat-card"><span>Reactions</span><strong>{{ story.like_count }}</strong></div>
-          <div class="stat-card"><span>Replies</span><strong>{{ story.comment_count }}</strong></div>
-          <div class="stat-card"><span>Shares</span><strong>{{ story.share_count }}</strong></div>
+        <div>
+          <strong style="display:block;">{{ story.author.profile.username }}</strong>
+          <small style="opacity:.8;">{{ story.created_at|timesince }} ago</small>
         </div>
-      </div>
+      </a>
+    </div>
 
-      {% if story.link_url %}
-        <div class="side-card">
-          <h3>Attached link</h3>
-          <p style="color:#a9a191;line-height:1.6;">This story includes a direct destination.</p>
-          <a class="story-btn primary" style="margin-top:12px;display:inline-flex;" href="{{ story.link_url }}">{{ story.link_label|default:"Open link" }}</a>
-        </div>
+    <div class="story-nav">
+      <div class="story-nav-left" onclick="goPrev()"></div>
+      <div class="story-nav-right" onclick="goNext()"></div>
+    </div>
+
+    <div class="story-media-box">
+      {% if story.media_type == "photo" %}
+        <img src="{% file_url story.file 'images/default-media.svg' %}" alt="">
+      {% elif story.media_type == "video" %}
+        <video id="storyVideo" src="{% file_url story.file 'images/default-media.svg' %}" autoplay muted playsinline onended="goNext()"></video>
+      {% else %}
+        <div class="story-text-center">{{ story.text_content }}</div>
       {% endif %}
+    </div>
 
-      {% if request.user.is_authenticated %}
-        <form class="side-card reaction-row" method="post" action="{% url 'story_like' story.id %}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button class="story-btn" name="reaction_type" value="like" type="submit">Like</button>
-          <button class="story-btn" name="reaction_type" value="fire" type="submit">Fire</button>
-          <button class="story-btn" name="reaction_type" value="love" type="submit">Love</button>
-        </form>
-
-        <form class="side-card reply-form" method="post" action="{% url 'story_comment' story.id %}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <h3>Comment on story</h3>
-          <textarea name="body" placeholder="Write a comment"></textarea>
-          <button class="story-btn primary" type="submit">Post comment</button>
-        </form>
-
-        <form class="side-card" method="post" action="{% url 'story_share' story.id %}">
-          {% csrf_token %}
-          <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button class="story-btn" type="submit">Forward story</button>
-        </form>
-      {% endif %}
-
-      <div class="side-card">
-        <h3>Comments</h3>
-        <div class="reply-list" style="margin-top:12px;">
-          {% for comment in comments %}
-            <div class="reply-item">
-              <strong>@{{ comment.author.profile.username|default:comment.author.username }}</strong>
-              <span style="color:#a9a191;">{{ comment.body }}</span>
-            </div>
-          {% empty %}
-            <div class="reply-item">
-              <strong>No comments yet</strong>
-              <span style="color:#a9a191;">Start the conversation from the comment box.</span>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-    </aside>
+    <div class="story-footer">
+      {% if story.caption %}<div class="story-caption-box">{{ story.caption }}</div>{% endif %}
+      <form class="story-reply-row" method="post" action="{% url 'story_comment' story.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input class="story-reply-input" name="body" placeholder="Send a reply...">
+        <button type="submit" style="background:none;border:0;font-size:20px;cursor:pointer;">❤️</button>
+      </form>
+    </div>
   </div>
-</section>
+</div>
 
 <script>
+  const prevUrl = "{% if previous_story %}{% url 'story_detail' previous_story.id %}{% endif %}";
+  const nextUrl = "{% if next_story %}{% url 'story_detail' next_story.id %}{% endif %}";
+
+  function goPrev() { if (prevUrl) window.location.href = prevUrl; else window.location.href = "{% url 'home' %}"; }
+  function goNext() { if (nextUrl) window.location.href = nextUrl; else window.location.href = "{% url 'home' %}"; }
+
+  // Auto advance if not video
+  {% if story.media_type != "video" %}
+    setTimeout(goNext, 5000);
+  {% endif %}
+
+  // Sync view
   fetch("{% url 'story_view' story.id %}", {
     method: "POST",
-    headers: {
-      "X-CSRFToken": "{{ csrf_token }}"
-    }
+    headers: { "X-CSRFToken": "{{ csrf_token }}" }
   }).catch(() => {});
 </script>
 {% endblock %}

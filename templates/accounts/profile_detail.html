@@ -158,22 +158,19 @@
           {% endif %}
         </div>
 
-        <nav class="tab-row" aria-label="Profile sections">
-          <a class="profile-tab" href="#posts">Posts</a>
-          <a class="profile-tab" href="#reels">Reels</a>
-          <a class="profile-tab" href="#photos">Photos</a>
-          <a class="profile-tab" href="#dating">Dating</a>
-          <a class="profile-tab" href="#live">Live</a>
-          <a class="profile-tab" href="#games">Games</a>
-          <a class="profile-tab" href="#about">About</a>
+        <nav class="tab-row" aria-label="Profile sections" style="margin-top:20px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:10px;">
+          <a class="profile-tab active" href="#posts" onclick="switchTab(event, 'posts')">Posts</a>
+          <a class="profile-tab" href="#media" onclick="switchTab(event, 'media')">Media</a>
+          <a class="profile-tab" href="#live" onclick="switchTab(event, 'live')">Live</a>
+          <a class="profile-tab" href="#stories" onclick="switchTab(event, 'stories')">Stories</a>
+          <a class="profile-tab" href="#about" onclick="switchTab(event, 'about')">About</a>
         </nav>
       </div>
     </div>
   </section>
 
   <div class="profile-panels">
-    <section class="profile-panel" id="posts">
-      <h2 class="section-title">Posts</h2>
+    <section class="profile-panel tab-content active" id="posts">
       <div class="content-grid">
         {% for post in profile_posts %}
           {% include "posts/_post_card.html" with post=post %}
@@ -183,99 +180,73 @@
       </div>
     </section>
 
-    <section class="profile-panel" id="reels">
-      <h2 class="section-title">Reels</h2>
+    <section class="profile-panel tab-content" id="media" style="display:none;">
       <div class="content-grid">
-        {% for post in reel_posts %}
+        {% for post in media_posts %}
           {% include "posts/_post_card.html" with post=post %}
         {% empty %}
-          <div class="empty-box">No visible reels yet.</div>
+          <div class="empty-box">No visible media yet.</div>
         {% endfor %}
       </div>
     </section>
 
-    <section class="profile-panel" id="photos">
-      <h2 class="section-title">Photos</h2>
-      <span style="display:none;">Media</span>
-      <div class="content-grid">
-        {% for post in photo_posts %}
-          {% include "posts/_post_card.html" with post=post %}
-        {% empty %}
-          {% for post in media_posts %}
-            {% include "posts/_post_card.html" with post=post %}
-          {% empty %}
-            <div class="empty-box">No visible photos yet.</div>
-          {% endfor %}
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="profile-panel" id="dating">
-      <h2 class="section-title">Dating</h2>
-      {% if dating_profile and dating_profile.is_visible %}
-        <div class="content-grid">
-          <article class="profile-stat"><span>Goal</span><strong>{{ dating_profile.get_relationship_goal_display }}</strong></article>
-          <article class="profile-stat"><span>Region</span><strong>{{ dating_profile.region|default:"Namibia" }}</strong></article>
-          <article class="profile-stat"><span>City</span><strong>{{ dating_profile.city|default:"Open to discovery" }}</strong></article>
-          {% if dating_views_count > 0 %}<article class="profile-stat"><span>Views</span><strong>{{ dating_views_count }}</strong></article>{% endif %}
-        </div>
-        <p class="muted-copy" style="margin:16px 0 0;">{{ dating_profile.bio|default:"Dating profile is active on Namvibe discovery." }}</p>
-      {% else %}
-        <div class="empty-box">Dating is not public on this profile yet.</div>
-      {% endif %}
-    </section>
-
-    <section class="profile-panel" id="live">
+    <section class="profile-panel tab-content" id="live" style="display:none;">
       <h2 class="section-title">Live</h2>
       <div class="content-grid">
         {% if current_live %}
           <a class="identity-chip" href="{% url 'live_room' current_live.uuid %}">
-            <span class="identity-mark">L</span>
-            <span><strong>{{ current_live.title }}</strong><small>LIVE now · {{ current_live.viewer_count }} watching</small></span>
+            <span class="identity-mark">LIVE now</span>
+            <span><strong>{{ current_live.title }}</strong><small>{{ current_live.viewer_count }} watching</small></span>
           </a>
         {% endif %}
         {% if upcoming_live %}
           <a class="identity-chip" href="{% url 'live_room' upcoming_live.uuid %}">
-            <span class="identity-mark">U</span>
+            <span class="identity-mark">UPCOMING</span>
             <span><strong>{{ upcoming_live.title }}</strong><small>Starts {{ upcoming_live.starts_at|date:"M j H:i" }}</small></span>
           </a>
         {% endif %}
-        {% for post in live_posts %}
-          {% include "posts/_post_card.html" with post=post %}
+      </div>
+    </section>
+
+    <section class="profile-panel tab-content" id="stories" style="display:none;">
+      <div class="content-grid">
+        {% for s in story_items %}
+          <a href="{% url 'story_detail' s.id %}" class="identity-chip" style="padding:0;overflow:hidden;height:240px;position:relative;">
+            {% if s.media_type == "photo" or s.media_type == "video" %}
+              <img src="{% file_url s.file %}" style="width:100%;height:100%;object-fit:cover;">
+            {% else %}
+              <div style="width:100%;height:100%;background:var(--nv-grad);display:grid;place-items:center;padding:20px;text-align:center;">{{ s.text_content|truncatechars:40 }}</div>
+            {% endif %}
+            <div style="position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:6px;font-size:11px;">{{ s.created_at|timesince }} ago</div>
+          </a>
         {% empty %}
-          {% if not current_live and not upcoming_live %}
-            <div class="empty-box">No live sessions or announcements yet.</div>
-          {% endif %}
+          <div class="empty-box">No active stories.</div>
         {% endfor %}
       </div>
     </section>
 
-    <section class="profile-panel" id="games">
-      <h2 class="section-title">Games</h2>
-      <div class="content-grid">
-        <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">L</span><span><strong>Ludo</strong><small>Quick room teaser</small></span></a>
-        <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">C</span><span><strong>Cards</strong><small>Social table preview</small></span></a>
-        <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">M</span><span><strong>Music challenge</strong><small>Guess and react</small></span></a>
-        <a class="identity-chip" href="{{ action_urls.games }}"><span class="identity-mark">P</span><span><strong>Pink Friday</strong><small>Weekly event entry</small></span></a>
-      </div>
-    </section>
-
-    <section class="profile-panel" id="about">
+    <section class="profile-panel tab-content" id="about" style="display:none;">
       <h2 class="section-title">About</h2>
       {% if profile.bio %}<p class="muted-copy">{{ profile.bio }}</p>{% endif %}
       <div class="overview-grid" style="margin-top:14px;">
         <div class="content-grid">
-        {% if profile.region %}<article class="profile-stat"><span>Region</span><strong>{{ profile.region }}</strong></article>{% endif %}
-        {% if profile.town %}<article class="profile-stat"><span>Town</span><strong>{{ profile.town }}</strong></article>{% endif %}
-        {% if profile.location %}<article class="profile-stat"><span>Location</span><strong>{{ profile.location }}</strong></article>{% endif %}
-        {% if active_membership %}<article class="profile-stat"><span>Premium plan</span><strong>{{ active_membership.plan.name }}</strong></article>{% endif %}
-        </div>
-        <div class="empty-box">
-          <strong>Profile summary</strong>
-          <p style="margin:10px 0 0;">{{ safe_display_name }} joined Namvibe in {{ joined_date|date:"F Y" }}.</p>
+          {% if profile.region %}<article class="profile-stat"><span>Region</span><strong>{{ profile.region }}</strong></article>{% endif %}
+          {% if profile.town %}<article class="profile-stat"><span>Town</span><strong>{{ profile.town }}</strong></article>{% endif %}
+          {% if profile.location %}<article class="profile-stat"><span>Location</span><strong>{{ profile.location }}</strong></article>{% endif %}
+          {% if active_membership %}<article class="profile-stat"><span>Premium plan</span><strong>{{ active_membership.plan.name }}</strong></article>{% endif %}
         </div>
       </div>
     </section>
   </div>
 </section>
+
+<script>
+  function switchTab(event, tabId) {
+    event.preventDefault();
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabId).style.display = 'block';
+    event.currentTarget.classList.add('active');
+  }
+</script>
 {% endblock %}

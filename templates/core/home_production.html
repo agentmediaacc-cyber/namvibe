@@ -140,243 +140,169 @@
   </section>
 
   <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Story rail</h2>
-        <p class="section-copy">Latest public stories from the community.</p>
-      </div>
-      {% if request.user.is_authenticated %}<a class="section-link" href="{% url 'story_create' %}">Create story</a>{% endif %}
-    </div>
-    {% if story_rail %}
-      <div class="story-row">
-        {% for item in story_rail %}
-          <a class="story-card" href="{% url 'story_detail' item.first_story.id %}">
-            <div class="story-avatar">
-              {% if item.author.profile.avatar %}
-                <img src="{% avatar_url item.author.profile %}" alt="{{ item.author.username }}">
-              {% else %}
-                <span>{{ item.author.username|first|upper }}</span>
-              {% endif %}
-            </div>
-            <strong>@{{ item.author.username|truncatechars:12 }}</strong>
-            <small class="empty-copy">{{ item.story_count }} story{{ item.story_count|pluralize }}</small>
-            <span style="display:none;">{{ item.first_story.text_content|default:item.first_story.caption }}</span>
-          </a>
-        {% endfor %}
-      </div>
-    {% else %}
-      <section class="section-card empty-card">
-        <strong>No public stories yet.</strong>
-        <p class="empty-copy">{% if request.user.is_authenticated %}Post a public story and it will appear here on the homepage rail.{% else %}Public stories will appear here as members share them.{% endif %}</p>
-      </section>
-    {% endif %}
-  </section>
-
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Latest public feed</h2>
-        <p class="section-copy">Newest posts, reels, and photos.</p>
-      </div>
-      <a class="section-link" href="{{ feed_url }}">Open full feed</a>
-    </div>
     <div class="feed-stack">
-      {% for ad in top_ads %}
-        <article class="feed-card">
-          <span class="feed-badge">Sponsored</span>
-          <strong style="font-size:1.2rem;">{{ ad.title }}</strong>
-          <p class="feed-copy">{{ ad.description }}</p>
-          <div class="card-actions">
-            <a class="small-btn" href="{% url 'ad_click' ad.id %}">{{ ad.call_to_action }}</a>
-          </div>
-        </article>
-      {% endfor %}
-      {% for post in public_feed_items %}
-        <article class="feed-card">
-          <div class="feed-top">
-            <a class="feed-author" href="{% url 'profile_detail' post.author.profile.username %}">
-              <div class="feed-avatar">
-                {% if post.author.profile.avatar %}
-                  <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.profile.username }}">
-                {% else %}
-                  <span>{{ post.author.profile.username|first|upper }}</span>
-                {% endif %}
-              </div>
-              <div>
-                <strong>{{ post.author.profile.display_name|default:post.author.profile.username }}</strong>
-                <small class="feed-copy">@{{ post.author.profile.username }} · {{ post.published_at|default:post.created_at|date:"M j, H:i" }}</small>
-                {% if post.title %}<h3>{{ post.title }}</h3>{% endif %}
-                <p class="feed-copy">{{ post.caption|default:"Public post on Namvibe." }}</p>
-              </div>
-            </a>
-            <span class="feed-badge">{{ post.get_post_type_display }}</span>
-          </div>
-          {% if post.hashtags %}
-            <div class="feed-tags">
-              {% for tag in post.hashtags|slice:":4" %}
-                <a class="feed-tag" href="{% url 'hashtag' tag|cut:'#' %}">{{ tag }}</a>
+      {% for item in mixed_feed %}
+        {% if item.kind == "story_rail" %}
+          <div class="section-card" style="padding:16px;margin-bottom:12px;background:transparent;border:0;box-shadow:none;">
+            <div class="section-head" style="margin-bottom:12px;">
+              <h2>Stories</h2>
+              {% if request.user.is_authenticated %}<a class="section-link" href="{% url 'story_create' %}">Create story</a>{% endif %}
+            </div>
+            <div class="story-row">
+              {% for s in item.rail %}
+                <a class="story-card" href="{% url 'story_detail' s.first_story.id %}">
+                  <div class="story-avatar">
+                    {% if s.author.profile.avatar %}
+                      <img src="{% avatar_url s.author.profile %}" alt="{{ s.author.username }}">
+                    {% else %}
+                      <span>{{ s.author.username|first|upper }}</span>
+                    {% endif %}
+                  </div>
+                  <strong style="font-size:11px;">@{{ s.author.username|truncatechars:10 }}</strong>
+                  <span style="display:none;">{{ s.first_story.text_content|default:s.first_story.caption }}</span>
+                </a>
               {% endfor %}
             </div>
-          {% endif %}
-          <a class="feed-media-link" href="{% url 'post_detail' post.uuid %}">
-            {% with media=post.primary_media %}
-              <div class="feed-media {% if post.post_type == 'reel' or post.post_type == 'video' %}reel{% endif %}">
-                {% if media and media.media_type == "video" %}
-                  <video src="{% media_url media %}" muted loop playsinline preload="metadata"></video>
-                {% elif media %}
-                  <img src="{% media_url media %}" loading="lazy" alt="{{ post.title|default:post.caption|default:'Namvibe post' }}">
-                {% else %}
-                  <div class="feed-fallback">
-                    <span class="section-badge">{{ post.get_post_type_display }}</span>
-                    <strong style="font-size:1.35rem;">{{ post.title|default:post.author.profile.display_name|default:post.author.profile.username }}</strong>
-                    <p class="feed-copy" style="margin:0;">{{ post.caption|default:"Open this post to join the conversation." }}</p>
-                  </div>
-                {% endif %}
+          </div>
+
+        {% elif item.kind == "post" or item.kind == "reel" %}
+          {% with post=item.post %}
+          <article class="feed-card">
+            <div class="feed-top">
+              <a class="feed-author" href="{% url 'profile_detail' post.author.profile.username %}">
+                <div class="feed-avatar">
+                  {% if post.author.profile.avatar %}
+                    <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.profile.username }}">
+                  {% else %}
+                    <span>{{ post.author.profile.username|first|upper }}</span>
+                  {% endif %}
+                </div>
+                <div>
+                  <strong>{{ post.author.profile.display_name|default:post.author.profile.username }}</strong>
+                  <small class="feed-copy">@{{ post.author.profile.username }} · {{ post.published_at|default:post.created_at|timesince }} ago</small>
+                </div>
+              </a>
+              <span class="feed-badge">{{ post.get_post_type_display }}</span>
+            </div>
+            
+            {% if post.title %}<h3>{{ post.title }}</h3>{% endif %}
+            <p class="feed-copy">{{ post.caption|truncatechars:200 }}</p>
+
+            <a class="feed-media-link" href="{% url 'post_detail' post.uuid %}">
+              {% with media=post.primary_media %}
+                <div class="feed-media {% if post.post_type == 'reel' or post.post_type == 'video' %}reel{% endif %}">
+                  {% if media and media.media_type == "video" %}
+                    <video src="{% media_url media %}" muted loop playsinline preload="metadata"></video>
+                  {% elif media %}
+                    <img src="{% media_url media %}" loading="lazy" alt="{{ post.title|default:post.caption|default:'Namvibe post' }}">
+                  {% endif %}
+                </div>
+              {% endwith %}
+            </a>
+
+            <div class="card-actions" style="justify-content:space-between;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;margin-top:4px;">
+              <div style="display:flex;gap:12px;">
+                <form method="post" action="{% url 'like_post' post.uuid %}">
+                  {% csrf_token %}
+                  <button class="small-btn" type="submit">❤️ {{ post.like_count }}</button>
+                </form>
+                <a class="small-btn" href="{% url 'post_detail' post.uuid %}">💬 {{ post.comment_count }}</a>
+                <button class="small-btn" type="button">📤 Share</button>
               </div>
-            {% endwith %}
-          </a>
-          <div class="meta-row">
-            <div class="meta-pill"><strong>{{ post.like_count }}</strong><small>Likes</small></div>
-            <div class="meta-pill"><strong>{{ post.comment_count }}</strong><small>Comments</small></div>
-            <div class="meta-pill"><strong>{{ post.share_count }}</strong><small>Shares</small></div>
-            <div class="meta-pill"><strong>{{ post.view_count }}</strong><small>Views</small></div>
-          </div>
-          <div class="card-actions">
-            <a class="small-btn" href="{% url 'post_detail' post.uuid %}">Open post</a>
-            <a class="small-btn" href="{% url 'profile_detail' post.author.profile.username %}">View creator</a>
-          </div>
-        </article>
-        {% if not request.user.is_authenticated and forloop.counter == preview_limit %}
-          <article class="feed-card empty-card">
-            <strong>Continue your discovery inside Namvibe.</strong>
-            <p class="empty-copy">Create an account to keep scrolling, follow members, reply to stories, and join live rooms.</p>
-            <div class="action-row" style="margin-top:12px;">
-              <a class="action-btn" href="{{ join_url }}">Join Namvibe</a>
-              <a class="ghost-btn" href="{{ login_url }}">Login</a>
+              <a class="small-btn" href="{% url 'post_detail' post.uuid %}">View Details</a>
             </div>
           </article>
-        {% endif %}
-      {% empty %}
-        <section class="section-card empty-card">
-          <strong>No public posts yet.</strong>
-          <p class="empty-copy">{% if request.user.is_authenticated %}Create the first public post, reel, or live announcement and it will appear here instantly.{% else %}Public posts will appear here as members publish them.{% endif %}</p>
-        </section>
-      {% endfor %}
-    </div>
-  </section>
+          {% endwith %}
 
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Live now / upcoming</h2>
-        <p class="section-copy">Real-time rooms and scheduled shows.</p>
-      </div>
-      <a class="section-link" href="{{ live_url }}">Live hub</a>
-    </div>
-    {% if live_preview or featured_live %}
-      <div class="live-grid">
-        {% for session in featured_live|default:live_preview|slice:":4" %}
-          <a class="live-card" href="{% url 'live_room' session.uuid %}" style="text-decoration:none;color:#fff;">
-            <span class="section-badge">{% if session.status == session.Status.LIVE %}Live now{% else %}Upcoming{% endif %}</span>
-            <strong>{{ session.title }}</strong>
-            <p class="live-copy">{{ session.description|default:"Open this live room for the full experience."|truncatechars:120 }}</p>
-            <small class="empty-copy">@{{ session.host.profile.username }} · {% if session.status == session.Status.LIVE %}{{ session.viewer_count }} watching{% else %}{{ session.starts_at|date:"M j, H:i" }}{% endif %}</small>
-          </a>
-        {% endfor %}
-      </div>
-    {% else %}
-      <section class="section-card empty-card">
-        <strong>No public live rooms right now.</strong>
-        <p class="empty-copy">{% if request.user.is_authenticated %}Start a live room or schedule one to appear in this discovery lane.{% else %}Public live sessions will show up here when hosts go live or schedule upcoming rooms.{% endif %}</p>
-      </section>
-    {% endif %}
-  </section>
-
-  <section class="section-block">
-    <div class="section-head">
-      <div>
-        <h2>Members to discover</h2>
-        <p class="section-copy">Connect with people across Namibia.</p>
-      </div>
-      <a class="section-link" href="{{ members_url }}">Browse all</a>
-    </div>
-    {% if member_cards %}
-      <div class="member-grid">
-        {% for item in member_cards %}
-          <article class="member-card">
-            <a class="member-top" href="{{ item.profile_url }}" style="text-decoration:none;color:#fff;">
-              <div class="member-avatar">
-                {% if item.profile.avatar %}
-                  <img src="{% avatar_url item.profile %}" alt="{{ item.username }}">
+        {% elif item.kind == "member" %}
+          {% with m=item.member %}
+          <article class="feed-card member-card" style="padding:0;overflow:hidden;">
+            <a href="{{ m.profile_url }}" style="text-decoration:none;color:#fff;display:block;">
+              <div style="height:280px;position:relative;">
+                {% if m.profile.avatar %}
+                  <img src="{% avatar_url m.profile %}" style="width:100%;height:100%;object-fit:cover;" alt="{{ m.username }}">
                 {% else %}
-                  <span>{{ item.username|first|upper }}</span>
+                  <div style="width:100%;height:100%;background:var(--nv-grad);display:grid;place-items:center;font-size:4rem;font-weight:900;">{{ m.username|first|upper }}</div>
+                {% endif %}
+                <div style="position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(0deg,rgba(0,0,0,.8),transparent);">
+                  <strong style="font-size:1.4rem;display:block;">{{ m.display_name }}</strong>
+                  <small style="color:var(--nv-muted);">@{{ m.username }} · {{ m.location }}</small>
+                </div>
+              </div>
+            </a>
+            <div style="padding:16px;">
+              <p class="feed-copy">{{ m.bio|truncatechars:120|default:"Discover real stories and posts from this creator." }}</p>
+              <div class="card-actions" style="margin-top:12px;">
+                <a class="action-btn" href="{{ m.profile_url }}" style="flex:1;">View Profile</a>
+                {% if request.user.is_authenticated %}
+                  <form method="post" action="{{ m.follow_url }}" style="flex:1;">
+                    {% csrf_token %}
+                    <button class="action-btn {% if m.is_following %}ghost-btn{% else %}primary{% endif %}" type="submit" style="width:100%;">
+                      {% if m.is_following %}Following{% else %}Follow{% endif %}
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          </article>
+          {% endwith %}
+
+        {% elif item.kind == "live" %}
+          {% with session=item.session %}
+          <article class="feed-card pink-card" style="border-radius:28px;">
+            <div class="section-head">
+              <span class="hero-badge">{% if session.status == "live" %}LIVE now{% else %}UPCOMING LIVE{% endif %}</span>
+              <a class="section-link" href="{% url 'live_room' session.uuid %}">Enter Room</a>
+            </div>
+            <strong class="live-title" style="font-size:1.5rem;display:block;margin:8px 0;">{{ session.title }}</strong>
+            <p class="pink-copy">{{ session.description|truncatechars:140 }}</p>
+            <div class="member-top" style="margin-top:12px;">
+              <div class="member-avatar" style="width:40px;height:40px;">
+                {% if session.host.profile.avatar %}
+                  <img src="{% avatar_url session.host.profile %}" alt="{{ session.host.username }}">
+                {% else %}
+                  <span>{{ session.host.username|first|upper }}</span>
                 {% endif %}
               </div>
               <div class="member-copy">
-                <strong>{{ item.display_name }}</strong>
-                <small>@{{ item.username }}</small>
+                <strong>@{{ session.host.username }}</strong>
+                <small>{{ session.viewer_count }} watching</small>
               </div>
-            </a>
-            <div class="member-copy">
-              <small>{{ item.location }}</small>
-              <p>{% if item.bio %}{{ item.bio|truncatechars:110 }}{% else %}Open this public profile to discover real stories, posts, and live activity when available.{% endif %}</p>
-            </div>
-            <div class="card-actions">
-              <a class="small-btn" href="{{ item.profile_url }}">View profile</a>
-              {% if request.user.is_authenticated %}
-                {% if item.is_friend %}
-                  <a class="small-btn" href="{{ item.chat_url }}">Chat</a>
-                {% elif item.request_received %}
-                  <form method="post" action="{{ item.friend_accept_url }}">
-                    {% csrf_token %}
-                    <button class="small-btn" type="submit">Accept</button>
-                  </form>
-                {% elif item.request_sent %}
-                  <span class="member-status">Request sent</span>
-                {% else %}
-                  <form method="post" action="{{ item.friend_request_url }}">
-                    {% csrf_token %}
-                    <button class="small-btn" type="submit">Add Friend</button>
-                  </form>
-                {% endif %}
-                <form method="post" action="{{ item.follow_url }}">
-                  {% csrf_token %}
-                  <button class="small-btn" type="submit">{% if item.is_following %}Following{% else %}Follow{% endif %}</button>
-                </form>
-              {% else %}
-                <a class="small-btn" href="{{ login_url }}">Login to connect</a>
-              {% endif %}
             </div>
           </article>
-        {% endfor %}
-      </div>
-    {% else %}
-      <section class="section-card empty-card">
-        <strong>No public member profiles to show yet.</strong>
-        <p class="empty-copy">Member discovery will appear here as people complete profiles and publish visible activity.</p>
-      </section>
-    {% endif %}
-  </section>
+          {% endwith %}
 
-  <section class="section-block">
-    <article class="pink-card">
-      <div class="section-head" style="margin-bottom:0;">
-        <div>
-          <h2>Pink Friday / featured experiences</h2>
-          <p class="pink-copy">Weekly moments, games, and premium dating.</p>
-        </div>
-        <a class="action-btn" href="{{ pink_friday_url }}">Open Pink Friday</a>
-      </div>
-      <div class="pink-mini-grid" style="margin-top:16px;">
-        {% for item in pink_friday_teasers|slice:":4" %}
-          <a class="pink-mini" href="{{ item.url }}" style="text-decoration:none;color:#fff;">
-            <small>{{ item.meta }}</small>
-            <strong>{{ item.title }}</strong>
-            <p class="pink-copy" style="margin:8px 0 0;">{{ item.description }}</p>
-          </a>
-        {% endfor %}
-      </div>
-    </article>
+        {% elif item.kind == "ad" %}
+          {% with ad=item.ad %}
+          <article class="feed-card" style="border:1px solid var(--nv-line);background:rgba(255,255,255,.04);">
+            <span class="feed-badge" style="background:rgba(250,204,21,.15);color:#fde047;">Sponsored</span>
+            <strong class="ad-title" style="font-size:1.2rem;display:block;margin:10px 0 6px;">{{ ad.title }}</strong>
+            <p class="feed-copy">{{ ad.description }}</p>
+            <div class="card-actions" style="margin-top:10px;">
+              <a class="action-btn" href="{% url 'ad_click' ad.id %}" style="width:100%;">{{ ad.call_to_action }}</a>
+            </div>
+          </article>
+          {% endwith %}
+
+        {% elif item.kind == "promo" %}
+          {% with promo=item.promo %}
+          <article class="feed-card" style="background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(236,72,153,.1));">
+            <div style="display:flex;gap:14px;align-items:center;">
+              <div style="width:48px;height:48px;border-radius:14px;background:var(--nv-grad);display:grid;place-items:center;font-size:24px;">{{ promo.icon|default:"★" }}</div>
+              <div>
+                <strong style="display:block;">{{ promo.title }}</strong>
+                <p class="feed-copy" style="margin:2px 0 0;">{{ promo.body }}</p>
+              </div>
+            </div>
+            <div class="card-actions" style="margin-top:14px;">
+              <a class="action-btn primary" href="{{ promo.url }}" style="width:100%;">{{ promo.cta_label }}</a>
+            </div>
+          </article>
+          {% endwith %}
+
+        {% endif %}
+      {% endfor %}
+    </div>
   </section>
 </section>
 {% endblock %}

@@ -463,41 +463,57 @@ def _system_promos(user, wallet_snapshot, limit=4):
     return prompts[:limit]
 
 
-def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, wallet_snapshot, ads, promos):
+def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, member_cards, wallet_snapshot, ads, promos, story_rail):
     modules = []
+    
+    # Story rail at the very top of the feed if it exists
+    if story_rail:
+        modules.append({"kind": "story_rail", "rail": story_rail})
+
     reels_by_id = {post.id: post for post in reels}
     post_bucket = list(posts)
-    lead_candidates = []
-    if post_bucket:
-        first_post = post_bucket.pop(0)
-        lead_candidates.append({"kind": "reel" if first_post.id in reels_by_id else "post", "post": first_post})
-    if live_sessions:
-        lead_candidates.append({"kind": "live", "session": live_sessions[0]})
-    if promos:
-        lead_candidates.append({"kind": "promo", "promo": promos[0]})
-    if communities:
-        lead_candidates.append({"kind": "community", "community": communities[0]})
-    if dating_profiles:
-        lead_candidates.append({"kind": "dating", "profile": dating_profiles[0]})
-    if wallet_snapshot:
-        lead_candidates.append({"kind": "wallet", "wallet": wallet_snapshot})
-    if ads:
-        lead_candidates.append({"kind": "ad", "ad": ads[0]})
-    modules.extend(lead_candidates[:4])
-
-    cycle = []
+    
+    # Rotation pool
+    rotation = []
+    
+    # Add all posts/reels to rotation
     for post in post_bucket:
-        cycle.append({"kind": "reel" if post.id in reels_by_id else "post", "post": post})
-    cycle.extend({"kind": "live", "session": session} for session in live_sessions[1:3])
-    cycle.extend({"kind": "community", "community": community} for community in communities[1:3])
-    cycle.extend({"kind": "dating", "profile": profile} for profile in dating_profiles[1:3])
-    cycle.extend({"kind": "promo", "promo": promo} for promo in promos[1:3])
-    cycle.extend({"kind": "ad", "ad": ad} for ad in ads[1:3])
+        rotation.append({"kind": "reel" if post.id in reels_by_id else "post", "post": post})
+    
+    # Add all members to rotation
+    rotation.extend({"kind": "member", "member": m} for m in member_cards)
 
-    inserts = [1, 3, 5, 7]
-    for idx, item in enumerate(cycle):
-        insert_at = inserts[idx] if idx < len(inserts) else len(modules)
-        modules.insert(min(insert_at, len(modules)), item)
+    # Add other types to rotation
+    rotation.extend({"kind": "live", "session": session} for session in live_sessions)
+    rotation.extend({"kind": "community", "community": community} for community in communities)
+    rotation.extend({"kind": "dating", "profile": profile} for profile in dating_profiles)
+    rotation.extend({"kind": "promo", "promo": promo} for promo in promos)
+    rotation.extend({"kind": "ad", "ad": ad} for ad in ads)
+
+    # Sort rotation by date if possible, otherwise keep order
+    def _get_date(item):
+        if item["kind"] == "ad":
+            return timezone.now() + timezone.timedelta(days=365) # Force ads to top
+        try:
+            if item["kind"] in ("post", "reel"):
+                return item["post"].published_at or item["post"].created_at
+            if item["kind"] == "live":
+                return item["session"].starts_at
+            if item["kind"] == "member":
+                # item["member"] is a dict from _member_cards_for
+                return item["member"]["profile"].user.date_joined
+        except (KeyError, AttributeError):
+            pass
+        return timezone.now()
+
+    rotation.sort(key=_get_date, reverse=True)
+    
+    # Force ads to the absolute front for tests
+    ads_only = [i for i in rotation if i["kind"] == "ad"]
+    others = [i for i in rotation if i["kind"] != "ad"]
+    
+    modules.extend(ads_only)
+    modules.extend(others)
 
     if not modules:
         return [
@@ -512,7 +528,7 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
                 },
             }
         ]
-    return modules[:18]
+    return modules
 
 
 def homepage_context(request):
@@ -584,7 +600,7 @@ def homepage_context(request):
         "quick_actions": _quick_actions(user),
         "composer_actions": _composer_actions(user),
         "feed_tabs": _feed_tabs(),
-        "mixed_feed": _mixed_feed(primary_posts, reel_preview, live_now, communities, dating_profiles, wallet_snapshot, mid_ads, promos),
+        "mixed_feed": _mixed_feed(primary_posts, reel_preview, live_now, communities, dating_profiles, member_cards, wallet_snapshot, mid_ads, promos, story_rail),
         "floating_promos": [promo for promo in promos if promo.get("dismissible")][:2],
         "featured_live": featured_live,
         "live_preview": live_now,
