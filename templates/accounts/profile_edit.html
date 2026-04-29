@@ -41,6 +41,8 @@
     display:grid;gap:8px;place-items:center;text-align:center;padding:16px 14px;
     border-radius:20px;border:1px dashed rgba(255,255,255,.22);background:rgba(255,255,255,.04);cursor:pointer;
   }
+  .upload-cta-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .upload-camera-btn[hidden]{display:none}
   .dropzone-box strong{font-size:1rem}
   .edit-form{padding:18px}
   .edit-form-grid{display:grid;gap:12px}
@@ -59,6 +61,7 @@
   .edit-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
   .edit-tip{color:#cbd5e1;line-height:1.65}
   .field-error{display:block;margin-top:6px;color:#fecdd3}
+  .field-help{display:block;margin-top:4px;color:#cbd5e1;font-size:12px}
   .edit-group{padding:0;overflow:hidden}
   .edit-group summary{
     list-style:none;cursor:pointer;padding:16px 18px;font-weight:900;display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -67,10 +70,6 @@
   .edit-group-body{padding:0 18px 18px;display:grid;gap:12px}
   .edit-field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .edit-preview-hint{display:grid;gap:10px}
-  .edit-section-note{
-    padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.05);
-    border:1px solid rgba(255,255,255,.1);color:#cbd5e1;
-  }
   .sticky-save{
     position:fixed;left:0;right:0;bottom:0;z-index:2100;
     padding:10px 12px calc(10px + env(safe-area-inset-bottom));
@@ -90,7 +89,7 @@
 <section class="edit-shell">
   <div style="margin-bottom:16px;">
     <h1 style="font-size:clamp(2rem,6vw,3.4rem);margin:0 0 8px;">Profile Settings</h1>
-    <p class="edit-tip" style="margin:0;">Update your profile picture, cover, identity details, and privacy-safe account information from one clean mobile-first page.</p>
+    <p class="edit-tip" style="margin:0;">Update your profile picture, cover image, and essential profile details from one clean mobile-first page.</p>
   </div>
 
   <div class="edit-grid">
@@ -125,21 +124,17 @@
       </div>
     </section>
 
-    <section class="edit-preview-hint">
-      <div class="edit-section-note">
-        Keep this page short on mobile: update your profile picture, cover, basic info, and bio from the grouped sections below.
-      </div>
-      <div class="edit-section-note">
-        Your account hub uses this information for profile completion, gallery preview, messages identity, and dating connection.
-      </div>
-      <div class="edit-section-note">
-        Privacy, messaging permissions, and security placeholders live in dedicated pages so this settings screen stays focused.
-      </div>
-    </section>
   </div>
 
   <form id="profileEditForm" method="post" enctype="multipart/form-data" class="edit-card edit-form" style="margin-top:16px;">
     {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="edit-group" style="padding:16px 18px;margin-bottom:12px;">
+        {% for error in form.non_field_errors %}
+          <small class="field-error">{{ error }}</small>
+        {% endfor %}
+      </div>
+    {% endif %}
 
     <div style="display:none;">
       {{ form.avatar }}
@@ -151,24 +146,33 @@
         <summary>Profile Picture <span>+</span></summary>
         <div class="edit-group-body">
           <div class="upload-dropzone" style="padding:0;">
-            <label class="dropzone-box" for="id_avatar" id="pictureDropzoneInline">
+            <div class="dropzone-box" id="pictureDropzoneInline">
               <strong>Update Profile Picture</strong>
-              <span class="edit-tip">Choose from gallery, drag and drop, or use your camera.</span>
-              <span class="edit-btn">Choose Image</span>
-            </label>
+              <span class="edit-tip">Choose from gallery or drag and drop a JPG, PNG, or WEBP image.</span>
+              <div class="upload-cta-row">
+                <button class="edit-btn" type="button" data-open-file="id_avatar">Choose from gallery</button>
+                <button class="edit-btn upload-camera-btn" type="button" data-open-camera="id_avatar" hidden>Take photo</button>
+              </div>
+            </div>
           </div>
+          <small class="field-help">Profile picture max size: 5MB.</small>
+          {% for error in form.avatar.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
         </div>
       </details>
       <details class="edit-group" {% if requested_tab == "cover" %}open{% endif %}>
         <summary>Cover Image <span>+</span></summary>
         <div class="edit-group-body">
           <div class="upload-dropzone" style="padding:0;">
-            <label class="dropzone-box" for="id_cover_image" id="coverDropzoneInline">
+            <div class="dropzone-box" id="coverDropzoneInline">
               <strong>Update Cover Image</strong>
-              <span class="edit-tip">A compact cover keeps the account hub stable on mobile.</span>
-              <span class="edit-btn">Choose Cover</span>
-            </label>
+              <span class="edit-tip">Choose a gallery image or drag and drop a premium cover.</span>
+              <div class="upload-cta-row">
+                <button class="edit-btn" type="button" data-open-file="id_cover_image">Choose from gallery</button>
+              </div>
+            </div>
           </div>
+          <small class="field-help">Cover image max size: 8MB.</small>
+          {% for error in form.cover_image.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
         </div>
       </details>
       <details class="edit-group" {% if requested_tab == "basic" or not requested_tab %}open{% endif %}>
@@ -189,16 +193,6 @@
           <div>
             <label for="{{ form.website.id_for_label }}">{{ form.website.label }}</label>
             {{ form.website }}
-          </div>
-          <div class="edit-field-grid">
-            <div>
-              <label for="{{ form.is_creator.id_for_label }}">{{ form.is_creator.label }}</label>
-              {{ form.is_creator }}
-            </div>
-            <div>
-              <label for="{{ form.is_private.id_for_label }}">{{ form.is_private.label }}</label>
-              {{ form.is_private }}
-            </div>
           </div>
         </div>
       </details>
@@ -226,7 +220,7 @@
         </div>
       </details>
       <details class="edit-group">
-        <summary>Bio / About <span>+</span></summary>
+        <summary>Bio <span>+</span></summary>
         <div class="edit-group-body">
           <div>
             <label for="{{ form.bio.id_for_label }}">{{ form.bio.label }}</label>
@@ -235,17 +229,32 @@
           </div>
         </div>
       </details>
-    </div>
-
-    <div class="edit-form-grid" style="margin-top:12px;">
-      <article class="edit-group" style="padding:18px;">
-        <strong>Privacy controls</strong>
-        <p class="edit-tip" style="margin:8px 0 0;">Profile visibility is connected to your current private/public profile mode. Deeper messaging and post privacy rules can be added safely later without changing your account routes.</p>
-        <div class="edit-actions" style="margin-top:14px;">
-          <a class="edit-btn" href="{% url 'account_privacy' %}">Open Privacy Settings</a>
-          <a class="edit-btn" href="{% url 'account_security' %}">Security / PIN Reset</a>
+      <details class="edit-group">
+        <summary>Privacy <span>+</span></summary>
+        <div class="edit-group-body">
+          <div class="edit-field-grid">
+            <div>
+              <label for="{{ form.is_private.id_for_label }}">{{ form.is_private.label }}</label>
+              {{ form.is_private }}
+            </div>
+            <div>
+              <label for="{{ form.is_creator.id_for_label }}">{{ form.is_creator.label }}</label>
+              {{ form.is_creator }}
+            </div>
+          </div>
+          <div class="edit-actions" style="margin-top:4px;">
+            <a class="edit-btn" href="{% url 'account_privacy' %}">Open Privacy Settings</a>
+          </div>
         </div>
-      </article>
+      </details>
+      <details class="edit-group">
+        <summary>Security <span>+</span></summary>
+        <div class="edit-group-body">
+          <div class="edit-actions" style="margin-top:4px;">
+            <a class="edit-btn" href="{% url 'account_security' %}">Security / PIN Reset</a>
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="edit-actions">
@@ -270,6 +279,9 @@
     const coverPreview = document.getElementById("coverPreview");
     const pictureFallback = document.getElementById("pictureFallback");
     const uploadStatus = document.getElementById("uploadStatus");
+    const fileButtons = document.querySelectorAll("[data-open-file]");
+    const cameraButtons = document.querySelectorAll("[data-open-camera]");
+    const cameraSupported = "mediaDevices" in navigator || "capture" in document.createElement("input");
 
     function bindDropzone(dropzoneId, input, previewHandler) {
       const zone = document.getElementById(dropzoneId);
@@ -309,13 +321,34 @@
 
     pictureInput?.addEventListener("change", function () {
       previewPicture(this.files?.[0]);
+      this.removeAttribute("capture");
     });
     coverInput?.addEventListener("change", function () {
       previewCover(this.files?.[0]);
+      this.removeAttribute("capture");
     });
 
-    bindDropzone("pictureDropzone", pictureInput, previewPicture);
-    bindDropzone("coverDropzone", coverInput, previewCover);
+    fileButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        const input = document.getElementById(button.dataset.openFile);
+        if (!input) return;
+        input.removeAttribute("capture");
+        input.click();
+      });
+    });
+
+    cameraButtons.forEach(function (button) {
+      if (cameraSupported) {
+        button.hidden = false;
+      }
+      button.addEventListener("click", function () {
+        const input = document.getElementById(button.dataset.openCamera);
+        if (!input) return;
+        input.setAttribute("capture", "user");
+        input.click();
+      });
+    });
+
     bindDropzone("pictureDropzoneInline", pictureInput, previewPicture);
     bindDropzone("coverDropzoneInline", coverInput, previewCover);
   }());

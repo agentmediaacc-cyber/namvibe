@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -132,6 +134,11 @@ class LoginForm(forms.Form):
 
 
 class ProfileForm(forms.ModelForm):
+    IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+    IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+    AVATAR_MAX_BYTES = 5 * 1024 * 1024
+    COVER_MAX_BYTES = 8 * 1024 * 1024
+
     class Meta:
         model = Profile
         fields = (
@@ -156,7 +163,6 @@ class ProfileForm(forms.ModelForm):
             "avatar": forms.ClearableFileInput(
                 attrs={
                     "accept": "image/*",
-                    "capture": "user",
                     "class": "profile-upload-input",
                 }
             ),
@@ -178,3 +184,26 @@ class ProfileForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError("This username is already taken.")
         return username
+
+    def _clean_image(self, field_name, max_bytes):
+        uploaded = self.cleaned_data.get(field_name)
+        if not uploaded:
+            return uploaded
+
+        extension = Path(uploaded.name or "").suffix.lower()
+        content_type = (getattr(uploaded, "content_type", "") or "").lower()
+
+        if extension not in self.IMAGE_EXTENSIONS or content_type not in self.IMAGE_CONTENT_TYPES:
+            raise forms.ValidationError("Use a JPG, PNG, or WEBP image.")
+
+        if uploaded.size > max_bytes:
+            max_mb = max_bytes // (1024 * 1024)
+            raise forms.ValidationError(f"Image is too large. Keep it under {max_mb}MB.")
+
+        return uploaded
+
+    def clean_avatar(self):
+        return self._clean_image("avatar", self.AVATAR_MAX_BYTES)
+
+    def clean_cover_image(self):
+        return self._clean_image("cover_image", self.COVER_MAX_BYTES)

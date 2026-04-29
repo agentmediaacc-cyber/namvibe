@@ -1,12 +1,15 @@
 from io import StringIO
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.management import call_command
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from dating.models import DatingCoinBalance
 
+from .forms import ProfileForm
 from .models import AccountProfile, AccountRole, Follow, Profile
 from .services import account_rank_for_value, is_valid_uuid, master_admin_dashboard_url
 
@@ -219,6 +222,10 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Profile Settings")
+        self.assertContains(response, "Choose from gallery")
+        self.assertContains(response, "Take photo")
+        self.assertNotContains(response, "Keep this page short on mobile")
+        self.assertNotContains(response, 'capture="user"')
 
     def test_model_application_route_renders(self):
         self.client.post(reverse("signup"), self._signup_payload(username="model_user", email="model@example.com"))
@@ -272,6 +279,36 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Stories")
+
+    def test_profile_form_rejects_large_avatar_upload(self):
+        user = User.objects.create_user(username="uploadcheck", email="uploadcheck@example.com", password="StrongPass1")
+        profile = user.profile
+        form = ProfileForm(instance=profile)
+        form.cleaned_data = {
+            "avatar": SimpleNamespace(
+                name="avatar.jpg",
+                size=ProfileForm.AVATAR_MAX_BYTES + 1,
+                content_type="image/jpeg",
+            )
+        }
+
+        with self.assertRaisesMessage(ValidationError, "Image is too large. Keep it under 5MB."):
+            form.clean_avatar()
+
+    def test_profile_form_rejects_invalid_cover_type(self):
+        user = User.objects.create_user(username="covercheck", email="covercheck@example.com", password="StrongPass1")
+        profile = user.profile
+        form = ProfileForm(instance=profile)
+        form.cleaned_data = {
+            "cover_image": SimpleNamespace(
+                name="cover.gif",
+                size=1024,
+                content_type="image/gif",
+            )
+        }
+
+        with self.assertRaisesMessage(ValidationError, "Use a JPG, PNG, or WEBP image."):
+            form.clean_cover_image()
 
 
 class SocialGraphTests(TestCase):
