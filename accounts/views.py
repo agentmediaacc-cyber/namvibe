@@ -30,6 +30,7 @@ from .forms import LoginForm, ProfileForm, SignupForm
 from .models import AccountProfile, Block, Follow, Profile
 from .services import (
     ensure_account_role,
+    is_valid_uuid,
     is_master_admin,
     load_email_verification_token,
     master_admin_dashboard_url,
@@ -49,6 +50,22 @@ from .supabase import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _empty_message_threads(unread_total=0):
+    return {
+        "chat_conversations": [],
+        "active_conversation": None,
+        "has_selected_conversation": False,
+        "active_chat_other": None,
+        "active_messages": [],
+        "message_form": None,
+        "all_chat_users": [],
+        "chat_unread_total": unread_total,
+        "chat_unread_threads": unread_total,
+        "chat_total_messages": 0,
+        "chat_media_messages": 0,
+    }
 
 
 def _safe_redirect(request, fallback="user_dashboard"):
@@ -720,9 +737,12 @@ def user_dashboard_view(request):
     legacy_posts = []
     if not local_posts:
         try:
-            legacy_posts = get_posts_by_user(request.session.get("eharo_user_id"))
-            if not legacy_posts:
-                legacy_posts = get_posts_by_user(str(supabase_profile_id_for_user(request.user)))
+            session_user_id = request.session.get("eharo_user_id")
+            legacy_post_user_id = str(supabase_profile_id_for_user(request.user))
+            if is_valid_uuid(session_user_id):
+                legacy_posts = get_posts_by_user(session_user_id)
+            if not legacy_posts and is_valid_uuid(legacy_post_user_id):
+                legacy_posts = get_posts_by_user(legacy_post_user_id)
         except Exception as exc:
             logger.warning("LOAD POSTS ERROR: %s", exc)
     full_name = (
@@ -735,9 +755,23 @@ def user_dashboard_view(request):
     email = (supabase_profile or {}).get("email") or getattr(account_profile, "email", "") or request.user.email
     published_post_count = local_posts_qs.filter(status=Post.Status.PUBLISHED).count()
     post_count = max(profile.post_count, published_post_count, len(local_posts), len(legacy_posts))
-    dashboard_metrics = _dashboard_metrics(request.user)
+    try:
+        dashboard_metrics = _dashboard_metrics(request.user)
+    except Exception as exc:
+        logger.warning("Dashboard metrics fallback for user %s: %s", request.user.pk, exc)
+        dashboard_metrics = {
+            "wallet_balance": 0,
+            "pending_balance": 0,
+            "onboarding_items": [],
+            "onboarding_progress": 0,
+            "active_membership": None,
+        }
     requested_section = request.GET.get("section")
-    coin_balance = DatingCoinBalance.for_user(request.user)
+    try:
+        coin_balance = DatingCoinBalance.for_user(request.user)
+    except Exception as exc:
+        logger.warning("Dating coin balance fallback for user %s: %s", request.user.pk, exc)
+        coin_balance = SimpleNamespace(balance=0)
     dating_profile = getattr(request.user, "dating_profile", None)
     dating_views_count = (
         DatingProfileView.objects.filter(viewed_profile=dating_profile).values("viewer_id").distinct().count()
@@ -752,25 +786,21 @@ def user_dashboard_view(request):
     conversation_id = request.GET.get("conversation")
     is_message_panel_requested = requested_section == "messages" or bool(conversation_id)
     if is_message_panel_requested:
-        unread_threads = messaging_dashboard_context(request.user, conversation_id)
+        try:
+            unread_threads = messaging_dashboard_context(request.user, conversation_id)
+        except Exception as exc:
+            logger.warning("Messaging dashboard fallback for user %s: %s", request.user.pk, exc)
+            unread_total = Message.objects.filter(
+                conversation__participants=request.user,
+                read_at__isnull=True,
+            ).exclude(sender=request.user).count()
+            unread_threads = _empty_message_threads(unread_total=unread_total)
     else:
         unread_total = Message.objects.filter(
             conversation__participants=request.user,
             read_at__isnull=True,
         ).exclude(sender=request.user).count()
-        unread_threads = {
-            "chat_conversations": [],
-            "active_conversation": None,
-            "has_selected_conversation": False,
-            "active_chat_other": None,
-            "active_messages": [],
-            "message_form": None,
-            "all_chat_users": [],
-            "chat_unread_total": unread_total,
-            "chat_unread_threads": unread_total,
-            "chat_total_messages": 0,
-            "chat_media_messages": 0,
-        }
+        unread_threads = _empty_message_threads(unread_total=unread_total)
     if unread_threads["chat_unread_total"]:
         notifications_preview.append({
             "title": "Unread messages",

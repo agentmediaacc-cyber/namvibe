@@ -1,5 +1,6 @@
-from urllib.parse import urlencode
 import logging
+from urllib.parse import urlencode
+from uuid import UUID
 
 from django.conf import settings
 from django.core import signing
@@ -16,6 +17,14 @@ from .models import AccountRole
 
 VERIFICATION_SALT = "namvibe-email-verification"
 logger = logging.getLogger(__name__)
+
+
+def is_valid_uuid(value):
+    try:
+        UUID(str(value))
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
 
 
 def master_admin_email():

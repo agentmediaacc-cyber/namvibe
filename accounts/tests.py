@@ -8,7 +8,7 @@ from django.urls import reverse
 from dating.models import DatingCoinBalance
 
 from .models import AccountProfile, AccountRole, Follow, Profile
-from .services import master_admin_dashboard_url
+from .services import is_valid_uuid, master_admin_dashboard_url
 
 
 class AccountAuthFlowTests(TestCase):
@@ -132,6 +132,23 @@ class AccountAuthFlowTests(TestCase):
         self.assertContains(response, "Messages")
         self.assertContains(response, "Settings")
         self.assertNotContains(response, 'data-section="anonymous"')
+
+    @patch("accounts.views.get_posts_by_user", return_value=[])
+    @patch("accounts.views.get_supabase_profile", return_value=None)
+    @patch("accounts.views._safe_sync_supabase_profile", return_value=None)
+    def test_dashboard_skips_invalid_session_uuid_for_supabase_posts(self, _sync, _profile, get_posts_mock):
+        self.client.post(reverse("signup"), self._signup_payload(username="uuidcheck", email="uuidcheck@example.com"))
+        session = self.client.session
+        session["eharo_user_id"] = "15"
+        session.save()
+
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertGreaterEqual(get_posts_mock.call_count, 1)
+        requested_ids = [call.args[0] for call in get_posts_mock.call_args_list if call.args]
+        self.assertNotIn("15", requested_ids)
+        self.assertTrue(all(is_valid_uuid(value) for value in requested_ids))
 
     def test_login_next_redirects_to_dashboard_after_profile_click(self):
         self.client.post(reverse("signup"), self._signup_payload())
