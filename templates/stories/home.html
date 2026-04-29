@@ -38,8 +38,17 @@
       padding:22px;border-radius:22px;border:1px dashed rgba(255,255,255,.18);
       color:#cbd5e1;background:rgba(255,255,255,.03)
     }
+    .stories-summary{display:grid;gap:12px;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:16px}
+    .stories-summary article{
+      padding:14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)
+    }
+    .stories-summary span{display:block;color:#cbd5e1;font-size:12px}
+    .stories-summary strong{display:block;margin-top:6px;font-size:1.12rem}
     @media (min-width: 900px){
       .stories-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    }
+    @media (max-width: 640px){
+      .stories-summary{grid-template-columns:1fr}
     }
   </style>
 {% endblock %}
@@ -52,6 +61,11 @@
           <p>Quick moments from people you follow and your recent community.</p>
         </div>
         <a class="stories-cta" href="{% url 'story_create' %}">Create Story</a>
+      </div>
+      <div class="stories-summary">
+        <article><span>Story creators</span><strong>{{ story_groups|length }}</strong></article>
+        <article><span>Recent story media</span><strong>{{ recent_stories|length }}</strong></article>
+        <article><span>Next move</span><strong>{% if recent_stories %}React or share{% else %}Post your first story{% endif %}</strong></article>
       </div>
 
       {% if story_groups %}
@@ -73,7 +87,7 @@
           {% endfor %}
         </div>
       {% else %}
-        <div class="stories-empty">No active stories yet. Your next photo, short clip, or text moment will appear here.</div>
+        <div class="stories-empty">No active stories yet. Your next photo, short clip, or text moment will appear here. Use Stories to stay visible without crowding your profile page.</div>
       {% endif %}
     </section>
 
@@ -109,7 +123,7 @@
           {% endfor %}
         </div>
       {% else %}
-        <div class="stories-empty">Your photos and videos will appear here once stories start rolling.</div>
+        <div class="stories-empty">Your photos and videos will appear here once stories start rolling. Create a story to build a premium story rail for your account.</div>
       {% endif %}
     </section>
   </div>

@@ -122,14 +122,15 @@ def _account_rank(profile, wallet, coin_balance):
 
 
 def _profile_menu_groups(request):
-    settings_url = reverse("account_settings")
-    privacy_url = reverse("account_privacy")
-    security_url = reverse("account_security")
+    settings_url = _safe_reverse("account_settings")
+    privacy_url = _safe_reverse("account_privacy")
+    security_url = _safe_reverse("account_security")
+    profile_username = getattr(getattr(request.user, "profile", None), "username", "") or request.user.username
     groups = [
         {
             "title": "Account",
             "items": [
-                {"label": "Overview", "url": reverse("user_dashboard")},
+                {"label": "Overview", "url": _safe_reverse("user_dashboard")},
                 {"label": "Edit Profile", "url": settings_url},
                 {"label": "Profile Picture", "url": _profile_edit_url("picture")},
                 {"label": "Cover Image", "url": _profile_edit_url("cover")},
@@ -141,75 +142,112 @@ def _profile_menu_groups(request):
         {
             "title": "Social",
             "items": [
-                {"label": "Feed", "url": reverse("feed")},
-                {"label": "Gallery", "url": reverse("profile_gallery")},
-                {"label": "Posts", "url": reverse("author_posts", kwargs={"username": request.user.profile.username})},
-                {"label": "Stories", "url": reverse("stories_home")},
-                {"label": "Reels", "url": reverse("reels_feed")},
-                {"label": "Messages", "url": reverse("messages_home")},
-                {"label": "Notifications", "url": reverse("notifications")},
-                {"label": "Followers", "url": reverse("account_followers")},
-                {"label": "Groups / Communities", "url": reverse("community_list")},
+                {"label": "Feed", "url": _safe_reverse("feed")},
+                {"label": "Gallery", "url": _safe_reverse("profile_gallery")},
+                {"label": "Posts", "url": _safe_reverse("author_posts", username=profile_username)},
+                {"label": "Stories", "url": _safe_reverse("stories_home")},
+                {"label": "Reels", "url": _safe_reverse("reels_feed")},
+                {"label": "Messages", "url": _safe_reverse("messages_home")},
+                {"label": "Notifications", "url": _safe_reverse("notifications")},
+                {"label": "Followers", "url": _safe_reverse("account_followers")},
+                {"label": "Groups / Communities", "url": _safe_reverse("community_list")},
             ],
         },
         {
             "title": "Money / Access",
             "items": [
-                {"label": "Wallet", "url": reverse("wallet_home")},
-                {"label": "Coins", "url": reverse("coins")},
-                {"label": "Upgrade Account", "url": reverse("wallet_membership_plans")},
-                {"label": "Subscription", "url": reverse("wallet_membership")},
+                {"label": "Wallet", "url": _safe_reverse("wallet_home")},
+                {"label": "Coins", "url": _safe_reverse("coins")},
+                {"label": "Upgrade Account", "url": _safe_reverse("wallet_membership_plans")},
+                {"label": "Subscription", "url": _safe_reverse("wallet_membership")},
             ],
         },
         {
             "title": "Creator / Model",
             "items": [
-                {"label": "Become Creator", "url": reverse("studio")},
-                {"label": "Model / Streamer Application", "url": reverse("account_model_application")},
-                {"label": "Verification Status", "url": reverse("verify_email_notice")},
-                {"label": "Live Studio", "url": reverse("live_start")},
+                {"label": "Become Creator", "url": _safe_reverse("studio")},
+                {"label": "Model / Streamer Application", "url": _safe_reverse("account_model_application")},
+                {"label": "Verification Status", "url": _safe_reverse("verify_email_notice")},
+                {"label": "Live Studio", "url": _safe_reverse("live_start")},
             ],
         },
         {
             "title": "Entertainment",
             "items": [
-                {"label": "Dating", "url": reverse("dating")},
-                {"label": "Games", "url": reverse("games_home")},
-                {"label": "Pink Friday", "url": reverse("pink_friday")},
-                {"label": "Live Shows", "url": reverse("live_shows")},
+                {"label": "Dating", "url": _safe_reverse("dating")},
+                {"label": "Games", "url": _safe_reverse("games_home")},
+                {"label": "Pink Friday", "url": _safe_reverse("pink_friday")},
+                {"label": "Live Shows", "url": _safe_reverse("live_shows")},
             ],
         },
         {
             "title": "Help",
             "items": [
-                {"label": "Support", "url": reverse("support_help")},
-                {"label": "Logout", "url": reverse("logout")},
+                {"label": "Support", "url": _safe_reverse("support_help")},
+                {"label": "Logout", "url": _safe_reverse("logout")},
             ],
         },
     ]
     for group in groups:
         for item in group["items"]:
+            dashboard_url = _safe_reverse("user_dashboard")
             item["active"] = request.path == item["url"] or (
-                item["url"] == reverse("user_dashboard") and _account_path_active(request, "user_dashboard")
+                item["url"] == dashboard_url and _account_path_active(request, "user_dashboard")
             )
     return groups
 
 
 def _dashboard_route_cards(request, profile, completion, rank, gallery_count, unread_count):
     cards = [
-        {"title": "Profile Settings", "emoji": "⚙️", "url": reverse("account_settings"), "meta": "Profile, privacy, security"},
-        {"title": "Gallery / Album", "emoji": "🖼️", "url": reverse("profile_gallery"), "meta": f"{gallery_count} items" if gallery_count else "Open album"},
-        {"title": "Wallet", "emoji": "💳", "url": reverse("wallet_home"), "meta": "Balance and membership"},
-        {"title": "Messages", "emoji": "💬", "url": reverse("messages_home"), "meta": f"{unread_count} unread" if unread_count else "Open inbox"},
-        {"title": "Notifications", "emoji": "🔔", "url": reverse("notifications"), "meta": "Activity and alerts"},
-        {"title": "Dating", "emoji": "💕", "url": reverse("dating"), "meta": "Discovery and matches"},
-        {"title": "Model / Streamer", "emoji": "🎤", "url": reverse("account_model_application"), "meta": "Apply safely"},
-        {"title": "Live", "emoji": "📡", "url": reverse("live_home"), "meta": "Rooms and go live"},
-        {"title": "Games", "emoji": "🎮", "url": reverse("games_home"), "meta": "Friendly social games"},
-        {"title": "Pink Friday", "emoji": "🌸", "url": reverse("pink_friday"), "meta": "Weekly event"},
-        {"title": "Support", "emoji": "🛟", "url": reverse("support_help"), "meta": "Help and account safety"},
+        {"title": "Profile Settings", "emoji": "⚙️", "url": _safe_reverse("account_settings"), "meta": "Profile, privacy, security"},
+        {"title": "Gallery / Album", "emoji": "🖼️", "url": _safe_reverse("profile_gallery"), "meta": f"{gallery_count} items" if gallery_count else "Open album"},
+        {"title": "Wallet", "emoji": "💳", "url": _safe_reverse("wallet_home"), "meta": "Balance and membership"},
+        {"title": "Messages", "emoji": "💬", "url": _safe_reverse("messages_home"), "meta": f"{unread_count} unread" if unread_count else "Open inbox"},
+        {"title": "Notifications", "emoji": "🔔", "url": _safe_reverse("notifications"), "meta": "Activity and alerts"},
+        {"title": "Dating", "emoji": "💕", "url": _safe_reverse("dating"), "meta": "Discovery and matches"},
+        {"title": "Model / Streamer", "emoji": "🎤", "url": _safe_reverse("account_model_application"), "meta": "Apply safely"},
+        {"title": "Live", "emoji": "📡", "url": _safe_reverse("live_home"), "meta": "Rooms and go live"},
+        {"title": "Games", "emoji": "🎮", "url": _safe_reverse("games_home"), "meta": "Friendly social games"},
+        {"title": "Pink Friday", "emoji": "🌸", "url": _safe_reverse("pink_friday"), "meta": "Weekly event"},
+        {"title": "Support", "emoji": "🛟", "url": _safe_reverse("support_help"), "meta": "Help and account safety"},
     ]
     return cards
+
+
+def _dashboard_next_actions(profile, completion, unread_count):
+    next_actions = [
+        {
+            "title": "Complete profile",
+            "copy": completion.get("next_action", {}).get("label") if completion.get("next_action") else "Review your profile details and finish key setup.",
+            "url": _safe_reverse("profile_edit"),
+            "emoji": "✨",
+        },
+        {
+            "title": "Upload story",
+            "copy": "Share a quick photo, clip, or text update.",
+            "url": _safe_reverse("story_create"),
+            "emoji": "📸",
+        },
+        {
+            "title": "Check messages",
+            "copy": f"{unread_count} unread waiting for you." if unread_count else "Open your inbox and start a new chat.",
+            "url": _safe_reverse("messages_home"),
+            "emoji": "💬",
+        },
+        {
+            "title": "Open wallet",
+            "copy": "Review balance, coins, and premium access.",
+            "url": _safe_reverse("wallet_home"),
+            "emoji": "💳",
+        },
+        {
+            "title": "Go live",
+            "copy": "Start a room or schedule your next session.",
+            "url": _safe_reverse("live_start"),
+            "emoji": "📡",
+        },
+    ]
+    return next_actions
 
 
 def _set_account_session(request, user):
@@ -1040,6 +1078,7 @@ def user_dashboard_view(request):
         len(gallery_items),
         unread_threads.get("chat_unread_total", 0),
     )
+    next_actions = _dashboard_next_actions(profile, completion, unread_threads.get("chat_unread_total", 0))
 
     context = {
         "full_name": full_name,
@@ -1082,6 +1121,7 @@ def user_dashboard_view(request):
         "account_section_groups": _dashboard_section_groups(),
         "profile_menu_groups": _profile_menu_groups(request),
         "dashboard_cards": dashboard_cards,
+        "next_action_cards": next_actions,
         "recent_message_partners": recent_message_partners,
         "messages_preview": recent_message_partners[:2],
         "has_active_subscription": has_active_subscription(request.user),
@@ -1172,9 +1212,13 @@ def public_profile_view(request, username):
         "games": _safe_reverse("games_home"),
         "about": _safe_reverse("profile_detail", username=profile.username),
     }
+    safe_username = profile.username or getattr(profile.user, "username", "") or "namvibe"
+    safe_display_name = profile.display_name or safe_username or "Namvibe member"
 
     context = {
         "profile": profile,
+        "safe_username": safe_username,
+        "safe_display_name": safe_display_name,
         "is_following": is_following,
         "can_edit": request.user.is_authenticated and request.user == profile.user,
         "profile_posts": visible_posts,
@@ -1198,6 +1242,7 @@ def public_profile_view(request, username):
         "dating_coin_balance": dating_coin_balance,
         "profile_views_count": profile_views_count,
         "action_urls": action_urls,
+        "joined_date": profile.user.date_joined,
     }
     return render(request, "accounts/profile_detail.html", context)
 

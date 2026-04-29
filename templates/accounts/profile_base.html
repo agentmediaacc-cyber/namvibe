@@ -138,10 +138,10 @@
         <div class="profile-topbar-actions">
           <div class="profile-mini-avatar" aria-hidden="true">
             <div class="profile-mini-avatar-inner">
-              {% if profile.avatar %}
-                <img src="{% avatar_url profile %}" alt="{{ profile.username }}">
+              {% if profile and profile.avatar %}
+                <img src="{% avatar_url profile %}" alt="{{ profile.username|default:user.username|default:'Namvibe member' }}">
               {% else %}
-                {{ profile.username|first|upper }}
+                {{ profile.username|default:user.username|default:"N"|first|upper }}
               {% endif %}
             </div>
           </div>

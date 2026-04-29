@@ -2,6 +2,7 @@
 {% block title %}Messages | Namvibe{% endblock %}
 {% block profile_extra_head %}
   <style>
+    .message-home-shell{display:grid;gap:16px}
     .message-home-card{
       border:1px solid rgba(255,255,255,.12);
       border-radius:28px;
@@ -9,20 +10,64 @@
       box-shadow:0 24px 70px rgba(0,0,0,.28);
       padding:18px;
     }
+    .message-hero{
+      display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap
+    }
     .message-home-pill{
       display:inline-flex;align-items:center;gap:8px;
       padding:8px 12px;border-radius:999px;
       background:rgba(124,58,237,.18);border:1px solid rgba(124,58,237,.28);
       color:#e9d5ff;font-weight:800;font-size:12px;margin-bottom:14px;
     }
+    .message-stats{display:grid;gap:12px;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px}
+    .message-stat,.message-empty-card{
+      border:1px solid rgba(255,255,255,.1);border-radius:22px;background:rgba(255,255,255,.04);padding:15px;color:#fff
+    }
+    .message-stat span,.message-empty-card p{color:#cbd5e1}
+    .message-stat strong{display:block;margin-top:6px;font-size:1.15rem}
+    .message-empty-card{margin-top:14px}
+    .message-cta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .message-cta{
+      display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
+      min-height:44px;padding:10px 14px;border-radius:16px;font-weight:900;color:#fff;
+      border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)
+    }
+    .message-cta.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+    @media (max-width:640px){.message-stats{grid-template-columns:1fr}}
   </style>
 {% endblock %}
 {% block profile_content %}
-  <section class="message-home-card">
-    <div class="message-home-pill">
-      {{ chat_unread_total|default:0 }} unread
-      {% if wallet %}· wallet ready{% endif %}
-    </div>
-    {% include "messaging/dashboard_messages.html" %}
-  </section>
+  <div class="message-home-shell">
+    <section class="message-home-card">
+      <div class="message-hero">
+        <div>
+          <div class="message-home-pill">
+            {{ chat_unread_total|default:0 }} unread
+            {% if wallet_account %}· wallet ready{% endif %}
+          </div>
+          <h2 style="margin:0;">Messages</h2>
+          <p style="margin:8px 0 0;color:#cbd5e1;">Your inbox stays clean, private, and ready for chats, creator replies, and support follow-ups.</p>
+        </div>
+        <div class="message-cta-row">
+          <a class="message-cta primary" href="{% url 'user_dashboard' %}?section=messages">Open compact hub view</a>
+          <a class="message-cta" href="{% url 'account_followers' %}">Find people</a>
+        </div>
+      </div>
+      <div class="message-stats">
+        <article class="message-stat"><span>Unread</span><strong>{{ chat_unread_total|default:0 }}</strong></article>
+        <article class="message-stat"><span>Threads</span><strong>{{ chat_conversations|length }}</strong></article>
+        <article class="message-stat"><span>Media</span><strong>{{ chat_media_messages|default:0 }}</strong></article>
+      </div>
+      {% if not chat_conversations %}
+        <div class="message-empty-card">
+          <strong>No conversations yet</strong>
+          <p>When people message you, or when you start a new chat from a profile, your inbox will appear here without loading the rest of your account tools.</p>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="message-home-card">
+      {% include "messaging/dashboard_messages.html" %}
+    </section>
+  </div>
 {% endblock %}

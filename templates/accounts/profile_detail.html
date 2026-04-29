@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% load media_helpers %}
 
-{% block title %}@{{ profile.username }} | Namvibe{% endblock %}
+{% block title %}@{{ safe_username|default:profile.username }} | Namvibe{% endblock %}
 
 {% block content %}
 {% include "posts/post_styles.html" %}
 <style>
+  body{background:#120014;color:#fff;overflow-x:hidden}
   .profile-shell{width:min(1180px,calc(100% - 16px));margin:0 auto;padding:22px 0 110px}
   .profile-hero,.profile-panel,.profile-stat,.profile-action,.profile-tab,.identity-chip{
     border:1px solid rgba(255,255,255,.12);
@@ -57,13 +58,15 @@
   .tab-row{overflow:auto;padding-bottom:2px;scrollbar-width:none}
   .tab-row::-webkit-scrollbar{display:none}
   .empty-box{padding:18px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+  .overview-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
   @media (max-width: 760px){
     .profile-shell{width:calc(100% - 10px);padding-top:14px}
     .profile-cover img{height:220px}
     .profile-main{padding:0 14px 18px}
     .profile-avatar{width:96px;height:96px;border-radius:26px}
     .profile-avatar img,.profile-avatar span{border-radius:23px}
-    .stat-row,.content-grid{grid-template-columns:1fr}
+    .stat-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .content-grid,.overview-grid{grid-template-columns:1fr}
     .badge-row,.meta-row,.action-row,.tab-row{grid-auto-flow:row;grid-auto-columns:1fr}
     .profile-action,.profile-tab{text-align:center}
   }
@@ -72,36 +75,38 @@
 <section class="profile-shell">
   <section class="profile-hero">
     <div class="profile-cover">
-      <img src="{% cover_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+      {% if profile.cover_image %}
+        <img src="{% cover_url profile %}" alt="{{ safe_display_name }}">
+      {% endif %}
     </div>
     <div class="profile-main">
       <div class="profile-top">
         <div class="avatar-row">
           <div class="profile-avatar">
             {% if profile.avatar %}
-              <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+              <img src="{% avatar_url profile %}" alt="{{ safe_display_name }}">
             {% else %}
-              <span>{{ profile.username|first|upper }}</span>
+              <span>{{ safe_username|first|upper }}</span>
             {% endif %}
           </div>
           <div class="profile-title">
             <div class="badge-row">
-              <span class="badge">@{{ profile.username }}</span>
+              <span class="badge">@{{ safe_username }}</span>
               {% if profile.is_verified %}<span class="badge">Verified</span>{% endif %}
               {% if active_membership %}<span class="badge">{{ active_membership.plan.name }}</span>{% endif %}
               {% if dating_profile and dating_profile.is_visible %}<span class="badge">Dating active</span>{% endif %}
             </div>
-            <h1>{{ profile.display_name|default:profile.username }}</h1>
+            <h1>{{ safe_display_name }}</h1>
             <div class="title-meta">{% if profile.town %}{{ profile.town }}{% endif %}{% if profile.region %}{% if profile.town %} · {% endif %}{{ profile.region }}{% endif %}{% if profile.location %} · {{ profile.location }}{% endif %}</div>
             <p class="muted-copy" style="margin:12px 0 0;">{{ profile.bio|default:"This profile is active across posts, reels, dating, live discovery, and premium Namvibe moments." }}</p>
           </div>
         </div>
 
         <div class="stat-row">
-          <article class="profile-stat"><span>Followers</span><strong>{{ profile.follower_count }}</strong></article>
-          <article class="profile-stat"><span>Following</span><strong>{{ profile.following_count }}</strong></article>
-          <article class="profile-stat"><span>Posts</span><strong>{{ public_post_count }}</strong></article>
-          <article class="profile-stat"><span>Views</span><strong>{{ profile_views_count }}</strong></article>
+          <article class="profile-stat"><span>Followers</span><strong>{{ profile.follower_count|default:0 }}</strong></article>
+          <article class="profile-stat"><span>Following</span><strong>{{ profile.following_count|default:0 }}</strong></article>
+          <article class="profile-stat"><span>Posts</span><strong>{{ public_post_count|default:0 }}</strong></article>
+          <article class="profile-stat"><span>Views</span><strong>{{ profile_views_count|default:0 }}</strong></article>
         </div>
 
         <div class="meta-row">
@@ -112,6 +117,7 @@
           {% if dating_profile and dating_views_count > 0 %}<span class="meta-pill">{{ dating_views_count }} dating views</span>{% endif %}
           {% if dating_coin_balance.balance > 0 %}<span class="meta-pill">{{ dating_coin_balance.balance }} dating coins</span>{% endif %}
           {% if show_wallet_summary %}<span class="meta-pill">Wallet N${{ wallet_summary.available_balance }}</span>{% endif %}
+          <span class="meta-pill">Joined {{ joined_date|date:"M Y" }}</span>
         </div>
 
         <div class="action-row">
@@ -243,11 +249,17 @@
     <section class="profile-panel" id="about">
       <h2 class="section-title">About</h2>
       <p class="muted-copy">{{ profile.bio|default:"This member is building a premium Namvibe profile across posts, reels, live, and dating discovery." }}</p>
-      <div class="content-grid" style="margin-top:14px;">
+      <div class="overview-grid" style="margin-top:14px;">
+        <div class="content-grid">
         {% if profile.region %}<article class="profile-stat"><span>Region</span><strong>{{ profile.region }}</strong></article>{% endif %}
         {% if profile.town %}<article class="profile-stat"><span>Town</span><strong>{{ profile.town }}</strong></article>{% endif %}
         {% if profile.location %}<article class="profile-stat"><span>Location</span><strong>{{ profile.location }}</strong></article>{% endif %}
         {% if active_membership %}<article class="profile-stat"><span>Premium plan</span><strong>{{ active_membership.plan.name }}</strong></article>{% endif %}
+        </div>
+        <div class="empty-box">
+          <strong>Profile summary</strong>
+          <p style="margin:10px 0 0;">{{ safe_display_name }} joined Namvibe in {{ joined_date|date:"F Y" }} and shows live, dating, post, and community activity only when real data is available.</p>
+        </div>
       </div>
     </section>
   </div>

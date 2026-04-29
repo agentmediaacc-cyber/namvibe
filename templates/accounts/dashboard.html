@@ -5,7 +5,7 @@
 
 {% block profile_extra_head %}
 <style>
-  .index-grid,.stat-row,.card-grid,.preview-grid,.preview-media{display:grid;gap:12px}
+  .index-grid,.stat-row,.card-grid,.preview-grid,.preview-media,.quick-action-grid{display:grid;gap:12px}
   .index-grid{grid-template-columns:minmax(0,300px) minmax(0,1fr);align-items:start}
   .hero-card{overflow:hidden}
   .hero-cover{
@@ -58,12 +58,14 @@
   .menu-card:hover{border-color:rgba(236,72,153,.3)}
   .side-stack{display:grid;gap:14px}
   .preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quick-action-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:14px}
   .preview-media{grid-template-columns:repeat(2,minmax(0,1fr))}
   .preview-media img,.preview-media video{
     width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:16px;background:rgba(255,255,255,.06);
   }
   .section-card{padding:18px}
   .section-card h2{margin:0 0 8px}
+  .section-card h3{margin:0 0 8px}
   .list-stack{display:grid;gap:10px}
   .list-row{
     display:flex;justify-content:space-between;gap:12px;align-items:flex-start;text-decoration:none;color:#fff;
@@ -71,6 +73,10 @@
   }
   .list-row small{color:#cbd5e1}
   .launch-card h3{margin:0 0 8px}
+  .empty-card{
+    padding:18px;border-radius:22px;border:1px dashed rgba(255,255,255,.16);
+    background:rgba(255,255,255,.03);color:#cbd5e1
+  }
   .action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
   .action-btn{
     display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:900;color:#fff;
@@ -87,6 +93,7 @@
     .profile-picture-inner{border-radius:21px}
     .stat-row{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
     .card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .quick-action-grid{grid-template-columns:1fr}
     .preview-grid{grid-template-columns:1fr}
   }
 </style>
@@ -161,9 +168,9 @@
           <div class="profile-picture">
             <div class="profile-picture-inner">
               {% if profile.avatar %}
-                <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:profile.username }}">
+                <img src="{% avatar_url profile %}" alt="{{ profile.display_name|default:username|default:'Namvibe member' }}">
               {% else %}
-                {{ profile.username|first|upper }}
+                {{ profile.username|default:username|default:"N"|first|upper }}
               {% endif %}
             </div>
           </div>
@@ -175,19 +182,19 @@
         <div class="hero-title">
           <div class="rank-row">
             <span class="rank-pill {{ account_rank.tone }}">{{ account_rank.icon }} {{ account_rank.label }}</span>
-            <span class="hero-chip">@{{ profile.username }}</span>
+            <span class="hero-chip">@{{ profile.username|default:username|default:"namvibe" }}</span>
             <span class="completion-pill">{{ profile_completion.percentage }}% complete</span>
           </div>
-          <h1>{{ profile.display_name|default:username }}</h1>
+          <h1>{{ profile.display_name|default:username|default:"Namvibe member" }}</h1>
           <p>
             {% if profile.bio %}{{ profile.bio }}{% else %}{{ profile.location|default:profile.region|default:"Clean account control center for Namvibe." }}{% endif %}
           </p>
         </div>
         <div class="stat-row">
-          <article class="stat-card"><span>Posts</span><strong>{{ post_count }}</strong></article>
-          <article class="stat-card"><span>Followers</span><strong>{{ profile.follower_count }}</strong></article>
-          <article class="stat-card"><span>Following</span><strong>{{ profile.following_count }}</strong></article>
-          <article class="stat-card"><span>Views</span><strong>{{ profile_views_count }}</strong></article>
+          <article class="stat-card"><span>Posts</span><strong>{{ post_count|default:0 }}</strong></article>
+          <article class="stat-card"><span>Followers</span><strong>{{ profile.follower_count|default:0 }}</strong></article>
+          <article class="stat-card"><span>Following</span><strong>{{ profile.following_count|default:0 }}</strong></article>
+          <article class="stat-card"><span>Views</span><strong>{{ profile_views_count|default:0 }}</strong></article>
         </div>
       </div>
     </article>
@@ -202,6 +209,15 @@
             <p class="copy-muted" style="margin:8px 0 0;">{{ profile_completion.next_action.label }}</p>
           </div>
         {% endif %}
+        <div class="quick-action-grid">
+          {% for item in next_action_cards %}
+            <a class="menu-card" href="{{ item.url }}">
+              <b>{{ item.emoji }}</b>
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.copy }}</small>
+            </a>
+          {% endfor %}
+        </div>
       </section>
       <section class="profile-card section-card">
         <h2>Album Preview</h2>
@@ -218,7 +234,7 @@
             {% endfor %}
           </div>
         {% else %}
-          <p class="copy-muted">Your photos and videos will appear here.</p>
+          <div class="empty-card">Your photos and videos will appear here. Add a profile picture, cover, or first post to start your album.</div>
         {% endif %}
       </section>
       <section class="profile-card section-card">
@@ -236,7 +252,7 @@
             {% endfor %}
           </div>
         {% else %}
-          <p class="copy-muted">Open your inbox when you are ready.</p>
+          <div class="empty-card">No conversations yet. Open Messages to start a chat, reply to a follower, or check support updates.</div>
         {% endif %}
       </section>
     </aside>
