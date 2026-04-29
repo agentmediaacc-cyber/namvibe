@@ -1,0 +1,36 @@
+{% extends "ehealth/base.html" %}
+{% block title %}My eHealth Profile{% endblock %}
+{% block content %}
+<div class="grid2">
+  <div class="card">
+    <h3>Profile Details</h3>
+    <div class="row"><span>Full Name</span><span>Not added</span></div>
+    <div class="row"><span>Patient Code</span><span>Pending</span></div>
+    <div class="row"><span>Profile Type</span><span>Patient</span></div>
+    <div class="row"><span>National ID</span><span>Protected / not shown</span></div>
+    <div class="row"><span>Status</span><span>Pending verification</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Contact Details</h3>
+    <div class="row"><span>Phone</span><span>Not added</span></div>
+    <div class="row"><span>Next of Kin / Guardian Phone</span><span>Not added</span></div>
+    <div class="row"><span>Preferred Language</span><span>Not added</span></div>
+    <div class="row"><span>Occupation</span><span>Not added</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Location Details</h3>
+    <div class="row"><span>Residential Address</span><span>Not added</span></div>
+    <div class="row"><span>Region</span><span>Not added</span></div>
+    <div class="row"><span>Town</span><span>Not added</span></div>
+    <div class="row"><span>Suburb / Village</span><span>Not added</span></div>
+  </div>
+
+  <div class="card notice">
+    <h3>Protected Medical Information</h3>
+    <p class="muted">This profile is read-only for patients. If anything is wrong, request correction from reception, nurse, or admin.</p>
+    <a class="btn" href="/health/messages/">Request Correction</a>
+  </div>
+</div>
+{% endblock %}

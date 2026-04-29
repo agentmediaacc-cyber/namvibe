@@ -223,7 +223,7 @@ class AccountAuthFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Profile Settings")
         self.assertContains(response, "Choose from gallery")
-        self.assertContains(response, "Take photo")
+        self.assertNotContains(response, "Take photo")
         self.assertNotContains(response, "Keep this page short on mobile")
         self.assertNotContains(response, 'capture="user"')
 
@@ -279,6 +279,42 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Stories")
+
+    def test_member_discovery_route_renders(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="members_user", email="members@example.com"))
+
+        response = self.client.get(reverse("member_discovery"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Members to discover")
+
+    def test_friend_request_send_and_accept_flow(self):
+        self.client.post(
+            reverse("signup"),
+            self._signup_payload(username="sender_user", email="sender@example.com", cellphone_number="811234568"),
+        )
+        self.client.logout()
+        self.client.post(
+            reverse("signup"),
+            self._signup_payload(username="receiver_user", email="receiver@example.com", cellphone_number="811234569"),
+        )
+        receiver = User.objects.get(username="receiver_user")
+        self.client.logout()
+        self.client.post(reverse("login"), {"identifier": "sender_user", "password": "StrongPass1"})
+
+        send_response = self.client.post(reverse("friend_request_send", kwargs={"username": receiver.profile.username}))
+
+        self.assertEqual(send_response.status_code, 302)
+        request_obj = receiver.received_friend_requests.get(from_user__username="sender_user")
+        self.assertEqual(request_obj.status, "pending")
+
+        self.client.logout()
+        self.client.post(reverse("login"), {"identifier": "receiver_user", "password": "StrongPass1"})
+        accept_response = self.client.post(reverse("friend_request_accept", kwargs={"request_id": request_obj.id}))
+        request_obj.refresh_from_db()
+
+        self.assertEqual(accept_response.status_code, 302)
+        self.assertEqual(request_obj.status, "accepted")
 
     def test_profile_form_rejects_large_avatar_upload(self):
         user = User.objects.create_user(username="uploadcheck", email="uploadcheck@example.com", password="StrongPass1")

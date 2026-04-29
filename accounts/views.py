@@ -13,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 
 from live.models import LiveSession
 from messaging.models import Conversation, Message
@@ -27,7 +27,7 @@ from wallet.services import active_membership_for, ensure_wallet
 from communities.models import CommunityMembership
 
 from .forms import LoginForm, ProfileForm, SignupForm
-from .models import AccountProfile, Block, Follow, Profile
+from .models import AccountProfile, Block, Follow, FriendRequest, Profile
 from .services import (
     account_rank_for_value,
     ensure_account_role,
@@ -96,6 +96,28 @@ def _profile_edit_url(tab=""):
     if tab:
         return f"{url}?tab={tab}"
     return url
+
+
+def _friendship_q(left_user, right_user):
+    return (
+        Q(from_user=left_user, to_user=right_user)
+        | Q(from_user=right_user, to_user=left_user)
+    )
+
+
+def _users_are_friends(left_user, right_user):
+    if not left_user.is_authenticated:
+        return False
+    return FriendRequest.objects.filter(
+        _friendship_q(left_user, right_user),
+        status=FriendRequest.Status.ACCEPTED,
+    ).exists()
+
+
+def _friend_request_between(left_user, right_user):
+    if not left_user.is_authenticated:
+        return None
+    return FriendRequest.objects.filter(_friendship_q(left_user, right_user)).order_by("-updated_at").first()
 
 
 def _account_path_active(request, route_name):
@@ -211,6 +233,46 @@ def _dashboard_route_cards(request, profile, completion, rank, gallery_count, un
         {"title": "Pink Friday", "emoji": "🌸", "url": _safe_reverse("pink_friday"), "meta": "Weekly event"},
         {"title": "Support", "emoji": "🛟", "url": _safe_reverse("support_help"), "meta": "Help and account safety"},
     ]
+    return cards
+
+
+def _member_cards_for(user, profiles, *, include_friendship=True):
+    cards = []
+    for profile in profiles:
+        if include_friendship and user.is_authenticated and profile.user == user:
+            continue
+        friend_request = _friend_request_between(user, profile.user) if include_friendship and user.is_authenticated else None
+        is_friend = bool(friend_request and friend_request.status == FriendRequest.Status.ACCEPTED)
+        request_sent = bool(
+            friend_request
+            and friend_request.status == FriendRequest.Status.PENDING
+            and friend_request.from_user_id == user.id
+        ) if user.is_authenticated else False
+        request_received = bool(
+            friend_request
+            and friend_request.status == FriendRequest.Status.PENDING
+            and friend_request.to_user_id == user.id
+        ) if user.is_authenticated else False
+        is_following = Follow.objects.filter(follower=user, following=profile.user).exists() if user.is_authenticated else False
+        cards.append(
+            {
+                "profile": profile,
+                "display_name": profile.display_name or profile.username or profile.user.username,
+                "username": profile.username or profile.user.username,
+                "bio": (profile.bio or "").strip(),
+                "location": ", ".join([item for item in [profile.town, profile.region, profile.location] if item]) or "Namibia",
+                "profile_url": _safe_reverse("profile_detail", username=profile.username or profile.user.username),
+                "is_following": is_following,
+                "is_friend": is_friend,
+                "request_sent": request_sent,
+                "request_received": request_received,
+                "can_chat": is_friend,
+                "follow_url": _safe_reverse("follow_toggle", username=profile.username or profile.user.username),
+                "friend_request_url": _safe_reverse("friend_request_send", username=profile.username or profile.user.username),
+                "friend_accept_url": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
+                "chat_url": _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
+            }
+        )
     return cards
 
 
@@ -1141,9 +1203,18 @@ def public_profile_view(request, username):
     profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
     is_blocked = False
     is_following = False
+    friend_request = None
+    is_friend = False
+    request_sent = False
+    request_received = False
     if request.user.is_authenticated:
         is_blocked = Block.objects.filter(blocker=profile.user, blocked=request.user).exists()
         is_following = Follow.objects.filter(follower=request.user, following=profile.user).exists()
+        if request.user != profile.user:
+            friend_request = _friend_request_between(request.user, profile.user)
+            is_friend = bool(friend_request and friend_request.status == FriendRequest.Status.ACCEPTED)
+            request_sent = bool(friend_request and friend_request.status == FriendRequest.Status.PENDING and friend_request.from_user_id == request.user.id)
+            request_received = bool(friend_request and friend_request.status == FriendRequest.Status.PENDING and friend_request.to_user_id == request.user.id)
 
     if is_blocked:
         return render(request, "accounts/profile_unavailable.html", status=403)
@@ -1208,9 +1279,15 @@ def public_profile_view(request, username):
         "pink_friday": _safe_reverse("pink_friday"),
         "live_shows": _safe_reverse("live_shows"),
         "wallet": _safe_reverse("wallet_home"),
-        "messages": _safe_reverse("user_dashboard") if request.user == profile.user else _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
+        "messages": (
+            _safe_reverse("user_dashboard")
+            if request.user == profile.user
+            else (_safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id) if is_friend else "")
+        ),
         "games": _safe_reverse("games_home"),
         "about": _safe_reverse("profile_detail", username=profile.username),
+        "friend_request": _safe_reverse("friend_request_send", username=profile.username),
+        "friend_accept": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
     }
     safe_username = profile.username or getattr(profile.user, "username", "") or "namvibe"
     safe_display_name = profile.display_name or safe_username or "Namvibe member"
@@ -1220,6 +1297,9 @@ def public_profile_view(request, username):
         "safe_username": safe_username,
         "safe_display_name": safe_display_name,
         "is_following": is_following,
+        "is_friend": is_friend,
+        "request_sent": request_sent,
+        "request_received": request_received,
         "can_edit": request.user.is_authenticated and request.user == profile.user,
         "profile_posts": visible_posts,
         "media_posts": media_posts,
@@ -1243,8 +1323,86 @@ def public_profile_view(request, username):
         "profile_views_count": profile_views_count,
         "action_urls": action_urls,
         "joined_date": profile.user.date_joined,
-    }
+}
     return render(request, "accounts/profile_detail.html", context)
+
+
+def member_discovery_view(request):
+    profiles = list(
+        Profile.objects.select_related("user")
+        .order_by("-is_verified", "-follower_count", "-post_count", "-created_at")[:30]
+    )
+    context = {
+        "member_cards": _member_cards_for(request.user, profiles),
+    }
+    return render(request, "accounts/member_discovery.html", context)
+
+
+@login_required(login_url="login")
+def friends_list_view(request):
+    accepted = FriendRequest.objects.filter(
+        Q(from_user=request.user) | Q(to_user=request.user),
+        status=FriendRequest.Status.ACCEPTED,
+    ).select_related("from_user__profile", "to_user__profile").order_by("-updated_at")
+    incoming = FriendRequest.objects.filter(
+        to_user=request.user,
+        status=FriendRequest.Status.PENDING,
+    ).select_related("from_user__profile").order_by("-created_at")
+    outgoing = FriendRequest.objects.filter(
+        from_user=request.user,
+        status=FriendRequest.Status.PENDING,
+    ).select_related("to_user__profile").order_by("-created_at")
+    friends = []
+    for item in accepted:
+        other_user = item.to_user if item.from_user_id == request.user.id else item.from_user
+        friends.append(other_user.profile)
+    context = {
+        "friend_profiles": friends,
+        "incoming_requests": incoming,
+        "outgoing_requests": outgoing,
+    }
+    return render(request, "accounts/friends_list.html", context)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def send_friend_request_view(request, username):
+    target_profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
+    target_user = target_profile.user
+    if target_user == request.user:
+        messages.error(request, "You cannot send a friend request to yourself.")
+        return redirect("profile_detail", username=target_profile.username)
+    if _users_are_friends(request.user, target_user):
+        messages.info(request, "You are already friends.")
+        return redirect("profile_detail", username=target_profile.username)
+    friend_request = _friend_request_between(request.user, target_user)
+    if friend_request and friend_request.status == FriendRequest.Status.PENDING:
+        messages.info(request, "Friend request already pending.")
+        return redirect("profile_detail", username=target_profile.username)
+    if friend_request and friend_request.status in {FriendRequest.Status.DECLINED, FriendRequest.Status.CANCELED}:
+        friend_request.status = FriendRequest.Status.PENDING
+        friend_request.from_user = request.user
+        friend_request.to_user = target_user
+        friend_request.save(update_fields=["from_user", "to_user", "status", "updated_at"])
+    else:
+        FriendRequest.objects.create(from_user=request.user, to_user=target_user)
+    messages.success(request, f"Friend request sent to @{target_profile.username}.")
+    return redirect("profile_detail", username=target_profile.username)
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def accept_friend_request_view(request, request_id):
+    friend_request = get_object_or_404(
+        FriendRequest.objects.select_related("from_user__profile", "to_user__profile"),
+        pk=request_id,
+        to_user=request.user,
+        status=FriendRequest.Status.PENDING,
+    )
+    friend_request.status = FriendRequest.Status.ACCEPTED
+    friend_request.save(update_fields=["status", "updated_at"])
+    messages.success(request, f"You are now friends with @{friend_request.from_user.profile.username}.")
+    return redirect("friends_list")
 
 
 @login_required(login_url="login")

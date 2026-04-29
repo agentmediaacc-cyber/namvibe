@@ -91,6 +91,14 @@ def profile_upload_photo_alias(request):
     return redirect(f"{reverse('profile_edit')}?tab=picture")
 
 
+def members_alias(request):
+    return redirect("member_discovery")
+
+
+def friends_alias(request):
+    return redirect("friends_list")
+
+
 urlpatterns = [
     path("health/", include("ehealth.urls")),
 
@@ -112,6 +120,8 @@ urlpatterns = [
     path("premium/<str:tier>/", premium_tier_view, name="premium_tier"),
     path("community-list/", community_list_alias, name="community_list_alias"),
     path("dashboard/", dashboard_alias, name="dashboard"),
+    path("members/", members_alias, name="members"),
+    path("friends/", friends_alias, name="friends"),
     path("profile/", profile_alias, name="profile_root"),
     path("profile/edit/", profile_edit_alias, name="profile_edit_root"),
     path("profile/upload-photo/", profile_upload_photo_alias, name="profile_upload_photo"),

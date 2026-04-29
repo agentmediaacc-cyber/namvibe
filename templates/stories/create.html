@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Story Studio | Namvibe{% endblock %}
+{% block title %}Create Story | Namvibe{% endblock %}
 
 {% block content %}
 <style>
@@ -112,8 +112,8 @@
         <div class="story-stage-top">
           <div class="stage-stack">
             <a class="studio-btn" href="{% url 'home' %}">Close</a>
-            <span class="studio-chip">Story Studio</span>
-            <span class="studio-chip" id="deviceState">Camera ready</span>
+            <span class="studio-chip">Create story</span>
+            <span class="studio-chip" id="deviceState">Ready</span>
           </div>
           <div class="stage-stack">
             <button type="button" class="studio-btn" id="flipBtn">Flip</button>
@@ -145,13 +145,13 @@
       <input type="hidden" name="text_style" id="textStyle" value="clean">
       <input type="hidden" name="duration_hours" value="24">
       <input type="file" name="file" id="fileInput" class="hidden">
-      <input type="file" id="galleryInput" class="gallery-input" accept="image/*,video/*" capture="environment">
+      <input type="file" id="galleryInput" class="gallery-input" accept="image/*,video/*">
     </form>
 
     <aside class="story-panel">
       <div>
-        <h1>Create a premium story</h1>
-        <p class="panel-copy">Capture quickly on mobile, switch to text mode when needed, and keep the publish flow compatible with your existing Django story backend.</p>
+        <h1>Create story</h1>
+        <p class="panel-copy">Post a text update, image, or short video with a clean public, friends, or private audience choice.</p>
       </div>
 
       {% if form.errors %}
@@ -168,21 +168,21 @@
       {% endif %}
 
       <div class="mode-grid" id="modeGrid">
-        <button type="button" class="mode-pill active" data-mode="photo"><strong>Photo</strong><br><span class="panel-copy">Tap to capture or choose from gallery.</span></button>
-        <button type="button" class="mode-pill" data-mode="video"><strong>Video</strong><br><span class="panel-copy">Press and hold for short motion updates.</span></button>
-        <button type="button" class="mode-pill" data-mode="text"><strong>Text</strong><br><span class="panel-copy">Use backgrounds and bold typography when no media is needed.</span></button>
+        <button type="button" class="mode-pill active" data-mode="photo"><strong>Photo</strong><br><span class="panel-copy">Capture now or choose from gallery.</span></button>
+        <button type="button" class="mode-pill" data-mode="video"><strong>Video</strong><br><span class="panel-copy">Hold to record a short video story.</span></button>
+        <button type="button" class="mode-pill" data-mode="text"><strong>Text</strong><br><span class="panel-copy">Use text-only stories with your own mood and message.</span></button>
         <button type="button" class="mode-pill" data-mode="camera"><strong>Camera</strong><br><span class="panel-copy">Return to live camera preview on supported devices.</span></button>
       </div>
 
       <div class="mini-stats">
         <div class="story-panel-card"><span class="panel-copy">Audience</span><strong>Flexible</strong><small class="panel-copy">Public, followers, friends, or private.</small></div>
-        <div class="story-panel-card"><span class="panel-copy">Duration</span><strong>24h</strong><small class="panel-copy">Keeps existing story expiration model intact.</small></div>
+        <div class="story-panel-card"><span class="panel-copy">Duration</span><strong>24h</strong><small class="panel-copy">Stories stay visible for a full day.</small></div>
       </div>
 
       <div class="editor-rail">
         <article class="editor-mini">
           <span>Capture flow</span>
-          <strong>Tap for photo, hold for video, gallery for fallback.</strong>
+          <strong>Tap for photo, hold for video, or choose from gallery.</strong>
         </article>
         <article class="editor-mini">
           <span>Publish state</span>
@@ -207,6 +207,7 @@
             <option value="{{ value }}" {% if form.audience.value|default:'public' == value %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
+        <small class="panel-copy">Public stories appear on the homepage story rail.</small>
       </div>
 
       <div class="panel-field">

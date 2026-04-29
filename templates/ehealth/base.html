@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Namvibe eHealth</title>
+  <style>
+    :root{
+      --bg:#f7fbff;
+      --card:#ffffff;
+      --text:#0f172a;
+      --muted:#64748b;
+      --line:#e5eef7;
+      --primary:#0ea5a4;
+      --blue:#2563eb;
+      --green:#16a34a;
+      --shadow:0 18px 45px rgba(15,23,42,.08);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    a{text-decoration:none;color:inherit}
+    .shell{min-height:100vh;display:grid;grid-template-columns:280px 1fr}
+    .sidebar{
+      background:#fff;
+      border-right:1px solid var(--line);
+      padding:22px;
+      position:sticky;
+      top:0;
+      height:100vh;
+    }
+    .brand{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      margin-bottom:24px;
+    }
+    .logo{
+      width:46px;height:46px;border-radius:16px;
+      background:linear-gradient(135deg,var(--primary),var(--blue));
+      color:white;display:grid;place-items:center;font-weight:900;
+      box-shadow:var(--shadow);
+    }
+    .brand h1{font-size:18px;margin:0}
+    .brand p{font-size:12px;margin:3px 0 0;color:var(--muted)}
+    .nav{display:grid;gap:8px}
+    .nav a{
+      padding:13px 14px;
+      border-radius:16px;
+      color:#334155;
+      font-weight:700;
+    }
+    .nav a:hover,.nav a.active{
+      background:#eefafa;
+      color:#0f766e;
+    }
+    .main{padding:26px;max-width:1180px;width:100%;margin:0 auto}
+    .topbar{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:22px;
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+      margin-bottom:22px;
+    }
+    .topbar h2{margin:0;font-size:26px}
+    .topbar p{margin:6px 0 0;color:var(--muted)}
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      padding:9px 13px;
+      border-radius:999px;
+      background:#ecfeff;
+      color:#0f766e;
+      font-weight:800;
+      border:1px solid #ccfbf1;
+      white-space:nowrap;
+    }
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:22px;
+    }
+    .card h3{margin:0 0 12px;font-size:18px}
+    .muted{color:var(--muted)}
+    .stat{font-size:30px;font-weight:900;margin:8px 0}
+    .row{
+      display:flex;
+      justify-content:space-between;
+      gap:18px;
+      padding:13px 0;
+      border-bottom:1px solid #edf3f9;
+    }
+    .row:last-child{border-bottom:0}
+    .row span:first-child{color:var(--muted)}
+    .row span:last-child{font-weight:800;text-align:right}
+    .notice{
+      background:linear-gradient(135deg,#eff6ff,#ecfeff);
+      border:1px solid #dbeafe;
+    }
+    .btn{
+      display:inline-flex;
+      justify-content:center;
+      align-items:center;
+      border:0;
+      border-radius:16px;
+      padding:13px 18px;
+      font-weight:900;
+      background:linear-gradient(135deg,var(--primary),var(--blue));
+      color:white;
+      box-shadow:var(--shadow);
+    }
+    .mobile-nav{display:none}
+    @media(max-width:850px){
+      .shell{display:block}
+      .sidebar{display:none}
+      .main{padding:14px 14px 92px}
+      .topbar{align-items:flex-start;flex-direction:column;padding:18px}
+      .topbar h2{font-size:22px}
+      .grid,.grid2{grid-template-columns:1fr}
+      .card{padding:18px;border-radius:20px}
+      .row{display:grid;gap:5px}
+      .row span:last-child{text-align:left}
+      .mobile-nav{
+        display:grid;
+        grid-template-columns:repeat(5,1fr);
+        gap:6px;
+        position:fixed;
+        left:10px;right:10px;bottom:10px;
+        background:white;
+        border:1px solid var(--line);
+        border-radius:22px;
+        box-shadow:var(--shadow);
+        padding:9px;
+        z-index:20;
+      }
+      .mobile-nav a{
+        font-size:11px;
+        text-align:center;
+        color:#475569;
+        font-weight:800;
+        padding:8px 4px;
+        border-radius:14px;
+      }
+      .mobile-nav a.active{background:#ecfeff;color:#0f766e}
+      .btn{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">N+</div>
+        <div>
+          <h1>Namvibe eHealth</h1>
+          <p>Secure digital health access for patients, clinics, hospitals, and care teams.</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="/health/">Dashboard</a>
+        <a href="/health/profile/">Profile</a>
+        <a href="/health/card/">eHealth Card</a>
+        <a href="/health/appointments/">Appointments</a>
+        <a href="/health/messages/">Messages</a>
+        <a href="/health/consent/">Consent</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <section class="topbar">
+        <div>
+          <h2>{% block title %}Patient Dashboard{% endblock %}</h2>
+          <p>Your workspace is personalized based on your role.</p>
+        </div>
+        <div class="badge">Preview Role: Patient</div>
+      </section>
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <nav class="mobile-nav">
+    <a href="/health/">Home</a>
+    <a href="/health/profile/">Profile</a>
+    <a href="/health/card/">Card</a>
+    <a href="/health/appointments/">Appts</a>
+    <a href="/health/messages/">Chat</a>
+  </nav>
+</body>
+</html>

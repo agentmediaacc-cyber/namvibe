@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.db import models
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -12,11 +13,21 @@ from django.shortcuts import render
 from .forms import MessageForm, attachment_type_for
 from .models import Conversation, Message
 from .services import call_gate_state, get_or_create_direct_conversation, messaging_dashboard_context
+from accounts.models import FriendRequest
 
 
 def _dashboard_messages_url(conversation):
     query = urlencode({"section": "messages", "conversation": conversation.pk})
     return f"{reverse('user_dashboard')}?{query}"
+
+
+def _users_are_friends(left_user, right_user):
+    return FriendRequest.objects.filter(
+        status=FriendRequest.Status.ACCEPTED,
+    ).filter(
+        (models.Q(from_user=left_user) & models.Q(to_user=right_user))
+        | (models.Q(from_user=right_user) & models.Q(to_user=left_user))
+    ).exists()
 
 
 @login_required(login_url="login")
@@ -48,6 +59,9 @@ def start_chat(request, user_id):
     if other_user == request.user:
         messages.error(request, "Choose another member to start a chat.")
         return redirect("user_dashboard")
+    if not _users_are_friends(request.user, other_user):
+        messages.error(request, "Chat opens after a friend request is accepted.")
+        return redirect("profile_detail", username=other_user.profile.username)
 
     conversation = get_or_create_direct_conversation(request.user, other_user)
     return redirect(_dashboard_messages_url(conversation))
@@ -115,6 +129,9 @@ def call_gate_view(request, user_id, mode):
     if other_user == request.user:
         messages.error(request, "Choose another member to start a call.")
         return redirect("user_dashboard")
+    if not _users_are_friends(request.user, other_user):
+        messages.error(request, "Calls unlock after friendship is accepted.")
+        return redirect("profile_detail", username=other_user.profile.username)
     if mode not in {"voice", "video"}:
         mode = "voice"
     conversation = get_or_create_direct_conversation(request.user, other_user)

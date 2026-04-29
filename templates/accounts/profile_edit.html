@@ -151,7 +151,6 @@
               <span class="edit-tip">Choose from gallery or drag and drop a JPG, PNG, or WEBP image.</span>
               <div class="upload-cta-row">
                 <button class="edit-btn" type="button" data-open-file="id_avatar">Choose from gallery</button>
-                <button class="edit-btn upload-camera-btn" type="button" data-open-camera="id_avatar" hidden>Take photo</button>
               </div>
             </div>
           </div>
@@ -280,8 +279,6 @@
     const pictureFallback = document.getElementById("pictureFallback");
     const uploadStatus = document.getElementById("uploadStatus");
     const fileButtons = document.querySelectorAll("[data-open-file]");
-    const cameraButtons = document.querySelectorAll("[data-open-camera]");
-    const cameraSupported = "mediaDevices" in navigator || "capture" in document.createElement("input");
 
     function bindDropzone(dropzoneId, input, previewHandler) {
       const zone = document.getElementById(dropzoneId);
@@ -321,30 +318,15 @@
 
     pictureInput?.addEventListener("change", function () {
       previewPicture(this.files?.[0]);
-      this.removeAttribute("capture");
     });
     coverInput?.addEventListener("change", function () {
       previewCover(this.files?.[0]);
-      this.removeAttribute("capture");
     });
 
     fileButtons.forEach(function (button) {
       button.addEventListener("click", function () {
         const input = document.getElementById(button.dataset.openFile);
         if (!input) return;
-        input.removeAttribute("capture");
-        input.click();
-      });
-    });
-
-    cameraButtons.forEach(function (button) {
-      if (cameraSupported) {
-        button.hidden = false;
-      }
-      button.addEventListener("click", function () {
-        const input = document.getElementById(button.dataset.openCamera);
-        if (!input) return;
-        input.setAttribute("capture", "user");
         input.click();
       });
     });

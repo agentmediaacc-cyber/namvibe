@@ -1,9 +1,10 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.db import models
 from django.db.models import Max
 
-from accounts.models import Follow, Profile
+from accounts.models import Follow, FriendRequest, Profile
 from wallet.services import active_membership_for, ensure_wallet
 
 from .forms import MessageForm
@@ -48,15 +49,20 @@ def _recommended_chat_users(user, conversation_items):
     }
     candidate_ids = []
 
+    friend_pairs = FriendRequest.objects.filter(
+        models.Q(from_user=user) | models.Q(to_user=user),
+        status=FriendRequest.Status.ACCEPTED,
+    ).values_list("from_user_id", "to_user_id")
+    friend_ids = []
+    for left_id, right_id in friend_pairs:
+        candidate_id = right_id if left_id == user.id else left_id
+        if candidate_id and candidate_id not in friend_ids:
+            friend_ids.append(candidate_id)
+
     following_ids = list(
         Follow.objects.filter(follower=user)
         .order_by("-created_at")
         .values_list("following_id", flat=True)[:12]
-    )
-    follower_ids = list(
-        Follow.objects.filter(following=user)
-        .order_by("-created_at")
-        .values_list("follower_id", flat=True)[:12]
     )
     creator_ids = list(
         Profile.objects.filter(is_creator=True)
@@ -65,7 +71,7 @@ def _recommended_chat_users(user, conversation_items):
         .values_list("user_id", flat=True)[:12]
     )
 
-    for candidate_id in [*following_ids, *follower_ids, *creator_ids]:
+    for candidate_id in [*friend_ids, *following_ids, *creator_ids]:
         if candidate_id and candidate_id not in existing_user_ids and candidate_id != user.id and candidate_id not in candidate_ids:
             candidate_ids.append(candidate_id)
 

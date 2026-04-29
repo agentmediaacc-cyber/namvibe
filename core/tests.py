@@ -44,6 +44,17 @@ class HomepageProductionTests(TestCase):
         self.assertNotContains(response, "Homepage private post")
         self.assertContains(response, "Public story")
 
+    def test_logged_in_homepage_hides_join_and_login_ctas(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dashboard")
+        self.assertContains(response, "Create Story")
+        self.assertNotContains(response, "Join Namvibe")
+        self.assertNotContains(response, "Explore Feed")
+
     def test_expired_stories_do_not_appear(self):
         self.story.expires_at = timezone.now() - timezone.timedelta(minutes=1)
         self.story.save(update_fields=["expires_at"])

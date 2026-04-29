@@ -123,6 +123,44 @@ def _people_suggestions(user, limit=6):
     return list(Profile.objects.select_related("user").order_by("-follower_count", "-post_count", "-created_at")[:limit])
 
 
+def _friend_request_between(user, other_user):
+    if not user.is_authenticated:
+        return None
+    return FriendRequest.objects.filter(
+        (Q(from_user=user, to_user=other_user) | Q(from_user=other_user, to_user=user))
+    ).order_by("-updated_at").first()
+
+
+def _member_cards(user, profiles, limit=8):
+    cards = []
+    for profile in profiles[:limit]:
+        if user.is_authenticated and profile.user_id == user.id:
+            continue
+        friend_request = _friend_request_between(user, profile.user) if user.is_authenticated else None
+        is_friend = bool(friend_request and friend_request.status == FriendRequest.Status.ACCEPTED)
+        request_sent = bool(friend_request and friend_request.status == FriendRequest.Status.PENDING and friend_request.from_user_id == user.id)
+        request_received = bool(friend_request and friend_request.status == FriendRequest.Status.PENDING and friend_request.to_user_id == user.id)
+        cards.append(
+            {
+                "profile": profile,
+                "display_name": profile.display_name or profile.username or profile.user.username,
+                "username": profile.username or profile.user.username,
+                "bio": (profile.bio or "").strip(),
+                "location": ", ".join([item for item in [profile.town, profile.region, profile.location] if item]) or "Namibia",
+                "profile_url": _safe_reverse("profile_detail", username=profile.username or profile.user.username),
+                "is_following": Follow.objects.filter(follower=user, following=profile.user).exists() if user.is_authenticated else False,
+                "is_friend": is_friend,
+                "request_sent": request_sent,
+                "request_received": request_received,
+                "follow_url": _safe_reverse("follow_toggle", username=profile.username or profile.user.username),
+                "friend_request_url": _safe_reverse("friend_request_send", username=profile.username or profile.user.username),
+                "friend_accept_url": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
+                "chat_url": _safe_reverse("messaging:start_chat", fallback="member_discovery", user_id=profile.user.id),
+            }
+        )
+    return cards
+
+
 def _live_preview(user, live_limit=4, featured_limit=4):
     live_now = list(live_now_for(user)[:live_limit])
     featured = list(featured_sessions_for(user)[:featured_limit])
@@ -298,6 +336,23 @@ def _homepage_feature_cards():
     ]
 
 
+def _hero_actions(user):
+    if user.is_authenticated:
+        return [
+            {"label": "Dashboard", "url": _safe_reverse("user_dashboard"), "tone": "primary"},
+            {"label": "Create Post", "url": _safe_reverse("studio"), "tone": "secondary"},
+            {"label": "Create Story", "url": _safe_reverse("story_create"), "tone": "secondary"},
+            {"label": "Go Live", "url": _safe_reverse("live_start"), "tone": "secondary"},
+            {"label": "Profile", "url": _safe_profile_url(user), "tone": "secondary"},
+            {"label": "Logout", "url": _safe_reverse("logout"), "tone": "secondary"},
+        ]
+    return [
+        {"label": "Join Namvibe", "url": _safe_reverse("signup"), "tone": "primary"},
+        {"label": "Login", "url": _safe_reverse("login"), "tone": "secondary"},
+        {"label": "Explore Feed", "url": _safe_reverse("feed"), "tone": "secondary"},
+    ]
+
+
 def _feed_tabs():
     return [
         {"key": "for_you", "label": "For You", "url": reverse("home"), "state": "live"},
@@ -463,7 +518,6 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, walle
 def homepage_context(request):
     user = request.user
 
-    # Video/reel-first public feed for discovery while keeping text/photo posts visible.
     raw_public_feed = list(
         Post.objects.published()
         .filter(audience=Post.Audience.PUBLIC)
@@ -471,17 +525,7 @@ def homepage_context(request):
         .prefetch_related("media", "likes", "comments")
         .order_by("-published_at", "-created_at")[:24]
     )
-    priority = {
-        Post.PostType.REEL: 0,
-        Post.PostType.VIDEO: 0,
-        Post.PostType.LIVE: 1,
-        Post.PostType.PHOTO: 2,
-        Post.PostType.TEXT: 3,
-    }
-    public_feed_items = sorted(
-        raw_public_feed,
-        key=lambda post: (priority.get(post.post_type, 4), -(post.published_at or post.created_at).timestamp()),
-    )[:15]
+    public_feed_items = raw_public_feed[:15]
 
     visible_posts = (
         base_visible_posts(user)
@@ -498,6 +542,7 @@ def homepage_context(request):
         item["is_live"] = item["author"].id in live_author_ids
     communities = _community_suggestions(user)
     creators = _people_suggestions(user)
+    member_cards = _member_cards(user, creators, limit=8)
     dating_profiles = _dating_suggestions(user)
     wallet_snapshot = _wallet_snapshot(user)
     header_counts = _header_counts(user)
@@ -546,6 +591,7 @@ def homepage_context(request):
         "live_teasers": live_teasers,
         "communities": communities,
         "creators": creators,
+        "member_cards": member_cards,
         "dating_suggestions": dating_profiles,
         "dating_teasers": dating_teasers,
         "game_teasers": game_teasers,
@@ -568,6 +614,7 @@ def homepage_context(request):
         "total_live": total_live,
         "total_stories": total_stories,
         "hero_metrics": hero_metrics,
+        "hero_actions": _hero_actions(user),
         "nav_notification_count": header_counts["notifications"],
         "nav_message_count": header_counts["messages"],
         "nav_messages_url": messages_url,
@@ -587,6 +634,8 @@ def homepage_context(request):
         "dating_live_match_url": _safe_reverse("dating_live_match"),
         "profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "messages_url": messages_url,
+        "members_url": _safe_reverse("member_discovery"),
+        "friends_url": _safe_reverse("friends_list"),
         "notifications_url": reverse("notifications"),
         "wallet_url": reverse("wallet_home"),
         "premium_url": reverse("wallet_membership"),
@@ -615,6 +664,7 @@ def fallback_homepage_context(request, error_message=""):
         "live_teasers": _live_teasers([], []),
         "communities": [],
         "creators": [],
+        "member_cards": [],
         "dating_suggestions": [],
         "dating_teasers": _dating_teasers([]),
         "game_teasers": _game_teasers(),
@@ -637,6 +687,7 @@ def fallback_homepage_context(request, error_message=""):
         "total_live": 0,
         "total_stories": 0,
         "hero_metrics": [],
+        "hero_actions": _hero_actions(user),
         "nav_notification_count": 0,
         "nav_message_count": 0,
         "nav_messages_url": _dashboard_section_url("messages") if user.is_authenticated else _login_dashboard_url(),
@@ -656,6 +707,8 @@ def fallback_homepage_context(request, error_message=""):
         "dating_live_match_url": _safe_reverse("dating_live_match"),
         "profile_url": _safe_profile_url(user) if user.is_authenticated else _login_dashboard_url(),
         "messages_url": _dashboard_section_url("messages") if user.is_authenticated else _login_dashboard_url(),
+        "members_url": _safe_reverse("member_discovery"),
+        "friends_url": _safe_reverse("friends_list"),
         "notifications_url": reverse("notifications"),
         "wallet_url": reverse("wallet_home"),
         "premium_url": reverse("wallet_membership"),
@@ -663,6 +716,5 @@ def fallback_homepage_context(request, error_message=""):
         "jobs_url": reverse("dashboard_posts"),
         "discover_url": reverse("discover"),
         "nearby_url": reverse("feed_nearby"),
-        "safe_mode_message": error_message,
         "now": timezone.now(),
     }

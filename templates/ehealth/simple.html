@@ -1,0 +1,9 @@
+{% extends "ehealth/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="card notice">
+  <h3>{{ title }}</h3>
+  <p class="muted">{{ empty }}</p>
+  <a class="btn" href="/health/">Back to Dashboard</a>
+</div>
+{% endblock %}

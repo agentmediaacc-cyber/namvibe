@@ -1,0 +1,38 @@
+{% extends "ehealth/base.html" %}
+{% block title %}Patient Dashboard{% endblock %}
+{% block content %}
+<div class="grid">
+  <div class="card">
+    <h3>Health Profile</h3>
+    <p class="muted">Your personal health access profile.</p>
+    <div class="stat">0%</div>
+    <p class="muted">Complete your profile at reception.</p>
+  </div>
+  <div class="card">
+    <h3>Appointments</h3>
+    <p class="muted">Upcoming clinic or hospital visits.</p>
+    <div class="stat">0</div>
+    <p class="muted">No appointments yet.</p>
+  </div>
+  <div class="card">
+    <h3>Messages</h3>
+    <p class="muted">Secure health messages.</p>
+    <div class="stat">0</div>
+    <p class="muted">No messages yet.</p>
+  </div>
+</div>
+
+<div style="height:18px"></div>
+
+<div class="grid2">
+  <div class="card notice">
+    <h3>Protected Health Information</h3>
+    <p class="muted">Clinical notes, private records, and sensitive medical updates are only handled by authorized health workers.</p>
+  </div>
+  <div class="card">
+    <h3>Quick Actions</h3>
+    <p class="muted">Request support, view card, or check appointment status.</p>
+    <a class="btn" href="/health/profile/">View My Profile</a>
+  </div>
+</div>
+{% endblock %}

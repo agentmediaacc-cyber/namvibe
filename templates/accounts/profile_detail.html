@@ -98,7 +98,7 @@
             </div>
             <h1>{{ safe_display_name }}</h1>
             <div class="title-meta">{% if profile.town %}{{ profile.town }}{% endif %}{% if profile.region %}{% if profile.town %} · {% endif %}{{ profile.region }}{% endif %}{% if profile.location %} · {{ profile.location }}{% endif %}</div>
-            <p class="muted-copy" style="margin:12px 0 0;">{{ profile.bio|default:"This profile is active across posts, reels, dating, live discovery, and premium Namvibe moments." }}</p>
+            {% if profile.bio %}<p class="muted-copy" style="margin:12px 0 0;">{{ profile.bio }}</p>{% endif %}
           </div>
         </div>
 
@@ -131,7 +131,21 @@
               {% csrf_token %}
               <button class="profile-action primary" type="submit" style="cursor:pointer;">{% if is_following %}Following{% else %}Follow{% endif %}</button>
             </form>
-            <a class="profile-action" href="{{ action_urls.messages }}">Messages</a>
+            {% if is_friend %}
+              <a class="profile-action" href="{{ action_urls.messages }}">Chat</a>
+            {% elif request_received %}
+              <form method="post" action="{{ action_urls.friend_accept }}" style="margin:0;">
+                {% csrf_token %}
+                <button class="profile-action" type="submit" style="cursor:pointer;">Accept Friend</button>
+              </form>
+            {% elif request_sent %}
+              <span class="profile-action">Request sent</span>
+            {% else %}
+              <form method="post" action="{{ action_urls.friend_request }}" style="margin:0;">
+                {% csrf_token %}
+                <button class="profile-action" type="submit" style="cursor:pointer;">Add Friend</button>
+              </form>
+            {% endif %}
             <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
             <a class="profile-action" href="{{ action_urls.games }}">Games</a>
             <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
@@ -248,7 +262,7 @@
 
     <section class="profile-panel" id="about">
       <h2 class="section-title">About</h2>
-      <p class="muted-copy">{{ profile.bio|default:"This member shares selected Namvibe activity across posts, reels, live, and dating only when real profile data is available." }}</p>
+      {% if profile.bio %}<p class="muted-copy">{{ profile.bio }}</p>{% endif %}
       <div class="overview-grid" style="margin-top:14px;">
         <div class="content-grid">
         {% if profile.region %}<article class="profile-stat"><span>Region</span><strong>{{ profile.region }}</strong></article>{% endif %}
@@ -258,7 +272,7 @@
         </div>
         <div class="empty-box">
           <strong>Profile summary</strong>
-          <p style="margin:10px 0 0;">{{ safe_display_name }} joined Namvibe in {{ joined_date|date:"F Y" }} and shows live, dating, post, and community activity only when real data is available.</p>
+          <p style="margin:10px 0 0;">{{ safe_display_name }} joined Namvibe in {{ joined_date|date:"F Y" }}.</p>
         </div>
       </div>
     </section>

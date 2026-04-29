@@ -46,10 +46,25 @@ def can_view_story(user, story):
 def mark_story_viewed(user, story, session_key=""):
     if not can_view_story(user, story):
         return None
+    if user.is_authenticated and story.author_id == user.id:
+        return None
+
+    filters = {"story": story}
+    if user.is_authenticated:
+        filters["viewer"] = user
+    elif session_key:
+        filters["session_key"] = session_key
+    else:
+        return None
+
+    view = StoryView.objects.filter(**filters).order_by("id").first()
+    if view:
+        return view
+
     view = StoryView.objects.create(
         story=story,
         viewer=user if user.is_authenticated else None,
-        session_key=session_key or "",
+        session_key="" if user.is_authenticated else (session_key or ""),
     )
     story.view_count = StoryView.objects.filter(story=story).count()
     story.save(update_fields=["view_count"])

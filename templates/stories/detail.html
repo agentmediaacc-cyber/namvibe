@@ -7,11 +7,6 @@
 <style>
   .story-view-shell{max-width:1240px;margin:0 auto;padding:16px 12px 110px}
   .story-view-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px}
-  .story-hero-note{
-    padding:14px 16px;border-radius:22px;border:1px solid rgba(212,177,106,.14);
-    background:linear-gradient(145deg,rgba(9,11,17,.96),rgba(28,21,15,.92));color:#f5efe2
-  }
-  .story-hero-note span{display:block;color:#a9a191;font-size:12px;margin-bottom:6px}
   .story-frame,.story-side{
     border:1px solid rgba(212,177,106,.18);
     background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
@@ -66,10 +61,6 @@
 </style>
 
 <section class="story-view-shell">
-  <div class="story-hero-note" style="margin-bottom:14px;">
-    <span>Story viewer</span>
-    <strong style="display:block;font-size:1.08rem;">Swipe-sized story playback with live stats, replies, and profile context kept in one premium surface.</strong>
-  </div>
   <div class="story-view-layout">
     <article class="story-frame">
       <div class="story-progress">
@@ -125,7 +116,7 @@
     <aside class="story-side">
       <div class="side-card">
         <h2>Story activity</h2>
-        <p style="color:#a9a191;line-height:1.6;">Reactions, replies, and share actions stay on the existing Django story models.</p>
+        <p style="color:#a9a191;line-height:1.6;">Reactions, comments, and shares stay attached to this story detail page.</p>
         <div class="stat-row" style="margin-top:14px;">
           <div class="stat-card"><span>Views</span><strong>{{ story.view_count }}</strong></div>
           <div class="stat-card"><span>Reactions</span><strong>{{ story.like_count }}</strong></div>
@@ -154,9 +145,9 @@
         <form class="side-card reply-form" method="post" action="{% url 'story_comment' story.id %}">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <h3>Reply to story</h3>
-          <textarea name="body" placeholder="Send a quick reply"></textarea>
-          <button class="story-btn primary" type="submit">Send reply</button>
+          <h3>Comment on story</h3>
+          <textarea name="body" placeholder="Write a comment"></textarea>
+          <button class="story-btn primary" type="submit">Post comment</button>
         </form>
 
         <form class="side-card" method="post" action="{% url 'story_share' story.id %}">
@@ -167,7 +158,7 @@
       {% endif %}
 
       <div class="side-card">
-        <h3>Replies</h3>
+        <h3>Comments</h3>
         <div class="reply-list" style="margin-top:12px;">
           {% for comment in comments %}
             <div class="reply-item">
@@ -176,8 +167,8 @@
             </div>
           {% empty %}
             <div class="reply-item">
-              <strong>No replies yet</strong>
-              <span style="color:#a9a191;">Start the conversation from the reply box.</span>
+              <strong>No comments yet</strong>
+              <span style="color:#a9a191;">Start the conversation from the comment box.</span>
             </div>
           {% endfor %}
         </div>

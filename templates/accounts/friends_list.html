@@ -1,0 +1,63 @@
+{% extends "accounts/profile_base.html" %}
+{% load media_helpers %}
+
+{% block title %}Friends | Namvibe{% endblock %}
+
+{% block profile_content %}
+<style>
+  .friends-grid{display:grid;gap:16px}
+  .friends-card{padding:18px}
+  .friends-list{display:grid;gap:12px}
+  .friend-row{
+    display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px;
+    border-radius:22px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)
+  }
+  .friend-copy{display:flex;gap:12px;align-items:center}
+  .friend-avatar{width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);padding:2px}
+  .friend-avatar img,.friend-avatar span{width:100%;height:100%;border-radius:16px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
+  .friend-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;font-weight:900;padding:10px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)}
+</style>
+<div class="friends-grid">
+  <section class="profile-card friends-card">
+    <h2>Friends</h2>
+    <div class="friends-list">
+      {% for profile in friend_profiles %}
+        <div class="friend-row">
+          <div class="friend-copy">
+            <div class="friend-avatar">
+              {% if profile.avatar %}<img src="{% avatar_url profile %}" alt="{{ profile.username }}">{% else %}<span>{{ profile.username|first|upper }}</span>{% endif %}
+            </div>
+            <div>
+              <strong>{{ profile.display_name|default:profile.username }}</strong>
+              <small style="display:block;color:#cbd5e1;">@{{ profile.username }}</small>
+            </div>
+          </div>
+          <a class="friend-btn" href="{% url 'messaging:start_chat' profile.user.id %}">Chat</a>
+        </div>
+      {% empty %}
+        <div class="friend-row"><div><strong>No friends yet</strong><small style="display:block;color:#cbd5e1;">Accepted friendships will show here.</small></div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="profile-card friends-card">
+    <h2>Incoming requests</h2>
+    <div class="friends-list">
+      {% for item in incoming_requests %}
+        <div class="friend-row">
+          <div>
+            <strong>@{{ item.from_user.profile.username }}</strong>
+            <small style="display:block;color:#cbd5e1;">Sent {{ item.created_at|timesince }} ago</small>
+          </div>
+          <form method="post" action="{% url 'friend_request_accept' item.id %}">
+            {% csrf_token %}
+            <button class="friend-btn" type="submit">Accept</button>
+          </form>
+        </div>
+      {% empty %}
+        <div class="friend-row"><div><strong>No incoming requests</strong></div></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

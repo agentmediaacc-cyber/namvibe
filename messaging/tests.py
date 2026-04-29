@@ -4,6 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from unittest.mock import patch
 
+from accounts.models import FriendRequest
 from .models import Conversation, Message
 
 
@@ -12,6 +13,7 @@ class MessagingFlowTests(TestCase):
         self.alina = User.objects.create_user(username="alina", email="alina@example.com", password="Pass12345")
         self.ben = User.objects.create_user(username="ben", email="ben@example.com", password="Pass12345")
         self.cato = User.objects.create_user(username="cato", email="cato@example.com", password="Pass12345")
+        FriendRequest.objects.create(from_user=self.alina, to_user=self.ben, status=FriendRequest.Status.ACCEPTED)
 
     def test_start_chat_creates_direct_conversation(self):
         self.client.login(username="alina", password="Pass12345")
@@ -25,6 +27,14 @@ class MessagingFlowTests(TestCase):
             f"{reverse('user_dashboard')}?section=messages&conversation={conversation.id}",
             fetch_redirect_response=False,
         )
+
+    def test_start_chat_requires_accepted_friendship(self):
+        self.client.login(username="alina", password="Pass12345")
+
+        response = self.client.get(reverse("messaging:start_chat", args=[self.cato.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Conversation.objects.count(), 0)
 
     def test_send_message_requires_participant(self):
         conversation = Conversation.objects.create()

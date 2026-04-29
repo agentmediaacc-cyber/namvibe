@@ -104,7 +104,6 @@
 {% if active_panel == "messages" %}
   <section class="profile-card section-card">
     <h2>Message Center</h2>
-    <p class="copy-muted">Open conversations from a dedicated account view without loading the rest of your profile controls.</p>
     {% if not has_active_subscription and free_message_quota_remaining != None %}
       <div style="margin:14px 0;"><span class="completion-pill">Free chat limits apply</span></div>
     {% endif %}
@@ -113,18 +112,12 @@
 {% elif active_panel == "posts" %}
   <section class="profile-card section-card">
     <h2>Creator Studio</h2>
-    <p class="copy-muted">Flyer builder, Motion, poll, and engagement tools stay in dedicated creation routes instead of cluttering your profile index.</p>
     <div class="launch-card" style="margin-top:14px;">
       <h3>Creator Studio</h3>
-      <p class="copy-muted">Open the dedicated creation flow for flyers, premium drops, reels, and post management.</p>
       <div class="action-row">
         <a class="action-btn primary" href="{% url 'studio' %}">Open Creator Studio</a>
         <a class="action-btn" href="{% url 'author_posts' profile.username %}">View my posts</a>
       </div>
-    </div>
-    <div class="launch-card" style="margin-top:14px;">
-      <h3>Flyer builder</h3>
-      <p class="copy-muted">Motion, poll, and engagement controls stay attached to the studio instead of loading inside the main profile.</p>
     </div>
   </section>
 {% elif active_panel == "gallery" %}
@@ -175,7 +168,6 @@
             </div>
           </div>
           <div class="hero-actions">
-            <button class="action-btn" type="button" data-profile-menu-open>☰ Menu</button>
             <a class="action-btn primary" href="{% url 'account_settings' %}">Edit</a>
           </div>
         </div>
@@ -202,7 +194,6 @@
     <aside class="side-stack">
       <section class="profile-card section-card">
         <h2>Profile Overview</h2>
-        <p class="copy-muted">A clean account index that routes you into dedicated product pages instead of loading everything at once.</p>
         {% if profile_completion.next_action %}
           <div class="launch-card" style="margin-top:14px;">
             <strong>Next step</strong>
@@ -260,7 +251,6 @@
 
   <section class="profile-card section-card" style="margin-top:16px;">
     <h2>Smart feature routing</h2>
-    <p class="copy-muted">Open the product area you need without dumping wallet, dating, chat, games, and live dashboards inside the main profile screen.</p>
     <div class="card-grid" style="margin-top:14px;">
       {% for card in dashboard_cards %}
         <a class="menu-card" href="{{ card.url }}">

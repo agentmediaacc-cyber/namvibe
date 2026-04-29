@@ -81,8 +81,8 @@ class PremiumPostStudioTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Creator Studio")
-        self.assertContains(response, "Flyer builder")
-        self.assertContains(response, "Motion, poll, and engagement")
+        self.assertNotContains(response, "Flyer builder")
+        self.assertNotContains(response, "Motion, poll, and engagement")
 
 
 class UnifiedPostFlowTests(TestCase):
@@ -432,6 +432,19 @@ class FeedDiscoveryInteractionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(PostView.objects.filter(post=self.public_post, duration_seconds=7, completed=True).exists())
+
+    def test_post_view_tracking_does_not_duplicate_same_logged_in_viewer(self):
+        self.client.force_login(self.viewer)
+
+        first = self.client.post(reverse("track_post_view", kwargs={"uuid": self.public_post.uuid}), {"duration_seconds": "4"})
+        second = self.client.post(reverse("track_post_view", kwargs={"uuid": self.public_post.uuid}), {"duration_seconds": "9", "completed": "1"})
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(PostView.objects.filter(post=self.public_post, user=self.viewer).count(), 1)
+        view = PostView.objects.get(post=self.public_post, user=self.viewer)
+        self.assertEqual(view.duration_seconds, 9)
+        self.assertTrue(view.completed)
 
     def test_report_flow(self):
         self.client.force_login(self.viewer)

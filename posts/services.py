@@ -150,11 +150,36 @@ def create_share(user, post, target=Share.Target.FEED, message=""):
 def track_view(user, post, session_key="", duration_seconds=0, completed=False):
     if user.is_authenticated and not can_interact_with_post(user, post):
         return None
+    if user.is_authenticated and post.author_id == user.id:
+        return None
+
+    duration_seconds = max(int(duration_seconds or 0), 0)
+    filters = {"post": post}
+    if user.is_authenticated:
+        filters["user"] = user
+    elif session_key:
+        filters["session_key"] = session_key
+    else:
+        return None
+
+    view = PostView.objects.filter(**filters).order_by("id").first()
+    if view:
+        updated_fields = []
+        if duration_seconds > view.duration_seconds:
+            view.duration_seconds = duration_seconds
+            updated_fields.append("duration_seconds")
+        if completed and not view.completed:
+            view.completed = True
+            updated_fields.append("completed")
+        if updated_fields:
+            view.save(update_fields=updated_fields)
+        return view
+
     view = PostView.objects.create(
         post=post,
         user=user if user.is_authenticated else None,
-        session_key=session_key or "",
-        duration_seconds=max(int(duration_seconds or 0), 0),
+        session_key="" if user.is_authenticated else (session_key or ""),
+        duration_seconds=duration_seconds,
         completed=completed,
     )
     post.view_count = PostView.objects.filter(post=post).count()
