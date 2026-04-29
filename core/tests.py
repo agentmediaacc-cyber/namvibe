@@ -165,3 +165,11 @@ class HomepageProductionTests(TestCase):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, label)
+
+    def test_public_profile_route_renders(self):
+        response = self.client.get(
+            reverse("profile_detail", kwargs={"username": self.author.profile.username})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"@{self.author.profile.username}")
