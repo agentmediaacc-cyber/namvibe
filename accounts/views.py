@@ -736,9 +736,7 @@ def user_dashboard_view(request):
     published_post_count = local_posts_qs.filter(status=Post.Status.PUBLISHED).count()
     post_count = max(profile.post_count, published_post_count, len(local_posts), len(legacy_posts))
     dashboard_metrics = _dashboard_metrics(request.user)
-    active_panel = request.GET.get("section") or ("messages" if request.GET.get("conversation") else "overview")
-    if active_panel not in {"overview", "gallery", "posts", "reels", "stories", "dating", "wallet", "messages", "notifications", "creator", "live", "games", "support", "settings"}:
-        active_panel = "overview"
+    requested_section = request.GET.get("section")
     coin_balance = DatingCoinBalance.for_user(request.user)
     dating_profile = getattr(request.user, "dating_profile", None)
     dating_views_count = (
@@ -751,8 +749,10 @@ def user_dashboard_view(request):
         or 0
     )
     notifications_preview = []
-    if active_panel == "messages":
-        unread_threads = messaging_dashboard_context(request.user, request.GET.get("conversation"))
+    conversation_id = request.GET.get("conversation")
+    is_message_panel_requested = requested_section == "messages" or bool(conversation_id)
+    if is_message_panel_requested:
+        unread_threads = messaging_dashboard_context(request.user, conversation_id)
     else:
         unread_total = Message.objects.filter(
             conversation__participants=request.user,
@@ -840,6 +840,9 @@ def user_dashboard_view(request):
     completion = _profile_completion_snapshot(request.user, profile, account_profile, dating_profile, published_post_count)
     badge = _account_level_badge(request.user, ensure_wallet(request.user), dashboard_metrics["active_membership"])
     gallery_items = _gallery_items_for(profile, local_posts, user_stories)
+    active_panel = requested_section or ("messages" if conversation_id else ("gallery" if gallery_items else "overview"))
+    if active_panel not in {"overview", "gallery", "posts", "reels", "stories", "dating", "wallet", "messages", "notifications", "creator", "live", "games", "support", "settings"}:
+        active_panel = "gallery" if gallery_items else "overview"
     section_groups = _dashboard_section_groups()
     for group in section_groups:
         for item in group["items"]:
