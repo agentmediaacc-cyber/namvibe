@@ -10,11 +10,13 @@
         {% for s in item.rail %}
           <a class="story-card" href="{% url 'story_detail' s.first_story.id %}">
             <div class="story-avatar">
-              {% if s.author.profile.avatar %}
-                <img src="{% avatar_url s.author.profile %}" alt="{{ s.author.username }}">
+              {% with profile=s.author.profile %}
+              {% if profile and profile.avatar %}
+                <img src="{% avatar_url profile %}" alt="{{ s.author.username }}">
               {% else %}
                 <span>{{ s.author.username|first|upper }}</span>
               {% endif %}
+              {% endwith %}
             </div>
             <strong style="font-size:11px;">@{{ s.author.username|truncatechars:10 }}</strong>
             <span style="display:none;">{{ s.first_story.text_content|default:s.first_story.caption }}</span>
@@ -27,17 +29,17 @@
     {% with post=item.post %}
     <article class="feed-card" data-post-uuid="{{ post.uuid }}">
       <div class="feed-top">
-        <a class="feed-author" href="{% url 'profile_detail' post.author.profile.username %}">
+        <a class="feed-author" href="{% url 'profile_detail' post.author.profile.username|default:post.author.username %}">
           <div class="feed-avatar">
             {% if post.author.profile.avatar %}
-              <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.profile.username }}">
+              <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.profile.username|default:post.author.username }}">
             {% else %}
-              <span>{{ post.author.profile.username|first|upper }}</span>
+              <span>{{ post.author.profile.username|default:post.author.username|first|upper }}</span>
             {% endif %}
           </div>
           <div>
-            <strong>{{ post.author.profile.display_name|default:post.author.profile.username }}</strong>
-            <small class="feed-copy">@{{ post.author.profile.username }} · {{ post.published_at|default:post.created_at|timesince }} ago</small>
+            <strong>{{ post.author.profile.display_name|default:post.author.profile.username|default:post.author.username }}</strong>
+            <small class="feed-copy">@{{ post.author.profile.username|default:post.author.username }} · {{ post.published_at|default:post.created_at|timesince }} ago</small>
           </div>
         </a>
         <span class="feed-badge">{{ post.get_post_type_display }}</span>
@@ -64,16 +66,23 @@
             <span class="like-icon">{% if post.is_liked %}❤️{% else %}🤍{% endif %}</span> 
             <span class="like-count">{{ post.like_count }}</span>
           </button>
-          <a class="small-btn" href="{% url 'post_detail' post.uuid %}">💬 {{ post.comment_count }}</a>
+          {% if request.user.is_authenticated %}
+            <button class="small-btn" type="button" onclick="toggleCommentBox(this)">Comment</button>
+          {% else %}
+            <a class="small-btn" href="{% url 'post_detail' post.uuid %}">💬 {{ post.comment_count }}</a>
+          {% endif %}
           <button class="small-btn" type="button">📤 Share</button>
         </div>
         <a class="small-btn" href="{% url 'post_detail' post.uuid %}">View Details</a>
       </div>
       
       {% if request.user.is_authenticated %}
-      <div class="feed-comment-box" style="margin-top:12px;display:flex;gap:10px;">
-        <input type="text" class="comment-input" placeholder="Add a comment..." style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px 12px;color:#fff;outline:none;">
-        <button class="small-btn" onclick="submitComment('{{ post.uuid }}', this)">Post</button>
+      <div class="feed-comment-shell">
+        <div class="feed-copy" style="font-size:13px;">Join the conversation under this post.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <input type="text" class="comment-input" placeholder="Add a comment...">
+          <button class="small-btn" onclick="submitComment('{{ post.uuid }}', this)">Post</button>
+        </div>
       </div>
       {% endif %}
     </article>
@@ -83,10 +92,10 @@
     {% with m=item.member %}
     <article class="feed-card member-card" style="padding:0;overflow:hidden;">
       <a href="{{ m.profile_url }}" style="text-decoration:none;color:#fff;display:block;">
-        <div style="height:280px;position:relative;">
-          {% if m.profile.avatar %}
-            <img src="{% avatar_url m.profile %}" style="width:100%;height:100%;object-fit:cover;" alt="{{ m.username }}">
-          {% else %}
+          <div style="height:280px;position:relative;">
+            {% if m.profile.avatar %}
+              <img src="{% avatar_url m.profile %}" style="width:100%;height:100%;object-fit:cover;" alt="{{ m.username }}">
+            {% else %}
             <div style="width:100%;height:100%;background:var(--nv-grad);display:grid;place-items:center;font-size:4rem;font-weight:900;">{{ m.username|first|upper }}</div>
           {% endif %}
           <div style="position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(0deg,rgba(0,0,0,.8),transparent);">
@@ -95,18 +104,18 @@
           </div>
         </div>
       </a>
-      <div style="padding:16px;">
-        <p class="feed-copy">{{ m.bio|truncatechars:120|default:"Discover real stories and posts from this creator." }}</p>
-        <div class="card-actions" style="margin-top:12px;">
-          <a class="action-btn" href="{{ m.profile_url }}" style="flex:1;">View Profile</a>
-          {% if request.user.is_authenticated %}
-            <button class="action-btn follow-btn {% if m.is_following %}ghost-btn{% else %}primary{% endif %}" 
+        <div style="padding:16px;">
+          <p class="feed-copy">{{ m.bio|truncatechars:120|default:"Discover real stories and posts from this creator." }}</p>
+          <div class="card-actions" style="margin-top:12px;">
+            <a class="action-btn" href="{{ m.profile_url }}" style="flex:1;">View Profile</a>
+            {% if request.user.is_authenticated %}
+              <button class="action-btn follow-btn {% if m.is_following %}ghost-btn{% else %}primary{% endif %}" 
                     type="button" onclick="toggleFollow('{{ m.username }}', this)" style="flex:1;">
-              {% if m.is_following %}Following{% else %}Follow{% endif %}
+              {% if m.is_following %}Following ✓{% else %}Follow{% endif %}
             </button>
-          {% endif %}
+            {% endif %}
+          </div>
         </div>
-      </div>
     </article>
     {% endwith %}
 

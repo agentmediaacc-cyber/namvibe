@@ -11,8 +11,9 @@
     --nv-grad:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
     --nv-glass:rgba(255,255,255,.08);
   }
+  body{background:#120014}
   .home-shell{width:min(1240px,calc(100% - 16px));margin:0 auto;padding:18px 0 110px}
-  .hero-card,.section-card,.story-card,.feed-card,.live-card,.member-card,.pink-card{
+  .hero-card,.section-card,.story-card,.feed-card,.live-card,.member-card,.pink-card,.section-inline-card,.skeleton-card{
     border:1px solid var(--nv-line);background:var(--nv-glass);backdrop-filter:blur(18px);
     box-shadow:0 24px 70px rgba(0,0,0,.28);border-radius:28px;color:#fff;
   }
@@ -23,11 +24,12 @@
       radial-gradient(circle at top right, rgba(236,72,153,.24), transparent 28%),
       linear-gradient(145deg, rgba(22,0,24,.92), rgba(18,0,20,.9));
   }
-  .hero-grid,.story-row,.feed-stack,.live-grid,.member-grid,.feature-grid,.pink-mini-grid,.action-row,.meta-row,.card-actions{display:grid;gap:16px}
+  .hero-grid,.story-row,.feed-stack,.live-grid,.member-grid,.feature-grid,.pink-mini-grid,.action-row,.meta-row,.card-actions,.section-inline-grid{display:grid;gap:16px}
   .hero-grid{grid-template-columns:minmax(0,1.08fr) minmax(280px,.92fr);align-items:start}
   .story-row{grid-template-columns:repeat(auto-fit,minmax(92px,1fr))}
   .live-grid,.feature-grid,.member-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
   .pink-mini-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+  .section-inline-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
   .hero-badge,.section-badge,.feed-badge,.member-badge{
     display:inline-flex;align-items:center;justify-content:center;width:max-content;
     padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;
@@ -51,6 +53,20 @@
   .section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}
   .section-head h2{margin:0;font-size:clamp(1.45rem,2.6vw,2rem)}
   .section-link{color:#fff;text-decoration:none;font-weight:900}
+  .section-inline-card{
+    padding:18px;display:grid;gap:12px;text-decoration:none;color:#fff;
+    background:
+      radial-gradient(circle at top left, rgba(124,58,237,.18), transparent 35%),
+      linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+    transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+  }
+  .section-inline-card strong{font-size:1rem}
+  .section-inline-card p{margin:0;color:var(--nv-muted);line-height:1.55}
+  .section-inline-card:hover,.story-card:hover,.feed-card:hover,.live-card:hover,.member-card:hover,.pink-card:hover{
+    transform:translateY(-3px);
+    border-color:rgba(255,255,255,.22);
+    box-shadow:0 28px 72px rgba(0,0,0,.34);
+  }
   .story-card{text-decoration:none;text-align:center}
   .story-avatar{width:68px;height:68px;border-radius:22px;margin:0 auto 10px;padding:2px;background:var(--nv-grad)}
   .story-avatar img,.story-avatar span{width:100%;height:100%;border-radius:20px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
@@ -76,7 +92,21 @@
   .card-actions{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start}
   .small-btn{
     display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;font-weight:900;
-    padding:10px 13px;border-radius:14px;border:1px solid var(--nv-line);background:rgba(255,255,255,.05)
+    padding:10px 13px;border-radius:14px;border:1px solid var(--nv-line);background:rgba(255,255,255,.05);
+    transition:transform .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease
+  }
+  .small-btn:hover,.small-btn:focus-visible,.action-btn:hover,.ghost-btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)}
+  .like-btn.active{background:rgba(236,72,153,.16);border-color:rgba(236,72,153,.42)}
+  .like-btn.like-pop{animation:heart-pop .28s ease}
+  .follow-btn.following-state{background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4)}
+  .feed-comment-shell{
+    display:none;gap:10px;padding:12px;border-radius:18px;
+    background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.08)
+  }
+  .feed-comment-shell.open{display:grid;animation:feed-rise .2s ease}
+  .comment-input{
+    width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+    border-radius:14px;padding:10px 12px;color:#fff;outline:none
   }
   .live-card,.member-card{display:grid;gap:12px}
   .live-card strong,.member-card strong{display:block}
@@ -86,14 +116,31 @@
   .member-status{display:inline-flex;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;font-size:12px;font-weight:900}
   .empty-card{padding:22px;text-align:center}
   .pink-card{padding:20px;background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(236,72,153,.18),rgba(244,63,94,.12))}
+  .feed-loader{display:grid;gap:12px;padding-top:10px}
+  .skeleton-card{
+    min-height:140px;padding:18px;overflow:hidden;position:relative;background:rgba(255,255,255,.05)
+  }
+  .skeleton-card::after{
+    content:"";position:absolute;inset:0;background:linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent);
+    transform:translateX(-100%);animation:shimmer 1.3s infinite;
+  }
+  .skeleton-line{height:12px;border-radius:999px;background:rgba(255,255,255,.07)}
+  .skeleton-line.big{height:18px;width:62%}
+  .skeleton-line.mid{width:44%}
+  .skeleton-line.full{width:100%}
+  .feed-status-copy{text-align:center;color:var(--nv-muted);font-weight:700;padding:12px}
+  @keyframes shimmer{100%{transform:translateX(100%)}}
+  @keyframes heart-pop{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
+  @keyframes feed-rise{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}
   @media (max-width: 980px){.hero-grid{grid-template-columns:1fr}}
   @media (max-width: 640px){
     .home-shell{width:calc(100% - 10px);padding-top:14px}
-    .hero-card,.section-card,.story-card,.feed-card,.live-card,.member-card,.pink-card{border-radius:24px}
+    .hero-card,.section-card,.story-card,.feed-card,.live-card,.member-card,.pink-card,.section-inline-card,.skeleton-card{border-radius:24px}
     .hero-card{padding:22px}
     .action-row,.meta-row,.card-actions{grid-auto-flow:row}
     .feed-media.reel{max-width:none}
     .story-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .section-inline-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   }
 </style>
 {% endblock %}
@@ -140,12 +187,59 @@
   </section>
 
   <section class="section-block">
+    <div class="section-head">
+      <div>
+        <span class="section-badge">Discover now</span>
+        <h2>Stories, live rooms, members, and featured experiences</h2>
+      </div>
+      <a class="section-link" href="{{ members_url }}">See members</a>
+    </div>
+    <div class="section-inline-grid">
+      {% for item in live_teasers|slice:":2" %}
+        <a class="section-inline-card" href="{{ item.url|default:live_shows_url }}">
+          <span class="section-badge">{{ item.badge|default:"Live" }}</span>
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.copy|default:item.description|default:"Open live shows, creator rooms, and premium local moments." }}</p>
+        </a>
+      {% endfor %}
+      {% for item in member_cards|slice:":2" %}
+        <a class="section-inline-card" href="{{ item.profile_url }}">
+          <span class="section-badge">Member</span>
+          <strong>{{ item.display_name|default:item.username }}</strong>
+          <p>{{ item.bio|default:item.location|default:"Discover real creators, friends, and new profiles near you."|truncatechars:86 }}</p>
+        </a>
+      {% endfor %}
+      <a class="section-inline-card" href="{{ pink_friday_url }}">
+        <span class="section-badge">Featured</span>
+        <strong>Pink Friday</strong>
+        <p>Open the weekly social event for live matches, stories, music, and premium community energy.</p>
+      </a>
+      <a class="section-inline-card" href="{{ games_url }}">
+        <span class="section-badge">Play together</span>
+        <strong>Games hub</strong>
+        <p>Jump into friendly social games without losing the flow of the homepage feed.</p>
+      </a>
+    </div>
+  </section>
+
+  <section class="section-block">
     <div class="feed-stack" id="feedContainer">
       {% include "core/_feed_items.html" %}
     </div>
     <div id="feedSentinel" style="height:20px;"></div>
-    <div id="feedLoader" style="display:none;text-align:center;padding:20px;">
-      <span class="loading-spinner"></span> Loading more...
+    <div id="feedLoader" class="feed-loader" style="display:none;">
+      <article class="skeleton-card">
+        <div class="skeleton-line big"></div>
+        <div class="skeleton-line mid" style="margin-top:12px;"></div>
+        <div class="skeleton-line full" style="margin-top:20px;"></div>
+        <div class="skeleton-line full" style="margin-top:10px;"></div>
+      </article>
+      <article class="skeleton-card">
+        <div class="skeleton-line big"></div>
+        <div class="skeleton-line mid" style="margin-top:12px;"></div>
+        <div class="skeleton-line full" style="margin-top:20px;"></div>
+      </article>
+      <div id="feedStatus" class="feed-status-copy">Loading more Namvibe moments...</div>
     </div>
   </section>
 </section>
@@ -178,13 +272,14 @@
       const html = await response.text();
       if (html.trim() === "") {
         hasMore = false;
-        feedLoader.innerHTML = "No more items to show.";
+        document.getElementById('feedStatus').textContent = "You're caught up for now.";
       } else {
         feedContainer.insertAdjacentHTML('beforeend', html);
       }
     } catch (err) {
       console.error(err);
       hasMore = false;
+      document.getElementById('feedStatus').textContent = "More stories and posts will appear when the connection settles.";
     } finally {
       loading = false;
       if (hasMore) feedLoader.style.display = 'none';
@@ -207,6 +302,9 @@
       if (data.liked) {
         icon.textContent = '❤️';
         btn.classList.add('active');
+        btn.classList.remove('like-pop');
+        void btn.offsetWidth;
+        btn.classList.add('like-pop');
       } else {
         icon.textContent = '🤍';
         btn.classList.remove('active');
@@ -228,17 +326,26 @@
       });
       const data = await response.json();
       if (data.status === 'followed') {
-        btn.textContent = 'Following';
+        btn.textContent = 'Following ✓';
         btn.classList.remove('primary');
         btn.classList.add('ghost-btn');
+        btn.classList.add('following-state');
       } else {
         btn.textContent = 'Follow';
         btn.classList.remove('ghost-btn');
         btn.classList.add('primary');
+        btn.classList.remove('following-state');
       }
     } catch (err) {
       console.error(err);
     }
+  }
+
+  function toggleCommentBox(btn) {
+    const shell = btn.closest('.feed-card')?.querySelector('.feed-comment-shell');
+    if (!shell) return;
+    shell.classList.toggle('open');
+    btn.textContent = shell.classList.contains('open') ? 'Close comments' : 'Comment';
   }
 
   async function submitComment(uuid, btn) {
@@ -260,13 +367,8 @@
       const data = await response.json();
       if (data.status === 'success') {
         input.value = '';
-        // Optionally update comment count UI if it exists in the specific card
-        const countSpan = btn.closest('.feed-card').querySelector('a[href*="/post/"]');
-        if (countSpan) {
-           // This is a bit fragile due to template structure, but good enough for a demo
-           // data.comment_count has the new count
-        }
-        alert('Comment posted!');
+        btn.textContent = 'Posted';
+        setTimeout(() => { btn.textContent = 'Post'; }, 1200);
       }
     } catch (err) {
       console.error(err);

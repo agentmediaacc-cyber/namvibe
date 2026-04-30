@@ -41,6 +41,7 @@
   }
   .badge{background:rgba(236,72,153,.14);border:1px solid rgba(255,255,255,.12);color:#fbcfe8}
   .meta-pill,.profile-tab,.profile-action{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+  button.profile-tab{cursor:pointer;font:inherit}
   .profile-title h1{margin:12px 0 4px;font-size:clamp(2.1rem,5vw,3.7rem);line-height:.95}
   .muted-copy,.title-meta,.profile-stat span,.identity-chip small,.empty-box{color:#cbd5e1}
   .muted-copy{line-height:1.7}
@@ -57,7 +58,7 @@
   .identity-mark{width:44px;height:44px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(124,58,237,.34),rgba(236,72,153,.2));font-weight:900}
   .tab-row{overflow:auto;padding-bottom:2px;scrollbar-width:none}
   .tab-row::-webkit-scrollbar{display:none}
-  .empty-box{padding:18px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+  .empty-box{padding:18px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);line-height:1.65}
   .overview-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
   @media (max-width: 760px){
     .profile-shell{width:calc(100% - 10px);padding-top:14px}
@@ -159,11 +160,11 @@
         </div>
 
         <nav class="tab-row" aria-label="Profile sections" style="margin-top:20px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:10px;">
-          <a class="profile-tab active" href="#posts" onclick="switchTab(event, 'posts')">Posts</a>
-          <a class="profile-tab" href="#media" onclick="switchTab(event, 'media')">Media</a>
-          <a class="profile-tab" href="#live" onclick="switchTab(event, 'live')">Live</a>
-          <a class="profile-tab" href="#stories" onclick="switchTab(event, 'stories')">Stories</a>
-          <a class="profile-tab" href="#about" onclick="switchTab(event, 'about')">About</a>
+          <button class="profile-tab active" type="button" data-profile-tab="posts" onclick="switchTab(event, 'posts')">Posts</button>
+          <button class="profile-tab" type="button" data-profile-tab="media" onclick="switchTab(event, 'media')">Media</button>
+          <button class="profile-tab" type="button" data-profile-tab="live" onclick="switchTab(event, 'live')">Live</button>
+          <button class="profile-tab" type="button" data-profile-tab="stories" onclick="switchTab(event, 'stories')">Stories</button>
+          <button class="profile-tab" type="button" data-profile-tab="about" onclick="switchTab(event, 'about')">About</button>
         </nav>
       </div>
     </div>
@@ -175,7 +176,7 @@
         {% for post in profile_posts %}
           {% include "posts/_post_card.html" with post=post %}
         {% empty %}
-          <div class="empty-box">No visible posts yet.</div>
+          <div class="empty-box">No posts yet. Start the conversation.</div>
         {% endfor %}
       </div>
     </section>
@@ -185,7 +186,7 @@
         {% for post in media_posts %}
           {% include "posts/_post_card.html" with post=post %}
         {% empty %}
-          <div class="empty-box">No visible media yet.</div>
+          <div class="empty-box">No media yet. Photos, videos, and reels will appear here.</div>
         {% endfor %}
       </div>
     </section>
@@ -205,6 +206,9 @@
             <span><strong>{{ upcoming_live.title }}</strong><small>Starts {{ upcoming_live.starts_at|date:"M j H:i" }}</small></span>
           </a>
         {% endif %}
+        {% if not current_live and not upcoming_live %}
+          <div class="empty-box">No live rooms yet. The next vibe is loading.</div>
+        {% endif %}
       </div>
     </section>
 
@@ -220,7 +224,7 @@
             <div style="position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:6px;font-size:11px;">{{ s.created_at|timesince }} ago</div>
           </a>
         {% empty %}
-          <div class="empty-box">No active stories.</div>
+          <div class="empty-box">No stories yet. Be the first to share your vibe ✨</div>
         {% endfor %}
       </div>
     </section>
@@ -242,7 +246,6 @@
 
 <script>
   function switchTab(event, tabId) {
-    event.preventDefault();
     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
     document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).style.display = 'block';

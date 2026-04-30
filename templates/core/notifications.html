@@ -1,57 +1,115 @@
 {% extends "base.html" %}
 {% block title %}Notifications | Namvibe{% endblock %}
 
-{% block content %}
-<section class="product-shell">
-  <div class="product-hero">
-    <div>
-      <span class="eyebrow">Notifications</span>
-      <h1>{{ title }}</h1>
-      <p>{{ subtitle }}</p>
-      <div class="product-actions">
-        {% for action in actions %}
-          <a class="nv-btn primary" href="{% url action.url_name %}{{ action.query|default:'' }}">{{ action.label }}</a>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
+{% block extra_head %}
+<style>
+  .notifications-shell{width:min(1120px,calc(100% - 16px));margin:0 auto;padding:24px 0 110px}
+  .notifications-hero,.notification-group-card,.notification-card,.notification-cta{
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);
+    backdrop-filter:blur(16px);
+    box-shadow:0 24px 70px rgba(0,0,0,.28);
+    border-radius:28px;color:#fff;
+  }
+  .notifications-hero{
+    padding:24px;
+    background:
+      radial-gradient(circle at top left, rgba(124,58,237,.24), transparent 28%),
+      radial-gradient(circle at top right, rgba(236,72,153,.18), transparent 26%),
+      linear-gradient(145deg, rgba(22,0,24,.94), rgba(18,0,20,.92));
+  }
+  .notifications-hero h1{margin:10px 0 8px;font-size:clamp(2.2rem,5vw,4rem);line-height:.96}
+  .notifications-copy,.notification-card p,.notification-card small,.notification-empty{color:#cbd5e1;line-height:1.6}
+  .notifications-badge{
+    display:inline-flex;align-items:center;justify-content:center;width:max-content;
+    padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;
+    font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  }
+  .notifications-actions,.notification-list,.notification-groups,.notification-cta-grid{display:grid;gap:14px}
+  .notifications-actions{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start;margin-top:16px}
+  .notification-cta{
+    text-decoration:none;padding:12px 15px;font-weight:900;
+    transition:transform .18s ease,border-color .18s ease;
+  }
+  .notification-cta.primary{background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);border-color:transparent}
+  .notification-cta:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)}
+  .notification-groups{margin-top:20px}
+  .notification-group-card{padding:18px}
+  .notification-group-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .notification-group-head h2{margin:0;font-size:1.2rem}
+  .notification-list{grid-template-columns:1fr}
+  .notification-card{
+    display:grid;gap:8px;padding:16px;text-decoration:none;
+    background:rgba(255,255,255,.05);transition:transform .18s ease,border-color .18s ease;
+  }
+  .notification-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.22)}
+  .notification-card.unread{
+    background:linear-gradient(135deg,rgba(124,58,237,.16),rgba(236,72,153,.12));
+    border-color:rgba(236,72,153,.34);
+  }
+  .notification-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .notification-dot{
+    width:9px;height:9px;border-radius:999px;background:#ec4899;
+    box-shadow:0 0 0 6px rgba(236,72,153,.12);
+  }
+  .notification-empty{
+    padding:22px;border-radius:24px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.16);
+    text-align:center;
+  }
+  .notification-cta-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:18px}
+  @media (max-width: 640px){
+    .notifications-shell{width:calc(100% - 10px);padding-top:14px}
+    .notifications-hero,.notification-group-card,.notification-card,.notification-cta{border-radius:24px}
+    .notifications-actions{grid-auto-flow:row}
+  }
+</style>
+{% endblock %}
 
-  <div class="product-section">
-    <h2>Activity center</h2>
-    {% if safe_mode_message %}
-      <div class="product-grid" style="grid-template-columns:1fr; margin-bottom:14px;">
-        <div class="product-card">Notifications are temporarily running in safe mode while the database connection recovers.</div>
-      </div>
-    {% endif %}
+{% block content %}
+<section class="notifications-shell">
+  <section class="notifications-hero">
+    <span class="notifications-badge">Notification center</span>
+    <h1>{{ title }}</h1>
+    <p class="notifications-copy">{{ subtitle }}</p>
+    <div class="notifications-actions">
+      {% for action in actions %}
+        <a class="notification-cta {% if forloop.first %}primary{% endif %}" href="{% url action.url_name %}{{ action.query|default:'' }}">{{ action.label }}</a>
+      {% endfor %}
+      <a class="notification-cta" href="{% url 'home' %}">Back to feed</a>
+    </div>
+  </section>
+
+  <section class="notification-groups">
     {% if notification_groups %}
       {% for group in notification_groups %}
-        <div style="margin-bottom:16px;">
-          <h3 style="margin:0 0 10px;">{{ group.title }}</h3>
-          <div class="product-grid" style="grid-template-columns:1fr;">
+        <article class="notification-group-card">
+          <div class="notification-group-head">
+            <h2>{{ group.title }}</h2>
+            <span class="notifications-copy">{{ group.items|length }} update{{ group.items|length|pluralize }}</span>
+          </div>
+          <div class="notification-list">
             {% for item in group.items %}
-              <a class="product-card" href="{{ item.href }}">
-                <strong>{{ item.title }}</strong>
-                <span>{{ item.copy }}</span>
-                <span>{{ item.meta|date:"M j, H:i" }}</span>
+              <a class="notification-card {% if item.is_new %}unread{% endif %}" href="{{ item.href }}">
+                <div class="notification-meta">
+                  {% if item.is_new %}<span class="notification-dot" aria-hidden="true"></span>{% endif %}
+                  <strong>{{ item.title }}</strong>
+                </div>
+                <p>{{ item.copy }}</p>
+                <small>{{ item.meta|date:"M j, H:i" }}</small>
               </a>
             {% endfor %}
           </div>
-        </div>
+        </article>
       {% endfor %}
     {% else %}
-      <div class="product-grid" style="grid-template-columns:1fr;">
-        <div class="product-card">No notification activity yet. New follows, chats, comments, dating likes, gifts, and wallet updates will land here.</div>
-      </div>
+      <div class="notification-empty">No notifications yet. Likes, comments, follows, and new messages will land here as soon as your Namvibe activity starts moving.</div>
     {% endif %}
-  </div>
+  </section>
 
-  <div class="product-section">
-    <h2>Keep moving</h2>
-    <div class="product-grid">
-      <a class="product-card" href="{% url 'home' %}"><strong>Home feed</strong><span>Return to the main social stream.</span></a>
-      <a class="product-card" href="{% url 'user_dashboard' %}?section=messages"><strong>Messages</strong><span>Jump into unread conversations and replies.</span></a>
-      <a class="product-card" href="{% url 'wallet_home' %}"><strong>Wallet</strong><span>Review gifts, premium, and creator earnings.</span></a>
-    </div>
-  </div>
+  <section class="notification-cta-grid">
+    <a class="notification-cta" href="{% url 'user_dashboard' %}?section=messages">Open messages</a>
+    <a class="notification-cta" href="{% url 'member_discovery' %}">Discover members</a>
+    <a class="notification-cta" href="{% url 'pink_friday' %}">Open Pink Friday</a>
+  </section>
 </section>
 {% endblock %}

@@ -46,7 +46,7 @@
             {% if wallet_account %}· wallet ready{% endif %}
           </div>
           <h2 style="margin:0;">Messages</h2>
-          <p style="margin:8px 0 0;color:#cbd5e1;">Your inbox stays clean, private, and ready for chats, creator replies, and support follow-ups.</p>
+          <p style="margin:8px 0 0;color:#cbd5e1;">Your inbox stays clean, private, and ready for close friends, creator replies, and support follow-ups.</p>
         </div>
         <div class="message-cta-row">
           <a class="message-cta primary" href="{% url 'user_dashboard' %}?section=messages">Open compact hub view</a>
@@ -61,7 +61,7 @@
       {% if not chat_conversations %}
         <div class="message-empty-card">
           <strong>No conversations yet</strong>
-          <p>When people message you, or when you start a new chat from a profile, your inbox will appear here without loading the rest of your account tools.</p>
+          <p>No messages yet. Friend-approved chats and real conversations will appear here.</p>
         </div>
       {% endif %}
     </section>
