@@ -134,6 +134,8 @@
             </form>
             {% if is_friend %}
               <a class="profile-action" href="{{ action_urls.messages }}">Chat</a>
+              <a class="profile-action" href="{{ action_urls.audio_call }}">Call</a>
+              <a class="profile-action" href="{{ action_urls.video_call }}">Video Call</a>
             {% elif request_received %}
               <form method="post" action="{{ action_urls.friend_accept }}" style="margin:0;">
                 {% csrf_token %}

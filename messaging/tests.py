@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from unittest.mock import patch
 
-from accounts.models import FriendRequest
+from accounts.models import FriendRequest, Notification
 from .models import Conversation, Message
 
 
@@ -74,6 +74,47 @@ class MessagingFlowTests(TestCase):
         self.assertEqual(reply.attachment_type, Message.ATTACHMENT_IMAGE)
         self.assertEqual(forwarded.forwarded_from, first_message)
         self.assertEqual(forwarded.text, "Hello 😀")
+
+    def test_send_message_creates_recipient_notification(self):
+        conversation = Conversation.objects.create()
+        conversation.participants.add(self.alina, self.ben)
+        self.client.login(username="alina", password="Pass12345")
+
+        response = self.client.post(reverse("messaging:send_message", args=[conversation.id]), {"text": "Ping"})
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.filter(recipient=self.ben).latest("created_at")
+        self.assertIn("sent you a message", notification.message)
+        self.assertEqual(notification.sender, self.alina)
+
+    def test_friend_request_acceptance_unlocks_chat_flow(self):
+        self.client.login(username="alina", password="Pass12345")
+        send_response = self.client.post(reverse("friend_request_send", kwargs={"username": self.cato.profile.username}))
+        self.assertEqual(send_response.status_code, 302)
+        request_row = FriendRequest.objects.get(from_user=self.alina, to_user=self.cato)
+        self.client.logout()
+
+        self.client.login(username="cato", password="Pass12345")
+        accept_response = self.client.post(reverse("friend_request_accept", kwargs={"request_id": request_row.id}))
+        self.assertEqual(accept_response.status_code, 302)
+        self.client.logout()
+
+        self.client.login(username="alina", password="Pass12345")
+        chat_response = self.client.get(reverse("messaging:start_chat", args=[self.cato.id]))
+
+        self.assertEqual(chat_response.status_code, 302)
+        self.assertEqual(Conversation.objects.filter(participants=self.alina).filter(participants=self.cato).count(), 1)
+
+    def test_call_lobby_requires_accepted_friendship(self):
+        self.client.login(username="alina", password="Pass12345")
+
+        blocked = self.client.get(reverse("call_start", args=[self.cato.id]))
+        allowed = self.client.get(reverse("call_start", args=[self.ben.id]))
+
+        self.assertEqual(blocked.status_code, 302)
+        self.assertEqual(allowed.status_code, 200)
+        self.assertContains(allowed, "Audio call")
+        self.assertContains(allowed, "Video call")
 
     def test_sender_can_soft_delete_own_message(self):
         conversation = Conversation.objects.create()

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Call Lobby | Namvibe{% endblock %}
+
+{% block content %}
+<section class="product-shell">
+  <div class="product-hero">
+    <div>
+      <span class="eyebrow">Private call lobby</span>
+      <h1>Start a premium call with @{{ other_user.username }}</h1>
+      <p>Camera and microphone permissions only start after you tap enable. Choose audio, video, or a private room setup before opening the live gate.</p>
+      <div class="product-actions">
+        <a class="nv-btn primary" href="{% url 'messaging:call_gate' other_user.id 'voice' %}">Audio call</a>
+        <a class="nv-btn" href="{% url 'messaging:call_gate' other_user.id 'video' %}">Video call</a>
+        <a class="nv-btn" href="{% url 'live_start' %}">Start private room</a>
+        <a class="nv-btn" href="{% url 'user_dashboard' %}?section=messages&conversation={{ conversation.id }}">Back to chat</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="product-grid">
+    <div class="product-card"><span>Friend status</span><strong>Friends connected</strong></div>
+    <div class="product-card"><span>Audio unlock</span><strong>{% if voice_gate.membership %}Premium active{% else %}N${{ voice_gate.cost }} credits{% endif %}</strong></div>
+    <div class="product-card"><span>Video unlock</span><strong>{% if video_gate.membership %}Premium active{% else %}N${{ video_gate.cost }} credits{% endif %}</strong></div>
+    <div class="product-card"><span>Wallet balance</span><strong>N${{ voice_gate.wallet.available_balance }}</strong></div>
+  </div>
+
+  <div class="product-section">
+    <h2>Permission readiness</h2>
+    <div class="product-card">
+      <p id="callLobbyPermissionState">Enable camera and microphone only when you are ready to test this device.</p>
+      <div class="product-actions">
+        <button class="nv-btn primary" type="button" id="callLobbyEnable">Enable camera and mic</button>
+        <a class="nv-btn" href="{% url 'support_help' %}">Permission help</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.getElementById("callLobbyEnable")?.addEventListener("click", async function () {
+    const state = document.getElementById("callLobbyPermissionState");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      state.textContent = "This browser cannot run camera and microphone checks here.";
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      state.textContent = "Camera and microphone are ready for the next step.";
+    } catch (error) {
+      state.textContent = "Permission blocked. Enable camera and microphone in your browser or phone settings.";
+    }
+  });
+</script>
+{% endblock %}

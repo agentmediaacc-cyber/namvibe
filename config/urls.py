@@ -30,7 +30,7 @@ from core.views import (
     live_shows_view,
     pink_friday_view,
 )
-from messaging.views import messages_home_view
+from messaging.views import call_lobby_view, messages_home_view
 from posts.views import (
     add_comment_view,
     author_posts_list_view,
@@ -129,6 +129,7 @@ urlpatterns = [
     path("profile/upload-photo/", profile_upload_photo_alias, name="profile_upload_photo"),
     path("settings/", settings_alias, name="settings"),
     path("messages/", messages_home_view, name="messages_home"),
+    path("calls/start/<int:user_id>/", call_lobby_view, name="call_start"),
     path("discover/people/", discover_people_alias, name="discover_people"),
     path("hashtags/<str:tag>/", hashtag_view, name="hashtag"),
     path("reels/", reels_feed_view, name="reels_feed"),

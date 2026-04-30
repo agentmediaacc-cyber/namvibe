@@ -1,3 +1,4 @@
+import logging
 from urllib.parse import urlencode
 
 from django.contrib.auth.models import User
@@ -20,6 +21,8 @@ from stories.services import story_rail_for
 from supportapp.models import SystemPromoCard
 from wallet.models import MembershipPlan, WalletTransaction
 from wallet.services import VIBE_COIN_DISPLAY_RATE, active_membership_for, ensure_wallet
+
+logger = logging.getLogger(__name__)
 
 
 def _dashboard_section_url(section, **params):
@@ -53,6 +56,14 @@ def _active_ads(placement, limit=2):
         for ad in ads:
             ad.impression_count += 1
     return ads
+
+
+def _safe_section(label, default, callback):
+    try:
+        return callback()
+    except Exception as exc:
+        logger.warning("Homepage section '%s' failed with %s", label, exc.__class__.__name__)
+        return default() if callable(default) else default
 
 
 def _header_counts(user):
@@ -529,22 +540,26 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, membe
                 },
             }
         ]
-    return modules
+    return modules[:20]
 
 
-def homepage_context(request, page=1):
+def homepage_context(request, page=1, fragment=False):
     user = request.user
-    limit = 12
+    page = max(1, min(int(page or 1), 50))
+    limit = 12 if not fragment else 10
     offset = (page - 1) * limit
 
-    raw_public_feed = list(
-        Post.objects.published()
-        .filter(audience=Post.Audience.PUBLIC)
-        .select_related("author", "author__profile")
-        .prefetch_related("media", "likes", "comments")
-        .order_by("-published_at", "-created_at")[offset : offset + 24]
-    )
-    public_feed_items = raw_public_feed[:15]
+    raw_public_feed = []
+    public_feed_items = []
+    if not fragment:
+        raw_public_feed = list(
+            Post.objects.published()
+            .filter(audience=Post.Audience.PUBLIC)
+            .select_related("author", "author__profile")
+            .prefetch_related("media", "likes", "comments")
+            .order_by("-published_at", "-created_at")[offset : offset + 24]
+        )
+        public_feed_items = raw_public_feed[:15]
 
     visible_posts = (
         base_visible_posts(user)
@@ -553,23 +568,33 @@ def homepage_context(request, page=1):
     )
     primary_posts = list(visible_posts[offset : offset + limit])
     reel_preview = [post for post in primary_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
-    active_stories = StoryItem.objects.visible_to(user)
-    live_now, featured_live = _live_preview(user)
-    story_rail = story_rail_for(user, limit=18)
+    if fragment:
+        mid_ads = _safe_section("fragment_ads", [], lambda: _active_ads(Advertisement.Placement.HOMEPAGE_MID, 1)) if primary_posts else []
+        return {
+            "mixed_feed": _mixed_feed(primary_posts, reel_preview, [], [], [], [], None, mid_ads, [], [], []),
+        }
+
+    active_stories = _safe_section("active_stories", StoryItem.objects.none(), lambda: StoryItem.objects.visible_to(user))
+    live_now, featured_live = _safe_section("live_preview", ([], []), lambda: _live_preview(user))
+    story_rail = _safe_section("story_rail", [], lambda: story_rail_for(user, limit=18))
     live_author_ids = {session.host_id for session in live_now}
     for item in story_rail:
         item["is_live"] = item["author"].id in live_author_ids
-    communities = _community_suggestions(user)
-    creators = _people_suggestions(user)
-    member_cards = _member_cards(user, creators, limit=8)
-    dating_profiles = _dating_suggestions(user)
-    wallet_snapshot = _wallet_snapshot(user)
-    header_counts = _header_counts(user)
-    top_ads = _active_ads(Advertisement.Placement.HOMEPAGE_TOP, 1)
-    mid_ads = _active_ads(Advertisement.Placement.HOMEPAGE_MID, 3)
-    sidebar_ads = _active_ads(Advertisement.Placement.HOMEPAGE_SIDEBAR, 2)
-    promos = _system_promos(user, wallet_snapshot)
-    membership_plans = list(MembershipPlan.objects.filter(is_active=True).order_by("price", "name")[:3])
+    communities = _safe_section("communities", [], lambda: _community_suggestions(user))
+    creators = _safe_section("creators", [], lambda: _people_suggestions(user))
+    member_cards = _safe_section("member_cards", [], lambda: _member_cards(user, creators, limit=8))
+    dating_profiles = _safe_section("dating_profiles", [], lambda: _dating_suggestions(user))
+    wallet_snapshot = _safe_section("wallet_snapshot", None, lambda: _wallet_snapshot(user))
+    header_counts = _safe_section("header_counts", {"messages": 0, "notifications": 0}, lambda: _header_counts(user))
+    top_ads = _safe_section("top_ads", [], lambda: _active_ads(Advertisement.Placement.HOMEPAGE_TOP, 1))
+    mid_ads = _safe_section("mid_ads", [], lambda: _active_ads(Advertisement.Placement.HOMEPAGE_MID, 3))
+    sidebar_ads = _safe_section("sidebar_ads", [], lambda: _active_ads(Advertisement.Placement.HOMEPAGE_SIDEBAR, 2))
+    promos = _safe_section("promos", [], lambda: _system_promos(user, wallet_snapshot))
+    membership_plans = _safe_section(
+        "membership_plans",
+        [],
+        lambda: list(MembershipPlan.objects.filter(is_active=True).order_by("price", "name")[:3]),
+    )
 
     current_profile = getattr(user, "profile", None) if user.is_authenticated else None
     following_count = current_profile.following_count if current_profile else 0
@@ -582,8 +607,8 @@ def homepage_context(request, page=1):
         else _dashboard_section_url("messages")
     )
 
-    live_teasers = _live_teasers(live_now, featured_live)
-    dating_teasers = _dating_teasers(dating_profiles)
+    live_teasers = _safe_section("live_teasers", _live_teasers([], []), lambda: _live_teasers(live_now, featured_live))
+    dating_teasers = _safe_section("dating_teasers", _dating_teasers([]), lambda: _dating_teasers(dating_profiles))
     game_teasers = _game_teasers()
     pink_friday_teasers = _pink_friday_teasers()
     region_teasers = _region_teasers()

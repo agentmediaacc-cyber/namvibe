@@ -1,10 +1,13 @@
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.models import User
+from django.test import RequestFactory
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import Block
 from ads.models import Advertisement
+from core.homepage import homepage_context
 from posts.models import Post
 from stories.models import StoryComment, StoryItem, StoryReaction, StoryShare, StoryView
 
@@ -184,3 +187,36 @@ class HomepageProductionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f"@{self.author.profile.username}")
+
+    def test_homepage_empty_db_and_feed_more_stay_online(self):
+        Post.objects.all().delete()
+        StoryItem.objects.all().delete()
+
+        home = self.client.get(reverse("home"))
+        more = self.client.get(reverse("feed_more"), {"page": 2})
+
+        self.assertEqual(home.status_code, 200)
+        self.assertEqual(more.status_code, 200)
+
+    def test_homepage_context_caps_mixed_feed_to_twenty_items(self):
+        for index in range(26):
+            Post.objects.create(
+                author=self.author,
+                title=f"Extra post {index}",
+                audience=Post.Audience.PUBLIC,
+                status=Post.Status.PUBLISHED,
+                published_at=timezone.now() - timezone.timedelta(minutes=index + 5),
+            )
+
+        request = RequestFactory().get("/")
+        request.user = AnonymousUser()
+
+        context = homepage_context(request)
+
+        self.assertLessEqual(len(context["mixed_feed"]), 20)
+
+    def test_feed_more_fragment_does_not_repeat_story_rail(self):
+        response = self.client.get(reverse("feed_more"), {"page": 2})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Create story")

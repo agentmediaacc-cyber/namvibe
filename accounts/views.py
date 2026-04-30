@@ -1285,6 +1285,8 @@ def public_profile_view(request, username):
             if request.user == profile.user
             else (_safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id) if is_friend else "")
         ),
+        "audio_call": _safe_reverse("call_start", fallback="user_dashboard", user_id=profile.user.id),
+        "video_call": f"{_safe_reverse('call_start', fallback='user_dashboard', user_id=profile.user.id)}?mode=video",
         "games": _safe_reverse("games_home"),
         "about": _safe_reverse("profile_detail", username=profile.username),
         "friend_request": _safe_reverse("friend_request_send", username=profile.username),

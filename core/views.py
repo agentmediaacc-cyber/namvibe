@@ -103,5 +103,10 @@ def feed_more_view(request):
         page = int(request.GET.get("page", 2))
     except ValueError:
         page = 2
-    context = homepage_context(request, page=page)
+    page = max(2, page)
+    try:
+        context = homepage_context(request, page=page, fragment=True)
+    except Exception as exc:
+        logger.exception("Homepage fragment failed with %s", exc.__class__.__name__)
+        context = {"mixed_feed": []}
     return render(request, "core/_feed_items.html", context)

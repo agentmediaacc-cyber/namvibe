@@ -70,6 +70,35 @@ def _bottom_actions(request, smart_profile_url):
     return "default", actions
 
 
+def _nav_counters(request):
+    if not request.user.is_authenticated:
+        return {
+            "nav_notification_count": 0,
+            "nav_message_count": 0,
+            "nav_notifications_url": _safe_reverse("notifications"),
+            "nav_messages_url": _safe_reverse("messages_home"),
+        }
+    try:
+        from accounts.models import Notification
+        from messaging.models import Message
+
+        unread_notifications = Notification.objects.filter(recipient=request.user, is_read=False).count()
+        unread_messages = (
+            Message.objects.filter(conversation__participants=request.user, read_at__isnull=True)
+            .exclude(sender=request.user)
+            .count()
+        )
+    except Exception:
+        unread_notifications = 0
+        unread_messages = 0
+    return {
+        "nav_notification_count": unread_notifications,
+        "nav_message_count": unread_messages,
+        "nav_notifications_url": _safe_reverse("notifications"),
+        "nav_messages_url": _safe_reverse("messages_home"),
+    }
+
+
 def profile_navigation(request):
     dashboard_url = reverse("user_dashboard")
     login_url = reverse("login")
@@ -101,4 +130,5 @@ def profile_navigation(request):
         "app_drawer_groups": _drawer_groups(request, smart_profile_url),
         "mobile_action_page": page_kind,
         "mobile_action_items": bottom_actions,
+        **_nav_counters(request),
     }

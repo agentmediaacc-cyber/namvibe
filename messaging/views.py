@@ -157,3 +157,26 @@ def call_gate_view(request, user_id, mode):
             "gate": call_gate_state(request.user, mode),
         },
     )
+
+
+@login_required(login_url="login")
+def call_lobby_view(request, user_id):
+    other_user = get_object_or_404(get_user_model(), pk=user_id)
+    if other_user == request.user:
+        messages.error(request, "Choose another member to start a call.")
+        return redirect("user_dashboard")
+    if not _users_are_friends(request.user, other_user):
+        messages.error(request, "Calls unlock after friendship is accepted.")
+        return redirect("profile_detail", username=other_user.profile.username)
+
+    conversation = get_or_create_direct_conversation(request.user, other_user)
+    return render(
+        request,
+        "messaging/call_lobby.html",
+        {
+            "other_user": other_user,
+            "conversation": conversation,
+            "voice_gate": call_gate_state(request.user, "voice"),
+            "video_gate": call_gate_state(request.user, "video"),
+        },
+    )
