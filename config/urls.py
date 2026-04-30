@@ -21,6 +21,7 @@ from core.product_views import (
 )
 from core.views import (
     dating_live_match_view,
+    feed_more_view,
     games_view,
     feed_live_view,
     feed_sponsored_view,
@@ -103,6 +104,7 @@ urlpatterns = [
     path("health/", include("ehealth.urls")),
 
     path("", real_index, name="home"),
+    path("feed/more/", feed_more_view, name="feed_more"),
     path("favicon.ico", RedirectView.as_view(url=f"{settings.STATIC_URL}images/favicon.svg", permanent=False)),
     path("health/db", health_db, name="health_db"),
     path("health/db/", health_db),

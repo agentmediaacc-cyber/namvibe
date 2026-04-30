@@ -9,7 +9,11 @@ logger = logging.getLogger(__name__)
 
 def _safe_homepage_payload(request):
     try:
-        return homepage_context(request)
+        page = int(request.GET.get("page", 1))
+    except ValueError:
+        page = 1
+    try:
+        return homepage_context(request, page=page)
     except Exception as exc:
         logger.exception("Homepage context failed with %s", exc.__class__.__name__)
         return fallback_homepage_context(request, str(exc))
@@ -92,3 +96,12 @@ def live_shows_view(request):
 def dating_live_match_view(request):
     context = _safe_homepage_payload(request)
     return render(request, "core/dating_live_match.html", context)
+
+
+def feed_more_view(request):
+    try:
+        page = int(request.GET.get("page", 2))
+    except ValueError:
+        page = 2
+    context = homepage_context(request, page=page)
+    return render(request, "core/_feed_items.html", context)

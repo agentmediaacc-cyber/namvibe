@@ -1561,9 +1561,21 @@ def follow_toggle_view(request, username):
 
     follow, created = Follow.objects.get_or_create(follower=request.user, following=target_user)
     if created:
+        from .models import Notification, notify
+        notify(
+            recipient=target_user,
+            notification_type=Notification.Type.FOLLOW,
+            sender=request.user,
+            message=f"@{request.user.username} started following you.",
+            target_url=reverse("profile_detail", kwargs={"username": request.user.username}),
+        )
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"status": "followed", "follower_count": target_profile.user.follower_edges.count()})
         messages.success(request, f"You are now following @{target_profile.username}.")
     else:
         follow.delete()
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"status": "unfollowed", "follower_count": target_profile.user.follower_edges.count()})
         messages.success(request, f"You unfollowed @{target_profile.username}.")
     return redirect("profile_detail", username=target_profile.username)
 

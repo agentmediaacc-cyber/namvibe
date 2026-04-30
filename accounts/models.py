@@ -194,6 +194,44 @@ class Mute(models.Model):
         return f"{self.muter} muted {self.muted}"
 
 
+class Notification(models.Model):
+    class Type(models.TextChoices):
+        FOLLOW = "follow", "New follower"
+        LIKE = "like", "New like"
+        COMMENT = "comment", "New comment"
+        FRIEND_REQUEST = "friend_request", "Friend request"
+        SYSTEM = "system", "System update"
+
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name="sent_notifications")
+    notification_type = models.CharField(max_length=20, choices=Type.choices)
+    message = models.TextField(blank=True)
+    target_url = models.CharField(max_length=255, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["recipient", "is_read", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Notification for {self.recipient} ({self.notification_type})"
+
+
+def notify(recipient, notification_type, sender=None, message="", target_url=""):
+    if recipient == sender:
+        return None
+    return Notification.objects.create(
+        recipient=recipient,
+        notification_type=notification_type,
+        sender=sender,
+        message=message,
+        target_url=target_url,
+    )
+
+
 def refresh_profile_counts(user):
     profile = getattr(user, "profile", None)
     if not profile:

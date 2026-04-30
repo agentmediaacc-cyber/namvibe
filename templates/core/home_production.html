@@ -140,169 +140,139 @@
   </section>
 
   <section class="section-block">
-    <div class="feed-stack">
-      {% for item in mixed_feed %}
-        {% if item.kind == "story_rail" %}
-          <div class="section-card" style="padding:16px;margin-bottom:12px;background:transparent;border:0;box-shadow:none;">
-            <div class="section-head" style="margin-bottom:12px;">
-              <h2>Stories</h2>
-              {% if request.user.is_authenticated %}<a class="section-link" href="{% url 'story_create' %}">Create story</a>{% endif %}
-            </div>
-            <div class="story-row">
-              {% for s in item.rail %}
-                <a class="story-card" href="{% url 'story_detail' s.first_story.id %}">
-                  <div class="story-avatar">
-                    {% if s.author.profile.avatar %}
-                      <img src="{% avatar_url s.author.profile %}" alt="{{ s.author.username }}">
-                    {% else %}
-                      <span>{{ s.author.username|first|upper }}</span>
-                    {% endif %}
-                  </div>
-                  <strong style="font-size:11px;">@{{ s.author.username|truncatechars:10 }}</strong>
-                  <span style="display:none;">{{ s.first_story.text_content|default:s.first_story.caption }}</span>
-                </a>
-              {% endfor %}
-            </div>
-          </div>
-
-        {% elif item.kind == "post" or item.kind == "reel" %}
-          {% with post=item.post %}
-          <article class="feed-card">
-            <div class="feed-top">
-              <a class="feed-author" href="{% url 'profile_detail' post.author.profile.username %}">
-                <div class="feed-avatar">
-                  {% if post.author.profile.avatar %}
-                    <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.profile.username }}">
-                  {% else %}
-                    <span>{{ post.author.profile.username|first|upper }}</span>
-                  {% endif %}
-                </div>
-                <div>
-                  <strong>{{ post.author.profile.display_name|default:post.author.profile.username }}</strong>
-                  <small class="feed-copy">@{{ post.author.profile.username }} · {{ post.published_at|default:post.created_at|timesince }} ago</small>
-                </div>
-              </a>
-              <span class="feed-badge">{{ post.get_post_type_display }}</span>
-            </div>
-            
-            {% if post.title %}<h3>{{ post.title }}</h3>{% endif %}
-            <p class="feed-copy">{{ post.caption|truncatechars:200 }}</p>
-
-            <a class="feed-media-link" href="{% url 'post_detail' post.uuid %}">
-              {% with media=post.primary_media %}
-                <div class="feed-media {% if post.post_type == 'reel' or post.post_type == 'video' %}reel{% endif %}">
-                  {% if media and media.media_type == "video" %}
-                    <video src="{% media_url media %}" muted loop playsinline preload="metadata"></video>
-                  {% elif media %}
-                    <img src="{% media_url media %}" loading="lazy" alt="{{ post.title|default:post.caption|default:'Namvibe post' }}">
-                  {% endif %}
-                </div>
-              {% endwith %}
-            </a>
-
-            <div class="card-actions" style="justify-content:space-between;border-top:1px solid rgba(255,255,255,.08);padding-top:12px;margin-top:4px;">
-              <div style="display:flex;gap:12px;">
-                <form method="post" action="{% url 'like_post' post.uuid %}">
-                  {% csrf_token %}
-                  <button class="small-btn" type="submit">❤️ {{ post.like_count }}</button>
-                </form>
-                <a class="small-btn" href="{% url 'post_detail' post.uuid %}">💬 {{ post.comment_count }}</a>
-                <button class="small-btn" type="button">📤 Share</button>
-              </div>
-              <a class="small-btn" href="{% url 'post_detail' post.uuid %}">View Details</a>
-            </div>
-          </article>
-          {% endwith %}
-
-        {% elif item.kind == "member" %}
-          {% with m=item.member %}
-          <article class="feed-card member-card" style="padding:0;overflow:hidden;">
-            <a href="{{ m.profile_url }}" style="text-decoration:none;color:#fff;display:block;">
-              <div style="height:280px;position:relative;">
-                {% if m.profile.avatar %}
-                  <img src="{% avatar_url m.profile %}" style="width:100%;height:100%;object-fit:cover;" alt="{{ m.username }}">
-                {% else %}
-                  <div style="width:100%;height:100%;background:var(--nv-grad);display:grid;place-items:center;font-size:4rem;font-weight:900;">{{ m.username|first|upper }}</div>
-                {% endif %}
-                <div style="position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(0deg,rgba(0,0,0,.8),transparent);">
-                  <strong style="font-size:1.4rem;display:block;">{{ m.display_name }}</strong>
-                  <small style="color:var(--nv-muted);">@{{ m.username }} · {{ m.location }}</small>
-                </div>
-              </div>
-            </a>
-            <div style="padding:16px;">
-              <p class="feed-copy">{{ m.bio|truncatechars:120|default:"Discover real stories and posts from this creator." }}</p>
-              <div class="card-actions" style="margin-top:12px;">
-                <a class="action-btn" href="{{ m.profile_url }}" style="flex:1;">View Profile</a>
-                {% if request.user.is_authenticated %}
-                  <form method="post" action="{{ m.follow_url }}" style="flex:1;">
-                    {% csrf_token %}
-                    <button class="action-btn {% if m.is_following %}ghost-btn{% else %}primary{% endif %}" type="submit" style="width:100%;">
-                      {% if m.is_following %}Following{% else %}Follow{% endif %}
-                    </button>
-                  </form>
-                {% endif %}
-              </div>
-            </div>
-          </article>
-          {% endwith %}
-
-        {% elif item.kind == "live" %}
-          {% with session=item.session %}
-          <article class="feed-card pink-card" style="border-radius:28px;">
-            <div class="section-head">
-              <span class="hero-badge">{% if session.status == "live" %}LIVE now{% else %}UPCOMING LIVE{% endif %}</span>
-              <a class="section-link" href="{% url 'live_room' session.uuid %}">Enter Room</a>
-            </div>
-            <strong class="live-title" style="font-size:1.5rem;display:block;margin:8px 0;">{{ session.title }}</strong>
-            <p class="pink-copy">{{ session.description|truncatechars:140 }}</p>
-            <div class="member-top" style="margin-top:12px;">
-              <div class="member-avatar" style="width:40px;height:40px;">
-                {% if session.host.profile.avatar %}
-                  <img src="{% avatar_url session.host.profile %}" alt="{{ session.host.username }}">
-                {% else %}
-                  <span>{{ session.host.username|first|upper }}</span>
-                {% endif %}
-              </div>
-              <div class="member-copy">
-                <strong>@{{ session.host.username }}</strong>
-                <small>{{ session.viewer_count }} watching</small>
-              </div>
-            </div>
-          </article>
-          {% endwith %}
-
-        {% elif item.kind == "ad" %}
-          {% with ad=item.ad %}
-          <article class="feed-card" style="border:1px solid var(--nv-line);background:rgba(255,255,255,.04);">
-            <span class="feed-badge" style="background:rgba(250,204,21,.15);color:#fde047;">Sponsored</span>
-            <strong class="ad-title" style="font-size:1.2rem;display:block;margin:10px 0 6px;">{{ ad.title }}</strong>
-            <p class="feed-copy">{{ ad.description }}</p>
-            <div class="card-actions" style="margin-top:10px;">
-              <a class="action-btn" href="{% url 'ad_click' ad.id %}" style="width:100%;">{{ ad.call_to_action }}</a>
-            </div>
-          </article>
-          {% endwith %}
-
-        {% elif item.kind == "promo" %}
-          {% with promo=item.promo %}
-          <article class="feed-card" style="background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(236,72,153,.1));">
-            <div style="display:flex;gap:14px;align-items:center;">
-              <div style="width:48px;height:48px;border-radius:14px;background:var(--nv-grad);display:grid;place-items:center;font-size:24px;">{{ promo.icon|default:"★" }}</div>
-              <div>
-                <strong style="display:block;">{{ promo.title }}</strong>
-                <p class="feed-copy" style="margin:2px 0 0;">{{ promo.body }}</p>
-              </div>
-            </div>
-            <div class="card-actions" style="margin-top:14px;">
-              <a class="action-btn primary" href="{{ promo.url }}" style="width:100%;">{{ promo.cta_label }}</a>
-            </div>
-          </article>
-          {% endwith %}
-
-        {% endif %}
-      {% endfor %}
+    <div class="feed-stack" id="feedContainer">
+      {% include "core/_feed_items.html" %}
+    </div>
+    <div id="feedSentinel" style="height:20px;"></div>
+    <div id="feedLoader" style="display:none;text-align:center;padding:20px;">
+      <span class="loading-spinner"></span> Loading more...
     </div>
   </section>
 </section>
+
+<script>
+  let currentPage = 1;
+  let loading = false;
+  let hasMore = true;
+
+  const feedContainer = document.getElementById('feedContainer');
+  const feedLoader = document.getElementById('feedLoader');
+  const sentinel = document.getElementById('feedSentinel');
+
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !loading && hasMore) {
+      loadMore();
+    }
+  }, { threshold: 1.0 });
+
+  if (sentinel) observer.observe(sentinel);
+
+  async function loadMore() {
+    loading = true;
+    feedLoader.style.display = 'block';
+    currentPage++;
+    
+    try {
+      const response = await fetch(`{% url 'feed_more' %}?page=${currentPage}`);
+      if (!response.ok) throw new Error('Failed to fetch');
+      const html = await response.text();
+      if (html.trim() === "") {
+        hasMore = false;
+        feedLoader.innerHTML = "No more items to show.";
+      } else {
+        feedContainer.insertAdjacentHTML('beforeend', html);
+      }
+    } catch (err) {
+      console.error(err);
+      hasMore = false;
+    } finally {
+      loading = false;
+      if (hasMore) feedLoader.style.display = 'none';
+    }
+  }
+
+  async function toggleLike(uuid, btn) {
+    const icon = btn.querySelector('.like-icon');
+    const count = btn.querySelector('.like-count');
+    
+    try {
+      const response = await fetch(`/like/${uuid}/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      const data = await response.json();
+      if (data.liked) {
+        icon.textContent = '❤️';
+        btn.classList.add('active');
+      } else {
+        icon.textContent = '🤍';
+        btn.classList.remove('active');
+      }
+      count.textContent = data.like_count;
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function toggleFollow(username, btn) {
+    try {
+      const response = await fetch(`/accounts/follow/${username}/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      const data = await response.json();
+      if (data.status === 'followed') {
+        btn.textContent = 'Following';
+        btn.classList.remove('primary');
+        btn.classList.add('ghost-btn');
+      } else {
+        btn.textContent = 'Follow';
+        btn.classList.remove('ghost-btn');
+        btn.classList.add('primary');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function submitComment(uuid, btn) {
+    const input = btn.previousElementSibling;
+    const body = input.value.trim();
+    if (!body) return;
+
+    btn.disabled = true;
+    try {
+      const response = await fetch(`/comment/${uuid}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: new URLSearchParams({ body: body })
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        input.value = '';
+        // Optionally update comment count UI if it exists in the specific card
+        const countSpan = btn.closest('.feed-card').querySelector('a[href*="/post/"]');
+        if (countSpan) {
+           // This is a bit fragile due to template structure, but good enough for a demo
+           // data.comment_count has the new count
+        }
+        alert('Comment posted!');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
 {% endblock %}

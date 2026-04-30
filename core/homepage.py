@@ -463,7 +463,7 @@ def _system_promos(user, wallet_snapshot, limit=4):
     return prompts[:limit]
 
 
-def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, member_cards, wallet_snapshot, ads, promos, story_rail):
+def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, member_cards, wallet_snapshot, ads, promos, story_rail, top_ads):
     modules = []
     
     # Story rail at the very top of the feed if it exists
@@ -489,6 +489,7 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, membe
     rotation.extend({"kind": "dating", "profile": profile} for profile in dating_profiles)
     rotation.extend({"kind": "promo", "promo": promo} for promo in promos)
     rotation.extend({"kind": "ad", "ad": ad} for ad in ads)
+    rotation.extend({"kind": "ad", "ad": ad} for ad in top_ads)
 
     # Sort rotation by date if possible, otherwise keep order
     def _get_date(item):
@@ -531,15 +532,17 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, membe
     return modules
 
 
-def homepage_context(request):
+def homepage_context(request, page=1):
     user = request.user
+    limit = 12
+    offset = (page - 1) * limit
 
     raw_public_feed = list(
         Post.objects.published()
         .filter(audience=Post.Audience.PUBLIC)
         .select_related("author", "author__profile")
         .prefetch_related("media", "likes", "comments")
-        .order_by("-published_at", "-created_at")[:24]
+        .order_by("-published_at", "-created_at")[offset : offset + 24]
     )
     public_feed_items = raw_public_feed[:15]
 
@@ -548,7 +551,7 @@ def homepage_context(request):
         .published()
         .order_by("-published_at", "-created_at")
     )
-    primary_posts = list(visible_posts[:12])
+    primary_posts = list(visible_posts[offset : offset + limit])
     reel_preview = [post for post in primary_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
     active_stories = StoryItem.objects.visible_to(user)
     live_now, featured_live = _live_preview(user)
@@ -600,7 +603,7 @@ def homepage_context(request):
         "quick_actions": _quick_actions(user),
         "composer_actions": _composer_actions(user),
         "feed_tabs": _feed_tabs(),
-        "mixed_feed": _mixed_feed(primary_posts, reel_preview, live_now, communities, dating_profiles, member_cards, wallet_snapshot, mid_ads, promos, story_rail),
+        "mixed_feed": _mixed_feed(primary_posts, reel_preview, live_now, communities, dating_profiles, member_cards, wallet_snapshot, mid_ads, promos, story_rail, top_ads),
         "floating_promos": [promo for promo in promos if promo.get("dismissible")][:2],
         "featured_live": featured_live,
         "live_preview": live_now,

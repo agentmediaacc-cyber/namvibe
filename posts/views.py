@@ -684,6 +684,15 @@ def like_post_view(request, uuid):
     if reaction not in Like.ReactionType.values:
         reaction = Like.ReactionType.LIKE
     like, active = toggle_like(request.user, post, reaction)
+    if active:
+        from accounts.models import Notification, notify
+        notify(
+            recipient=post.author,
+            notification_type=Notification.Type.LIKE,
+            sender=request.user,
+            message=f"@{request.user.username} liked your post.",
+            target_url=reverse("post_detail", kwargs={"uuid": post.uuid}),
+        )
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
         post.refresh_from_db()
         return JsonResponse(
@@ -761,6 +770,25 @@ def add_comment_view(request, uuid):
     comment = add_comment(request.user, post, body)
     if not comment:
         return HttpResponseForbidden("You cannot comment on this post.")
+    
+    from accounts.models import Notification, notify
+    notify(
+        recipient=post.author,
+        notification_type=Notification.Type.COMMENT,
+        sender=request.user,
+        message=f"@{request.user.username} commented on your post.",
+        target_url=reverse("post_detail", kwargs={"uuid": post.uuid}),
+    )
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({
+            "status": "success",
+            "body": comment.body,
+            "author": comment.author.username,
+            "created_at": "Just now",
+            "comment_count": post.comment_count
+        })
+
     messages.success(request, "Comment added.")
     return _post_action_redirect(request, post)
 

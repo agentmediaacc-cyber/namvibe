@@ -186,15 +186,32 @@ def notifications_view(request):
             dating_likes = list(DatingLike.objects.filter(to_user=request.user).select_related("from_user", "from_user__profile").order_by("-created_at")[:6])
             post_comments = list(Comment.objects.filter(post__author=request.user).exclude(author=request.user).select_related("author", "author__profile", "post").order_by("-created_at")[:8])
             items = []
+            
+            # New centralized notifications
+            from accounts.models import Notification
+            new_notifications = Notification.objects.filter(recipient=request.user).select_related("sender", "sender__profile")[:20]
+            for n in new_notifications:
+                items.append({
+                    "group": n.get_notification_type_display(),
+                    "title": n.message or f"New {n.notification_type}",
+                    "meta": n.created_at,
+                    "copy": "Open",
+                    "href": n.target_url or "#",
+                    "is_new": not n.is_read
+                })
+            
+            # Mark them as read
+            Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+
+            # centralize others
             items.extend({"group": "Messages", "title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages"} for row in latest_messages)
-            items.extend({"group": "Follows", "title": f"@{row.follower.profile.username} followed you", "meta": row.created_at, "copy": "Open profile", "href": f"/profile/{row.follower.profile.username}/"} for row in follows)
             items.extend({"group": "Friends", "title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review in dashboard", "href": "/accounts/dashboard/?section=friends"} for row in friend_requests)
             items.extend({"group": "Dating", "title": f"@{row.from_user.profile.username} liked your dating profile", "meta": row.created_at, "copy": "Open dating likes", "href": "/dating/likes/"} for row in dating_likes)
-            items.extend({"group": "Comments", "title": f"@{row.author.profile.username} commented on your post", "meta": row.created_at, "copy": row.body[:80], "href": f"/post/{row.post.uuid}/"} for row in post_comments)
+            
             ordered_items = sorted(items, key=lambda item: item["meta"], reverse=True)[:20]
             context["notification_items"] = ordered_items
             groups = []
-            for group_name in ["Messages", "Comments", "Follows", "Friends", "Dating"]:
+            for group_name in ["Messages", "New follower", "New like", "New comment", "Friends", "Dating"]:
                 grouped = [item for item in ordered_items if item["group"] == group_name]
                 if grouped:
                     groups.append({"title": group_name, "items": grouped[:6]})
