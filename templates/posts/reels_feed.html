@@ -72,7 +72,7 @@
       <div class="reel-summary-grid">
         <article><span>Playback</span><strong>Autoplay on focus</strong></article>
         <article><span>Actions</span><strong>Like, save, share</strong></article>
-        <article><span>Fallback</span><strong>{% if safe_mode_message %}Safe mode{% else %}Live data lane{% endif %}</strong></article>
+        <article><span>Status</span><strong>{% if safe_mode_message %}Refreshing lane{% else %}Live data lane{% endif %}</strong></article>
       </div>
     </section>
     <section class="reels-panel">
@@ -86,8 +86,8 @@
   </div>
   {% if safe_mode_message %}
     <div class="reels-panel" style="margin-bottom:14px;">
-      <h3>Reels safe mode</h3>
-      <p>Video content is temporarily unavailable while the database connection recovers.</p>
+      <h3>Reels are refreshing</h3>
+      <p>Video discovery is reconnecting. Your next swipe lands as soon as the latest clips are ready.</p>
     </div>
   {% endif %}
   <div class="reels-layout">
@@ -197,7 +197,7 @@
               <span>@{{ profile.username }}</span><strong>{{ profile.display_name|default:profile.username }}</strong>
             </a>
           {% empty %}
-            <p>No creator suggestions yet.</p>
+            <p>Creator suggestions appear here as more public profiles post reels and short videos.</p>
           {% endfor %}
         </div>
       </section>
@@ -209,13 +209,13 @@
               <span>{{ community.member_count }} members</span><strong>{{ community.name }}</strong>
             </a>
           {% empty %}
-            <p>Communities you may want to join show up here.</p>
+            <p>Communities you may want to join appear here as social discovery expands.</p>
           {% endfor %}
         </div>
       </section>
       {% if promo_cards %}
         <section class="reels-panel">
-          <h3>System promos</h3>
+          <h3>Featured picks</h3>
           <div class="reels-list">
             {% for promo in promo_cards %}
               <a class="reels-link" href="{{ promo.cta_url|default:'/support/' }}">

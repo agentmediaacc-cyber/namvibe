@@ -16,9 +16,9 @@
         <a class="live-card" style="display:block;margin-bottom:10px;" href="{% url 'live_room' session.uuid %}"><span class="badge badge-live">{{ session.status|upper }}</span><h3>{{ session.title }}</h3><p class="muted">@{{ session.host.profile.username }} · {{ session.viewer_count }} watching</p></a>
       {% empty %}
         <div class="live-card" style="display:block;margin-bottom:10px;">
-          <span class="badge badge-scheduled">COMING SOON</span>
-          <h3>Creator Live</h3>
-          <p class="muted">Launches, audience chat, and premium creator energy will surface here as rooms go live.</p>
+          <span class="badge badge-scheduled">Featured line-up</span>
+          <h3>Live creators appear here first</h3>
+          <p class="muted">As soon as public rooms open, this panel highlights the strongest creator, music, and dating sessions.</p>
         </div>
       {% endfor %}
     </aside>

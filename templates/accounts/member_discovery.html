@@ -66,10 +66,16 @@
               {% if item.is_friend %}
                 <a class="member-btn primary" href="{{ item.chat_url }}">Chat</a>
               {% elif item.request_received %}
-                <form method="post" action="{{ item.friend_accept_url }}">
-                  {% csrf_token %}
-                  <button class="member-btn primary" type="submit">Accept Request</button>
-                </form>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                  <form method="post" action="{{ item.friend_accept_url }}">
+                    {% csrf_token %}
+                    <button class="member-btn primary" type="submit">Accept Request</button>
+                  </form>
+                  <form method="post" action="{% url 'friend_request_decline' item.friend_request_id %}">
+                    {% csrf_token %}
+                    <button class="member-btn" type="submit">Decline</button>
+                  </form>
+                </div>
               {% elif item.request_sent %}
                 <span class="member-status">Request sent</span>
               {% else %}
@@ -92,7 +98,7 @@
   {% else %}
     <section class="members-card empty-state">
       <strong>No members to show yet.</strong>
-      <p class="empty-copy">Public profiles will appear here as people complete their profiles and publish visible activity.</p>
+      <p class="empty-copy">Public profiles will appear here as people complete their profiles, post stories, and share visible activity.</p>
     </section>
   {% endif %}
 </section>

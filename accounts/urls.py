@@ -4,6 +4,7 @@ from .views import (
     account_followers_view,
     account_gallery_view,
     accept_friend_request_view,
+    decline_friend_request_view,
     account_model_application_view,
     account_privacy_view,
     account_security_view,
@@ -41,6 +42,7 @@ urlpatterns = [
     path("members/", member_discovery_view, name="member_discovery"),
     path("members/<str:username>/friend-request/", send_friend_request_view, name="friend_request_send"),
     path("friend-requests/<int:request_id>/accept/", accept_friend_request_view, name="friend_request_accept"),
+    path("friend-requests/<int:request_id>/decline/", decline_friend_request_view, name="friend_request_decline"),
     path("model-application/", account_model_application_view, name="account_model_application"),
 
     path("profile/", profile_shortcut_view, name="profile_shortcut"),

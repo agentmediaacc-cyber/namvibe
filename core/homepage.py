@@ -214,7 +214,7 @@ def _live_teasers(live_preview, featured_live):
         teasers.append(
             {
                 "title": title,
-                "eyebrow": "Live now" if session and session.status == session.Status.LIVE else "Coming soon",
+                "eyebrow": "Live now" if session and session.status == session.Status.LIVE else "Show lineup",
                 "description": (session.description or descriptions[idx]) if session else descriptions[idx],
                 "host": session.host.profile.display_name if session else "Namvibe Studio",
                 "meta": f"{session.viewer_count} watching" if session else "Weekly show schedule",

@@ -49,10 +49,16 @@
             <strong>@{{ item.from_user.profile.username }}</strong>
             <small style="display:block;color:#cbd5e1;">Sent {{ item.created_at|timesince }} ago</small>
           </div>
-          <form method="post" action="{% url 'friend_request_accept' item.id %}">
-            {% csrf_token %}
-            <button class="friend-btn" type="submit">Accept</button>
-          </form>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <form method="post" action="{% url 'friend_request_accept' item.id %}">
+              {% csrf_token %}
+              <button class="friend-btn" type="submit">Accept</button>
+            </form>
+            <form method="post" action="{% url 'friend_request_decline' item.id %}">
+              {% csrf_token %}
+              <button class="friend-btn" type="submit">Decline</button>
+            </form>
+          </div>
         </div>
       {% empty %}
         <div class="friend-row"><div><strong>No incoming requests</strong></div></div>

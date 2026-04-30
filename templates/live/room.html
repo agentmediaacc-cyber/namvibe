@@ -5,9 +5,9 @@
 <section class="live-shell">
   {% if safe_mode_message %}
     <div class="live-panel" style="margin-bottom:14px;">
-      <span class="badge badge-scheduled">SAFE MODE</span>
-      <h3>Live room data is temporarily unavailable</h3>
-      <p class="muted">The room shell is still online while the database connection recovers.</p>
+      <span class="badge badge-scheduled">Live room update</span>
+      <h3>This room is refreshing</h3>
+      <p class="muted">The room shell is still online while the latest live data reconnects.</p>
       <a class="primary" href="{% url 'live_home' %}">Back to live home</a>
     </div>
   {% endif %}
@@ -98,14 +98,14 @@
         {% for event in recent_gifts %}
           <p class="muted">{{ event.sender.profile.username|default:event.sender.username }} sent {{ event.quantity }}x {{ event.gift.name }}</p>
         {% empty %}
-          <p class="muted">No gifts in this room yet.</p>
+          <p class="muted">No gifts yet. The first supporter will show up here.</p>
         {% endfor %}
         </div>
       </section>
       {% endif %}
       <section class="live-panel">
         <h2>Related live</h2>
-        {% for related in related_sessions %}<a class="chat-item" href="{% url 'live_room' related.uuid %}">{{ related.title }}</a>{% empty %}<p class="muted">No related live rooms.</p>{% endfor %}
+        {% for related in related_sessions %}<a class="chat-item" href="{% url 'live_room' related.uuid %}">{{ related.title }}</a>{% empty %}<p class="muted">More rooms appear here as creators go live.</p>{% endfor %}
       </section>
     </aside>
   </div>

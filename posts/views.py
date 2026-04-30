@@ -772,13 +772,14 @@ def add_comment_view(request, uuid):
         return HttpResponseForbidden("You cannot comment on this post.")
     
     from accounts.models import Notification, notify
-    notify(
-        recipient=post.author,
-        notification_type=Notification.Type.COMMENT,
-        sender=request.user,
-        message=f"@{request.user.username} commented on your post.",
-        target_url=reverse("post_detail", kwargs={"uuid": post.uuid}),
-    )
+    if post.author_id != request.user.id:
+        notify(
+            recipient=post.author,
+            notification_type=Notification.Type.COMMENT,
+            sender=request.user,
+            message=f"@{request.user.username} commented on your post.",
+            target_url=reverse("post_detail", kwargs={"uuid": post.uuid}),
+        )
 
     if request.headers.get("x-requested-with") == "XMLHttpRequest":
         return JsonResponse({
@@ -816,6 +817,15 @@ def reply_comment_view(request, id):
     comment = add_comment(request.user, parent.post, body, parent=parent)
     if not comment:
         return HttpResponseForbidden("You cannot reply to this comment.")
+    from accounts.models import Notification, notify
+    if parent.author_id != request.user.id:
+        notify(
+            recipient=parent.author,
+            notification_type=Notification.Type.COMMENT,
+            sender=request.user,
+            message=f"@{request.user.username} replied to your comment.",
+            target_url=reverse("post_detail", kwargs={"uuid": parent.post.uuid}),
+        )
     messages.success(request, "Reply added.")
     return _post_action_redirect(request, parent.post)
 

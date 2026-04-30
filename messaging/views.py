@@ -14,6 +14,7 @@ from .forms import MessageForm, attachment_type_for
 from .models import Conversation, Message
 from .services import call_gate_state, get_or_create_direct_conversation, messaging_dashboard_context
 from accounts.models import FriendRequest
+from accounts.models import Notification, notify
 
 
 def _dashboard_messages_url(conversation):
@@ -106,6 +107,18 @@ def send_message(request, conversation_id):
         forwarded_from=forwarded_from,
     )
     conversation.save()
+    other_user = conversation.other_participant(request.user)
+    if other_user:
+        message_text = f"@{request.user.username} sent you a message."
+        if reply_to and reply_to.sender_id != request.user.id:
+            message_text = f"@{request.user.username} replied to your message."
+        notify(
+            recipient=other_user,
+            notification_type=Notification.Type.SYSTEM,
+            sender=request.user,
+            message=message_text,
+            target_url=_dashboard_messages_url(conversation),
+        )
 
     return redirect(_dashboard_messages_url(conversation))
 

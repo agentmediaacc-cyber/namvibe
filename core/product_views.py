@@ -186,8 +186,18 @@ def notifications_view(request):
             latest_messages = list(Message.objects.filter(conversation__participants=request.user).exclude(sender=request.user).select_related("sender").order_by("-created_at")[:8])
             follows = list(Follow.objects.filter(following=request.user).select_related("follower", "follower__profile").order_by("-created_at")[:6])
             friend_requests = list(FriendRequest.objects.filter(to_user=request.user, status=FriendRequest.Status.PENDING).select_related("from_user", "from_user__profile").order_by("-created_at")[:6])
+            accepted_friends = list(
+                FriendRequest.objects.filter(from_user=request.user, status=FriendRequest.Status.ACCEPTED)
+                .select_related("to_user", "to_user__profile")
+                .order_by("-updated_at")[:6]
+            )
             dating_likes = list(DatingLike.objects.filter(to_user=request.user).select_related("from_user", "from_user__profile").order_by("-created_at")[:6])
             post_comments = list(Comment.objects.filter(post__author=request.user).exclude(author=request.user).select_related("author", "author__profile", "post").order_by("-created_at")[:8])
+            comment_replies = list(
+                Comment.objects.filter(parent__author=request.user)
+                .exclude(author=request.user)
+                .select_related("author", "author__profile", "post", "parent")[:8]
+            )
             items = []
             
             # New centralized notifications
@@ -216,8 +226,10 @@ def notifications_view(request):
             # centralize others
             items.extend({"group": "Messages", "title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages", "is_new": True} for row in latest_messages)
             items.extend({"group": "Friends", "title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review and accept from your account hub.", "href": "/friends/", "is_new": True} for row in friend_requests)
+            items.extend({"group": "Friends", "title": f"@{row.to_user.profile.username} accepted your friend request", "meta": row.updated_at, "copy": "Chat is now open between both of you.", "href": "/friends/", "is_new": True} for row in accepted_friends)
             items.extend({"group": "Dating", "title": f"@{row.from_user.profile.username} liked your dating profile", "meta": row.created_at, "copy": "Open dating likes.", "href": "/dating/likes/", "is_new": True} for row in dating_likes)
             items.extend({"group": "Comments", "title": f"@{row.author.profile.username} commented on your post", "meta": row.created_at, "copy": row.body[:90], "href": f"/post/{row.post.uuid}/", "is_new": True} for row in post_comments)
+            items.extend({"group": "Comments", "title": f"@{row.author.profile.username} replied to your comment", "meta": row.created_at, "copy": row.body[:90], "href": f"/post/{row.post.uuid}/", "is_new": True} for row in comment_replies)
             
             ordered_items = sorted(items, key=lambda item: item["meta"], reverse=True)[:20]
             context["notification_items"] = ordered_items

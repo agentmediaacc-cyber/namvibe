@@ -266,6 +266,7 @@ def _member_cards_for(user, profiles, *, include_friendship=True):
                 "is_friend": is_friend,
                 "request_sent": request_sent,
                 "request_received": request_received,
+                "friend_request_id": getattr(friend_request, "id", None),
                 "can_chat": is_friend,
                 "follow_url": _safe_reverse("follow_toggle", username=profile.username or profile.user.username),
                 "friend_request_url": _safe_reverse("friend_request_send", username=profile.username or profile.user.username),
@@ -1386,6 +1387,14 @@ def send_friend_request_view(request, username):
         friend_request.save(update_fields=["from_user", "to_user", "status", "updated_at"])
     else:
         FriendRequest.objects.create(from_user=request.user, to_user=target_user)
+    from .models import Notification, notify
+    notify(
+        recipient=target_user,
+        notification_type=Notification.Type.FRIEND_REQUEST,
+        sender=request.user,
+        message=f"@{request.user.username} sent you a friend request.",
+        target_url=reverse("friends_list"),
+    )
     messages.success(request, f"Friend request sent to @{target_profile.username}.")
     return redirect("profile_detail", username=target_profile.username)
 
@@ -1401,7 +1410,30 @@ def accept_friend_request_view(request, request_id):
     )
     friend_request.status = FriendRequest.Status.ACCEPTED
     friend_request.save(update_fields=["status", "updated_at"])
+    from .models import Notification, notify
+    notify(
+        recipient=friend_request.from_user,
+        notification_type=Notification.Type.FRIEND_REQUEST,
+        sender=request.user,
+        message=f"@{request.user.username} accepted your friend request.",
+        target_url=reverse("friends_list"),
+    )
     messages.success(request, f"You are now friends with @{friend_request.from_user.profile.username}.")
+    return redirect("friends_list")
+
+
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def decline_friend_request_view(request, request_id):
+    friend_request = get_object_or_404(
+        FriendRequest.objects.select_related("from_user__profile", "to_user__profile"),
+        pk=request_id,
+        to_user=request.user,
+        status=FriendRequest.Status.PENDING,
+    )
+    friend_request.status = FriendRequest.Status.DECLINED
+    friend_request.save(update_fields=["status", "updated_at"])
+    messages.info(request, f"Friend request from @{friend_request.from_user.profile.username} declined.")
     return redirect("friends_list")
 
 
@@ -1456,7 +1488,7 @@ def account_privacy_view(request):
     context = {
         **_account_shell_context(request, profile, account_profile),
         "account_shell_title": "Privacy Settings",
-        "account_shell_subtitle": "Current visibility and safe placeholders",
+        "account_shell_subtitle": "Current visibility and audience controls",
         "privacy_rows": [
             {
                 "label": "Who can view profile",
@@ -1485,7 +1517,7 @@ def account_security_view(request):
     context = {
         **_account_shell_context(request, profile, account_profile),
         "account_shell_title": "Security / PIN Reset",
-        "account_shell_subtitle": "Safe placeholders only",
+        "account_shell_subtitle": "Verification, access, and account protection",
     }
     return render(request, "accounts/account_security.html", context)
 
@@ -1497,7 +1529,7 @@ def account_model_application_view(request):
     context = {
         **_account_shell_context(request, profile, account_profile),
         "account_shell_title": "Model / Streamer Application",
-        "account_shell_subtitle": "Private foundation for future approval flows",
+        "account_shell_subtitle": "Private application flow for creator approvals",
         "application_status": "Not started",
         "service_options": [
             "Live streaming",
@@ -1509,7 +1541,7 @@ def account_model_application_view(request):
         ],
         "verification_requirements": [
             "Certified ID copy",
-            "Live camera ID capture placeholder",
+            "Live camera ID capture review",
             "Admin approval before public listing",
             "Private review and status updates",
         ],
