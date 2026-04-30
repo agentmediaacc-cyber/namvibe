@@ -38,6 +38,12 @@ class StoryCreateForm(forms.ModelForm):
             self.add_error("file", "Upload a file for this story type.")
         return cleaned
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["file"].widget.attrs.update({"accept": "image/*,video/*"})
+        self.fields["text_content"].widget.attrs.update({"placeholder": "Share a quick update, mood, or story line"})
+        self.fields["caption"].widget.attrs.update({"placeholder": "Add a short caption"})
+
     def save(self, commit=True):
         story = super().save(commit=False)
         hours = self.cleaned_data.get("duration_hours") or 24

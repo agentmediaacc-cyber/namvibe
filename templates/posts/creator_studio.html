@@ -1,191 +1,369 @@
 {% extends "base.html" %}
+{% load media_helpers %}
+{% block title %}Creator Studio | Namvibe{% endblock %}
+
 {% block content %}
 <style>
-body{background:linear-gradient(180deg,#120014,#160018);color:white}
-.studio{max-width:1180px;margin:18px auto;padding:14px}
-.head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
-.btn{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:white;border-radius:999px;padding:11px 15px;font-weight:800;text-decoration:none;cursor:pointer}
-.btn.green{background:linear-gradient(135deg,#7c3aed,#ec4899)}
-.btn.blue{background:linear-gradient(135deg,#ec4899,#f43f5e)}
-.grid{display:grid;grid-template-columns:1fr 340px;gap:14px}
-.cam{position:relative;background:#000;border-radius:26px;overflow:hidden;min-height:72vh;border:1px solid rgba(255,255,255,.08)}
-.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.top,.bottom{position:absolute;left:0;right:0;z-index:5;padding:14px;display:flex;justify-content:space-between;gap:8px}
-.top{top:0;background:linear-gradient(180deg,rgba(0,0,0,.6),transparent)}
-.bottom{bottom:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);flex-direction:column;align-items:center}
-.capture{width:82px;height:82px;border-radius:999px;border:5px solid white;background:#ff3153}
-.capture.recording{border-radius:22px;width:70px;height:70px}
-.overlay{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:4;text-align:center;font-size:34px;font-weight:900;text-shadow:0 8px 30px #000;max-width:86%}
-.watermark{position:absolute;right:14px;bottom:112px;z-index:4;background:rgba(0,0,0,.45);padding:8px 12px;border-radius:999px;font-weight:900}
-.timer{position:absolute;left:14px;top:70px;z-index:6;background:rgba(255,0,70,.8);padding:8px 12px;border-radius:999px;font-weight:900}
-.panel{background:linear-gradient(145deg,rgba(27,3,35,.96),rgba(18,0,24,.92));border:1px solid rgba(255,255,255,.12);border-radius:26px;padding:16px}
-.field{margin-bottom:13px}
-.label{display:block;font-weight:850;margin-bottom:7px}
-.input,.select{width:100%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:#fff;border-radius:15px;padding:12px}
-.chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:#fff;border-radius:999px;padding:9px 11px;cursor:pointer}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:50;background:#160018;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:14px 18px;display:none}
-.hidden{display:none!important}
-.studio-links{display:flex;gap:8px;flex-wrap:wrap}
-.studio-note{margin-top:12px;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);color:#cbd5e1;line-height:1.55}
-@media(max-width:900px){.grid{grid-template-columns:1fr}.cam{min-height:68vh}}
-@media(max-width:640px){
-  .studio{padding:10px}
-  .head{align-items:flex-start}
-  .studio-links{width:100%}
-  .studio-links .btn{flex:1 1 calc(50% - 8px);text-align:center}
-  .top,.bottom{padding:10px}
-  .bottom > div:last-child{width:100%;justify-content:stretch}
-  .bottom > div:last-child .btn{flex:1}
-}
+  .studio-shell{width:min(1180px,calc(100% - 16px));margin:0 auto;padding:20px 0 120px}
+  .studio-hero,.studio-card,.type-link,.preview-card,.draft-card{
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);
+    backdrop-filter:blur(18px);
+    box-shadow:0 24px 70px rgba(0,0,0,.28);
+    border-radius:28px;color:#fff;
+  }
+  .studio-hero{
+    padding:24px;
+    background:
+      radial-gradient(circle at top left, rgba(124,58,237,.28), transparent 30%),
+      radial-gradient(circle at top right, rgba(236,72,153,.2), transparent 28%),
+      linear-gradient(145deg, rgba(22,0,24,.94), rgba(18,0,20,.92));
+  }
+  .studio-hero h1{margin:12px 0 8px;font-size:clamp(2.2rem,5vw,4rem);line-height:.96}
+  .studio-copy,.helper-copy,.draft-card p,.preview-status,.field-help,.field-errors,.draft-copy{color:#cbd5e1;line-height:1.6}
+  .hero-badge,.type-badge,.draft-badge{
+    display:inline-flex;align-items:center;justify-content:center;width:max-content;
+    padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;
+    font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+  }
+  .hero-actions,.type-grid,.studio-layout,.form-grid,.toggle-grid,.studio-actions,.draft-grid{display:grid;gap:14px}
+  .hero-actions{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start;margin-top:16px}
+  .hero-btn,.ghost-btn,.pill-btn{
+    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;
+    padding:12px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.14);font-weight:900;color:#fff;
+    background:rgba(255,255,255,.06);cursor:pointer;transition:transform .18s ease,border-color .18s ease;
+  }
+  .hero-btn{background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);border-color:transparent}
+  .hero-btn:hover,.ghost-btn:hover,.pill-btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)}
+  .type-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-top:18px}
+  .type-link{padding:18px;text-decoration:none;display:grid;gap:8px}
+  .type-link.active{border-color:rgba(236,72,153,.42);background:linear-gradient(135deg,rgba(124,58,237,.16),rgba(236,72,153,.12))}
+  .type-link strong{font-size:1rem}
+  .studio-layout{grid-template-columns:minmax(0,1.02fr) minmax(320px,.74fr);margin-top:20px}
+  .studio-card{padding:20px}
+  .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .field{display:grid;gap:8px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#fbcfe8}
+  .field input,.field textarea,.field select{
+    width:100%;min-width:0;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.18);
+    color:#fff;border-radius:18px;padding:13px 14px;
+  }
+  .field textarea{min-height:128px;resize:vertical}
+  .field input[type="file"]{padding:12px;background:rgba(255,255,255,.04)}
+  .field-check{
+    display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:18px;
+    border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)
+  }
+  .toggle-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .file-drop{
+    padding:18px;border-radius:22px;border:1px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.04);display:grid;gap:12px
+  }
+  .drop-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .preview-card{padding:18px;display:grid;gap:14px}
+  .preview-stage{
+    min-height:300px;border-radius:24px;overflow:hidden;position:relative;
+    background:linear-gradient(135deg,#1b0720,#2c0b38,#160018);display:grid;place-items:center;
+  }
+  .preview-stage img,.preview-stage video{width:100%;height:100%;object-fit:cover;display:block}
+  .preview-caption{
+    position:absolute;left:14px;right:14px;bottom:14px;padding:12px 14px;border-radius:18px;
+    background:rgba(0,0,0,.44);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(10px)
+  }
+  .preview-text{
+    width:min(88%,480px);padding:26px;text-align:left;border-radius:24px;color:#fff;
+    background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
+    box-shadow:0 24px 60px rgba(0,0,0,.24);
+  }
+  .preview-meta{display:flex;gap:8px;flex-wrap:wrap}
+  .preview-pill{
+    display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;
+    background:rgba(255,255,255,.08);color:#fff;font-size:12px;font-weight:800
+  }
+  .studio-actions{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px}
+  .studio-actions button,.studio-actions a{
+    min-height:52px;border-radius:18px;border:0;font-weight:900;cursor:pointer;text-decoration:none;
+    display:inline-flex;align-items:center;justify-content:center;
+  }
+  .publish-btn{background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);color:#fff}
+  .draft-btn{background:#241029;color:#fff;border:1px solid rgba(255,255,255,.12)}
+  .draft-section{margin-top:18px}
+  .draft-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .draft-card{padding:16px;display:grid;gap:10px}
+  .draft-card strong{font-size:1rem}
+  .draft-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .field-errors{padding:14px 16px;border-radius:20px;background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.24)}
+  @media (max-width: 980px){
+    .studio-layout{grid-template-columns:1fr}
+  }
+  @media (max-width: 640px){
+    .studio-shell{width:calc(100% - 10px);padding-top:14px}
+    .studio-hero,.studio-card,.type-link,.preview-card,.draft-card{border-radius:24px}
+    .hero-actions{grid-auto-flow:row}
+    .form-grid,.toggle-grid,.studio-actions{grid-template-columns:1fr}
+  }
 </style>
 
-<div class="studio">
-  <div class="head">
-    <div>
-      <div style="display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(124,92,255,.18);font-weight:900;letter-spacing:.05em;text-transform:uppercase;font-size:12px;">Creator Studio</div>
-      <h1 style="margin:0">Namvibe Camera</h1>
-      <p style="margin:5px 0 0;color:#aebbd2">Tap photo • hold video • music preview • watermark • caption inside camera</p>
+<section class="studio-shell">
+  <section class="studio-hero">
+    <span class="hero-badge">Creator Studio</span>
+    <h1>Create posts, photos, videos, and reels with premium flow</h1>
+    <p class="studio-copy">Build a clean public post, private update, or friend-only drop with preview before you publish. Public posts appear in the feed and homepage discovery first.</p>
+    <div class="hero-actions">
+      <a class="hero-btn" href="{% url 'story_create' %}">Create Story</a>
+      <a class="ghost-btn" href="{% url 'live_start' %}">Go Live</a>
+      <a class="ghost-btn" href="{% url 'feed' %}">Open Feed</a>
     </div>
-    <div class="studio-links">
-      <a class="btn" href="{% url 'home' %}">Home</a>
-      <a class="btn" href="{% url 'user_dashboard' %}">Dashboard</a>
-      <a class="btn" href="{% url 'profile_shortcut' %}">Profile</a>
+    <div class="type-grid">
+      <a class="type-link {% if active_type == 'text' %}active{% endif %}" href="{% url 'studio' %}?type=text"><span class="type-badge">Text</span><strong>Text post</strong><span class="helper-copy">Quick status, thought, or announcement.</span></a>
+      <a class="type-link {% if active_type == 'photo' %}active{% endif %}" href="{% url 'studio' %}?type=photo"><span class="type-badge">Photo</span><strong>Image post</strong><span class="helper-copy">Upload a strong cover image with caption.</span></a>
+      <a class="type-link {% if active_type == 'video' %}active{% endif %}" href="{% url 'studio' %}?type=video"><span class="type-badge">Video</span><strong>Video post</strong><span class="helper-copy">Longer clips and updates for the feed.</span></a>
+      <a class="type-link {% if active_type == 'reel' %}active{% endif %}" href="{% url 'studio' %}?type=reel"><span class="type-badge">Reel</span><strong>Vertical reel</strong><span class="helper-copy">Short-form vertical content for discovery.</span></a>
     </div>
+  </section>
+
+  <div class="studio-layout">
+    <section class="studio-card">
+      {% if form.errors %}
+        <div class="field-errors">
+          {% for field in form %}
+            {% for error in field.errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form id="postComposerForm" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.post_type }}
+        <div class="form-grid">
+          <div class="field full">
+            <label for="{{ form.title.id_for_label }}">Title</label>
+            {{ form.title }}
+          </div>
+
+          <div class="field full">
+            <label for="{{ form.caption.id_for_label }}">Caption</label>
+            {{ form.caption }}
+            <small class="field-help">Add the story, mood, or context for this post.</small>
+          </div>
+
+          {% if active_type != 'text' %}
+            <div class="field full">
+              <label>Upload</label>
+              <div class="file-drop" id="fileDropZone">
+                <div class="helper-copy">Choose from gallery or drag a file here. Images and videos preview before publishing.</div>
+                {{ form.media_file }}
+                <div class="drop-actions">
+                  <button class="pill-btn" type="button" id="chooseFileBtn">Choose file</button>
+                  <span class="preview-pill">{% if active_type == 'photo' %}Images up to 8MB{% else %}Videos up to 250MB{% endif %}</span>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+          <div class="field">
+            <label for="{{ form.hashtags_text.id_for_label }}">Hashtags</label>
+            {{ form.hashtags_text }}
+          </div>
+
+          <div class="field">
+            <label for="{{ form.audience.id_for_label }}">Audience</label>
+            {{ form.audience }}
+          </div>
+
+          <div class="field">
+            <label for="{{ form.mentions_text.id_for_label }}">Mentions</label>
+            {{ form.mentions_text }}
+          </div>
+
+          <div class="field">
+            <label for="{{ form.share_target.id_for_label }}">Share target</label>
+            {{ form.share_target }}
+          </div>
+
+          <div class="field full" id="targetUserField" style="display:none;">
+            <label for="{{ form.target_username.id_for_label }}">Specific user</label>
+            {{ form.target_username }}
+          </div>
+
+          <div class="field full" id="communityField" style="display:none;">
+            <label for="{{ form.community_slug.id_for_label }}">Community slug</label>
+            {{ form.community_slug }}
+          </div>
+        </div>
+
+        <div class="toggle-grid" style="margin-top:16px;">
+          <label class="field-check">{{ form.allow_comments }} <span>Allow comments</span></label>
+          <label class="field-check">{{ form.allow_sharing }} <span>Allow sharing</span></label>
+          <label class="field-check">{{ form.save_to_story }} <span>Save to story rail</span></label>
+          <label class="field-check">{{ form.is_sensitive }} <span>Sensitive content</span></label>
+        </div>
+
+        <div class="studio-actions">
+          <button class="publish-btn" type="submit">Publish now</button>
+          <button class="draft-btn" type="submit" formaction="{% url 'save_draft' %}">Save draft</button>
+        </div>
+      </form>
+
+      {% if recent_drafts %}
+        <section class="draft-section">
+          <div class="draft-grid">
+            {% for draft in recent_drafts %}
+              <article class="draft-card">
+                <span class="draft-badge">Draft</span>
+                <strong>{{ draft.title|default:draft.get_post_type_display }}</strong>
+                <p>{{ draft.caption|default:"Continue this creation whenever you are ready."|truncatechars:100 }}</p>
+                <div class="draft-actions">
+                  <a class="ghost-btn" href="{% url 'studio_draft' draft.uuid %}">Open draft</a>
+                  <a class="ghost-btn" href="{% url 'preview_post' draft.uuid %}">Preview</a>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+    </section>
+
+    <aside class="preview-card">
+      <span class="hero-badge">Preview before publishing</span>
+      <div class="preview-stage" id="composerPreviewStage">
+        {% if active_type == 'text' %}
+          <div class="preview-text">
+            <div id="previewTitle">{{ form.title.value|default:"Your post title" }}</div>
+            <div style="margin-top:12px;font-size:1rem;font-weight:700;line-height:1.55;" id="previewCaption">{{ form.caption.value|default:"Your caption will appear here before you publish." }}</div>
+          </div>
+        {% else %}
+          <div class="preview-text" id="emptyMediaState">
+            <div id="previewTitle">{{ form.title.value|default:"Media post" }}</div>
+            <div style="margin-top:12px;font-size:1rem;font-weight:700;line-height:1.55;" id="previewCaption">{{ form.caption.value|default:"Upload an image or video to preview it here." }}</div>
+          </div>
+          <img id="previewImage" alt="Selected image preview" style="display:none;">
+          <video id="previewVideo" playsinline controls style="display:none;"></video>
+          <div class="preview-caption" id="previewCaptionOverlay" style="display:none;"></div>
+        {% endif %}
+      </div>
+      <div class="preview-meta">
+        <span class="preview-pill" id="previewAudience">{{ form.audience.value|default:'public'|title }}</span>
+        <span class="preview-pill" id="previewShareTarget">{{ form.share_target.value|default:'main_feed'|title }}</span>
+        <span class="preview-pill">{{ active_type|title }}</span>
+      </div>
+      <div class="preview-status" id="previewStatus">Public posts show first in the homepage and feed. Friend-only and private posts stay limited to their selected audience.</div>
+    </aside>
   </div>
+</section>
+{% endblock %}
 
-  <form id="studioForm" method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <div class="grid">
-      <section class="cam">
-        <video id="live" autoplay muted playsinline></video>
-        <video id="playback" class="hidden" controls playsinline></video>
-        <canvas id="photoCanvas" class="hidden"></canvas>
-
-        <div class="top">
-          <button type="button" class="btn blue" id="openBtn">Open Camera</button>
-          <button type="button" class="btn" id="flipBtn">Flip</button>
-        </div>
-
-        <div class="timer hidden" id="timer">00:00</div>
-        <div class="overlay" id="captionOverlay">Write caption here</div>
-        <div class="watermark">Namvibe Camera</div>
-
-        <div class="bottom">
-          <div id="hint" style="background:rgba(0,0,0,.48);padding:9px 13px;border-radius:999px">Open camera first</div>
-          <button type="button" class="capture" id="captureBtn"></button>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-            <button type="button" class="btn" id="retakeBtn">Retake</button>
-            <button type="submit" class="btn green">Post / Save</button>
-          </div>
-        </div>
-      </section>
-
-      <aside class="panel">
-        <div class="studio-note">
-          Capture in full screen, then post straight to your feed. For more detailed layouts, reels, flyers, and drafts, open the main studio from your dashboard after recording.
-        </div>
-        <div class="field">
-          <label class="label">Mode</label>
-          <select class="select" id="modeSelect" name="mode">
-            <option value="auto">Auto tap photo / hold video</option>
-            <option value="photo">Photo only</option>
-            <option value="video">Video only</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label class="label">Caption / words inside camera</label>
-          <input class="input" id="captionInput" name="caption" placeholder="Write caption">
-        </div>
-
-        <div class="field">
-          <label class="label">Music preview</label>
-          <select class="select" id="musicSelect" name="music_title">
-            <option value="">No music</option>
-            <option value="https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a73467.mp3">Calm Ambient</option>
-            <option value="https://cdn.pixabay.com/audio/2022/10/25/audio_946b732052.mp3">Soft Cinematic</option>
-            <option value="https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3">Afro Vibe</option>
-          </select>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button type="button" class="btn" id="playMusicBtn">Play</button>
-            <button type="button" class="btn" id="stopMusicBtn">Stop</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label class="label">Start song at second</label>
-          <input class="input" type="number" id="musicStart" value="0" min="0">
-        </div>
-
-        <div class="field">
-          <label class="label">Look</label>
-          <div class="chips">
-            <button type="button" class="chip" data-filter="none">Normal</button>
-            <button type="button" class="chip" data-filter="brightness(1.25)">Bright</button>
-            <button type="button" class="chip" data-filter="sepia(.35)">Warm</button>
-            <button type="button" class="chip" data-filter="contrast(1.25)">Sharp</button>
-          </div>
-        </div>
-
-        <input type="file" name="video" id="videoFile" class="hidden">
-      </aside>
-    </div>
-  </form>
-</div>
-
-<div class="toast" id="toast">Uploading to Namvibe… your post is going live.</div>
-<audio id="musicPlayer" loop></audio>
-
+{% block extra_scripts %}
 <script>
-(() => {
-  const live=document.getElementById("live"), playback=document.getElementById("playback");
-  const openBtn=document.getElementById("openBtn"), flipBtn=document.getElementById("flipBtn");
-  const captureBtn=document.getElementById("captureBtn"), retakeBtn=document.getElementById("retakeBtn");
-  const videoFile=document.getElementById("videoFile"), hint=document.getElementById("hint");
-  const timer=document.getElementById("timer"), captionInput=document.getElementById("captionInput"), captionOverlay=document.getElementById("captionOverlay");
-  const musicSelect=document.getElementById("musicSelect"), musicPlayer=document.getElementById("musicPlayer"), musicStart=document.getElementById("musicStart");
-  const playMusicBtn=document.getElementById("playMusicBtn"), stopMusicBtn=document.getElementById("stopMusicBtn"), modeSelect=document.getElementById("modeSelect");
-  const toast=document.getElementById("toast"), form=document.getElementById("studioForm");
+  (function () {
+    const form = document.getElementById("postComposerForm");
+    if (!form) return;
+    const titleInput = document.getElementById("{{ form.title.id_for_label }}");
+    const captionInput = document.getElementById("{{ form.caption.id_for_label }}");
+    const audienceInput = document.getElementById("{{ form.audience.id_for_label }}");
+    const shareTargetInput = document.getElementById("{{ form.share_target.id_for_label }}");
+    const mediaInput = document.getElementById("{{ form.media_file.id_for_label }}");
+    const chooseFileBtn = document.getElementById("chooseFileBtn");
+    const dropZone = document.getElementById("fileDropZone");
+    const previewTitle = document.getElementById("previewTitle");
+    const previewCaption = document.getElementById("previewCaption");
+    const previewAudience = document.getElementById("previewAudience");
+    const previewShareTarget = document.getElementById("previewShareTarget");
+    const previewStatus = document.getElementById("previewStatus");
+    const targetUserField = document.getElementById("targetUserField");
+    const communityField = document.getElementById("communityField");
+    const targetUserInput = document.getElementById("{{ form.target_username.id_for_label }}");
+    const communityInput = document.getElementById("{{ form.community_slug.id_for_label }}");
+    const previewImage = document.getElementById("previewImage");
+    const previewVideo = document.getElementById("previewVideo");
+    const previewOverlay = document.getElementById("previewCaptionOverlay");
+    const emptyMediaState = document.getElementById("emptyMediaState");
 
-  let stream=null, recorder=null, chunks=[], recording=false, holdTimer=null, front=false, sec=0, tick=null;
+    function optionLabel(select) {
+      return select && select.selectedOptions[0] ? select.selectedOptions[0].textContent : "";
+    }
 
-  async function openCamera(){
-    stopCamera();
-    try{
-      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:front?"user":"environment",width:{ideal:1280},height:{ideal:720}},audio:true});
-      live.srcObject=stream; live.classList.remove("hidden"); playback.classList.add("hidden");
-      hint.textContent="Ready: tap photo / hold video";
-    }catch(e){hint.textContent="Camera blocked. Allow permission."; console.error(e);}
-  }
-  function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;} stopMusic();}
-  function attach(blob,name,type){const f=new File([blob],name,{type});const dt=new DataTransfer();dt.items.add(f);videoFile.files=dt.files;}
-  function playMusic(){if(!musicSelect.value)return;musicPlayer.src=musicSelect.value;musicPlayer.currentTime=Number(musicStart.value||0);musicPlayer.play().catch(()=>{});}
-  function stopMusic(){try{musicPlayer.pause();}catch(e){}}
-  function startTimer(){sec=0;timer.classList.remove("hidden");tick=setInterval(()=>{sec++;timer.textContent=`00:${String(sec).padStart(2,"0")}`},1000)}
-  function stopTimer(){clearInterval(tick);timer.classList.add("hidden")}
-  function takePhoto(){if(!stream)return;const c=document.createElement("canvas");c.width=live.videoWidth||720;c.height=live.videoHeight||1280;c.getContext("2d").drawImage(live,0,0,c.width,c.height);c.toBlob(b=>{attach(b,`namvibe_photo_${Date.now()}.jpg`,"image/jpeg");hint.textContent="Photo captured. Post or retake.";}, "image/jpeg", .92);}
-  function startRecording(){
-    if(!stream||recording)return; playMusic(); startTimer(); chunks=[];
-    recorder=new MediaRecorder(stream,{mimeType:"video/webm"});
-    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
-    recorder.onstop=()=>{stopTimer();stopMusic();const b=new Blob(chunks,{type:"video/webm"});attach(b,`namvibe_video_${Date.now()}.webm`,"video/webm");playback.src=URL.createObjectURL(b);playback.classList.remove("hidden");live.classList.add("hidden");hint.textContent="Video ready. Post or retake.";recording=false;captureBtn.classList.remove("recording")};
-    recorder.start(); recording=true; captureBtn.classList.add("recording"); hint.textContent="Recording… release to stop";
-  }
-  function stopRecording(){if(recorder&&recording)recorder.stop();}
+    function syncText() {
+      if (previewTitle) previewTitle.textContent = (titleInput?.value || "").trim() || "{% if active_type == 'text' %}Your post title{% else %}Media post{% endif %}";
+      if (previewCaption) previewCaption.textContent = (captionInput?.value || "").trim() || "{% if active_type == 'text' %}Your caption will appear here before you publish.{% else %}Upload an image or video to preview it here.{% endif %}";
+      if (previewAudience) previewAudience.textContent = optionLabel(audienceInput) || "Public";
+      if (previewShareTarget) previewShareTarget.textContent = optionLabel(shareTargetInput) || "Main feed";
+      if (previewOverlay) previewOverlay.textContent = (captionInput?.value || "").trim();
+    }
 
-  openBtn.onclick=openCamera;
-  flipBtn.onclick=()=>{front=!front;openCamera()};
-  retakeBtn.onclick=()=>{videoFile.value="";openCamera()};
-  captionInput.oninput=()=>{captionOverlay.textContent=captionInput.value||"Write caption here"};
-  playMusicBtn.onclick=playMusic; stopMusicBtn.onclick=stopMusic;
+    function syncAudienceFields() {
+      const audience = audienceInput?.value || "";
+      targetUserField.style.display = audience === "specific_user" ? "grid" : "none";
+      communityField.style.display = audience === "community" ? "grid" : "none";
+      if (audience !== "specific_user" && targetUserInput) targetUserInput.value = "";
+      if (audience !== "community" && communityInput) communityInput.value = "";
+    }
 
-  document.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{live.style.filter=b.dataset.filter;playback.style.filter=b.dataset.filter});
-  captureBtn.addEventListener("mousedown",()=>{if(modeSelect.value==="photo")return takePhoto();holdTimer=setTimeout(startRecording,260)});
-  captureBtn.addEventListener("touchstart",()=>{if(modeSelect.value==="photo")return takePhoto();holdTimer=setTimeout(startRecording,260)},{passive:true});
-  ["mouseup","mouseleave","touchend","touchcancel"].forEach(e=>captureBtn.addEventListener(e,()=>{clearTimeout(holdTimer);if(recording)stopRecording();else if(modeSelect.value!=="video")takePhoto()}));
-  form.onsubmit=()=>{toast.style.display="block";return true};
-  window.addEventListener("beforeunload",stopCamera);
-})();
+    function showPreview(file) {
+      if (!file || !previewImage || !previewVideo) return;
+      const url = URL.createObjectURL(file);
+      if (/^video\//.test(file.type)) {
+        previewVideo.src = url;
+        previewVideo.style.display = "block";
+        previewImage.style.display = "none";
+        if (emptyMediaState) emptyMediaState.style.display = "none";
+        if (previewOverlay) previewOverlay.style.display = "block";
+        previewStatus.textContent = file.name + " is ready for preview and publish.";
+      } else if (/^image\//.test(file.type)) {
+        previewImage.src = url;
+        previewImage.style.display = "block";
+        previewVideo.style.display = "none";
+        if (emptyMediaState) emptyMediaState.style.display = "none";
+        if (previewOverlay) previewOverlay.style.display = "block";
+        previewStatus.textContent = file.name + " is ready for preview and publish.";
+      } else {
+        previewStatus.textContent = "Choose an image or video file.";
+      }
+    }
+
+    chooseFileBtn?.addEventListener("click", function () {
+      mediaInput?.click();
+    });
+    mediaInput?.addEventListener("change", function () {
+      const file = mediaInput.files && mediaInput.files[0];
+      if (file) showPreview(file);
+    });
+
+    ["dragenter", "dragover"].forEach(function (name) {
+      dropZone?.addEventListener(name, function (event) {
+        event.preventDefault();
+        dropZone.style.borderColor = "rgba(236,72,153,.42)";
+      });
+    });
+    ["dragleave", "drop"].forEach(function (name) {
+      dropZone?.addEventListener(name, function (event) {
+        event.preventDefault();
+        dropZone.style.borderColor = "rgba(255,255,255,.18)";
+      });
+    });
+    dropZone?.addEventListener("drop", function (event) {
+      const file = event.dataTransfer?.files?.[0];
+      if (!file || !mediaInput) return;
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      mediaInput.files = transfer.files;
+      showPreview(file);
+    });
+
+    [titleInput, captionInput, audienceInput, shareTargetInput].forEach(function (input) {
+      input?.addEventListener("input", syncText);
+      input?.addEventListener("change", syncText);
+    });
+    audienceInput?.addEventListener("change", syncAudienceFields);
+
+    syncText();
+    syncAudienceFields();
+    if (mediaInput?.files?.[0]) showPreview(mediaInput.files[0]);
+  }());
 </script>
 {% endblock %}

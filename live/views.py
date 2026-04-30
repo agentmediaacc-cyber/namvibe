@@ -13,7 +13,7 @@ from .models import LiveMessage, LiveReaction, LiveSession
 from .services import can_access_session, can_chat, create_chat_message, featured_sessions_for, live_now_for, related_sessions_for, scheduled_sessions_for
 
 
-LIVE_CATEGORIES = ["Music", "Dating Talk", "Lifestyle", "Night Vibes", "Fitness", "Comedy", "Fashion", "Gaming", "Communities"]
+LIVE_CATEGORIES = ["Dating", "Music", "Creator", "Pink Friday", "Community"]
 
 
 def _safe_live_context(*, title="", safe_mode_message="", session=None, locked_premium=False):
@@ -92,7 +92,7 @@ def live_start_view(request):
         session = form.save()
         messages.success(request, "Live session created.")
         return redirect("live_room", uuid=session.uuid)
-    return render(request, "live/start.html", {"form": form})
+    return render(request, "live/start.html", {"form": form, "categories": LIVE_CATEGORIES})
 
 
 def live_room_view(request, uuid):

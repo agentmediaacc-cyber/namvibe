@@ -47,6 +47,16 @@ class LiveCreatorSystemTests(TestCase):
         self.assertRedirects(response, reverse("live_room", kwargs={"uuid": session.uuid}), fetch_redirect_response=False)
         self.assertEqual(session.status, LiveSession.Status.LIVE)
 
+    def test_live_start_page_waits_for_enable_preview(self):
+        self.client.force_login(self.host)
+
+        response = self.client.get(reverse("live_start"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Enable camera preview")
+        self.assertContains(response, "Preview is off")
+        self.assertContains(response, "Category")
+
     def test_end_live_session(self):
         session = LiveSession.objects.create(host=self.host, title="End Me", status=LiveSession.Status.LIVE)
         self.client.force_login(self.host)

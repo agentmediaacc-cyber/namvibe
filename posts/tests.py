@@ -251,6 +251,8 @@ class UnifiedPostFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Creator Studio")
+        self.assertContains(response, "Preview before publishing")
+        self.assertContains(response, "Publish now")
 
     @patch("posts.views.create_post")
     def test_feed_create_syncs_supabase_with_profile_uuid_not_session_integer(self, create_post_mock):

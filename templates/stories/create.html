@@ -3,11 +3,12 @@
 
 {% block content %}
 <style>
+  body{background:#120014;color:#fff}
   .story-studio-shell{max-width:1180px;margin:0 auto;padding:16px 12px 110px}
   .story-studio-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:16px}
   .story-stage,.story-panel{
-    border:1px solid rgba(212,177,106,.18);
-    background:linear-gradient(145deg,rgba(12,15,22,.96),rgba(18,22,31,.92));
+    border:1px solid rgba(255,255,255,.12);
+    background:linear-gradient(145deg,rgba(20,0,24,.96),rgba(12,0,18,.92));
     border-radius:28px;
     box-shadow:0 24px 60px rgba(0,0,0,.32);
   }
@@ -22,10 +23,10 @@
   .story-stage-top{top:0;background:linear-gradient(180deg,rgba(4,6,9,.74),transparent)}
   .story-stage-bottom{bottom:0;flex-direction:column;align-items:stretch;background:linear-gradient(0deg,rgba(4,6,9,.86),transparent)}
   .studio-chip,.studio-btn,.capture-btn,.style-pill{
-    border:1px solid rgba(212,177,106,.2);background:rgba(15,18,26,.82);color:#f5efe2;
+    border:1px solid rgba(255,255,255,.16);background:rgba(15,18,26,.82);color:#fff;
     border-radius:999px;padding:10px 14px;text-decoration:none;font-weight:800;cursor:pointer;
   }
-  .studio-btn.primary{background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border-color:transparent}
+  .studio-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);color:#fff;border-color:transparent}
   .studio-chip{font-size:12px;padding:7px 11px}
   .stage-stack{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .overlay-text{
@@ -46,15 +47,15 @@
   }
   .mode-quickbar::-webkit-scrollbar{display:none}
   .quick-mode{
-    padding:9px 12px;border-radius:999px;border:1px solid rgba(212,177,106,.16);
-    background:rgba(8,10,16,.82);color:#f5efe2;font-size:12px;font-weight:800
+    padding:9px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);
+    background:rgba(8,10,16,.82);color:#fff;font-size:12px;font-weight:800
   }
-  .quick-mode.active{background:linear-gradient(135deg,#d4b16a,#f1d8a3);color:#120f09;border-color:transparent}
+  .quick-mode.active{background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border-color:transparent}
   .capture-btn{
     width:92px;height:92px;padding:0;border-radius:999px;position:relative;background:#fff;
   }
   .capture-btn::after{
-    content:"";position:absolute;inset:12px;border-radius:999px;background:linear-gradient(135deg,#d4b16a,#8f6a2a);
+    content:"";position:absolute;inset:12px;border-radius:999px;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
   }
   .capture-btn.recording::after{inset:24px;border-radius:18px;background:#dc5656}
   .story-panel{padding:18px;display:grid;gap:16px}
@@ -62,28 +63,28 @@
     display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px
   }
   .editor-mini{
-    padding:12px;border-radius:18px;border:1px solid rgba(212,177,106,.12);background:rgba(8,10,16,.82)
+    padding:12px;border-radius:18px;border:1px solid rgba(255,255,255,.1);background:rgba(8,10,16,.82)
   }
   .editor-mini span{display:block;color:#a9a191;font-size:12px;margin-bottom:4px}
   .story-panel h1,.story-panel h2,.story-panel p{margin:0}
   .panel-copy{color:#a9a191;line-height:1.65}
   .mode-grid,.style-row,.mini-stats{display:flex;gap:10px;flex-wrap:wrap}
   .mode-pill{
-    flex:1 1 120px;border:1px solid rgba(212,177,106,.16);background:rgba(17,21,29,.88);
-    border-radius:18px;padding:12px;color:#f5efe2;cursor:pointer;text-align:left;
+    flex:1 1 120px;border:1px solid rgba(255,255,255,.12);background:rgba(17,21,29,.88);
+    border-radius:18px;padding:12px;color:#fff;cursor:pointer;text-align:left;
   }
-  .mode-pill.active{background:linear-gradient(135deg,rgba(40,32,20,.98),rgba(88,64,24,.92));border-color:rgba(212,177,106,.34)}
+  .mode-pill.active{background:linear-gradient(135deg,rgba(124,58,237,.24),rgba(236,72,153,.18));border-color:rgba(236,72,153,.34)}
   .panel-field{display:grid;gap:8px}
-  .panel-field label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#d4b16a;font-weight:900}
+  .panel-field label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#fbcfe8;font-weight:900}
   .panel-field textarea,.panel-field input,.panel-field select{
-    width:100%;border:1px solid rgba(212,177,106,.16);border-radius:18px;padding:12px 14px;
-    background:rgba(8,10,16,.92);color:#f5efe2;
+    width:100%;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px 14px;
+    background:rgba(8,10,16,.92);color:#fff;
   }
   .style-pill{border-radius:16px;padding:8px 12px}
-  .style-pill.active{background:rgba(212,177,106,.16);border-color:rgba(212,177,106,.34)}
+  .style-pill.active{background:rgba(124,58,237,.18);border-color:rgba(236,72,153,.34)}
   .publish-grid{display:grid;gap:10px}
   .mini-stats .story-panel-card{
-    flex:1 1 130px;border:1px solid rgba(212,177,106,.14);border-radius:18px;padding:12px;background:rgba(9,11,17,.88)
+    flex:1 1 130px;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px;background:rgba(9,11,17,.88)
   }
   .story-panel-card strong{display:block;font-size:1.1rem}
   .field-errors{display:grid;gap:6px;color:#ffb0b0;font-size:13px}
@@ -116,13 +117,14 @@
             <span class="studio-chip" id="deviceState">Ready</span>
           </div>
           <div class="stage-stack">
+            <button type="button" class="studio-btn" id="cameraBtn">Enable camera</button>
             <button type="button" class="studio-btn" id="flipBtn">Flip</button>
             <button type="button" class="studio-btn primary" id="galleryBtn">Gallery</button>
           </div>
         </div>
 
         <div class="overlay-text" id="overlayText">Tell a quick story</div>
-        <div class="overlay-caption"><span id="overlayCaption">Tap once for photo. Hold for video.</span></div>
+        <div class="overlay-caption"><span id="overlayCaption">Choose from gallery, or enable camera for photo and video capture.</span></div>
 
         <div class="story-stage-bottom">
           <div class="capture-row">
@@ -182,7 +184,7 @@
       <div class="editor-rail">
         <article class="editor-mini">
           <span>Capture flow</span>
-          <strong>Tap for photo, hold for video, or choose from gallery.</strong>
+          <strong>Choose from gallery, or enable camera to tap for photo and hold for video.</strong>
         </article>
         <article class="editor-mini">
           <span>Publish state</span>
@@ -254,6 +256,7 @@
   const captureBtn = document.getElementById("captureBtn");
   const galleryBtn = document.getElementById("galleryBtn");
   const galleryInput = document.getElementById("galleryInput");
+  const cameraBtn = document.getElementById("cameraBtn");
   const flipBtn = document.getElementById("flipBtn");
   const clearBtn = document.getElementById("clearBtn");
   const deviceState = document.getElementById("deviceState");
@@ -280,7 +283,7 @@
 
   function syncCopy() {
     overlayText.textContent = textContent.value.trim() || "Tell a quick story";
-    overlayCaption.textContent = captionInput.value.trim() || "Tap once for photo. Hold for video.";
+    overlayCaption.textContent = captionInput.value.trim() || "Choose from gallery, or enable camera for photo and video capture.";
     publishState.textContent = textContent.value.trim() || captionInput.value.trim() || "Ready for a quick update.";
   }
 
@@ -295,7 +298,7 @@
       videoPreview.classList.add("hidden");
       deviceState.textContent = "Text mode";
     } else if (mode === "camera") {
-      startCamera();
+      deviceState.textContent = "Tap Enable camera";
     }
   }
 
@@ -322,8 +325,10 @@
       videoPreview.classList.add("hidden");
       mediaType.value = "photo";
       deviceState.textContent = frontFacing ? "Front camera" : "Rear camera";
+      cameraBtn.textContent = "Camera on";
     } catch (error) {
       deviceState.textContent = "Camera unavailable";
+      cameraBtn.textContent = "Enable camera";
     }
   }
 
@@ -332,6 +337,7 @@
       stream.getTracks().forEach((track) => track.stop());
       stream = null;
     }
+    cameraBtn.textContent = "Enable camera";
   }
 
   function capturePhoto() {
@@ -406,6 +412,7 @@
   });
 
   galleryBtn.addEventListener("click", () => galleryInput.click());
+  cameraBtn.addEventListener("click", () => startCamera());
   galleryInput.addEventListener("change", (event) => {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
@@ -439,7 +446,9 @@
     videoPreview.src = "";
     photoPreview.classList.add("hidden");
     videoPreview.classList.add("hidden");
-    await startCamera();
+    livePreview.classList.add("hidden");
+    stopCamera();
+    deviceState.textContent = "Reset preview";
   });
 
   modeButtons.forEach((button) => {
@@ -466,7 +475,6 @@
   [textContent, captionInput].forEach((field) => field.addEventListener("input", syncCopy));
 
   syncCopy();
-  startCamera();
 })();
 </script>
 {% endblock %}

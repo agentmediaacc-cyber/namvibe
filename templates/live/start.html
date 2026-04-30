@@ -2,10 +2,11 @@
 {% block title %}Live Studio | Namvibe{% endblock %}
 {% block content %}
 <style>
+  body{background:#120014;color:#fff}
   .live-camera-shell{
     min-height:calc(100vh - 68px);
     padding:0 0 94px;
-    background:linear-gradient(180deg,#fff9fa 0%,#fff2f5 24%,#f9eef1 100%);
+    background:linear-gradient(180deg,#120014 0%,#160018 54%,#1b0020 100%);
   }
   .live-camera-wrap{
     width:min(100%,520px);
@@ -239,7 +240,7 @@
     bottom:0;
     max-height:min(82vh,780px);
     border-radius:28px 28px 0 0;
-    background:#fffdfd;
+    background:#140016;
     padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 20px);
     box-shadow:0 -30px 80px rgba(15,23,42,.24);
     overflow:auto;
@@ -248,7 +249,7 @@
     width:52px;
     height:5px;
     border-radius:999px;
-    background:#f0bcc8;
+    background:#7c3aed;
     margin:0 auto 12px;
   }
   .live-sheet-head{
@@ -260,7 +261,7 @@
   }
   .live-sheet-head p{
     margin:4px 0 0;
-    color:#7f6671;
+    color:#cbd5e1;
     font-size:13px;
   }
   .live-sheet-grid{
@@ -274,7 +275,7 @@
   }
   .live-sheet-field.full{grid-column:1/-1}
   .live-sheet-field label{
-    color:#442834;
+    color:#fbcfe8;
     font-size:13px;
     font-weight:800;
   }
@@ -284,8 +285,8 @@
     width:100%;
     min-width:0;
     border:1px solid rgba(226,112,132,.14);
-    background:#fff;
-    color:#241b24;
+    background:rgba(255,255,255,.06);
+    color:#fff;
     border-radius:18px;
     padding:13px 14px;
   }
@@ -301,8 +302,8 @@
   .live-audience-option,
   .live-mini-chip{
     border:1px solid rgba(226,112,132,.14);
-    background:#fff;
-    color:#2c1f28;
+    background:rgba(255,255,255,.06);
+    color:#fff;
     border-radius:999px;
     min-height:38px;
     padding:0 12px;
@@ -314,29 +315,29 @@
     cursor:pointer;
     text-decoration:none;
   }
-  .live-audience-option.is-active{background:#ffe8ee;border-color:rgba(217,71,99,.28);color:#c23c5e}
+  .live-audience-option.is-active{background:rgba(124,58,237,.24);border-color:rgba(236,72,153,.34);color:#fff}
   .live-toggle{
     display:flex;
     align-items:center;
     gap:8px;
     padding:12px 14px;
     border-radius:18px;
-    background:#fff;
-    border:1px solid rgba(226,112,132,.12);
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);
     font-weight:700;
-    color:#2c1f28;
+    color:#fff;
   }
   .live-sheet-actions{
     position:sticky;
     bottom:-14px;
     margin:16px -14px -20px;
     padding:12px 14px calc(env(safe-area-inset-bottom,0px) + 12px);
-    background:rgba(255,253,248,.96);
+    background:rgba(20,0,24,.96);
     backdrop-filter:blur(14px);
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:10px;
-    border-top:1px solid rgba(226,112,132,.12);
+    border-top:1px solid rgba(255,255,255,.12);
   }
   .live-sheet-actions button{
     min-height:48px;
@@ -346,12 +347,12 @@
     cursor:pointer;
   }
   .live-sheet-actions .secondary{
-    background:#fff1f4;
-    color:#c23c5e;
+    background:rgba(255,255,255,.08);
+    color:#fff;
   }
   .live-sheet-actions .primary{
-    background:linear-gradient(135deg,#d8b663,#a67723);
-    color:#fffdf7;
+    background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
+    color:#fff;
   }
   .live-hidden-inputs{display:none}
   .live-mini-note{
@@ -429,10 +430,10 @@
             <span class="live-status-pill"><span class="live-status-dot" id="cameraDot"></span><span id="cameraStatusLabel">Camera</span></span>
             <span class="live-status-pill"><span class="live-status-dot" id="micDot"></span><span id="micStatusLabel">Microphone</span></span>
           </div>
-          <h2 id="permissionTitle">Opening your camera</h2>
-          <p id="permissionCopy">Allow camera and microphone access to start a live room.</p>
+          <h2 id="permissionTitle">Preview is off</h2>
+          <p id="permissionCopy">Camera and microphone stay off until you tap to enable preview.</p>
           <div class="live-mini-actions">
-            <button class="live-glass-btn" type="button" id="livePermissionProbe">Try again</button>
+            <button class="live-glass-btn" type="button" id="livePermissionProbe">Enable camera preview</button>
             <button class="live-glass-btn" type="button" id="liveSettingsOpenAlt">Settings</button>
           </div>
         </div>
@@ -452,6 +453,11 @@
           <input type="text" id="liveTitle" name="title" value="{{ form.title.value|default:'' }}">
           <textarea id="liveDescription" name="description">{{ form.description.value|default:'' }}</textarea>
           <input id="liveStartsAt" type="datetime-local" name="starts_at" value="{{ form.starts_at.value|date:'Y-m-d\\TH:i' }}">
+          <select id="liveCategory" name="category">
+            {% for value,label in form.category.field.choices %}
+              <option value="{{ value }}" {% if form.category.value|default:'creator' == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
           <select id="liveAccessType" name="access_type">
             {% for value,label in form.access_type.field.choices %}
               <option value="{{ value }}" {% if form.access_type.value == value %}selected{% endif %}>{{ label }}</option>
@@ -489,6 +495,14 @@
           <div class="live-sheet-field full">
             <label for="liveDescriptionSheet">Description</label>
             <textarea id="liveDescriptionSheet" placeholder="What is this live about?">{{ form.description.value|default:'' }}</textarea>
+          </div>
+          <div class="live-sheet-field">
+            <label for="liveCategorySheet">Category</label>
+            <select id="liveCategorySheet">
+              {% for value,label in form.category.field.choices %}
+                <option value="{{ value }}" {% if form.category.value|default:'creator' == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="live-sheet-field">
             <label for="liveStartModeSheet">Start</label>
@@ -581,6 +595,8 @@
     const startsAtSheet = document.getElementById("liveStartsAtSheet");
     const startModeInput = document.getElementById("liveStartMode");
     const startModeSheet = document.getElementById("liveStartModeSheet");
+    const categoryInput = document.getElementById("liveCategory");
+    const categorySheet = document.getElementById("liveCategorySheet");
     const accessInput = document.getElementById("liveAccessType");
     const titlePreview = document.getElementById("livePreviewTitle");
     const metaPreview = document.getElementById("livePreviewMeta");
@@ -655,10 +671,17 @@
       renderMeta();
     }
 
+    function syncCategory(value) {
+      categoryInput.value = value;
+      categorySheet.value = value;
+      renderMeta();
+    }
+
     function renderMeta() {
       const audienceLabel = accessInput.selectedOptions[0] ? accessInput.selectedOptions[0].textContent : "Public";
-      metaPreview.textContent = audienceLabel + (startModeInput.value === "schedule" ? " · Scheduled" : " · Ready now");
-      miniNote.textContent = cameraEnabled ? "Camera first. Adjust the room when you need to." : "Camera is off. You can still go live with cover or audio.";
+      const categoryLabel = categoryInput.selectedOptions[0] ? categoryInput.selectedOptions[0].textContent : "Creator";
+      metaPreview.textContent = categoryLabel + " · " + audienceLabel + (startModeInput.value === "schedule" ? " · Scheduled" : " · Ready now");
+      miniNote.textContent = cameraEnabled ? "Enable preview when you want to check framing and audio." : "Camera is off. You can still go live with cover or audio.";
     }
 
     function togglePermissionCard(show) {
@@ -748,6 +771,7 @@
     descriptionSheet.addEventListener("input", function () { syncDescription(descriptionSheet.value); });
     startsAtSheet.addEventListener("change", function () { syncStartsAt(startsAtSheet.value); });
     startModeSheet.addEventListener("change", function () { syncStartMode(startModeSheet.value); });
+    categorySheet.addEventListener("change", function () { syncCategory(categorySheet.value); });
     document.querySelectorAll("[data-access-value]").forEach(function(button) {
       button.addEventListener("click", function () { syncAudience(button.dataset.accessValue); });
     });
@@ -827,9 +851,12 @@
     syncDescription(descriptionInput.value);
     syncStartsAt(startsAtInput.value);
     syncStartMode(startModeInput.value || "now");
+    syncCategory(categoryInput.value || "creator");
     syncAudience(accessInput.value || "public");
     renderMeta();
-    startPreview();
+    togglePermissionCard(true);
+    setStatus("Preview off", "Preview is off", "Camera and microphone stay off until you tap to enable preview.");
+    setDeviceState("", "");
   }());
 </script>
 {% endblock %}

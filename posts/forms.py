@@ -46,6 +46,13 @@ class BasePostForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["allow_comments"].initial = True
         self.fields["allow_sharing"].initial = True
+        self.fields["title"].widget.attrs.update({"placeholder": "Add a title or headline"})
+        self.fields["caption"].widget.attrs.update({"placeholder": "Write a caption for your post..."})
+        self.fields["hashtags_text"].widget.attrs.update({"placeholder": "#namvibe #windhoek"})
+        self.fields["mentions_text"].widget.attrs.update({"placeholder": "@friend @creator"})
+        self.fields["target_username"].widget.attrs.update({"placeholder": "@username"})
+        self.fields["community_slug"].widget.attrs.update({"placeholder": "community-slug"})
+        self.fields["media_file"].widget.attrs.update({"accept": "image/*,video/*"})
         if self.instance.pk:
             self.fields["hashtags_text"].initial = " ".join(self.instance.hashtags or [])
             self.fields["mentions_text"].initial = " ".join(self.instance.mentions or [])
@@ -124,20 +131,34 @@ class TextPostForm(BasePostForm):
 
 
 class PhotoPostForm(BasePostForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["media_file"].widget.attrs.update({"accept": "image/jpeg,image/png,image/webp,image/gif"})
+
     def clean_media_file(self):
         media_file = self.cleaned_data.get("media_file")
         if media_file:
-            validate_image_file(media_file)
+            try:
+                validate_image_file(media_file)
+            except forms.ValidationError as exc:
+                raise forms.ValidationError(exc.messages[0]) from exc
         elif not self.instance.pk:
             raise forms.ValidationError("Upload an image.")
         return media_file
 
 
 class VideoPostForm(BasePostForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["media_file"].widget.attrs.update({"accept": "video/mp4,video/quicktime,video/webm"})
+
     def clean_media_file(self):
         media_file = self.cleaned_data.get("media_file")
         if media_file:
-            validate_video_file(media_file)
+            try:
+                validate_video_file(media_file)
+            except forms.ValidationError as exc:
+                raise forms.ValidationError(exc.messages[0]) from exc
         elif not self.instance.pk:
             raise forms.ValidationError("Upload a video.")
         return media_file

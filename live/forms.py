@@ -6,6 +6,17 @@ from .models import LiveSession
 
 class LiveSessionForm(forms.ModelForm):
     start_mode = forms.ChoiceField(choices=[("now", "Start now"), ("schedule", "Schedule later")], initial="now")
+    category = forms.ChoiceField(
+        choices=[
+            ("dating", "Dating"),
+            ("music", "Music"),
+            ("creator", "Creator"),
+            ("pink_friday", "Pink Friday"),
+            ("community", "Community"),
+        ],
+        initial="creator",
+        required=False,
+    )
 
     class Meta:
         model = LiveSession
@@ -19,6 +30,8 @@ class LiveSessionForm(forms.ModelForm):
         self.host = kwargs.pop("host", None)
         super().__init__(*args, **kwargs)
         self.fields["is_featured"].required = False
+        self.fields["title"].widget.attrs.update({"placeholder": "Name your live room"})
+        self.fields["description"].widget.attrs.update({"placeholder": "Tell people what this live session is about"})
         if not self.instance.pk:
             self.fields["starts_at"].initial = timezone.now()
 

@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from .models import StoryItem, StoryView
@@ -31,3 +32,11 @@ class StoryViewTrackingTests(TestCase):
 
         self.assertIsNone(view)
         self.assertEqual(StoryView.objects.filter(story=self.story).count(), 0)
+
+    def test_story_create_page_mentions_public_story_rail(self):
+        self.client.force_login(self.author)
+
+        response = self.client.get(reverse("story_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Public stories appear on the homepage story rail.")
