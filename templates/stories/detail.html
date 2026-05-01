@@ -31,7 +31,7 @@
   }
   .story-progress-seg{height:3px;flex:1;background:rgba(255,255,255,.22);border-radius:999px;overflow:hidden}
   .story-progress-fill{height:100%;background:#fff;width:0%}
-  .story-progress-seg.active .story-progress-fill{width:100%;transition:width 5s linear}
+  .story-progress-seg.active .story-progress-fill{animation:story-progress 5s linear forwards}
   .story-progress-seg.seen .story-progress-fill{width:100%}
   .story-close{
     position:absolute;top:18px;right:14px;z-index:40;border:0;cursor:pointer;
@@ -56,6 +56,7 @@
   .story-header-copy small{color:#e2e8f0}
   .story-nav{position:absolute;inset:0;display:flex;z-index:15}
   .story-nav-left,.story-nav-right{flex:1;cursor:pointer}
+  .story-paused .story-progress-fill{animation-play-state:paused!important;transition:none!important}
   .story-media-box{
     position:relative;min-height:0;height:100%;
     display:grid;place-items:center;overflow:hidden;
@@ -111,6 +112,10 @@
   @keyframes story-fade{
     from{opacity:0;transform:scale(1.015)}
     to{opacity:1;transform:scale(1)}
+  }
+  @keyframes story-progress{
+    from{width:0%}
+    to{width:100%}
   }
   @media (max-width: 640px){
     .story-container{width:100%}
@@ -225,13 +230,42 @@
   document.body.dataset.focusUi = "true";
   const prevUrl = "{% if previous_story %}{% url 'story_detail' previous_story.id %}{% endif %}";
   const nextUrl = "{% if next_story %}{% url 'story_detail' next_story.id %}{% endif %}";
+  const viewer = document.querySelector('.story-viewer');
+  const video = document.getElementById('storyVideo');
+  let autoAdvanceTimer = null;
+  let isPaused = false;
 
   function goPrev() { if (prevUrl) window.location.href = prevUrl; else window.location.href = "{% url 'home' %}"; }
   function goNext() { if (nextUrl) window.location.href = nextUrl; else window.location.href = "{% url 'home' %}"; }
 
-  {% if story.media_type != "video" %}
-  setTimeout(goNext, 5000);
-  {% endif %}
+  function startAutoAdvance() {
+    clearTimeout(autoAdvanceTimer);
+    {% if story.media_type != "video" %}
+    autoAdvanceTimer = setTimeout(goNext, 5000);
+    {% endif %}
+  }
+
+  function pauseStory() {
+    isPaused = true;
+    clearTimeout(autoAdvanceTimer);
+    viewer?.classList.add('story-paused');
+    if (video && !video.paused) video.pause();
+  }
+
+  function resumeStory() {
+    if (!isPaused) return;
+    isPaused = false;
+    viewer?.classList.remove('story-paused');
+    if (video) {
+      video.play().catch(() => {});
+    } else {
+      startAutoAdvance();
+    }
+  }
+
+  startAutoAdvance();
+  ['mousedown','touchstart'].forEach(evt => viewer?.addEventListener(evt, pauseStory, {passive:true}));
+  ['mouseup','mouseleave','touchend','touchcancel'].forEach(evt => viewer?.addEventListener(evt, resumeStory, {passive:true}));
 
   fetch("{% url 'story_view' story.id %}", {
     method: "POST",

@@ -138,6 +138,16 @@ class AccountAuthFlowTests(TestCase):
         self.assertNotContains(response, "© 2026 Namvibe")
 
     @patch("accounts.views.get_posts_by_user", return_value=[])
+    def test_dashboard_shows_first_login_profile_completion_prompt(self, _posts):
+        self.client.post(reverse("signup"), self._signup_payload(username="onboard_user", email="onboard@example.com"))
+
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Finish your profile")
+        self.assertContains(response, "Find people to follow")
+
+    @patch("accounts.views.get_posts_by_user", return_value=[])
     @patch("accounts.views.get_supabase_profile", return_value=None)
     @patch("accounts.views._safe_sync_supabase_profile", return_value=None)
     def test_dashboard_skips_invalid_session_uuid_for_supabase_posts(self, _sync, _profile, get_posts_mock):

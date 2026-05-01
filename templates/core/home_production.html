@@ -129,6 +129,22 @@
   .skeleton-line.mid{width:44%}
   .skeleton-line.full{width:100%}
   .feed-status-copy{text-align:center;color:var(--nv-muted);font-weight:700;padding:12px}
+  .onboarding-strip{
+    margin-top:18px;padding:18px;border-radius:24px;border:1px solid rgba(255,255,255,.12);
+    background:linear-gradient(135deg,rgba(124,58,237,.16),rgba(236,72,153,.12),rgba(255,255,255,.05));
+    display:grid;gap:12px;
+  }
+  .onboarding-progress{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  .onboarding-progress span{display:block;height:100%;background:var(--nv-grad)}
+  .mobile-create-launcher{position:fixed;right:14px;bottom:92px;z-index:2400;display:none;gap:10px}
+  .mobile-create-fab,.mobile-create-link{
+    border:1px solid rgba(255,255,255,.12);background:rgba(18,0,20,.94);color:#fff;text-decoration:none;
+    box-shadow:0 20px 48px rgba(0,0,0,.34);backdrop-filter:blur(18px);
+  }
+  .mobile-create-stack{display:none;gap:8px;justify-items:end}
+  .mobile-create-stack.open{display:grid}
+  .mobile-create-link{padding:10px 14px;border-radius:16px;font-weight:900}
+  .mobile-create-fab{width:58px;height:58px;border-radius:999px;display:grid;place-items:center;font-size:1.5rem;background:var(--nv-grad)}
   @keyframes shimmer{100%{transform:translateX(100%)}}
   @keyframes heart-pop{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
   @keyframes feed-rise{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}
@@ -141,6 +157,7 @@
     .feed-media.reel{max-width:none}
     .story-row{grid-template-columns:repeat(3,minmax(0,1fr))}
     .section-inline-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .mobile-create-launcher{display:grid}
   }
 </style>
 {% endblock %}
@@ -184,6 +201,26 @@
         </article>
       </div>
     </div>
+    {% if request.user.is_authenticated and current_profile %}
+      {% if not current_profile.avatar or not current_profile.bio or not current_profile.region %}
+        <div class="onboarding-strip">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <div>
+              <span class="section-badge">Finish profile</span>
+              <strong style="display:block;margin-top:8px;font-size:1.12rem;">Make your account feel real before people discover you.</strong>
+              <p class="hero-copy" style="margin:8px 0 0;">Add your photo, hometown, bio, and first post or story to unlock a stronger Namvibe profile.</p>
+            </div>
+            <a class="small-btn" href="{% url 'account_settings' %}">Finish profile</a>
+          </div>
+          <div class="card-actions">
+            <a class="small-btn" href="{% url 'member_discovery' %}">Find people to follow</a>
+            <a class="small-btn" href="{% url 'studio' %}">Create first post</a>
+            <a class="small-btn" href="{% url 'story_create' %}">Create first story</a>
+            <a class="small-btn" href="{% url 'home' %}">Skip for now</a>
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
   </section>
 
   <section class="section-block">
@@ -244,6 +281,18 @@
   </section>
 </section>
 
+{% if request.user.is_authenticated %}
+<div class="mobile-create-launcher">
+  <div class="mobile-create-stack" id="mobileCreateStack">
+    <a class="mobile-create-link" href="{% url 'studio' %}">Post</a>
+    <a class="mobile-create-link" href="{% url 'story_create' %}">Story</a>
+    <a class="mobile-create-link" href="{% url 'studio' %}?type=reel">Reel</a>
+    <a class="mobile-create-link" href="{% url 'live_start' %}">Live</a>
+  </div>
+  <button class="mobile-create-fab" type="button" id="mobileCreateFab" aria-label="Create">＋</button>
+</div>
+{% endif %}
+
 <script>
   let currentPage = 1;
   let loading = false;
@@ -270,7 +319,7 @@
       const response = await fetch(`{% url 'feed_more' %}?page=${currentPage}`);
       if (!response.ok) throw new Error('Failed to fetch');
       const html = await response.text();
-      if (html.trim() === "") {
+      if (html.trim() === "" || html.includes('data-feed-empty="true"')) {
         hasMore = false;
         document.getElementById('feedStatus').textContent = "You're caught up for now.";
       } else {
@@ -345,7 +394,8 @@
     const shell = btn.closest('.feed-card')?.querySelector('.feed-comment-shell');
     if (!shell) return;
     shell.classList.toggle('open');
-    btn.textContent = shell.classList.contains('open') ? 'Close comments' : 'Comment';
+    const count = btn.querySelector('.comment-count')?.textContent || '0';
+    btn.innerHTML = shell.classList.contains('open') ? `Close comments` : `💬 <span class="comment-count">${count}</span>`;
   }
 
   async function submitComment(uuid, btn) {
@@ -367,6 +417,25 @@
       const data = await response.json();
       if (data.status === 'success') {
         input.value = '';
+        const shell = btn.closest('.feed-comment-shell');
+        const list = shell?.querySelector('.feed-comment-list');
+        const empty = shell?.querySelector('.no-comments-empty');
+        const wrapper = btn.closest('.feed-card');
+        const countEl = wrapper?.querySelector('.comment-count');
+        if (countEl) countEl.textContent = data.comment_count;
+        if (empty) empty.remove();
+        if (list) {
+          list.insertAdjacentHTML('afterbegin', `
+            <article class="feed-comment-item" style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);">
+              <strong>@${data.author}</strong>
+              <div class="feed-copy" style="margin-top:4px;">${data.body}</div>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+                <small class="feed-copy">${data.created_at}</small>
+                <a class="small-btn" href="/post/${uuid}/" style="padding:6px 10px;">Reply</a>
+              </div>
+            </article>
+          `);
+        }
         btn.textContent = 'Posted';
         setTimeout(() => { btn.textContent = 'Post'; }, 1200);
       }
@@ -376,5 +445,11 @@
       btn.disabled = false;
     }
   }
+
+  const createFab = document.getElementById('mobileCreateFab');
+  const createStack = document.getElementById('mobileCreateStack');
+  createFab?.addEventListener('click', function () {
+    createStack?.classList.toggle('open');
+  });
 </script>
 {% endblock %}

@@ -83,6 +83,14 @@
     padding:11px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);
   }
   .action-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+  .onboarding-card{
+    margin-top:16px;padding:18px;border-radius:24px;border:1px solid rgba(255,255,255,.12);
+    background:linear-gradient(135deg,rgba(124,58,237,.16),rgba(236,72,153,.12),rgba(255,255,255,.05));
+    display:grid;gap:12px;
+  }
+  .onboarding-card h3{margin:0}
+  .onboarding-progress{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  .onboarding-progress span{display:block;height:100%;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);border-radius:999px}
   @media (max-width: 980px){
     .index-grid{grid-template-columns:1fr}
   }
@@ -188,6 +196,26 @@
           <article class="stat-card"><span>Following</span><strong>{{ profile.following_count|default:0 }}</strong></article>
           <article class="stat-card"><span>Views</span><strong>{{ profile_views_count|default:0 }}</strong></article>
         </div>
+        {% if profile_completion.percentage < 100 %}
+          <div class="onboarding-card">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+              <div>
+                <h3>Finish your profile</h3>
+                <p class="copy-muted" style="margin:6px 0 0;">
+                  {% if profile_completion.next_action %}{{ profile_completion.next_action.label }}{% else %}Add your photo, bio, and hometown to feel real on Namvibe.{% endif %}
+                </p>
+              </div>
+              <span class="completion-pill">{{ profile_completion.percentage }}% ready</span>
+            </div>
+            <div class="onboarding-progress"><span style="width:{{ profile_completion.percentage }}%;"></span></div>
+            <div class="action-row" style="margin-top:0;">
+              <a class="action-btn primary" href="{% url 'profile_edit' %}">Finish profile</a>
+              <a class="action-btn" href="{% url 'member_discovery' %}">Find people to follow</a>
+              <a class="action-btn" href="{% url 'story_create' %}">Create first story</a>
+              <a class="action-btn" href="{% url 'home' %}">Skip for now</a>
+            </div>
+          </div>
+        {% endif %}
       </div>
     </article>
 

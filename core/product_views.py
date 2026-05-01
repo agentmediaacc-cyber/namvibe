@@ -1,5 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
+from django.utils import timezone
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404, redirect
 from django.views.decorators.http import require_POST
@@ -185,6 +186,23 @@ def notifications_view(request):
             def _safe_target(url, fallback):
                 return url or fallback
 
+            def _action_label(item):
+                group = item.get("group")
+                href = item.get("href", "")
+                if group == "Messages":
+                    return "Open chat"
+                if "/story" in href:
+                    return "Open story"
+                if "/post/" in href:
+                    return "View post"
+                if "/profile/" in href or "/accounts/members/" in href:
+                    return "View profile"
+                if group == "Comments":
+                    return "Reply"
+                return "Open"
+
+            today = timezone.localdate()
+
             latest_messages = list(Message.objects.filter(conversation__participants=request.user).exclude(sender=request.user).select_related("sender").order_by("-created_at")[:8])
             follows = list(Follow.objects.filter(following=request.user).select_related("follower", "follower__profile").order_by("-created_at")[:6])
             friend_requests = list(FriendRequest.objects.filter(to_user=request.user, status=FriendRequest.Status.PENDING).select_related("from_user", "from_user__profile").order_by("-created_at")[:6])
@@ -232,12 +250,15 @@ def notifications_view(request):
             items.extend({"group": "Comments", "title": f"@{row.author.profile.username} replied to your comment", "meta": row.created_at, "copy": row.body[:90], "href": f"/post/{row.post.uuid}/", "is_new": True} for row in comment_replies)
             
             ordered_items = sorted(items, key=lambda item: item["meta"], reverse=True)[:20]
+            for item in ordered_items:
+                item["time_bucket"] = "Today" if timezone.localtime(item["meta"]).date() == today else "Earlier"
+                item["action_label"] = _action_label(item)
             context["notification_items"] = ordered_items
             groups = []
-            for group_name in ["Messages", "Follows", "Likes", "Comments", "Friends", "Dating", "System"]:
-                grouped = [item for item in ordered_items if item["group"] == group_name]
-                if grouped:
-                    groups.append({"title": group_name, "items": grouped[:6]})
+            for bucket_name in ["Today", "Earlier"]:
+                bucket_items = [item for item in ordered_items if item["time_bucket"] == bucket_name]
+                if bucket_items:
+                    groups.append({"title": bucket_name, "items": bucket_items[:10]})
             context["notification_groups"] = groups
         except Exception as exc:
             context["safe_mode_message"] = str(exc)

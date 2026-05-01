@@ -1,4 +1,7 @@
 {% load media_helpers %}
+{% if not mixed_feed %}
+  <div data-feed-empty="true"></div>
+{% endif %}
 {% for item in mixed_feed %}
   {% if item.kind == "story_rail" %}
     <div class="section-card" style="padding:16px;margin-bottom:12px;background:transparent;border:0;box-shadow:none;">
@@ -67,7 +70,7 @@
             <span class="like-count">{{ post.like_count }}</span>
           </button>
           {% if request.user.is_authenticated %}
-            <button class="small-btn" type="button" onclick="toggleCommentBox(this)">Comment</button>
+            <button class="small-btn comment-toggle-btn" type="button" onclick="toggleCommentBox(this)">💬 <span class="comment-count">{{ post.comment_count }}</span></button>
           {% else %}
             <a class="small-btn" href="{% url 'post_detail' post.uuid %}">💬 {{ post.comment_count }}</a>
           {% endif %}
@@ -79,10 +82,32 @@
       {% if request.user.is_authenticated %}
       <div class="feed-comment-shell">
         <div class="feed-copy" style="font-size:13px;">Join the conversation under this post.</div>
+        <div class="feed-comment-list" style="display:grid;gap:8px;">
+          {% for comment in post.comments.all|slice:":2" %}
+            <article class="feed-comment-item" style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);">
+              <strong>@{{ comment.author.profile.username|default:comment.author.username }}</strong>
+              <div class="feed-copy" style="margin-top:4px;">{{ comment.body }}</div>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+                <small class="feed-copy">{{ comment.created_at|timesince }} ago</small>
+                {% if comment.replies.exists %}
+                  <a class="small-btn" href="{% url 'post_detail' post.uuid %}" style="padding:6px 10px;">View replies</a>
+                {% endif %}
+                <a class="small-btn" href="{% url 'post_detail' post.uuid %}" style="padding:6px 10px;">Reply</a>
+              </div>
+            </article>
+          {% empty %}
+            <div class="feed-copy no-comments-empty" style="padding:10px 0;">No comments yet. Start the conversation.</div>
+          {% endfor %}
+        </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <input type="text" class="comment-input" placeholder="Add a comment...">
           <button class="small-btn" onclick="submitComment('{{ post.uuid }}', this)">Post</button>
         </div>
+      </div>
+      {% else %}
+      <div class="feed-comment-shell">
+        <div class="feed-copy no-comments-empty" style="padding:10px 0;">Login to comment, reply, and keep the conversation moving.</div>
+        <a class="small-btn" href="{% url 'login' %}?next={% url 'post_detail' post.uuid %}">Login to interact</a>
       </div>
       {% endif %}
     </article>

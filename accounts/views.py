@@ -286,6 +286,12 @@ def _dashboard_next_actions(profile, completion, unread_count):
             "emoji": "✨",
         },
         {
+            "title": "Find people to follow",
+            "copy": "Open real members, follow creators, and unlock friend requests.",
+            "url": _safe_reverse("member_discovery"),
+            "emoji": "👥",
+        },
+        {
             "title": "Upload story",
             "copy": "Share a quick photo, clip, or text update.",
             "url": _safe_reverse("story_create"),
@@ -304,10 +310,10 @@ def _dashboard_next_actions(profile, completion, unread_count):
             "emoji": "💳",
         },
         {
-            "title": "Go live",
-            "copy": "Start a room or schedule your next session.",
-            "url": _safe_reverse("live_start"),
-            "emoji": "📡",
+            "title": "Create your first post",
+            "copy": "Open the studio and publish your first post, reel, or status update.",
+            "url": _safe_reverse("studio"),
+            "emoji": "📝",
         },
     ]
     return next_actions

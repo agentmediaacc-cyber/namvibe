@@ -569,9 +569,12 @@ def homepage_context(request, page=1, fragment=False):
     primary_posts = list(visible_posts[offset : offset + limit])
     reel_preview = [post for post in primary_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
     if fragment:
+        if not primary_posts:
+            return {"mixed_feed": [], "feed_fragment_empty": True}
         mid_ads = _safe_section("fragment_ads", [], lambda: _active_ads(Advertisement.Placement.HOMEPAGE_MID, 1)) if primary_posts else []
         return {
             "mixed_feed": _mixed_feed(primary_posts, reel_preview, [], [], [], [], None, mid_ads, [], [], []),
+            "feed_fragment_empty": False,
         }
 
     active_stories = _safe_section("active_stories", StoryItem.objects.none(), lambda: StoryItem.objects.visible_to(user))

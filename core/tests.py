@@ -244,3 +244,9 @@ class HomepageProductionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Create story")
+
+    def test_feed_more_empty_page_returns_empty_marker(self):
+        response = self.client.get(reverse("feed_more"), {"page": 99})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-feed-empty="true"')

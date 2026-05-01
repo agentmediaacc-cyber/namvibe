@@ -28,7 +28,10 @@
   }
   .member-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
   .member-status{display:inline-flex;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;font-size:12px;font-weight:900}
+  .member-status.following{background:rgba(124,58,237,.14);color:#ddd6fe}
+  .member-state-row{display:flex;gap:8px;flex-wrap:wrap}
   .empty-state{padding:28px;text-align:center}
+  @media (max-width:640px){.member-actions,.member-state-row{display:grid;grid-template-columns:1fr 1fr}}
 </style>
 
 <section class="members-shell">
@@ -64,7 +67,10 @@
             <a class="member-btn" href="{{ item.profile_url }}">View Profile</a>
             {% if request.user.is_authenticated %}
               {% if item.is_friend %}
-                <a class="member-btn primary" href="{{ item.chat_url }}">Chat</a>
+                <div class="member-state-row">
+                  <span class="member-status">Friends</span>
+                  <a class="member-btn primary" href="{{ item.chat_url }}">Chat</a>
+                </div>
               {% elif item.request_received %}
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
                   <form method="post" action="{{ item.friend_accept_url }}">
@@ -86,7 +92,7 @@
               {% endif %}
               <form method="post" action="{{ item.follow_url }}">
                 {% csrf_token %}
-                <button class="member-btn" type="submit">{% if item.is_following %}Following{% else %}Follow{% endif %}</button>
+                <button class="member-btn" type="submit">{% if item.is_following %}Following ✓{% else %}Follow{% endif %}</button>
               </form>
             {% else %}
               <a class="member-btn primary" href="{% url 'login' %}?next={{ item.profile_url|urlencode }}">Login to connect</a>

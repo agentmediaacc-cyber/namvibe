@@ -105,6 +105,9 @@
                   <p>{{ item.copy }}</p>
                   <small>{{ item.meta|date:"M j, H:i" }}</small>
                 </a>
+                <div style="display:flex;justify-content:flex-end;">
+                  <a class="notification-cta" href="{{ item.href }}" style="margin-top:4px;">{{ item.action_label|default:"Open" }}</a>
+                </div>
                 {% if item.is_new and item.notification_id %}
                   <form method="post" action="{% url 'notification_mark_read' item.notification_id %}">
                     {% csrf_token %}
