@@ -10,9 +10,10 @@ IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 VIDEO_MIME_TYPES = {"video/mp4", "video/quicktime", "video/webm"}
 AUDIO_MIME_TYPES = {"audio/mpeg", "audio/mp4", "audio/wav", "audio/ogg"}
 
-MAX_IMAGE_SIZE = 8 * 1024 * 1024
-MAX_VIDEO_SIZE = 250 * 1024 * 1024
-MAX_AUDIO_SIZE = 40 * 1024 * 1024
+MAX_IMAGE_SIZE = getattr(settings, "COVER_UPLOAD_MAX_BYTES", 8 * 1024 * 1024)
+MAX_VIDEO_SIZE = getattr(settings, "POST_VIDEO_MAX_BYTES", 80 * 1024 * 1024)
+MAX_STORY_MEDIA_SIZE = getattr(settings, "STORY_MEDIA_MAX_BYTES", 20 * 1024 * 1024)
+MAX_AUDIO_SIZE = getattr(settings, "AUDIO_UPLOAD_MAX_BYTES", 40 * 1024 * 1024)
 DEFAULT_AVATAR = "images/default-avatar.svg"
 DEFAULT_COVER = "images/default-cover.svg"
 DEFAULT_MEDIA = "images/default-media.svg"
@@ -54,6 +55,22 @@ def validate_image_file(file_obj):
 def validate_video_file(file_obj):
     validate_file_size(file_obj, MAX_VIDEO_SIZE, "video")
     validate_mime_type(file_obj, VIDEO_MIME_TYPES, "video")
+
+
+def validate_story_image_file(file_obj):
+    validate_file_size(file_obj, MAX_STORY_MEDIA_SIZE, "story image")
+    validate_mime_type(file_obj, IMAGE_MIME_TYPES, "story image")
+    try:
+        width, height = get_image_dimensions(file_obj)
+    except Exception as exc:
+        raise ValidationError("Upload a valid story image file.") from exc
+    if not width or not height:
+        raise ValidationError("Upload a valid story image file.")
+
+
+def validate_story_video_file(file_obj):
+    validate_file_size(file_obj, MAX_STORY_MEDIA_SIZE, "story video")
+    validate_mime_type(file_obj, VIDEO_MIME_TYPES, "story video")
 
 
 def validate_audio_file(file_obj):

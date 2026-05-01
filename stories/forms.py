@@ -1,6 +1,7 @@
 from django import forms
 from django.utils import timezone
 
+from core.media import validate_story_image_file, validate_story_video_file
 from .models import StoryItem
 
 
@@ -37,6 +38,20 @@ class StoryCreateForm(forms.ModelForm):
         if media_type in {StoryItem.MediaType.PHOTO, StoryItem.MediaType.VIDEO} and not file_obj:
             self.add_error("file", "Upload a file for this story type.")
         return cleaned
+
+    def clean_file(self):
+        file_obj = self.cleaned_data.get("file")
+        media_type = self.cleaned_data.get("media_type") or self.data.get("media_type")
+        if not file_obj:
+            return file_obj
+        try:
+            if media_type == StoryItem.MediaType.PHOTO:
+                validate_story_image_file(file_obj)
+            elif media_type == StoryItem.MediaType.VIDEO:
+                validate_story_video_file(file_obj)
+        except forms.ValidationError as exc:
+            raise forms.ValidationError(exc.messages[0]) from exc
+        return file_obj
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from posts.models import Report
 from .models import StoryItem, StoryView
 from .services import mark_story_viewed
 
@@ -40,3 +41,12 @@ class StoryViewTrackingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Public stories appear on the homepage story rail.")
+
+    def test_story_report_submits_safe_user_report(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.post(reverse("story_report", kwargs={"id": self.story.id}), {"reason": "other", "details": "Unsafe"})
+
+        self.assertEqual(response.status_code, 302)
+        report = Report.objects.get(reporter=self.viewer, reported_user=self.author)
+        self.assertIn(f"Story #{self.story.id}", report.details)

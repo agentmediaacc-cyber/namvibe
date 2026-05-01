@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import Block
+from accounts.models import Block, Notification
 from ads.models import Advertisement
 from core.homepage import homepage_context
 from posts.models import Post
@@ -187,6 +187,30 @@ class HomepageProductionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f"@{self.author.profile.username}")
+
+    def test_notification_routes_mark_single_and_all_read(self):
+        self.client.force_login(self.viewer)
+        first = Notification.objects.create(
+            recipient=self.viewer,
+            sender=self.author,
+            notification_type=Notification.Type.FOLLOW,
+            message="Followed you",
+        )
+        Notification.objects.create(
+            recipient=self.viewer,
+            sender=self.author,
+            notification_type=Notification.Type.COMMENT,
+            message="Commented",
+        )
+
+        single = self.client.post(reverse("notification_mark_read", kwargs={"notification_id": first.id}), {"next": reverse("notifications")})
+        first.refresh_from_db()
+        self.assertEqual(single.status_code, 302)
+        self.assertTrue(first.is_read)
+
+        mark_all = self.client.post(reverse("notifications_mark_all_read"), {"next": reverse("notifications")})
+        self.assertEqual(mark_all.status_code, 302)
+        self.assertFalse(Notification.objects.filter(recipient=self.viewer, is_read=False).exists())
 
     def test_homepage_empty_db_and_feed_more_stay_online(self):
         Post.objects.all().delete()

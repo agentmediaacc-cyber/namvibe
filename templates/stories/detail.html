@@ -181,6 +181,14 @@
         {% else %}
           <a class="story-pill" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Login to react</a>
         {% endif %}
+        {% if request.user.is_authenticated and request.user != story.author %}
+          <form method="post" action="{% url 'story_report' story.id %}" style="margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <input type="hidden" name="reason" value="other">
+            <button class="story-pill" type="submit" style="cursor:pointer;">Report</button>
+          </form>
+        {% endif %}
       </div>
 
       <div class="story-comments" aria-label="Story comments">

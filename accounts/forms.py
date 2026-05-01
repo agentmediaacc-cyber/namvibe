@@ -3,6 +3,7 @@ from pathlib import Path
 from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .models import AccountProfile, Profile
@@ -136,8 +137,8 @@ class LoginForm(forms.Form):
 class ProfileForm(forms.ModelForm):
     IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
     IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-    AVATAR_MAX_BYTES = 5 * 1024 * 1024
-    COVER_MAX_BYTES = 8 * 1024 * 1024
+    AVATAR_MAX_BYTES = getattr(settings, "AVATAR_UPLOAD_MAX_BYTES", 5 * 1024 * 1024)
+    COVER_MAX_BYTES = getattr(settings, "COVER_UPLOAD_MAX_BYTES", 8 * 1024 * 1024)
 
     class Meta:
         model = Profile

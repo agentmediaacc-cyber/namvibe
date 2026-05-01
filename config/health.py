@@ -1,4 +1,5 @@
-from django.http import JsonResponse
+from django.conf import settings
+from django.http import Http404, JsonResponse
 from django.db import connection
 
 def healthz(request):
@@ -13,15 +14,11 @@ def health_db(request):
         return JsonResponse({"database": "fail", "error": str(e)})
 
 def db_env_debug(request):
-    import os
-    from urllib.parse import urlparse
-
-    raw = os.environ.get("DATABASE_URL", "")
-    parsed = urlparse(raw) if raw else None
-
+    if not settings.DEBUG:
+        raise Http404()
     return JsonResponse({
-        "database_url_exists": bool(raw),
-        "username": parsed.username if parsed else "",
-        "host": parsed.hostname if parsed else "",
-        "port": parsed.port if parsed else "",
+        "database_url_exists": bool(getattr(settings, "DATABASE_URL", "")),
+        "engine": connection.settings_dict.get("ENGINE", ""),
+        "host_visible": False,
+        "credentials_visible": False,
     })

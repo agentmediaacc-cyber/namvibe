@@ -75,6 +75,13 @@
       {% for action in actions %}
         <a class="notification-cta {% if forloop.first %}primary{% endif %}" href="{% url action.url_name %}{{ action.query|default:'' }}">{{ action.label }}</a>
       {% endfor %}
+      {% if request.user.is_authenticated and notification_items %}
+        <form method="post" action="{% url 'notifications_mark_all_read' %}" style="margin:0;">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button class="notification-cta" type="submit">Mark all read</button>
+        </form>
+      {% endif %}
       <a class="notification-cta" href="{% url 'home' %}">Back to feed</a>
     </div>
   </section>
@@ -89,14 +96,23 @@
           </div>
           <div class="notification-list">
             {% for item in group.items %}
-              <a class="notification-card {% if item.is_new %}unread{% endif %}" href="{{ item.href }}">
-                <div class="notification-meta">
-                  {% if item.is_new %}<span class="notification-dot" aria-hidden="true"></span>{% endif %}
-                  <strong>{{ item.title }}</strong>
-                </div>
-                <p>{{ item.copy }}</p>
-                <small>{{ item.meta|date:"M j, H:i" }}</small>
-              </a>
+              <div class="notification-card {% if item.is_new %}unread{% endif %}">
+                <a href="{{ item.href }}" style="text-decoration:none;color:inherit;display:grid;gap:8px;">
+                  <div class="notification-meta">
+                    {% if item.is_new %}<span class="notification-dot" aria-hidden="true"></span>{% endif %}
+                    <strong>{{ item.title }}</strong>
+                  </div>
+                  <p>{{ item.copy }}</p>
+                  <small>{{ item.meta|date:"M j, H:i" }}</small>
+                </a>
+                {% if item.is_new and item.notification_id %}
+                  <form method="post" action="{% url 'notification_mark_read' item.notification_id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="notification-cta" type="submit" style="margin-top:4px;">Mark read</button>
+                  </form>
+                {% endif %}
+              </div>
             {% endfor %}
           </div>
         </article>

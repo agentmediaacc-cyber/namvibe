@@ -4,7 +4,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import Block, Follow, FriendRequest
-from core.media import validate_image_file, validate_video_file
+from core.media import validate_story_image_file, validate_story_video_file
 
 
 class StoryQuerySet(models.QuerySet):
@@ -79,9 +79,9 @@ class StoryItem(models.Model):
 
     def clean(self):
         if self.file and self.media_type == self.MediaType.PHOTO:
-            validate_image_file(self.file)
+            validate_story_image_file(self.file)
         if self.file and self.media_type == self.MediaType.VIDEO:
-            validate_video_file(self.file)
+            validate_story_video_file(self.file)
 
     def __str__(self):
         return f"{self.author} story"

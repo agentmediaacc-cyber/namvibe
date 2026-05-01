@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from django.utils import timezone
 
-from accounts.models import Follow, FriendRequest
+from accounts.models import Follow, FriendRequest, Notification
 from accounts.supabase import supabase_profile_id_for_user
 from communities.models import Community, CommunityMembership
 from core.media import profile_avatar_url, profile_cover_url
@@ -454,6 +454,15 @@ class FeedDiscoveryInteractionTests(TestCase):
 
         self.assertRedirects(response, reverse("post_detail", kwargs={"uuid": self.public_post.uuid}), fetch_redirect_response=False)
         self.assertTrue(Report.objects.filter(reporter=self.viewer, post=self.public_post, reason=Report.Reason.SPAM).exists())
+
+    def test_comment_creates_notification_for_post_author(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.post(reverse("add_comment", kwargs={"uuid": self.public_post.uuid}), {"body": "Notification test"})
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.filter(recipient=self.author, sender=self.viewer).latest("created_at")
+        self.assertEqual(notification.notification_type, Notification.Type.COMMENT)
 
     def test_saved_posts_and_albums_pages_load(self):
         self.client.force_login(self.author)

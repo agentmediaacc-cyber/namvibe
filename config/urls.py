@@ -15,7 +15,9 @@ from core.product_views import (
     gaming_view,
     gifting_view,
     image_tools_view,
+    notification_mark_read_view,
     notifications_view,
+    notifications_mark_all_read_view,
     photo_selling_view,
     premium_tier_view,
 )
@@ -110,6 +112,8 @@ urlpatterns = [
     path("health/db/", health_db),
     path("admin/", admin.site.urls),
     path("notifications/", notifications_view, name="notifications"),
+    path("notifications/read/<int:notification_id>/", notification_mark_read_view, name="notification_mark_read"),
+    path("notifications/read-all/", notifications_mark_all_read_view, name="notifications_mark_all_read"),
     path("channels/", channels_view, name="channels"),
     path("gaming/", gaming_view, name="gaming"),
     path("photo-selling/", photo_selling_view, name="photo_selling"),

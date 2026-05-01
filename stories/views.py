@@ -126,6 +126,25 @@ def story_share_view(request, id):
     return redirect(request.POST.get("next") or reverse("story_detail", kwargs={"id": story.id}))
 
 
+@login_required(login_url="login")
+@require_http_methods(["POST"])
+def story_report_view(request, id):
+    from posts.models import Report
+    from posts.services import create_report
+
+    story = get_object_or_404(StoryItem.objects.select_related("author", "author__profile"), id=id)
+    if not can_view_story(request.user, story):
+        return HttpResponseForbidden("You cannot report this story.")
+    reason = request.POST.get("reason") or Report.Reason.OTHER
+    if reason not in Report.Reason.values:
+        reason = Report.Reason.OTHER
+    details = (request.POST.get("details") or "").strip()
+    details = f"Story #{story.id}: {details}".strip()
+    create_report(request.user, reported_user=story.author, reason=reason, details=details)
+    messages.success(request, "Story report submitted.")
+    return redirect(request.POST.get("next") or reverse("story_detail", kwargs={"id": story.id}))
+
+
 @require_http_methods(["POST"])
 def story_view_view(request, id):
     story = get_object_or_404(StoryItem, id=id)

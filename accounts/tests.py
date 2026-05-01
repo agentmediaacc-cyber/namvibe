@@ -10,7 +10,7 @@ from django.urls import reverse
 from dating.models import DatingCoinBalance
 
 from .forms import ProfileForm
-from .models import AccountProfile, AccountRole, Follow, Profile
+from .models import AccountProfile, AccountRole, Follow, Notification, Profile
 from .services import account_rank_for_value, is_valid_uuid, master_admin_dashboard_url
 
 
@@ -375,6 +375,15 @@ class SocialGraphTests(TestCase):
         self.assertFalse(Follow.objects.filter(follower=self.user, following=self.creator).exists())
         self.assertEqual(self.user.profile.following_count, 0)
         self.assertEqual(self.creator.profile.follower_count, 0)
+
+    def test_follow_toggle_creates_notification_for_followed_user(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("follow_toggle", kwargs={"username": self.creator.profile.username}))
+
+        self.assertEqual(response.status_code, 302)
+        notification = Notification.objects.filter(recipient=self.creator, sender=self.user).latest("created_at")
+        self.assertEqual(notification.notification_type, Notification.Type.FOLLOW)
 
 
 class MasterAdminFlowTests(TestCase):

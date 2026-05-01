@@ -1,6 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
 from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
 
 from accounts.models import Follow, FriendRequest
 from communities.models import Community
@@ -217,12 +219,10 @@ def notifications_view(request):
                     "meta": n.created_at,
                     "copy": "Open update",
                     "href": _safe_target(n.target_url, "/notifications/"),
-                    "is_new": not n.is_read
+                    "is_new": not n.is_read,
+                    "notification_id": n.id,
                 })
             
-            # Mark them as read
-            Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
-
             # centralize others
             items.extend({"group": "Messages", "title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages", "is_new": True} for row in latest_messages)
             items.extend({"group": "Friends", "title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review and accept from your account hub.", "href": "/friends/", "is_new": True} for row in friend_requests)
@@ -242,6 +242,27 @@ def notifications_view(request):
         except Exception as exc:
             context["safe_mode_message"] = str(exc)
     return render(request, "core/notifications.html", context)
+
+
+@login_required(login_url="login")
+@require_POST
+def notification_mark_read_view(request, notification_id):
+    from accounts.models import Notification
+
+    notification = get_object_or_404(Notification, recipient=request.user, pk=notification_id)
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=["is_read"])
+    return redirect(request.POST.get("next") or notification.target_url or "notifications")
+
+
+@login_required(login_url="login")
+@require_POST
+def notifications_mark_all_read_view(request):
+    from accounts.models import Notification
+
+    Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+    return redirect(request.POST.get("next") or "notifications")
 
 
 def channels_view(request):
