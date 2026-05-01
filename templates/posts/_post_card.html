@@ -6,6 +6,10 @@
             <span>
                 <strong>{{ post.author.profile.display_name|default:post.author.username }}</strong>
                 <small>@{{ post.author.profile.username }} · {{ post.get_post_type_display }}</small>
+                <div class="nv-tags" style="margin-top:6px;">
+                    {% if post.author_premium_badge and post.author_premium_badge.is_paid %}<span>{{ post.author_premium_badge.label }}</span>{% endif %}
+                    {% if post.is_boosted %}<span>Boosted</span>{% endif %}
+                </div>
             </span>
         </a>
         <small>{{ post.published_at|default:post.created_at|date:"M j, Y H:i" }}</small>

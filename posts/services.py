@@ -6,6 +6,7 @@ from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
 from accounts.models import Follow, FriendRequest, Mute
+from wallet.services import active_boosted_post_ids
 from communities.models import Community, CommunityMembership
 from .models import Comment, CommentReaction, Like, Post, PostView, Report, Save, Share
 
@@ -260,6 +261,7 @@ class FeedRankingService:
         interest += sum(self.interest_tags[tag.lower()] for tag in post.hashtags or [])
         author_location = getattr(getattr(post.author, "profile", None), "location", "")
         location_score = 12 if self.viewer_location and author_location and self.viewer_location.lower() == author_location.lower() else 0
+        boost_score = 90 if getattr(post, "is_boosted", False) else 0
         type_weight = {
             Post.PostType.REEL: 12,
             Post.PostType.VIDEO: 8,
@@ -271,10 +273,13 @@ class FeedRankingService:
             Post.PostType.LIVE: 8,
         }.get(post.post_type, 1)
         mute_penalty = -80 if post.author_id in self.muted_ids else 0
-        return recency + follow_score + friend_score + velocity + total_engagement + interest + location_score + type_weight + mute_penalty
+        return recency + follow_score + friend_score + velocity + total_engagement + interest + location_score + boost_score + type_weight + mute_penalty
 
     def rank(self, queryset, limit=100):
         posts = list(self.with_annotations(queryset)[:limit])
+        boosted_post_ids = active_boosted_post_ids([post.id for post in posts])
+        for post in posts:
+            post.is_boosted = post.id in boosted_post_ids
         return sorted(posts, key=self.score, reverse=True)
 
 

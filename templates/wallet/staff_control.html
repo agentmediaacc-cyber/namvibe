@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Wallet Staff Control | Namvibe{% endblock %}
+{% block content %}
+{% include "wallet/_styles.html" %}
+<section class="wallet-shell">
+  <div class="wallet-hero wallet-hero-premium">
+    <div>
+      <h1>Wallet staff control</h1>
+      <p class="muted">Staff-only controls for manual coin top-ups, spend adjustments, premium tier changes, and creator earnings review. No payment gateway actions happen here.</p>
+    </div>
+    <div><a class="pill primary" href="{% url 'wallet_home' %}">Back to wallet</a></div>
+  </div>
+  <div class="wallet-layout">
+    <section class="wallet-card">
+      <h2>Coin top-up / spend</h2>
+      <form method="post" style="display:grid;gap:12px;">
+        {% csrf_token %}
+        {{ topup_form.non_field_errors }}
+        <div>{{ topup_form.user.label_tag }}{{ topup_form.user }}</div>
+        <div>{{ topup_form.mode.label_tag }}{{ topup_form.mode }}</div>
+        <div>{{ topup_form.amount.label_tag }}{{ topup_form.amount }}</div>
+        <div>{{ topup_form.reference.label_tag }}{{ topup_form.reference }}</div>
+        <button type="submit" name="coins-submit">Apply adjustment</button>
+      </form>
+    </section>
+    <section class="wallet-card">
+      <h2>Premium tier change</h2>
+      <form method="post" style="display:grid;gap:12px;">
+        {% csrf_token %}
+        {{ premium_form.non_field_errors }}
+        <div>{{ premium_form.user.label_tag }}{{ premium_form.user }}</div>
+        <div>{{ premium_form.plan.label_tag }}{{ premium_form.plan }}</div>
+        <div>{{ premium_form.reference.label_tag }}{{ premium_form.reference }}</div>
+        <button type="submit" name="premium-submit">Activate plan</button>
+      </form>
+      <p class="muted" style="margin-top:12px;">Payment integration is still pending, so staff/manual activation remains the safe path for now.</p>
+    </section>
+  </div>
+  <section class="wallet-card">
+    <h2>Creator earnings review</h2>
+    <div class="table-list">
+      {% for row in creator_rows %}
+        <div class="row"><div><strong>@{{ row.recipient__username }}</strong><br><span class="muted">Pending creator credits from gifts</span></div><div>N${{ row.total_gifts }}</div></div>
+      {% empty %}
+        <p class="muted">No creator earnings recorded yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="wallet-card">
+    <h2>Recent wallet activity</h2>
+    <div class="table-list">
+      {% for tx in recent_transactions %}
+        <div class="row"><div><strong>{{ tx.wallet.user.username }}</strong><br><span class="muted">{{ tx.get_transaction_type_display }} · {{ tx.reference|default:"Activity" }}</span></div><div>N${{ tx.amount }}</div></div>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

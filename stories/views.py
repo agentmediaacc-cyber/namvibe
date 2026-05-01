@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 from .forms import StoryCreateForm
 from .models import StoryItem, StoryReaction
 from .services import add_story_comment, can_view_story, mark_story_viewed, share_story, story_rail_for, toggle_story_like, visible_stories_for
+from wallet.services import active_boost_for_story, active_gifts, premium_badge_for
 
 
 @login_required(login_url="login")
@@ -88,6 +89,9 @@ def story_detail_view(request, id):
             "story_position": index + 1,
             "story_total": len(siblings),
             "story_siblings": siblings,
+            "active_story_boost": active_boost_for_story(story),
+            "story_author_badge": premium_badge_for(story.author),
+            "default_gift": active_gifts().first(),
         },
     )
 

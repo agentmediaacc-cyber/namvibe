@@ -3,6 +3,7 @@ from collections import defaultdict
 from django.db.models import Q
 
 from accounts.models import Follow
+from wallet.services import active_boosted_story_ids
 from .models import StoryComment, StoryItem, StoryReaction, StoryShare, StoryView
 
 
@@ -23,6 +24,7 @@ def story_rail_for(user, limit=24):
         grouped[story.author_id].append(story)
 
     rails = []
+    boosted_story_ids = active_boosted_story_ids([story.id for story in stories])
     for author_id, items in grouped.items():
         ordered = sorted(items, key=lambda item: item.created_at)
         first = ordered[0]
@@ -33,9 +35,10 @@ def story_rail_for(user, limit=24):
                 "story_count": len(ordered),
                 "is_followed": author_id in followed_ids,
                 "is_seen": all(item.id in seen_ids for item in ordered) if user.is_authenticated else False,
+                "is_boosted": first.id in boosted_story_ids,
             }
         )
-    rails.sort(key=lambda item: (not item["is_followed"], item["is_seen"], -item["first_story"].created_at.timestamp()))
+    rails.sort(key=lambda item: (not item["is_boosted"], not item["is_followed"], item["is_seen"], -item["first_story"].created_at.timestamp()))
     return rails[:limit]
 
 

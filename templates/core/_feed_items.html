@@ -43,6 +43,17 @@
           <div>
             <strong>{{ post.author.profile.display_name|default:post.author.profile.username|default:post.author.username }}</strong>
             <small class="feed-copy">@{{ post.author.profile.username|default:post.author.username }} · {{ post.published_at|default:post.created_at|timesince }} ago</small>
+            <div class="feed-tags" style="margin-top:6px;">
+              {% if post.author_premium_badge and post.author_premium_badge.is_paid %}
+                <span class="feed-tag">{{ post.author_premium_badge.label }}</span>
+              {% endif %}
+              {% if post.is_boosted %}
+                <span class="feed-tag">Boosted</span>
+              {% endif %}
+              {% if post.premium_badge %}
+                <span class="feed-tag">Premium post</span>
+              {% endif %}
+            </div>
           </div>
         </a>
         <span class="feed-badge">{{ post.get_post_type_display }}</span>
@@ -126,6 +137,10 @@
           <div style="position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(0deg,rgba(0,0,0,.8),transparent);">
             <strong style="font-size:1.4rem;display:block;">{{ m.display_name }}</strong>
             <small style="color:var(--nv-muted);">@{{ m.username }} · {{ m.location }}</small>
+            <div class="feed-tags" style="margin-top:8px;">
+              {% if m.premium_badge and m.premium_badge.is_paid %}<span class="feed-tag">{{ m.premium_badge.label }}</span>{% endif %}
+              {% if m.is_boosted %}<span class="feed-tag">Boosted</span>{% endif %}
+            </div>
           </div>
         </div>
       </a>

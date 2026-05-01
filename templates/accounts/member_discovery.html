@@ -21,6 +21,12 @@
   .member-avatar img,.member-avatar span{width:100%;height:100%;border-radius:20px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
   .member-copy small,.member-copy p,.empty-copy{color:#cbd5e1}
   .member-copy p{margin:8px 0 0;line-height:1.6}
+  .member-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .member-badge{
+    display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);font-size:11px;font-weight:900;color:#f8fafc
+  }
+  .member-badge.boosted{background:rgba(250,204,21,.16);color:#fde68a}
   .member-actions{display:flex;gap:10px;flex-wrap:wrap}
   .member-btn{
     display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;font-weight:900;
@@ -61,6 +67,14 @@
           </a>
           <div class="member-copy">
             <small>{{ item.location }}</small>
+            <div class="member-badges">
+              {% if item.premium_badge and item.premium_badge.is_paid %}
+                <span class="member-badge">{{ item.premium_badge.label }}</span>
+              {% endif %}
+              {% if item.is_boosted %}
+                <span class="member-badge boosted">Boosted</span>
+              {% endif %}
+            </div>
             <p>{% if item.bio %}{{ item.bio|truncatechars:120 }}{% else %}Open this member profile to see real posts, stories, and live activity when available.{% endif %}</p>
           </div>
           <div class="member-actions">

@@ -149,7 +149,7 @@
         </div>
         <div class="story-header-copy">
           <strong>{{ story.author.profile.display_name|default:story.author.profile.username|default:story.author.username }}</strong>
-          <small>@{{ story.author.profile.username|default:story.author.username }} · {{ story.created_at|timesince }} ago</small>
+          <small>@{{ story.author.profile.username|default:story.author.username }} · {{ story.created_at|timesince }} ago{% if story_author_badge and story_author_badge.is_paid %} · {{ story_author_badge.label }}{% endif %}{% if active_story_boost %} · Boosted{% endif %}</small>
         </div>
       </a>
     </div>
@@ -177,12 +177,30 @@
         <span class="story-pill">❤️ {{ story.like_count|default:0 }}</span>
         <span class="story-pill">💬 {{ comments|length }}</span>
         <span class="story-pill">👁 {{ story.view_count|default:0 }}</span>
+        {% if active_story_boost %}<span class="story-pill">Boost ends {{ active_story_boost.ends_at|date:"M j H:i" }}</span>{% endif %}
         {% if request.user.is_authenticated %}
           <form method="post" action="{% url 'story_like' story.id %}" style="margin:0;">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             <button class="story-pill" type="submit" style="cursor:pointer;">React</button>
           </form>
+          {% if request.user == story.author %}
+            <form method="post" action="{% url 'wallet_boost_story' story.id %}" style="margin:0;">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button class="story-pill" type="submit" style="cursor:pointer;">{% if active_story_boost %}Boosted{% else %}Boost{% endif %}</button>
+            </form>
+          {% elif request.user != story.author %}
+            {% if default_gift %}
+              <form method="post" action="{% url 'wallet_gift_story' story.id %}" style="margin:0;">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="gift" value="{{ default_gift.slug }}">
+                <input type="hidden" name="quantity" value="1">
+                <button class="story-pill" type="submit" style="cursor:pointer;">Send {{ default_gift.name }}</button>
+              </form>
+            {% endif %}
+          {% endif %}
         {% else %}
           <a class="story-pill" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Login to react</a>
         {% endif %}

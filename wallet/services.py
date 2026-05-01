@@ -6,9 +6,13 @@ from django.db.models import Q
 from django.utils import timezone
 
 from live.models import LiveAccessPurchase, LiveGift, LiveSession
-from .models import CreatorEntitlement, GiftCatalog, GiftEvent, MembershipPlan, UserMembership, WalletAccount, WalletTransaction
+from .models import BoostCampaign, CreatorEntitlement, GiftCatalog, GiftEvent, MembershipPlan, UserMembership, WalletAccount, WalletTransaction
 
 VIBE_COIN_DISPLAY_RATE = 5
+BOOST_DURATION_HOURS = 24
+POST_BOOST_COST = Decimal("15.00")
+PROFILE_BOOST_COST = Decimal("20.00")
+STORY_BOOST_COST = Decimal("10.00")
 
 
 class WalletError(Exception):
@@ -17,6 +21,10 @@ class WalletError(Exception):
 
 class InsufficientFunds(WalletError):
     pass
+
+
+def coins_for_amount(amount):
+    return int(Decimal(amount) * VIBE_COIN_DISPLAY_RATE)
 
 
 def ensure_wallet(user):
@@ -88,6 +96,23 @@ def user_has_feature(user, flag):
     return bool((membership.plan.feature_flags or {}).get(flag))
 
 
+def premium_badge_for(user):
+    membership = active_membership_for(user)
+    if not membership:
+        return {"label": "Free", "tone": "free", "is_paid": False}
+
+    plan = membership.plan
+    slug = (plan.slug or "").lower()
+    name = (plan.name or "").lower()
+    if "vip" in slug or "vip" in name:
+        return {"label": "VIP", "tone": "vip", "is_paid": True}
+    if "gold" in slug or "gold" in name:
+        return {"label": "Gold", "tone": "gold", "is_paid": True}
+    if "silver" in slug or "silver" in name:
+        return {"label": "Silver", "tone": "silver", "is_paid": True}
+    return {"label": plan.name, "tone": "premium", "is_paid": True}
+
+
 @transaction.atomic
 def purchase_membership(user, plan):
     if not plan.is_active:
@@ -109,6 +134,28 @@ def purchase_membership(user, plan):
         ends_at=now + duration if duration else None,
     )
     return membership, txn
+
+
+@transaction.atomic
+def assign_membership_by_staff(user, plan, *, reference=""):
+    UserMembership.objects.filter(user=user, status=UserMembership.Status.ACTIVE).update(status=UserMembership.Status.EXPIRED)
+    now = timezone.now()
+    duration = plan.duration_delta()
+    membership = UserMembership.objects.create(
+        user=user,
+        plan=plan,
+        status=UserMembership.Status.ACTIVE,
+        starts_at=now,
+        ends_at=now + duration if duration else None,
+    )
+    record_transaction(
+        ensure_wallet(user),
+        WalletTransaction.Type.ADJUSTMENT,
+        Decimal("0.00"),
+        reference=reference or f"staff_membership:{plan.slug}",
+        metadata={"plan": plan.slug, "source": "staff"},
+    )
+    return membership
 
 
 def has_creator_entitlement(user, creator=None, session=None, entitlement_type=CreatorEntitlement.EntitlementType.LIVE_ROOM):
@@ -213,7 +260,123 @@ def send_gift(sender, recipient, gift, quantity=1, live_session=None):
     )
     if live_session:
         LiveGift.objects.create(session=live_session, sender=sender, gift_name=gift.name, token_amount=int(total_cost))
+    from accounts.models import Notification, notify
+
+    notify(
+        recipient=recipient,
+        notification_type=Notification.Type.SYSTEM,
+        sender=sender,
+        message=f"@{sender.username} sent you {quantity}x {gift.name}.",
+        target_url="/wallet/gifts/",
+    )
     return event, sent_txn
+
+
+def boost_cost_for(target_type):
+    return {
+        BoostCampaign.TargetType.POST: POST_BOOST_COST,
+        BoostCampaign.TargetType.PROFILE: PROFILE_BOOST_COST,
+        BoostCampaign.TargetType.STORY: STORY_BOOST_COST,
+    }[target_type]
+
+
+def active_boosts_qs():
+    now = timezone.now()
+    return BoostCampaign.objects.filter(active=True, starts_at__lte=now, ends_at__gt=now)
+
+
+def active_boosted_post_ids(post_ids):
+    if not post_ids:
+        return set()
+    return set(
+        active_boosts_qs().filter(post_id__in=post_ids).values_list("post_id", flat=True)
+    )
+
+
+def active_boosted_profile_ids(profile_ids):
+    if not profile_ids:
+        return set()
+    return set(
+        active_boosts_qs().filter(profile_id__in=profile_ids).values_list("profile_id", flat=True)
+    )
+
+
+def active_boosted_story_ids(story_ids):
+    if not story_ids:
+        return set()
+    return set(
+        active_boosts_qs().filter(story_id__in=story_ids).values_list("story_id", flat=True)
+    )
+
+
+def active_boost_for_post(post):
+    return active_boosts_qs().filter(post=post).order_by("-ends_at").first()
+
+
+def active_boost_for_profile(profile):
+    return active_boosts_qs().filter(profile=profile).order_by("-ends_at").first()
+
+
+def active_boost_for_story(story):
+    return active_boosts_qs().filter(story=story).order_by("-ends_at").first()
+
+
+@transaction.atomic
+def create_boost(owner, *, post=None, profile=None, story=None):
+    targets = [bool(post), bool(profile), bool(story)]
+    if sum(targets) != 1:
+        raise WalletError("Choose exactly one content item to boost.")
+
+    if post:
+        if post.author_id != owner.id:
+            raise WalletError("You can only boost your own posts.")
+        target_type = BoostCampaign.TargetType.POST
+        reference = f"boost:post:{post.uuid}"
+    elif profile:
+        if profile.user_id != owner.id:
+            raise WalletError("You can only boost your own profile.")
+        target_type = BoostCampaign.TargetType.PROFILE
+        reference = f"boost:profile:{profile.username}"
+    else:
+        if story.author_id != owner.id:
+            raise WalletError("You can only boost your own story.")
+        target_type = BoostCampaign.TargetType.STORY
+        reference = f"boost:story:{story.id}"
+
+    cost = boost_cost_for(target_type)
+    debit_wallet(
+        owner,
+        cost,
+        WalletTransaction.Type.BOOST_PURCHASE,
+        reference=reference,
+        metadata={"target_type": target_type},
+    )
+    now = timezone.now()
+    boost = BoostCampaign.objects.create(
+        owner=owner,
+        target_type=target_type,
+        post=post,
+        profile=profile,
+        story=story,
+        coin_cost=cost,
+        starts_at=now,
+        ends_at=now + timezone.timedelta(hours=BOOST_DURATION_HOURS),
+        active=True,
+    )
+    return boost
+
+
+def creator_earnings_snapshot(user):
+    wallet = ensure_wallet(user)
+    gift_events = GiftEvent.objects.filter(recipient=user)
+    pending_coins = coins_for_amount(wallet.pending_balance)
+    return {
+        "wallet": wallet,
+        "gifts_received_count": gift_events.count(),
+        "pending_coins": pending_coins,
+        "estimated_earnings": wallet.pending_balance + wallet.available_balance,
+        "payout_status": "Payouts become available after the payout system is connected.",
+    }
 
 
 def default_live_access_price(session):

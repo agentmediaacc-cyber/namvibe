@@ -3,9 +3,18 @@
 {% block content %}
 {% include "wallet/_styles.html" %}
 <section class="wallet-shell">
-  <div class="wallet-hero">
-    <div><h1>Creator earnings</h1><p class="muted">Gift earnings and premium live access credits are tracked here.</p></div>
+  <div class="wallet-hero wallet-hero-premium">
+    <div>
+      <h1>Creator earnings</h1>
+      <p class="muted">Track gifts received, pending coins, and estimated creator value without promising withdrawals before the payout system is connected.</p>
+    </div>
     <div><div class="money">N${{ wallet.pending_balance }}</div><span class="muted">Pending</span></div>
+  </div>
+  <div class="wallet-grid">
+    <div class="wallet-card"><span class="muted">Gifts received</span><div class="money">{{ earnings_snapshot.gifts_received_count }}</div></div>
+    <div class="wallet-card"><span class="muted">Pending coins</span><div class="money">{{ earnings_snapshot.pending_coins }}</div></div>
+    <div class="wallet-card"><span class="muted">Estimated earnings</span><div class="money">N${{ earnings_snapshot.estimated_earnings }}</div></div>
+    <div class="wallet-card"><span class="muted">Payout status</span><div class="money" style="font-size:1rem;">Pending system</div><p class="muted">{{ earnings_snapshot.payout_status }}</p></div>
   </div>
   <div class="wallet-layout">
     <section class="wallet-card">
@@ -13,14 +22,14 @@
       <div class="table-list">
         {% for tx in earning_transactions %}
           <div class="row"><div><strong>{{ tx.get_transaction_type_display }}</strong><br><span class="muted">{{ tx.reference }}</span></div><div>N${{ tx.amount }}</div></div>
-        {% empty %}<p class="muted">No creator earnings yet.</p>{% endfor %}
+        {% empty %}<p class="muted">No creator earnings yet. Gifts and premium access credits will appear here as soon as supporters start spending coins on your content.</p>{% endfor %}
       </div>
     </section>
     <section class="wallet-card">
       <h2>Recent gifts</h2>
       {% for event in received_gifts %}
         <div class="row"><div><strong>{{ event.gift.name }}</strong><br><span class="muted">From @{{ event.sender.profile.username|default:event.sender.username }}</span></div><div>N${{ event.creator_value }}</div></div>
-      {% empty %}<p class="muted">No gifts received yet.</p>{% endfor %}
+      {% empty %}<p class="muted">No gifts received yet. When supporters send gifts from profiles, stories, posts, or live rooms, they will show here.</p>{% endfor %}
     </section>
   </div>
 </section>

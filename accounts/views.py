@@ -24,7 +24,7 @@ from posts.models import Post
 from posts.services import base_visible_posts
 from posts.supabase_posts import get_posts_by_user
 from stories.models import StoryItem
-from wallet.services import active_membership_for, ensure_wallet
+from wallet.services import active_boost_for_profile, active_boosted_profile_ids, active_gifts, active_membership_for, ensure_wallet, premium_badge_for
 from communities.models import CommunityMembership
 
 from .forms import LoginForm, ProfileForm, SignupForm
@@ -238,6 +238,7 @@ def _dashboard_route_cards(request, profile, completion, rank, gallery_count, un
 
 
 def _member_cards_for(user, profiles, *, include_friendship=True):
+    boosted_profile_ids = active_boosted_profile_ids([profile.id for profile in profiles])
     cards = []
     for profile in profiles:
         if include_friendship and user.is_authenticated and profile.user == user:
@@ -273,6 +274,8 @@ def _member_cards_for(user, profiles, *, include_friendship=True):
                 "friend_request_url": _safe_reverse("friend_request_send", username=profile.username or profile.user.username),
                 "friend_accept_url": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
                 "chat_url": _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
+                "premium_badge": premium_badge_for(profile.user),
+                "is_boosted": profile.id in boosted_profile_ids,
             }
         )
     return cards
@@ -1298,10 +1301,15 @@ def public_profile_view(request, username):
         "about": _safe_reverse("profile_detail", username=profile.username),
         "friend_request": _safe_reverse("friend_request_send", username=profile.username),
         "friend_accept": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
+        "gift_profile": _safe_reverse("wallet_gift_user", username=profile.username),
+        "boost_profile": _safe_reverse("wallet_boost_profile", username=profile.username),
     }
     safe_username = profile.username or getattr(profile.user, "username", "") or "namvibe"
     safe_display_name = profile.display_name or safe_username or "Namvibe member"
     presence_state = presence_snapshot(profile.user)
+    premium_badge = premium_badge_for(profile.user)
+    active_profile_boost = active_boost_for_profile(profile)
+    default_gift = active_gifts().first()
 
     context = {
         "profile": profile,
@@ -1321,6 +1329,7 @@ def public_profile_view(request, username):
         "current_live": current_live,
         "upcoming_live": upcoming_live,
         "active_membership": active_membership_for(profile.user),
+        "premium_badge": premium_badge,
         "public_post_count": public_post_count,
         "recent_followers": recent_followers,
         "following_preview": following_preview,
@@ -1335,7 +1344,9 @@ def public_profile_view(request, username):
         "action_urls": action_urls,
         "joined_date": profile.user.date_joined,
         "presence_state": presence_state,
-}
+        "active_profile_boost": active_profile_boost,
+        "default_gift": default_gift,
+    }
     return render(request, "accounts/profile_detail.html", context)
 
 
@@ -1344,6 +1355,8 @@ def member_discovery_view(request):
         Profile.objects.select_related("user")
         .order_by("-is_verified", "-follower_count", "-post_count", "-created_at")[:30]
     )
+    boosted_profile_ids = active_boosted_profile_ids([profile.id for profile in profiles])
+    profiles.sort(key=lambda profile: (profile.id not in boosted_profile_ids, not profile.is_verified, -profile.follower_count, -profile.post_count))
     context = {
         "member_cards": _member_cards_for(request.user, profiles),
     }

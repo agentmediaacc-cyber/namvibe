@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CreatorEntitlement, GiftCatalog, GiftEvent, MembershipPlan, UserMembership, WalletAccount, WalletTransaction
+from .models import BoostCampaign, CreatorEntitlement, GiftCatalog, GiftEvent, MembershipPlan, UserMembership, WalletAccount, WalletTransaction
 
 
 @admin.register(WalletAccount)
@@ -58,4 +58,12 @@ class CreatorEntitlementAdmin(admin.ModelAdmin):
     list_display = ("buyer", "creator", "live_session", "entitlement_type", "active", "starts_at", "ends_at")
     search_fields = ("buyer__username", "creator__username", "live_session__title")
     list_filter = ("entitlement_type", "active", "starts_at")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(BoostCampaign)
+class BoostCampaignAdmin(admin.ModelAdmin):
+    list_display = ("owner", "target_type", "post", "profile", "story", "coin_cost", "active", "starts_at", "ends_at")
+    search_fields = ("owner__username", "post__title", "profile__username", "story__caption")
+    list_filter = ("target_type", "active", "starts_at", "ends_at")
     readonly_fields = ("created_at",)

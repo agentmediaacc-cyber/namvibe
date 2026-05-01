@@ -13,14 +13,18 @@
         <div class="wallet-highlight"><span>Creator path</span><strong>Track pending and lifetime earnings together.</strong></div>
       </div>
     </div>
-    <div><a class="primary" href="{% url 'wallet_membership' %}">Premium membership</a></div>
+    <div style="display:grid;gap:10px;justify-items:end;">
+      <a class="primary" href="{% url 'wallet_membership' %}">Premium membership</a>
+      {% if request.user.is_staff %}<a class="pill" href="{% url 'wallet_staff_control' %}">Staff control</a>{% endif %}
+    </div>
   </div>
   <div class="wallet-grid">
     <div class="wallet-card"><span class="muted">Available</span><div class="money">N${{ wallet.available_balance }}</div></div>
-    <div class="wallet-card"><span class="muted">Vibe Coins</span><div class="money">{% widthratio wallet.available_balance coin_display_rate 1 %}</div><p class="muted">Display rate is centrally defined for the wallet UI.</p></div>
+    <div class="wallet-card"><span class="muted">Vibe Coins</span><div class="money">{% widthratio wallet.available_balance coin_display_rate 1 %}</div><p class="muted">Coins are spendable on gifts, boosts, and premium access.</p></div>
     <div class="wallet-card"><span class="muted">Pending creator earnings</span><div class="money">N${{ wallet.pending_balance }}</div></div>
     <div class="wallet-card"><span class="muted">Lifetime earned</span><div class="money">N${{ wallet.lifetime_earned }}</div></div>
     <div class="wallet-card"><span class="muted">Lifetime spent</span><div class="money">N${{ wallet.lifetime_spent }}</div></div>
+    <div class="wallet-card"><span class="muted">Active boosts</span><div class="money">{{ active_boost_count }}</div><p class="muted">Each boost stays live for 24 hours.</p></div>
   </div>
   <div class="wallet-layout">
     <main class="wallet-card">
@@ -36,11 +40,16 @@
     </main>
     <aside>
       <section class="wallet-card">
+        <h2>Coins and boosts</h2>
+        <p class="muted">{{ premium_badge.label }} tier active. Payment integration is still pending, so new coin top-ups happen through staff/admin for now.</p>
+        <a class="pill primary" href="{% url 'wallet_coins' %}">Open coin ledger</a>
+      </section>
+      <section class="wallet-card">
         <h2>Membership</h2>
         {% if active_membership %}
           <p><strong>{{ active_membership.plan.name }}</strong><br><span class="muted">Active until {{ active_membership.ends_at|date:"M j, Y"|default:"ongoing" }}</span></p>
         {% else %}
-          <p class="muted">No active membership.</p>
+          <p class="muted">Free plan active. Paid tiers become available after payment integration and manual activation.</p>
         {% endif %}
         <a class="pill primary" href="{% url 'wallet_membership' %}">View plans</a>
       </section>
@@ -51,10 +60,30 @@
       </section>
       <section class="wallet-card">
         <h2>Creator earnings</h2>
-        <p class="muted">Track gifts and premium live access earnings.</p>
+        <p class="muted">{{ earnings_snapshot.pending_coins }} pending coins. {{ earnings_snapshot.payout_status }}</p>
         <a class="pill" href="{% url 'wallet_creator_earnings' %}">Open earnings</a>
       </section>
     </aside>
   </div>
+  <section class="wallet-card">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+      <div>
+        <h2>Gift catalog</h2>
+        <p class="muted">Send gifts from profile, post, story, and live surfaces. Creator credit lands in pending earnings.</p>
+      </div>
+      <a class="pill" href="{% url 'wallet_gifts' %}">Gift history</a>
+    </div>
+    <div class="wallet-grid">
+      {% for gift in gift_catalog %}
+        <article class="wallet-highlight">
+          <span>{{ gift.name }}</span>
+          <strong>{{ gift.coin_cost }} coins</strong>
+          <p class="muted" style="margin:8px 0 0;">Creator credit: {{ gift.value_to_creator }} pending.</p>
+        </article>
+      {% empty %}
+        <div class="wallet-highlight"><strong>No gifts yet</strong><p class="muted">Gift items appear here as soon as the catalog is configured.</p></div>
+      {% endfor %}
+    </div>
+  </section>
 </section>
 {% endblock %}

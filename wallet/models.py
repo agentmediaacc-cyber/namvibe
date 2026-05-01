@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from core.media import validate_image_file
@@ -30,6 +31,7 @@ class WalletTransaction(models.Model):
         WITHDRAWAL = "withdrawal", "Withdrawal"
         GIFT_SENT = "gift_sent", "Gift sent"
         GIFT_RECEIVED = "gift_received", "Gift received"
+        BOOST_PURCHASE = "boost_purchase", "Boost purchase"
         PREMIUM_MEMBERSHIP_PURCHASE = "premium_membership_purchase", "Premium membership purchase"
         LIVE_ACCESS_PURCHASE = "live_access_purchase", "Live access purchase"
         CREATOR_PAYOUT_CREDIT = "creator_payout_credit", "Creator payout credit"
@@ -195,6 +197,46 @@ class CreatorEntitlement(models.Model):
     @property
     def is_current(self):
         return self.active and self.starts_at <= timezone.now() and (self.ends_at is None or self.ends_at > timezone.now())
+
+
+class BoostCampaign(models.Model):
+    class TargetType(models.TextChoices):
+        POST = "post", "Post"
+        PROFILE = "profile", "Profile"
+        STORY = "story", "Story"
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="boost_campaigns")
+    target_type = models.CharField(max_length=16, choices=TargetType.choices, db_index=True)
+    post = models.ForeignKey("posts.Post", on_delete=models.CASCADE, null=True, blank=True, related_name="boost_campaigns")
+    profile = models.ForeignKey("accounts.Profile", on_delete=models.CASCADE, null=True, blank=True, related_name="boost_campaigns")
+    story = models.ForeignKey("stories.StoryItem", on_delete=models.CASCADE, null=True, blank=True, related_name="boost_campaigns")
+    coin_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    starts_at = models.DateTimeField(default=timezone.now, db_index=True)
+    ends_at = models.DateTimeField(db_index=True)
+    active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-ends_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["target_type", "active", "ends_at"]),
+            models.Index(fields=["owner", "active", "ends_at"]),
+            models.Index(fields=["post", "active"]),
+            models.Index(fields=["profile", "active"]),
+            models.Index(fields=["story", "active"]),
+        ]
+
+    def clean(self):
+        targets = [bool(self.post_id), bool(self.profile_id), bool(self.story_id)]
+        if sum(targets) != 1:
+            raise ValidationError("Boost campaigns require exactly one target.")
+
+    @property
+    def is_current(self):
+        return self.active and self.starts_at <= timezone.now() and self.ends_at > timezone.now()
+
+    def __str__(self):
+        return f"{self.owner} boost ({self.target_type}) until {self.ends_at:%Y-%m-%d %H:%M}"
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)

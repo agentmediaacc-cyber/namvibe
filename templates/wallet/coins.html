@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Coins | Namvibe{% endblock %}
+{% block content %}
+{% include "wallet/_styles.html" %}
+<section class="wallet-shell">
+  <div class="wallet-hero wallet-hero-premium">
+    <div>
+      <h1>Coin ledger</h1>
+      <p class="muted">Coins power gifts, boosts, and premium unlocks. Real gateway payments are not connected yet, so top-ups happen through admin/staff review.</p>
+    </div>
+    <div>
+      <div class="money">{{ coin_balance }}</div>
+      <div class="muted">Available coins</div>
+    </div>
+  </div>
+  <div class="wallet-grid">
+    <div class="wallet-card"><span class="muted">Available balance</span><div class="money">N${{ wallet.available_balance }}</div></div>
+    <div class="wallet-card"><span class="muted">Pending coins</span><div class="money">{{ pending_coins }}</div></div>
+    <div class="wallet-card"><span class="muted">Display rate</span><div class="money">1 : {{ coin_display_rate }}</div><p class="muted">One wallet unit displays as {{ coin_display_rate }} Vibe Coins.</p></div>
+  </div>
+  <section class="wallet-card">
+    <h2>Coin activity</h2>
+    <div class="table-list">
+      {% for tx in transactions %}
+        <div class="row">
+          <div>
+            <strong>{{ tx.get_transaction_type_display }}</strong><br>
+            <span class="muted">{{ tx.reference|default:"Coin activity" }}</span>
+          </div>
+          <div>
+            <strong>N${{ tx.amount }}</strong><br>
+            <span class="status">{{ tx.status }}</span>
+          </div>
+        </div>
+      {% empty %}
+        <p class="muted">No coin activity yet. Gifts, boosts, staff top-ups, and premium spend will appear here.</p>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

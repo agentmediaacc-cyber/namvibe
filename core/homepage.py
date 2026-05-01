@@ -20,7 +20,15 @@ from stories.models import StoryItem
 from stories.services import story_rail_for
 from supportapp.models import SystemPromoCard
 from wallet.models import MembershipPlan, WalletTransaction
-from wallet.services import VIBE_COIN_DISPLAY_RATE, active_membership_for, ensure_wallet
+from wallet.services import (
+    VIBE_COIN_DISPLAY_RATE,
+    active_boosted_post_ids,
+    active_boosted_profile_ids,
+    active_boosted_story_ids,
+    active_membership_for,
+    ensure_wallet,
+    premium_badge_for,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +151,7 @@ def _friend_request_between(user, other_user):
 
 
 def _member_cards(user, profiles, limit=8):
+    boosted_profile_ids = active_boosted_profile_ids([profile.id for profile in profiles[:limit]])
     cards = []
     for profile in profiles[:limit]:
         if user.is_authenticated and profile.user_id == user.id:
@@ -167,6 +176,8 @@ def _member_cards(user, profiles, limit=8):
                 "friend_request_url": _safe_reverse("friend_request_send", username=profile.username or profile.user.username),
                 "friend_accept_url": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
                 "chat_url": _safe_reverse("messaging:start_chat", fallback="member_discovery", user_id=profile.user.id),
+                "premium_badge": premium_badge_for(profile.user),
+                "is_boosted": profile.id in boosted_profile_ids,
             }
         )
     return cards
@@ -567,6 +578,11 @@ def homepage_context(request, page=1, fragment=False):
         .order_by("-published_at", "-created_at")
     )
     primary_posts = list(visible_posts[offset : offset + limit])
+    boosted_post_ids = active_boosted_post_ids([post.id for post in primary_posts])
+    for post in primary_posts:
+        post.is_boosted = post.id in boosted_post_ids
+        post.author_premium_badge = premium_badge_for(post.author)
+    primary_posts.sort(key=lambda post: (not getattr(post, "is_boosted", False), -(post.published_at or post.created_at).timestamp()))
     reel_preview = [post for post in primary_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
     if fragment:
         if not primary_posts:
@@ -580,9 +596,11 @@ def homepage_context(request, page=1, fragment=False):
     active_stories = _safe_section("active_stories", StoryItem.objects.none(), lambda: StoryItem.objects.visible_to(user))
     live_now, featured_live = _safe_section("live_preview", ([], []), lambda: _live_preview(user))
     story_rail = _safe_section("story_rail", [], lambda: story_rail_for(user, limit=18))
+    boosted_story_ids = active_boosted_story_ids([item["first_story"].id for item in story_rail])
     live_author_ids = {session.host_id for session in live_now}
     for item in story_rail:
         item["is_live"] = item["author"].id in live_author_ids
+        item["is_boosted"] = item["first_story"].id in boosted_story_ids
     communities = _safe_section("communities", [], lambda: _community_suggestions(user))
     creators = _safe_section("creators", [], lambda: _people_suggestions(user))
     member_cards = _safe_section("member_cards", [], lambda: _member_cards(user, creators, limit=8))

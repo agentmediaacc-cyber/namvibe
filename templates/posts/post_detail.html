@@ -13,6 +13,11 @@
         {% if request.user == post.author %}
             <div class="nv-head-actions">
                 <a href="{% url 'edit_post' post.uuid %}">Edit</a>
+                <form method="post" action="{% url 'wallet_boost_post' post.uuid %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit">{% if post.is_boosted %}Boosted{% else %}Boost post{% endif %}</button>
+                </form>
                 {% if post.status == "draft" %}
                     <form method="post" action="{% url 'publish_draft' post.uuid %}">
                         {% csrf_token %}
@@ -27,6 +32,22 @@
         {% endif %}
     </div>
     {% include "posts/_post_card.html" with post=post %}
+    {% if request.user.is_authenticated and request.user != post.author %}
+      <section class="share-sheet">
+        <h2>Send gift</h2>
+        {% if default_gift %}
+            <form method="post" action="{% url 'wallet_gift_post' post.uuid %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="gift" value="{{ default_gift.slug }}">
+                <input type="number" name="quantity" min="1" value="1">
+                <button type="submit">Send {{ default_gift.name }} to @{{ post.author.profile.username|default:post.author.username }}</button>
+            </form>
+        {% else %}
+            <p>Gifts will appear here when the catalog is activated.</p>
+        {% endif %}
+      </section>
+    {% endif %}
 
     <section class="share-sheet">
         <h2>Share</h2>
@@ -107,7 +128,7 @@
                     {% endfor %}
                 </article>
             {% empty %}
-                <p class="nv-muted">No comments yet.</p>
+                <p class="nv-muted">No comments yet. Start the conversation.</p>
             {% endfor %}
         </section>
     {% endif %}

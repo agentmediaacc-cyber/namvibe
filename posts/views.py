@@ -15,6 +15,7 @@ from accounts.models import Profile
 from accounts.supabase import supabase_profile_id_for_user
 from communities.models import Community
 from supportapp.models import SystemPromoCard
+from wallet.services import active_boosted_post_ids, active_gifts, premium_badge_for
 
 from .forms import POST_TYPE_FORMS
 from .models import Comment, Like, Post, PostMedia, Report, Save, Share
@@ -88,6 +89,7 @@ def _paginated_feed(request, queryset, *, title, subtitle, active_feed):
     safe_mode_message = ""
     try:
         ranked_posts = FeedRankingService(request.user).rank(queryset, limit=120)
+        ranked_posts = _decorate_posts_for_display(ranked_posts)
         paginator = Paginator(ranked_posts, 15)
         page_obj = paginator.get_page(request.GET.get("page"))
     except Exception as exc:
@@ -112,13 +114,24 @@ def _post_action_redirect(request, post):
     return redirect(request.POST.get("next") or reverse("post_detail", kwargs={"uuid": post.uuid}))
 
 
+def _decorate_posts_for_display(posts):
+    post_list = list(posts)
+    boosted_ids = active_boosted_post_ids([post.id for post in post_list])
+    for post in post_list:
+        post.is_boosted = post.id in boosted_ids
+        post.author_premium_badge = premium_badge_for(post.author)
+    return post_list
+
+
 @require_http_methods(["GET"])
 def feed_view(request):
     safe_mode_message = ""
     legacy_posts = []
+    decorated_posts = []
     try:
         queryset = base_visible_posts(request.user).published().order_by("-published_at", "-created_at")
         page_obj = Paginator(queryset, 15).get_page(request.GET.get("page"))
+        decorated_posts = _decorate_posts_for_display(page_obj.object_list)
         if not page_obj.object_list:
             legacy_posts = get_public_posts(limit=50)
             if not isinstance(legacy_posts, list):
@@ -131,7 +144,7 @@ def feed_view(request):
         "posts/feed.html",
         {
             "page_obj": page_obj,
-            "posts": page_obj.object_list,
+            "posts": decorated_posts,
             "legacy_posts": legacy_posts,
             "feed_title": "For You",
             "feed_subtitle": "A ranked feed of public, followed, community, and creator posts.",
@@ -450,9 +463,12 @@ def publish_draft_view(request, uuid):
 
 def post_detail_view(request, uuid):
     post = get_object_or_404(_post_queryset_for_user(request), uuid=uuid)
+    post.is_boosted = bool(active_boosted_post_ids([post.id]))
+    post.author_premium_badge = premium_badge_for(post.author)
     comments = threaded_comments_for_post(post)
     liked = request.user.is_authenticated and Like.objects.filter(user=request.user, post=post).exists()
     saved = request.user.is_authenticated and Save.objects.filter(user=request.user, post=post).exists()
+    default_gift = active_gifts().first()
     return render(
         request,
         "posts/post_detail.html",
@@ -462,6 +478,7 @@ def post_detail_view(request, uuid):
             "liked": liked,
             "saved": saved,
             "comment_reaction_choices": Like.ReactionType.choices,
+            "default_gift": default_gift,
         },
     )
 
@@ -471,6 +488,7 @@ def author_posts_list_view(request, username):
     posts = _post_queryset_for_user(request).filter(author=profile.user)
     paginator = Paginator(posts, 12)
     page_obj = paginator.get_page(request.GET.get("page"))
+    page_obj.object_list = _decorate_posts_for_display(page_obj.object_list)
     return render(request, "posts/author_posts.html", {"profile": profile, "page_obj": page_obj})
 
 
@@ -501,6 +519,7 @@ def reels_feed_view(request):
             post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO]
         )
         ranked_posts = FeedRankingService(request.user).rank(queryset, limit=80)
+        ranked_posts = _decorate_posts_for_display(ranked_posts)
         suggested_people = suggested_users_for(request.user, limit=8)
         suggested_communities = suggested_communities_for(request.user, limit=6)
         promo_cards = SystemPromoCard.objects.filter(
