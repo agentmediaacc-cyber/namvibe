@@ -1,53 +1,273 @@
 {% extends "base.html" %}
+{% load media_helpers %}
+
 {% block title %}Call Lobby | Namvibe{% endblock %}
 
 {% block content %}
-<section class="product-shell">
-  <div class="product-hero">
+<style>
+  .call-shell{
+    width:min(1220px,calc(100% - 16px));
+    margin:0 auto;
+    padding:18px 0 106px;
+    display:grid;
+    gap:18px;
+  }
+  .call-card,.call-stage,.call-pill,.call-control,.call-action{
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.07);
+    backdrop-filter:blur(18px);
+    box-shadow:0 24px 70px rgba(0,0,0,.32);
+    color:#fff;
+  }
+  .call-card,.call-stage{border-radius:30px}
+  .call-hero{
+    padding:22px;
+    display:grid;
+    grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);
+    gap:18px;
+    align-items:stretch;
+  }
+  .call-kicker{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:999px;
+    background:rgba(124,58,237,.18);color:#e9d5ff;font-weight:900;font-size:12px;
+    margin-bottom:12px;
+  }
+  .call-hero h1{margin:0;font-size:clamp(2rem,5vw,3.8rem);line-height:.95}
+  .call-copy{margin:12px 0 0;color:#cbd5e1;line-height:1.65;max-width:60ch}
+  .call-pill-row,.call-action-row,.call-control-row,.call-mini-grid{display:flex;gap:10px;flex-wrap:wrap}
+  .call-pill{
+    display:inline-flex;align-items:center;justify-content:center;padding:9px 13px;border-radius:999px;
+    font-size:12px;font-weight:900;
+  }
+  .call-pill.live{background:rgba(236,72,153,.16);color:#fbcfe8}
+  .call-pill.ready{background:rgba(34,197,94,.16);color:#bbf7d0}
+  .call-pill.warn{background:rgba(250,204,21,.16);color:#fde68a}
+  .call-action,.call-control{
+    display:inline-flex;align-items:center;justify-content:center;
+    min-height:46px;padding:12px 16px;border-radius:18px;font-weight:900;text-decoration:none;color:#fff;
+    cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease,opacity .18s ease;
+  }
+  .call-action:hover,.call-control:hover{transform:translateY(-1px);border-color:rgba(236,72,153,.34)}
+  .call-action.primary,.call-control.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+  .call-control.active{background:rgba(124,58,237,.22);border-color:rgba(124,58,237,.38)}
+  .call-control.end{background:rgba(244,63,94,.16);color:#fecaca}
+  .call-mini-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+  }
+  .call-mini-card{
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:24px;
+    background:rgba(255,255,255,.04);
+    padding:16px;
+  }
+  .call-mini-card span{display:block;color:#cbd5e1;font-size:12px}
+  .call-mini-card strong{display:block;margin-top:8px;font-size:1.18rem}
+  .call-stage{
+    padding:18px;
+    display:grid;
+    gap:16px;
+  }
+  .call-stage-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 280px;
+    gap:16px;
+    align-items:stretch;
+  }
+  .call-video-shell{
+    position:relative;
+    min-height:420px;
+    border-radius:28px;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at top left, rgba(124,58,237,.24), transparent 34%),
+      radial-gradient(circle at bottom right, rgba(244,63,94,.16), transparent 32%),
+      linear-gradient(180deg,#1a0320,#09000d 88%);
+    border:1px solid rgba(255,255,255,.08);
+  }
+  .call-video-shell video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    background:#120014;
+  }
+  .call-video-placeholder{
+    position:absolute;inset:0;
+    display:grid;place-items:center;
+    padding:22px;text-align:center;color:#e2e8f0;
+  }
+  .call-video-placeholder strong{display:block;font-size:1.15rem;margin-bottom:8px}
+  .call-video-overlay{
+    position:absolute;left:16px;right:16px;top:16px;
+    display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
+  }
+  .call-video-label{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:9px 12px;border-radius:999px;background:rgba(9,0,13,.66);border:1px solid rgba(255,255,255,.12);
+    font-size:12px;font-weight:900;
+  }
+  .call-video-label small{color:#cbd5e1;font-weight:700}
+  .call-local-card{
+    display:grid;gap:14px;
+  }
+  .call-local-preview{
+    position:relative;height:240px;border-radius:26px;overflow:hidden;border:1px solid rgba(255,255,255,.1);
+    background:linear-gradient(160deg,rgba(124,58,237,.22),rgba(9,0,13,.9));
+  }
+  .call-local-preview video{width:100%;height:100%;object-fit:cover}
+  .call-local-preview[data-video-off="true"] video{display:none}
+  .call-local-preview[data-video-off="true"] .call-local-avatar{display:grid}
+  .call-local-avatar{
+    position:absolute;inset:0;display:none;place-items:center;
+    font-size:2.2rem;font-weight:900;background:linear-gradient(135deg,rgba(124,58,237,.28),rgba(236,72,153,.16));
+  }
+  .call-stack{display:grid;gap:14px}
+  .call-status{
+    padding:16px;border-radius:22px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)
+  }
+  .call-status strong{display:block;margin-bottom:6px}
+  .call-status p{margin:0;color:#cbd5e1;line-height:1.6}
+  .call-incoming{
+    display:none;
+    padding:16px;border-radius:24px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(236,72,153,.28);
+  }
+  .call-incoming.open{display:grid;gap:12px}
+  .call-mode-switch{display:flex;gap:10px;flex-wrap:wrap}
+  .call-mode-btn{
+    flex:1 1 0;min-width:120px;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:12px 14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05);color:#fff;font-weight:900;cursor:pointer;
+  }
+  .call-mode-btn.active{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+  .call-help{color:#cbd5e1;line-height:1.6;font-size:14px}
+  .call-help strong{color:#fff}
+  .call-hidden{display:none !important}
+  @media (max-width:900px){
+    .call-hero,.call-stage-grid{grid-template-columns:1fr}
+    .call-mini-grid{grid-template-columns:1fr 1fr}
+    .call-video-shell{min-height:360px}
+  }
+  @media (max-width:640px){
+    .call-shell{width:calc(100% - 10px);padding-top:12px}
+    .call-card,.call-stage{border-radius:24px}
+    .call-hero,.call-stage{padding:16px}
+    .call-video-shell{min-height:280px;border-radius:22px}
+    .call-local-preview{height:180px;border-radius:22px}
+    .call-mini-grid{grid-template-columns:1fr}
+    .call-action-row,.call-control-row,.call-mode-switch{display:grid;grid-template-columns:1fr 1fr}
+    .call-action,.call-control,.call-mode-btn{width:100%}
+  }
+</style>
+
+<section
+  class="call-shell"
+  data-media-request="manual"
+  data-initial-mode="{{ initial_mode }}"
+  data-ws-path="/ws/calls/{{ conversation.id }}/"
+>
+  <section class="call-card call-hero">
     <div>
-      <span class="eyebrow">Private call lobby</span>
-      <h1>Start a premium call with @{{ other_user.username }}</h1>
-      <p>Camera and microphone permissions only start after you tap enable. Choose audio, video, or a private room setup before opening the live gate.</p>
-      <div class="product-actions">
-        <a class="nv-btn primary" href="{% url 'messaging:call_gate' other_user.id 'voice' %}">Audio call</a>
-        <a class="nv-btn" href="{% url 'messaging:call_gate' other_user.id 'video' %}">Video call</a>
-        <a class="nv-btn" href="{% url 'live_start' %}">Start private room</a>
-        <a class="nv-btn" href="{% url 'user_dashboard' %}?section=messages&conversation={{ conversation.id }}">Back to chat</a>
+      <span class="call-kicker">Private friend-only call</span>
+      <h1>Talk with @{{ other_user.username }}</h1>
+      <p class="call-copy">
+        Permissions stay off until you tap <strong>Enable</strong>. Start in audio or video mode,
+        preview your device safely, and use the realtime signaling room before full media is connected.
+      </p>
+      <div class="call-pill-row" style="margin-top:14px;">
+        <span class="call-pill live">Conversation #{{ conversation.id }}</span>
+        <span class="call-pill ready">Friends connected</span>
+        <span class="call-pill warn" id="callStatusBadge">Waiting</span>
+      </div>
+      <div class="call-action-row" style="margin-top:18px;">
+        <button class="call-action primary" type="button" id="callEnableButton">Enable</button>
+        <button class="call-action" type="button" id="callInviteAudioButton">Start audio</button>
+        <button class="call-action" type="button" id="callInviteVideoButton">Start video</button>
+        <a class="call-action" href="{% url 'live_start' %}">Private room</a>
+        <a class="call-action" href="{% url 'user_dashboard' %}?section=messages&conversation={{ conversation.id }}">Back to chat</a>
       </div>
     </div>
-  </div>
-
-  <div class="product-grid">
-    <div class="product-card"><span>Friend status</span><strong>Friends connected</strong></div>
-    <div class="product-card"><span>Audio unlock</span><strong>{% if voice_gate.membership %}Premium active{% else %}N${{ voice_gate.cost }} credits{% endif %}</strong></div>
-    <div class="product-card"><span>Video unlock</span><strong>{% if video_gate.membership %}Premium active{% else %}N${{ video_gate.cost }} credits{% endif %}</strong></div>
-    <div class="product-card"><span>Wallet balance</span><strong>N${{ voice_gate.wallet.available_balance }}</strong></div>
-  </div>
-
-  <div class="product-section">
-    <h2>Permission readiness</h2>
-    <div class="product-card">
-      <p id="callLobbyPermissionState">Enable camera and microphone only when you are ready to test this device.</p>
-      <div class="product-actions">
-        <button class="nv-btn primary" type="button" id="callLobbyEnable">Enable camera and mic</button>
-        <button class="nv-btn" type="button" id="callLobbyInviteVoice">Invite to audio call</button>
-        <button class="nv-btn" type="button" id="callLobbyInviteVideo">Invite to video call</button>
-        <a class="nv-btn" href="{% url 'support_help' %}">Permission help</a>
+    <div class="call-stack">
+      <div class="call-mini-grid">
+        <article class="call-mini-card">
+          <span>Audio unlock</span>
+          <strong>{% if voice_gate.membership %}Premium active{% else %}N${{ voice_gate.cost }}{% endif %}</strong>
+        </article>
+        <article class="call-mini-card">
+          <span>Video unlock</span>
+          <strong>{% if video_gate.membership %}Premium active{% else %}N${{ video_gate.cost }}{% endif %}</strong>
+        </article>
+        <article class="call-mini-card">
+          <span>Wallet balance</span>
+          <strong>N${{ voice_gate.wallet.available_balance }}</strong>
+        </article>
+        <article class="call-mini-card">
+          <span>Connection</span>
+          <strong id="callConnectionLabel">Idle</strong>
+        </article>
+      </div>
+      <div class="call-status">
+        <strong id="callPrimaryStatus">Ready when you are</strong>
+        <p id="callSecondaryStatus">Enable your device first, then send an invite. Namvibe only asks for microphone or camera access after you tap.</p>
+      </div>
+      <div class="call-incoming" id="callIncomingCard">
+        <div>
+          <strong id="callIncomingTitle">Incoming call</strong>
+          <p class="call-help" id="callIncomingCopy">Your friend is calling. Enable your device if you want to answer with live audio or video.</p>
+        </div>
+        <div class="call-action-row">
+          <button class="call-action primary" type="button" id="callIncomingAccept">Accept</button>
+          <button class="call-action end" type="button" id="callIncomingReject">Reject</button>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="product-section">
-    <h2>Signal flow</h2>
-    <div class="product-card">
-      <p id="callSignalState">Your private call lobby is ready. Send an invite first, then accept, reject, or end the session without auto-opening the camera.</p>
-      <div class="product-actions">
-        <button class="nv-btn" type="button" id="callLobbyAccept">Accept</button>
-        <button class="nv-btn" type="button" id="callLobbyReject">Reject</button>
-        <button class="nv-btn" type="button" id="callLobbyEnd">End call</button>
+  <section class="call-stage">
+    <div class="call-mode-switch" aria-label="Call mode switch">
+      <button class="call-mode-btn" type="button" id="callModeVoice">🎙 Audio mode</button>
+      <button class="call-mode-btn" type="button" id="callModeVideo">📹 Video mode</button>
+    </div>
+
+    <div class="call-stage-grid">
+      <div class="call-video-shell">
+        <video id="callRemoteVideo" playsinline autoplay></video>
+        <audio id="callRemoteAudio" autoplay></audio>
+        <div class="call-video-placeholder" id="callRemotePlaceholder">
+          <div>
+            <strong>Waiting for your friend</strong>
+            <div>Remote video and audio appear here after invite, accept, and WebRTC signaling complete.</div>
+          </div>
+        </div>
+        <div class="call-video-overlay">
+          <span class="call-video-label" id="callRemoteLabel">Remote <small id="callRemoteModeLabel">audio standby</small></span>
+          <span class="call-video-label" id="callConnectionStateLabel">Idle</span>
+        </div>
+      </div>
+
+      <div class="call-local-card">
+        <div class="call-local-preview" id="callLocalPreview" data-video-off="true">
+          <video id="callLocalVideo" playsinline autoplay muted></video>
+          <div class="call-local-avatar">@{{ request.user.username|first|upper }}</div>
+        </div>
+        <div class="call-control-row">
+          <button class="call-control primary" type="button" id="callMuteButton">Mute mic</button>
+          <button class="call-control" type="button" id="callCameraButton">Camera on</button>
+          <button class="call-control" type="button" id="callSwitchCameraButton">Switch camera</button>
+          <button class="call-control" type="button" id="callSpeakerButton">Speaker</button>
+          <button class="call-control" type="button" id="callAcceptButton">Accept</button>
+          <button class="call-control end" type="button" id="callEndButton">End call</button>
+        </div>
+        <div class="call-help">
+          <strong>Safe device flow</strong><br>
+          Audio mode asks for microphone only. Video mode asks for microphone and camera. Nothing starts automatically on page load.
+        </div>
       </div>
     </div>
-  </div>
+  </section>
 </section>
 {% endblock %}
 
@@ -55,76 +275,489 @@
 <script>
   const callConversationId = {{ conversation.id }};
   const callLobbyUserId = {{ request.user.id }};
+  const callLobbyInitialMode = "{{ initial_mode }}";
+  const callLobbyOtherUser = "{{ other_user.username|escapejs }}";
+  const callLobbyWsPath = document.querySelector(".call-shell")?.dataset.wsPath || `/ws/calls/${callConversationId}/`;
   const callScheme = window.location.protocol === "https:" ? "wss" : "ws";
-  const callSocket = new WebSocket(`${callScheme}://${window.location.host}/ws/calls/${callConversationId}/`);
-  const signalState = document.getElementById("callSignalState");
+  const callSocket = new WebSocket(`${callScheme}://${window.location.host}${callLobbyWsPath}`);
+  const callStunServers = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }];
 
-  function sendCallSignal(action, mode) {
-    if (callSocket.readyState !== WebSocket.OPEN) {
-      signalState.textContent = "Realtime signaling is still connecting. Try again in a moment.";
-      return;
-    }
-    callSocket.send(JSON.stringify({ action, mode: mode || "voice" }));
+  const primaryStatus = document.getElementById("callPrimaryStatus");
+  const secondaryStatus = document.getElementById("callSecondaryStatus");
+  const badge = document.getElementById("callStatusBadge");
+  const connectionLabel = document.getElementById("callConnectionLabel");
+  const connectionStateLabel = document.getElementById("callConnectionStateLabel");
+  const remotePlaceholder = document.getElementById("callRemotePlaceholder");
+  const remoteModeLabel = document.getElementById("callRemoteModeLabel");
+  const remoteVideo = document.getElementById("callRemoteVideo");
+  const remoteAudio = document.getElementById("callRemoteAudio");
+  const localVideo = document.getElementById("callLocalVideo");
+  const localPreview = document.getElementById("callLocalPreview");
+  const incomingCard = document.getElementById("callIncomingCard");
+  const incomingTitle = document.getElementById("callIncomingTitle");
+  const incomingCopy = document.getElementById("callIncomingCopy");
+  const enableButton = document.getElementById("callEnableButton");
+  const inviteAudioButton = document.getElementById("callInviteAudioButton");
+  const inviteVideoButton = document.getElementById("callInviteVideoButton");
+  const acceptButton = document.getElementById("callAcceptButton");
+  const incomingAcceptButton = document.getElementById("callIncomingAccept");
+  const incomingRejectButton = document.getElementById("callIncomingReject");
+  const endButton = document.getElementById("callEndButton");
+  const muteButton = document.getElementById("callMuteButton");
+  const cameraButton = document.getElementById("callCameraButton");
+  const switchCameraButton = document.getElementById("callSwitchCameraButton");
+  const speakerButton = document.getElementById("callSpeakerButton");
+  const modeVoiceButton = document.getElementById("callModeVoice");
+  const modeVideoButton = document.getElementById("callModeVideo");
+
+  let currentMode = callLobbyInitialMode === "video" ? "video" : "voice";
+  let localStream = null;
+  let remoteStream = null;
+  let peerConnection = null;
+  let pendingInvite = null;
+  let pendingOffer = null;
+  let hasAcceptedInvite = false;
+  let isMuted = false;
+  let isCameraEnabled = currentMode === "video";
+  let currentFacingMode = "user";
+  let speakerEnabled = true;
+  let localMediaReady = false;
+
+  function updateModeButtons() {
+    modeVoiceButton.classList.toggle("active", currentMode === "voice");
+    modeVideoButton.classList.toggle("active", currentMode === "video");
+    cameraButton.classList.toggle("active", currentMode === "video" && isCameraEnabled);
+    cameraButton.textContent = currentMode === "video" && isCameraEnabled ? "Camera on" : "Camera off";
+    remoteModeLabel.textContent = currentMode === "video" ? "video mode" : "audio standby";
   }
 
-  document.getElementById("callLobbyEnable")?.addEventListener("click", async function () {
-    const state = document.getElementById("callLobbyPermissionState");
-    if (!navigator.mediaDevices?.getUserMedia) {
-      state.textContent = "This browser cannot run camera and microphone checks here.";
+  function setStatus(title, detail, tone) {
+    primaryStatus.textContent = title;
+    secondaryStatus.textContent = detail;
+    badge.textContent = tone || title;
+    badge.className = "call-pill";
+    if (tone === "Connected") {
+      badge.classList.add("ready");
+    } else if (tone === "Waiting" || tone === "Idle") {
+      badge.classList.add("warn");
+    } else {
+      badge.classList.add("live");
+    }
+  }
+
+  function updateConnectionState(label) {
+    connectionLabel.textContent = label;
+    connectionStateLabel.textContent = label;
+  }
+
+  function safeSend(action, payload, mode) {
+    if (callSocket.readyState !== WebSocket.OPEN) {
+      setStatus("Realtime unavailable", "The call socket is still connecting. Try again in a moment.", "Waiting");
+      return false;
+    }
+    callSocket.send(JSON.stringify({
+      action,
+      mode: mode || currentMode,
+      payload: payload || {},
+    }));
+    return true;
+  }
+
+  function releasePeerConnection() {
+    if (peerConnection) {
+      peerConnection.onicecandidate = null;
+      peerConnection.ontrack = null;
+      peerConnection.onconnectionstatechange = null;
+      peerConnection.close();
+      peerConnection = null;
+    }
+  }
+
+  function resetRemoteStage() {
+    remoteVideo.srcObject = null;
+    remoteAudio.srcObject = null;
+    remoteStream = null;
+    remotePlaceholder.classList.remove("call-hidden");
+    updateConnectionState("Idle");
+  }
+
+  function createPeerConnection() {
+    if (peerConnection) return peerConnection;
+    peerConnection = new RTCPeerConnection({ iceServers: callStunServers });
+    if (localStream) {
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    }
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        safeSend("ice_candidate", { candidate: event.candidate });
+      }
+    };
+    peerConnection.ontrack = (event) => {
+      if (!remoteStream) {
+        remoteStream = new MediaStream();
+      }
+      event.streams[0].getTracks().forEach(track => {
+        const exists = remoteStream.getTracks().some(item => item.id === track.id);
+        if (!exists) remoteStream.addTrack(track);
+      });
+      remoteVideo.srcObject = remoteStream;
+      remoteAudio.srcObject = remoteStream;
+      remotePlaceholder.classList.add("call-hidden");
+      updateConnectionState("Connected");
+      setStatus("Connected", `You are live with @${callLobbyOtherUser}.`, "Connected");
+    };
+    peerConnection.onconnectionstatechange = () => {
+      const state = peerConnection.connectionState || "connecting";
+      const label = state.charAt(0).toUpperCase() + state.slice(1);
+      updateConnectionState(label);
+      if (state === "connected") {
+        setStatus("Connected", `You are live with @${callLobbyOtherUser}.`, "Connected");
+      } else if (state === "connecting") {
+        setStatus("Connecting", "WebRTC is handshaking between both devices.", "Live");
+      } else if (state === "disconnected" || state === "failed") {
+        setStatus("Connection lost", "Try ending the call and sending a fresh invite.", "Waiting");
+      } else if (state === "closed") {
+        setStatus("Call ended", "The peer connection is closed.", "Idle");
+      }
+    };
+    return peerConnection;
+  }
+
+  async function ensureMedia(mode, options) {
+    const forceRestart = Boolean(options && options.forceRestart);
+    const requestedMode = mode || currentMode;
+    currentMode = requestedMode === "video" ? "video" : "voice";
+    updateModeButtons();
+
+    if (localStream && !forceRestart) {
+      return localStream;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("This browser cannot access camera or microphone here.");
+    }
+
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+
+    const constraints = currentMode === "video"
+      ? {
+          audio: true,
+          video: {
+            facingMode: currentFacingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        }
+      : { audio: true, video: false };
+
+    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    localMediaReady = true;
+    isMuted = false;
+    isCameraEnabled = currentMode === "video";
+    localVideo.srcObject = localStream;
+    localPreview.dataset.videoOff = isCameraEnabled ? "false" : "true";
+    muteButton.textContent = "Mute mic";
+    muteButton.classList.remove("active");
+    cameraButton.textContent = isCameraEnabled ? "Camera on" : "Camera off";
+    cameraButton.classList.toggle("active", isCameraEnabled);
+    setStatus(
+      currentMode === "video" ? "Video ready" : "Audio ready",
+      currentMode === "video"
+        ? "Camera and microphone are live in your local preview."
+        : "Microphone is live. Camera still stays off until you switch to video.",
+      "Live"
+    );
+    updateConnectionState("Ready");
+    return localStream;
+  }
+
+  async function rebuildPeerConnectionForLocalTracks() {
+    const previousRemoteDescription = peerConnection && peerConnection.remoteDescription;
+    releasePeerConnection();
+    createPeerConnection();
+    if (previousRemoteDescription) {
+      try {
+        await peerConnection.setRemoteDescription(previousRemoteDescription);
+      } catch (error) {
+        console.warn("Remote description re-attach failed", error);
+      }
+    }
+  }
+
+  async function startOffer() {
+    if (!localMediaReady) {
+      setStatus("Enable your device", "Turn on audio or video before sending an offer.", "Waiting");
       return;
     }
+    createPeerConnection();
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    safeSend("offer", { sdp: offer });
+    setStatus("Calling", `Offer sent to @${callLobbyOtherUser}. Waiting for answer.`, "Live");
+    updateConnectionState("Ringing");
+  }
+
+  async function handleOffer(payload) {
+    pendingOffer = payload;
+    setStatus("Incoming offer", "Enable your device, then accept to complete the call.", "Waiting");
+    if (!localMediaReady) {
+      return;
+    }
+    await acceptPendingOffer();
+  }
+
+  async function acceptPendingOffer() {
+    if (!pendingOffer || !localMediaReady) {
+      return;
+    }
+    createPeerConnection();
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(pendingOffer.sdp));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    safeSend("answer", { sdp: answer });
+    pendingOffer = null;
+    setStatus("Connecting", "Answer sent. Finalizing connection.", "Live");
+  }
+
+  async function handleAnswer(payload) {
+    if (!peerConnection) return;
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+    setStatus("Connecting", "Answer received. Finalizing WebRTC handshake.", "Live");
+  }
+
+  async function handleIceCandidate(payload) {
+    if (!peerConnection || !payload.candidate) return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach(track => track.stop());
-      state.textContent = "Camera and microphone are ready for the next step.";
+      await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
     } catch (error) {
-      state.textContent = "Permission blocked. Enable camera and microphone in your browser or phone settings.";
+      console.warn("ICE candidate add failed", error);
+    }
+  }
+
+  function closeIncomingCard() {
+    incomingCard.classList.remove("open");
+    pendingInvite = null;
+  }
+
+  function endCall(sendSignal) {
+    if (sendSignal) {
+      safeSend("call_end");
+    }
+    releasePeerConnection();
+    resetRemoteStage();
+    closeIncomingCard();
+    hasAcceptedInvite = false;
+    setStatus("Call ended", "You can stay in the lobby, switch modes, or start a fresh invite.", "Idle");
+  }
+
+  async function invite(mode) {
+    currentMode = mode;
+    updateModeButtons();
+    setStatus(
+      mode === "video" ? "Video invite sent" : "Audio invite sent",
+      `Waiting for @${callLobbyOtherUser} to accept your ${mode} call.`,
+      "Live"
+    );
+    updateConnectionState("Ringing");
+    safeSend("call_invite", {}, mode);
+  }
+
+  async function acceptInvite() {
+    hasAcceptedInvite = true;
+    closeIncomingCard();
+    safeSend("call_accept", {}, currentMode);
+    setStatus(
+      "Call accepted",
+      localMediaReady
+        ? "Accepted. If your friend already enabled their device, the offer should arrive shortly."
+        : "Accepted. Enable your device now to answer the incoming media offer.",
+      "Live"
+    );
+    if (pendingOffer && localMediaReady) {
+      await acceptPendingOffer();
+    }
+  }
+
+  async function toggleMute() {
+    if (!localStream) return;
+    isMuted = !isMuted;
+    localStream.getAudioTracks().forEach(track => {
+      track.enabled = !isMuted;
+    });
+    muteButton.textContent = isMuted ? "Unmute mic" : "Mute mic";
+    muteButton.classList.toggle("active", isMuted);
+  }
+
+  async function toggleCamera() {
+    if (currentMode !== "video") {
+      currentMode = "video";
+      updateModeButtons();
+      try {
+        await ensureMedia("video", { forceRestart: true });
+        if (peerConnection && peerConnection.signalingState !== "closed") {
+          await startOffer();
+        }
+      } catch (error) {
+        setStatus("Camera unavailable", error.message || "Camera access was denied.", "Waiting");
+      }
+      return;
+    }
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+    isCameraEnabled = !isCameraEnabled;
+    videoTrack.enabled = isCameraEnabled;
+    localPreview.dataset.videoOff = isCameraEnabled ? "false" : "true";
+    cameraButton.textContent = isCameraEnabled ? "Camera on" : "Camera off";
+    cameraButton.classList.toggle("active", isCameraEnabled);
+  }
+
+  async function switchCamera() {
+    if (currentMode !== "video") {
+      setStatus("Video mode only", "Switch camera works after you move into video mode.", "Waiting");
+      return;
+    }
+    currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+    try {
+      await ensureMedia("video", { forceRestart: true });
+      if (peerConnection) {
+        await rebuildPeerConnectionForLocalTracks();
+        if (peerConnection.signalingState === "stable") {
+          await startOffer();
+        }
+      }
+    } catch (error) {
+      setStatus("Camera switch failed", error.message || "Your browser could not switch cameras.", "Waiting");
+    }
+  }
+
+  async function toggleSpeaker() {
+    speakerEnabled = !speakerEnabled;
+    speakerButton.classList.toggle("active", speakerEnabled);
+    speakerButton.textContent = speakerEnabled ? "Speaker" : "Earpiece";
+    if (typeof remoteVideo.setSinkId === "function") {
+      try {
+        await remoteVideo.setSinkId("default");
+      } catch (error) {
+        console.warn("setSinkId unavailable", error);
+      }
+    }
+  }
+
+  enableButton.addEventListener("click", async () => {
+    enableButton.disabled = true;
+    try {
+      await ensureMedia(currentMode);
+      if (pendingOffer) {
+        await acceptPendingOffer();
+      }
+    } catch (error) {
+      setStatus("Permission blocked", error.message || "Enable camera or microphone in your browser settings.", "Waiting");
+    } finally {
+      enableButton.disabled = false;
     }
   });
 
-  document.getElementById("callLobbyInviteVoice")?.addEventListener("click", function () {
-    signalState.textContent = "Audio call invite sent. Waiting for your friend to respond.";
-    sendCallSignal("call_invite", "voice");
+  inviteAudioButton.addEventListener("click", async () => {
+    await invite("voice");
   });
 
-  document.getElementById("callLobbyInviteVideo")?.addEventListener("click", function () {
-    signalState.textContent = "Video call invite sent. Camera access still stays off until you enable it.";
-    sendCallSignal("call_invite", "video");
+  inviteVideoButton.addEventListener("click", async () => {
+    currentMode = "video";
+    updateModeButtons();
+    await invite("video");
   });
 
-  document.getElementById("callLobbyAccept")?.addEventListener("click", function () {
-    signalState.textContent = "Call accepted. WebRTC media can be enabled next.";
-    sendCallSignal("call_accept");
+  acceptButton.addEventListener("click", async () => {
+    await acceptInvite();
   });
 
-  document.getElementById("callLobbyReject")?.addEventListener("click", function () {
-    signalState.textContent = "Call request rejected.";
-    sendCallSignal("call_reject");
+  incomingAcceptButton.addEventListener("click", async () => {
+    await acceptInvite();
   });
 
-  document.getElementById("callLobbyEnd")?.addEventListener("click", function () {
-    signalState.textContent = "Call session ended.";
-    sendCallSignal("call_end");
+  incomingRejectButton.addEventListener("click", () => {
+    closeIncomingCard();
+    safeSend("call_reject", {}, currentMode);
+    setStatus("Call rejected", `You declined @${callLobbyOtherUser}'s call.`, "Idle");
   });
 
-  callSocket.addEventListener("message", function (event) {
+  endButton.addEventListener("click", () => endCall(true));
+  muteButton.addEventListener("click", toggleMute);
+  cameraButton.addEventListener("click", toggleCamera);
+  switchCameraButton.addEventListener("click", switchCamera);
+  speakerButton.addEventListener("click", toggleSpeaker);
+
+  modeVoiceButton.addEventListener("click", () => {
+    currentMode = "voice";
+    updateModeButtons();
+    setStatus("Audio mode ready", "Enable microphone when you want to place or answer an audio call.", "Waiting");
+  });
+
+  modeVideoButton.addEventListener("click", () => {
+    currentMode = "video";
+    updateModeButtons();
+    setStatus("Video mode ready", "Enable camera and microphone when you want live video.", "Waiting");
+  });
+
+  callSocket.addEventListener("open", () => {
+    setStatus("Lobby connected", "Realtime signaling is connected. Permissions still stay off until you tap Enable.", "Waiting");
+  });
+
+  callSocket.addEventListener("close", () => {
+    setStatus("Realtime disconnected", "The signaling room closed. Refresh the page if you need to reconnect.", "Idle");
+    updateConnectionState("Offline");
+  });
+
+  callSocket.addEventListener("message", async (event) => {
     try {
       const payload = JSON.parse(event.data);
       if (payload.sender_id === callLobbyUserId) return;
+
       if (payload.action === "call_invite") {
-        signalState.textContent = `@${payload.sender_username} invited you to a ${payload.mode === "video" ? "video" : "voice"} call.`;
+        currentMode = payload.mode === "video" ? "video" : "voice";
+        updateModeButtons();
+        pendingInvite = payload;
+        incomingCard.classList.add("open");
+        incomingTitle.textContent = `${payload.mode === "video" ? "Video" : "Audio"} call from @${payload.sender_username}`;
+        incomingCopy.textContent = "Enable your device only if you want to answer. Nothing turns on automatically.";
+        setStatus("Incoming call", `@${payload.sender_username} is calling you.`, "Live");
+        updateConnectionState("Ringing");
       } else if (payload.action === "call_accept") {
-        signalState.textContent = `@${payload.sender_username} accepted the call.`;
+        setStatus("Invite accepted", `@${payload.sender_username} accepted. Building the peer connection now.`, "Live");
+        if (localMediaReady) {
+          await startOffer();
+        } else {
+          setStatus("Enable your device", "Your friend accepted. Turn on your device now to send an offer.", "Waiting");
+        }
       } else if (payload.action === "call_reject") {
-        signalState.textContent = `@${payload.sender_username} rejected the call.`;
+        closeIncomingCard();
+        setStatus("Call rejected", `@${payload.sender_username} rejected the call.`, "Idle");
+        updateConnectionState("Idle");
+      } else if (payload.action === "offer") {
+        await handleOffer(payload.payload || {});
+      } else if (payload.action === "answer") {
+        await handleAnswer(payload.payload || {});
+      } else if (payload.action === "ice_candidate") {
+        await handleIceCandidate(payload.payload || {});
       } else if (payload.action === "call_end") {
-        signalState.textContent = `@${payload.sender_username} ended the call.`;
-      } else if (payload.action === "offer" || payload.action === "answer" || payload.action === "ice_candidate") {
-        signalState.textContent = `Received ${payload.action.replace("_", " ")} from @${payload.sender_username}.`;
+        endCall(false);
+        setStatus("Call ended", `@${payload.sender_username} ended the call.`, "Idle");
       }
     } catch (error) {
       console.warn("Namvibe call signaling parse failed", error);
     }
   });
+
+  updateModeButtons();
+  setStatus(
+    currentMode === "video" ? "Video mode ready" : "Audio mode ready",
+    currentMode === "video"
+      ? "Permissions stay off until you tap Enable for camera and microphone."
+      : "Permissions stay off until you tap Enable for microphone access.",
+    "Waiting"
+  );
 </script>
 {% endblock %}

@@ -113,8 +113,27 @@ class MessagingFlowTests(TestCase):
 
         self.assertEqual(blocked.status_code, 302)
         self.assertEqual(allowed.status_code, 200)
-        self.assertContains(allowed, "Audio call")
-        self.assertContains(allowed, "Video call")
+        self.assertContains(allowed, "Start audio")
+        self.assertContains(allowed, "Start video")
+
+    def test_call_lobby_renders_signaling_data_and_manual_media_flag(self):
+        self.client.login(username="alina", password="Pass12345")
+
+        response = self.client.get(reverse("call_start", args=[self.ben.id]))
+
+        self.assertEqual(response.status_code, 200)
+        conversation = Conversation.objects.get(participants=self.alina)
+        self.assertContains(response, f"/ws/calls/{conversation.id}/")
+        self.assertContains(response, 'data-media-request="manual"')
+        self.assertContains(response, "Permissions stay off until you tap Enable")
+
+    def test_call_lobby_query_mode_sets_initial_video_mode(self):
+        self.client.login(username="alina", password="Pass12345")
+
+        response = self.client.get(f"{reverse('call_start', args=[self.ben.id])}?mode=video")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-initial-mode="video"')
 
     def test_sender_can_soft_delete_own_message(self):
         conversation = Conversation.objects.create()

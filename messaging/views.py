@@ -151,6 +151,9 @@ def call_lobby_view(request, user_id):
         return redirect("profile_detail", username=other_user.profile.username)
 
     conversation = get_or_create_direct_conversation(request.user, other_user)
+    initial_mode = request.GET.get("mode", "voice")
+    if initial_mode not in {"voice", "video"}:
+        initial_mode = "voice"
     return render(
         request,
         "messaging/call_lobby.html",
@@ -159,5 +162,6 @@ def call_lobby_view(request, user_id):
             "conversation": conversation,
             "voice_gate": call_gate_state(request.user, "voice"),
             "video_gate": call_gate_state(request.user, "video"),
+            "initial_mode": initial_mode,
         },
     )
