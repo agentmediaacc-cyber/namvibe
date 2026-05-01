@@ -3,12 +3,18 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.db.models import Max
+from django.utils import timezone
 
 from accounts.models import Follow, FriendRequest, Profile
 from wallet.services import active_membership_for, ensure_wallet
 
-from .forms import MessageForm
-from .models import Conversation
+from .forms import MessageForm, attachment_type_for
+from .models import Conversation, Message
+from .presence import presence_snapshot
+
+
+def _dashboard_messages_url(conversation):
+    return f"/accounts/dashboard/?section=messages&conversation={conversation.pk}"
 
 
 def conversations_for_user(user):
@@ -39,6 +45,73 @@ def get_or_create_direct_conversation(user, other_user):
     conversation = Conversation.objects.create()
     conversation.participants.add(user, other_user)
     return conversation
+
+
+def users_are_friends(left_user, right_user):
+    return FriendRequest.objects.filter(
+        status=FriendRequest.Status.ACCEPTED,
+    ).filter(
+        (models.Q(from_user=left_user) & models.Q(to_user=right_user))
+        | (models.Q(from_user=right_user) & models.Q(to_user=left_user))
+    ).exists()
+
+
+def create_message(conversation, sender, *, text="", attachment=None, reply_to=None, forwarded_from=None):
+    text = (text or "").strip()
+    if forwarded_from and not text:
+        text = forwarded_from.text
+
+    message = Message.objects.create(
+        conversation=conversation,
+        sender=sender,
+        text=text,
+        attachment=attachment,
+        attachment_type=attachment_type_for(attachment),
+        reply_to=reply_to,
+        forwarded_from=forwarded_from,
+    )
+    Conversation.objects.filter(pk=conversation.pk).update(updated_at=timezone.now())
+
+    other_user = conversation.other_participant(sender)
+    if other_user:
+        from accounts.models import Notification, notify
+
+        message_text = f"@{sender.username} sent you a message."
+        if reply_to and reply_to.sender_id != sender.id:
+            message_text = f"@{sender.username} replied to your message."
+        notify(
+            recipient=other_user,
+            notification_type=Notification.Type.SYSTEM,
+            sender=sender,
+            message=message_text,
+            target_url=_dashboard_messages_url(conversation),
+        )
+    return message
+
+
+def serialize_message(message, viewer):
+    attachment = message.attachment
+    return {
+        "id": message.id,
+        "conversation_id": message.conversation_id,
+        "sender_id": message.sender_id,
+        "sender_username": message.sender.username,
+        "sender_name": message.sender.get_full_name() or message.sender.username,
+        "text": message.text,
+        "created_at": timezone.localtime(message.created_at).strftime("%b %d, %H:%M"),
+        "created_at_iso": message.created_at.isoformat(),
+        "is_mine": message.sender_id == getattr(viewer, "id", None),
+        "is_read": message.is_read,
+        "is_deleted": message.is_deleted,
+        "attachment_url": attachment.url if attachment else "",
+        "attachment_type": message.attachment_type,
+        "reply_to": {
+            "id": message.reply_to_id,
+            "sender_username": getattr(getattr(message.reply_to, "sender", None), "username", ""),
+            "text": ("Message deleted" if getattr(message.reply_to, "is_deleted", False) else getattr(message.reply_to, "text", ""))[:80],
+        } if message.reply_to_id else None,
+        "forwarded": bool(message.forwarded_from_id),
+    }
 
 
 def _recommended_chat_users(user, conversation_items):
@@ -91,6 +164,9 @@ def messaging_dashboard_context(user, conversation_id=None):
 
     if active_conversation:
         active_conversation.mark_read_for(user)
+        from core.realtime import push_message_badge
+
+        push_message_badge(user)
 
     conversation_items = []
     for conversation in conversations:
@@ -121,6 +197,7 @@ def messaging_dashboard_context(user, conversation_id=None):
         "active_conversation": active_conversation,
         "has_selected_conversation": selected_conversation_id,
         "active_chat_other": active_other,
+        "active_chat_presence": presence_snapshot(active_other) if active_other else {"is_online": False, "label": "Offline"},
         "active_messages": active_messages,
         "message_form": MessageForm(),
         "all_chat_users": recommended_users,

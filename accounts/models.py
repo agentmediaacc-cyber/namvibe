@@ -223,13 +223,20 @@ class Notification(models.Model):
 def notify(recipient, notification_type, sender=None, message="", target_url=""):
     if recipient == sender:
         return None
-    return Notification.objects.create(
+    notification = Notification.objects.create(
         recipient=recipient,
         notification_type=notification_type,
         sender=sender,
         message=message,
         target_url=target_url,
     )
+    try:
+        from core.realtime import push_notification_event
+
+        push_notification_event(notification)
+    except Exception:
+        pass
+    return notification
 
 
 def refresh_profile_counts(user):

@@ -89,7 +89,7 @@
                 <div class="chat-thread-title">
                     <h3>{{ active_chat_other.get_full_name|default:active_chat_other.username|default:"Namvibe Member" }}</h3>
                     <p>@{{ active_chat_other.username }} · private chat</p>
-                    <span class="chat-presence">Private thread ready</span>
+                    <span class="chat-presence" id="chatPresence" data-other-user="{{ active_chat_other.id }}">{{ active_chat_presence.label|default:"Private thread ready" }}</span>
                 </div>
                 <div class="message-actions">
                     <a class="tool-btn" href="{% url 'messaging:call_gate' active_chat_other.id 'voice' %}">Voice call</a>
@@ -99,12 +99,12 @@
 
             <div class="chat-thread" id="chatThread">
                 {% for item in active_messages %}
-                    <article class="message-bubble {% if item.sender_id == request.user.id %}mine{% else %}theirs{% endif %}" id="message-{{ item.id }}">
+                    <article class="message-bubble {% if item.sender_id == request.user.id %}mine{% else %}theirs{% endif %}" id="message-{{ item.id }}" data-message-id="{{ item.id }}">
                         <div class="message-meta">
                             <strong>{{ item.sender.get_full_name|default:item.sender.username }}</strong>
                             <span>{{ item.created_at|date:"M j, H:i" }}</span>
                             {% if item.sender_id == request.user.id %}
-                                <em>{% if item.is_read %}Read{% else %}Sent{% endif %}</em>
+                                <em class="message-state">{% if item.is_read %}Read{% else %}Sent{% endif %}</em>
                             {% endif %}
                         </div>
 
@@ -159,6 +159,7 @@
                     </div>
                 {% endfor %}
             </div>
+            <div class="chat-presence" id="typingIndicator" hidden>Typing…</div>
 
             <form class="message-compose" id="messageCompose" method="post" action="{% url 'messaging:send_message' active_conversation.id %}" enctype="multipart/form-data">
                 {% csrf_token %}
@@ -194,7 +195,7 @@
                     <input type="file" name="attachment" id="messageAttachment" hidden onchange="previewAttachment(event)">
                     <button class="send-btn" type="submit">Send</button>
                 </div>
-                <small class="compose-hint">Press Enter to send. Use Shift+Enter for a new line. {{ chat_media_messages }} media items are visible in this thread.</small>
+                <small class="compose-hint">Press Enter to send. Use Shift+Enter for a new line. Text replies update live; attachments still use the safe upload flow. {{ chat_media_messages }} media items are visible in this thread.</small>
             </form>
         {% else %}
             <div class="chat-empty-thread full">
@@ -206,6 +207,9 @@
 </div>
 
 <script>
+const realtimeConversationId = {% if active_conversation %}{{ active_conversation.id }}{% else %}null{% endif %};
+const realtimeUserId = {{ request.user.id|default:"null" }};
+
 function insertEmoji(emoji) {
     const input = document.getElementById("messageText");
     if (!input) return;
@@ -286,6 +290,96 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const input = document.getElementById("messageText");
     const form = document.getElementById("messageCompose");
+    const attachmentInput = document.getElementById("messageAttachment");
+    const typingIndicator = document.getElementById("typingIndicator");
+    const presenceLabel = document.getElementById("chatPresence");
+    let typingTimer = null;
+    let socket = null;
+
+    function scrollThread() {
+        if (thread) thread.scrollTop = thread.scrollHeight;
+    }
+
+    function escapeHtml(value) {
+        return String(value || "").replace(/[&<>"']/g, function (char) {
+            return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char];
+        });
+    }
+
+    function renderMessage(message) {
+        if (!thread || !message || document.getElementById(`message-${message.id}`)) return;
+        const article = document.createElement("article");
+        article.className = `message-bubble ${message.is_mine ? "mine" : "theirs"}`;
+        article.id = `message-${message.id}`;
+        article.dataset.messageId = message.id;
+
+        const replyPreview = message.reply_to
+            ? `<div class="reply-preview">Replying to ${escapeHtml(message.reply_to.sender_username)}: ${escapeHtml(message.reply_to.text || "Attachment")}</div>`
+            : "";
+        const forwarded = message.forwarded ? `<div class="reply-preview">Forwarded message</div>` : "";
+        const attachment = message.attachment_url
+            ? (message.attachment_type === "image"
+                ? `<div class="attachment-preview"><img src="${escapeHtml(message.attachment_url)}" alt="Message image"></div>`
+                : message.attachment_type === "video"
+                    ? `<div class="attachment-preview"><video src="${escapeHtml(message.attachment_url)}" controls></video></div>`
+                    : `<div class="attachment-preview"><a href="${escapeHtml(message.attachment_url)}" target="_blank" rel="noopener">Open attached file</a></div>`)
+            : "";
+        const state = message.is_mine ? `<em class="message-state">${message.is_read ? "Read" : "Sent"}</em>` : "";
+
+        article.innerHTML = `
+            <div class="message-meta">
+                <strong>${escapeHtml(message.sender_name)}</strong>
+                <span>${escapeHtml(message.created_at)}</span>
+                ${state}
+            </div>
+            ${replyPreview}
+            ${forwarded}
+            ${message.text ? `<p>${escapeHtml(message.text).replace(/\n/g, "<br>")}</p>` : ""}
+            ${attachment}
+            <div class="message-actions">
+                <button type="button" onclick="replyToMessage('${message.id}', '${escapeHtml(message.sender_username)}')">Reply</button>
+                <button type="button" onclick="forwardMessage('${message.id}')">Forward</button>
+            </div>
+        `;
+        thread.appendChild(article);
+        scrollThread();
+    }
+
+    function sendReadReceipt() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ action: "read" }));
+        }
+    }
+
+    if (realtimeConversationId) {
+        const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+        socket = new WebSocket(`${scheme}://${window.location.host}/ws/messages/${realtimeConversationId}/`);
+
+        socket.addEventListener("message", function (event) {
+            try {
+                const payload = JSON.parse(event.data);
+                if (payload.type === "message") {
+                    renderMessage(payload);
+                    if (payload.sender_id !== realtimeUserId) {
+                        sendReadReceipt();
+                    }
+                } else if (payload.type === "typing") {
+                    if (payload.sender_id === realtimeUserId || !typingIndicator) return;
+                    typingIndicator.hidden = !payload.is_typing;
+                } else if (payload.type === "read") {
+                    if (payload.reader_id === realtimeUserId) return;
+                    document.querySelectorAll(".message-bubble.mine .message-state").forEach(function (node) {
+                        node.textContent = "Read";
+                    });
+                } else if (payload.type === "presence" && presenceLabel && String(payload.user_id) === presenceLabel.dataset.otherUser) {
+                    presenceLabel.textContent = payload.label || (payload.is_online ? "Online" : "Active recently");
+                }
+            } catch (error) {
+                console.warn("Namvibe chat socket parse failed", error);
+            }
+        });
+    }
+
     if (input && form) {
         input.addEventListener("keydown", function(event) {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -297,7 +391,42 @@ document.addEventListener("DOMContentLoaded", function() {
         input.addEventListener("input", function() {
             input.style.height = "auto";
             input.style.height = Math.min(input.scrollHeight, 140) + "px";
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ action: "typing", is_typing: input.value.trim().length > 0 }));
+                if (typingTimer) clearTimeout(typingTimer);
+                typingTimer = setTimeout(function () {
+                    socket.send(JSON.stringify({ action: "typing", is_typing: false }));
+                }, 1200);
+            }
+        });
+
+        form.addEventListener("submit", function (event) {
+            const hasAttachment = attachmentInput && attachmentInput.files && attachmentInput.files.length;
+            if (!socket || socket.readyState !== WebSocket.OPEN || hasAttachment) {
+                return;
+            }
+            const text = (input.value || "").trim();
+            if (!text) return;
+            event.preventDefault();
+            socket.send(JSON.stringify({
+                action: "message",
+                text: text,
+                reply_to: document.getElementById("replyToInput").value || null,
+                forward_to: document.getElementById("forwardToInput").value || null
+            }));
+            input.value = "";
+            input.style.height = "auto";
+            clearComposeState();
+            if (typingIndicator) typingIndicator.hidden = true;
         });
     }
+
+    document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) {
+            sendReadReceipt();
+        }
+    });
+
+    sendReadReceipt();
 });
 </script>

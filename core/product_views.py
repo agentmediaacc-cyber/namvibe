@@ -269,11 +269,13 @@ def notifications_view(request):
 @require_POST
 def notification_mark_read_view(request, notification_id):
     from accounts.models import Notification
+    from core.realtime import push_notification_counts
 
     notification = get_object_or_404(Notification, recipient=request.user, pk=notification_id)
     if not notification.is_read:
         notification.is_read = True
         notification.save(update_fields=["is_read"])
+        push_notification_counts(request.user)
     return redirect(request.POST.get("next") or notification.target_url or "notifications")
 
 
@@ -281,8 +283,10 @@ def notification_mark_read_view(request, notification_id):
 @require_POST
 def notifications_mark_all_read_view(request):
     from accounts.models import Notification
+    from core.realtime import push_notification_counts
 
     Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+    push_notification_counts(request.user)
     return redirect(request.POST.get("next") or "notifications")
 
 

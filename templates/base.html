@@ -344,11 +344,11 @@
                 {% if request.user.is_authenticated %}
                     <a class="nav-link-btn nav-icon-link" href="{{ nav_notifications_url|default:'/notifications/' }}" aria-label="Notifications">
                         <span class="nav-icon">{% include "partials/nav_icon.html" with icon="bell" %}</span>
-                        {% if nav_notification_count %}<span class="nav-badge">{{ nav_notification_count }}</span>{% endif %}
+                        <span class="nav-badge" id="navNotificationBadge" {% if not nav_notification_count %}hidden{% endif %}>{{ nav_notification_count|default:0 }}</span>
                     </a>
                     <a class="nav-link-btn nav-icon-link" href="{{ nav_messages_url|default:'/messages/' }}" aria-label="Messages">
                         <span class="nav-icon">{% include "partials/nav_icon.html" with icon="chat" %}</span>
-                        {% if nav_message_count %}<span class="nav-badge">{{ nav_message_count }}</span>{% endif %}
+                        <span class="nav-badge" id="navMessageBadge" {% if not nav_message_count %}hidden{% endif %}>{{ nav_message_count|default:0 }}</span>
                     </a>
                     <a class="nav-link-btn hide-mobile" href="{{ nav_wallet_url|default:'/wallet/' }}">Wallet</a>
                     <a class="nav-link-btn" href="{{ nav_profile_url|default:smart_profile_url }}">Profile</a>
@@ -475,6 +475,42 @@
             });
         })();
     </script>
+
+    {% if request.user.is_authenticated %}
+    <script>
+        (function () {
+            const notificationBadge = document.getElementById("navNotificationBadge");
+            const messageBadge = document.getElementById("navMessageBadge");
+            const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+            const socket = new WebSocket(`${scheme}://${window.location.host}/ws/notifications/`);
+
+            function setBadge(node, value) {
+                if (!node) return;
+                const count = Number(value || 0);
+                node.textContent = count;
+                node.hidden = count < 1;
+            }
+
+            socket.addEventListener("message", function (event) {
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (typeof payload.notification_count !== "undefined") {
+                        setBadge(notificationBadge, payload.notification_count);
+                    }
+                    if (typeof payload.message_count !== "undefined") {
+                        setBadge(messageBadge, payload.message_count);
+                    }
+                } catch (error) {
+                    console.warn("Namvibe notification socket parse failed", error);
+                }
+            });
+
+            socket.addEventListener("open", function () {
+                socket.send(JSON.stringify({ action: "sync_counts" }));
+            });
+        })();
+    </script>
+    {% endif %}
 
     {% block extra_scripts %}{% endblock %}
 </body>

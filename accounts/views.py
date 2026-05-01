@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST, require_http_methods
 
 from live.models import LiveSession
 from messaging.models import Conversation, Message
+from messaging.presence import presence_snapshot
 from messaging.services import messaging_dashboard_context
 from dating.models import DatingCoinBalance, DatingLike, DatingProfileView, Match
 from posts.models import Post
@@ -1300,6 +1301,7 @@ def public_profile_view(request, username):
     }
     safe_username = profile.username or getattr(profile.user, "username", "") or "namvibe"
     safe_display_name = profile.display_name or safe_username or "Namvibe member"
+    presence_state = presence_snapshot(profile.user)
 
     context = {
         "profile": profile,
@@ -1332,6 +1334,7 @@ def public_profile_view(request, username):
         "profile_views_count": profile_views_count,
         "action_urls": action_urls,
         "joined_date": profile.user.date_joined,
+        "presence_state": presence_state,
 }
     return render(request, "accounts/profile_detail.html", context)
 

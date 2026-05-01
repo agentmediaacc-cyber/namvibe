@@ -30,7 +30,21 @@
       <p id="callLobbyPermissionState">Enable camera and microphone only when you are ready to test this device.</p>
       <div class="product-actions">
         <button class="nv-btn primary" type="button" id="callLobbyEnable">Enable camera and mic</button>
+        <button class="nv-btn" type="button" id="callLobbyInviteVoice">Invite to audio call</button>
+        <button class="nv-btn" type="button" id="callLobbyInviteVideo">Invite to video call</button>
         <a class="nv-btn" href="{% url 'support_help' %}">Permission help</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="product-section">
+    <h2>Signal flow</h2>
+    <div class="product-card">
+      <p id="callSignalState">Your private call lobby is ready. Send an invite first, then accept, reject, or end the session without auto-opening the camera.</p>
+      <div class="product-actions">
+        <button class="nv-btn" type="button" id="callLobbyAccept">Accept</button>
+        <button class="nv-btn" type="button" id="callLobbyReject">Reject</button>
+        <button class="nv-btn" type="button" id="callLobbyEnd">End call</button>
       </div>
     </div>
   </div>
@@ -39,6 +53,20 @@
 
 {% block extra_scripts %}
 <script>
+  const callConversationId = {{ conversation.id }};
+  const callLobbyUserId = {{ request.user.id }};
+  const callScheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const callSocket = new WebSocket(`${callScheme}://${window.location.host}/ws/calls/${callConversationId}/`);
+  const signalState = document.getElementById("callSignalState");
+
+  function sendCallSignal(action, mode) {
+    if (callSocket.readyState !== WebSocket.OPEN) {
+      signalState.textContent = "Realtime signaling is still connecting. Try again in a moment.";
+      return;
+    }
+    callSocket.send(JSON.stringify({ action, mode: mode || "voice" }));
+  }
+
   document.getElementById("callLobbyEnable")?.addEventListener("click", async function () {
     const state = document.getElementById("callLobbyPermissionState");
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -51,6 +79,51 @@
       state.textContent = "Camera and microphone are ready for the next step.";
     } catch (error) {
       state.textContent = "Permission blocked. Enable camera and microphone in your browser or phone settings.";
+    }
+  });
+
+  document.getElementById("callLobbyInviteVoice")?.addEventListener("click", function () {
+    signalState.textContent = "Audio call invite sent. Waiting for your friend to respond.";
+    sendCallSignal("call_invite", "voice");
+  });
+
+  document.getElementById("callLobbyInviteVideo")?.addEventListener("click", function () {
+    signalState.textContent = "Video call invite sent. Camera access still stays off until you enable it.";
+    sendCallSignal("call_invite", "video");
+  });
+
+  document.getElementById("callLobbyAccept")?.addEventListener("click", function () {
+    signalState.textContent = "Call accepted. WebRTC media can be enabled next.";
+    sendCallSignal("call_accept");
+  });
+
+  document.getElementById("callLobbyReject")?.addEventListener("click", function () {
+    signalState.textContent = "Call request rejected.";
+    sendCallSignal("call_reject");
+  });
+
+  document.getElementById("callLobbyEnd")?.addEventListener("click", function () {
+    signalState.textContent = "Call session ended.";
+    sendCallSignal("call_end");
+  });
+
+  callSocket.addEventListener("message", function (event) {
+    try {
+      const payload = JSON.parse(event.data);
+      if (payload.sender_id === callLobbyUserId) return;
+      if (payload.action === "call_invite") {
+        signalState.textContent = `@${payload.sender_username} invited you to a ${payload.mode === "video" ? "video" : "voice"} call.`;
+      } else if (payload.action === "call_accept") {
+        signalState.textContent = `@${payload.sender_username} accepted the call.`;
+      } else if (payload.action === "call_reject") {
+        signalState.textContent = `@${payload.sender_username} rejected the call.`;
+      } else if (payload.action === "call_end") {
+        signalState.textContent = `@${payload.sender_username} ended the call.`;
+      } else if (payload.action === "offer" || payload.action === "answer" || payload.action === "ice_candidate") {
+        signalState.textContent = `Received ${payload.action.replace("_", " ")} from @${payload.sender_username}.`;
+      }
+    } catch (error) {
+      console.warn("Namvibe call signaling parse failed", error);
     }
   });
 </script>

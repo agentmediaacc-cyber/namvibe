@@ -109,12 +109,23 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+try:
+    import channels_redis  # noqa: F401
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
     }
-}
+except ImportError:
+    logger.warning("channels_redis is not installed. Falling back to InMemoryChannelLayer.")
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 RUNNING_TESTS = "test" in sys.argv
