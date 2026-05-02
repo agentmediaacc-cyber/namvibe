@@ -1,0 +1,106 @@
+{% extends "accounts/profile_base.html" %}
+{% block title %}Growth Dashboard | Namvibe Staff{% endblock %}
+
+{% block profile_content %}
+<style>
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; }
+  .stat-card strong { display: block; font-size: 24px; margin-top: 8px; color: var(--pink); }
+  .stat-card span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  
+  .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 24px; }
+  .table-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  td { padding: 10px 8px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  
+  .badge-count { background: var(--pink); color: #fff; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 800; }
+</style>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <span>Daily Active (24h)</span>
+    <strong>{{ dau_estimate }}</strong>
+  </div>
+  <div class="stat-card">
+    <span>Boost Revenue</span>
+    <strong>NAD {{ total_boost_revenue }}</strong>
+  </div>
+  <div class="stat-card">
+    <span>Gifts Sent</span>
+    <strong>{{ total_gifts_sent }}</strong>
+  </div>
+  <div class="stat-card">
+    <span>Open Reports</span>
+    <strong style="color: #ef4444;">{{ open_reports_count }}</strong>
+  </div>
+</div>
+
+<div class="stats-grid" style="grid-template-columns: repeat(2, 1fr);">
+  <a href="{% url 'staff_deposits_list' %}" class="stat-card" style="text-decoration:none; color:inherit; display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <span>Pending Deposits</span>
+      <strong>{{ pending_deposits_count }}</strong>
+    </div>
+    <span class="nv-btn" style="width:auto; padding:6px 12px; font-size:10px;">Review</span>
+  </a>
+  <a href="{% url 'staff_withdrawals_list' %}" class="stat-card" style="text-decoration:none; color:inherit; display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <span>Pending Withdrawals</span>
+      <strong>{{ pending_withdrawals_count }}</strong>
+    </div>
+    <span class="nv-btn" style="width:auto; padding:6px 12px; font-size:10px;">Process</span>
+  </a>
+</div>
+
+<div class="dashboard-grid">
+  <div class="table-card">
+    <h3>Top Referrers</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Invites</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in top_referrers %}
+          <tr>
+            <td>@{{ u.username }}</td>
+            <td><span class="badge-count">{{ u.ref_count }}</span></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2" style="text-align:center; color:var(--muted); padding:20px;">No referrers yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-card">
+    <h3>Top Creators</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Creator</th>
+          <th>Earnings (Gifts)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in top_creators %}
+          <tr>
+            <td>@{{ u.username }}</td>
+            <td style="font-weight:800; color:#10b981;">NAD {{ u.gifts_value }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2" style="text-align:center; color:var(--muted); padding:20px;">No creator earnings yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="product-card" style="margin-top:24px;">
+  <h3>Platform Insight</h3>
+  <p style="color:var(--muted); font-size:14px;">Growth is currently driven by user-to-user invites. Creator earnings are primarily from virtual gifts. Boost revenue reflects promotional spending by creators and businesses.</p>
+</div>
+{% endblock %}

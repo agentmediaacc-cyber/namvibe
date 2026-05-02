@@ -175,23 +175,18 @@ def _profile_menu_groups(request):
             ],
         },
         {
-            "title": "Social",
+            "title": "Community & Growth",
             "items": [
-                {"label": "Feed", "url": _safe_reverse("feed")},
-                {"label": "Gallery", "url": _safe_reverse("profile_gallery")},
-                {"label": "Posts", "url": _safe_reverse("author_posts", username=profile_username)},
-                {"label": "Stories", "url": _safe_reverse("stories_home")},
-                {"label": "Reels", "url": _safe_reverse("reels_feed")},
-                {"label": "Messages", "url": _safe_reverse("messages_home")},
-                {"label": "Notifications", "url": _safe_reverse("notifications")},
-                {"label": "Followers", "url": _safe_reverse("account_followers")},
+                {"label": "Invite Friends", "url": _safe_reverse("referral_invite")},
                 {"label": "Groups / Communities", "url": _safe_reverse("community_list")},
+                {"label": "Leaderboard", "url": "#"},
             ],
         },
         {
             "title": "Money / Access",
             "items": [
                 {"label": "Wallet", "url": _safe_reverse("wallet_home")},
+                {"label": "Creator Payouts", "url": _safe_reverse("creator_payout_dashboard")},
                 {"label": "Coins", "url": _safe_reverse("coins")},
                 {"label": "Upgrade Account", "url": _safe_reverse("wallet_membership_plans")},
                 {"label": "Subscription", "url": _safe_reverse("wallet_membership")},
@@ -227,8 +222,9 @@ def _profile_menu_groups(request):
         groups.insert(
             0,
             {
-                "title": "Moderation",
+                "title": "Staff Controls",
                 "items": [
+                    {"label": "Growth Engine", "url": _safe_reverse("admin_growth_dashboard")},
                     {"label": "Safety Dashboard", "url": _safe_reverse("moderation_dashboard")},
                     {"label": "Staff Insights", "url": _safe_reverse("staff_insights")},
                 ],
@@ -886,6 +882,11 @@ def signup_view(request):
             return redirect(master_admin_dashboard_url())
         return redirect("user_dashboard")
 
+    # Capture referral code from GET param and store in session
+    ref_code = request.GET.get("ref")
+    if ref_code:
+        request.session["referral_code"] = ref_code
+
     form = SignupForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -919,7 +920,21 @@ def signup_view(request):
                     profile_completed=False,
                     email_verified=False,
                 )
-            
+                
+                # Handle referral logic
+                session_ref_code = request.session.get("referral_code")
+                if session_ref_code:
+                    inviter_profile = Profile.objects.filter(referral_code=session_ref_code).select_related("user").first()
+                    if inviter_profile and inviter_profile.user != user:
+                        user.profile.referred_by = inviter_profile.user
+                        user.profile.save(update_fields=["referred_by"])
+                        
+                        from .models import Referral
+                        Referral.objects.get_or_create(inviter=inviter_profile.user, referred_user=user)
+                        
+                        # Clean up session
+                        del request.session["referral_code"]
+
             try:
                 _ensure_user_bootstrap(user)
                 _safe_sync_supabase_profile(user)
@@ -1037,6 +1052,29 @@ def profile_completion_view(request):
     return redirect(f"{reverse('user_dashboard')}?section=overview")
 
 
+@login_required(login_url="login")
+def referral_invite_view(request):
+    profile = request.user.profile
+    account_profile = getattr(request.user, "account_profile", None)
+    referral_count = request.user.referral_records.count()
+    referral_url = request.build_absolute_uri(reverse("signup")) + f"?ref={profile.referral_code}"
+    
+    # WhatsApp share text
+    share_text = f"Join me on Namvibe! Use my link to sign up: {referral_url}"
+    whatsapp_url = f"https://wa.me/?text={urlencode({'text': share_text}).split('=')[1]}"
+
+    context = {
+        **_account_shell_context(request, profile, account_profile),
+        "referral_code": profile.referral_code,
+        "referral_url": referral_url,
+        "referral_count": referral_count,
+        "whatsapp_url": whatsapp_url,
+        "account_shell_title": "Invite Friends",
+        "account_shell_subtitle": "Grow your network and earn rewards",
+    }
+    return render(request, "accounts/referral_invite.html", context)
+
+
 def _account_shell_context(request, profile, account_profile=None, coin_balance=None):
     wallet = ensure_wallet(request.user)
     if coin_balance is None:
@@ -1064,6 +1102,7 @@ def _account_shell_context(request, profile, account_profile=None, coin_balance=
         "account_shell_subtitle": "Profile, settings, and feature routing",
         "wallet_account": wallet,
         "coin_balance": coin_balance,
+        "referral_count": request.user.referral_records.count(),
     }
 
 
@@ -1304,6 +1343,7 @@ def user_dashboard_view(request):
         "video_call_url": reverse("messaging:call_gate", kwargs={"user_id": request.user.id, "mode": "video"}),
         "account_shell_title": "My Account",
         "account_shell_subtitle": "Clean profile index and smart routing",
+        "referral_count": request.user.referral_records.count(),
         **dashboard_metrics,
         **unread_threads,
     }
@@ -1459,6 +1499,7 @@ def public_profile_view(request, username):
         "show_wallet_summary": show_wallet_summary,
         "dating_coin_balance": dating_coin_balance,
         "profile_views_count": profile_views_count,
+        "referral_count": profile.user.referral_records.count(),
         "gifts_received_total": gifts_received_total,
         "action_urls": action_urls,
         "joined_date": profile.user.date_joined,
@@ -1818,6 +1859,44 @@ def unblock_user_view(request, username):
     Block.objects.filter(blocker=request.user, blocked=target_profile.user).delete()
     messages.success(request, f"@{target_profile.username} has been unblocked.")
     return redirect("profile_detail", username=target_profile.username)
+
+@staff_member_required(login_url="login")
+def admin_growth_dashboard_view(request):
+    from wallet.models import GiftEvent, BoostCampaign, ManualDeposit, WithdrawalRequest
+    from posts.models import Report
+    from django.db.models import Count, Sum
+
+    # Top referrers
+    top_referrers = User.objects.annotate(ref_count=Count("referral_records")).filter(ref_count__gt=0).order_by("-ref_count")[:10]
+
+    # Top creators (by gifts received)
+    top_creators = User.objects.annotate(gifts_value=Sum("gifts_received__creator_value")).filter(gifts_value__gt=0).order_by("-gifts_value")[:10]
+
+    # Platform stats
+    total_gifts_sent = GiftEvent.objects.count()
+    total_boost_revenue = BoostCampaign.objects.aggregate(total=Sum("coin_cost")).get("total") or 0
+    pending_deposits_count = ManualDeposit.objects.filter(status=ManualDeposit.Status.PENDING).count()
+    pending_withdrawals_count = WithdrawalRequest.objects.filter(status=WithdrawalRequest.Status.PENDING).count()
+    open_reports_count = Report.objects.filter(status=Report.Status.OPEN).count()
+
+    # Simple DAU estimate (users active in last 24h)
+    last_24h = timezone.now() - timezone.timedelta(hours=24)
+    dau_estimate = User.objects.filter(last_login__gte=last_24h).count()
+
+    context = {
+        "top_referrers": top_referrers,
+        "top_creators": top_creators,
+        "total_gifts_sent": total_gifts_sent,
+        "total_boost_revenue": total_boost_revenue,
+        "pending_deposits_count": pending_deposits_count,
+        "pending_withdrawals_count": pending_withdrawals_count,
+        "open_reports_count": open_reports_count,
+        "dau_estimate": dau_estimate,
+        "account_shell_title": "Growth Engine",
+        "account_shell_subtitle": "Platform analytics and creator performance",
+        "profile_menu_groups": _profile_menu_groups(request),
+    }
+    return render(request, "accounts/admin_growth_dashboard.html", context)
 
 
 @staff_member_required(login_url="login")

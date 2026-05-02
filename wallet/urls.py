@@ -44,6 +44,7 @@ urlpatterns = [
     path("deposit/<str:request_id>/", views.manual_deposit_detail_view, name="manual_deposit_detail"),
     path("deposit/<str:request_id>/invoice/", views.download_deposit_invoice_view, name="download_deposit_invoice"),
     path("withdraw/", views.manual_withdrawal_view, name="manual_withdrawal"),
+    path("payouts/", views.creator_payout_dashboard_view, name="creator_payout_dashboard"),
     path("staff/deposits/", views.staff_deposits_list_view, name="staff_deposits_list"),
     path("staff/deposits/<int:pk>/approve/", views.staff_approve_deposit_view, name="staff_approve_deposit"),
     path("staff/deposits/<int:pk>/review/", views.staff_review_deposit_view, name="staff_review_deposit"),

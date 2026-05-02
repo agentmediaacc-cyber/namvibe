@@ -26,6 +26,8 @@ from .views import (
     follow_toggle,
     profile_completion_view,
     profile_shortcut_view,
+    referral_invite_view,
+    admin_growth_dashboard_view,
     verify_email_confirm_view,
     verify_email_notice_view,
     verify_email_request_view,
@@ -52,6 +54,8 @@ urlpatterns = [
     path("friend-requests/<int:request_id>/decline/", decline_friend_request_view, name="friend_request_decline"),
     path("moderation/", moderation_dashboard_view, name="moderation_dashboard"),
     path("moderation/reports/<int:report_id>/", moderation_report_detail_view, name="moderation_report_detail"),
+    path("referral/invite/", referral_invite_view, name="referral_invite"),
+    path("moderation/growth/", admin_growth_dashboard_view, name="admin_growth_dashboard"),
     path("staff/insights/", staff_insights_view, name="staff_insights"),
     path("model-application/", account_model_application_view, name="account_model_application"),
 

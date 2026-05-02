@@ -51,6 +51,11 @@ class Profile(models.Model):
     follower_count = models.PositiveIntegerField(default=0)
     following_count = models.PositiveIntegerField(default=0)
     post_count = models.PositiveIntegerField(default=0)
+    
+    # Referral system fields
+    referral_code = models.CharField(max_length=12, unique=True, blank=True, null=True, db_index=True)
+    referred_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="referrals_made")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -60,6 +65,7 @@ class Profile(models.Model):
             models.Index(fields=["is_creator", "is_verified"]),
             models.Index(fields=["town", "region"]),
             models.Index(fields=["location"]),
+            models.Index(fields=["referral_code"]),
         ]
 
     def __str__(self):
@@ -70,7 +76,32 @@ class Profile(models.Model):
             self.username = self.user.username
         if not self.display_name:
             self.display_name = self.username or self.user.username
+        if not self.referral_code:
+            import secrets
+            import string
+            # Generate 8-char code: uppercase letters and digits
+            alphabet = string.ascii_uppercase + string.digits
+            while True:
+                code = ''.join(secrets.choice(alphabet) for _ in range(8))
+                if not Profile.objects.filter(referral_code=code).exists():
+                    self.referral_code = code
+                    break
         super().save(*args, **kwargs)
+
+
+class Referral(models.Model):
+    inviter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="referral_records")
+    referred_user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="referral_info")
+    reward_granted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["inviter", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.inviter} invited {self.referred_user}"
 
 
 class AccountRole(models.Model):

@@ -1,0 +1,89 @@
+{% extends "accounts/profile_base.html" %}
+{% block title %}Invite Friends | Namvibe{% endblock %}
+
+{% block profile_content %}
+<style>
+  .invite-card {
+    background: linear-gradient(135deg, rgba(124,58,237,.15), rgba(236,72,153,.1));
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 30px;
+    text-align: center; margin-bottom: 24px;
+  }
+  .invite-code {
+    font-size: 32px; font-weight: 900; letter-spacing: 4px; color: var(--pink);
+    margin: 20px 0; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,0.2);
+  }
+  .share-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 24px; }
+  .share-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px; border-radius: 14px; font-weight: 800; text-decoration: none; color: #fff;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    transition: transform 0.2s;
+  }
+  .share-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.1); }
+  .whatsapp { background: #25D366 !important; color: #fff !important; }
+  
+  .ref-stats { display: flex; gap: 20px; justify-content: center; margin-bottom: 30px; }
+  .stat-box { text-align: center; }
+  .stat-box strong { display: block; font-size: 24px; color: var(--pink); }
+  .stat-box span { font-size: 12px; color: var(--muted); text-transform: uppercase; }
+</style>
+
+<div class="invite-card">
+  <div style="font-size: 48px; margin-bottom: 16px;">🚀</div>
+  <h2>Refer & Earn</h2>
+  <p style="color:var(--muted);">Invite your friends to Namvibe and grow the community together.</p>
+  
+  <div class="invite-code">{{ referral_code }}</div>
+  
+  <div class="ref-stats">
+    <div class="stat-box">
+      <strong>{{ referral_count }}</strong>
+      <span>Successful Invites</span>
+    </div>
+  </div>
+
+  <div style="background:rgba(0,0,0,0.1); padding:16px; border-radius:14px; margin-top:20px;">
+    <p style="font-size:13px; margin-bottom:10px;">Your Referral Link:</p>
+    <div style="display:flex; gap:10px;">
+      <input type="text" value="{{ referral_url }}" id="refUrl" readonly 
+             style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 12px; color:#fff; font-size:12px;">
+      <button onclick="copyRefLink()" class="nv-btn" style="padding:8px 16px; width:auto; border-radius:8px; font-size:12px;">Copy</button>
+    </div>
+  </div>
+
+  <div class="share-grid">
+    <a href="{{ whatsapp_url }}" target="_blank" class="share-btn whatsapp">
+      <span>WhatsApp</span>
+    </a>
+    <button onclick="copyRefLink()" class="share-btn">
+      <span>Copy Link</span>
+    </button>
+  </div>
+</div>
+
+<div class="product-card">
+  <h3>How it works</h3>
+  <ul style="margin: 16px 0; padding-left: 20px; color: var(--muted); line-height: 1.8;">
+    <li>Share your unique referral link or code with friends.</li>
+    <li>They sign up using your link.</li>
+    <li>We track the referral and show it on your dashboard.</li>
+    <li>Grow your network and unlock exclusive creator rewards.</li>
+  </ul>
+  <p style="font-size: 12px; color:rgba(255,255,255,0.4);">* Self-referrals and fraudulent accounts will be disqualified by admin review.</p>
+</div>
+
+<script>
+function copyRefLink() {
+  const copyText = document.getElementById("refUrl");
+  copyText.select();
+  copyText.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(copyText.value);
+  
+  const btn = event.target;
+  const original = btn.textContent;
+  btn.textContent = "Copied!";
+  setTimeout(() => btn.textContent = original, 2000);
+}
+</script>
+{% endblock %}

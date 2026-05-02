@@ -1,0 +1,91 @@
+{% extends "accounts/profile_base.html" %}
+{% block title %}Creator Payouts | Namvibe{% endblock %}
+
+{% block profile_content %}
+<style>
+  .earning-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .earning-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; text-align: center; }
+  .earning-card strong { display: block; font-size: 24px; margin-top: 8px; color: var(--pink); }
+  .earning-card span { font-size: 12px; color: var(--muted); text-transform: uppercase; }
+  
+  .history-list { display: grid; gap: 12px; }
+  .history-item { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+  }
+  .history-info strong { display: block; font-size: 14px; }
+  .history-info small { color: var(--muted); font-size: 12px; }
+  .status-badge { padding: 4px 10px; border-radius: 99px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+  .status-pending { background: rgba(245,158,11,0.2); color: #f59e0b; }
+  .status-paid { background: rgba(16,185,129,0.2); color: #10b981; }
+  .status-rejected { background: rgba(239,68,68,0.2); color: #ef4444; }
+</style>
+
+<div class="earning-stats">
+  <div class="earning-card">
+    <span>Lifetime Earned</span>
+    <strong>NAD {{ wallet.lifetime_earned }}</strong>
+  </div>
+  <div class="earning-card">
+    <span>From Gifts</span>
+    <strong>NAD {{ gifts_earned }}</strong>
+  </div>
+  <div class="earning-card">
+    <span>Available Payout</span>
+    <strong>NAD {{ wallet.available_balance }}</strong>
+  </div>
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+  <h3 style="margin:0;">Withdrawal History</h3>
+  <a href="{% url 'manual_withdrawal' %}" class="nv-btn" style="width:auto; padding:8px 16px; font-size:12px;">Request Payout</a>
+</div>
+
+<div class="history-list">
+  {% for wd in withdrawals %}
+    <div class="history-item">
+      <div class="history-info">
+        <strong>#{{ wd.request_id }}</strong>
+        <small>{{ wd.created_at|date:"M j, Y" }}</small>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-weight:800;">NAD {{ wd.amount }}</div>
+        <span class="status-badge status-{{ wd.status }}">{{ wd.get_status_display }}</span>
+      </div>
+    </div>
+  {% empty %}
+    <div class="product-card" style="text-align:center; padding:40px;">
+      <p style="color:var(--muted);">No withdrawal requests yet.</p>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="product-card" style="margin-top:24px;">
+  <h3>Payout Rules</h3>
+  <ul style="margin: 16px 0; padding-left: 20px; color: var(--muted); line-height: 1.8; font-size:14px;">
+    {% for rule in payout_rules %}
+      <li>{{ rule }}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div style="margin-top:24px;">
+  <h3>Recent Earnings</h3>
+  <div class="history-list">
+    {% for tx in recent_transactions %}
+      <div class="history-item">
+        <div class="history-info">
+          <strong>{{ tx.get_transaction_type_display }}</strong>
+          <small>{{ tx.created_at|date:"M j, H:i" }}</small>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:800; color: {% if tx.amount > 0 %}#10b981{% else %}#ef4444{% endif %};">
+            {% if tx.amount > 0 %}+{% endif %}{{ tx.amount }}
+          </div>
+          <small style="font-size:10px; color:var(--muted);">{{ tx.reference|truncatechars:20 }}</small>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

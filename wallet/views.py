@@ -1,10 +1,10 @@
 from decimal import Decimal
 
+from django.db import models, transaction
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -97,6 +97,39 @@ def download_deposit_invoice_view(request, request_id):
     response = HttpResponse(pdf_buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="Namvibe_Invoice_{deposit.request_id}.pdf"'
     return response
+
+@login_required(login_url="login")
+def creator_payout_dashboard_view(request):
+    wallet = ensure_wallet(request.user)
+    withdrawals = WithdrawalRequest.objects.filter(user=request.user).order_by("-created_at")
+    
+    # Aggregates
+    gifts_earned = GiftEvent.objects.filter(recipient=request.user).aggregate(total=models.Sum("creator_value")).get("total") or 0
+    # For now, boosts are paid by user to platform, but maybe creator gets a cut? 
+    # The requirement says "boosts earned", let's assume it's part of lifetime_earned for now.
+    
+    recent_transactions = WalletTransaction.objects.filter(
+        wallet=wallet, 
+        transaction_type__in=[
+            WalletTransaction.Type.GIFT_RECEIVED, 
+            WalletTransaction.Type.CREATOR_PAYOUT_CREDIT,
+            WalletTransaction.Type.WITHDRAWAL
+        ]
+    ).order_by("-created_at")[:20]
+
+    return render(request, "wallet/creator_payout_dashboard.html", {
+        "wallet": wallet,
+        "withdrawals": withdrawals,
+        "gifts_earned": gifts_earned,
+        "recent_transactions": recent_transactions,
+        "payout_rules": [
+            "Minimum payout: NAD 100.00",
+            "Payments processed within 3-5 business days",
+            "Valid bank account or mobile money details required",
+            "Referral bonuses are subject to admin review"
+        ]
+    })
+
 
 @login_required(login_url="login")
 def manual_withdrawal_view(request):

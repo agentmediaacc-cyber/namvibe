@@ -255,6 +255,15 @@
             <p class="copy-muted" style="margin:8px 0 0;">{{ profile_completion.next_action.label }}</p>
           </div>
         {% endif %}
+
+        <div class="launch-card" style="margin-top:14px; background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(236,72,153,.15));">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>Grow your network</strong>
+            <span class="mini-chip">{{ referral_count }} invites</span>
+          </div>
+          <p class="copy-muted" style="margin:8px 0 12px; font-size:13px;">Invite friends to Namvibe and grow together.</p>
+          <a href="{% url 'referral_invite' %}" class="action-btn primary" style="width:100%; text-decoration:none;">Invite Friends</a>
+        </div>
         <div class="quick-action-grid">
           {% for item in next_action_cards %}
             <a class="menu-card" href="{{ item.url }}">
