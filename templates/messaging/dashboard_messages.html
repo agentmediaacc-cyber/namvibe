@@ -104,7 +104,7 @@
                             <strong>{{ item.sender.get_full_name|default:item.sender.username }}</strong>
                             <span>{{ item.created_at|date:"M j, H:i" }}</span>
                             {% if item.sender_id == request.user.id %}
-                                <em class="message-state">{% if item.is_read %}Read{% else %}Sent{% endif %}</em>
+                                <em class="message-state">{% if item.is_read %}✓✓{% else %}✓{% endif %}</em>
                             {% endif %}
                         </div>
 
@@ -177,6 +177,13 @@
                     <span id="composeStateText"></span>
                     <button type="button" onclick="clearComposeState()">×</button>
                 </div>
+
+                {% if request.GET.reply_to_story %}
+                    <div class="compose-state" id="storyReplyState" style="background:rgba(236,72,153,.1);">
+                        <span>Replying to story #{{ request.GET.reply_to_story }}</span>
+                        <button type="button" onclick="this.parentElement.remove()">×</button>
+                    </div>
+                {% endif %}
 
                 <div class="emoji-row" id="emojiPicker" aria-label="Emoji shortcuts" hidden>
                     <button type="button" onclick="insertEmoji('😀')">😀</button>
@@ -304,7 +311,12 @@ document.addEventListener("DOMContentLoaded", function() {
     let socket = null;
 
     function scrollThread() {
-        if (thread) thread.scrollTop = thread.scrollHeight;
+        if (thread) {
+            thread.scrollTo({
+                top: thread.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
     }
 
     function escapeHtml(value) {
@@ -331,7 +343,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     ? `<div class="attachment-preview"><video src="${escapeHtml(message.attachment_url)}" controls></video></div>`
                     : `<div class="attachment-preview"><a href="${escapeHtml(message.attachment_url)}" target="_blank" rel="noopener">Open attached file</a></div>`)
             : "";
-        const state = message.is_mine ? `<em class="message-state">${message.is_read ? "Read" : "Sent"}</em>` : "";
+        
+        const tick = message.is_read ? '✓✓' : '✓';
+        const state = message.is_mine ? `<em class="message-state">${tick}</em>` : "";
 
         article.innerHTML = `
             <div class="message-meta">
@@ -376,7 +390,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 } else if (payload.type === "read") {
                     if (payload.reader_id === realtimeUserId) return;
                     document.querySelectorAll(".message-bubble.mine .message-state").forEach(function (node) {
-                        node.textContent = "Read";
+                        node.textContent = "✓✓";
                     });
                 } else if (payload.type === "presence" && presenceLabel && String(payload.user_id) === presenceLabel.dataset.otherUser) {
                     presenceLabel.textContent = payload.label || (payload.is_online ? "Online" : "Active recently");

@@ -63,6 +63,21 @@ def start_chat(request, user_id):
         return redirect("profile_detail", username=other_user.profile.username)
 
     conversation = get_or_create_direct_conversation(request.user, other_user)
+    
+    reply_to_story_id = request.GET.get("reply_to_story")
+    if reply_to_story_id:
+        from stories.models import StoryItem
+        story = StoryItem.objects.filter(pk=reply_to_story_id).first()
+        if story:
+            # We can't easily pass it through redirect to the dashboard messages UI 
+            # unless we add it to the URL query or session.
+            query = urlencode({
+                "section": "messages", 
+                "conversation": conversation.pk,
+                "reply_to_story": reply_to_story_id
+            })
+            return redirect(f"{reverse('user_dashboard')}?{query}")
+
     return redirect(_dashboard_messages_url(conversation))
 
 

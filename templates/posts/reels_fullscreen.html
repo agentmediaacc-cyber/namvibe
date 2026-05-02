@@ -590,6 +590,13 @@
           video.muted = isMuted;
           video.play().catch(() => {});
           document.body.dataset.focusUi = "true";
+          
+          // Preload next video
+          const nextSection = entry.target.nextElementSibling;
+          if (nextSection) {
+            const nextVideo = nextSection.querySelector('video');
+            if (nextVideo) nextVideo.load();
+          }
         } else {
           video.pause();
         }
@@ -597,6 +604,19 @@
     }, { root: container, threshold: 0.6 });
 
     sections.forEach(section => observer.observe(section));
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const currentReel = currentActiveVideo?.closest('.reel-section');
+        if (!currentReel) return;
+        const target = e.key === 'ArrowDown' ? currentReel.nextElementSibling : currentReel.previousElementSibling;
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    });
 
     muteToggle.addEventListener('click', () => {
       isMuted = !isMuted;

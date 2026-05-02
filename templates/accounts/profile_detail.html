@@ -100,7 +100,14 @@
           <div class="profile-title">
             <div class="badge-row">
               <span class="badge">@{{ safe_username }}</span>
-              <span class="badge" id="profilePresenceBadge">{% if presence_state.is_online %}Online{% else %}{{ presence_state.label|default:"Active recently" }}{% endif %}</span>
+              <span class="badge" id="profilePresenceBadge" style="display:inline-flex; align-items:center; gap:6px;">
+                {% if presence_state.is_online %}
+                  <span style="width:8px; height:8px; background:#10b981; border-radius:50%; box-shadow: 0 0 8px #10b981;"></span>
+                  Online
+                {% else %}
+                  {{ presence_state.label|default:"Active recently" }}
+                {% endif %}
+              </span>
               <span class="badge">{{ premium_badge.label }}</span>
               {% if active_profile_boost %}<span class="badge">Boosted</span>{% endif %}
               {% if under_review %}<span class="badge">Under review</span>{% endif %}

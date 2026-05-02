@@ -91,3 +91,31 @@ class EngagementTests(TestCase):
         self.assertEqual(deposit.status, ManualDeposit.Status.PAID)
         self.assertEqual(deposit.user_note, "Paid via EFT")
         self.assertTrue(deposit.proof_of_payment)
+
+    def test_notification_grouping(self):
+        self.client.force_login(self.user)
+        # Create some notifications
+        from accounts.models import Notification
+        Notification.objects.create(recipient=self.user, notification_type=Notification.Type.LIKE, message="Test Like")
+        
+        response = self.client.get(reverse("notifications"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Today")
+        self.assertContains(response, "Test Like")
+
+    def test_story_seen_by_count_display(self):
+        self.client.force_login(self.other_user)
+        self.client.post(reverse("story_view", kwargs={"id": self.story.id}))
+        
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("story_detail", kwargs={"id": self.story.id}))
+        self.assertContains(response, "Seen by 1 people")
+
+    def test_profile_views_count(self):
+        self.client.force_login(self.other_user)
+        # View a post
+        self.client.post(reverse("track_post_view", kwargs={"uuid": self.post.uuid}), {"duration_seconds": 5})
+        
+        response = self.client.get(reverse("profile_detail", kwargs={"username": self.user.username}))
+        # The view count is aggregated in public_profile_view
+        self.assertContains(response, "1") # Views stat

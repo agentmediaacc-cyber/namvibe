@@ -96,25 +96,30 @@
           </div>
           <div class="notification-list">
             {% for item in group.items %}
-              <div class="notification-card {% if item.is_new %}unread{% endif %}">
-                <a href="{{ item.href }}" style="text-decoration:none;color:inherit;display:grid;gap:8px;">
-                  <div class="notification-meta">
-                    {% if item.is_new %}<span class="notification-dot" aria-hidden="true"></span>{% endif %}
-                    <strong>{{ item.title }}</strong>
-                  </div>
-                  <p>{{ item.copy }}</p>
-                  <small>{{ item.meta|date:"M j, H:i" }}</small>
-                </a>
-                <div style="display:flex;justify-content:flex-end;">
-                  <a class="notification-cta" href="{{ item.href }}" style="margin-top:4px;">{{ item.action_label|default:"Open" }}</a>
+              <div class="notification-card {% if item.is_new %}unread{% endif %}" style="display:flex; gap:16px; align-items:flex-start;">
+                <div class="notification-icon" style="width:40px; height:40px; border-radius:12px; background:rgba(255,255,255,0.1); display:grid; place-items:center; flex-shrink:0; font-size:20px;">
+                  {% if item.type == 'like' %}❤️{% elif item.type == 'comment' %}💬{% elif item.type == 'follow' %}👤{% elif item.type == 'friend_request' %}🤝{% elif item.type == 'message' %}✉️{% elif item.type == 'gift' %}🎁{% elif item.type == 'deposit' %}💰{% elif item.type == 'withdrawal' %}💸{% else %}⚡{% endif %}
                 </div>
-                {% if item.is_new and item.notification_id %}
-                  <form method="post" action="{% url 'notification_mark_read' item.notification_id %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <button class="notification-cta" type="submit" style="margin-top:4px;">Mark read</button>
-                  </form>
-                {% endif %}
+                <div style="flex:1; min-width:0;">
+                  <a href="{{ item.href }}" style="text-decoration:none;color:inherit;display:grid;gap:4px;">
+                    <div class="notification-meta">
+                      {% if item.is_new %}<span class="notification-dot" aria-hidden="true" style="box-shadow: 0 0 10px #ec4899;"></span>{% endif %}
+                      <strong>{{ item.title }}</strong>
+                    </div>
+                    <p style="font-size:14px; margin:0;">{{ item.copy }}</p>
+                    <small style="font-size:12px; opacity:0.6;">{{ item.meta|timesince }} ago</small>
+                  </a>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <a class="notification-cta" href="{{ item.href }}" style="padding:6px 12px; font-size:12px;">{{ item.action_label|default:"Open" }}</a>
+                  {% if item.is_new and item.notification_id %}
+                    <form method="post" action="{% url 'notification_mark_read' item.notification_id %}" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button class="notification-cta" type="submit" style="padding:6px 12px; font-size:12px; background:rgba(255,255,255,0.1);">Mark read</button>
+                    </form>
+                  {% endif %}
+                </div>
               </div>
             {% endfor %}
           </div>

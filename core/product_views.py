@@ -202,6 +202,7 @@ def notifications_view(request):
                 return "Open"
 
             today = timezone.localdate()
+            yesterday = today - timezone.timedelta(days=1)
 
             latest_messages = list(Message.objects.filter(conversation__participants=request.user).exclude(sender=request.user).select_related("sender").order_by("-created_at")[:8])
             follows = list(Follow.objects.filter(following=request.user).select_related("follower", "follower__profile").order_by("-created_at")[:6])
@@ -229,8 +230,25 @@ def notifications_view(request):
                     Notification.Type.LIKE: "Likes",
                     Notification.Type.COMMENT: "Comments",
                     Notification.Type.FRIEND_REQUEST: "Friends",
+                    Notification.Type.GIFT: "Gifts",
+                    Notification.Type.DEPOSIT: "Wallet",
+                    Notification.Type.WITHDRAWAL: "Wallet",
+                    Notification.Type.MESSAGE: "Messages",
                     Notification.Type.SYSTEM: "System",
                 }.get(n.notification_type, "System")
+                
+                type_map = {
+                    Notification.Type.FOLLOW: "follow",
+                    Notification.Type.LIKE: "like",
+                    Notification.Type.COMMENT: "comment",
+                    Notification.Type.FRIEND_REQUEST: "friend_request",
+                    Notification.Type.GIFT: "gift",
+                    Notification.Type.DEPOSIT: "deposit",
+                    Notification.Type.WITHDRAWAL: "withdrawal",
+                    Notification.Type.MESSAGE: "message",
+                    Notification.Type.SYSTEM: "system",
+                }
+                
                 items.append({
                     "group": group_title,
                     "title": n.message or f"New {n.notification_type}",
@@ -239,26 +257,35 @@ def notifications_view(request):
                     "href": _safe_target(n.target_url, "/notifications/"),
                     "is_new": not n.is_read,
                     "notification_id": n.id,
+                    "type": type_map.get(n.notification_type, "system")
                 })
             
             # centralize others
-            items.extend({"group": "Messages", "title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages", "is_new": True} for row in latest_messages)
-            items.extend({"group": "Friends", "title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review and accept from your account hub.", "href": "/friends/", "is_new": True} for row in friend_requests)
-            items.extend({"group": "Friends", "title": f"@{row.to_user.profile.username} accepted your friend request", "meta": row.updated_at, "copy": "Chat is now open between both of you.", "href": "/friends/", "is_new": True} for row in accepted_friends)
-            items.extend({"group": "Dating", "title": f"@{row.from_user.profile.username} liked your dating profile", "meta": row.created_at, "copy": "Open dating likes.", "href": "/dating/likes/", "is_new": True} for row in dating_likes)
-            items.extend({"group": "Comments", "title": f"@{row.author.profile.username} commented on your post", "meta": row.created_at, "copy": row.body[:90], "href": f"/post/{row.post.uuid}/", "is_new": True} for row in post_comments)
-            items.extend({"group": "Comments", "title": f"@{row.author.profile.username} replied to your comment", "meta": row.created_at, "copy": row.body[:90], "href": f"/post/{row.post.uuid}/", "is_new": True} for row in comment_replies)
+            items.extend({"group": "Messages", "title": f"@{row.sender.username} sent you a message", "meta": row.created_at, "copy": row.text or "New media message", "href": "/accounts/dashboard/?section=messages", "is_new": True, "type": "message"} for row in latest_messages)
+            items.extend({"group": "Follows", "title": f"@{row.follower.profile.username} followed you", "meta": row.created_at, "copy": "Follow them back to stay connected.", "href": f"/profile/{row.follower.profile.username}/", "is_new": True, "type": "follow"} for row in follows)
+            items.extend({"group": "Friends", "title": f"@{row.from_user.profile.username} sent a friend request", "meta": row.created_at, "copy": "Review and accept from your account hub.", "href": "/friends/", "is_new": True, "type": "friend_request"} for row in friend_requests)
+            items.extend({"group": "Friends", "title": f"@{row.to_user.profile.username} accepted your friend request", "meta": row.updated_at, "copy": "Chat is now open between both of you.", "href": "/friends/", "is_new": True, "type": "friend_request"} for row in accepted_friends)
+            items.extend({"group": "Dating", "title": f"@{row.from_user.profile.username} liked your dating profile", "meta": row.created_at, "copy": "Open dating likes.", "href": "/dating/likes/", "is_new": True, "type": "like"} for row in dating_likes)
+            items.extend({"group": "Comments", "title": f"@{row.author.profile.username} commented on your post", "meta": row.created_at, "copy": row.body[:90], "href": f"/post/{row.post.uuid}/", "is_new": True, "type": "comment"} for row in post_comments)
+            items.extend({"group": "Comments", "title": f"@{row.author.profile.username} replied to your comment", "meta": row.created_at, "copy": row.body[:90], "href": f"/post/{row.post.uuid}/", "is_new": True, "type": "comment"} for row in comment_replies)
             
-            ordered_items = sorted(items, key=lambda item: item["meta"], reverse=True)[:20]
+            ordered_items = sorted(items, key=lambda item: item["meta"], reverse=True)[:30]
             for item in ordered_items:
-                item["time_bucket"] = "Today" if timezone.localtime(item["meta"]).date() == today else "Earlier"
+                item_date = timezone.localtime(item["meta"]).date()
+                if item_date == today:
+                    item["time_bucket"] = "Today"
+                elif item_date == yesterday:
+                    item["time_bucket"] = "Yesterday"
+                else:
+                    item["time_bucket"] = "Earlier"
                 item["action_label"] = _action_label(item)
+            
             context["notification_items"] = ordered_items
             groups = []
-            for bucket_name in ["Today", "Earlier"]:
+            for bucket_name in ["Today", "Yesterday", "Earlier"]:
                 bucket_items = [item for item in ordered_items if item["time_bucket"] == bucket_name]
                 if bucket_items:
-                    groups.append({"title": bucket_name, "items": bucket_items[:10]})
+                    groups.append({"title": bucket_name, "items": bucket_items})
             context["notification_groups"] = groups
         except Exception as exc:
             context["safe_mode_message"] = str(exc)

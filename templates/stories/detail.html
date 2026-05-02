@@ -175,9 +175,12 @@
       {% if story.caption %}<div class="story-caption-box">{{ story.caption }}</div>{% endif %}
       <div class="story-meta-row">
         {% if request.user == story.author %}
-          <a href="{% url 'story_viewers' story.id %}" class="story-pill" style="text-decoration:none;">👁 {{ story.view_count|default:0 }} (Viewers)</a>
+          <a href="{% url 'story_viewers' story.id %}" class="story-pill" style="text-decoration:none;">👁 Seen by {{ story.view_count|default:0 }} people</a>
         {% else %}
-          <span class="story-pill">👁 {{ story.view_count|default:0 }}</span>
+          <span class="story-pill">👁 {{ story.view_count|default:0 }} views</span>
+          {% if request.user.is_authenticated %}
+            <a href="{% url 'messaging:start_chat' story.author.id %}?reply_to_story={{ story.id }}" class="story-pill primary" style="text-decoration:none; background:var(--nv-grad); border:none;">Reply</a>
+          {% endif %}
         {% endif %}
         <span class="story-pill">❤️ {{ story.like_count|default:0 }}</span>
         <span class="story-pill">💬 {{ comments|length }}</span>

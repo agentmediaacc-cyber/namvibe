@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
@@ -165,4 +166,5 @@ def story_view_view(request, id):
 def story_viewers_view(request, id):
     story = get_object_or_404(StoryItem, id=id, author=request.user)
     viewers = story.views.select_related("viewer", "viewer__profile").order_by("-created_at")
-    return render(request, "stories/viewers.html", {"story": story, "viewers": viewers})
+    one_hour_ago = timezone.now() - timezone.timedelta(hours=1)
+    return render(request, "stories/viewers.html", {"story": story, "viewers": viewers, "one_hour_ago": one_hour_ago})

@@ -40,7 +40,12 @@
             <div class="viewer-avatar">{{ view.viewer.username|first|upper }}</div>
           {% endif %}
           <div class="viewer-info">
-            <strong>{{ view.viewer.profile.display_name|default:view.viewer.username }}</strong>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <strong>{{ view.viewer.profile.display_name|default:view.viewer.username }}</strong>
+              {% if view.created_at > one_hour_ago %}
+                <span style="background:var(--nv-grad); font-size:10px; padding:2px 6px; border-radius:4px; font-weight:900;">NEW</span>
+              {% endif %}
+            </div>
             <small>@{{ view.viewer.profile.username }} · {{ view.created_at|timesince }} ago</small>
           </div>
         </a>
