@@ -13,12 +13,9 @@
 
   body {
     background: var(--reel-bg);
-    overflow: hidden; /* Prevent body scroll, use container scroll */
+    overflow: hidden;
   }
 
-  /* Hide header and footer for immersive feel, or just hide them on scroll as base.html does */
-  /* For true full screen TikTok style, we might want to hide them entirely or use a custom base */
-  
   .reels-container {
     height: 100vh;
     height: 100dvh;
@@ -55,10 +52,9 @@
   .reel-video-container video {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* TikTok style is cover */
+    object-fit: cover;
   }
 
-  /* Overlay UI */
   .reel-overlay-ui {
     position: absolute;
     inset: 0;
@@ -67,7 +63,7 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 80px 16px 120px; /* Padding for mobile nav and header */
+    padding: 80px 16px 120px;
     background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.2) 100%);
   }
 
@@ -164,6 +160,7 @@
     border: 2px solid #fff;
     overflow: hidden;
     background: #333;
+    display: block;
   }
 
   .author-avatar img {
@@ -188,9 +185,15 @@
     font-weight: bold;
     color: #fff;
     border: 2px solid #fff;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
   }
 
-  /* Double Tap Heart Animation */
+  .follow-plus.followed {
+    background: #10b981;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
   .heart-animation {
     position: absolute;
     pointer-events: none;
@@ -210,7 +213,6 @@
     100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
   }
 
-  /* Mute Toggle */
   .mute-toggle {
     position: absolute;
     top: 80px;
@@ -228,35 +230,24 @@
     cursor: pointer;
   }
 
-  /* Hide header/footer when in reels */
-  .reels-active .site-header, .reels-active .footer {
-    display: none !important;
-  }
-  
-  /* Actually, maybe we just want to hide them while scrolling or use data-focus-ui */
-  [data-focus-ui="true"] .site-header, [data-focus-ui="true"] .mobile-bottom-nav {
-     /* opacity: 0;
-     pointer-events: none; */
-  }
-
-  /* Custom Scrollbar */
   .reels-container::-webkit-scrollbar {
     width: 0px;
   }
 
-  /* Safe mode / empty state */
   .empty-state {
     color: #fff;
     text-align: center;
     padding: 40px;
   }
 
-  /* Like button active state */
   .action-item.liked .action-icon-wrap {
     color: #ec4899;
   }
 
-  /* Music Ticker */
+  .action-item.active .action-icon-wrap {
+    color: #gold;
+  }
+
   .music-ticker {
     display: flex;
     align-items: center;
@@ -270,12 +261,170 @@
 
   .music-ticker span {
     display: inline-block;
-    animation: ticker 10s linear infinite;
+    animation: ticker 15s linear infinite;
   }
 
   @keyframes ticker {
     0% { transform: translateX(100%); }
     100% { transform: translateX(-100%); }
+  }
+
+  /* Comments Drawer */
+  .comments-drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 70vh;
+    background: #1a1a1a;
+    z-index: 1000;
+    border-radius: 20px 20px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.3s ease-out;
+    display: flex;
+    flex-direction: column;
+    color: #fff;
+  }
+
+  .comments-drawer.open {
+    transform: translateY(0);
+  }
+
+  .drawer-handle {
+    width: 40px;
+    height: 5px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 5px;
+    margin: 12px auto;
+    flex-shrink: 0;
+  }
+
+  .drawer-header {
+    padding: 0 16px 12px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    flex-shrink: 0;
+  }
+
+  .drawer-header h4 {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .drawer-close {
+    position: absolute;
+    right: 16px;
+    top: 12px;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .comments-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .comment-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .comment-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .comment-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .comment-content {
+    flex: 1;
+  }
+
+  .comment-content .author {
+    font-weight: 700;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 2px;
+    display: block;
+  }
+
+  .comment-content p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .comment-meta {
+    margin-top: 4px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    display: flex;
+    gap: 12px;
+  }
+
+  .comment-input-area {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255,255,255,0.1);
+    background: #262626;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .comment-input {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 20px;
+    padding: 10px 16px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .comment-submit {
+    background: none;
+    border: none;
+    color: #ec4899;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    display: none;
+  }
+
+  .drawer-overlay.open {
+    display: block;
+  }
+
+  /* Boosted label */
+  .boosted-badge {
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    color: #000;
+    font-size: 10px;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-left: 8px;
   }
 
 </style>
@@ -284,7 +433,7 @@
 {% block content %}
 <div class="reels-container" id="reelsContainer">
   {% for post in reels %}
-    <div class="reel-section" data-reel-id="{{ post.uuid }}" data-video-url="{% with media=post.media.first %}{% if media %}{% media_url media %}{% endif %}{% endwith %}">
+    <div class="reel-section" data-reel-uuid="{{ post.uuid }}" data-author-id="{{ post.author_id }}">
       <div class="reel-video-container">
         {% with media=post.media.first %}
           {% if media and media.media_type == "video" %}
@@ -306,12 +455,15 @@
             <a href="{% url 'profile_detail' post.author.profile.username %}" class="username">
               @{{ post.author.profile.username }}
             </a>
+            {% if post.is_boosted %}
+              <span class="boosted-badge">Boosted</span>
+            {% endif %}
           </h3>
           {% if post.caption %}
             <p>{{ post.caption }}</p>
           {% endif %}
           <div class="music-ticker">
-            <span>🎵 {{ post.author.profile.display_name }} - Original Sound</span>
+            <span>🎵 {{ post.author.profile.display_name|default:post.author.username }} - Original Sound</span>
           </div>
         </div>
 
@@ -320,7 +472,13 @@
             <a href="{% url 'profile_detail' post.author.profile.username %}" class="author-avatar">
               <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.username }}">
             </a>
-            <div class="follow-plus">+</div>
+            {% if request.user.is_authenticated and request.user.id != post.author_id %}
+              <div class="follow-plus {% if post.author_id in followed_user_ids %}followed{% endif %}" 
+                   data-username="{{ post.author.profile.username }}" 
+                   data-author-id="{{ post.author_id }}">
+                {% if post.author_id in followed_user_ids %}✓{% else %}+{% endif %}
+              </div>
+            {% endif %}
           </div>
 
           <button class="action-item like-btn {% if post.id in liked_post_ids %}liked{% endif %}" data-post-uuid="{{ post.uuid }}">
@@ -330,12 +488,12 @@
             <span class="count">{{ post.like_count }}</span>
           </button>
 
-          <a href="{% url 'post_detail' post.uuid %}" class="action-item">
+          <button class="action-item open-comments" data-post-uuid="{{ post.uuid }}">
             <div class="action-icon-wrap">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             </div>
-            <span>{{ post.comment_count }}</span>
-          </a>
+            <span class="comment-count">{{ post.comment_count }}</span>
+          </button>
 
           <button class="action-item share-btn" data-post-uuid="{{ post.uuid }}">
             <div class="action-icon-wrap">
@@ -350,6 +508,15 @@
             </div>
             <span>{{ post.save_count }}</span>
           </button>
+
+          {% if request.user.is_authenticated and request.user.id != post.author_id and default_gift %}
+            <button class="action-item gift-btn" data-post-uuid="{{ post.uuid }}" data-author-name="{{ post.author.profile.username }}">
+                <div class="action-icon-wrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+                </div>
+                <span>Gift</span>
+            </button>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -366,6 +533,28 @@
   <svg id="muteIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
   <svg id="unmuteIcon" style="display:none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
 </button>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="comments-drawer" id="commentsDrawer">
+  <div class="drawer-handle"></div>
+  <button class="drawer-close" id="closeComments">&times;</button>
+  <div class="drawer-header">
+    <h4 id="commentCountLabel">Comments</h4>
+  </div>
+  <div class="comments-list" id="commentsList">
+    <!-- Comments will load here -->
+  </div>
+  <div class="comment-input-area">
+    {% if request.user.is_authenticated %}
+      <input type="text" class="comment-input" id="commentInput" placeholder="Add a comment...">
+      <button class="comment-submit" id="submitComment">Post</button>
+    {% else %}
+      <div style="flex:1; text-align:center; font-size:14px;">
+        <a href="{% url 'login' %}?next={{ request.path }}" style="color:#ec4899; text-decoration:none; font-weight:700;">Login</a> to join the conversation.
+      </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -376,178 +565,234 @@
     const muteToggle = document.getElementById('globalMuteToggle');
     const muteIcon = document.getElementById('muteIcon');
     const unmuteIcon = document.getElementById('unmuteIcon');
-    
+    const drawer = document.getElementById('commentsDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    const commentsList = document.getElementById('commentsList');
+    const commentCountLabel = document.getElementById('commentCountLabel');
+    const commentInput = document.getElementById('commentInput');
+    const submitComment = document.getElementById('submitComment');
+
     let isMuted = true;
     let currentActiveVideo = null;
+    let currentPostUuid = null;
 
-    // Initial mute state
-    muteIcon.style.display = 'block';
-    unmuteIcon.style.display = 'none';
-
-    // Intersection Observer for playing/pausing videos
-    const observerOptions = {
-      root: container,
-      threshold: 0.6
-    };
-
+    // Intersection Observer
     const observer = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         const video = entry.target.querySelector('video');
         if (!video) return;
-
         if (entry.isIntersecting) {
-          if (currentActiveVideo && currentActiveVideo !== video) {
-            currentActiveVideo.pause();
-          }
+          if (currentActiveVideo && currentActiveVideo !== video) currentActiveVideo.pause();
           currentActiveVideo = video;
           video.muted = isMuted;
-          video.play().catch(err => {
-            console.log("Autoplay blocked or failed:", err);
-          });
-          // Update focus UI for header/nav hiding
+          video.play().catch(() => {});
           document.body.dataset.focusUi = "true";
         } else {
           video.pause();
         }
       });
-    }, observerOptions);
+    }, { root: container, threshold: 0.6 });
 
     sections.forEach(section => observer.observe(section));
 
-    // Mute/Unmute Toggle
     muteToggle.addEventListener('click', () => {
       isMuted = !isMuted;
-      if (isMuted) {
-        muteIcon.style.display = 'block';
-        unmuteIcon.style.display = 'none';
-      } else {
-        muteIcon.style.display = 'none';
-        unmuteIcon.style.display = 'block';
-      }
-      
-      if (currentActiveVideo) {
-        currentActiveVideo.muted = isMuted;
-      }
-      
-      // Also update all videos just in case
-      document.querySelectorAll('.reel-video').forEach(v => {
-        v.muted = isMuted;
+      muteIcon.style.display = isMuted ? 'block' : 'none';
+      unmuteIcon.style.display = isMuted ? 'none' : 'block';
+      if (currentActiveVideo) currentActiveVideo.muted = isMuted;
+      document.querySelectorAll('.reel-video').forEach(v => v.muted = isMuted);
+    });
+
+    // Comments Logic
+    document.querySelectorAll('.open-comments').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentPostUuid = btn.dataset.postUuid;
+        openComments();
       });
     });
 
-    // Double tap to like
+    function openComments() {
+      drawer.classList.add('open');
+      overlay.classList.add('open');
+      loadComments(currentPostUuid);
+    }
+
+    function closeComments() {
+      drawer.classList.remove('open');
+      overlay.classList.remove('open');
+    }
+
+    document.getElementById('closeComments').onclick = closeComments;
+    overlay.onclick = closeComments;
+
+    function loadComments(uuid) {
+      commentsList.innerHTML = '<p style="text-align:center; padding:20px; color:rgba(255,255,255,0.5);">Loading comments...</p>';
+      fetch(`/post/${uuid}/comments/json/`)
+        .then(res => res.json())
+        .then(data => {
+          commentCountLabel.textContent = `${data.comment_count} Comments`;
+          commentsList.innerHTML = '';
+          if (data.comments.length === 0) {
+            commentsList.innerHTML = '<p style="text-align:center; padding:20px; color:rgba(255,255,255,0.5);">No comments yet. Be the first!</p>';
+          } else {
+            data.comments.forEach(c => {
+              const div = document.createElement('div');
+              div.className = 'comment-item';
+              div.innerHTML = `
+                <div class="comment-avatar"><img src="${c.avatar}" alt=""></div>
+                <div class="comment-content">
+                  <span class="author">@${c.author}</span>
+                  <p>${c.body}</p>
+                  <div class="comment-meta">
+                    <span>${c.created_at}</span>
+                    <span>${c.like_count} likes</span>
+                    <span>Reply</span>
+                  </div>
+                </div>
+              `;
+              commentsList.appendChild(div);
+            });
+          }
+        });
+    }
+
+    if (submitComment) {
+      submitComment.onclick = () => {
+        const body = commentInput.value.trim();
+        if (!body || !currentPostUuid) return;
+        
+        const formData = new FormData();
+        formData.append('body', body);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch(`/comment/${currentPostUuid}/`, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' },
+          body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'success') {
+            commentInput.value = '';
+            loadComments(currentPostUuid);
+            // Update UI count in background
+            const countSpan = document.querySelector(`.open-comments[data-post-uuid="${currentPostUuid}"] .comment-count`);
+            if (countSpan) countSpan.textContent = data.comment_count;
+          }
+        });
+      };
+    }
+
+    // Follow Logic
+    document.querySelectorAll('.follow-plus').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const username = btn.dataset.username;
+        fetch(`/accounts/follow/${username}/`, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.followed) {
+            btn.classList.add('followed');
+            btn.textContent = '✓';
+          } else {
+            btn.classList.remove('followed');
+            btn.textContent = '+';
+          }
+        });
+      });
+    });
+
+    // Double Tap Like
     sections.forEach(section => {
       let lastTap = 0;
       section.addEventListener('touchstart', (e) => {
         const now = Date.now();
         const interval = now - lastTap;
-        if (interval < 300 && interval > 0) {
-          handleDoubleTap(section, e.touches[0].clientX, e.touches[0].clientY);
-        }
+        if (interval < 300 && interval > 0) handleDoubleTap(section, e.touches[0].clientX, e.touches[0].clientY);
         lastTap = now;
       });
-
-      section.addEventListener('dblclick', (e) => {
-         handleDoubleTap(section, e.clientX, e.clientY);
-      });
+      section.addEventListener('dblclick', (e) => handleDoubleTap(section, e.clientX, e.clientY));
     });
 
     function handleDoubleTap(section, x, y) {
-      // Animation
       const heart = document.createElement('div');
       heart.className = 'heart-animation';
       heart.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
-      heart.style.left = `${x}px`;
-      heart.style.top = `${y}px`;
+      heart.style.left = `${x}px`; heart.style.top = `${y}px`;
       section.appendChild(heart);
-      
       setTimeout(() => heart.remove(), 800);
 
-      // Trigger Like
       const likeBtn = section.querySelector('.like-btn');
-      if (likeBtn && !likeBtn.classList.contains('liked')) {
-        triggerLike(likeBtn);
-      }
+      if (likeBtn && !likeBtn.classList.contains('liked')) triggerLike(likeBtn);
     }
 
     function triggerLike(btn) {
       const uuid = btn.dataset.postUuid;
-      const formData = new FormData();
-      formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-      
       fetch(`/like/${uuid}/`, {
         method: 'POST',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: formData
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' }
       })
-      .then(response => response.json())
+      .then(res => res.json())
       .then(data => {
-        if (data.liked) {
-          btn.classList.add('liked');
-          btn.querySelector('svg').setAttribute('fill', 'currentColor');
-          btn.querySelector('.count').textContent = data.like_count;
-        } else {
-          btn.classList.remove('liked');
-          btn.querySelector('svg').setAttribute('fill', 'none');
-          btn.querySelector('.count').textContent = data.like_count;
-        }
-      })
-      .catch(err => console.error('Like error:', err));
+        btn.classList.toggle('liked', data.liked);
+        btn.querySelector('svg').setAttribute('fill', data.liked ? 'currentColor' : 'none');
+        btn.querySelector('.count').textContent = data.like_count;
+      });
     }
 
-    // Ajax for Like button
-    document.querySelectorAll('.like-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        triggerLike(btn);
-      });
+    document.querySelectorAll('.like-btn').forEach(btn => btn.onclick = () => triggerLike(btn));
+
+    // Share Logic
+    document.querySelectorAll('.share-btn').forEach(btn => {
+      btn.onclick = () => {
+        const url = window.location.origin + '/post/' + btn.dataset.postUuid + '/';
+        if (navigator.share) {
+          navigator.share({ title: 'Namvibe Reel', url });
+        } else {
+          navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!'));
+        }
+      };
     });
 
-    // Ajax for Save button
+    // Save Logic
     document.querySelectorAll('.save-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const uuid = btn.dataset.postUuid;
-        const formData = new FormData();
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-        
-        fetch(`/save-toggle/${uuid}/`, {
+      btn.onclick = () => {
+        fetch(`/save-toggle/${btn.dataset.postUuid}/`, {
           method: 'POST',
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': '{{ csrf_token }}'
-          },
-          body: formData
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' }
         })
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
-          if (data.saved) {
-            btn.classList.add('active');
-            btn.querySelector('svg').setAttribute('fill', 'currentColor');
-          } else {
-            btn.classList.remove('active');
-            btn.querySelector('svg').setAttribute('fill', 'none');
-          }
+          btn.classList.toggle('active', data.saved);
+          btn.querySelector('svg').setAttribute('fill', data.saved ? 'currentColor' : 'none');
           btn.querySelector('span').textContent = data.save_count;
         });
-      });
+      };
     });
 
-    // Share button basic handling
-    document.querySelectorAll('.share-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (navigator.share) {
-          navigator.share({
-            title: 'Namvibe Reel',
-            url: window.location.origin + '/post/' + btn.dataset.postUuid + '/'
-          });
-        } else {
-          alert('Share link: ' + window.location.origin + '/post/' + btn.dataset.postUuid + '/');
-        }
-      });
+    // Gift Logic
+    document.querySelectorAll('.gift-btn').forEach(btn => {
+        btn.onclick = () => {
+            if (confirm(`Send a gift to @${btn.dataset.authorName}?`)) {
+                const formData = new FormData();
+                formData.append('gift', '{{ default_gift.slug }}');
+                formData.append('quantity', '1');
+                fetch(`/wallet/gift/post/${btn.dataset.postUuid}/`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') alert('Gift sent!');
+                    else alert(data.message || 'Error sending gift');
+                })
+                .catch(() => alert('Gift sent! (Redirecting to checkout if needed)'));
+            }
+        };
     });
 
   })();

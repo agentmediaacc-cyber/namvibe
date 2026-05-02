@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
 
-from accounts.models import Profile
+from accounts.models import Follow, Profile
 from accounts.supabase import supabase_profile_id_for_user
 from communities.models import Community
 from live.models import LiveSession
@@ -516,24 +516,61 @@ def community_feed_view(request, slug):
     )
 
 
+def get_comments_view(request, uuid):
+    post = get_object_or_404(Post, uuid=uuid)
+    if not Post.objects.visible_to(request.user).filter(pk=post.pk).exists():
+        return HttpResponseForbidden("You cannot view comments for this post.")
+    
+    comments = threaded_comments_for_post(post)
+    comment_data = []
+    for c in comments:
+        profile = getattr(c.author, "profile", None)
+        comment_data.append({
+            "id": c.id,
+            "author": profile.username if profile else c.author.username,
+            "display_name": (profile.display_name if profile else "") or c.author.username,
+            "avatar": profile.avatar.url if profile and profile.avatar else "/static/images/default-avatar.svg",
+            "body": c.body,
+            "created_at": "Just now" if (timezone.now() - c.created_at).total_seconds() < 60 else f"{int((timezone.now() - c.created_at).total_seconds() // 60)}m ago",
+            "like_count": c.like_count,
+            "is_pinned": c.is_pinned,
+            "replies": [{
+                "author": r.author.profile.username if hasattr(r.author, "profile") else r.author.username,
+                "body": r.body
+            } for r in c.replies.all() if not r.is_deleted]
+        })
+    
+    return JsonResponse({
+        "comments": comment_data,
+        "comment_count": post.comment_count,
+        "allow_comments": post.allow_comments
+    })
+
+
 def reels_feed_view(request):
     safe_mode_message = ""
     liked_post_ids = []
     saved_post_ids = []
+    followed_user_ids = []
     try:
         queryset = base_visible_posts(request.user).published().filter(
             post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO]
         )
+        # discovery ranking: newest first, boosted higher, followed higher
         ranked_posts = FeedRankingService(request.user).rank(queryset, limit=50)
         ranked_posts = _decorate_posts_for_display(ranked_posts)
 
         if request.user.is_authenticated:
             liked_post_ids = list(Like.objects.filter(user=request.user, post__in=ranked_posts).values_list("post_id", flat=True))
             saved_post_ids = list(Save.objects.filter(user=request.user, post__in=ranked_posts).values_list("post_id", flat=True))
+            author_ids = [p.author_id for p in ranked_posts]
+            followed_user_ids = list(Follow.objects.filter(follower=request.user, following_id__in=author_ids).values_list("following_id", flat=True))
 
     except Exception as exc:
         safe_mode_message = _handle_feed_exception(exc)
         ranked_posts = []
+
+    default_gift = active_gifts().first()
 
     return render(
         request,
@@ -542,6 +579,8 @@ def reels_feed_view(request):
             "reels": ranked_posts,
             "liked_post_ids": liked_post_ids,
             "saved_post_ids": saved_post_ids,
+            "followed_user_ids": followed_user_ids,
+            "default_gift": default_gift,
             "safe_mode_message": safe_mode_message,
         },
     )

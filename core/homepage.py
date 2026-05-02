@@ -561,6 +561,16 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, membe
     return modules[:20]
 
 
+def _mobile_action_items(user):
+    return [
+        {"label": "Home", "icon": "home", "url": reverse("home"), "active": True},
+        {"label": "Reels", "icon": "video", "url": reverse("reels_feed")},
+        {"label": "Create", "icon": "plus", "drawer_trigger": True},
+        {"label": "Dating", "icon": "heart", "url": reverse("dating")},
+        {"label": "Live", "icon": "tv", "url": reverse("live_home")},
+    ]
+
+
 def homepage_context(request, page=1, fragment=False):
     user = request.user
     page = max(1, min(int(page or 1), 50))
@@ -663,6 +673,7 @@ def homepage_context(request, page=1, fragment=False):
     hero_metrics = _public_metrics(total_members, total_posts, total_live, total_stories)
 
     return {
+        "mobile_action_items": _mobile_action_items(user),
         "public_feed_items": public_feed_items,
         "preview_limit": 5,
         "story_rail": story_rail,

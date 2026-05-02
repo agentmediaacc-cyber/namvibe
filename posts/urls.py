@@ -1,4 +1,5 @@
 from django.urls import path
+from . import views
 
 from .views import (
     add_comment_view,
@@ -84,4 +85,5 @@ urlpatterns = [
     path("hashtags/<str:tag>/", hashtag_view, name="posts_hashtag"),
     path("profile/<str:username>/report/", report_user_view, name="posts_report_user"),
     path("reels/create/quick/", reel_quick_create_view, name="reel_quick_create"),
+    path("post/<uuid:uuid>/comments/json/", views.get_comments_view, name="get_comments_json"),
 ]
