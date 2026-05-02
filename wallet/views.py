@@ -4,6 +4,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -39,6 +40,132 @@ from .services import (
     send_gift,
 )
 
+
+import random
+import string
+from django.http import HttpResponse, HttpResponseForbidden
+from .models import ManualDeposit, WithdrawalRequest
+from .utils import generate_invoice_pdf
+
+def _generate_ref(prefix):
+    unique = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return f"NAMVIBE-{prefix}-{timezone.now().strftime('%Y%m%d')}-{unique}"
+
+@login_required(login_url="login")
+def manual_deposit_view(request):
+    if request.method == "POST":
+        amount_str = request.POST.get("amount")
+        try:
+            amount = Decimal(amount_str)
+            if amount <= 0:
+                raise ValueError("Amount must be positive")
+            
+            deposit = ManualDeposit.objects.create(
+                user=request.user,
+                amount=amount,
+                request_id=_generate_ref("DEP")
+            )
+            messages.success(request, f"Deposit request created. Reference: {deposit.request_id}")
+            return redirect("manual_deposit_detail", request_id=deposit.request_id)
+        except (ValueError, Decimal.InvalidOperation):
+            messages.error(request, "Invalid deposit amount.")
+            
+    return render(request, "wallet/manual_deposit.html")
+
+@login_required(login_url="login")
+def manual_deposit_detail_view(request, request_id):
+    deposit = get_object_or_404(ManualDeposit, request_id=request_id, user=request.user)
+    return render(request, "wallet/manual_deposit_detail.html", {"deposit": deposit})
+
+@login_required(login_url="login")
+def download_deposit_invoice_view(request, request_id):
+    deposit = get_object_or_404(ManualDeposit, request_id=request_id, user=request.user)
+    pdf_buffer = generate_invoice_pdf(deposit)
+    response = HttpResponse(pdf_buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Namvibe_Invoice_{deposit.request_id}.pdf"'
+    return response
+
+@login_required(login_url="login")
+def manual_withdrawal_view(request):
+    wallet = ensure_wallet(request.user)
+    if request.method == "POST":
+        amount_str = request.POST.get("amount")
+        try:
+            amount = Decimal(amount_str)
+            if amount <= 0:
+                raise ValueError("Amount must be positive")
+            if amount > wallet.available_balance:
+                messages.error(request, "Insufficient available balance.")
+                return redirect("manual_withdrawal")
+            
+            # Create request and debit wallet (pending status)
+            with transaction.atomic():
+                WithdrawalRequest.objects.create(
+                    user=request.user,
+                    amount=amount,
+                    request_id=_generate_ref("WD")
+                )
+                debit_wallet(request.user, amount, WalletTransaction.Type.WITHDRAWAL, reference="manual-withdrawal-request")
+            
+            messages.success(request, "Withdrawal request submitted for approval.")
+            return redirect("wallet_home")
+        except (ValueError, Decimal.InvalidOperation):
+            messages.error(request, "Invalid withdrawal amount.")
+            
+    return render(request, "wallet/manual_withdrawal.html", {"wallet": wallet})
+
+@staff_member_required(login_url="login")
+def staff_deposits_list_view(request):
+    deposits = ManualDeposit.objects.select_related("user", "user__profile").all()
+    return render(request, "wallet/staff_deposits.html", {"deposits": deposits})
+
+@staff_member_required(login_url="login")
+@require_POST
+def staff_approve_deposit_view(request, pk):
+    deposit = get_object_or_404(ManualDeposit, pk=pk, status=ManualDeposit.Status.PENDING)
+    with transaction.atomic():
+        deposit.status = ManualDeposit.Status.APPROVED
+        deposit.save()
+        credit_wallet(deposit.user, deposit.amount, WalletTransaction.Type.DEPOSIT, reference=f"approved-{deposit.request_id}")
+    messages.success(request, f"Deposit {deposit.request_id} approved and credited.")
+    return redirect("staff_deposits_list")
+
+@staff_member_required(login_url="login")
+@require_POST
+def staff_reject_deposit_view(request, pk):
+    deposit = get_object_or_404(ManualDeposit, pk=pk, status=ManualDeposit.Status.PENDING)
+    deposit.status = ManualDeposit.Status.REJECTED
+    deposit.admin_notes = request.POST.get("notes", "")
+    deposit.save()
+    messages.info(request, f"Deposit {deposit.request_id} rejected.")
+    return redirect("staff_deposits_list")
+
+@staff_member_required(login_url="login")
+def staff_withdrawals_list_view(request):
+    withdrawals = WithdrawalRequest.objects.select_related("user", "user__profile").all()
+    return render(request, "wallet/staff_withdrawals.html", {"withdrawals": withdrawals})
+
+@staff_member_required(login_url="login")
+@require_POST
+def staff_approve_withdrawal_view(request, pk):
+    withdrawal = get_object_or_404(WithdrawalRequest, pk=pk, status=WithdrawalRequest.Status.PENDING)
+    withdrawal.status = WithdrawalRequest.Status.PAID
+    withdrawal.save()
+    messages.success(request, f"Withdrawal {withdrawal.request_id} marked as PAID.")
+    return redirect("staff_withdrawals_list")
+
+@staff_member_required(login_url="login")
+@require_POST
+def staff_reject_withdrawal_view(request, pk):
+    withdrawal = get_object_or_404(WithdrawalRequest, pk=pk, status=WithdrawalRequest.Status.PENDING)
+    with transaction.atomic():
+        withdrawal.status = WithdrawalRequest.Status.REJECTED
+        withdrawal.admin_notes = request.POST.get("notes", "")
+        withdrawal.save()
+        # Refund the user's wallet
+        credit_wallet(withdrawal.user, withdrawal.amount, WalletTransaction.Type.REFUND, reference=f"rejected-{withdrawal.request_id}")
+    messages.info(request, f"Withdrawal {withdrawal.request_id} rejected and refunded.")
+    return redirect("staff_withdrawals_list")
 
 @login_required(login_url="login")
 def wallet_home_view(request):

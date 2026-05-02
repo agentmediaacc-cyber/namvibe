@@ -599,6 +599,8 @@ def homepage_context(request, page=1, fragment=False):
     followed_author_ids = set()
     if user.is_authenticated:
         followed_author_ids = set(Follow.objects.filter(follower=user).values_list("following_id", flat=True))
+    
+    reel_preview = []
     for post in primary_posts:
         post.is_boosted = post.id in boosted_post_ids
         post.author_premium_badge = premium_badge_for(post.author)
@@ -612,8 +614,12 @@ def homepage_context(request, page=1, fragment=False):
             post.discovery_label = "Popular now"
         elif post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}:
             post.discovery_label = "Watch now"
+            
+        if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}:
+            reel_preview.append(post)
+
     primary_posts.sort(key=lambda post: (not getattr(post, "is_boosted", False), -(post.published_at or post.created_at).timestamp()))
-    reel_preview = [post for post in primary_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
+    
     if fragment:
         if not primary_posts:
             return {"mixed_feed": [], "feed_fragment_empty": True}

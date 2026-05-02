@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Request Withdrawal | Namvibe{% endblock %}
+{% block content %}
+<style>
+  .wallet-shell{width:min(600px,calc(100% - 24px));margin:40px auto;padding:24px;background:rgba(255,255,255,.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:24px;color:#fff;}
+  .balance-card{background:rgba(255,255,255,0.05);padding:18px;border-radius:16px;margin-bottom:24px;border:1px solid rgba(255,255,255,0.1);}
+  .nv-input{width:100%;padding:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;font-size:1.1rem;margin:12px 0;}
+  .nv-btn{width:100%;padding:14px;border-radius:12px;font-weight:900;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;}
+</style>
+<div class="wallet-shell">
+    <h1>Withdraw Funds</h1>
+    <div class="balance-card">
+        <p>Available Balance:</p>
+        <h2 style="font-size:2rem;margin:4px 0;">NAD {{ wallet.available_balance }}</h2>
+    </div>
+    
+    <p>Enter the amount you wish to withdraw. Your request will be reviewed by our admin team.</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <label>Withdrawal Amount (NAD)</label>
+        <input type="number" name="amount" class="nv-input" step="0.01" min="20" max="{{ wallet.available_balance }}" placeholder="e.g. 50.00" required>
+        <button type="submit" class="nv-btn">Submit Withdrawal Request</button>
+    </form>
+    
+    <p style="margin-top:20px;font-size:0.9rem;color:rgba(255,255,255,0.6);">Minimum withdrawal: NAD 20.00. Requests are processed within 48 hours. A withdrawal token will be generated for tracking.</p>
+</div>
+{% endblock %}

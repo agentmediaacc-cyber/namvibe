@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Staff: Withdrawals | Namvibe{% endblock %}
+{% block content %}
+<style>
+  .staff-shell{width:min(1100px,calc(100% - 24px));margin:30px auto;color:#fff;}
+  .staff-card{background:rgba(255,255,255,.08);padding:24px;border-radius:24px;border:1px solid rgba(255,255,255,.1);margin-bottom:20px;}
+  table{width:100%;border-collapse:collapse;margin-top:20px;}
+  th,td{padding:12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);}
+  .status-pending{color:#facc15;}
+  .status-paid{color:#10b981;}
+  .status-rejected{color:#f43f5e;}
+  .nv-btn{padding:8px 12px;border-radius:8px;font-weight:700;border:none;cursor:pointer;background:#7c3aed;color:#fff;font-size:0.85rem;}
+  .nv-btn.reject{background:#f43f5e;margin-left:6px;}
+</style>
+<div class="staff-shell">
+    <h1>Withdrawal Requests Management</h1>
+    <div class="staff-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Ref ID</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in withdrawals %}
+                <tr>
+                    <td>@{{ w.user.username }}</td>
+                    <td>{{ w.request_id }}</td>
+                    <td>NAD {{ w.amount }}</td>
+                    <td class="status-{{ w.status }}">{{ w.status|upper }}</td>
+                    <td>
+                        {% if w.status == 'pending' %}
+                        <form method="post" action="{% url 'staff_approve_withdrawal' w.pk %}" style="display:inline;">
+                            {% csrf_token %}<button type="submit" class="nv-btn">Mark Paid</button>
+                        </form>
+                        <form method="post" action="{% url 'staff_reject_withdrawal' w.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="text" name="notes" placeholder="Reason" style="padding:6px;border-radius:6px;border:none;font-size:0.8rem;">
+                            <button type="submit" class="nv-btn reject">Reject & Refund</button>
+                        </form>
+                        {% else %}
+                        <span class="muted">Processed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align:center;">No withdrawal requests found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <a href="{% url 'wallet_staff_control' %}" style="color:#7c3aed;font-weight:800;text-decoration:none;">&larr; Back to Control</a>
+</div>
+{% endblock %}

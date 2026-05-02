@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Deposit Funds | Namvibe{% endblock %}
+{% block content %}
+<style>
+  .wallet-shell{width:min(600px,calc(100% - 24px));margin:40px auto;padding:24px;background:rgba(255,255,255,.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:24px;color:#fff;}
+  .nv-input{width:100%;padding:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;font-size:1.1rem;margin:12px 0;}
+  .nv-btn{width:100%;padding:14px;border-radius:12px;font-weight:900;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;}
+</style>
+<div class="wallet-shell">
+    <h1>Manual Deposit</h1>
+    <p>Enter the amount you wish to deposit into your Namvibe wallet.</p>
+    <form method="post">
+        {% csrf_token %}
+        <label>Amount (NAD)</label>
+        <input type="number" name="amount" class="nv-input" step="0.01" min="10" placeholder="e.g. 100.00" required>
+        <button type="submit" class="nv-btn">Create Deposit Request</button>
+    </form>
+    <p style="margin-top:20px;font-size:0.9rem;color:rgba(255,255,255,0.6);">Minimum deposit: NAD 10.00. Funds will be credited after admin approval.</p>
+</div>
+{% endblock %}

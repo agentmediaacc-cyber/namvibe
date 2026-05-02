@@ -1,4 +1,5 @@
 from django.urls import path
+from . import views
 
 from .views import (
     boost_post_view,
@@ -38,5 +39,16 @@ urlpatterns = [
     path("boost/post/<uuid:uuid>/", boost_post_view, name="wallet_boost_post"),
     path("boost/profile/<str:username>/", boost_profile_view, name="wallet_boost_profile"),
     path("boost/story/<int:id>/", boost_story_view, name="wallet_boost_story"),
-    path("staff/control/", staff_wallet_control_view, name="wallet_staff_control"),
-]
+    path("staff/control/", views.staff_wallet_control_view, name="wallet_staff_control"),
+    path("deposit/", views.manual_deposit_view, name="manual_deposit"),
+    path("deposit/<str:request_id>/", views.manual_deposit_detail_view, name="manual_deposit_detail"),
+    path("deposit/<str:request_id>/invoice/", views.download_deposit_invoice_view, name="download_deposit_invoice"),
+    path("withdraw/", views.manual_withdrawal_view, name="manual_withdrawal"),
+    path("staff/deposits/", views.staff_deposits_list_view, name="staff_deposits_list"),
+    path("staff/deposits/<int:pk>/approve/", views.staff_approve_deposit_view, name="staff_approve_deposit"),
+    path("staff/deposits/<int:pk>/reject/", views.staff_reject_deposit_view, name="staff_reject_deposit"),
+    path("staff/withdrawals/", views.staff_withdrawals_list_view, name="staff_withdrawals_list"),
+    path("staff/withdrawals/<int:pk>/approve/", views.staff_approve_withdrawal_view, name="staff_approve_withdrawal"),
+    path("staff/withdrawals/<int:pk>/reject/", views.staff_reject_withdrawal_view, name="staff_reject_withdrawal"),
+    ]
+

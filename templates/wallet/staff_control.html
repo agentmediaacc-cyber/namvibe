@@ -24,7 +24,16 @@
       </form>
     </section>
     <section class="wallet-card">
-      <h2>Premium tier change</h2>
+      <h2>Manual Payments</h2>
+      <div style="display:grid;gap:12px;">
+          <a class="pill primary" href="{% url 'staff_deposits_list' %}">Manage Deposits</a>
+          <a class="pill" href="{% url 'staff_withdrawals_list' %}">Manage Withdrawals</a>
+      </div>
+    </section>
+
+    <section class="wallet-card">
+      <h2>Premium tier</h2>
+
       <form method="post" style="display:grid;gap:12px;">
         {% csrf_token %}
         {{ premium_form.non_field_errors }}

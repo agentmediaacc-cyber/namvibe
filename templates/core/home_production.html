@@ -471,6 +471,7 @@
         document.getElementById('feedStatus').textContent = "You're caught up for now.";
       } else {
         feedContainer.insertAdjacentHTML('beforeend', html);
+        initVideoObservers();
       }
     } catch (err) {
       console.error(err);
@@ -482,24 +483,28 @@
     }
   }
 
-  const inlineVideos = Array.from(document.querySelectorAll('.feed-video'));
-  if (inlineVideos.length) {
-    const videoObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        const video = entry.target;
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
-          inlineVideos.forEach((other) => {
-            if (other !== video) other.pause();
-          });
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-        }
-      });
-    }, { threshold: [0.2, 0.7, 1] });
+  function initVideoObservers() {
+    const inlineVideos = Array.from(document.querySelectorAll('.feed-video'));
+    if (inlineVideos.length) {
+      const videoObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const video = entry.target;
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
+            inlineVideos.forEach((other) => {
+              if (other !== video) other.pause();
+            });
+            video.play().catch(() => {});
+          } else {
+            video.pause();
+          }
+        });
+      }, { threshold: [0.2, 0.7, 1] });
 
-    inlineVideos.forEach((video) => videoObserver.observe(video));
+      inlineVideos.forEach((video) => videoObserver.observe(video));
+    }
   }
+
+  initVideoObservers();
 
   async function toggleLike(uuid, btn) {
     const icon = btn.querySelector('.like-icon');

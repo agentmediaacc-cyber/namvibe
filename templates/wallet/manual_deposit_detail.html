@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Payment Instructions | Namvibe{% endblock %}
+{% block content %}
+<style>
+  .wallet-shell{width:min(700px,calc(100% - 24px));margin:40px auto;padding:24px;background:rgba(255,255,255,.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:24px;color:#fff;}
+  .ref-box{background:rgba(255,255,255,0.1);padding:20px;border-radius:12px;text-align:center;margin:20px 0;border:2px dashed #7c3aed;}
+  .ref-code{font-size:1.8rem;font-weight:900;color:#fbcfe8;letter-spacing:2px;}
+  .instr-list{margin:20px 0;line-height:1.8;}
+  .nv-btn{display:inline-block;padding:12px 20px;border-radius:12px;font-weight:900;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;margin-top:10px;}
+</style>
+<div class="wallet-shell">
+    <h1>Payment Instructions</h1>
+    <p>Your deposit request of <strong>NAD {{ deposit.amount }}</strong> has been created. To complete the deposit, please follow these instructions:</p>
+    
+    <div class="ref-box">
+        <p>Your Unique Reference Code:</p>
+        <div class="ref-code">{{ deposit.request_id }}</div>
+        <p style="font-size:0.8rem;margin-top:8px;">You MUST use this reference when making payment.</p>
+    </div>
+
+    <div class="instr-list">
+        <h3>Banking & Payment Details:</h3>
+        <ul>
+            <li><strong>FNB Account:</strong> 64290441458</li>
+            <li><strong>PayToCell:</strong> 0812613261</li>
+            <li><strong>MTC Maris:</strong> 0812613261 (Transfer to same number)</li>
+        </ul>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="{% url 'download_deposit_invoice' deposit.request_id %}" class="nv-btn">Download PDF Invoice</a>
+        <a href="{% url 'wallet_home' %}" class="nv-btn" style="background:rgba(255,255,255,0.1);">Back to Wallet</a>
+    </div>
+
+    <p style="margin-top:30px;font-size:0.9rem;color:rgba(255,255,255,0.5);">Once payment is made, our team will verify the transaction using your reference code. Your funds will be credited within 24 hours.</p>
+</div>
+{% endblock %}

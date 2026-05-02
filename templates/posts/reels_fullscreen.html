@@ -459,6 +459,9 @@
               <span class="boosted-badge">Boosted</span>
             {% endif %}
           </h3>
+          {% if post.title %}
+            <h4 style="margin:4px 0;font-size:1rem;font-weight:700;">{{ post.title }}</h4>
+          {% endif %}
           {% if post.caption %}
             <p>{{ post.caption }}</p>
           {% endif %}

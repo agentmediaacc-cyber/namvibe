@@ -558,6 +558,9 @@ def reels_feed_view(request):
         )
         # discovery ranking: newest first, boosted higher, followed higher
         ranked_posts = FeedRankingService(request.user).rank(queryset, limit=50)
+        
+        # Ensure we keep the actual model objects for the template to access .title
+        # and other properties.
         ranked_posts = _decorate_posts_for_display(ranked_posts)
 
         if request.user.is_authenticated:

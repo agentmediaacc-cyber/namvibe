@@ -239,6 +239,48 @@ class BoostCampaign(models.Model):
         return f"{self.owner} boost ({self.target_type}) until {self.ends_at:%Y-%m-%d %H:%M}"
 
 
+class ManualDeposit(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    request_id = models.CharField(max_length=32, unique=True, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="manual_deposits")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    admin_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Deposit {self.request_id} - {self.user.username}"
+
+
+class WithdrawalRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PAID = "paid", "Paid"
+        REJECTED = "rejected", "Rejected"
+
+    request_id = models.CharField(max_length=32, unique=True, db_index=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="withdrawal_requests")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    admin_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Withdrawal {self.request_id} - {self.user.username}"
+
+
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def ensure_wallet_for_user(sender, instance, created, **kwargs):
     WalletAccount.objects.get_or_create(user=instance)

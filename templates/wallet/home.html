@@ -14,10 +14,39 @@
       </div>
     </div>
     <div style="display:grid;gap:10px;justify-items:end;">
+      <a class="primary" href="{% url 'manual_deposit' %}">Deposit Funds</a>
+      <a class="pill" href="{% url 'manual_withdrawal' %}">Withdraw Funds</a>
       <a class="primary" href="{% url 'wallet_membership' %}">Premium membership</a>
       {% if request.user.is_staff %}<a class="pill" href="{% url 'wallet_staff_control' %}">Staff control</a>{% endif %}
     </div>
   </div>
+
+  {% if user.manual_deposits.all or user.withdrawal_requests.all %}
+  <div class="wallet-layout" style="margin-bottom:20px;">
+    <main class="wallet-card" style="border:1px solid #7c3aed;">
+      <h2>Pending Requests</h2>
+      <div class="table-list">
+        {% for dep in user.manual_deposits.all %}
+          {% if dep.status == 'pending' %}
+            <div class="row">
+              <div><strong>Deposit (Pending)</strong><br><span class="muted">{{ dep.request_id }} · {{ dep.created_at|date:"M j" }}</span></div>
+              <div><strong>NAD {{ dep.amount }}</strong><br><a href="{% url 'manual_deposit_detail' dep.request_id %}" style="color:#fbcfe8;">Instructions</a></div>
+            </div>
+          {% endif %}
+        {% endfor %}
+        {% for wd in user.withdrawal_requests.all %}
+          {% if wd.status == 'pending' %}
+            <div class="row">
+              <div><strong>Withdrawal (Pending)</strong><br><span class="muted">{{ wd.request_id }} · {{ wd.created_at|date:"M j" }}</span></div>
+              <div><strong>NAD {{ wd.amount }}</strong><br><span class="status">Awaiting Approval</span></div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </main>
+  </div>
+  {% endif %}
+
   <div class="wallet-grid">
     <div class="wallet-card"><span class="muted">Available</span><div class="money">N${{ wallet.available_balance }}</div></div>
     <div class="wallet-card"><span class="muted">Vibe Coins</span><div class="money">{% widthratio wallet.available_balance coin_display_rate 1 %}</div><p class="muted">Coins are spendable on gifts, boosts, and premium access.</p></div>
