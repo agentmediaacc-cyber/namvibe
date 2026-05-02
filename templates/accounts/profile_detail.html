@@ -54,8 +54,15 @@
   .profile-panel{padding:20px}
   .section-title{margin:0 0 12px}
   .content-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .highlight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
   .identity-chip{display:flex;align-items:center;gap:12px;padding:14px;border-radius:22px;text-decoration:none}
   .identity-mark{width:44px;height:44px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(124,58,237,.34),rgba(236,72,153,.2));font-weight:900}
+  .highlight-card{
+    text-decoration:none;color:#fff;border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05);display:grid
+  }
+  .highlight-card img,.highlight-card video{width:100%;aspect-ratio:4/5;object-fit:cover;background:#200627}
+  .highlight-card span{padding:12px;font-size:12px;color:#cbd5e1}
   .tab-row{overflow:auto;padding-bottom:2px;scrollbar-width:none}
   .tab-row::-webkit-scrollbar{display:none}
   .empty-box{padding:18px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);line-height:1.65}
@@ -125,6 +132,7 @@
           {% if active_profile_boost %}<span class="meta-pill">Boost ends {{ active_profile_boost.ends_at|date:"M j H:i" }}</span>{% endif %}
           {% if under_review %}<span class="meta-pill">Visible only to you or staff while review is active</span>{% endif %}
           <span class="meta-pill">Joined {{ joined_date|date:"M Y" }}</span>
+          {% if gifts_received_total %}<span class="meta-pill">{{ gifts_received_total }} gifts received</span>{% endif %}
         </div>
 
         <div class="action-row">
@@ -133,6 +141,7 @@
             <a class="profile-action" href="{{ action_urls.edit_profile }}">Edit Profile</a>
             <a class="profile-action" href="{{ action_urls.create_post }}">Create Post</a>
             <a class="profile-action" href="{{ action_urls.go_live }}">Go Live</a>
+            <button class="profile-action" type="button" onclick="copyShareLink('{{ action_urls.share_profile|escapejs }}', this)">Share Profile</button>
             <form method="post" action="{{ action_urls.boost_profile }}" style="margin:0;">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="profile-action" type="submit" style="cursor:pointer;">Boost Profile</button></form>
           {% elif request.user.is_authenticated %}
             <form method="post" action="{% url 'follow_toggle' profile.username %}" style="margin:0;">
@@ -170,12 +179,14 @@
               {% csrf_token %}
               <button class="profile-action" type="submit" style="cursor:pointer;">{% if is_blocking %}Unblock{% else %}Block{% endif %}</button>
             </form>
+            <button class="profile-action" type="button" onclick="copyShareLink('{{ action_urls.share_profile|escapejs }}', this)">Share Profile</button>
             <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
             <a class="profile-action" href="{{ action_urls.games }}">Games</a>
             <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
           {% else %}
             <a class="profile-action primary" href="{% url 'login' %}?next={{ request.path }}">Login</a>
             <a class="profile-action" href="{% url 'signup' %}">Create Account</a>
+            <button class="profile-action" type="button" onclick="copyShareLink('{{ action_urls.share_profile|escapejs }}', this)">Share Profile</button>
             <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
             <a class="profile-action" href="{{ action_urls.games }}">Games</a>
             <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
@@ -194,6 +205,39 @@
   </section>
 
   <div class="profile-panels">
+    {% if pinned_post %}
+      <section class="profile-panel">
+        <h2 class="section-title">Pinned post</h2>
+        <div class="content-grid">
+          {% include "posts/_post_card.html" with post=pinned_post %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if story_highlights %}
+      <section class="profile-panel">
+        <h2 class="section-title">Story highlights</h2>
+        <div class="highlight-grid">
+          {% for story in story_highlights %}
+            <a class="highlight-card" href="{% url 'story_detail' story.id %}">
+              {% if story.media_type == "photo" or story.media_type == "video" %}
+                {% if story.media_type == "video" %}
+                  <video muted playsinline preload="metadata">
+                    <source src="{% file_url story.file %}">
+                  </video>
+                {% else %}
+                  <img src="{% file_url story.file %}" alt="{{ story.caption|default:story.text_content|default:'Story highlight' }}">
+                {% endif %}
+              {% else %}
+                <div style="aspect-ratio:4/5;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);display:grid;place-items:center;padding:20px;text-align:center;">{{ story.text_content|truncatechars:44 }}</div>
+              {% endif %}
+              <span>@{{ story.author.profile.username|default:story.author.username }} · {{ story.view_count }} views</span>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
     <section class="profile-panel tab-content active" id="posts">
       <div class="content-grid">
         {% for post in profile_posts %}
@@ -261,6 +305,24 @@
           {% if profile.town %}<article class="profile-stat"><span>Town</span><strong>{{ profile.town }}</strong></article>{% endif %}
           {% if profile.location %}<article class="profile-stat"><span>Location</span><strong>{{ profile.location }}</strong></article>{% endif %}
           {% if active_membership %}<article class="profile-stat"><span>Premium plan</span><strong>{{ active_membership.plan.name }}</strong></article>{% endif %}
+          <article class="profile-stat"><span>Profile views</span><strong>{{ profile_views_count|default:0 }}</strong></article>
+          <article class="profile-stat"><span>Gifts received</span><strong>{{ gifts_received_total|default:0 }}</strong></article>
+        </div>
+        <div class="content-grid">
+          <div class="identity-chip">
+            <span class="identity-mark">↗</span>
+            <span>
+              <strong>Share this profile</strong>
+              <small>Copy your public link and invite friends into your Namvibe profile.</small>
+            </span>
+          </div>
+          <div class="identity-chip">
+            <span class="identity-mark">◎</span>
+            <span>
+              <strong>Invite friends</strong>
+              <small>Referral codes arrive after referral setup. For now, share your public profile link safely.</small>
+            </span>
+          </div>
         </div>
       </div>
     </section>
@@ -273,6 +335,16 @@
     document.querySelectorAll('.profile-tab').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).style.display = 'block';
     event.currentTarget.classList.add('active');
+  }
+  function copyShareLink(url, button) {
+    if (!url) return;
+    navigator.clipboard?.writeText(url).then(function () {
+      const original = button.textContent;
+      button.textContent = 'Link copied';
+      setTimeout(function () { button.textContent = original; }, 1200);
+    }).catch(function () {
+      window.prompt('Copy this link', url);
+    });
   }
 </script>
 {% endblock %}

@@ -9,9 +9,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Sum
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST, require_http_methods
@@ -21,11 +22,13 @@ from messaging.models import Conversation, Message
 from messaging.presence import presence_snapshot
 from messaging.services import messaging_dashboard_context
 from dating.models import DatingCoinBalance, DatingLike, DatingProfileView, Match
-from posts.models import Post
+from posts.models import Post, Report
 from posts.services import base_visible_posts
 from posts.supabase_posts import get_posts_by_user
 from stories.models import StoryItem
-from wallet.services import active_boost_for_profile, active_boosted_profile_ids, active_gifts, active_membership_for, ensure_wallet, premium_badge_for
+from stories.services import visible_stories_for
+from wallet.models import BoostCampaign, GiftEvent, UserMembership
+from wallet.services import active_boost_for_profile, active_boosted_profile_ids, active_gifts, active_membership_for, daily_checkin_status, ensure_wallet, premium_badge_for
 from communities.models import CommunityMembership
 
 from .forms import LoginForm, ProfileForm, SignupForm
@@ -227,6 +230,7 @@ def _profile_menu_groups(request):
                 "title": "Moderation",
                 "items": [
                     {"label": "Safety Dashboard", "url": _safe_reverse("moderation_dashboard")},
+                    {"label": "Staff Insights", "url": _safe_reverse("staff_insights")},
                 ],
             },
         )
@@ -342,6 +346,76 @@ def _dashboard_next_actions(profile, completion, unread_count):
         },
     ]
     return next_actions
+
+
+def _recommendation_carousels(user, profile=None):
+    region = ((profile.region if profile else "") or "").strip()
+    town = ((profile.town if profile else "") or "").strip()
+    followed_ids = set()
+    friend_ids = set()
+    blocked_ids = set()
+    if getattr(user, "is_authenticated", False):
+        followed_ids = set(Follow.objects.filter(follower=user).values_list("following_id", flat=True))
+        friend_pairs = FriendRequest.objects.filter(
+            Q(from_user=user) | Q(to_user=user),
+            status=FriendRequest.Status.ACCEPTED,
+        ).values_list("from_user_id", "to_user_id")
+        friend_ids = {item for pair in friend_pairs for item in pair if item != user.id}
+        blocked_pairs = Block.objects.filter(Q(blocker=user) | Q(blocked=user)).values_list("blocker_id", "blocked_id")
+        blocked_ids = {item for pair in blocked_pairs for item in pair if item and item != user.id}
+
+    base_profiles = Profile.objects.select_related("user").filter(is_hidden_by_moderation=False)
+    if getattr(user, "is_authenticated", False):
+        base_profiles = base_profiles.exclude(user=user).exclude(user_id__in=blocked_ids)
+
+    people_profiles = list(base_profiles.order_by("-follower_count", "-post_count", "-created_at")[:18])
+    people_you_may_know = _member_cards_for(
+        user,
+        [p for p in people_profiles if p.user_id not in followed_ids and p.user_id not in friend_ids][:6],
+    )
+
+    creator_profiles = list(base_profiles.filter(Q(is_creator=True) | Q(is_verified=True)).order_by("-is_verified", "-follower_count", "-post_count")[:12])
+    suggested_creators = _member_cards_for(user, creator_profiles[:6])
+
+    nearby_profiles = []
+    if region or town:
+        location_query = Q()
+        if town:
+            location_query |= Q(town__iexact=town)
+        if region:
+            location_query |= Q(region__iexact=region)
+        nearby_profiles = _member_cards_for(
+            user,
+            list(base_profiles.filter(location_query).order_by("-follower_count", "-created_at")[:6]),
+        )
+
+    trending_posts = list(
+        base_visible_posts(user)
+        .published()
+        .order_by("-like_count", "-comment_count", "-view_count", "-published_at", "-created_at")[:6]
+    )
+    trending_stories = list(
+        visible_stories_for(user)
+        .order_by("-view_count", "-like_count", "-created_at")[:6]
+    )
+    return {
+        "people_you_may_know": people_you_may_know[:6],
+        "suggested_creators": suggested_creators[:6],
+        "trending_posts": trending_posts[:6],
+        "trending_stories": trending_stories[:6],
+        "nearby_profiles": nearby_profiles[:6],
+    }
+
+
+def _today_vibe_prompt():
+    prompts = [
+        "Share a quick story from your town today.",
+        "Post one real update and invite people into your vibe.",
+        "Reply to a message, post a reel, or check in live for a few minutes.",
+        "Add a fresh profile photo and open member discovery after.",
+    ]
+    day_seed = timezone.localdate().toordinal() % len(prompts)
+    return prompts[day_seed]
 
 
 def _set_account_session(request, user):
@@ -1159,6 +1233,8 @@ def user_dashboard_view(request):
     active_panel = requested_section or ("messages" if conversation_id else "overview")
     if active_panel not in {"overview", "gallery", "posts", "messages"}:
         active_panel = "overview"
+    smart_recommendations = _recommendation_carousels(request.user, profile)
+    daily_checkin = daily_checkin_status(request.user)
     recent_message_partners = []
     for item in unread_threads.get("chat_conversations", [])[:5]:
         if item.get("other") is not None:
@@ -1216,6 +1292,9 @@ def user_dashboard_view(request):
         "profile_menu_groups": _profile_menu_groups(request),
         "dashboard_cards": dashboard_cards,
         "next_action_cards": next_actions,
+        "smart_recommendations": smart_recommendations,
+        "daily_checkin": daily_checkin,
+        "today_vibe_prompt": _today_vibe_prompt(),
         "recent_message_partners": recent_message_partners,
         "messages_preview": recent_message_partners[:2],
         "has_active_subscription": has_active_subscription(request.user),
@@ -1299,6 +1378,15 @@ def public_profile_view(request, username):
     )
     dating_views_count = dating_profile.views.count() if dating_profile else 0
     photo_posts = [post for post in visible_posts if post.post_type == Post.PostType.PHOTO]
+    story_items = list(
+        visible_stories_for(request.user).filter(author=profile.user).order_by("-created_at")[:12]
+    )
+    pinned_post = next((post for post in visible_posts if post.share_target == Post.ShareTarget.PROFILE), None)
+    story_highlights = sorted(story_items, key=lambda story: (-story.view_count, -story.created_at.timestamp()))[:6]
+    gifts_received_total = (
+        GiftEvent.objects.filter(recipient=profile.user).aggregate(total=Sum("quantity")).get("total")
+        or 0
+    )
     show_wallet_summary = any(
         getattr(wallet, field, 0) > 0
         for field in ("available_balance", "pending_balance", "lifetime_earned")
@@ -1328,6 +1416,8 @@ def public_profile_view(request, username):
         "gift_profile": _safe_reverse("wallet_gift_user", username=profile.username),
         "boost_profile": _safe_reverse("wallet_boost_profile", username=profile.username),
         "report_profile": _safe_reverse("report_user", username=profile.username),
+        "share_profile": request.build_absolute_uri(reverse("profile_detail", kwargs={"username": profile.username})),
+        "invite_friends": request.build_absolute_uri(reverse("signup")),
     }
     safe_username = profile.username or getattr(profile.user, "username", "") or "namvibe"
     safe_display_name = profile.display_name or safe_username or "Namvibe member"
@@ -1348,6 +1438,9 @@ def public_profile_view(request, username):
         "profile_posts": visible_posts,
         "media_posts": media_posts,
         "photo_posts": photo_posts,
+        "story_items": story_items,
+        "pinned_post": pinned_post,
+        "story_highlights": story_highlights,
         "reel_posts": [post for post in visible_posts if post.post_type == Post.PostType.REEL],
         "live_posts": live_posts,
         "joined_communities": joined_communities,
@@ -1366,6 +1459,7 @@ def public_profile_view(request, username):
         "show_wallet_summary": show_wallet_summary,
         "dating_coin_balance": dating_coin_balance,
         "profile_views_count": profile_views_count,
+        "gifts_received_total": gifts_received_total,
         "action_urls": action_urls,
         "joined_date": profile.user.date_joined,
         "presence_state": presence_state,
@@ -1389,6 +1483,28 @@ def member_discovery_view(request):
         "member_cards": _member_cards_for(request.user, profiles),
     }
     return render(request, "accounts/member_discovery.html", context)
+
+
+@staff_member_required(login_url="login")
+def staff_insights_view(request):
+    context = {
+        "summary": {
+            "users": User.objects.count(),
+            "posts": Post.objects.published().count(),
+            "stories": StoryItem.objects.active().count(),
+            "reports": Report.objects.filter(status__in=[Report.Status.OPEN, Report.Status.REVIEWING]).count(),
+            "gifts": GiftEvent.objects.count(),
+            "boosts": BoostCampaign.objects.filter(active=True, ends_at__gt=timezone.now()).count(),
+            "premium_members": UserMembership.objects.filter(status=UserMembership.Status.ACTIVE).count(),
+        },
+        "top_regions": list(
+            Profile.objects.exclude(region="").values("region").annotate(total=Count("id")).order_by("-total", "region")[:6]
+        ),
+        "recent_profiles": list(
+            Profile.objects.select_related("user").order_by("-created_at")[:8]
+        ),
+    }
+    return render(request, "accounts/staff_insights.html", context)
 
 
 @login_required(login_url="login")

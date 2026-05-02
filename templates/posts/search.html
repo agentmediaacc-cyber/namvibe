@@ -1,30 +1,189 @@
 {% extends "base.html" %}
+{% load media_helpers %}
 
 {% block title %}Search | Namvibe{% endblock %}
 
 {% block content %}
-{% include "posts/post_styles.html" %}
-<section class="nv-list-page">
-    <div class="nv-list-head"><div><h1>Search</h1><p>Results for {{ query|default:"your next search" }}.</p></div></div>
-    <form class="comment-box" method="get" action="{% url 'discover_search' %}">
-        <textarea name="q" rows="1" placeholder="Search people, hashtags, communities, posts">{{ query }}</textarea>
-        <button type="submit">Search</button>
-    </form>
-    <h2>People</h2>
-    <div class="nv-list-grid">
-        {% for profile in users %}
-            <a class="nv-empty" href="{% url 'profile_detail' profile.username %}">@{{ profile.username }} · {{ profile.display_name }}{% if profile.location %} · {{ profile.location }}{% endif %}</a>
-        {% empty %}<p class="nv-muted">No people found.</p>{% endfor %}
+<style>
+  .search-shell{width:min(1180px,calc(100% - 14px));margin:0 auto;padding:18px 0 110px}
+  .search-card,.search-result,.search-story,.search-live{
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);backdrop-filter:blur(18px);
+    box-shadow:0 24px 70px rgba(0,0,0,.28);border-radius:28px;color:#fff
+  }
+  .search-card{padding:22px}
+  .search-grid,.search-sections,.search-people-grid,.search-live-grid,.search-story-grid{display:grid;gap:16px}
+  .search-grid{grid-template-columns:1.15fr .85fr}
+  .search-sections{margin-top:18px}
+  .search-form{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .search-input{
+    flex:1;min-width:220px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);
+    color:#fff;border-radius:18px;padding:13px 14px
+  }
+  .search-btn,.pill-link{
+    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:900;color:#fff;
+    padding:12px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06)
+  }
+  .search-btn{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+  .search-people-grid,.search-live-grid,.search-story-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .search-result,.search-story,.search-live{padding:16px;display:grid;gap:12px}
+  .search-person-top{display:flex;gap:12px;align-items:center}
+  .search-avatar{width:58px;height:58px;border-radius:18px;padding:2px;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e)}
+  .search-avatar img,.search-avatar span{width:100%;height:100%;border-radius:16px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
+  .search-copy,.empty-copy,.search-live small{color:#cbd5e1;line-height:1.6}
+  .search-badges{display:flex;gap:8px;flex-wrap:wrap}
+  .search-badge{display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:11px;font-weight:900}
+  .section-head{display:flex;justify-content:space-between;gap:12px;align-items:end}
+  .section-head h2{margin:0}
+  .empty-state{padding:22px;text-align:center}
+  @media (max-width: 860px){.search-grid{grid-template-columns:1fr}}
+</style>
+
+<section class="search-shell">
+  <section class="search-card">
+    <div class="search-grid">
+      <div>
+        <span class="search-badge">Unified search</span>
+        <h1 style="margin:10px 0 8px;font-size:clamp(2rem,5vw,3.6rem);">Search Namvibe</h1>
+        <p class="search-copy">Find people, posts, stories, live rooms, and communities from one clean discovery page.</p>
+        <form class="search-form" method="get" action="{% url 'discover_search' %}">
+          <input class="search-input" type="search" name="q" placeholder="Search people, posts, stories, live rooms, communities" value="{{ query }}">
+          <button class="search-btn" type="submit">Search</button>
+        </form>
+      </div>
+      <div class="search-card" style="padding:18px;">
+        <strong style="display:block;font-size:1.1rem;">Search tips</strong>
+        <p class="search-copy" style="margin:10px 0 0;">Try a username, town, hashtag, community name, or live title. Results stay real and only show content the current viewer can actually open.</p>
+      </div>
     </div>
-    <h2>Posts</h2>
-    <div class="nv-list-grid">
-        {% for post in posts %}{% include "posts/_post_card.html" with post=post %}{% empty %}<p class="nv-muted">No posts found.</p>{% endfor %}
-    </div>
-    <h2>Communities</h2>
-    <div class="nv-list-grid">
-        {% for community in communities %}
-            <a class="nv-empty" href="{% url 'community_detail' community.slug %}">{{ community.name }} · {{ community.description|truncatechars:90 }}</a>
-        {% empty %}<p class="nv-muted">No communities found.</p>{% endfor %}
-    </div>
+  </section>
+
+  <section class="search-sections">
+    <section class="search-card">
+      <div class="section-head">
+        <div>
+          <span class="search-badge">People</span>
+          <h2>Profiles and creators</h2>
+        </div>
+      </div>
+      {% if users %}
+        <div class="search-people-grid" style="margin-top:14px;">
+          {% for profile in users %}
+            <a class="search-result" href="{% url 'profile_detail' profile.username %}" style="text-decoration:none;color:#fff;">
+              <div class="search-person-top">
+                <div class="search-avatar">
+                  {% if profile.avatar %}
+                    <img src="{% avatar_url profile %}" alt="{{ profile.username }}">
+                  {% else %}
+                    <span>{{ profile.username|first|upper }}</span>
+                  {% endif %}
+                </div>
+                <div>
+                  <strong>{{ profile.display_name|default:profile.username }}</strong>
+                  <small class="search-copy">@{{ profile.username }}</small>
+                </div>
+              </div>
+              <div class="search-badges">
+                {% if profile.is_verified %}<span class="search-badge">Verified</span>{% endif %}
+                {% if profile.is_creator %}<span class="search-badge">Creator</span>{% endif %}
+                {% if profile.region %}<span class="search-badge">{{ profile.region }}</span>{% endif %}
+              </div>
+              <p class="search-copy">{{ profile.bio|default:profile.location|default:"Open this profile to discover real posts, stories, and live activity."|truncatechars:120 }}</p>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state empty-copy">No people matched this search yet. Try a username, display name, or town.</div>
+      {% endif %}
+    </section>
+
+    <section class="search-card">
+      <div class="section-head">
+        <div>
+          <span class="search-badge">Posts</span>
+          <h2>Recent post matches</h2>
+        </div>
+      </div>
+      <div class="nv-list-grid" style="margin-top:14px;">
+        {% for post in posts %}
+          {% include "posts/_post_card.html" with post=post %}
+        {% empty %}
+          <div class="empty-state empty-copy">No posts matched this search yet. Try a title, caption, or hashtag-related term.</div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="search-card">
+      <div class="section-head">
+        <div>
+          <span class="search-badge">Stories</span>
+          <h2>Active story matches</h2>
+        </div>
+      </div>
+      {% if stories %}
+        <div class="search-story-grid" style="margin-top:14px;">
+          {% for story in stories %}
+            <a class="search-story" href="{% url 'story_detail' story.id %}" style="text-decoration:none;color:#fff;">
+              <strong>@{{ story.author.profile.username|default:story.author.username }}</strong>
+              <p class="search-copy">{{ story.text_content|default:story.caption|truncatechars:120 }}</p>
+              <small>{{ story.view_count }} views · {{ story.created_at|timesince }} ago</small>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state empty-copy">No active stories matched this search. Stories will appear here while they are still live.</div>
+      {% endif %}
+    </section>
+
+    <section class="search-card">
+      <div class="section-head">
+        <div>
+          <span class="search-badge">Live rooms</span>
+          <h2>Live and scheduled sessions</h2>
+        </div>
+      </div>
+      {% if live_rooms %}
+        <div class="search-live-grid" style="margin-top:14px;">
+          {% for session in live_rooms %}
+            <a class="search-live" href="{% url 'live_room' session.uuid %}" style="text-decoration:none;color:#fff;">
+              <div class="search-badges">
+                <span class="search-badge">{% if session.status == 'live' %}Live now{% else %}Scheduled{% endif %}</span>
+                {% if session.is_featured %}<span class="search-badge">Featured</span>{% endif %}
+              </div>
+              <strong>{{ session.title }}</strong>
+              <p class="search-copy">{{ session.description|truncatechars:120 }}</p>
+              <small>@{{ session.host.profile.username|default:session.host.username }} · {{ session.viewer_count }} watching</small>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state empty-copy">No live rooms matched this search yet. Try a creator name or room title.</div>
+      {% endif %}
+    </section>
+
+    <section class="search-card">
+      <div class="section-head">
+        <div>
+          <span class="search-badge">Communities</span>
+          <h2>Groups and communities</h2>
+        </div>
+      </div>
+      {% if communities %}
+        <div class="search-people-grid" style="margin-top:14px;">
+          {% for community in communities %}
+            <a class="search-result" href="{% url 'community_detail' community.slug %}" style="text-decoration:none;color:#fff;">
+              <strong>{{ community.name }}</strong>
+              <p class="search-copy">{{ community.description|truncatechars:120 }}</p>
+              <div class="search-badges">
+                <span class="search-badge">{{ community.member_count }} members</span>
+                <span class="search-badge">{{ community.get_privacy_display }}</span>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state empty-copy">No communities matched this search yet. Try a group name, city, or topic.</div>
+      {% endif %}
+    </section>
+  </section>
 </section>
 {% endblock %}

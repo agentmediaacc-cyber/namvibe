@@ -45,6 +45,15 @@
         <a class="pill primary" href="{% url 'wallet_coins' %}">Open coin ledger</a>
       </section>
       <section class="wallet-card">
+        <h2>Daily check-in</h2>
+        <p class="muted">{% if daily_checkin.claimed_today %}You already checked in today. Current streak: {{ daily_checkin.streak }} days.{% else %}Claim {{ daily_checkin.reward_coins }} coins and keep your streak active.{% endif %}</p>
+        <form method="post" action="{% url 'wallet_daily_checkin_claim' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{% url 'wallet_home' %}">
+          <button class="pill primary" type="submit" {% if daily_checkin.claimed_today %}disabled{% endif %}>{% if daily_checkin.claimed_today %}Checked in today{% else %}Claim daily check-in{% endif %}</button>
+        </form>
+      </section>
+      <section class="wallet-card">
         <h2>Membership</h2>
         {% if active_membership %}
           <p><strong>{{ active_membership.plan.name }}</strong><br><span class="muted">Active until {{ active_membership.ends_at|date:"M j, Y"|default:"ongoing" }}</span></p>

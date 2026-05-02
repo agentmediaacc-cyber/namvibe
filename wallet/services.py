@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -13,6 +14,8 @@ BOOST_DURATION_HOURS = 24
 POST_BOOST_COST = Decimal("15.00")
 PROFILE_BOOST_COST = Decimal("20.00")
 STORY_BOOST_COST = Decimal("10.00")
+DAILY_CHECKIN_REWARD_AMOUNT = Decimal("1.00")
+DAILY_CHECKIN_REFERENCE_PREFIX = "daily_checkin:"
 
 
 class WalletError(Exception):
@@ -111,6 +114,77 @@ def premium_badge_for(user):
     if "silver" in slug or "silver" in name:
         return {"label": "Silver", "tone": "silver", "is_paid": True}
     return {"label": plan.name, "tone": "premium", "is_paid": True}
+
+
+def _daily_checkin_dates_for(user, limit=60):
+    refs = list(
+        WalletTransaction.objects.filter(
+            wallet=ensure_wallet(user),
+            transaction_type=WalletTransaction.Type.ADJUSTMENT,
+            status=WalletTransaction.Status.COMPLETED,
+            reference__startswith=DAILY_CHECKIN_REFERENCE_PREFIX,
+        )
+        .order_by("-created_at")
+        .values_list("reference", flat=True)[:limit]
+    )
+    dates = set()
+    for reference in refs:
+        try:
+            dates.add(datetime.fromisoformat(reference.split(":", 1)[1]).date())
+        except Exception:
+            continue
+    return dates
+
+
+def daily_checkin_status(user):
+    if not getattr(user, "is_authenticated", False):
+        return {
+            "claimed_today": False,
+            "streak": 0,
+            "reward_amount": DAILY_CHECKIN_REWARD_AMOUNT,
+            "reward_coins": coins_for_amount(DAILY_CHECKIN_REWARD_AMOUNT),
+        }
+
+    claimed_dates = _daily_checkin_dates_for(user)
+    today = timezone.localdate()
+    claimed_today = today in claimed_dates
+    streak_anchor = today if claimed_today else today - timezone.timedelta(days=1)
+    streak = 0
+    cursor = streak_anchor
+    while cursor in claimed_dates:
+        streak += 1
+        cursor -= timezone.timedelta(days=1)
+    return {
+        "claimed_today": claimed_today,
+        "streak": streak,
+        "reward_amount": DAILY_CHECKIN_REWARD_AMOUNT,
+        "reward_coins": coins_for_amount(DAILY_CHECKIN_REWARD_AMOUNT),
+        "today_prompt": "Show up, post something small, and keep your streak alive.",
+    }
+
+
+@transaction.atomic
+def claim_daily_checkin(user):
+    if not getattr(user, "is_authenticated", False):
+        raise WalletError("Login required.")
+    today = timezone.localdate()
+    reference = f"{DAILY_CHECKIN_REFERENCE_PREFIX}{today.isoformat()}"
+    existing = WalletTransaction.objects.filter(
+        wallet=ensure_wallet(user),
+        transaction_type=WalletTransaction.Type.ADJUSTMENT,
+        status=WalletTransaction.Status.COMPLETED,
+        reference=reference,
+    ).first()
+    if existing:
+        return daily_checkin_status(user), False
+    credit_wallet(
+        user,
+        DAILY_CHECKIN_REWARD_AMOUNT,
+        WalletTransaction.Type.ADJUSTMENT,
+        reference=reference,
+        metadata={"source": "daily_checkin", "date": today.isoformat()},
+    )
+    return daily_checkin_status(user), True
 
 
 @transaction.atomic

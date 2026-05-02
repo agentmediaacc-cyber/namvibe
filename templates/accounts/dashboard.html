@@ -5,7 +5,7 @@
 
 {% block profile_extra_head %}
 <style>
-  .index-grid,.stat-row,.card-grid,.preview-grid,.preview-media,.quick-action-grid{display:grid;gap:12px}
+  .index-grid,.stat-row,.card-grid,.preview-grid,.preview-media,.quick-action-grid,.recommend-grid,.story-mini-grid{display:grid;gap:12px}
   .index-grid{grid-template-columns:minmax(0,300px) minmax(0,1fr);align-items:start}
   .hero-card{overflow:hidden}
   .hero-cover{
@@ -58,6 +58,8 @@
   .menu-card:hover{border-color:rgba(236,72,153,.3)}
   .side-stack{display:grid;gap:14px}
   .preview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .recommend-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .story-mini-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
   .quick-action-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:14px}
   .preview-media{grid-template-columns:repeat(2,minmax(0,1fr))}
   .preview-media img,.preview-media video{
@@ -76,6 +78,17 @@
   .empty-card{
     padding:18px;border-radius:22px;border:1px dashed rgba(255,255,255,.16);
     background:rgba(255,255,255,.03);color:#cbd5e1
+  }
+  .mini-member{
+    text-decoration:none;color:#fff;padding:14px;border-radius:18px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05);display:grid;gap:8px
+  }
+  .mini-story{
+    text-decoration:none;color:#fff;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.05);display:grid
+  }
+  .mini-story-visual{
+    aspect-ratio:4/5;background:linear-gradient(135deg,#2a0830,#44103f);display:grid;place-items:end;padding:12px
   }
   .action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
   .action-btn{
@@ -222,6 +235,20 @@
     <aside class="side-stack">
       <section class="profile-card section-card">
         <h2>Profile Overview</h2>
+        <div class="launch-card" style="margin-top:14px;">
+          <h3>Today’s vibe</h3>
+          <p class="copy-muted" style="margin:8px 0 0;">{{ today_vibe_prompt }}</p>
+          <div class="action-row">
+            <form method="post" action="{% url 'wallet_daily_checkin_claim' %}" style="margin:0;">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{% url 'user_dashboard' %}">
+              <button class="action-btn primary" type="submit" {% if daily_checkin.claimed_today %}disabled{% endif %} style="cursor:pointer;">
+                {% if daily_checkin.claimed_today %}Checked in today{% else %}Claim {{ daily_checkin.reward_coins }} coins{% endif %}
+              </button>
+            </form>
+            <span class="completion-pill">{{ daily_checkin.streak }} day streak</span>
+          </div>
+        </div>
         {% if profile_completion.next_action %}
           <div class="launch-card" style="margin-top:14px;">
             <strong>Next step</strong>
@@ -287,6 +314,88 @@
           <small>{{ card.meta }}</small>
         </a>
       {% endfor %}
+    </div>
+  </section>
+
+  <section class="profile-card section-card" style="margin-top:16px;">
+    <h2>Smart discovery</h2>
+    <div class="recommend-grid" style="margin-top:14px;">
+      <article class="launch-card">
+        <h3>People you may know</h3>
+        {% if smart_recommendations.people_you_may_know %}
+          <div class="list-stack">
+            {% for item in smart_recommendations.people_you_may_know %}
+              <a class="mini-member" href="{{ item.profile_url }}">
+                <strong>{{ item.display_name }}</strong>
+                <small class="copy-muted">@{{ item.username }} · {{ item.location }}</small>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-card">New member suggestions will appear here as more people complete their profiles.</div>
+        {% endif %}
+      </article>
+      <article class="launch-card">
+        <h3>Suggested creators</h3>
+        {% if smart_recommendations.suggested_creators %}
+          <div class="list-stack">
+            {% for item in smart_recommendations.suggested_creators %}
+              <a class="mini-member" href="{{ item.profile_url }}">
+                <strong>{{ item.display_name }}</strong>
+                <small class="copy-muted">@{{ item.username }}{% if item.premium_badge.is_paid %} · {{ item.premium_badge.label }}{% endif %}</small>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-card">Creator suggestions will show up here when public creator activity grows.</div>
+        {% endif %}
+      </article>
+      <article class="launch-card">
+        <h3>Trending posts</h3>
+        {% if smart_recommendations.trending_posts %}
+          <div class="list-stack">
+            {% for post in smart_recommendations.trending_posts %}
+              <a class="list-row" href="{% url 'post_detail' post.uuid %}">
+                <div>
+                  <strong>{{ post.title|default:post.caption|truncatechars:42 }}</strong>
+                  <small>{{ post.like_count }} likes · {{ post.comment_count }} comments</small>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-card">Trending posts will appear here after more public activity lands.</div>
+        {% endif %}
+      </article>
+      <article class="launch-card">
+        <h3>Trending stories</h3>
+        {% if smart_recommendations.trending_stories %}
+          <div class="story-mini-grid">
+            {% for story in smart_recommendations.trending_stories %}
+              <a class="mini-story" href="{% url 'story_detail' story.id %}">
+                <div class="mini-story-visual">
+                  <strong>@{{ story.author.profile.username|default:story.author.username }}</strong>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-card">Stories will start trending here as people share more often.</div>
+        {% endif %}
+      </article>
+      {% if smart_recommendations.nearby_profiles %}
+        <article class="launch-card">
+          <h3>Nearby discovery</h3>
+          <div class="list-stack">
+            {% for item in smart_recommendations.nearby_profiles %}
+              <a class="mini-member" href="{{ item.profile_url }}">
+                <strong>{{ item.display_name }}</strong>
+                <small class="copy-muted">{{ item.location }}</small>
+              </a>
+            {% endfor %}
+          </div>
+        </article>
+      {% endif %}
     </div>
   </section>
 {% endif %}

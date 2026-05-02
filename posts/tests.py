@@ -10,6 +10,8 @@ from accounts.models import Follow, FriendRequest, Notification
 from accounts.supabase import supabase_profile_id_for_user
 from communities.models import Community, CommunityMembership
 from core.media import profile_avatar_url, profile_cover_url
+from live.models import LiveSession
+from stories.models import StoryItem
 from .models import Comment, CommentReaction, FlyerMeta, Like, LiveAnnouncement, Poll, Post, PostView, Report, Save, Share
 from .supabase_posts import create_post as supabase_create_post
 
@@ -363,6 +365,20 @@ class FeedDiscoveryInteractionTests(TestCase):
 
     def test_search_results_include_posts_users_and_communities(self):
         Community.objects.create(name="Windhoek Creators", slug="windhoek-creators", owner=self.author)
+        StoryItem.objects.create(
+            author=self.author,
+            media_type=StoryItem.MediaType.TEXT,
+            text_content="Windhoek story pulse",
+            audience=StoryItem.Audience.PUBLIC,
+            expires_at=timezone.now() + timezone.timedelta(hours=4),
+        )
+        LiveSession.objects.create(
+            host=self.author,
+            title="Windhoek Live Session",
+            description="City vibes",
+            status=LiveSession.Status.LIVE,
+            access_type=LiveSession.AccessType.PUBLIC,
+        )
 
         response = self.client.get(reverse("discover_search"), {"q": "Windhoek"})
 
@@ -370,6 +386,8 @@ class FeedDiscoveryInteractionTests(TestCase):
         self.assertContains(response, "Public ranked post")
         self.assertContains(response, "@ranker")
         self.assertContains(response, "Windhoek Creators")
+        self.assertContains(response, "Windhoek story pulse")
+        self.assertContains(response, "Windhoek Live Session")
 
     def test_like_unlike(self):
         self.client.force_login(self.viewer)

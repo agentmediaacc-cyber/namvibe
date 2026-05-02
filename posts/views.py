@@ -14,6 +14,9 @@ from django.views.decorators.http import require_http_methods
 from accounts.models import Profile
 from accounts.supabase import supabase_profile_id_for_user
 from communities.models import Community
+from live.models import LiveSession
+from stories.models import StoryItem
+from stories.services import visible_stories_for
 from supportapp.models import SystemPromoCard
 from wallet.services import active_boosted_post_ids, active_gifts, premium_badge_for
 
@@ -562,6 +565,8 @@ def search_view(request):
     query = request.GET.get("q", "").strip()
     users = Profile.objects.none()
     posts = Post.objects.none()
+    stories = StoryItem.objects.none()
+    live_rooms = LiveSession.objects.none()
     communities = Community.objects.none()
     if query:
         users = Profile.objects.select_related("user").filter(
@@ -573,13 +578,34 @@ def search_view(request):
             | Q(author__profile__location__icontains=query)
             | Q(community__name__icontains=query)
         )[:20]
+        stories = visible_stories_for(request.user).filter(
+            Q(text_content__icontains=query)
+            | Q(caption__icontains=query)
+            | Q(author__profile__username__icontains=query)
+            | Q(author__profile__display_name__icontains=query)
+        )[:12]
+        live_rooms = LiveSession.objects.select_related("host", "host__profile").filter(
+            access_type=LiveSession.AccessType.PUBLIC
+        ).filter(
+            Q(title__icontains=query)
+            | Q(description__icontains=query)
+            | Q(host__profile__username__icontains=query)
+            | Q(host__profile__display_name__icontains=query)
+        ).order_by("-is_featured", "-viewer_count", "-starts_at")[:12]
         communities = Community.objects.select_related("owner").filter(
             Q(name__icontains=query) | Q(description__icontains=query) | Q(slug__icontains=query)
         )[:20]
     return render(
         request,
         "posts/search.html",
-        {"query": query, "users": users, "posts": posts, "communities": communities},
+        {
+            "query": query,
+            "users": users,
+            "posts": posts,
+            "stories": stories,
+            "live_rooms": live_rooms,
+            "communities": communities,
+        },
     )
 
 

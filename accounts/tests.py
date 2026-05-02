@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from dating.models import DatingCoinBalance
+from stories.models import StoryItem
 
 from .forms import ProfileForm
 from posts.models import Post, Report
@@ -221,6 +222,33 @@ class AccountAuthFlowTests(TestCase):
         self.assertNotContains(response, "mina@example.com")
         self.assertNotContains(response, "+264811234567")
 
+    def test_public_profile_renders_pinned_post_and_story_highlights_safely(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="profileplus", email="profileplus@example.com"))
+        user = User.objects.get(username="profileplus")
+        Post.objects.create(
+            author=user,
+            title="Pinned creator post",
+            audience=Post.Audience.PUBLIC,
+            share_target=Post.ShareTarget.PROFILE,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        StoryItem.objects.create(
+            author=user,
+            media_type=StoryItem.MediaType.TEXT,
+            text_content="Highlight story",
+            audience=StoryItem.Audience.PUBLIC,
+            expires_at=timezone.now() + timezone.timedelta(hours=6),
+        )
+
+        response = self.client.get(reverse("profile_detail", kwargs={"username": user.profile.username}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pinned post")
+        self.assertContains(response, "Pinned creator post")
+        self.assertContains(response, "Story highlights")
+        self.assertContains(response, "Highlight story")
+
     def test_rank_helper_defaults_to_namvibe(self):
         rank = account_rank_for_value(0)
 
@@ -246,6 +274,23 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Model / Streamer Application")
+
+    @patch("accounts.views.get_posts_by_user", return_value=[])
+    def test_dashboard_recommendations_are_capped(self, _posts):
+        self.client.post(reverse("signup"), self._signup_payload(username="rec_user", email="rec@example.com"))
+        for index in range(12):
+            creator = User.objects.create_user(username=f"creator_{index}", password="Pass12345")
+            creator.profile.is_creator = True
+            creator.profile.region = "Khomas"
+            creator.profile.save(update_fields=["is_creator", "region"])
+
+        response = self.client.get(reverse("user_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        recommendations = response.context["smart_recommendations"]
+        self.assertLessEqual(len(recommendations["people_you_may_know"]), 6)
+        self.assertLessEqual(len(recommendations["suggested_creators"]), 6)
+        self.assertLessEqual(len(recommendations["nearby_profiles"]), 6)
 
     def test_gallery_route_renders(self):
         self.client.post(reverse("signup"), self._signup_payload(username="gallery_user", email="gallery@example.com"))
@@ -337,6 +382,19 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Members to discover")
+
+    def test_staff_insights_is_staff_only(self):
+        user = User.objects.create_user(username="plainstafftest", password="Pass12345")
+        staff = User.objects.create_user(username="realstafftest", password="Pass12345", is_staff=True)
+
+        self.client.force_login(user)
+        blocked = self.client.get(reverse("staff_insights"))
+        self.assertEqual(blocked.status_code, 302)
+
+        self.client.force_login(staff)
+        allowed = self.client.get(reverse("staff_insights"))
+        self.assertEqual(allowed.status_code, 200)
+        self.assertContains(allowed, "Platform insights")
 
     def test_friend_request_send_and_accept_flow(self):
         self.client.post(

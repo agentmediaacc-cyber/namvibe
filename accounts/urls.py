@@ -15,6 +15,7 @@ from .views import (
     member_discovery_view,
     moderation_dashboard_view,
     moderation_report_detail_view,
+    staff_insights_view,
     signup_view,
     send_friend_request_view,
     block_user_view,
@@ -51,6 +52,7 @@ urlpatterns = [
     path("friend-requests/<int:request_id>/decline/", decline_friend_request_view, name="friend_request_decline"),
     path("moderation/", moderation_dashboard_view, name="moderation_dashboard"),
     path("moderation/reports/<int:report_id>/", moderation_report_detail_view, name="moderation_report_detail"),
+    path("staff/insights/", staff_insights_view, name="staff_insights"),
     path("model-application/", account_model_application_view, name="account_model_application"),
 
     path("profile/", profile_shortcut_view, name="profile_shortcut"),

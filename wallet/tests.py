@@ -13,12 +13,15 @@ from stories.models import StoryItem
 
 from .models import BoostCampaign, CreatorEntitlement, GiftCatalog, GiftEvent, MembershipPlan, UserMembership, WalletAccount, WalletTransaction
 from .services import (
+    DAILY_CHECKIN_REFERENCE_PREFIX,
     InsufficientFunds,
     WalletError,
     active_boosts_qs,
     assign_membership_by_staff,
+    claim_daily_checkin,
     create_boost,
     credit_wallet,
+    daily_checkin_status,
     debit_wallet,
     premium_badge_for,
     purchase_membership,
@@ -199,3 +202,29 @@ class WalletPhaseFiveTests(TestCase):
         self.viewer.wallet.refresh_from_db()
         self.assertEqual(self.viewer.wallet.available_balance, Decimal("25.00"))
         self.assertEqual(self.viewer.wallet.transactions.count(), 2)
+
+    def test_daily_checkin_claim_creates_single_adjustment(self):
+        status, created = claim_daily_checkin(self.viewer)
+
+        self.assertTrue(created)
+        self.assertTrue(status["claimed_today"])
+        self.assertEqual(
+            WalletTransaction.objects.filter(
+                wallet=self.viewer.wallet,
+                reference__startswith=DAILY_CHECKIN_REFERENCE_PREFIX,
+            ).count(),
+            1,
+        )
+
+        second_status, second_created = claim_daily_checkin(self.viewer)
+        self.assertFalse(second_created)
+        self.assertTrue(second_status["claimed_today"])
+
+    def test_wallet_home_shows_daily_checkin_status(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("wallet_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("daily_checkin", response.context)
+        self.assertEqual(response.context["daily_checkin"]["streak"], daily_checkin_status(self.viewer)["streak"])

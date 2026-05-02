@@ -22,6 +22,8 @@ from .services import (
     active_boost_for_post,
     active_boost_for_profile,
     active_boost_for_story,
+    claim_daily_checkin,
+    daily_checkin_status,
     active_gifts,
     active_membership_for,
     active_plans,
@@ -59,6 +61,7 @@ def wallet_home_view(request):
             "premium_badge": premium_badge_for(request.user),
             "earnings_snapshot": earnings,
             "active_boost_count": BoostCampaign.objects.filter(owner=request.user, active=True).count(),
+            "daily_checkin": daily_checkin_status(request.user),
         },
     )
 
@@ -94,6 +97,24 @@ def wallet_transactions_view(request):
     paginator = Paginator(wallet.transactions.all(), 20)
     page_obj = paginator.get_page(request.GET.get("page"))
     return render(request, "wallet/transactions.html", {"wallet": wallet, "page_obj": page_obj})
+
+
+@login_required(login_url="login")
+@require_POST
+def daily_checkin_claim_view(request):
+    try:
+        status, created = claim_daily_checkin(request.user)
+    except Exception as exc:
+        messages.error(request, str(exc))
+    else:
+        if created:
+            messages.success(
+                request,
+                f"Daily check-in claimed. {status['reward_coins']} coins have been added to your wallet.",
+            )
+        else:
+            messages.info(request, "You already claimed your daily check-in today.")
+    return redirect(request.POST.get("next") or reverse("user_dashboard"))
 
 
 @login_required(login_url="login")
