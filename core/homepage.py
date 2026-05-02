@@ -6,7 +6,7 @@ from django.db.models import F, Q, Sum
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
-from accounts.models import Follow, FriendRequest, Profile
+from accounts.models import Block, Follow, FriendRequest, Profile
 from ads.models import Advertisement
 from communities.models import Community
 from dating.models import DatingLike, DatingProfile, Match
@@ -138,8 +138,14 @@ def _community_suggestions(user, limit=6):
 def _people_suggestions(user, limit=6):
     creators = list(suggested_users_for(user, limit=limit))
     if creators:
-        return creators
-    return list(Profile.objects.select_related("user").order_by("-follower_count", "-post_count", "-created_at")[:limit])
+        return [profile for profile in creators if not getattr(profile, "is_hidden_by_moderation", False)][:limit]
+
+    queryset = Profile.objects.select_related("user").filter(is_hidden_by_moderation=False)
+    if user.is_authenticated:
+        blocked_pairs = Block.objects.filter(Q(blocker=user) | Q(blocked=user)).values_list("blocker_id", "blocked_id")
+        blocked_user_ids = {item for pair in blocked_pairs for item in pair if item and item != user.id}
+        queryset = queryset.exclude(user_id__in=blocked_user_ids).exclude(user=user)
+    return list(queryset.order_by("-follower_count", "-post_count", "-created_at")[:limit])
 
 
 def _friend_request_between(user, other_user):
@@ -172,6 +178,7 @@ def _member_cards(user, profiles, limit=8):
                 "is_friend": is_friend,
                 "request_sent": request_sent,
                 "request_received": request_received,
+                "friend_request_id": getattr(friend_request, "id", 0),
                 "follow_url": _safe_reverse("follow_toggle", username=profile.username or profile.user.username),
                 "friend_request_url": _safe_reverse("friend_request_send", username=profile.username or profile.user.username),
                 "friend_accept_url": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
@@ -579,9 +586,22 @@ def homepage_context(request, page=1, fragment=False):
     )
     primary_posts = list(visible_posts[offset : offset + limit])
     boosted_post_ids = active_boosted_post_ids([post.id for post in primary_posts])
+    followed_author_ids = set()
+    if user.is_authenticated:
+        followed_author_ids = set(Follow.objects.filter(follower=user).values_list("following_id", flat=True))
     for post in primary_posts:
         post.is_boosted = post.id in boosted_post_ids
         post.author_premium_badge = premium_badge_for(post.author)
+        engagement_total = int((post.like_count or 0) + (post.comment_count or 0) + (post.view_count or 0))
+        post.discovery_label = ""
+        if user.is_authenticated and post.author_id in followed_author_ids:
+            post.discovery_label = "Because you follow"
+        elif post.is_boosted:
+            post.discovery_label = "Boosted now"
+        elif engagement_total >= 8:
+            post.discovery_label = "Popular now"
+        elif post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}:
+            post.discovery_label = "Watch now"
     primary_posts.sort(key=lambda post: (not getattr(post, "is_boosted", False), -(post.published_at or post.created_at).timestamp()))
     reel_preview = [post for post in primary_posts if post.post_type in {Post.PostType.REEL, Post.PostType.VIDEO}][:6]
     if fragment:

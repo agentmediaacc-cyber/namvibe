@@ -58,6 +58,23 @@ class HomepageProductionTests(TestCase):
         self.assertNotContains(response, "Join Namvibe")
         self.assertNotContains(response, "Explore Feed")
 
+    def test_anonymous_homepage_shows_join_login_and_explore(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Join Namvibe")
+        self.assertContains(response, "Login")
+        self.assertContains(response, "Explore Feed")
+
+    def test_logged_in_homepage_shows_mobile_create_launcher(self):
+        self.client.force_login(self.viewer)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="mobileCreateFab"')
+        self.assertContains(response, "Create first story", count=1)
+
     def test_expired_stories_do_not_appear(self):
         self.story.expires_at = timezone.now() - timezone.timedelta(minutes=1)
         self.story.save(update_fields=["expires_at"])
@@ -73,6 +90,17 @@ class HomepageProductionTests(TestCase):
         response = self.client.get(reverse("home"))
 
         self.assertNotContains(response, "Public story")
+
+    def test_hidden_profiles_are_excluded_from_homepage_discovery(self):
+        hidden_user = User.objects.create_user(username="hidden_home", password="Pass12345")
+        hidden_user.profile.display_name = "Hidden Home"
+        hidden_user.profile.is_hidden_by_moderation = True
+        hidden_user.profile.save(update_fields=["display_name", "is_hidden_by_moderation"])
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Hidden Home")
 
     def test_story_creation_flow_works(self):
         self.client.force_login(self.viewer)
@@ -244,9 +272,32 @@ class HomepageProductionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Create story")
+        self.assertNotContains(response, "Latest stories")
 
     def test_feed_more_empty_page_returns_empty_marker(self):
         response = self.client.get(reverse("feed_more"), {"page": 99})
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-feed-empty="true"')
+
+    def test_homepage_story_rail_shows_only_active_stories(self):
+        StoryItem.objects.create(
+            author=self.author,
+            media_type=StoryItem.MediaType.TEXT,
+            text_content="Expired homepage story",
+            audience=StoryItem.Audience.PUBLIC,
+            expires_at=timezone.now() - timezone.timedelta(minutes=5),
+        )
+        StoryItem.objects.create(
+            author=self.viewer,
+            media_type=StoryItem.MediaType.TEXT,
+            text_content="Fresh homepage story",
+            audience=StoryItem.Audience.PUBLIC,
+            expires_at=timezone.now() + timezone.timedelta(hours=6),
+        )
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fresh homepage story")
+        self.assertNotContains(response, "Expired homepage story")
