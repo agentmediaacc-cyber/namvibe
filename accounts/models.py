@@ -47,6 +47,7 @@ class Profile(models.Model):
     is_verified = models.BooleanField(default=False)
     is_creator = models.BooleanField(default=False)
     is_private = models.BooleanField(default=False)
+    is_hidden_by_moderation = models.BooleanField(default=False, db_index=True)
     follower_count = models.PositiveIntegerField(default=0)
     following_count = models.PositiveIntegerField(default=0)
     post_count = models.PositiveIntegerField(default=0)

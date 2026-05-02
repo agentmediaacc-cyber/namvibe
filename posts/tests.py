@@ -455,6 +455,28 @@ class FeedDiscoveryInteractionTests(TestCase):
         self.assertRedirects(response, reverse("post_detail", kwargs={"uuid": self.public_post.uuid}), fetch_redirect_response=False)
         self.assertTrue(Report.objects.filter(reporter=self.viewer, post=self.public_post, reason=Report.Reason.SPAM).exists())
 
+    def test_duplicate_report_prevention(self):
+        self.client.force_login(self.viewer)
+
+        first = self.client.post(reverse("report_post", kwargs={"uuid": self.public_post.uuid}), {"reason": "spam", "details": "Bad"})
+        second = self.client.post(reverse("report_post", kwargs={"uuid": self.public_post.uuid}), {"reason": "spam", "details": "Bad again"})
+
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(Report.objects.filter(reporter=self.viewer, post=self.public_post).count(), 1)
+
+    def test_report_threshold_soft_hides_post(self):
+        first = User.objects.create_user(username="reporter_one", password="Pass12345")
+        second = User.objects.create_user(username="reporter_two", password="Pass12345")
+        third = User.objects.create_user(username="reporter_three", password="Pass12345")
+
+        for reporter in [first, second, third]:
+            self.client.force_login(reporter)
+            self.client.post(reverse("report_post", kwargs={"uuid": self.public_post.uuid}), {"reason": "spam", "details": "Bad"})
+
+        self.public_post.refresh_from_db()
+        self.assertTrue(self.public_post.is_hidden_by_moderation)
+
     def test_comment_creates_notification_for_post_author(self):
         self.client.force_login(self.viewer)
 

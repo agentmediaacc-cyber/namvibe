@@ -9,6 +9,7 @@
                 <div class="nv-tags" style="margin-top:6px;">
                     {% if post.author_premium_badge and post.author_premium_badge.is_paid %}<span>{{ post.author_premium_badge.label }}</span>{% endif %}
                     {% if post.is_boosted %}<span>Boosted</span>{% endif %}
+                    {% if post.is_hidden_by_moderation %}<span>Under review</span>{% endif %}
                 </div>
             </span>
         </a>

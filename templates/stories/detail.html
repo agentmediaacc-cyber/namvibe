@@ -177,6 +177,7 @@
         <span class="story-pill">❤️ {{ story.like_count|default:0 }}</span>
         <span class="story-pill">💬 {{ comments|length }}</span>
         <span class="story-pill">👁 {{ story.view_count|default:0 }}</span>
+        {% if under_review %}<span class="story-pill">Under review</span>{% endif %}
         {% if active_story_boost %}<span class="story-pill">Boost ends {{ active_story_boost.ends_at|date:"M j H:i" }}</span>{% endif %}
         {% if request.user.is_authenticated %}
           <form method="post" action="{% url 'story_like' story.id %}" style="margin:0;">

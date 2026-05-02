@@ -479,6 +479,7 @@ def post_detail_view(request, uuid):
             "saved": saved,
             "comment_reaction_choices": Like.ReactionType.choices,
             "default_gift": default_gift,
+            "under_review": post.is_hidden_by_moderation,
         },
     )
 

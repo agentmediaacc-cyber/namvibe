@@ -15,7 +15,7 @@ class StoryQuerySet(models.QuerySet):
         qs = self.active()
         public = Q(audience=StoryItem.Audience.PUBLIC)
         if not user.is_authenticated:
-            return qs.filter(public)
+            return qs.filter(public, is_hidden_by_moderation=False)
 
         blocked_pairs = Block.objects.filter(Q(blocker=user) | Q(blocked=user)).values_list("blocker_id", "blocked_id")
         hidden_ids = {item for pair in blocked_pairs for item in pair if item != user.id}
@@ -25,12 +25,16 @@ class StoryQuerySet(models.QuerySet):
             status=FriendRequest.Status.ACCEPTED,
         ).values_list("from_user_id", "to_user_id")
         friend_ids = {item for pair in friend_pairs for item in pair if item != user.id}
-        return qs.exclude(author_id__in=hidden_ids).filter(
+        visibility_filter = (
             public
             | Q(author=user)
             | Q(audience=StoryItem.Audience.FOLLOWERS, author_id__in=followed_ids)
             | Q(audience=StoryItem.Audience.FRIENDS, author_id__in=friend_ids)
-        ).distinct()
+        )
+        moderation_filter = Q(is_hidden_by_moderation=False) | Q(author=user)
+        if getattr(user, "is_staff", False):
+            moderation_filter = Q()
+        return qs.exclude(author_id__in=hidden_ids).filter(visibility_filter).filter(moderation_filter).distinct()
 
 
 class StoryItem(models.Model):
@@ -55,6 +59,7 @@ class StoryItem(models.Model):
     link_url = models.URLField(blank=True)
     link_label = models.CharField(max_length=80, blank=True)
     audience = models.CharField(max_length=16, choices=Audience.choices, default=Audience.PUBLIC, db_index=True)
+    is_hidden_by_moderation = models.BooleanField(default=False, db_index=True)
     expires_at = models.DateTimeField(db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     view_count = models.PositiveIntegerField(default=0)

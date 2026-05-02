@@ -5,10 +5,12 @@ from datetime import timedelta
 from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
-from accounts.models import Follow, FriendRequest, Mute
+from accounts.models import Follow, FriendRequest, Mute, Notification, notify
 from wallet.services import active_boosted_post_ids
 from communities.models import Community, CommunityMembership
 from .models import Comment, CommentReaction, Like, Post, PostView, Report, Save, Share
+
+AUTO_HIDE_REPORT_THRESHOLD = 3
 
 
 def notification_hook(event_type, *, actor=None, recipient=None, post=None, comment=None):
@@ -20,6 +22,23 @@ def notification_hook(event_type, *, actor=None, recipient=None, post=None, comm
         "post": post,
         "comment": comment,
     }
+
+
+def _apply_report_threshold(report):
+    if report.post_id:
+        open_reports = Report.objects.filter(post=report.post, status__in=[Report.Status.OPEN, Report.Status.REVIEWING]).count()
+        if open_reports >= AUTO_HIDE_REPORT_THRESHOLD and not report.post.is_hidden_by_moderation:
+            Post.objects.filter(pk=report.post_id).update(is_hidden_by_moderation=True)
+    if report.story_id:
+        open_reports = Report.objects.filter(story=report.story, status__in=[Report.Status.OPEN, Report.Status.REVIEWING]).count()
+        if open_reports >= AUTO_HIDE_REPORT_THRESHOLD and not report.story.is_hidden_by_moderation:
+            report.story.__class__.objects.filter(pk=report.story_id).update(is_hidden_by_moderation=True)
+    if report.reported_user_id:
+        profile = getattr(report.reported_user, "profile", None)
+        if profile:
+            open_reports = Report.objects.filter(reported_user=report.reported_user, status__in=[Report.Status.OPEN, Report.Status.REVIEWING]).count()
+            if open_reports >= AUTO_HIDE_REPORT_THRESHOLD and not profile.is_hidden_by_moderation:
+                profile.__class__.objects.filter(pk=profile.pk).update(is_hidden_by_moderation=True)
 
 
 def base_visible_posts(user):
@@ -191,6 +210,18 @@ def track_view(user, post, session_key="", duration_seconds=0, completed=False):
 def create_report(reporter, *, post=None, reported_user=None, reason=Report.Reason.OTHER, details=""):
     if post and not can_interact_with_post(reporter, post):
         return None
+    target_filter = {}
+    if post is not None:
+        target_filter["post"] = post
+    elif reported_user is not None:
+        target_filter["reported_user"] = reported_user
+    existing = Report.objects.filter(
+        reporter=reporter,
+        status__in=[Report.Status.OPEN, Report.Status.REVIEWING],
+        **target_filter,
+    ).first()
+    if existing:
+        return existing
     report = Report.objects.create(
         reporter=reporter,
         post=post,
@@ -198,7 +229,82 @@ def create_report(reporter, *, post=None, reported_user=None, reason=Report.Reas
         reason=reason,
         details=details.strip(),
     )
+    _apply_report_threshold(report)
     notification_hook("report", actor=reporter, recipient=getattr(post, "author", reported_user), post=post)
+    return report
+
+
+def create_story_report(reporter, *, story, reason=Report.Reason.OTHER, details=""):
+    existing = Report.objects.filter(
+        reporter=reporter,
+        story=story,
+        status__in=[Report.Status.OPEN, Report.Status.REVIEWING],
+    ).first()
+    if existing:
+        return existing
+    report = Report.objects.create(
+        reporter=reporter,
+        story=story,
+        reported_user=story.author,
+        reason=reason,
+        details=details.strip(),
+    )
+    _apply_report_threshold(report)
+    return report
+
+
+def create_message_report(reporter, *, message, reason=Report.Reason.OTHER, details=""):
+    existing = Report.objects.filter(
+        reporter=reporter,
+        message=message,
+        status__in=[Report.Status.OPEN, Report.Status.REVIEWING],
+    ).first()
+    if existing:
+        return existing
+    report = Report.objects.create(
+        reporter=reporter,
+        message=message,
+        reported_user=message.sender,
+        reason=reason,
+        details=details.strip(),
+    )
+    _apply_report_threshold(report)
+    return report
+
+
+def review_report(report, reviewer, *, status, action_taken="", staff_notes=""):
+    report.status = status
+    report.action_taken = action_taken
+    report.staff_notes = (staff_notes or "").strip()
+    report.reviewed_by = reviewer
+    report.reviewed_at = timezone.now()
+    report.save(update_fields=["status", "action_taken", "staff_notes", "reviewed_by", "reviewed_at", "updated_at"])
+
+    if report.post_id and action_taken == "hide":
+        Post.objects.filter(pk=report.post_id).update(is_hidden_by_moderation=True)
+    elif report.post_id and action_taken == "unhide":
+        Post.objects.filter(pk=report.post_id).update(is_hidden_by_moderation=False)
+    elif report.story_id and action_taken == "hide":
+        report.story.__class__.objects.filter(pk=report.story_id).update(is_hidden_by_moderation=True)
+    elif report.story_id and action_taken == "unhide":
+        report.story.__class__.objects.filter(pk=report.story_id).update(is_hidden_by_moderation=False)
+    elif report.reported_user_id and action_taken == "hide":
+        profile = getattr(report.reported_user, "profile", None)
+        if profile:
+            profile.__class__.objects.filter(pk=profile.pk).update(is_hidden_by_moderation=True)
+    elif report.reported_user_id and action_taken == "unhide":
+        profile = getattr(report.reported_user, "profile", None)
+        if profile:
+            profile.__class__.objects.filter(pk=profile.pk).update(is_hidden_by_moderation=False)
+
+    if report.reported_user_id and action_taken == "warn":
+        notify(
+            recipient=report.reported_user,
+            notification_type=Notification.Type.SYSTEM,
+            sender=reviewer,
+            message="A Namvibe safety review requires attention on your recent activity.",
+            target_url="/notifications/",
+        )
     return report
 
 

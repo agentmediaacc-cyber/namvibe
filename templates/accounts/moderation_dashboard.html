@@ -1,0 +1,102 @@
+{% extends "accounts/profile_base.html" %}
+
+{% block title %}Trust & Safety | Namvibe{% endblock %}
+
+{% block profile_extra_head %}
+<style>
+  .mod-shell{display:grid;gap:18px}
+  .mod-card{
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);
+    backdrop-filter:blur(18px);
+    box-shadow:0 24px 70px rgba(0,0,0,.3);
+    border-radius:28px;
+    padding:20px;
+    color:#fff;
+  }
+  .mod-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .mod-stat span,.mod-empty{color:#cbd5e1}
+  .mod-stat strong{display:block;margin-top:8px;font-size:1.3rem}
+  .mod-list{display:grid;gap:12px}
+  .mod-row{
+    border:1px solid rgba(255,255,255,.1);border-radius:22px;background:rgba(255,255,255,.04);
+    padding:16px;display:grid;gap:10px
+  }
+  .mod-row-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .mod-pill{
+    display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);font-size:12px;font-weight:900
+  }
+  .mod-link{
+    display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border-radius:16px;
+    text-decoration:none;color:#fff;font-weight:900;border:1px solid rgba(255,255,255,.12);background:linear-gradient(135deg,#7c3aed,#ec4899)
+  }
+</style>
+{% endblock %}
+
+{% block profile_content %}
+<section class="mod-shell">
+  <section class="mod-card">
+    <h2 style="margin:0 0 8px;">Trust & Safety</h2>
+    <p class="mod-empty" style="margin:0;">Review reports, apply safe moderation actions, and keep Namvibe social spaces healthy without destructive deletes.</p>
+    <div class="mod-grid" style="margin-top:16px;">
+      <article class="mod-stat"><span>Pending reports</span><strong>{{ pending_reports|length }}</strong></article>
+      <article class="mod-stat"><span>Reviewed recently</span><strong>{{ reviewed_reports|length }}</strong></article>
+    </div>
+  </section>
+
+  <section class="mod-card">
+    <div class="mod-row-top">
+      <h3 style="margin:0;">Pending reports</h3>
+      <span class="mod-pill">Open / Reviewing</span>
+    </div>
+    <div class="mod-list" style="margin-top:14px;">
+      {% for report in pending_reports %}
+        <article class="mod-row">
+          <div class="mod-row-top">
+            <div>
+              <strong>{{ report.get_reason_display }}</strong>
+              <div class="mod-empty">From @{{ report.reporter.username }} · {{ report.created_at|date:"M j, H:i" }}</div>
+            </div>
+            <span class="mod-pill">{{ report.status }}</span>
+          </div>
+          <div class="mod-empty">
+            {% if report.post %}Post: {{ report.post.title|default:report.post.caption|truncatechars:70 }}
+            {% elif report.story %}Story by @{{ report.story.author.username }}
+            {% elif report.message %}Message from @{{ report.message.sender.username }}
+            {% elif report.reported_user %}Profile: @{{ report.reported_user.username }}
+            {% endif %}
+          </div>
+          <a class="mod-link" href="{% url 'moderation_report_detail' report.id %}">Open review</a>
+        </article>
+      {% empty %}
+        <div class="mod-row mod-empty">No pending reports right now.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="mod-card">
+    <div class="mod-row-top">
+      <h3 style="margin:0;">Reviewed</h3>
+      <span class="mod-pill">Resolved / Dismissed</span>
+    </div>
+    <div class="mod-list" style="margin-top:14px;">
+      {% for report in reviewed_reports %}
+        <article class="mod-row">
+          <div class="mod-row-top">
+            <div>
+              <strong>{{ report.get_reason_display }}</strong>
+              <div class="mod-empty">By {% if report.reviewed_by %}@{{ report.reviewed_by.username }}{% else %}staff{% endif %} · {{ report.updated_at|date:"M j, H:i" }}</div>
+            </div>
+            <span class="mod-pill">{{ report.status }}</span>
+          </div>
+          <div class="mod-empty">{{ report.staff_notes|default:"No internal note added." }}</div>
+          <a class="mod-link" href="{% url 'moderation_report_detail' report.id %}">View review</a>
+        </article>
+      {% empty %}
+        <div class="mod-row mod-empty">Reviewed reports will appear here.</div>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

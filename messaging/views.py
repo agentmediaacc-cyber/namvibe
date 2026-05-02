@@ -4,15 +4,18 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import models
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
 
+from posts.services import create_message_report
 from .forms import MessageForm, attachment_type_for
 from .models import Conversation, Message
 from .services import (
+    blocked_between,
     call_gate_state,
     create_message,
     get_or_create_direct_conversation,
@@ -67,6 +70,10 @@ def start_chat(request, user_id):
 @require_POST
 def send_message(request, conversation_id):
     conversation = get_object_or_404(Conversation.objects.filter(participants=request.user), pk=conversation_id)
+    other_user = conversation.other_participant(request.user)
+    if not other_user or blocked_between(request.user, other_user):
+        messages.error(request, "Chat is no longer available for this conversation.")
+        return redirect("messages_home")
     form = MessageForm(request.POST, request.FILES)
 
     if not form.is_valid():
@@ -165,3 +172,27 @@ def call_lobby_view(request, user_id):
             "initial_mode": initial_mode,
         },
     )
+
+
+@login_required(login_url="login")
+@require_POST
+def report_message_view(request, message_id):
+    from posts.models import Report
+
+    message = get_object_or_404(
+        Message.objects.select_related("conversation", "sender", "sender__profile").filter(conversation__participants=request.user),
+        pk=message_id,
+    )
+    if message.sender == request.user:
+        return HttpResponseForbidden("You cannot report your own message.")
+    reason = request.POST.get("reason") or Report.Reason.OTHER
+    if reason not in Report.Reason.values:
+        reason = Report.Reason.OTHER
+    create_message_report(
+        request.user,
+        message=message,
+        reason=reason,
+        details=request.POST.get("details", ""),
+    )
+    messages.success(request, "Message report submitted.")
+    return redirect(_dashboard_messages_url(message.conversation))

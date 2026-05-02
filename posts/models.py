@@ -19,7 +19,7 @@ class PostQuerySet(models.QuerySet):
         public_filter = Q(audience=Post.Audience.PUBLIC, status=Post.Status.PUBLISHED)
 
         if not user.is_authenticated:
-            return queryset.filter(public_filter)
+            return queryset.filter(public_filter, is_hidden_by_moderation=False)
 
         blocked_user_ids = set(
             Block.objects.filter(Q(blocker=user) | Q(blocked=user)).values_list("blocker_id", "blocked_id")
@@ -46,7 +46,10 @@ class PostQuerySet(models.QuerySet):
                 status=Post.Status.PUBLISHED,
             )
         )
-        return queryset.exclude(author_id__in=hidden_ids).filter(visibility_filter).distinct()
+        moderation_filter = Q(is_hidden_by_moderation=False) | Q(author=user)
+        if getattr(user, "is_staff", False):
+            moderation_filter = Q()
+        return queryset.exclude(author_id__in=hidden_ids).filter(visibility_filter).filter(moderation_filter).distinct()
 
 
 class Post(models.Model):
@@ -101,6 +104,7 @@ class Post(models.Model):
     is_ai_generated = models.BooleanField(default=False)
     is_public_preview = models.BooleanField(default=True)
     is_sensitive = models.BooleanField(default=False)
+    is_hidden_by_moderation = models.BooleanField(default=False, db_index=True)
     is_edited = models.BooleanField(default=False)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -411,20 +415,29 @@ class Report(models.Model):
 
     reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reports")
     post = models.ForeignKey(Post, on_delete=models.CASCADE, null=True, blank=True, related_name="reports")
+    story = models.ForeignKey("stories.StoryItem", on_delete=models.CASCADE, null=True, blank=True, related_name="reports")
+    message = models.ForeignKey("messaging.Message", on_delete=models.CASCADE, null=True, blank=True, related_name="reports")
     reported_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name="received_reports")
     reason = models.CharField(max_length=20, choices=Reason.choices)
     details = models.TextField(blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.OPEN, db_index=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="moderation_reviews")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    staff_notes = models.TextField(blank=True)
+    action_taken = models.CharField(max_length=32, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         indexes = [
             models.Index(fields=["post", "status", "created_at"]),
+            models.Index(fields=["story", "status", "created_at"]),
+            models.Index(fields=["message", "status", "created_at"]),
             models.Index(fields=["reported_user", "status", "created_at"]),
             models.Index(fields=["reporter", "created_at"]),
         ]
 
     def clean(self):
-        if not self.post_id and not self.reported_user_id:
-            raise ValidationError("Report a post or a user.")
+        targets = [bool(self.post_id), bool(self.story_id), bool(self.message_id), bool(self.reported_user_id)]
+        if sum(targets) != 1:
+            raise ValidationError("Report exactly one post, story, message, or user.")

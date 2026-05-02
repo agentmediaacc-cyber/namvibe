@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import Max
 from django.utils import timezone
 
-from accounts.models import Follow, FriendRequest, Profile
+from accounts.models import Block, Follow, FriendRequest, Profile
 from wallet.services import active_membership_for, ensure_wallet
 
 from .forms import MessageForm, attachment_type_for
@@ -48,11 +48,20 @@ def get_or_create_direct_conversation(user, other_user):
 
 
 def users_are_friends(left_user, right_user):
+    if blocked_between(left_user, right_user):
+        return False
     return FriendRequest.objects.filter(
         status=FriendRequest.Status.ACCEPTED,
     ).filter(
         (models.Q(from_user=left_user) & models.Q(to_user=right_user))
         | (models.Q(from_user=right_user) & models.Q(to_user=left_user))
+    ).exists()
+
+
+def blocked_between(left_user, right_user):
+    return Block.objects.filter(
+        (models.Q(blocker=left_user) & models.Q(blocked=right_user))
+        | (models.Q(blocker=right_user) & models.Q(blocked=left_user))
     ).exists()
 
 
@@ -148,8 +157,12 @@ def _recommended_chat_users(user, conversation_items):
         if candidate_id and candidate_id not in existing_user_ids and candidate_id != user.id and candidate_id not in candidate_ids:
             candidate_ids.append(candidate_id)
 
+    blocked_pairs = Block.objects.filter(models.Q(blocker=user) | models.Q(blocked=user)).values_list("blocker_id", "blocked_id")
+    hidden_ids = {item for pair in blocked_pairs for item in pair if item != user.id}
+    candidate_ids = [candidate_id for candidate_id in candidate_ids if candidate_id not in hidden_ids]
+
     if not candidate_ids:
-        return list(get_user_model().objects.exclude(pk=user.pk).order_by("username")[:18])
+        return list(get_user_model().objects.exclude(pk__in=[user.pk, *hidden_ids]).order_by("username")[:18])
 
     ordering = {candidate_id: idx for idx, candidate_id in enumerate(candidate_ids)}
     users = list(get_user_model().objects.filter(pk__in=candidate_ids).select_related("profile"))
@@ -170,11 +183,14 @@ def messaging_dashboard_context(user, conversation_id=None):
 
     conversation_items = []
     for conversation in conversations:
+        other_user = conversation.other_participant(user)
+        if other_user and not users_are_friends(user, other_user):
+            continue
         messages = list(conversation.messages.all())
         last_message = messages[-1] if messages else None
         conversation_items.append({
             "conversation": conversation,
-            "other": conversation.other_participant(user),
+            "other": other_user,
             "unread_count": conversation.unread_count_for(user),
             "last_message": last_message,
             "message_count": len(messages),

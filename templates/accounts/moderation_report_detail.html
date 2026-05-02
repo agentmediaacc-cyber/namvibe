@@ -1,0 +1,102 @@
+{% extends "accounts/profile_base.html" %}
+
+{% block title %}Report Review | Namvibe{% endblock %}
+
+{% block profile_extra_head %}
+<style>
+  .review-shell{display:grid;gap:18px}
+  .review-card{
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);backdrop-filter:blur(18px);
+    box-shadow:0 24px 70px rgba(0,0,0,.3);border-radius:28px;padding:20px;color:#fff
+  }
+  .review-pill{
+    display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);font-size:12px;font-weight:900
+  }
+  .review-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .review-stat span,.review-copy{color:#cbd5e1}
+  .review-stat strong{display:block;margin-top:8px;font-size:1.25rem}
+  .review-form{display:grid;gap:12px}
+  .review-form label{display:grid;gap:8px;font-weight:800}
+  .review-form input,.review-form select,.review-form textarea{
+    width:100%;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff;
+    padding:12px 14px;font:inherit
+  }
+  .review-form textarea{min-height:120px;resize:vertical}
+  .review-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .review-btn{
+    display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:12px 16px;border-radius:16px;
+    border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-weight:900;text-decoration:none;cursor:pointer
+  }
+  .review-btn.primary{background:linear-gradient(135deg,#7c3aed,#ec4899);border-color:transparent}
+</style>
+{% endblock %}
+
+{% block profile_content %}
+<section class="review-shell">
+  <section class="review-card">
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
+      <div>
+        <h2 style="margin:0;">{{ report.get_reason_display }}</h2>
+        <p class="review-copy" style="margin:8px 0 0;">Submitted by @{{ report.reporter.username }} on {{ report.created_at|date:"M j, Y H:i" }}</p>
+      </div>
+      <span class="review-pill">{{ report.status }}</span>
+    </div>
+    <div class="review-grid" style="margin-top:16px;">
+      <article class="review-stat"><span>Target</span><strong>{% if report.post %}Post{% elif report.story %}Story{% elif report.message %}Message{% else %}Profile{% endif %}</strong></article>
+      <article class="review-stat"><span>Reported user</span><strong>{% if report.reported_user %}@{{ report.reported_user.username }}{% else %}Not linked{% endif %}</strong></article>
+      <article class="review-stat"><span>Last review</span><strong>{% if report.reviewed_at %}{{ report.reviewed_at|date:"M j H:i" }}{% else %}Not reviewed{% endif %}</strong></article>
+    </div>
+  </section>
+
+  <section class="review-card">
+    <h3 style="margin-top:0;">Reported content</h3>
+    <div class="review-copy">
+      {% if report.post %}
+        <strong>Post:</strong> {{ report.post.title|default:report.post.caption|default:"Untitled post" }}
+      {% elif report.story %}
+        <strong>Story:</strong> {{ report.story.caption|default:report.story.text_content|truncatechars:120 }}
+      {% elif report.message %}
+        <strong>Message:</strong> {{ report.message.text|default:"Attachment message"|truncatechars:120 }}
+      {% elif report.reported_user %}
+        <strong>Profile:</strong> @{{ report.reported_user.username }}
+      {% endif %}
+    </div>
+    {% if report.details %}
+      <p class="review-copy" style="margin-top:12px;">{{ report.details }}</p>
+    {% endif %}
+  </section>
+
+  <section class="review-card">
+    <h3 style="margin-top:0;">Review action</h3>
+    <form class="review-form" method="post">
+      {% csrf_token %}
+      <label>
+        Status
+        <select name="status">
+          {% for value,label in status_choices %}
+            <option value="{{ value }}" {% if report.status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Action
+        <select name="action_taken">
+          <option value="">No content action</option>
+          <option value="hide" {% if report.action_taken == "hide" %}selected{% endif %}>Hide content/profile</option>
+          <option value="unhide" {% if report.action_taken == "unhide" %}selected{% endif %}>Unhide content/profile</option>
+          <option value="warn" {% if report.action_taken == "warn" %}selected{% endif %}>Warn user</option>
+        </select>
+      </label>
+      <label>
+        Internal note
+        <textarea name="staff_notes" placeholder="Add moderation context for the review log.">{{ report.staff_notes }}</textarea>
+      </label>
+      <div class="review-actions">
+        <button class="review-btn primary" type="submit">Save review</button>
+        <a class="review-btn" href="{% url 'moderation_dashboard' %}">Back to dashboard</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

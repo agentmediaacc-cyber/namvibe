@@ -7,10 +7,12 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from dating.models import DatingCoinBalance
 
 from .forms import ProfileForm
-from .models import AccountProfile, AccountRole, Follow, Notification, Profile
+from posts.models import Post, Report
+from .models import AccountProfile, AccountRole, Block, Follow, FriendRequest, Notification, Profile
 from .services import account_rank_for_value, is_valid_uuid, master_admin_dashboard_url
 
 
@@ -252,6 +254,44 @@ class AccountAuthFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Gallery / Album")
+
+    def test_block_and_unblock_profile_flow(self):
+        self.client.post(reverse("signup"), self._signup_payload(username="blocker", email="blocker@example.com"))
+        target = User.objects.create_user(username="blocked_target", password="Pass12345")
+
+        block_response = self.client.post(reverse("block_user", kwargs={"username": target.profile.username}))
+        self.assertEqual(block_response.status_code, 302)
+        self.assertTrue(Block.objects.filter(blocker__username="blocker", blocked=target).exists())
+
+        unblock_response = self.client.post(reverse("unblock_user", kwargs={"username": target.profile.username}))
+        self.assertEqual(unblock_response.status_code, 302)
+        self.assertFalse(Block.objects.filter(blocker__username="blocker", blocked=target).exists())
+
+    def test_staff_can_review_report_and_hide_post(self):
+        staff = User.objects.create_user(username="modstaff", password="Pass12345", is_staff=True)
+        reporter = User.objects.create_user(username="modreporter", password="Pass12345")
+        creator = User.objects.create_user(username="modcreator", password="Pass12345")
+        post = Post.objects.create(
+            author=creator,
+            title="Needs review",
+            audience=Post.Audience.PUBLIC,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        report = Report.objects.create(reporter=reporter, post=post, reason=Report.Reason.SPAM)
+
+        self.client.force_login(staff)
+        response = self.client.post(
+            reverse("moderation_report_detail", kwargs={"report_id": report.id}),
+            {"status": Report.Status.RESOLVED, "action_taken": "hide", "staff_notes": "Hidden for review"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        report.refresh_from_db()
+        post.refresh_from_db()
+        self.assertEqual(report.status, Report.Status.RESOLVED)
+        self.assertEqual(report.reviewed_by, staff)
+        self.assertTrue(post.is_hidden_by_moderation)
 
     def test_root_dashboard_alias_redirects_to_account_dashboard(self):
         self.client.post(reverse("signup"), self._signup_payload(username="alias_user", email="alias@example.com"))

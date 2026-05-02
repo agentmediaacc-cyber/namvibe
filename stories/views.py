@@ -9,6 +9,7 @@ from .forms import StoryCreateForm
 from .models import StoryItem, StoryReaction
 from .services import add_story_comment, can_view_story, mark_story_viewed, share_story, story_rail_for, toggle_story_like, visible_stories_for
 from wallet.services import active_boost_for_story, active_gifts, premium_badge_for
+from posts.services import create_story_report
 
 
 @login_required(login_url="login")
@@ -92,6 +93,7 @@ def story_detail_view(request, id):
             "active_story_boost": active_boost_for_story(story),
             "story_author_badge": premium_badge_for(story.author),
             "default_gift": active_gifts().first(),
+            "under_review": story.is_hidden_by_moderation,
         },
     )
 
@@ -134,7 +136,6 @@ def story_share_view(request, id):
 @require_http_methods(["POST"])
 def story_report_view(request, id):
     from posts.models import Report
-    from posts.services import create_report
 
     story = get_object_or_404(StoryItem.objects.select_related("author", "author__profile"), id=id)
     if not can_view_story(request.user, story):
@@ -144,7 +145,7 @@ def story_report_view(request, id):
         reason = Report.Reason.OTHER
     details = (request.POST.get("details") or "").strip()
     details = f"Story #{story.id}: {details}".strip()
-    create_report(request.user, reported_user=story.author, reason=reason, details=details)
+    create_story_report(request.user, story=story, reason=reason, details=details)
     messages.success(request, "Story report submitted.")
     return redirect(request.POST.get("next") or reverse("story_detail", kwargs={"id": story.id}))
 

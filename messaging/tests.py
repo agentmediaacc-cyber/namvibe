@@ -4,7 +4,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from unittest.mock import patch
 
-from accounts.models import FriendRequest, Notification
+from accounts.models import Block, FriendRequest, Notification
+from posts.models import Report
 from .models import Conversation, Message
 
 
@@ -134,6 +135,34 @@ class MessagingFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-initial-mode="video"')
+
+    def test_block_prevents_chat_and_call(self):
+        Block.objects.create(blocker=self.ben, blocked=self.alina)
+        conversation = Conversation.objects.create()
+        conversation.participants.add(self.alina, self.ben)
+        self.client.login(username="alina", password="Pass12345")
+
+        chat_response = self.client.get(reverse("messaging:start_chat", args=[self.ben.id]))
+        send_response = self.client.post(reverse("messaging:send_message", args=[conversation.id]), {"text": "Blocked"})
+        call_response = self.client.get(reverse("call_start", args=[self.ben.id]))
+
+        self.assertEqual(chat_response.status_code, 302)
+        self.assertEqual(send_response.status_code, 302)
+        self.assertEqual(call_response.status_code, 302)
+        self.assertEqual(Message.objects.filter(conversation=conversation).count(), 0)
+
+    def test_message_report_flow_and_duplicate_prevention(self):
+        conversation = Conversation.objects.create()
+        conversation.participants.add(self.alina, self.ben)
+        message = Message.objects.create(conversation=conversation, sender=self.ben, text="Unsafe")
+        self.client.login(username="alina", password="Pass12345")
+
+        first = self.client.post(reverse("messaging:report_message", args=[message.id]), {"reason": "harassment"})
+        second = self.client.post(reverse("messaging:report_message", args=[message.id]), {"reason": "harassment"})
+
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(Report.objects.filter(reporter=self.alina, message=message).count(), 1)
 
     def test_sender_can_soft_delete_own_message(self):
         conversation = Conversation.objects.create()

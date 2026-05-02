@@ -9,6 +9,9 @@
         <div>
             <h1>{{ post.title|default:"Post" }}</h1>
             <p>Visible to {{ post.get_audience_display }} · {{ post.get_share_target_display }}</p>
+            {% if under_review %}
+                <p>This post is under review and only visible to you or staff right now.</p>
+            {% endif %}
         </div>
         {% if request.user == post.author %}
             <div class="nv-head-actions">

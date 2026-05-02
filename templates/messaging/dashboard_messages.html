@@ -143,6 +143,13 @@
                             {% if not item.is_deleted %}
                                 <button type="button" onclick="replyToMessage('{{ item.id }}', '{{ item.sender.username|escapejs }}')">Reply</button>
                                 <button type="button" onclick="forwardMessage('{{ item.id }}')">Forward</button>
+                                {% if item.sender_id != request.user.id %}
+                                    <form method="post" action="{% url 'messaging:report_message' item.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="reason" value="harassment">
+                                        <button type="submit">Report</button>
+                                    </form>
+                                {% endif %}
                                 {% if item.sender_id == request.user.id %}
                                     <form method="post" action="{% url 'messaging:delete_message' item.id %}" onsubmit="return confirm('Delete this message?');">
                                         {% csrf_token %}

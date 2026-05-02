@@ -96,6 +96,7 @@
               <span class="badge" id="profilePresenceBadge">{% if presence_state.is_online %}Online{% else %}{{ presence_state.label|default:"Active recently" }}{% endif %}</span>
               <span class="badge">{{ premium_badge.label }}</span>
               {% if active_profile_boost %}<span class="badge">Boosted</span>{% endif %}
+              {% if under_review %}<span class="badge">Under review</span>{% endif %}
               {% if profile.is_verified %}<span class="badge">Verified</span>{% endif %}
               {% if active_membership %}<span class="badge">{{ active_membership.plan.name }}</span>{% endif %}
               {% if dating_profile and dating_profile.is_visible %}<span class="badge">Dating active</span>{% endif %}
@@ -122,6 +123,7 @@
           {% if dating_coin_balance.balance > 0 %}<span class="meta-pill">{{ dating_coin_balance.balance }} dating coins</span>{% endif %}
           {% if show_wallet_summary %}<span class="meta-pill">Wallet N${{ wallet_summary.available_balance }}</span>{% endif %}
           {% if active_profile_boost %}<span class="meta-pill">Boost ends {{ active_profile_boost.ends_at|date:"M j H:i" }}</span>{% endif %}
+          {% if under_review %}<span class="meta-pill">Visible only to you or staff while review is active</span>{% endif %}
           <span class="meta-pill">Joined {{ joined_date|date:"M Y" }}</span>
         </div>
 
@@ -163,6 +165,11 @@
                 <button class="profile-action" type="submit" style="cursor:pointer;">Send {{ default_gift.name }}</button>
               </form>
             {% endif %}
+            <a class="profile-action" href="{{ action_urls.report_profile }}">Report</a>
+            <form method="post" action="{% if is_blocking %}{% url 'unblock_user' profile.username %}{% else %}{% url 'block_user' profile.username %}{% endif %}" style="margin:0;">
+              {% csrf_token %}
+              <button class="profile-action" type="submit" style="cursor:pointer;">{% if is_blocking %}Unblock{% else %}Block{% endif %}</button>
+            </form>
             <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
             <a class="profile-action" href="{{ action_urls.games }}">Games</a>
             <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>

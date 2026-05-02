@@ -3,6 +3,7 @@ import logging
 from types import SimpleNamespace
 
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login as django_login, logout as django_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordResetForm
@@ -115,6 +116,14 @@ def _users_are_friends(left_user, right_user):
     ).exists()
 
 
+def _users_are_blocked(left_user, right_user):
+    if not getattr(left_user, "is_authenticated", False):
+        return False
+    return Block.objects.filter(
+        Q(blocker=left_user, blocked=right_user) | Q(blocker=right_user, blocked=left_user)
+    ).exists()
+
+
 def _friend_request_between(left_user, right_user):
     if not left_user.is_authenticated:
         return None
@@ -211,6 +220,16 @@ def _profile_menu_groups(request):
             ],
         },
     ]
+    if getattr(request.user, "is_staff", False):
+        groups.insert(
+            0,
+            {
+                "title": "Moderation",
+                "items": [
+                    {"label": "Safety Dashboard", "url": _safe_reverse("moderation_dashboard")},
+                ],
+            },
+        )
     for group in groups:
         for item in group["items"]:
             dashboard_url = _safe_reverse("user_dashboard")
@@ -242,6 +261,8 @@ def _member_cards_for(user, profiles, *, include_friendship=True):
     cards = []
     for profile in profiles:
         if include_friendship and user.is_authenticated and profile.user == user:
+            continue
+        if include_friendship and user.is_authenticated and _users_are_blocked(user, profile.user):
             continue
         friend_request = _friend_request_between(user, profile.user) if include_friendship and user.is_authenticated else None
         is_friend = bool(friend_request and friend_request.status == FriendRequest.Status.ACCEPTED)
@@ -1213,13 +1234,16 @@ def user_dashboard_view(request):
 def public_profile_view(request, username):
     profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
     is_blocked = False
+    is_hidden_profile = profile.is_hidden_by_moderation and not (
+        request.user.is_authenticated and (request.user == profile.user or request.user.is_staff)
+    )
     is_following = False
     friend_request = None
     is_friend = False
     request_sent = False
     request_received = False
     if request.user.is_authenticated:
-        is_blocked = Block.objects.filter(blocker=profile.user, blocked=request.user).exists()
+        is_blocked = _users_are_blocked(request.user, profile.user)
         is_following = Follow.objects.filter(follower=request.user, following=profile.user).exists()
         if request.user != profile.user:
             friend_request = _friend_request_between(request.user, profile.user)
@@ -1227,7 +1251,7 @@ def public_profile_view(request, username):
             request_sent = bool(friend_request and friend_request.status == FriendRequest.Status.PENDING and friend_request.from_user_id == request.user.id)
             request_received = bool(friend_request and friend_request.status == FriendRequest.Status.PENDING and friend_request.to_user_id == request.user.id)
 
-    if is_blocked:
+    if is_blocked or is_hidden_profile:
         return render(request, "accounts/profile_unavailable.html", status=403)
 
     visible_posts = (
@@ -1303,6 +1327,7 @@ def public_profile_view(request, username):
         "friend_accept": _safe_reverse("friend_request_accept", request_id=getattr(friend_request, "id", 0)),
         "gift_profile": _safe_reverse("wallet_gift_user", username=profile.username),
         "boost_profile": _safe_reverse("wallet_boost_profile", username=profile.username),
+        "report_profile": _safe_reverse("report_user", username=profile.username),
     }
     safe_username = profile.username or getattr(profile.user, "username", "") or "namvibe"
     safe_display_name = profile.display_name or safe_username or "Namvibe member"
@@ -1346,6 +1371,8 @@ def public_profile_view(request, username):
         "presence_state": presence_state,
         "active_profile_boost": active_profile_boost,
         "default_gift": default_gift,
+        "is_blocking": request.user.is_authenticated and Block.objects.filter(blocker=request.user, blocked=profile.user).exists(),
+        "under_review": profile.is_hidden_by_moderation,
     }
     return render(request, "accounts/profile_detail.html", context)
 
@@ -1353,6 +1380,7 @@ def public_profile_view(request, username):
 def member_discovery_view(request):
     profiles = list(
         Profile.objects.select_related("user")
+        .filter(is_hidden_by_moderation=False)
         .order_by("-is_verified", "-follower_count", "-post_count", "-created_at")[:30]
     )
     boosted_profile_ids = active_boosted_profile_ids([profile.id for profile in profiles])
@@ -1396,6 +1424,9 @@ def send_friend_request_view(request, username):
     target_user = target_profile.user
     if target_user == request.user:
         messages.error(request, "You cannot send a friend request to yourself.")
+        return redirect("profile_detail", username=target_profile.username)
+    if _users_are_blocked(request.user, target_user):
+        messages.error(request, "This profile is not available.")
         return redirect("profile_detail", username=target_profile.username)
     if _users_are_friends(request.user, target_user):
         messages.info(request, "You are already friends.")
@@ -1644,3 +1675,94 @@ def account_profile_detail(request, username):
 
 def follow_toggle(request, username):
     return follow_toggle_view(request, username)
+
+
+@login_required(login_url="login")
+@require_POST
+def block_user_view(request, username):
+    target_profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
+    if target_profile.user == request.user:
+        messages.error(request, "You cannot block yourself.")
+        return redirect("profile_detail", username=target_profile.username)
+    Block.objects.get_or_create(blocker=request.user, blocked=target_profile.user)
+    Follow.objects.filter(
+        Q(follower=request.user, following=target_profile.user)
+        | Q(follower=target_profile.user, following=request.user)
+    ).delete()
+    FriendRequest.objects.filter(_friendship_q(request.user, target_profile.user)).delete()
+    Conversation.objects.filter(participants=request.user).filter(participants=target_profile.user).delete()
+    messages.success(request, f"@{target_profile.username} has been blocked.")
+    return redirect("member_discovery")
+
+
+@login_required(login_url="login")
+@require_POST
+def unblock_user_view(request, username):
+    target_profile = get_object_or_404(Profile.objects.select_related("user"), username__iexact=username)
+    Block.objects.filter(blocker=request.user, blocked=target_profile.user).delete()
+    messages.success(request, f"@{target_profile.username} has been unblocked.")
+    return redirect("profile_detail", username=target_profile.username)
+
+
+@staff_member_required(login_url="login")
+def moderation_dashboard_view(request):
+    from posts.models import Report
+
+    pending_reports = Report.objects.select_related(
+        "reporter", "reported_user", "post", "story", "message", "message__sender", "reviewed_by"
+    ).filter(status__in=[Report.Status.OPEN, Report.Status.REVIEWING]).order_by("-created_at")[:60]
+    reviewed_reports = Report.objects.select_related(
+        "reporter", "reported_user", "post", "story", "message", "message__sender", "reviewed_by"
+    ).exclude(status__in=[Report.Status.OPEN, Report.Status.REVIEWING]).order_by("-updated_at")[:30]
+    return render(
+        request,
+        "accounts/moderation_dashboard.html",
+        {
+            "pending_reports": pending_reports,
+            "reviewed_reports": reviewed_reports,
+            "profile": getattr(request.user, "profile", None),
+            "profile_menu_groups": _profile_menu_groups(request),
+            "account_shell_title": "Trust & Safety",
+            "account_shell_subtitle": "Reports, reviews, and moderation actions",
+        },
+    )
+
+
+@staff_member_required(login_url="login")
+@require_http_methods(["GET", "POST"])
+def moderation_report_detail_view(request, report_id):
+    from posts.models import Report
+    from posts.services import review_report
+
+    report = get_object_or_404(
+        Report.objects.select_related("reporter", "reported_user", "post", "story", "message", "message__sender", "reviewed_by"),
+        pk=report_id,
+    )
+    if request.method == "POST":
+        status = request.POST.get("status") or Report.Status.REVIEWING
+        if status not in Report.Status.values:
+            status = Report.Status.REVIEWING
+        action = (request.POST.get("action_taken") or "").strip().lower()
+        if action not in {"", "hide", "unhide", "warn"}:
+            action = ""
+        review_report(
+            report,
+            request.user,
+            status=status,
+            action_taken=action,
+            staff_notes=request.POST.get("staff_notes", ""),
+        )
+        messages.success(request, "Moderation review updated.")
+        return redirect("moderation_report_detail", report_id=report.id)
+    return render(
+        request,
+        "accounts/moderation_report_detail.html",
+        {
+            "report": report,
+            "status_choices": report.Status.choices,
+            "profile": getattr(request.user, "profile", None),
+            "profile_menu_groups": _profile_menu_groups(request),
+            "account_shell_title": "Report Review",
+            "account_shell_subtitle": "Inspect the report and apply a safe moderation action",
+        },
+    )
