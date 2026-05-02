@@ -526,3 +526,21 @@ class FeedDiscoveryInteractionTests(TestCase):
         self.assertContains(albums_response, "Media albums")
         self.assertEqual(album_detail_response.status_code, 200)
         self.assertContains(album_detail_response, "Photo album item")
+
+    def test_reels_feed_loads_with_fullscreen_template(self):
+        Post.objects.create(
+            author=self.author,
+            title="Reel post",
+            post_type=Post.PostType.REEL,
+            audience=Post.Audience.PUBLIC,
+            status=Post.Status.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        self.client.force_login(self.viewer)
+        response = self.client.get(reverse("reels_feed"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "posts/reels_fullscreen.html")
+        self.assertIn("reels", response.context)
+        self.assertIn("liked_post_ids", response.context)
+        self.assertIn("saved_post_ids", response.context)

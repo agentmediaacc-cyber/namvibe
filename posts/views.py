@@ -518,32 +518,30 @@ def community_feed_view(request, slug):
 
 def reels_feed_view(request):
     safe_mode_message = ""
+    liked_post_ids = []
+    saved_post_ids = []
     try:
         queryset = base_visible_posts(request.user).published().filter(
             post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO]
         )
-        ranked_posts = FeedRankingService(request.user).rank(queryset, limit=80)
+        ranked_posts = FeedRankingService(request.user).rank(queryset, limit=50)
         ranked_posts = _decorate_posts_for_display(ranked_posts)
-        suggested_people = suggested_users_for(request.user, limit=8)
-        suggested_communities = suggested_communities_for(request.user, limit=6)
-        promo_cards = SystemPromoCard.objects.filter(
-            is_active=True,
-            placement=SystemPromoCard.Placement.HOMEPAGE_FEED,
-        )[:3]
+
+        if request.user.is_authenticated:
+            liked_post_ids = list(Like.objects.filter(user=request.user, post__in=ranked_posts).values_list("post_id", flat=True))
+            saved_post_ids = list(Save.objects.filter(user=request.user, post__in=ranked_posts).values_list("post_id", flat=True))
+
     except Exception as exc:
         safe_mode_message = _handle_feed_exception(exc)
         ranked_posts = []
-        suggested_people = []
-        suggested_communities = []
-        promo_cards = []
+
     return render(
         request,
-        "posts/reels_feed.html",
+        "posts/reels_fullscreen.html",
         {
-            "reels": ranked_posts[:18],
-            "suggested_people": suggested_people,
-            "suggested_communities": suggested_communities,
-            "promo_cards": promo_cards,
+            "reels": ranked_posts,
+            "liked_post_ids": liked_post_ids,
+            "saved_post_ids": saved_post_ids,
             "safe_mode_message": safe_mode_message,
         },
     )
