@@ -201,6 +201,10 @@ class Notification(models.Model):
         LIKE = "like", "New like"
         COMMENT = "comment", "New comment"
         FRIEND_REQUEST = "friend_request", "Friend request"
+        GIFT = "gift", "New gift"
+        DEPOSIT = "deposit", "Deposit status"
+        WITHDRAWAL = "withdrawal", "Withdrawal status"
+        MESSAGE = "message", "New message"
         SYSTEM = "system", "System update"
 
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
@@ -224,6 +228,21 @@ class Notification(models.Model):
 def notify(recipient, notification_type, sender=None, message="", target_url=""):
     if recipient == sender:
         return None
+    
+    # Generate titles based on type
+    titles = {
+        Notification.Type.LIKE: "New Like!",
+        Notification.Type.COMMENT: "New Comment!",
+        Notification.Type.FOLLOW: "New Follower!",
+        Notification.Type.FRIEND_REQUEST: "Friend Request!",
+        Notification.Type.GIFT: "You got a Gift!",
+        Notification.Type.DEPOSIT: "Deposit Update",
+        Notification.Type.WITHDRAWAL: "Withdrawal Update",
+        Notification.Type.MESSAGE: "New Message",
+        Notification.Type.SYSTEM: "System Update",
+    }
+    title = titles.get(notification_type, "Namvibe Notification")
+
     notification = Notification.objects.create(
         recipient=recipient,
         notification_type=notification_type,
@@ -234,7 +253,7 @@ def notify(recipient, notification_type, sender=None, message="", target_url="")
     try:
         from core.realtime import push_notification_event
 
-        push_notification_event(notification)
+        push_notification_event(notification, title=title)
     except Exception:
         pass
     return notification

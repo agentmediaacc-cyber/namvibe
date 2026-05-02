@@ -242,6 +242,8 @@ class BoostCampaign(models.Model):
 class ManualDeposit(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
+        PAID = "paid", "Paid by user"
+        REVIEWING = "reviewing", "Admin reviewing"
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
 
@@ -249,6 +251,8 @@ class ManualDeposit(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="manual_deposits")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    proof_of_payment = models.FileField(upload_to="wallet/deposits/proof/", blank=True, null=True)
+    user_note = models.CharField(max_length=240, blank=True)
     admin_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

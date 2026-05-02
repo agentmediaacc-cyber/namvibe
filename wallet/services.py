@@ -338,7 +338,7 @@ def send_gift(sender, recipient, gift, quantity=1, live_session=None):
 
     notify(
         recipient=recipient,
-        notification_type=Notification.Type.SYSTEM,
+        notification_type=Notification.Type.GIFT,
         sender=sender,
         message=f"@{sender.username} sent you {quantity}x {gift.name}.",
         target_url="/wallet/gifts/",

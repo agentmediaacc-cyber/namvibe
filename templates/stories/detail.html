@@ -174,9 +174,13 @@
     <div class="story-footer">
       {% if story.caption %}<div class="story-caption-box">{{ story.caption }}</div>{% endif %}
       <div class="story-meta-row">
+        {% if request.user == story.author %}
+          <a href="{% url 'story_viewers' story.id %}" class="story-pill" style="text-decoration:none;">👁 {{ story.view_count|default:0 }} (Viewers)</a>
+        {% else %}
+          <span class="story-pill">👁 {{ story.view_count|default:0 }}</span>
+        {% endif %}
         <span class="story-pill">❤️ {{ story.like_count|default:0 }}</span>
         <span class="story-pill">💬 {{ comments|length }}</span>
-        <span class="story-pill">👁 {{ story.view_count|default:0 }}</span>
         {% if under_review %}<span class="story-pill">Under review</span>{% endif %}
         {% if active_story_boost %}<span class="story-pill">Boost ends {{ active_story_boost.ends_at|date:"M j H:i" }}</span>{% endif %}
         {% if request.user.is_authenticated %}

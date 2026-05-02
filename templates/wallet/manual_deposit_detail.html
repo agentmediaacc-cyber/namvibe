@@ -1,37 +1,103 @@
 {% extends "base.html" %}
-{% block title %}Payment Instructions | Namvibe{% endblock %}
+{% block title %}Deposit Details | Namvibe{% endblock %}
 {% block content %}
 <style>
   .wallet-shell{width:min(700px,calc(100% - 24px));margin:40px auto;padding:24px;background:rgba(255,255,255,.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:24px;color:#fff;}
-  .ref-box{background:rgba(255,255,255,0.1);padding:20px;border-radius:12px;text-align:center;margin:20px 0;border:2px dashed #7c3aed;}
-  .ref-code{font-size:1.8rem;font-weight:900;color:#fbcfe8;letter-spacing:2px;}
-  .instr-list{margin:20px 0;line-height:1.8;}
-  .nv-btn{display:inline-block;padding:12px 20px;border-radius:12px;font-weight:900;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;margin-top:10px;}
+  .status-badge { display:inline-block; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:800; text-transform:uppercase; margin-bottom:10px; }
+  .status-pending { background: #64748b; color: #fff; }
+  .status-paid { background: #3b82f6; color: #fff; }
+  .status-reviewing { background: #f59e0b; color: #fff; }
+  .status-approved { background: #10b981; color: #fff; }
+  .status-rejected { background: #ef4444; color: #fff; }
+  
+  .timeline { display: flex; justify-content: space-between; margin: 40px 0; position: relative; }
+  .timeline::before { content:''; position:absolute; top:15px; left:0; right:0; height:2px; background:rgba(255,255,255,0.1); z-index:1; }
+  .timeline-step { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+  .step-dot { width: 32px; height: 32px; border-radius: 50%; background: #1a011d; border: 2px solid rgba(255,255,255,0.1); display: grid; place-items: center; font-weight: 800; color: #fff; }
+  .timeline-step.active .step-dot { border-color: var(--pink); background: var(--nv-grad); }
+  .timeline-step.active { color: #fff; font-weight: 800; }
+  
+  .nv-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 20px; margin-bottom: 20px; }
+  .nv-input{width:100%;padding:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;margin:8px 0;}
+  .nv-btn{width:100%;padding:14px;border-radius:12px;font-weight:900;border:none;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;}
 </style>
+
 <div class="wallet-shell">
-    <h1>Payment Instructions</h1>
-    <p>Your deposit request of <strong>NAD {{ deposit.amount }}</strong> has been created. To complete the deposit, please follow these instructions:</p>
-    
-    <div class="ref-box">
-        <p>Your Unique Reference Code:</p>
-        <div class="ref-code">{{ deposit.request_id }}</div>
-        <p style="font-size:0.8rem;margin-top:8px;">You MUST use this reference when making payment.</p>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+            <span class="status-badge status-{{ deposit.status }}">{{ deposit.get_status_display }}</span>
+            <h1>Deposit #{{ deposit.request_id }}</h1>
+            <p style="color:var(--muted);">Created on {{ deposit.created_at|date:"M j, Y H:i" }}</p>
+        </div>
+        <div style="text-align:right;">
+            <h2 style="margin:0; color:var(--pink);">NAD {{ deposit.amount }}</h2>
+            <a href="{% url 'download_deposit_invoice' deposit.request_id %}" style="font-size:12px; color:var(--muted);">Download Invoice (PDF)</a>
+        </div>
     </div>
 
-    <div class="instr-list">
-        <h3>Banking & Payment Details:</h3>
-        <ul>
-            <li><strong>FNB Account:</strong> 64290441458</li>
-            <li><strong>PayToCell:</strong> 0812613261</li>
-            <li><strong>MTC Maris:</strong> 0812613261 (Transfer to same number)</li>
-        </ul>
+    <div class="timeline">
+        <div class="timeline-step {% if deposit.status == 'pending' or deposit.status == 'paid' or deposit.status == 'reviewing' or deposit.status == 'approved' %}active{% endif %}">
+            <div class="step-dot">1</div>
+            <span>Requested</span>
+        </div>
+        <div class="timeline-step {% if deposit.status == 'paid' or deposit.status == 'reviewing' or deposit.status == 'approved' %}active{% endif %}">
+            <div class="step-dot">2</div>
+            <span>Paid</span>
+        </div>
+        <div class="timeline-step {% if deposit.status == 'reviewing' or deposit.status == 'approved' %}active{% endif %}">
+            <div class="step-dot">3</div>
+            <span>Reviewing</span>
+        </div>
+        <div class="timeline-step {% if deposit.status == 'approved' %}active{% endif %}">
+            <div class="step-dot">4</div>
+            <span>Approved</span>
+        </div>
     </div>
 
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-        <a href="{% url 'download_deposit_invoice' deposit.request_id %}" class="nv-btn">Download PDF Invoice</a>
-        <a href="{% url 'wallet_home' %}" class="nv-btn" style="background:rgba(255,255,255,0.1);">Back to Wallet</a>
-    </div>
+    {% if deposit.status == 'pending' %}
+        <div class="nv-card">
+            <h3>Confirm your payment</h3>
+            <p>Please pay <strong>NAD {{ deposit.amount }}</strong> using the details on the invoice. Once paid, upload your proof of payment below.</p>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <label>Proof of Payment (Image or PDF)</label>
+                <input type="file" name="proof_of_payment" class="nv-input" accept="image/*,application/pdf" required>
+                <label>Note / Reference (Optional)</label>
+                <input type="text" name="user_note" class="nv-input" placeholder="Enter your payment reference">
+                <button type="submit" name="confirm_paid" class="nv-btn">I have Paid</button>
+            </form>
+        </div>
+    {% elif deposit.status == 'paid' or deposit.status == 'reviewing' %}
+        <div class="nv-card" style="text-align:center; padding:40px;">
+            <div style="font-size:48px; margin-bottom:16px;">⏳</div>
+            <h3>Payment under review</h3>
+            <p>We've received your payment confirmation. An administrator will verify the funds and credit your wallet shortly.</p>
+            {% if deposit.user_note %}
+                <p style="font-size:13px; color:var(--muted);">Your note: {{ deposit.user_note }}</p>
+            {% endif %}
+        </div>
+    {% elif deposit.status == 'approved' %}
+        <div class="nv-card" style="text-align:center; padding:40px; border-color:var(--line-strong);">
+            <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+            <h3>Deposit Approved!</h3>
+            <p>NAD {{ deposit.amount }} has been added to your wallet balance.</p>
+            <a href="{% url 'wallet_home' %}" class="nv-btn" style="display:inline-block; width:auto; padding-inline:40px; text-decoration:none;">Go to Wallet</a>
+        </div>
+    {% elif deposit.status == 'rejected' %}
+        <div class="nv-card" style="border-color:#ef4444;">
+            <h3>Deposit Rejected</h3>
+            <p>Unfortunately, your deposit request was not approved.</p>
+            {% if deposit.admin_notes %}
+                <div style="background:rgba(239,68,68,0.1); padding:14px; border-radius:12px; margin-top:10px;">
+                    <strong>Admin Reason:</strong> {{ deposit.admin_notes }}
+                </div>
+            {% endif %}
+            <a href="{% url 'manual_deposit' %}" class="nv-btn" style="margin-top:20px; text-decoration:none; display:block; text-align:center;">Try Again</a>
+        </div>
+    {% endif %}
 
-    <p style="margin-top:30px;font-size:0.9rem;color:rgba(255,255,255,0.5);">Once payment is made, our team will verify the transaction using your reference code. Your funds will be credited within 24 hours.</p>
+    <div style="margin-top:40px; text-align:center;">
+        <a href="{% url 'wallet_home' %}" style="color:var(--muted); text-decoration:none;">&larr; Back to Wallet</a>
+    </div>
 </div>
 {% endblock %}

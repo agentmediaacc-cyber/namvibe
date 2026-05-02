@@ -25,9 +25,50 @@
             --gold: #facc15;
             --gold-soft: rgba(250, 204, 21, .14);
             --shadow: 0 24px 70px rgba(0, 0, 0, .4);
+            --nv-grad: linear-gradient(135deg, var(--purple), var(--pink), var(--rose));
         }
         *{box-sizing:border-box}
         html{scroll-behavior:smooth}
+
+        /* Toast Styles */
+        #toastContainer {
+            position: fixed; top: 80px; right: 20px; z-index: 5000;
+            display: grid; gap: 10px; pointer-events: none; width: min(340px, 90vw);
+        }
+        .nv-toast {
+            background: rgba(18, 0, 20, 0.95); color: #fff; padding: 12px 16px; border-radius: 18px;
+            border: 1px solid var(--line-strong); box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            display: flex; align-items: center; gap: 14px; pointer-events: auto; cursor: pointer;
+            animation: toast-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            backdrop-filter: blur(10px);
+        }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateX(40px) scale(0.9); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        .nv-toast.fade-out { animation: toast-out 0.4s ease forwards; }
+        @keyframes toast-out { to { opacity: 0; transform: translateX(20px) scale(0.9); } }
+        .toast-icon { width: 36px; height: 36px; border-radius: 12px; background: var(--nv-grad); display: grid; place-items: center; flex-shrink: 0; }
+        .toast-content { flex: 1; min-width: 0; }
+        .toast-content strong { display: block; font-size: 13px; margin-bottom: 2px; }
+        .toast-content p { margin: 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Create Launcher Styles */
+        .create-launcher-overlay {
+            position: fixed; inset: 0; background: rgba(18,0,20,0.92); backdrop-filter: blur(12px);
+            z-index: 4500; display: none; place-items: center; padding: 24px;
+        }
+        .create-launcher-overlay.open { display: grid; }
+        .launcher-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; width: 100%; max-width: 320px; }
+        .launcher-item {
+            display: flex; flex-direction: column; align-items: center; gap: 10px; color: #fff; text-decoration: none;
+            padding: 20px; background: rgba(255,255,255,0.06); border-radius: 24px; border: 1px solid var(--line);
+            transition: transform 0.2s, background 0.2s;
+        }
+        .launcher-item:active { transform: scale(0.94); background: rgba(255,255,255,0.1); }
+        .launcher-icon { font-size: 28px; width: 56px; height: 56px; border-radius: 16px; background: var(--nv-grad); display: grid; place-items: center; box-shadow: 0 8px 20px rgba(124,58,237,0.3); }
+        .launcher-label { font-weight: 800; font-size: 14px; }
+        .launcher-close { position: absolute; bottom: 40px; width: 60px; height: 60px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); color: #fff; font-size: 24px; cursor: pointer; }
         body{
             margin:0;
             background:
@@ -225,10 +266,12 @@
         .mobile-bottom-nav.nav-hidden{transform:translateY(120%)}
         .mobile-action,.mobile-action-trigger{
             color:#cbd5e1;text-decoration:none;text-align:center;
-            font-size:11px;font-weight:800;padding:7px 4px;border-radius:14px;
+            font-size:10px;font-weight:800;padding:7px 4px;border-radius:14px;
             display:grid;place-items:center;gap:4px;cursor:pointer;
             border:0;background:transparent;
+            transition: transform 0.1s, color 0.2s;
         }
+        .mobile-action:active, .mobile-action-trigger:active { transform: scale(0.92); }
         .mobile-action.active,.mobile-action-trigger.active{
             color:#fff;
             background:linear-gradient(135deg,rgba(124,58,237,.28),rgba(236,72,153,.18));
@@ -237,6 +280,22 @@
             width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
         }
         .mobile-action-icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+        
+        /* Floating Create Button */
+        .mobile-action-trigger[data-action-launcher="true"] {
+            margin-top: -24px;
+            height: 56px;
+            width: 56px;
+            background: var(--nv-grad) !important;
+            border-radius: 50%;
+            color: #fff !important;
+            box-shadow: 0 8px 20px rgba(124,58,237,0.4);
+            border: 4px solid var(--bg);
+            justify-self: center;
+        }
+        .mobile-action-trigger[data-action-launcher="true"] span:last-child { display: none; }
+        .mobile-action-trigger[data-action-launcher="true"] .mobile-action-icon { width: 28px; height: 28px; }
+        .mobile-action-trigger[data-action-launcher="true"] svg { width: 28px; height: 28px; }
         .product-shell{max-width:1180px;margin:0 auto;padding:28px 16px 104px}
         .product-hero,.product-card{
             border:1px solid var(--line);
@@ -320,6 +379,30 @@
         </div>
     </aside>
 
+    <div id="toastContainer" style="position:fixed;top:80px;right:20px;z-index:5000;display:grid;gap:10px;pointer-events:none;width:min(340px, 90vw);"></div>
+
+    <div class="create-launcher-overlay" id="createLauncher">
+        <div class="launcher-grid">
+            <a href="{% url 'studio' %}" class="launcher-item">
+                <div class="launcher-icon">📝</div>
+                <div class="launcher-label">Post</div>
+            </a>
+            <a href="{% url 'story_create' %}" class="launcher-item">
+                <div class="launcher-icon">◎</div>
+                <div class="launcher-label">Story</div>
+            </a>
+            <a href="{% url 'studio' %}?type=reel" class="launcher-item">
+                <div class="launcher-icon">▶</div>
+                <div class="launcher-label">Reel</div>
+            </a>
+            <a href="{% url 'live_start' %}" class="launcher-item">
+                <div class="launcher-icon">⬤</div>
+                <div class="launcher-label">Go Live</div>
+            </a>
+        </div>
+        <button class="launcher-close" id="closeLauncher">&times;</button>
+    </div>
+
     <header class="site-header" id="siteHeader">
         <div class="nav-wrap">
             <button class="menu-btn" type="button" id="drawerOpen" aria-label="Open menu">
@@ -363,7 +446,12 @@
 
     <nav class="mobile-bottom-nav" aria-label="Primary mobile navigation">
         {% for item in mobile_action_items %}
-            {% if item.drawer_trigger %}
+            {% if item.action_launcher %}
+                <button class="mobile-action-trigger" type="button" data-action-launcher="true" aria-label="{{ item.label }}">
+                    <span class="mobile-action-icon">{% include "partials/nav_icon.html" with icon=item.icon %}</span>
+                    <span>{{ item.label }}</span>
+                </button>
+            {% elif item.drawer_trigger %}
                 <button class="mobile-action-trigger {% if item.active %}active{% endif %}" type="button" data-drawer-trigger="true" aria-label="{{ item.label }}">
                     <span class="mobile-action-icon">{% include "partials/nav_icon.html" with icon=item.icon %}</span>
                     <span>{{ item.label }}</span>
@@ -432,7 +520,59 @@
                 document.body.classList.remove("drawer-open");
             }
 
-            openBtn?.addEventListener("click", openDrawer);
+            const launcher = document.getElementById("createLauncher");
+            const closeLauncher = document.getElementById("closeLauncher");
+
+            function showLauncher() {
+                launcher.classList.add("open");
+                document.body.style.overflow = "hidden";
+            }
+
+            function hideLauncher() {
+                launcher.classList.remove("open");
+                document.body.style.overflow = "";
+            }
+
+            closeLauncher?.addEventListener("click", hideLauncher);
+            launcher?.addEventListener("click", (e) => { if(e.target === launcher) hideLauncher(); });
+
+            document.querySelectorAll("[data-action-launcher='true']").forEach(btn => {
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    showLauncher();
+                };
+            });
+
+            const toastContainer = document.getElementById("toastContainer");
+            window.nvShowToast = function(title, body, url, type) {
+                const icons = {
+                    'like': '❤️',
+                    'comment': '💬',
+                    'follow': '👤',
+                    'friend_request': '🤝',
+                    'gift': '🎁',
+                    'deposit': '💰',
+                    'withdrawal': '💸',
+                    'message': '✉️',
+                    'system': '⚡'
+                };
+                const icon = icons[type] || '⚡';
+                const toast = document.createElement("div");
+                toast.className = "nv-toast";
+                toast.innerHTML = `
+                    <div class="toast-icon">${icon}</div>
+                    <div class="toast-content">
+                        <strong>${title}</strong>
+                        <p>${body}</p>
+                    </div>
+                `;
+                if(url) toast.onclick = () => window.location.href = url;
+                toastContainer.appendChild(toast);
+                setTimeout(() => {
+                    toast.classList.add("fade-out");
+                    setTimeout(() => toast.remove(), 400);
+                }, 5000);
+            };
             closeBtn?.addEventListener("click", closeDrawer);
             overlay?.addEventListener("click", closeDrawer);
             document.querySelectorAll("[data-drawer-trigger='true']").forEach(function (trigger) {
@@ -494,6 +634,14 @@
             socket.addEventListener("message", function (event) {
                 try {
                     const payload = JSON.parse(event.data);
+                    if (payload.type === "notification") {
+                        window.nvShowToast(
+                            payload.title || "New Notification", 
+                            payload.message || "", 
+                            payload.target_url || payload.url,
+                            payload.notification_type
+                        );
+                    }
                     if (typeof payload.notification_count !== "undefined") {
                         setBadge(notificationBadge, payload.notification_count);
                     }

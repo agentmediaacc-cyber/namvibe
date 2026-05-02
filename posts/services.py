@@ -14,14 +14,46 @@ AUTO_HIDE_REPORT_THRESHOLD = 3
 
 
 def notification_hook(event_type, *, actor=None, recipient=None, post=None, comment=None):
-    # TODO(notifications): connect this to the notifications app trigger layer in Phase 8.
-    return {
-        "event_type": event_type,
-        "actor": actor,
-        "recipient": recipient,
-        "post": post,
-        "comment": comment,
+    if not recipient or actor == recipient:
+        return None
+
+    from accounts.models import Notification, notify
+
+    type_map = {
+        "like": Notification.Type.LIKE,
+        "comment": Notification.Type.COMMENT,
+        "share": Notification.Type.SYSTEM,
+        "follow": Notification.Type.FOLLOW,
+        "friend_request": Notification.Type.FRIEND_REQUEST,
+        "report": Notification.Type.SYSTEM,
     }
+
+    notification_type = type_map.get(event_type, Notification.Type.SYSTEM)
+    message = ""
+    target_url = ""
+
+    if event_type == "like":
+        message = f"@{actor.username} liked your post."
+        target_url = reverse("post_detail", kwargs={"uuid": post.uuid})
+    elif event_type == "comment":
+        message = f"@{actor.username} commented on your post."
+        target_url = reverse("post_detail", kwargs={"uuid": post.uuid})
+    elif event_type == "share":
+        message = f"@{actor.username} shared your post."
+        target_url = reverse("post_detail", kwargs={"uuid": post.uuid})
+    elif event_type == "report":
+        message = f"One of your posts has been reported and is under review."
+        target_url = reverse("post_detail", kwargs={"uuid": post.uuid})
+
+    if message:
+        return notify(
+            recipient=recipient,
+            notification_type=notification_type,
+            sender=actor,
+            message=message,
+            target_url=target_url,
+        )
+    return None
 
 
 def _apply_report_threshold(report):

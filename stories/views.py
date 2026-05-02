@@ -159,3 +159,10 @@ def story_view_view(request, id):
     if not view:
         return HttpResponseForbidden("You cannot view this story.")
     return JsonResponse({"ok": True, "view_count": StoryItem.objects.get(pk=story.pk).view_count})
+
+
+@login_required(login_url="login")
+def story_viewers_view(request, id):
+    story = get_object_or_404(StoryItem, id=id, author=request.user)
+    viewers = story.views.select_related("viewer", "viewer__profile").order_by("-created_at")
+    return render(request, "stories/viewers.html", {"story": story, "viewers": viewers})

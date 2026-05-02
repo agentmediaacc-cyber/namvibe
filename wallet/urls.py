@@ -46,6 +46,7 @@ urlpatterns = [
     path("withdraw/", views.manual_withdrawal_view, name="manual_withdrawal"),
     path("staff/deposits/", views.staff_deposits_list_view, name="staff_deposits_list"),
     path("staff/deposits/<int:pk>/approve/", views.staff_approve_deposit_view, name="staff_approve_deposit"),
+    path("staff/deposits/<int:pk>/review/", views.staff_review_deposit_view, name="staff_review_deposit"),
     path("staff/deposits/<int:pk>/reject/", views.staff_reject_deposit_view, name="staff_reject_deposit"),
     path("staff/withdrawals/", views.staff_withdrawals_list_view, name="staff_withdrawals_list"),
     path("staff/withdrawals/<int:pk>/approve/", views.staff_approve_withdrawal_view, name="staff_approve_withdrawal"),

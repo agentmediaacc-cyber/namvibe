@@ -31,20 +31,31 @@
                     <td>@{{ d.user.username }}</td>
                     <td>{{ d.request_id }}</td>
                     <td>NAD {{ d.amount }}</td>
-                    <td class="status-{{ d.status }}">{{ d.status|upper }}</td>
+                    <td class="status-{{ d.status }}">{{ d.get_status_display }}</td>
                     <td>
-                        {% if d.status == 'pending' %}
-                        <form method="post" action="{% url 'staff_approve_deposit' d.pk %}" style="display:inline;">
-                            {% csrf_token %}<button type="submit" class="nv-btn">Approve</button>
-                        </form>
-                        <form method="post" action="{% url 'staff_reject_deposit' d.pk %}" style="display:inline;">
-                            {% csrf_token %}
-                            <input type="text" name="notes" placeholder="Reason" style="padding:6px;border-radius:6px;border:none;font-size:0.8rem;">
-                            <button type="submit" class="nv-btn reject">Reject</button>
-                        </form>
-                        {% else %}
-                        <span class="muted">Processed</span>
+                        {% if d.proof_of_payment %}
+                            <a href="{{ d.proof_of_payment.url }}" target="_blank" class="nv-btn" style="background:#3b82f6; margin-bottom:4px;">View Proof</a>
                         {% endif %}
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            {% if d.status == 'pending' or d.status == 'paid' %}
+                            <form method="post" action="{% url 'staff_review_deposit' d.pk %}" style="display:inline;">
+                                {% csrf_token %}<button type="submit" class="nv-btn" style="background:#f59e0b;">Mark Reviewing</button>
+                            </form>
+                            {% endif %}
+                            
+                            {% if d.status == 'pending' or d.status == 'paid' or d.status == 'reviewing' %}
+                            <form method="post" action="{% url 'staff_approve_deposit' d.pk %}" style="display:inline;">
+                                {% csrf_token %}<button type="submit" class="nv-btn" style="background:#10b981;">Approve</button>
+                            </form>
+                            <form method="post" action="{% url 'staff_reject_deposit' d.pk %}" style="display:inline;">
+                                {% csrf_token %}
+                                <input type="text" name="notes" placeholder="Reason" style="padding:6px;border-radius:6px;border:none;font-size:0.8rem; width:100px;">
+                                <button type="submit" class="nv-btn reject">Reject</button>
+                            </form>
+                            {% else %}
+                            <span style="color:var(--muted); font-size:12px;">Processed</span>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% empty %}

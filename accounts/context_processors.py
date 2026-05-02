@@ -62,10 +62,10 @@ def _bottom_actions(request, smart_profile_url):
     route = _current_route(request)
     actions = [
         {"label": "Home", "url": _safe_reverse("home"), "icon": "home", "active": _is_active(route, "home")},
-        {"label": "Explore", "url": _safe_reverse("discover"), "icon": "discover", "active": _is_active(route, "discover", "discover_search", "reels_feed")},
-        {"label": "Create", "url": _safe_reverse("studio"), "icon": "plus", "active": _is_active(route, "studio")},
-        {"label": "Dating", "url": _safe_reverse("dating"), "icon": "heart", "active": _is_active(route, "dating", "dating_discover", "dating_matches", "dating_likes", "dating_profile_detail", "dating_profile_edit")},
-        {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
+        {"label": "Reels", "url": _safe_reverse("reels_feed"), "icon": "video", "active": _is_active(route, "reels_feed")},
+        {"label": "Create", "url": _safe_reverse("studio"), "icon": "plus", "active": _is_active(route, "studio"), "action_launcher": True},
+        {"label": "Messages", "url": _safe_reverse("messages_home"), "icon": "chat", "active": _is_active(route, "messages_home", "chat_room")},
+        {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit"), "drawer_trigger": True},
     ]
     return "default", actions
 

@@ -75,6 +75,19 @@ def manual_deposit_view(request):
 @login_required(login_url="login")
 def manual_deposit_detail_view(request, request_id):
     deposit = get_object_or_404(ManualDeposit, request_id=request_id, user=request.user)
+    
+    if request.method == "POST":
+        if "confirm_paid" in request.POST:
+            proof = request.FILES.get("proof_of_payment")
+            note = request.POST.get("user_note", "")
+            if proof:
+                deposit.proof_of_payment = proof
+            deposit.user_note = note
+            deposit.status = ManualDeposit.Status.PAID
+            deposit.save()
+            messages.success(request, "Payment confirmed. Admin will review your deposit shortly.")
+            return redirect("manual_deposit_detail", request_id=deposit.request_id)
+
     return render(request, "wallet/manual_deposit_detail.html", {"deposit": deposit})
 
 @login_required(login_url="login")
@@ -121,22 +134,49 @@ def staff_deposits_list_view(request):
 
 @staff_member_required(login_url="login")
 @require_POST
+def staff_review_deposit_view(request, pk):
+    deposit = get_object_or_404(ManualDeposit, pk=pk)
+    deposit.status = ManualDeposit.Status.REVIEWING
+    deposit.save()
+    messages.info(request, f"Deposit {deposit.request_id} is now under REVIEW.")
+    return redirect("staff_deposits_list")
+
+@staff_member_required(login_url="login")
+@require_POST
 def staff_approve_deposit_view(request, pk):
-    deposit = get_object_or_404(ManualDeposit, pk=pk, status=ManualDeposit.Status.PENDING)
+    deposit = get_object_or_404(ManualDeposit, pk=pk)
     with transaction.atomic():
         deposit.status = ManualDeposit.Status.APPROVED
         deposit.save()
         credit_wallet(deposit.user, deposit.amount, WalletTransaction.Type.DEPOSIT, reference=f"approved-{deposit.request_id}")
+        
+        from accounts.models import notify, Notification
+        notify(
+            recipient=deposit.user,
+            notification_type=Notification.Type.DEPOSIT,
+            message=f"Your deposit of NAD {deposit.amount} has been approved.",
+            target_url=reverse("wallet_home")
+        )
+        
     messages.success(request, f"Deposit {deposit.request_id} approved and credited.")
     return redirect("staff_deposits_list")
 
 @staff_member_required(login_url="login")
 @require_POST
 def staff_reject_deposit_view(request, pk):
-    deposit = get_object_or_404(ManualDeposit, pk=pk, status=ManualDeposit.Status.PENDING)
+    deposit = get_object_or_404(ManualDeposit, pk=pk)
     deposit.status = ManualDeposit.Status.REJECTED
     deposit.admin_notes = request.POST.get("notes", "")
     deposit.save()
+    
+    from accounts.models import notify, Notification
+    notify(
+        recipient=deposit.user,
+        notification_type=Notification.Type.DEPOSIT,
+        message=f"Your deposit request {deposit.request_id} was rejected.",
+        target_url=reverse("wallet_home")
+    )
+    
     messages.info(request, f"Deposit {deposit.request_id} rejected.")
     return redirect("staff_deposits_list")
 

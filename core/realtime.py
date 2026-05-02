@@ -52,7 +52,7 @@ def push_notification_counts(user):
     )
 
 
-def push_notification_event(notification):
+def push_notification_event(notification, title=None):
     user = notification.recipient
     notification_count, message_count = _notification_counts_for(user)
     sender = getattr(notification, "sender", None)
@@ -62,6 +62,7 @@ def push_notification_event(notification):
             "type": "notification.event",
             "payload": {
                 "id": notification.id,
+                "title": title or "Notification",
                 "notification_type": notification.notification_type,
                 "message": notification.message,
                 "target_url": notification.target_url or "/notifications/",

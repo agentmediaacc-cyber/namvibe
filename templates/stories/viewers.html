@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load media_helpers %}
+
+{% block title %}Story Viewers | Namvibe{% endblock %}
+
+{% block content %}
+<style>
+  .viewers-shell { width: min(600px, 95vw); margin: 40px auto; padding-bottom: 80px; }
+  .viewer-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px; border-radius: 18px; background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line); margin-bottom: 10px; text-decoration: none; color: #fff;
+    transition: transform 0.2s;
+  }
+  .viewer-card:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+  .viewer-avatar { width: 44px; height: 44px; border-radius: 14px; object-fit: cover; background: var(--nv-grad); display: grid; place-items: center; font-weight: 800; }
+  .viewer-info { flex: 1; min-width: 0; }
+  .viewer-info strong { display: block; font-size: 15px; }
+  .viewer-info small { color: var(--muted); font-size: 12px; }
+</style>
+
+<div class="viewers-shell">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+    <h1>Story Viewers</h1>
+    <a href="{% url 'story_detail' story.id %}" class="nv-btn">Back to Story</a>
+  </div>
+
+  <div class="product-card" style="margin-bottom:24px; text-align:center;">
+    <h2 style="margin:0;">{{ story.view_count }}</h2>
+    <p style="margin:0; color:var(--muted);">Total unique views</p>
+  </div>
+
+  <div class="viewers-list">
+    {% for view in viewers %}
+      {% if view.viewer %}
+        <a href="{% url 'profile_detail' view.viewer.profile.username %}" class="viewer-card">
+          {% if view.viewer.profile.avatar %}
+            <img src="{% avatar_url view.viewer.profile %}" class="viewer-avatar" alt="">
+          {% else %}
+            <div class="viewer-avatar">{{ view.viewer.username|first|upper }}</div>
+          {% endif %}
+          <div class="viewer-info">
+            <strong>{{ view.viewer.profile.display_name|default:view.viewer.username }}</strong>
+            <small>@{{ view.viewer.profile.username }} · {{ view.created_at|timesince }} ago</small>
+          </div>
+        </a>
+      {% else %}
+        <div class="viewer-card" style="opacity: 0.7; cursor: default;">
+          <div class="viewer-avatar">?</div>
+          <div class="viewer-info">
+            <strong>Anonymous User</strong>
+            <small>Session: {{ view.session_key|slice:":8" }}... · {{ view.created_at|timesince }} ago</small>
+          </div>
+        </div>
+      {% endif %}
+    {% empty %}
+      <div class="product-card" style="text-align:center; padding:40px;">
+        <p>No viewers yet. Share your story to get seen!</p>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

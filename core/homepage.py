@@ -563,11 +563,11 @@ def _mixed_feed(posts, reels, live_sessions, communities, dating_profiles, membe
 
 def _mobile_action_items(user):
     return [
-        {"label": "Home", "icon": "home", "url": reverse("home"), "active": True},
+        {"label": "Home", "icon": "home", "url": reverse("home")},
         {"label": "Reels", "icon": "video", "url": reverse("reels_feed")},
-        {"label": "Create", "icon": "plus", "drawer_trigger": True},
-        {"label": "Dating", "icon": "heart", "url": reverse("dating")},
-        {"label": "Live", "icon": "tv", "url": reverse("live_home")},
+        {"label": "Create", "icon": "plus", "action_launcher": True},
+        {"label": "Messages", "icon": "message-circle", "url": reverse("messaging:messages_home") if user.is_authenticated else reverse("login")},
+        {"label": "Profile", "icon": "user", "url": reverse("user_dashboard") if user.is_authenticated else reverse("login")},
     ]
 
 
