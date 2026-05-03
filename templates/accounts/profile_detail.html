@@ -156,16 +156,18 @@
               <button class="profile-action primary" type="submit" style="cursor:pointer;">{% if is_following %}Following{% else %}Follow{% endif %}</button>
             </form>
             {% if is_friend %}
+              <span class="profile-action">Friends</span>
               <a class="profile-action" href="{{ action_urls.messages }}">Chat</a>
-              <a class="profile-action" href="{{ action_urls.audio_call }}">Call</a>
+              <a class="profile-action" href="{{ action_urls.audio_call }}">Audio Call</a>
               <a class="profile-action" href="{{ action_urls.video_call }}">Video Call</a>
             {% elif request_received %}
               <form method="post" action="{{ action_urls.friend_accept }}" style="margin:0;">
                 {% csrf_token %}
                 <button class="profile-action" type="submit" style="cursor:pointer;">Accept Friend</button>
               </form>
+              <span class="profile-action">Friend request received</span>
             {% elif request_sent %}
-              <span class="profile-action">Request sent</span>
+              <span class="profile-action">Request Sent</span>
             {% else %}
               <form method="post" action="{{ action_urls.friend_request }}" style="margin:0;">
                 {% csrf_token %}
@@ -178,25 +180,20 @@
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
                 <input type="hidden" name="gift" value="{{ default_gift.slug }}">
                 <input type="hidden" name="quantity" value="1">
-                <button class="profile-action" type="submit" style="cursor:pointer;">Send {{ default_gift.name }}</button>
+                <button class="profile-action" type="submit" style="cursor:pointer;">Gift</button>
               </form>
             {% endif %}
+            <form method="post" action="{{ action_urls.boost_profile }}" style="margin:0;">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="profile-action" type="submit" style="cursor:pointer;">Boost</button></form>
+            <button class="profile-action" type="button" onclick="copyShareLink('{{ action_urls.share_profile|escapejs }}', this)">Share Profile</button>
             <a class="profile-action" href="{{ action_urls.report_profile }}">Report</a>
             <form method="post" action="{% if is_blocking %}{% url 'unblock_user' profile.username %}{% else %}{% url 'block_user' profile.username %}{% endif %}" style="margin:0;">
               {% csrf_token %}
               <button class="profile-action" type="submit" style="cursor:pointer;">{% if is_blocking %}Unblock{% else %}Block{% endif %}</button>
             </form>
-            <button class="profile-action" type="button" onclick="copyShareLink('{{ action_urls.share_profile|escapejs }}', this)">Share Profile</button>
-            <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
-            <a class="profile-action" href="{{ action_urls.games }}">Games</a>
-            <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
           {% else %}
             <a class="profile-action primary" href="{% url 'login' %}?next={{ request.path }}">Login</a>
             <a class="profile-action" href="{% url 'signup' %}">Create Account</a>
             <button class="profile-action" type="button" onclick="copyShareLink('{{ action_urls.share_profile|escapejs }}', this)">Share Profile</button>
-            <a class="profile-action" href="{{ action_urls.dating_profile }}">Dating</a>
-            <a class="profile-action" href="{{ action_urls.games }}">Games</a>
-            <a class="profile-action" href="{{ action_urls.pink_friday }}">Pink Friday</a>
           {% endif %}
         </div>
 

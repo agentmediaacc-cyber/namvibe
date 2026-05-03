@@ -1,237 +1,106 @@
 {% extends "base.html" %}
 {% load media_helpers %}
 
-{% block title %}Namvibe | Live Discovery in Namibia{% endblock %}
+{% block title %}Namvibe{% endblock %}
 
 {% block extra_head %}
 <style>
-  :root{
-    --nv-line:rgba(255,255,255,.12);
-    --nv-muted:#cbd5e1;
-    --nv-grad:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);
-    --nv-glass:rgba(255,255,255,.08);
+  .home-shell{width:min(1180px,calc(100% - 16px));margin:0 auto;padding:18px 0 110px;display:grid;gap:18px}
+  .hero,.panel,.member-card,.post-card,.story-card,.reel-card{
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.07);
+    backdrop-filter:blur(18px);
+    box-shadow:0 24px 70px rgba(0,0,0,.24);
+    border-radius:28px;
+    color:#fff;
   }
-  body{background:#120014}
-  .home-shell{width:min(1240px,calc(100% - 16px));margin:0 auto;padding:18px 0 110px}
-  .hero-card,.section-card,.story-card,.feed-card,.live-card,.member-card,.pink-card,.section-inline-card,.skeleton-card{
-    border:1px solid var(--nv-line);background:var(--nv-glass);backdrop-filter:blur(18px);
-    box-shadow:0 24px 70px rgba(0,0,0,.28);border-radius:28px;color:#fff;
-  }
-  .hero-card{
-    padding:26px;
-    background:
-      radial-gradient(circle at top left, rgba(124,58,237,.34), transparent 30%),
-      radial-gradient(circle at top right, rgba(236,72,153,.24), transparent 28%),
-      linear-gradient(145deg, rgba(22,0,24,.92), rgba(18,0,20,.9));
-  }
-  .hero-grid,.story-row,.feed-stack,.live-grid,.member-grid,.feature-grid,.pink-mini-grid,.action-row,.meta-row,.card-actions,.section-inline-grid{display:grid;gap:16px}
-  .hero-grid{grid-template-columns:minmax(0,1.08fr) minmax(280px,.92fr);align-items:start}
-  .story-row{grid-template-columns:repeat(auto-fit,minmax(92px,1fr))}
-  .live-grid,.feature-grid,.member-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-  .pink-mini-grid{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
-  .section-inline-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-  .hero-badge,.section-badge,.feed-badge,.member-badge{
-    display:inline-flex;align-items:center;justify-content:center;width:max-content;
-    padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;
-    font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase
-  }
-  .hero-card h1{margin:14px 0 14px;font-size:clamp(2.6rem,6vw,4.8rem);line-height:.95;max-width:11ch}
-  .hero-copy,.section-copy,.empty-copy,.feed-copy,.member-copy p,.member-copy small,.live-copy,.pink-copy{color:var(--nv-muted);line-height:1.65}
+  .hero{padding:24px;background:
+    radial-gradient(circle at top left, rgba(124,58,237,.28), transparent 34%),
+    radial-gradient(circle at top right, rgba(236,72,153,.18), transparent 28%),
+    linear-gradient(145deg, rgba(22,0,24,.94), rgba(18,0,20,.9));}
+  .hero-grid,.story-rail,.reel-grid,.section-grid,.feed-grid,.action-row,.metric-row,.member-actions{display:grid;gap:14px}
+  .hero-grid{grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr)}
+  .story-rail{grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
+  .reel-grid,.section-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .feed-grid{grid-template-columns:minmax(0,1fr)}
+  .badge{display:inline-flex;width:max-content;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.08);font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#fbcfe8}
+  .hero h1{margin:14px 0 10px;font-size:clamp(2.2rem,5vw,4rem);line-height:.95;max-width:10ch}
+  .hero-copy,.muted,.member-copy p,.member-copy small,.empty-copy{color:#cbd5e1;line-height:1.6}
   .action-row{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start}
-  .action-btn,.ghost-btn{
+  .btn,.ghost,.tiny-btn{
     display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;font-weight:900;
-    padding:12px 16px;border-radius:16px;border:1px solid var(--nv-line);background:rgba(255,255,255,.05)
+    border-radius:16px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)
   }
-  .action-btn{background:var(--nv-grad);border-color:transparent}
-  .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:18px}
-  .metric-card,.hero-side-card,.section-card,.feed-card,.story-card,.live-card,.member-card,.pink-mini{padding:16px}
-  .metric-card,.hero-side-card,.pink-mini{border-radius:22px;border:1px solid var(--nv-line);background:rgba(255,255,255,.05)}
-  .hero-utility-grid,.hero-member-list,.hero-story-list,.tab-strip{display:grid;gap:12px}
-  .hero-utility-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .hero-pill-row{display:flex;gap:10px;flex-wrap:wrap}
-  .hero-pill{
-    display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border-radius:999px;
-    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);font-weight:800;color:#f8fafc
-  }
-  .hero-pill strong{font-size:1rem}
-  .hero-mini-card{
-    border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);
-    padding:14px;display:grid;gap:10px
-  }
-  .hero-mini-card h3{margin:0;font-size:1rem}
-  .hero-member-list a,.hero-story-list a{
-    text-decoration:none;color:#fff;border-radius:16px;padding:10px 12px;background:rgba(255,255,255,.04);
-    border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px
-  }
-  .hero-member-list strong,.hero-story-list strong{display:block}
-  .hero-mini-avatar{
-    width:42px;height:42px;border-radius:14px;padding:2px;background:var(--nv-grad);flex:0 0 auto
-  }
-  .hero-mini-avatar img,.hero-mini-avatar span{
-    width:100%;height:100%;border-radius:12px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900
-  }
-  .metric-card span{display:block;color:var(--nv-muted);font-size:12px}
-  .metric-card strong{display:block;margin-top:6px;font-size:1.18rem}
-  .hero-side-card strong{display:block;margin:10px 0 6px}
-  .section-block{margin-top:22px}
-  .section-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}
-  .section-head h2{margin:0;font-size:clamp(1.45rem,2.6vw,2rem)}
+  .btn,.ghost{padding:12px 16px}
+  .btn{background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e);border-color:transparent}
+  .tiny-btn{padding:9px 12px}
+  .metric-row{grid-template-columns:repeat(auto-fit,minmax(110px,1fr));margin-top:18px}
+  .metric{padding:14px;border-radius:20px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+  .metric span{display:block;color:#cbd5e1;font-size:12px}
+  .metric strong{display:block;margin-top:5px;font-size:1.15rem}
+  .section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .section-head h2{margin:0;font-size:1.45rem}
   .section-link{color:#fff;text-decoration:none;font-weight:900}
-  .section-inline-card{
-    padding:18px;display:grid;gap:12px;text-decoration:none;color:#fff;
-    background:
-      radial-gradient(circle at top left, rgba(124,58,237,.18), transparent 35%),
-      linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
-    transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
-  }
-  .section-inline-card strong{font-size:1rem}
-  .section-inline-card p{margin:0;color:var(--nv-muted);line-height:1.55}
-  .section-inline-card:hover,.story-card:hover,.feed-card:hover,.live-card:hover,.member-card:hover,.pink-card:hover{
-    transform:translateY(-3px);
-    border-color:rgba(255,255,255,.22);
-    box-shadow:0 28px 72px rgba(0,0,0,.34);
-  }
-  .story-card{text-decoration:none;text-align:center}
-  .story-card small{display:block;margin-top:5px}
-  .story-avatar{width:78px;height:78px;border-radius:26px;margin:0 auto 10px;padding:2px;background:var(--nv-grad)}
-  .story-avatar img,.story-avatar span{width:100%;height:100%;border-radius:24px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
-  .story-avatar.is-seen{background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.08))}
-  .story-avatar-create span{font-size:2rem;background:rgba(255,255,255,.08)}
-  .feed-stack{grid-template-columns:minmax(0,1fr)}
-  .feed-card{display:grid;gap:14px}
-  .feed-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-  .feed-author{display:flex;gap:12px;text-decoration:none;color:#fff}
-  .feed-avatar{width:54px;height:54px;border-radius:18px;padding:2px;background:var(--nv-grad);flex:0 0 auto}
-  .feed-avatar img,.feed-avatar span{width:100%;height:100%;border-radius:16px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
-  .feed-top h3{margin:4px 0 0;font-size:1.04rem}
-  .feed-tags{display:flex;gap:8px;flex-wrap:wrap}
-  .feed-tag{display:inline-flex;padding:7px 11px;border-radius:999px;border:1px solid var(--nv-line);background:rgba(255,255,255,.05);color:#d8b4fe;font-weight:800;text-decoration:none}
-  .feed-kicker{
-    display:inline-flex;width:max-content;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;
-    background:rgba(124,58,237,.16);border:1px solid rgba(124,58,237,.26);color:#ddd6fe;font-weight:900;font-size:12px
-  }
-  .feed-media-link{text-decoration:none;color:#fff}
-  .feed-media{
-    margin-top:2px;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,#20102a,#2d102f);min-height:240px;position:relative
-  }
-  .feed-media.reel{aspect-ratio:9/13;max-width:520px}
-  .feed-media img,.feed-media video{display:block;width:100%;height:100%;object-fit:cover}
-  .feed-fallback{min-height:240px;display:grid;align-content:end;gap:10px;padding:24px}
-  .video-fx-overlay{
-    position:absolute;left:14px;right:14px;top:14px;display:flex;justify-content:space-between;gap:10px;align-items:center
-  }
-  .video-badge{
-    display:inline-flex;padding:8px 12px;border-radius:999px;background:rgba(18,0,20,.76);border:1px solid rgba(255,255,255,.12);font-weight:900
-  }
-  .video-mute-btn{background:rgba(18,0,20,.82)}
-  .meta-row{grid-auto-flow:column;grid-auto-columns:minmax(60px,1fr)}
-  .meta-pill{padding:8px 10px;border-radius:18px;background:rgba(18,0,20,.74);text-align:center}
-  .meta-pill small{display:block;color:var(--nv-muted)}
-  .card-actions{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start}
-  .small-btn{
-    display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;font-weight:900;
-    padding:10px 13px;border-radius:14px;border:1px solid var(--nv-line);background:rgba(255,255,255,.05);
-    transition:transform .18s ease,background .18s ease,border-color .18s ease,box-shadow .18s ease
-  }
-  .small-btn:hover,.small-btn:focus-visible,.action-btn:hover,.ghost-btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)}
-  .like-btn.active{background:rgba(236,72,153,.16);border-color:rgba(236,72,153,.42)}
-  .like-btn.like-pop{animation:heart-pop .28s ease}
-  .follow-btn.following-state{background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4)}
-  .feed-comment-shell{
-    display:none;gap:10px;padding:12px;border-radius:18px;
-    background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.08)
-  }
-  .feed-comment-shell.open{display:grid;animation:feed-rise .2s ease}
-  .comment-input{
-    width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
-    border-radius:14px;padding:10px 12px;color:#fff;outline:none
-  }
-  .live-card,.member-card{display:grid;gap:12px}
-  .live-card strong,.member-card strong{display:block}
+  .panel{padding:18px}
+  .story-card{padding:12px;text-decoration:none;text-align:center}
+  .story-avatar{width:74px;height:74px;border-radius:24px;margin:0 auto 10px;padding:2px;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e)}
+  .story-avatar img,.story-avatar span{width:100%;height:100%;border-radius:22px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
+  .quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .quick-grid a,.wallet-card{padding:14px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);text-decoration:none;color:#fff}
+  .wallet-card strong{display:block;font-size:1.4rem;margin-top:6px}
+  .reel-card,.member-card,.post-card{overflow:hidden}
+  .reel-card a,.member-card a{text-decoration:none;color:#fff}
+  .reel-thumb{aspect-ratio:9/14;background:#140615;display:block;position:relative}
+  .reel-thumb img,.reel-thumb video{width:100%;height:100%;object-fit:cover;display:block}
+  .reel-meta,.member-body,.post-body{padding:14px}
+  .reel-pill{position:absolute;top:12px;left:12px;padding:7px 11px;border-radius:999px;background:rgba(0,0,0,.58);font-size:11px;font-weight:900}
   .member-top{display:flex;gap:12px;align-items:center}
-  .member-avatar{width:64px;height:64px;border-radius:20px;padding:2px;background:var(--nv-grad)}
-  .member-avatar img,.member-avatar span{width:100%;height:100%;border-radius:18px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
-  .member-status{display:inline-flex;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:#fbcfe8;font-size:12px;font-weight:900}
-  .empty-card{padding:22px;text-align:center}
-  .pink-card{padding:20px;background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(236,72,153,.18),rgba(244,63,94,.12))}
-  .tab-strip{grid-auto-flow:column;grid-auto-columns:max-content;align-items:center;overflow:auto;padding-bottom:2px}
-  .tab-chip{
-    display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:999px;text-decoration:none;
-    color:#fff;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);font-weight:800;white-space:nowrap
-  }
-  .tab-chip.is-live{background:linear-gradient(135deg,rgba(124,58,237,.24),rgba(236,72,153,.18));border-color:rgba(236,72,153,.28)}
-  .feed-loader{display:grid;gap:12px;padding-top:10px}
-  .skeleton-card{
-    min-height:140px;padding:18px;overflow:hidden;position:relative;background:rgba(255,255,255,.05)
-  }
-  .skeleton-card::after{
-    content:"";position:absolute;inset:0;background:linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent);
-    transform:translateX(-100%);animation:shimmer 1.3s infinite;
-  }
-  .skeleton-line{height:12px;border-radius:999px;background:rgba(255,255,255,.07)}
-  .skeleton-line.big{height:18px;width:62%}
-  .skeleton-line.mid{width:44%}
-  .skeleton-line.full{width:100%}
-  .feed-status-copy{text-align:center;color:var(--nv-muted);font-weight:700;padding:12px}
-  .onboarding-strip{
-    margin-top:18px;padding:18px;border-radius:24px;border:1px solid rgba(255,255,255,.12);
-    background:linear-gradient(135deg,rgba(124,58,237,.16),rgba(236,72,153,.12),rgba(255,255,255,.05));
-    display:grid;gap:12px;
-  }
-  .onboarding-progress{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
-  .onboarding-progress span{display:block;height:100%;background:var(--nv-grad)}
-  .mobile-create-launcher{position:fixed;right:14px;bottom:92px;z-index:2400;display:none;gap:10px}
-  .mobile-create-fab,.mobile-create-link{
-    border:1px solid rgba(255,255,255,.12);background:rgba(18,0,20,.94);color:#fff;text-decoration:none;
-    box-shadow:0 20px 48px rgba(0,0,0,.34);backdrop-filter:blur(18px);
-  }
-  .mobile-create-stack{display:none;gap:8px;justify-items:end}
-  .mobile-create-stack.open{display:grid}
-  .mobile-create-link{padding:10px 14px;border-radius:16px;font-weight:900}
-  .mobile-create-fab{width:58px;height:58px;border-radius:999px;display:grid;place-items:center;font-size:1.5rem;background:var(--nv-grad)}
-  @keyframes shimmer{100%{transform:translateX(100%)}}
-  @keyframes heart-pop{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
-  @keyframes feed-rise{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}
-  @media (max-width: 980px){.hero-grid{grid-template-columns:1fr}}
+  .member-avatar{width:58px;height:58px;border-radius:18px;padding:2px;background:linear-gradient(135deg,#7c3aed,#ec4899,#f43f5e)}
+  .member-avatar img,.member-avatar span{width:100%;height:100%;border-radius:16px;display:grid;place-items:center;object-fit:cover;background:#200627;font-weight:900}
+  .online-dot{display:inline-block;width:9px;height:9px;border-radius:999px;background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.14)}
+  .member-actions{grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start}
+  .post-media{display:block;aspect-ratio:4/5;background:#160018}
+  .post-media img,.post-media video{width:100%;height:100%;object-fit:cover;display:block}
+  .post-title{margin:0 0 8px}
+  .post-meta{display:flex;gap:10px;flex-wrap:wrap;color:#cbd5e1;font-size:12px}
+  .post-stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:#cbd5e1}
+  .comment-box{display:none;gap:10px;margin-top:12px}
+  .comment-box.open{display:grid}
+  .comment-box input{width:100%;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:#fff}
+  .empty-state{padding:28px;text-align:center}
+  @media (max-width: 880px){.hero-grid{grid-template-columns:1fr}}
   @media (max-width: 640px){
     .home-shell{width:calc(100% - 10px);padding-top:14px}
-    .hero-card,.section-card,.story-card,.feed-card,.live-card,.member-card,.pink-card,.section-inline-card,.skeleton-card{border-radius:24px}
-    .hero-card{padding:22px}
-    .hero-utility-grid{grid-template-columns:1fr}
-    .action-row,.meta-row,.card-actions{grid-auto-flow:row}
-    .feed-media.reel{max-width:none}
-    .story-row{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .section-inline-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .mobile-create-launcher{display:grid}
+    .hero,.panel,.member-card,.post-card,.story-card,.reel-card{border-radius:24px}
+    .action-row,.member-actions{grid-auto-flow:row}
+    .quick-grid{grid-template-columns:1fr 1fr}
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <section class="home-shell">
-  <section class="hero-card">
+  <section class="hero">
     <div class="hero-grid">
       <div>
-        <span class="hero-badge">Live social discovery for Namibia</span>
-        <h1>Namvibe — stories, love, live shows and games in one vibe</h1>
-        <p class="hero-copy">{% if request.user.is_authenticated %}Stay close to the latest stories, public posts, members, and live rooms without leaving one smooth discovery surface.{% else %}Preview real public stories, posts, live rooms, and member profiles in one premium social feed built for Namibia.{% endif %}</p>
+        <span class="badge">Real social discovery</span>
+        <h1>{% if request.user.is_authenticated %}Stories, reels, posts, and people that are live now.{% else %}Preview Namvibe before you join.{% endif %}</h1>
+        <p class="hero-copy">
+          {% if request.user.is_authenticated %}
+            Clean access to the parts that already work: stories, reels, posts, live rooms, members, wallet, and quick create.
+          {% else %}
+            See public stories, reels, posts, live rooms, and member previews. Join when you want to connect.
+          {% endif %}
+        </p>
         <div class="action-row">
           {% for item in hero_actions %}
-            <a class="{% if item.tone == 'primary' %}action-btn{% else %}ghost-btn{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
+            <a class="{% if item.tone == 'primary' %}btn{% else %}ghost{% endif %}" href="{{ item.url }}">{{ item.label }}</a>
           {% endfor %}
         </div>
-        {% if request.user.is_authenticated %}
-          <div class="hero-pill-row" style="margin-top:18px;">
-            <span class="hero-pill">🔔 <strong>{{ nav_notification_count }}</strong> unread</span>
-            <span class="hero-pill">✉️ <strong>{{ nav_message_count }}</strong> messages</span>
-            <span class="hero-pill">👥 <strong>{{ following_count }}</strong> following</span>
-            <span class="hero-pill">🤝 <strong>{{ friend_count }}</strong> friends</span>
-          </div>
-        {% endif %}
         {% if hero_metrics %}
-          <div class="metric-grid">
+          <div class="metric-row">
             {% for item in hero_metrics %}
-              <article class="metric-card">
+              <article class="metric">
                 <span>{{ item.label }}</span>
                 <strong>{{ item.value }}</strong>
               </article>
@@ -239,395 +108,318 @@
           </div>
         {% endif %}
       </div>
-      <div style="display:grid;gap:14px;">
+
+      <div class="panel" style="padding:16px;">
         {% if request.user.is_authenticated %}
-          <div class="hero-utility-grid">
-            <article class="hero-mini-card">
-              <span class="section-badge">Quick create</span>
-              <h3>Share something now</h3>
-              <div class="card-actions">
-                <a class="small-btn" href="{% url 'studio' %}">Post</a>
-                <a class="small-btn" href="{% url 'story_create' %}">Story</a>
-                <a class="small-btn" href="{% url 'live_start' %}">Live</a>
-              </div>
-            </article>
-            <article class="hero-mini-card">
-              <span class="section-badge">Inbox pulse</span>
-              <h3>Stay in the loop</h3>
-              <div class="card-actions">
-                <a class="small-btn" href="{{ notifications_url }}">Notifications</a>
-                <a class="small-btn" href="{{ messages_url }}">Messages</a>
-              </div>
-            </article>
-          </div>
-          <article class="hero-mini-card">
-            <div class="section-head" style="margin:0;">
-              <div>
-                <span class="section-badge">People to follow</span>
-                <h3 style="margin:8px 0 0;">Fresh profiles near your vibe</h3>
-              </div>
-              <a class="section-link" href="{{ members_url }}">Browse</a>
+          <div class="section-head" style="margin-bottom:10px;">
+            <div>
+              <span class="badge">Quick create</span>
+              <h2>Share something</h2>
             </div>
-            <div class="hero-member-list">
-              {% for item in member_cards|slice:":3" %}
-                <a href="{{ item.profile_url }}">
-                  <div class="hero-mini-avatar">
+          </div>
+          <div class="quick-grid">
+            {% for item in quick_create_items %}
+              <a href="{{ item.url }}">{{ item.label }}</a>
+            {% endfor %}
+          </div>
+          <div class="wallet-card" style="margin-top:12px;">
+            <span class="muted">Wallet</span>
+            <strong>N${{ wallet_snapshot.available_balance|default:0 }}</strong>
+            <div class="action-row" style="margin-top:10px;">
+              <a class="tiny-btn" href="{{ wallet_url }}">Open wallet</a>
+              <a class="tiny-btn" href="{% url 'manual_deposit' %}">Deposit</a>
+            </div>
+          </div>
+        {% else %}
+          <div class="section-head" style="margin-bottom:10px;">
+            <div>
+              <span class="badge">Public preview</span>
+              <h2>What you can see now</h2>
+            </div>
+          </div>
+          <div class="quick-grid">
+            <a href="{{ reels_url }}">Reels</a>
+            <a href="{{ live_url }}">Live rooms</a>
+            <a href="{{ members_url }}">Members</a>
+            <a href="{% url 'feed' %}">Posts</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-head">
+      <div>
+        <span class="badge">Stories</span>
+        <h2>Stories</h2>
+      </div>
+      {% if request.user.is_authenticated %}
+        <a class="section-link" href="{% url 'story_create' %}">Add story</a>
+      {% endif %}
+    </div>
+    {% if story_rail %}
+      <div class="story-rail">
+        {% for item in story_rail %}
+          <a class="story-card" href="{% url 'story_detail' item.first_story.id %}">
+            <div class="story-avatar">
+              {% if item.author.profile.avatar %}
+                <img src="{% avatar_url item.author.profile %}" alt="{{ item.author.username }}">
+              {% else %}
+                <span>{{ item.author.username|first|upper }}</span>
+              {% endif %}
+            </div>
+            <strong>@{{ item.author.profile.username|default:item.author.username|truncatechars:10 }}</strong>
+            <small class="muted">{{ item.story_count }} story{{ item.story_count|pluralize }}</small>
+            <span style="display:none;">{{ item.first_story.text_content|default:item.first_story.caption }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <strong>Stories will appear here when people share.</strong>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="section-head">
+      <div>
+        <span class="badge">Reels</span>
+        <h2>Reels and videos</h2>
+      </div>
+      <a class="section-link" href="{{ reels_url }}">Open reels</a>
+    </div>
+    {% if reel_preview %}
+      <div class="reel-grid">
+        {% for post in reel_preview %}
+          <article class="reel-card">
+            <a href="{{ reels_url }}#reel-{{ post.uuid }}">
+              <div class="reel-thumb">
+                {% with media=post.primary_media %}
+                  {% if media and media.media_type == "video" %}
+                    <video muted playsinline preload="metadata">
+                      <source src="{% media_url media %}">
+                    </video>
+                  {% elif media %}
+                    <img src="{% media_url media %}" alt="{{ post.title|default:'Reel preview' }}">
+                  {% else %}
+                    <div style="width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(135deg,#2c0a2d,#170417);">No preview</div>
+                  {% endif %}
+                {% endwith %}
+                <span class="reel-pill">{% if post.post_type == "reel" %}Reel{% else %}Video{% endif %}</span>
+              </div>
+              <div class="reel-meta">
+                <strong>{{ post.title|default:post.author.profile.display_name|default:post.author.username|truncatechars:36 }}</strong>
+                <div class="post-stats">
+                  <span>{{ post.like_count }} likes</span>
+                  <span>{{ post.comment_count }} comments</span>
+                  <span>{{ post.view_count }} views</span>
+                </div>
+              </div>
+            </a>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <strong>No reels yet — be the first to share the vibe.</strong>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if live_preview %}
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <span class="badge">Live</span>
+          <h2>Live rooms</h2>
+        </div>
+        <a class="section-link" href="{{ live_url }}">View live</a>
+      </div>
+      <div class="section-grid">
+        {% for session in live_preview %}
+          <article class="member-card">
+            <div class="member-body">
+              <span class="badge">{% if session.status == session.Status.LIVE %}Live now{% else %}Scheduled{% endif %}</span>
+              <h3 style="margin:10px 0 6px;">{{ session.title }}</h3>
+              <p class="muted">{{ session.description|default:"Open the room to watch and chat."|truncatechars:120 }}</p>
+              <div class="post-stats">
+                <span>{{ session.viewer_count }} watching</span>
+                <span>@{{ session.host.profile.username|default:session.host.username }}</span>
+              </div>
+              <div class="action-row" style="margin-top:12px;">
+                <a class="tiny-btn" href="{% url 'live_room' session.uuid %}">Open room</a>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <section class="panel empty-state">
+      <strong>No live rooms yet — check back soon.</strong>
+    </section>
+  {% endif %}
+
+  <section class="section-grid">
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <span class="badge">Online</span>
+          <h2>Online members</h2>
+        </div>
+        <a class="section-link" href="{{ members_url }}">See all</a>
+      </div>
+      {% if online_members %}
+        <div class="section-grid">
+          {% for item in online_members %}
+            <article class="member-card">
+              <div class="member-body">
+                <a class="member-top" href="{{ item.profile_url }}">
+                  <div class="member-avatar">
                     {% if item.profile.avatar %}
                       <img src="{% avatar_url item.profile %}" alt="{{ item.username }}">
                     {% else %}
                       <span>{{ item.username|first|upper }}</span>
                     {% endif %}
                   </div>
-                  <div style="min-width:0;">
-                    <strong>{{ item.display_name|default:item.username }}</strong>
-                    <small class="feed-copy">@{{ item.username }} · {{ item.location|truncatechars:28 }}</small>
+                  <div class="member-copy">
+                    <strong>{{ item.display_name }}</strong>
+                    <small>@{{ item.username }}</small>
+                    <small><span class="online-dot"></span> Online</small>
                   </div>
                 </a>
-              {% empty %}
-                <div class="hero-side-card">
-                  <strong>New members will appear here as they complete their profiles.</strong>
-                </div>
-              {% endfor %}
-            </div>
-          </article>
-          <article class="hero-mini-card">
-            <div class="section-head" style="margin:0;">
-              <div>
-                <span class="section-badge">Latest stories</span>
-                <h3 style="margin:8px 0 0;">Open what people shared most recently</h3>
-              </div>
-              <a class="section-link" href="{{ feed_url }}">Open feed</a>
-            </div>
-            <div class="hero-story-list">
-              {% for item in story_rail|slice:":3" %}
-                <a href="{% url 'story_detail' item.first_story.id %}">
-                  <div class="hero-mini-avatar">
-                    {% if item.author.profile.avatar %}
-                      <img src="{% avatar_url item.author.profile %}" alt="{{ item.author.username }}">
+                <div class="member-actions" style="margin-top:12px;">
+                  <a class="tiny-btn" href="{{ item.profile_url }}">Profile</a>
+                  {% if request.user.is_authenticated %}
+                    {% if item.is_friend %}
+                      <a class="tiny-btn" href="{{ item.chat_url }}">Chat</a>
+                    {% elif item.request_received %}
+                      <form method="post" action="{{ item.friend_accept_url }}">{% csrf_token %}<button class="tiny-btn" type="submit">Accept Friend</button></form>
+                    {% elif item.request_sent %}
+                      <span class="tiny-btn">Request Sent</span>
                     {% else %}
-                      <span>{{ item.author.username|first|upper }}</span>
+                      <form method="post" action="{{ item.friend_request_url }}">{% csrf_token %}<button class="tiny-btn" type="submit">Add Friend</button></form>
                     {% endif %}
-                  </div>
-                  <div style="min-width:0;">
-                    <strong>@{{ item.author.username }}</strong>
-                    <small class="feed-copy">{% if item.is_live %}Live now{% elif item.is_boosted %}Boosted story{% else %}{{ item.story_count }} active {{ item.story_count|pluralize:"story,stories" }}{% endif %}</small>
-                  </div>
-                </a>
-              {% empty %}
-                <div class="hero-side-card">
-                  <strong>Stories will appear here when people share.</strong>
+                    <form method="post" action="{{ item.follow_url }}">{% csrf_token %}<button class="tiny-btn" type="submit">{% if item.is_following %}Following{% else %}Follow{% endif %}</button></form>
+                  {% endif %}
                 </div>
-              {% endfor %}
-            </div>
-          </article>
-        {% else %}
-          <article class="hero-side-card">
-            <span class="section-badge">Community pulse</span>
-            <strong>Discover trending vibes, real stories, and live moments from across Namibia.</strong>
-          </article>
-          <article class="hero-side-card">
-            <span class="section-badge">Connect</span>
-            <strong>Meet creators, follow friends, and join the conversation live.</strong>
-            <div class="card-actions" style="margin-top:10px;">
-              <a class="small-btn" href="{{ members_url }}">Browse members</a>
-              <a class="small-btn" href="{{ live_shows_url }}">Live shows</a>
-            </div>
-          </article>
-        {% endif %}
-      </div>
-    </div>
-    {% if request.user.is_authenticated and current_profile %}
-      {% if not current_profile.avatar or not current_profile.bio or not current_profile.region %}
-        <div class="onboarding-strip">
-          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-            <div>
-              <span class="section-badge">Finish profile</span>
-              <strong style="display:block;margin-top:8px;font-size:1.12rem;">Make your account feel real before people discover you.</strong>
-              <p class="hero-copy" style="margin:8px 0 0;">Add your photo, hometown, bio, and first post or story to unlock a stronger Namvibe profile.</p>
-            </div>
-            <a class="small-btn" href="{% url 'account_settings' %}">Finish profile</a>
-          </div>
-          <div class="card-actions">
-            <a class="small-btn" href="{% url 'member_discovery' %}">Find people to follow</a>
-            <a class="small-btn" href="{% url 'studio' %}">Create first post</a>
-            <a class="small-btn" href="{% url 'story_create' %}">Create first story</a>
-            <a class="small-btn" href="{% url 'home' %}">Skip for now</a>
-          </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <strong>No online members right now.</strong>
         </div>
       {% endif %}
-    {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <span class="badge">Suggested</span>
+          <h2>Suggested members</h2>
+        </div>
+        <a class="section-link" href="{{ members_url }}">Browse members</a>
+      </div>
+      {% if suggested_members %}
+        <div class="section-grid">
+          {% for item in suggested_members %}
+            <article class="member-card">
+              <div class="member-body">
+                <a class="member-top" href="{{ item.profile_url }}">
+                  <div class="member-avatar">
+                    {% if item.profile.avatar %}
+                      <img src="{% avatar_url item.profile %}" alt="{{ item.username }}">
+                    {% else %}
+                      <span>{{ item.username|first|upper }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="member-copy">
+                    <strong>{{ item.display_name }}</strong>
+                    <small>@{{ item.username }}</small>
+                    <small>{{ item.location }}</small>
+                  </div>
+                </a>
+                <p>{{ item.bio|default:"Open the profile to see posts, reels, and stories."|truncatechars:110 }}</p>
+                <div class="member-actions">
+                  <a class="tiny-btn" href="{{ item.profile_url }}">Profile</a>
+                  {% if request.user.is_authenticated %}
+                    <form method="post" action="{{ item.follow_url }}">{% csrf_token %}<button class="tiny-btn" type="submit">{% if item.is_following %}Following{% else %}Follow{% endif %}</button></form>
+                  {% endif %}
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
   </section>
 
-  <section class="section-block">
-    <div class="tab-strip" style="margin-bottom:14px;">
-      {% for tab in feed_tabs %}
-        <a class="tab-chip {% if tab.key == 'for_you' %}is-live{% endif %}" href="{{ tab.url }}">{{ tab.label }}</a>
-      {% endfor %}
-    </div>
+  <section class="panel">
     <div class="section-head">
       <div>
-        <span class="section-badge">Discover now</span>
-        <h2>{% if request.user.is_authenticated %}Latest stories, member suggestions, reels, and featured experiences{% else %}Public stories, members, reels, and featured experiences{% endif %}</h2>
+        <span class="badge">Posts</span>
+        <h2>Latest posts</h2>
       </div>
-      <a class="section-link" href="{{ members_url }}">See members</a>
     </div>
-    <div class="section-inline-grid">
-      {% if reel_preview %}
-        <a class="section-inline-card" href="{% url 'reels_feed' %}">
-          <span class="section-badge">Reels</span>
-          <strong>Open video feed</strong>
-          <p>{{ reel_preview.0.title|default:reel_preview.0.caption|default:"Jump into short videos, reels, and creator highlights."|truncatechars:88 }}</p>
-        </a>
-      {% endif %}
-      {% for item in live_teasers|slice:":2" %}
-        <a class="section-inline-card" href="{{ item.url|default:live_shows_url }}">
-          <span class="section-badge">{% if item.is_live %}Live now{% else %}Live{% endif %}</span>
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.copy|default:item.description|default:"Open live shows, creator rooms, and premium local moments." }}</p>
-        </a>
-      {% endfor %}
-      {% for item in member_cards|slice:":2" %}
-        <a class="section-inline-card" href="{{ item.profile_url }}">
-          <span class="section-badge">Member</span>
-          <strong>{{ item.display_name|default:item.username }}</strong>
-          <p>{{ item.bio|default:item.location|default:"Discover real creators, friends, and new profiles near you."|truncatechars:86 }}</p>
-        </a>
-      {% endfor %}
-      <a class="section-inline-card" href="{{ pink_friday_url }}">
-        <span class="section-badge">Featured</span>
-        <strong>Pink Friday</strong>
-        <p>Open the weekly social event for live matches, stories, music, and premium community energy.</p>
-      </a>
-      <a class="section-inline-card" href="{{ games_url }}">
-        <span class="section-badge">Play together</span>
-        <strong>Games hub</strong>
-        <p>Jump into friendly social games without losing the flow of the homepage feed.</p>
-      </a>
-    </div>
-  </section>
-
-  <section class="section-block">
-    <div class="feed-stack" id="feedContainer">
-      {% include "core/_feed_items.html" %}
-    </div>
-    <div id="feedSentinel" style="height:20px;"></div>
-    <div id="feedLoader" class="feed-loader" style="display:none;">
-      <article class="skeleton-card">
-        <div class="skeleton-line big"></div>
-        <div class="skeleton-line mid" style="margin-top:12px;"></div>
-        <div class="skeleton-line full" style="margin-top:20px;"></div>
-        <div class="skeleton-line full" style="margin-top:10px;"></div>
-      </article>
-      <article class="skeleton-card">
-        <div class="skeleton-line big"></div>
-        <div class="skeleton-line mid" style="margin-top:12px;"></div>
-        <div class="skeleton-line full" style="margin-top:20px;"></div>
-      </article>
-      <div id="feedStatus" class="feed-status-copy">Loading more Namvibe moments...</div>
+    <div class="feed-grid" id="homeFeed">
+      {% include "core/_feed_items.html" with mixed_feed=mixed_feed feed_fragment_empty=feed_fragment_empty %}
     </div>
   </section>
 </section>
+{% endblock %}
 
-{% if request.user.is_authenticated %}
-<div class="mobile-create-launcher">
-  <div class="mobile-create-stack" id="mobileCreateStack">
-    <a class="mobile-create-link" href="{% url 'studio' %}">Post</a>
-    <a class="mobile-create-link" href="{% url 'story_create' %}">Story</a>
-    <a class="mobile-create-link" href="{% url 'studio' %}?type=reel">Reel</a>
-    <a class="mobile-create-link" href="{% url 'live_start' %}">Live</a>
-  </div>
-  <button class="mobile-create-fab" type="button" id="mobileCreateFab" aria-label="Create">＋</button>
-</div>
-{% endif %}
-
+{% block extra_scripts %}
 <script>
-  let currentPage = 1;
-  let loading = false;
-  let hasMore = true;
+  function toggleCommentBox(button) {
+    const box = button.closest('.post-body').querySelector('.comment-box');
+    if (box) box.classList.toggle('open');
+  }
 
-  const feedContainer = document.getElementById('feedContainer');
-  const feedLoader = document.getElementById('feedLoader');
-  const sentinel = document.getElementById('feedSentinel');
+  function toggleLike(uuid, button) {
+    fetch(`/like/${uuid}/`, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}'}
+    }).then(response => response.json()).then(data => {
+      button.querySelector('.like-count').textContent = data.like_count;
+      button.querySelector('.like-label').textContent = data.liked ? 'Liked' : 'Like';
+    });
+  }
 
-  const observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && !loading && hasMore) {
-      loadMore();
-    }
-  }, { threshold: 1.0 });
-
-  if (sentinel) observer.observe(sentinel);
-
-  async function loadMore() {
-    loading = true;
-    feedLoader.style.display = 'block';
-    currentPage++;
-    
-    try {
-      const response = await fetch(`{% url 'feed_more' %}?page=${currentPage}`);
-      if (!response.ok) throw new Error('Failed to fetch');
-      const html = await response.text();
-      if (html.trim() === "" || html.includes('data-feed-empty="true"')) {
-        hasMore = false;
-        document.getElementById('feedStatus').textContent = "You're caught up for now.";
-      } else {
-        feedContainer.insertAdjacentHTML('beforeend', html);
-        initVideoObservers();
+  function sharePost(uuid, button) {
+    fetch(`/share/${uuid}/`, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}'}
+    }).then(response => response.json()).then(data => {
+      const url = `${window.location.origin}/post/${uuid}/`;
+      if (navigator.share) {
+        navigator.share({url});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(url);
       }
-    } catch (err) {
-      console.error(err);
-      hasMore = false;
-      document.getElementById('feedStatus').textContent = "More stories and posts will appear when the connection settles.";
-    } finally {
-      loading = false;
-      if (hasMore) feedLoader.style.display = 'none';
-    }
+      button.querySelector('.share-count').textContent = data.share_count;
+    });
   }
 
-  function initVideoObservers() {
-    const inlineVideos = Array.from(document.querySelectorAll('.feed-video'));
-    if (inlineVideos.length) {
-      const videoObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          const video = entry.target;
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
-            inlineVideos.forEach((other) => {
-              if (other !== video) other.pause();
-            });
-            video.play().catch(() => {});
-          } else {
-            video.pause();
-          }
-        });
-      }, { threshold: [0.2, 0.7, 1] });
-
-      inlineVideos.forEach((video) => videoObserver.observe(video));
-    }
-  }
-
-  initVideoObservers();
-
-  async function toggleLike(uuid, btn) {
-    const icon = btn.querySelector('.like-icon');
-    const count = btn.querySelector('.like-count');
-    
-    try {
-      const response = await fetch(`/like/${uuid}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': '{{ csrf_token }}',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      const data = await response.json();
-      if (data.liked) {
-        icon.textContent = '❤️';
-        btn.classList.add('active');
-        btn.classList.remove('like-pop');
-        void btn.offsetWidth;
-        btn.classList.add('like-pop');
-      } else {
-        icon.textContent = '🤍';
-        btn.classList.remove('active');
-      }
-      count.textContent = data.like_count;
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  function toggleVideoMute(btn) {
-    const video = btn.closest('.feed-media')?.querySelector('.feed-video');
-    if (!video) return;
-    video.muted = !video.muted;
-    btn.textContent = video.muted ? '🔇 Mute' : '🔊 Sound';
-  }
-
-  async function toggleFollow(username, btn) {
-    try {
-      const response = await fetch(`/accounts/follow/${username}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': '{{ csrf_token }}',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      const data = await response.json();
-      if (data.status === 'followed') {
-        btn.textContent = 'Following ✓';
-        btn.classList.remove('primary');
-        btn.classList.add('ghost-btn');
-        btn.classList.add('following-state');
-      } else {
-        btn.textContent = 'Follow';
-        btn.classList.remove('ghost-btn');
-        btn.classList.add('primary');
-        btn.classList.remove('following-state');
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  function toggleCommentBox(btn) {
-    const shell = btn.closest('.feed-card')?.querySelector('.feed-comment-shell');
-    if (!shell) return;
-    shell.classList.toggle('open');
-    const count = btn.querySelector('.comment-count')?.textContent || '0';
-    btn.innerHTML = shell.classList.contains('open') ? `Close comments` : `💬 <span class="comment-count">${count}</span>`;
-  }
-
-  async function submitComment(uuid, btn) {
-    const input = btn.previousElementSibling;
+  function submitComment(uuid, button) {
+    const box = button.closest('.comment-box');
+    const input = box.querySelector('input');
     const body = input.value.trim();
     if (!body) return;
-
-    btn.disabled = true;
-    try {
-      const response = await fetch(`/comment/${uuid}/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-CSRFToken': '{{ csrf_token }}',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: new URLSearchParams({ body: body })
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        input.value = '';
-        const shell = btn.closest('.feed-comment-shell');
-        const list = shell?.querySelector('.feed-comment-list');
-        const empty = shell?.querySelector('.no-comments-empty');
-        const wrapper = btn.closest('.feed-card');
-        const countEl = wrapper?.querySelector('.comment-count');
-        if (countEl) countEl.textContent = data.comment_count;
-        if (empty) empty.remove();
-        if (list) {
-          list.insertAdjacentHTML('afterbegin', `
-            <article class="feed-comment-item" style="padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);">
-              <strong>@${data.author}</strong>
-              <div class="feed-copy" style="margin-top:4px;">${data.body}</div>
-              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;">
-                <small class="feed-copy">${data.created_at}</small>
-                <a class="small-btn" href="/post/${uuid}/" style="padding:6px 10px;">Reply</a>
-              </div>
-            </article>
-          `);
-        }
-        btn.textContent = 'Posted';
-        setTimeout(() => { btn.textContent = 'Post'; }, 1200);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      btn.disabled = false;
-    }
+    const formData = new FormData();
+    formData.append('body', body);
+    fetch(`/comment/${uuid}/`, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: formData
+    }).then(response => response.json()).then(data => {
+      input.value = '';
+      const count = box.closest('.post-body').querySelector('.comment-count');
+      if (count) count.textContent = data.comment_count;
+    });
   }
-
-  const createFab = document.getElementById('mobileCreateFab');
-  const createStack = document.getElementById('mobileCreateStack');
-  createFab?.addEventListener('click', function () {
-    createStack?.classList.toggle('open');
-  });
 </script>
 {% endblock %}

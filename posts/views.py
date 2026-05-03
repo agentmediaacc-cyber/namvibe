@@ -553,14 +553,14 @@ def reels_feed_view(request):
     saved_post_ids = []
     followed_user_ids = []
     try:
-        queryset = base_visible_posts(request.user).published().filter(
-            post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO]
+        queryset = (
+            base_visible_posts(request.user)
+            .published()
+            .filter(post_type__in=[Post.PostType.REEL, Post.PostType.VIDEO])
+            .select_related("author", "author__profile")
+            .prefetch_related("media", "comments__author__profile")
         )
-        # discovery ranking: newest first, boosted higher, followed higher
         ranked_posts = FeedRankingService(request.user).rank(queryset, limit=50)
-        
-        # Ensure we keep the actual model objects for the template to access .title
-        # and other properties.
         ranked_posts = _decorate_posts_for_display(ranked_posts)
 
         if request.user.is_authenticated:
@@ -818,6 +818,9 @@ def share_post_view(request, uuid):
     share = create_share(request.user, post, target=target, message=request.POST.get("message", ""))
     if not share:
         return HttpResponseForbidden("You cannot share this post.")
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        post.refresh_from_db()
+        return JsonResponse({"status": "success", "share_count": post.share_count})
     messages.success(request, "Post shared.")
     return _post_action_redirect(request, post)
 
@@ -898,6 +901,8 @@ def reply_comment_view(request, id):
     parent = get_object_or_404(Comment.objects.select_related("post"), id=id, is_deleted=False)
     body = request.POST.get("body", "").strip()
     if not body:
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"status": "error", "message": "Reply cannot be empty."}, status=400)
         messages.error(request, "Reply cannot be empty.")
         return _post_action_redirect(request, parent.post)
     comment = add_comment(request.user, parent.post, body, parent=parent)
@@ -911,6 +916,16 @@ def reply_comment_view(request, id):
             sender=request.user,
             message=f"@{request.user.username} replied to your comment.",
             target_url=reverse("post_detail", kwargs={"uuid": parent.post.uuid}),
+        )
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        parent.post.refresh_from_db()
+        return JsonResponse(
+            {
+                "status": "success",
+                "body": comment.body,
+                "author": comment.author.username,
+                "comment_count": parent.post.comment_count,
+            }
         )
     messages.success(request, "Reply added.")
     return _post_action_redirect(request, parent.post)

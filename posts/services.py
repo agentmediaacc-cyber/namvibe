@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from django.db.models import Count, Q, QuerySet
+from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import Follow, FriendRequest, Mute, Notification, notify

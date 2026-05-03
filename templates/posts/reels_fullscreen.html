@@ -5,819 +5,414 @@
 
 {% block extra_head %}
 <style>
-  :root {
-    --reel-bg: #000;
-    --reel-text: #fff;
-    --reel-muted: rgba(255, 255, 255, 0.6);
+  body{background:#000;overflow:hidden}
+  .reels-shell{height:100vh;height:100dvh;overflow-y:auto;scroll-snap-type:y mandatory;background:#000}
+  .reel{position:relative;height:100vh;height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden}
+  .reel-stage,.reel-media{position:absolute;inset:0}
+  .reel-media{width:100%;height:100%;object-fit:cover;background:#000}
+  .reel-overlay{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:88px 16px 110px;background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,0) 35%,rgba(0,0,0,.68))}
+  .reel-main,.reel-side{position:relative;z-index:2}
+  .reel-main{max-width:min(76vw,520px);display:grid;gap:10px}
+  .reel-main a{color:#fff;text-decoration:none}
+  .reel-main h2{margin:0;font-size:1.02rem}
+  .reel-main p{margin:0;color:rgba(255,255,255,.82);line-height:1.45}
+  .reel-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:rgba(255,255,255,.82)}
+  .reel-side{display:grid;gap:14px;justify-items:center;align-self:end}
+  .action-btn,.mute-btn,.play-indicator,.reply-video-link{
+    border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.46);color:#fff;text-decoration:none;
+    backdrop-filter:blur(10px)
   }
-
-  body {
-    background: var(--reel-bg);
-    overflow: hidden;
+  .action-btn{width:58px;min-height:58px;border-radius:22px;display:grid;place-items:center;gap:4px;padding:8px 6px;cursor:pointer}
+  .action-btn span:last-child{font-size:12px;font-weight:800}
+  .action-btn.liked{color:#fda4af}
+  .avatar-link{width:58px;height:58px;border-radius:22px;overflow:hidden;border:2px solid rgba(255,255,255,.9);display:block}
+  .avatar-link img{width:100%;height:100%;object-fit:cover}
+  .mute-btn{position:fixed;top:86px;right:16px;z-index:30;width:44px;height:44px;border-radius:999px;display:grid;place-items:center}
+  .play-indicator{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:82px;height:82px;border-radius:999px;display:none;place-items:center;font-size:1.5rem}
+  .play-indicator.show{display:grid}
+  .tap-surface{position:absolute;inset:0;z-index:1}
+  .heart-burst{position:absolute;z-index:5;pointer-events:none;font-size:76px;transform:translate(-50%,-50%) scale(.5);opacity:0;animation:heart-pop .7s ease-out forwards}
+  .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:none}
+  .drawer-overlay.open{display:block}
+  .comments-drawer{position:fixed;left:0;right:0;bottom:0;height:min(76vh,680px);background:#140617;color:#fff;z-index:61;border-radius:24px 24px 0 0;transform:translateY(104%);transition:transform .22s ease;display:flex;flex-direction:column}
+  .comments-drawer.open{transform:translateY(0)}
+  .drawer-handle{width:44px;height:5px;border-radius:999px;background:rgba(255,255,255,.18);margin:12px auto}
+  .drawer-head,.drawer-actions,.comment-form{padding:0 16px 14px}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .drawer-head h3{margin:0;font-size:1rem}
+  .drawer-actions{display:flex;gap:10px;flex-wrap:wrap;padding-top:14px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .reply-video-link,.comment-form button{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:14px;font-weight:900}
+  .comments-list{flex:1;overflow:auto;padding:16px;display:grid;gap:14px}
+  .comment{display:grid;gap:8px;padding:14px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}
+  .comment-top,.reply-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .comment-avatar{width:36px;height:36px;border-radius:999px;overflow:hidden;background:#2a1830}
+  .comment-avatar img{width:100%;height:100%;object-fit:cover}
+  .comment small,.reply-row{color:rgba(255,255,255,.62)}
+  .comment button{border:0;background:none;color:#f9a8d4;padding:0;font-weight:800;cursor:pointer}
+  .comment-replies{display:grid;gap:8px;padding-left:18px;border-left:2px solid rgba(255,255,255,.08)}
+  .comment-form{display:grid;grid-template-columns:1fr auto;gap:10px;padding-bottom:calc(14px + env(safe-area-inset-bottom));border-top:1px solid rgba(255,255,255,.08)}
+  .comment-form input{width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#fff}
+  .drawer-note{padding:18px;color:rgba(255,255,255,.66);text-align:center}
+  .empty-reels{min-height:100vh;display:grid;place-items:center;color:#fff;padding:24px;text-align:center}
+  @keyframes heart-pop{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}
+    20%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1.5)}
   }
-
-  .reels-container {
-    height: 100vh;
-    height: 100dvh;
-    width: 100vw;
-    overflow-y: scroll;
-    scroll-snap-type: y mandatory;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    background: #000;
+  @media (max-width: 640px){
+    .reel-overlay{padding:88px 12px 120px}
+    .reel-main{max-width:calc(100vw - 96px)}
+    .action-btn{width:54px;min-height:54px;border-radius:20px}
   }
-
-  .reel-section {
-    position: relative;
-    height: 100vh;
-    height: 100dvh;
-    width: 100vw;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .reel-video-container {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .reel-video-container video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .reel-overlay-ui {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 80px 16px 120px;
-    background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.2) 100%);
-  }
-
-  .reel-overlay-ui > * {
-    pointer-events: auto;
-  }
-
-  .reel-info {
-    max-width: 80%;
-    color: #fff;
-  }
-
-  .reel-info h3 {
-    margin: 0 0 4px;
-    font-size: 1.1rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .reel-info .username {
-    color: #fff;
-    text-decoration: none;
-  }
-
-  .reel-info p {
-    margin: 4px 0 8px;
-    font-size: 0.95rem;
-    line-height: 1.4;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-  }
-
-  .reel-actions-sidebar {
-    position: absolute;
-    right: 12px;
-    bottom: 120px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    z-index: 20;
-  }
-
-  .action-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    color: #fff;
-    text-decoration: none;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .action-icon-wrap {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(10px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    transition: transform 0.1s;
-  }
-
-  .action-item:active .action-icon-wrap {
-    transform: scale(0.9);
-  }
-
-  .action-item span {
-    font-size: 12px;
-    font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-  }
-
-  .author-avatar-wrap {
-    position: relative;
-    margin-bottom: 8px;
-  }
-
-  .author-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    overflow: hidden;
-    background: #333;
-    display: block;
-  }
-
-  .author-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .follow-plus {
-    position: absolute;
-    bottom: -8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 20px;
-    height: 20px;
-    background: #ec4899;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: bold;
-    color: #fff;
-    border: 2px solid #fff;
-    cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
-  }
-
-  .follow-plus.followed {
-    background: #10b981;
-    transform: translateX(-50%) rotate(45deg);
-  }
-
-  .heart-animation {
-    position: absolute;
-    pointer-events: none;
-    z-index: 100;
-    color: #ec4899;
-    font-size: 100px;
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0);
-    animation: heart-pop 0.8s ease-out forwards;
-  }
-
-  @keyframes heart-pop {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-    15% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.2); }
-    30% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
-  }
-
-  .mute-toggle {
-    position: absolute;
-    top: 80px;
-    right: 20px;
-    z-index: 100;
-    background: rgba(0,0,0,0.4);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-
-  .reels-container::-webkit-scrollbar {
-    width: 0px;
-  }
-
-  .empty-state {
-    color: #fff;
-    text-align: center;
-    padding: 40px;
-  }
-
-  .action-item.liked .action-icon-wrap {
-    color: #ec4899;
-  }
-
-  .action-item.active .action-icon-wrap {
-    color: #gold;
-  }
-
-  .music-ticker {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-    font-size: 0.85rem;
-    white-space: nowrap;
-    overflow: hidden;
-    width: fit-content;
-  }
-
-  .music-ticker span {
-    display: inline-block;
-    animation: ticker 15s linear infinite;
-  }
-
-  @keyframes ticker {
-    0% { transform: translateX(100%); }
-    100% { transform: translateX(-100%); }
-  }
-
-  /* Comments Drawer */
-  .comments-drawer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 70vh;
-    background: #1a1a1a;
-    z-index: 1000;
-    border-radius: 20px 20px 0 0;
-    transform: translateY(100%);
-    transition: transform 0.3s ease-out;
-    display: flex;
-    flex-direction: column;
-    color: #fff;
-  }
-
-  .comments-drawer.open {
-    transform: translateY(0);
-  }
-
-  .drawer-handle {
-    width: 40px;
-    height: 5px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 5px;
-    margin: 12px auto;
-    flex-shrink: 0;
-  }
-
-  .drawer-header {
-    padding: 0 16px 12px;
-    text-align: center;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    flex-shrink: 0;
-  }
-
-  .drawer-header h4 {
-    margin: 0;
-    font-size: 14px;
-  }
-
-  .drawer-close {
-    position: absolute;
-    right: 16px;
-    top: 12px;
-    background: none;
-    border: none;
-    color: #fff;
-    font-size: 20px;
-    cursor: pointer;
-  }
-
-  .comments-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-  }
-
-  .comment-item {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .comment-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-
-  .comment-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .comment-content {
-    flex: 1;
-  }
-
-  .comment-content .author {
-    font-weight: 700;
-    font-size: 13px;
-    color: rgba(255,255,255,0.7);
-    margin-bottom: 2px;
-    display: block;
-  }
-
-  .comment-content p {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.4;
-  }
-
-  .comment-meta {
-    margin-top: 4px;
-    font-size: 12px;
-    color: rgba(255,255,255,0.5);
-    display: flex;
-    gap: 12px;
-  }
-
-  .comment-input-area {
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-    border-top: 1px solid rgba(255,255,255,0.1);
-    background: #262626;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .comment-input {
-    flex: 1;
-    background: rgba(255,255,255,0.1);
-    border: none;
-    border-radius: 20px;
-    padding: 10px 16px;
-    color: #fff;
-    font-size: 14px;
-    outline: none;
-  }
-
-  .comment-submit {
-    background: none;
-    border: none;
-    color: #ec4899;
-    font-weight: 700;
-    cursor: pointer;
-    padding: 4px;
-  }
-
-  .drawer-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 999;
-    display: none;
-  }
-
-  .drawer-overlay.open {
-    display: block;
-  }
-
-  /* Boosted label */
-  .boosted-badge {
-    background: linear-gradient(135deg, #facc15, #f59e0b);
-    color: #000;
-    font-size: 10px;
-    font-weight: 900;
-    padding: 2px 6px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    margin-left: 8px;
-  }
-
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="reels-container" id="reelsContainer">
-  {% for post in reels %}
-    <div class="reel-section" data-reel-uuid="{{ post.uuid }}" data-author-id="{{ post.author_id }}">
-      <div class="reel-video-container">
-        {% with media=post.media.first %}
-          {% if media and media.media_type == "video" %}
-            <video class="reel-video" loop playsinline preload="auto">
-              <source src="{% media_url media %}" type="video/mp4">
-            </video>
-          {% else %}
-            <div class="empty-media">
-               <img src="/static/images/default-media.svg" alt="No video">
-               <p>Video not available</p>
-            </div>
-          {% endif %}
-        {% endwith %}
-      </div>
-
-      <div class="reel-overlay-ui">
-        <div class="reel-info">
-          <h3>
-            <a href="{% url 'profile_detail' post.author.profile.username %}" class="username">
-              @{{ post.author.profile.username }}
-            </a>
-            {% if post.is_boosted %}
-              <span class="boosted-badge">Boosted</span>
+{% if reels %}
+  <div class="reels-shell" id="reelsShell">
+    {% for post in reels %}
+      <section class="reel" id="reel-{{ post.uuid }}" data-reel-uuid="{{ post.uuid }}">
+        <div class="reel-stage">
+          {% with media=post.primary_media %}
+            {% if media and media.media_type == "video" %}
+              <video class="reel-media" loop playsinline preload="metadata">
+                <source src="{% media_url media %}">
+              </video>
+            {% else %}
+              <div class="reel-media" style="display:grid;place-items:center;background:linear-gradient(135deg,#18061a,#060606);">Video unavailable</div>
             {% endif %}
-          </h3>
-          {% if post.title %}
-            <h4 style="margin:4px 0;font-size:1rem;font-weight:700;">{{ post.title }}</h4>
-          {% endif %}
-          {% if post.caption %}
-            <p>{{ post.caption }}</p>
-          {% endif %}
-          <div class="music-ticker">
-            <span>🎵 {{ post.author.profile.display_name|default:post.author.username }} - Original Sound</span>
-          </div>
+          {% endwith %}
+          <button class="tap-surface" type="button" aria-label="Play or pause reel"></button>
+          <div class="play-indicator" aria-hidden="true">⏸</div>
         </div>
 
-        <div class="reel-actions-sidebar">
-          <div class="author-avatar-wrap">
-            <a href="{% url 'profile_detail' post.author.profile.username %}" class="author-avatar">
-              <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.username }}">
-            </a>
-            {% if request.user.is_authenticated and request.user.id != post.author_id %}
-              <div class="follow-plus {% if post.author_id in followed_user_ids %}followed{% endif %}" 
-                   data-username="{{ post.author.profile.username }}" 
-                   data-author-id="{{ post.author_id }}">
-                {% if post.author_id in followed_user_ids %}✓{% else %}+{% endif %}
-              </div>
-            {% endif %}
+        <div class="reel-overlay">
+          <div class="reel-main">
+            <a href="{% url 'profile_detail' post.author.profile.username %}"><strong>@{{ post.author.profile.username }}</strong></a>
+            {% if post.title %}<h2>{{ post.title }}</h2>{% endif %}
+            {% if post.caption %}<p>{{ post.caption }}</p>{% endif %}
+            <div class="reel-meta">
+              <span>{{ post.like_count }} likes</span>
+              <span>{{ post.comment_count }} comments</span>
+              <span class="view-count">{{ post.view_count }} views</span>
+              <span>{{ post.share_count }} shares</span>
+            </div>
           </div>
 
-          <button class="action-item like-btn {% if post.id in liked_post_ids %}liked{% endif %}" data-post-uuid="{{ post.uuid }}">
-            <div class="action-icon-wrap">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="{% if post.id in liked_post_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-            </div>
-            <span class="count">{{ post.like_count }}</span>
-          </button>
-
-          <button class="action-item open-comments" data-post-uuid="{{ post.uuid }}">
-            <div class="action-icon-wrap">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            </div>
-            <span class="comment-count">{{ post.comment_count }}</span>
-          </button>
-
-          <button class="action-item share-btn" data-post-uuid="{{ post.uuid }}">
-            <div class="action-icon-wrap">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            </div>
-            <span>{{ post.share_count }}</span>
-          </button>
-
-          <button class="action-item save-btn {% if post.id in saved_post_ids %}active{% endif %}" data-post-uuid="{{ post.uuid }}">
-            <div class="action-icon-wrap">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="{% if post.id in saved_post_ids %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-            </div>
-            <span>{{ post.save_count }}</span>
-          </button>
-
-          {% if request.user.is_authenticated and request.user.id != post.author_id and default_gift %}
-            <button class="action-item gift-btn" data-post-uuid="{{ post.uuid }}" data-author-name="{{ post.author.profile.username }}">
-                <div class="action-icon-wrap">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-                </div>
-                <span>Gift</span>
+          <div class="reel-side">
+            <a class="avatar-link" href="{% url 'profile_detail' post.author.profile.username %}">
+              {% if post.author.profile.avatar %}
+                <img src="{% avatar_url post.author.profile %}" alt="{{ post.author.username }}">
+              {% endif %}
+            </a>
+            <button class="action-btn play-toggle" type="button" aria-label="Play or pause">
+              <span>⏯</span><span>Play</span>
             </button>
-          {% endif %}
+            <button class="action-btn like-toggle {% if post.id in liked_post_ids %}liked{% endif %}" type="button" data-post-uuid="{{ post.uuid }}" aria-label="Like reel">
+              <span>♥</span><span class="like-count">{{ post.like_count }}</span>
+            </button>
+            <button class="action-btn comment-toggle" type="button" data-post-uuid="{{ post.uuid }}" aria-label="Open comments">
+              <span>💬</span><span class="comment-count">{{ post.comment_count }}</span>
+            </button>
+            <button class="action-btn share-toggle" type="button" data-post-uuid="{{ post.uuid }}" aria-label="Share reel">
+              <span>↗</span><span class="share-count">{{ post.share_count }}</span>
+            </button>
+            {% if request.user.is_authenticated %}
+              <button class="action-btn save-toggle {% if post.id in saved_post_ids %}liked{% endif %}" type="button" data-post-uuid="{{ post.uuid }}" aria-label="Save reel">
+                <span>⌑</span><span>Save</span>
+              </button>
+            {% endif %}
+          </div>
         </div>
-      </div>
-    </div>
-  {% empty %}
-    <div class="empty-state">
-      <h2>No reels available yet</h2>
-      <p>Check back later for fresh content!</p>
-      <a href="{% url 'home' %}" class="nv-btn primary">Go Home</a>
-    </div>
-  {% endfor %}
-</div>
+      </section>
+    {% endfor %}
+  </div>
 
-<button class="mute-toggle" id="globalMuteToggle">
-  <svg id="muteIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
-  <svg id="unmuteIcon" style="display:none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-</button>
+  <button class="mute-btn" id="muteToggle" type="button" aria-label="Mute or unmute">🔇</button>
 
-<div class="drawer-overlay" id="drawerOverlay"></div>
-<div class="comments-drawer" id="commentsDrawer">
-  <div class="drawer-handle"></div>
-  <button class="drawer-close" id="closeComments">&times;</button>
-  <div class="drawer-header">
-    <h4 id="commentCountLabel">Comments</h4>
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <section class="comments-drawer" id="commentsDrawer" aria-hidden="true">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head">
+      <h3 id="drawerTitle">Comments</h3>
+      <button class="action-btn" type="button" id="closeComments" aria-label="Close comments">✕</button>
+    </div>
+    <div class="drawer-actions">
+      <a class="reply-video-link" href="{% url 'reel_quick_create' %}" id="replyVideoLink">Reply with video</a>
+    </div>
+    <div class="comments-list" id="commentsList"></div>
+    <div class="comment-form">
+      {% if request.user.is_authenticated %}
+        <input type="text" id="commentInput" placeholder="Add a comment">
+        <button type="button" id="submitComment">Post</button>
+      {% else %}
+        <div class="drawer-note"><a href="{% url 'login' %}?next={{ request.path }}" style="color:#f9a8d4;text-decoration:none;">Login</a> to comment.</div>
+      {% endif %}
+    </div>
+  </section>
+{% else %}
+  <div class="empty-reels">
+    <div>
+      <h2>No reels yet — be the first to share the vibe.</h2>
+      <p><a href="{% url 'home' %}" style="color:#fff;">Go back home</a></p>
+    </div>
   </div>
-  <div class="comments-list" id="commentsList">
-    <!-- Comments will load here -->
-  </div>
-  <div class="comment-input-area">
-    {% if request.user.is_authenticated %}
-      <input type="text" class="comment-input" id="commentInput" placeholder="Add a comment...">
-      <button class="comment-submit" id="submitComment">Post</button>
-    {% else %}
-      <div style="flex:1; text-align:center; font-size:14px;">
-        <a href="{% url 'login' %}?next={{ request.path }}" style="color:#ec4899; text-decoration:none; font-weight:700;">Login</a> to join the conversation.
-      </div>
-    {% endif %}
-  </div>
-</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-  (function() {
-    const container = document.getElementById('reelsContainer');
-    const sections = document.querySelectorAll('.reel-section');
-    const muteToggle = document.getElementById('globalMuteToggle');
-    const muteIcon = document.getElementById('muteIcon');
-    const unmuteIcon = document.getElementById('unmuteIcon');
-    const drawer = document.getElementById('commentsDrawer');
-    const overlay = document.getElementById('drawerOverlay');
-    const commentsList = document.getElementById('commentsList');
-    const commentCountLabel = document.getElementById('commentCountLabel');
-    const commentInput = document.getElementById('commentInput');
-    const submitComment = document.getElementById('submitComment');
+(() => {
+  const shell = document.getElementById('reelsShell');
+  if (!shell) return;
 
-    let isMuted = true;
-    let currentActiveVideo = null;
-    let currentPostUuid = null;
+  const overlay = document.getElementById('drawerOverlay');
+  const drawer = document.getElementById('commentsDrawer');
+  const commentsList = document.getElementById('commentsList');
+  const drawerTitle = document.getElementById('drawerTitle');
+  const commentInput = document.getElementById('commentInput');
+  const submitComment = document.getElementById('submitComment');
+  const replyVideoLink = document.getElementById('replyVideoLink');
+  const muteToggle = document.getElementById('muteToggle');
 
-    // Intersection Observer
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        const video = entry.target.querySelector('video');
-        if (!video) return;
-        if (entry.isIntersecting) {
-          if (currentActiveVideo && currentActiveVideo !== video) currentActiveVideo.pause();
-          currentActiveVideo = video;
-          video.muted = isMuted;
-          video.play().catch(() => {});
-          document.body.dataset.focusUi = "true";
-          
-          // Preload next video
-          const nextSection = entry.target.nextElementSibling;
-          if (nextSection) {
-            const nextVideo = nextSection.querySelector('video');
-            if (nextVideo) nextVideo.load();
-          }
-        } else {
-          video.pause();
-        }
-      });
-    }, { root: container, threshold: 0.6 });
+  let currentVideo = null;
+  let currentPostUuid = null;
+  let replyToCommentId = null;
+  let isMuted = true;
+  const trackedViews = new Set();
 
-    sections.forEach(section => observer.observe(section));
+  function setIndicator(section, symbol) {
+    const indicator = section.querySelector('.play-indicator');
+    if (!indicator) return;
+    indicator.textContent = symbol;
+    indicator.classList.add('show');
+    window.clearTimeout(indicator.timerId);
+    indicator.timerId = window.setTimeout(() => indicator.classList.remove('show'), 500);
+  }
 
-    // Keyboard navigation
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        const currentReel = currentActiveVideo?.closest('.reel-section');
-        if (!currentReel) return;
-        const target = e.key === 'ArrowDown' ? currentReel.nextElementSibling : currentReel.previousElementSibling;
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth' });
-        }
+  function pauseAllExcept(video) {
+    document.querySelectorAll('.reel-media').forEach(item => {
+      if (item !== video && item.tagName === 'VIDEO') item.pause();
+    });
+  }
+
+  function trackView(uuid) {
+    if (trackedViews.has(uuid)) return;
+    trackedViews.add(uuid);
+    fetch(`/track/${uuid}/`, {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    }).then(response => response.json()).then(data => {
+      const section = document.getElementById(`reel-${uuid}`);
+      const count = section?.querySelector('.view-count');
+      if (count && data.view_count !== undefined) count.textContent = `${data.view_count} views`;
+    }).catch(() => {});
+  }
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const video = entry.target.querySelector('.reel-media');
+      if (!video || video.tagName !== 'VIDEO') return;
+      if (entry.isIntersecting) {
+        pauseAllExcept(video);
+        currentVideo = video;
+        video.muted = isMuted;
+        video.play().catch(() => {});
+        trackView(entry.target.dataset.reelUuid);
+      } else {
+        video.pause();
       }
     });
+  }, {root: shell, threshold: 0.7});
 
-    muteToggle.addEventListener('click', () => {
-      isMuted = !isMuted;
-      muteIcon.style.display = isMuted ? 'block' : 'none';
-      unmuteIcon.style.display = isMuted ? 'none' : 'block';
-      if (currentActiveVideo) currentActiveVideo.muted = isMuted;
-      document.querySelectorAll('.reel-video').forEach(v => v.muted = isMuted);
+  document.querySelectorAll('.reel').forEach(section => {
+    observer.observe(section);
+    const surface = section.querySelector('.tap-surface');
+    const playButton = section.querySelector('.play-toggle');
+    const video = section.querySelector('.reel-media');
+    let lastTap = 0;
+
+    function togglePlayback() {
+      if (!video || video.tagName !== 'VIDEO') return;
+      if (video.paused) {
+        pauseAllExcept(video);
+        currentVideo = video;
+        video.play().catch(() => {});
+        setIndicator(section, '▶');
+      } else {
+        video.pause();
+        setIndicator(section, '⏸');
+      }
+    }
+
+    surface?.addEventListener('click', event => {
+      const now = Date.now();
+      if (now - lastTap < 280) {
+        handleDoubleTap(section, event.clientX, event.clientY);
+      } else {
+        togglePlayback();
+      }
+      lastTap = now;
     });
 
-    // Comments Logic
-    document.querySelectorAll('.open-comments').forEach(btn => {
-      btn.addEventListener('click', () => {
-        currentPostUuid = btn.dataset.postUuid;
-        openComments();
-      });
+    playButton?.addEventListener('click', togglePlayback);
+  });
+
+  function handleDoubleTap(section, x, y) {
+    const burst = document.createElement('div');
+    burst.className = 'heart-burst';
+    burst.textContent = '♥';
+    burst.style.left = `${x}px`;
+    burst.style.top = `${y}px`;
+    section.appendChild(burst);
+    setTimeout(() => burst.remove(), 700);
+    const likeButton = section.querySelector('.like-toggle');
+    if (likeButton && !likeButton.classList.contains('liked')) {
+      likePost(likeButton);
+    }
+  }
+
+  muteToggle?.addEventListener('click', () => {
+    isMuted = !isMuted;
+    muteToggle.textContent = isMuted ? '🔇' : '🔊';
+    document.querySelectorAll('.reel-media').forEach(video => {
+      if (video.tagName === 'VIDEO') video.muted = isMuted;
     });
+  });
 
-    function openComments() {
-      drawer.classList.add('open');
-      overlay.classList.add('open');
-      loadComments(currentPostUuid);
-    }
+  function openDrawer(uuid) {
+    currentPostUuid = uuid;
+    replyToCommentId = null;
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    replyVideoLink.href = `{% url 'reel_quick_create' %}?reply_to=${uuid}`;
+    loadComments(uuid);
+  }
 
-    function closeComments() {
-      drawer.classList.remove('open');
-      overlay.classList.remove('open');
-    }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    replyToCommentId = null;
+    if (commentInput) commentInput.placeholder = 'Add a comment';
+  }
 
-    document.getElementById('closeComments').onclick = closeComments;
-    overlay.onclick = closeComments;
+  document.getElementById('closeComments')?.addEventListener('click', closeDrawer);
+  overlay?.addEventListener('click', closeDrawer);
 
-    function loadComments(uuid) {
-      commentsList.innerHTML = '<p style="text-align:center; padding:20px; color:rgba(255,255,255,0.5);">Loading comments...</p>';
-      fetch(`/post/${uuid}/comments/json/`)
-        .then(res => res.json())
-        .then(data => {
-          commentCountLabel.textContent = `${data.comment_count} Comments`;
-          commentsList.innerHTML = '';
-          if (data.comments.length === 0) {
-            commentsList.innerHTML = '<p style="text-align:center; padding:20px; color:rgba(255,255,255,0.5);">No comments yet. Be the first!</p>';
-          } else {
-            data.comments.forEach(c => {
-              const div = document.createElement('div');
-              div.className = 'comment-item';
-              div.innerHTML = `
-                <div class="comment-avatar"><img src="${c.avatar}" alt=""></div>
-                <div class="comment-content">
-                  <span class="author">@${c.author}</span>
-                  <p>${c.body}</p>
-                  <div class="comment-meta">
-                    <span>${c.created_at}</span>
-                    <span>${c.like_count} likes</span>
-                    <span>Reply</span>
-                  </div>
-                </div>
-              `;
-              commentsList.appendChild(div);
-            });
-          }
-        });
-    }
-
-    if (submitComment) {
-      submitComment.onclick = () => {
-        const body = commentInput.value.trim();
-        if (!body || !currentPostUuid) return;
-        
-        const formData = new FormData();
-        formData.append('body', body);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-        
-        fetch(`/comment/${currentPostUuid}/`, {
-          method: 'POST',
-          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' },
-          body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.status === 'success') {
-            commentInput.value = '';
-            loadComments(currentPostUuid);
-            // Update UI count in background
-            const countSpan = document.querySelector(`.open-comments[data-post-uuid="${currentPostUuid}"] .comment-count`);
-            if (countSpan) countSpan.textContent = data.comment_count;
-          }
-        });
-      };
-    }
-
-    // Follow Logic
-    document.querySelectorAll('.follow-plus').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const username = btn.dataset.username;
-        fetch(`/accounts/follow/${username}/`, {
-          method: 'POST',
-          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' }
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.followed) {
-            btn.classList.add('followed');
-            btn.textContent = '✓';
-          } else {
-            btn.classList.remove('followed');
-            btn.textContent = '+';
-          }
-        });
-      });
-    });
-
-    // Double Tap Like
-    sections.forEach(section => {
-      let lastTap = 0;
-      section.addEventListener('touchstart', (e) => {
-        const now = Date.now();
-        const interval = now - lastTap;
-        if (interval < 300 && interval > 0) handleDoubleTap(section, e.touches[0].clientX, e.touches[0].clientY);
-        lastTap = now;
-      });
-      section.addEventListener('dblclick', (e) => handleDoubleTap(section, e.clientX, e.clientY));
-    });
-
-    function handleDoubleTap(section, x, y) {
-      const heart = document.createElement('div');
-      heart.className = 'heart-animation';
-      heart.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>';
-      heart.style.left = `${x}px`; heart.style.top = `${y}px`;
-      section.appendChild(heart);
-      setTimeout(() => heart.remove(), 800);
-
-      const likeBtn = section.querySelector('.like-btn');
-      if (likeBtn && !likeBtn.classList.contains('liked')) triggerLike(likeBtn);
-    }
-
-    function triggerLike(btn) {
-      const uuid = btn.dataset.postUuid;
-      fetch(`/like/${uuid}/`, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' }
-      })
-      .then(res => res.json())
+  function loadComments(uuid) {
+    commentsList.innerHTML = '<div class="drawer-note">Loading comments…</div>';
+    fetch(`/posts/post/${uuid}/comments/json/`)
+      .then(response => response.json())
       .then(data => {
-        btn.classList.toggle('liked', data.liked);
-        btn.querySelector('svg').setAttribute('fill', data.liked ? 'currentColor' : 'none');
-        btn.querySelector('.count').textContent = data.like_count;
-      });
-    }
-
-    document.querySelectorAll('.like-btn').forEach(btn => btn.onclick = () => triggerLike(btn));
-
-    // Share Logic
-    document.querySelectorAll('.share-btn').forEach(btn => {
-      btn.onclick = () => {
-        const url = window.location.origin + '/post/' + btn.dataset.postUuid + '/';
-        if (navigator.share) {
-          navigator.share({ title: 'Namvibe Reel', url });
-        } else {
-          navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!'));
+        drawerTitle.textContent = `${data.comment_count} Comments`;
+        commentsList.innerHTML = '';
+        if (!data.comments.length) {
+          commentsList.innerHTML = '<div class="drawer-note">No comments yet — be the first to share the vibe.</div>';
+          return;
         }
-      };
-    });
-
-    // Save Logic
-    document.querySelectorAll('.save-btn').forEach(btn => {
-      btn.onclick = () => {
-        fetch(`/save-toggle/${btn.dataset.postUuid}/`, {
-          method: 'POST',
-          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' }
-        })
-        .then(res => res.json())
-        .then(data => {
-          btn.classList.toggle('active', data.saved);
-          btn.querySelector('svg').setAttribute('fill', data.saved ? 'currentColor' : 'none');
-          btn.querySelector('span').textContent = data.save_count;
-        });
-      };
-    });
-
-    // Gift Logic
-    document.querySelectorAll('.gift-btn').forEach(btn => {
-        btn.onclick = () => {
-            if (confirm(`Send a gift to @${btn.dataset.authorName}?`)) {
-                const formData = new FormData();
-                formData.append('gift', '{{ default_gift.slug }}');
-                formData.append('quantity', '1');
-                fetch(`/wallet/gift/post/${btn.dataset.postUuid}/`, {
-                    method: 'POST',
-                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}' },
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') alert('Gift sent!');
-                    else alert(data.message || 'Error sending gift');
-                })
-                .catch(() => alert('Gift sent! (Redirecting to checkout if needed)'));
+        data.comments.forEach(comment => {
+          const article = document.createElement('article');
+          article.className = 'comment';
+          const repliesHtml = (comment.replies || []).map(reply => `
+            <div class="reply-row"><strong>@${reply.author}</strong><span>${reply.body}</span></div>
+          `).join('');
+          article.innerHTML = `
+            <div class="comment-top">
+              <div class="comment-avatar"><img src="${comment.avatar}" alt=""></div>
+              <div>
+                <strong>@${comment.author}</strong>
+                <small>${comment.created_at}</small>
+              </div>
+            </div>
+            <div>${comment.body}</div>
+            <div class="reply-row">
+              <span>${comment.like_count} likes</span>
+              <button type="button" data-reply-id="${comment.id}">Reply</button>
+            </div>
+            ${repliesHtml ? `<div class="comment-replies">${repliesHtml}</div>` : ''}
+          `;
+          article.querySelector('button')?.addEventListener('click', () => {
+            replyToCommentId = comment.id;
+            if (commentInput) {
+              commentInput.focus();
+              commentInput.placeholder = `Reply to @${comment.author}`;
             }
-        };
-    });
+          });
+          commentsList.appendChild(article);
+        });
+      });
+  }
 
-  })();
+  function likePost(button) {
+    fetch(`/like/${button.dataset.postUuid}/`, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}'}
+    }).then(response => response.json()).then(data => {
+      button.classList.toggle('liked', data.liked);
+      button.querySelector('.like-count').textContent = data.like_count;
+    });
+  }
+
+  document.querySelectorAll('.like-toggle').forEach(button => {
+    button.addEventListener('click', () => likePost(button));
+  });
+
+  document.querySelectorAll('.comment-toggle').forEach(button => {
+    button.addEventListener('click', () => openDrawer(button.dataset.postUuid));
+  });
+
+  document.querySelectorAll('.share-toggle').forEach(button => {
+    button.addEventListener('click', () => {
+      fetch(`/share/${button.dataset.postUuid}/`, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}'}
+      }).then(response => response.json()).then(data => {
+        const url = `${window.location.origin}/post/${button.dataset.postUuid}/`;
+        if (navigator.share) {
+          navigator.share({url});
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(url);
+        }
+        button.querySelector('.share-count').textContent = data.share_count;
+      });
+    });
+  });
+
+  document.querySelectorAll('.save-toggle').forEach(button => {
+    button.addEventListener('click', () => {
+      fetch(`/save-toggle/${button.dataset.postUuid}/`, {
+        method: 'POST',
+        headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}'}
+      }).then(response => response.json()).then(data => {
+        button.classList.toggle('liked', data.saved);
+      });
+    });
+  });
+
+  submitComment?.addEventListener('click', () => {
+    const body = commentInput.value.trim();
+    if (!body || !currentPostUuid) return;
+    const formData = new FormData();
+    formData.append('body', body);
+    const url = replyToCommentId ? `/comment/${replyToCommentId}/reply/` : `/comment/${currentPostUuid}/`;
+    fetch(url, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: formData
+    }).then(response => response.json()).then(() => {
+      commentInput.value = '';
+      commentInput.placeholder = 'Add a comment';
+      replyToCommentId = null;
+      loadComments(currentPostUuid);
+      const countNodes = document.querySelectorAll(`[data-post-uuid="${currentPostUuid}"] .comment-count`);
+      countNodes.forEach(node => {
+        const current = parseInt(node.textContent, 10) || 0;
+        node.textContent = current + 1;
+      });
+    });
+  });
+})();
 </script>
 {% endblock %}

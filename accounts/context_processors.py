@@ -65,7 +65,7 @@ def _bottom_actions(request, smart_profile_url):
         {"label": "Reels", "url": _safe_reverse("reels_feed"), "icon": "video", "active": _is_active(route, "reels_feed")},
         {"label": "Create", "url": _safe_reverse("studio"), "icon": "plus", "active": _is_active(route, "studio"), "action_launcher": True},
         {"label": "Messages", "url": _safe_reverse("messages_home"), "icon": "chat", "active": _is_active(route, "messages_home", "chat_room")},
-        {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit"), "drawer_trigger": True},
+        {"label": "Profile", "url": smart_profile_url, "icon": "user", "active": _is_active(route, "user_dashboard", "profile_detail", "profile_edit")},
     ]
     return "default", actions
 

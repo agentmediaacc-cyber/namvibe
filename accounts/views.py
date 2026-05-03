@@ -258,6 +258,9 @@ def _dashboard_route_cards(request, profile, completion, rank, gallery_count, un
 
 def _member_cards_for(user, profiles, *, include_friendship=True):
     boosted_profile_ids = active_boosted_profile_ids([profile.id for profile in profiles])
+    followed_ids = set()
+    if user.is_authenticated:
+        followed_ids = set(Follow.objects.filter(follower=user).values_list("following_id", flat=True))
     cards = []
     for profile in profiles:
         if include_friendship and user.is_authenticated and profile.user == user:
@@ -276,7 +279,8 @@ def _member_cards_for(user, profiles, *, include_friendship=True):
             and friend_request.status == FriendRequest.Status.PENDING
             and friend_request.to_user_id == user.id
         ) if user.is_authenticated else False
-        is_following = Follow.objects.filter(follower=user, following=profile.user).exists() if user.is_authenticated else False
+        is_following = profile.user_id in followed_ids
+        presence_state = presence_snapshot(profile.user)
         cards.append(
             {
                 "profile": profile,
@@ -297,9 +301,33 @@ def _member_cards_for(user, profiles, *, include_friendship=True):
                 "chat_url": _safe_reverse("messaging:start_chat", fallback="user_dashboard", user_id=profile.user.id),
                 "premium_badge": premium_badge_for(profile.user),
                 "is_boosted": profile.id in boosted_profile_ids,
+                "presence_state": presence_state,
+                "is_online": presence_state["is_online"],
             }
         )
     return cards
+
+
+def _discoverable_profiles_for(user):
+    queryset = Profile.objects.select_related("user").filter(is_hidden_by_moderation=False)
+    if getattr(user, "is_authenticated", False):
+        blocked_pairs = Block.objects.filter(Q(blocker=user) | Q(blocked=user)).values_list("blocker_id", "blocked_id")
+        blocked_ids = {item for pair in blocked_pairs for item in pair if item and item != user.id}
+        queryset = queryset.exclude(user=user).exclude(user_id__in=blocked_ids)
+    return queryset
+
+
+def _presence_ranked_profiles(user, queryset, *, mode="online", sample_size=80):
+    ranked = []
+    for profile in queryset[:sample_size]:
+        state = presence_snapshot(profile.user)
+        if mode == "online" and not state["is_online"]:
+            continue
+        if mode == "recent" and not (state["is_online"] or state["label"] == "Active recently"):
+            continue
+        ranked.append((state["is_online"], profile.follower_count, profile.post_count, profile.created_at, profile))
+    ranked.sort(key=lambda item: (item[0], item[1], item[2], item[3]), reverse=True)
+    return [item[4] for item in ranked]
 
 
 def _dashboard_next_actions(profile, completion, unread_count):
@@ -1513,15 +1541,68 @@ def public_profile_view(request, username):
 
 
 def member_discovery_view(request):
-    profiles = list(
-        Profile.objects.select_related("user")
-        .filter(is_hidden_by_moderation=False)
-        .order_by("-is_verified", "-follower_count", "-post_count", "-created_at")[:30]
+    query = (request.GET.get("q") or "").strip()
+    scope = (request.GET.get("scope") or "all").strip().lower()
+    region = (request.GET.get("region") or "").strip()
+
+    base_queryset = _discoverable_profiles_for(request.user)
+    if query:
+        base_queryset = base_queryset.filter(
+            Q(username__icontains=query)
+            | Q(display_name__icontains=query)
+            | Q(bio__icontains=query)
+            | Q(region__icontains=query)
+            | Q(town__icontains=query)
+            | Q(location__icontains=query)
+        )
+    if region:
+        base_queryset = base_queryset.filter(Q(region__iexact=region) | Q(town__iexact=region))
+    if scope == "creators":
+        base_queryset = base_queryset.filter(Q(is_creator=True) | Q(is_verified=True))
+
+    profiles = list(base_queryset.order_by("-is_verified", "-is_creator", "-follower_count", "-post_count", "-created_at")[:24])
+    online_profiles = _presence_ranked_profiles(
+        request.user,
+        _discoverable_profiles_for(request.user).order_by("-is_verified", "-follower_count", "-post_count", "-created_at"),
+        mode="online",
+    )[:8]
+    recent_profiles = _presence_ranked_profiles(
+        request.user,
+        _discoverable_profiles_for(request.user).order_by("-is_verified", "-follower_count", "-post_count", "-created_at"),
+        mode="recent",
+    )[:8]
+    creator_profiles = list(
+        _discoverable_profiles_for(request.user)
+        .filter(Q(is_creator=True) | Q(is_verified=True))
+        .order_by("-is_verified", "-follower_count", "-post_count", "-created_at")[:8]
     )
-    boosted_profile_ids = active_boosted_profile_ids([profile.id for profile in profiles])
-    profiles.sort(key=lambda profile: (profile.id not in boosted_profile_ids, not profile.is_verified, -profile.follower_count, -profile.post_count))
+
+    nearby_profiles = []
+    viewer_profile = getattr(request.user, "profile", None) if request.user.is_authenticated else None
+    nearby_filter = Q()
+    if region:
+        nearby_filter |= Q(region__iexact=region) | Q(town__iexact=region)
+    elif viewer_profile:
+        if viewer_profile.region:
+            nearby_filter |= Q(region__iexact=viewer_profile.region)
+        if viewer_profile.town:
+            nearby_filter |= Q(town__iexact=viewer_profile.town)
+    if nearby_filter:
+        nearby_profiles = list(
+            _discoverable_profiles_for(request.user)
+            .filter(nearby_filter)
+            .order_by("-is_verified", "-follower_count", "-post_count", "-created_at")[:8]
+        )
+
     context = {
         "member_cards": _member_cards_for(request.user, profiles),
+        "online_member_cards": _member_cards_for(request.user, online_profiles),
+        "recent_member_cards": _member_cards_for(request.user, recent_profiles),
+        "creator_member_cards": _member_cards_for(request.user, creator_profiles),
+        "nearby_member_cards": _member_cards_for(request.user, nearby_profiles),
+        "query": query,
+        "scope": scope,
+        "region": region,
     }
     return render(request, "accounts/member_discovery.html", context)
 

@@ -544,3 +544,6 @@ class FeedDiscoveryInteractionTests(TestCase):
         self.assertIn("reels", response.context)
         self.assertIn("liked_post_ids", response.context)
         self.assertIn("saved_post_ids", response.context)
+        self.assertContains(response, "Play")
+        self.assertContains(response, "Share")
+        self.assertContains(response, "Reply with video")

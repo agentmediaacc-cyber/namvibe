@@ -381,7 +381,7 @@ class AccountAuthFlowTests(TestCase):
         response = self.client.get(reverse("member_discovery"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Members to discover")
+        self.assertContains(response, "Available members")
 
     def test_staff_insights_is_staff_only(self):
         user = User.objects.create_user(username="plainstafftest", password="Pass12345")

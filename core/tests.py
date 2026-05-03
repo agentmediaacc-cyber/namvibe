@@ -8,6 +8,7 @@ from django.utils import timezone
 from accounts.models import Block, Notification
 from ads.models import Advertisement
 from core.homepage import homepage_context
+from messaging.presence import mark_user_online
 from posts.models import Post
 from stories.models import StoryComment, StoryItem, StoryReaction, StoryShare, StoryView
 
@@ -53,10 +54,9 @@ class HomepageProductionTests(TestCase):
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Dashboard")
-        self.assertContains(response, "Create Story")
+        self.assertContains(response, "Share something")
         self.assertNotContains(response, "Join Namvibe")
-        self.assertNotContains(response, "Explore Feed")
+        self.assertNotContains(response, "Sign Up")
 
     def test_anonymous_homepage_shows_join_login_and_explore(self):
         response = self.client.get(reverse("home"))
@@ -64,7 +64,7 @@ class HomepageProductionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Join Namvibe")
         self.assertContains(response, "Login")
-        self.assertContains(response, "Explore Feed")
+        self.assertContains(response, "Public preview")
 
     def test_logged_in_homepage_shows_mobile_create_launcher(self):
         self.client.force_login(self.viewer)
@@ -72,8 +72,11 @@ class HomepageProductionTests(TestCase):
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="mobileCreateFab"')
-        self.assertContains(response, "Create first story", count=1)
+        self.assertContains(response, "Home")
+        self.assertContains(response, "Reels")
+        self.assertContains(response, "Create")
+        self.assertContains(response, "Messages")
+        self.assertContains(response, "Profile")
 
     def test_expired_stories_do_not_appear(self):
         self.story.expires_at = timezone.now() - timezone.timedelta(minutes=1)
@@ -137,7 +140,7 @@ class HomepageProductionTests(TestCase):
         self.assertTrue(StoryShare.objects.filter(story=self.story, user=self.viewer).exists())
         self.assertTrue(StoryView.objects.filter(story=self.story, viewer=self.viewer).exists())
 
-    def test_sponsored_content_only_active_in_range_and_click_tracks(self):
+    def test_ad_click_route_tracks(self):
         active_ad = Advertisement.objects.create(
             title="Active Home Ad",
             sponsor_name="Sponsor",
@@ -148,22 +151,6 @@ class HomepageProductionTests(TestCase):
             starts_at=timezone.now() - timezone.timedelta(days=1),
             ends_at=timezone.now() + timezone.timedelta(days=1),
         )
-        Advertisement.objects.create(
-            title="Paused Home Ad",
-            sponsor_name="Sponsor",
-            placement=Advertisement.Placement.HOMEPAGE_TOP,
-            status=Advertisement.Status.PAUSED,
-            starts_at=timezone.now() - timezone.timedelta(days=1),
-            ends_at=timezone.now() + timezone.timedelta(days=1),
-        )
-
-        response = self.client.get(reverse("home"))
-        active_ad.refresh_from_db()
-
-        self.assertContains(response, "Active Home Ad")
-        self.assertNotContains(response, "Paused Home Ad")
-        self.assertEqual(active_ad.impression_count, 1)
-
         click_response = self.client.get(reverse("ad_click", kwargs={"id": active_ad.id}))
         active_ad.refresh_from_db()
 
@@ -186,6 +173,9 @@ class HomepageProductionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reel_post.title)
         self.assertContains(response, "Reels")
+        self.assertContains(response, "Play")
+        self.assertContains(response, "Share")
+        self.assertContains(response, "Reply with video")
 
     def test_feature_starter_routes_render_without_dead_end_copy(self):
         response = self.client.get(reverse("channels"))
@@ -267,6 +257,19 @@ class HomepageProductionTests(TestCase):
 
         self.assertLessEqual(len(context["mixed_feed"]), 20)
 
+    def test_homepage_shows_only_real_content_sections(self):
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Stories")
+        self.assertContains(response, "Reels and videos")
+        self.assertContains(response, "Latest posts")
+        self.assertContains(response, "Online members")
+        self.assertContains(response, "Suggested members")
+        self.assertNotContains(response, "Games Hub")
+        self.assertNotContains(response, "Music Rooms")
+        self.assertNotContains(response, "Soulmate Selection")
+
     def test_feed_more_fragment_does_not_repeat_story_rail(self):
         response = self.client.get(reverse("feed_more"), {"page": 2})
 
@@ -301,3 +304,26 @@ class HomepageProductionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Fresh homepage story")
         self.assertNotContains(response, "Expired homepage story")
+
+    def test_online_members_list_excludes_blocked_and_hidden_users(self):
+        hidden_user = User.objects.create_user(username="hidden_online", password="Pass12345")
+        hidden_user.profile.display_name = "Hidden Online"
+        hidden_user.profile.is_hidden_by_moderation = True
+        hidden_user.profile.save(update_fields=["display_name", "is_hidden_by_moderation"])
+        blocked_user = User.objects.create_user(username="blocked_online", password="Pass12345")
+        blocked_user.profile.display_name = "Blocked Online"
+        blocked_user.profile.save(update_fields=["display_name"])
+        allowed_user = User.objects.create_user(username="allowed_online", password="Pass12345")
+        allowed_user.profile.display_name = "Allowed Online"
+        allowed_user.profile.save(update_fields=["display_name"])
+        mark_user_online(hidden_user.id)
+        mark_user_online(blocked_user.id)
+        mark_user_online(allowed_user.id)
+        self.client.force_login(self.viewer)
+        Block.objects.create(blocker=self.viewer, blocked=blocked_user)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, "Allowed Online")
+        self.assertNotContains(response, "Blocked Online")
+        self.assertNotContains(response, "Hidden Online")

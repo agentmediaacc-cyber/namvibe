@@ -1,0 +1,51 @@
+{% load media_helpers %}
+<article class="member-card">
+  <a class="member-top" href="{{ item.profile_url }}">
+    <div class="member-avatar">
+      {% if item.profile.avatar %}
+        <img src="{% avatar_url item.profile %}" alt="{{ item.username }}">
+      {% else %}
+        <span>{{ item.username|first|upper }}</span>
+      {% endif %}
+    </div>
+    <div class="member-copy">
+      <strong>{{ item.display_name }}</strong>
+      <small>@{{ item.username }}</small>
+      {% if show_presence %}
+        <small class="online-line">
+          {% if item.is_online %}<span class="online-dot"></span>{% endif %}
+          {{ item.presence_state.label }}
+        </small>
+      {% endif %}
+    </div>
+  </a>
+  <div class="member-copy">
+    <small>{{ item.location }}</small>
+    <div class="member-badges" style="margin-top:8px;">
+      {% if item.premium_badge and item.premium_badge.is_paid %}
+        <span class="member-badge">{{ item.premium_badge.label }}</span>
+      {% endif %}
+      {% if item.is_boosted %}
+        <span class="member-badge">Boosted</span>
+      {% endif %}
+    </div>
+    <p>{% if item.bio %}{{ item.bio|truncatechars:120 }}{% else %}Open this profile to see posts, stories, and reels.{% endif %}</p>
+  </div>
+  <div class="member-actions">
+    <a class="member-btn" href="{{ item.profile_url }}">Profile</a>
+    {% if request.user.is_authenticated %}
+      {% if item.is_friend %}
+        <a class="member-btn primary" href="{{ item.chat_url }}">Chat</a>
+      {% elif item.request_received %}
+        <form method="post" action="{{ item.friend_accept_url }}">{% csrf_token %}<button class="member-btn primary" type="submit">Accept Friend</button></form>
+      {% elif item.request_sent %}
+        <span class="member-btn">Request Sent</span>
+      {% else %}
+        <form method="post" action="{{ item.friend_request_url }}">{% csrf_token %}<button class="member-btn primary" type="submit">Add Friend</button></form>
+      {% endif %}
+      <form method="post" action="{{ item.follow_url }}">{% csrf_token %}<button class="member-btn" type="submit">{% if item.is_following %}Following{% else %}Follow{% endif %}</button></form>
+    {% else %}
+      <a class="member-btn primary" href="{% url 'login' %}?next={{ item.profile_url|urlencode }}">Login</a>
+    {% endif %}
+  </div>
+</article>
