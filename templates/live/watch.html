@@ -244,6 +244,8 @@
                     giftTotal.textContent = total;
                 }
             } catch (error) {
+            } finally {
+                setTimeout(fetchActivity, 3000);
             }
         }
 
@@ -288,7 +290,7 @@
             setTimeout(() => el.remove(), 2000);
         }
 
-        window.setInterval(fetchActivity, 3000);
+        fetchActivity();
     </script>
     <style>
         .floating-reaction {

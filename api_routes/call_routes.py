@@ -9,6 +9,8 @@ call_bp = Blueprint("calls_v2", __name__, url_prefix="/calls")
 @login_required
 def recent_calls():
     profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return render_template("calls/recent.html", calls=[], profile=profile)
     calls = list_recent_calls(profile["id"])
     return render_template("calls/recent.html", calls=calls, profile=profile)
 
@@ -16,6 +18,9 @@ def recent_calls():
 @login_required
 def init_call():
     profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        flash("Profile setup incomplete. Please finish onboarding first.", "error")
+        return redirect(url_for("profile.onboarding"))
     conversation_id = request.form.get("conversation_id")
     receiver_id = request.form.get("receiver_id")
     call_type = request.form.get("call_type", "video")
@@ -31,10 +36,12 @@ def init_call():
 @login_required
 def answer(call_id):
     profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return redirect(url_for("profile.onboarding"))
     call, err = answer_call(call_id, profile["id"])
     if err:
         flash(err, "error")
-        return redirect(url_for("chat_v2.inbox"))
+        return redirect(url_for("messages.inbox"))
     
     return render_template("calls/video.html", call=call, profile=profile, role='receiver')
 
@@ -42,5 +49,7 @@ def answer(call_id):
 @login_required
 def end(call_id):
     profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return redirect(url_for("calls_v2.recent_calls"))
     end_call(call_id, profile["id"])
     return redirect(url_for("calls_v2.recent_calls"))

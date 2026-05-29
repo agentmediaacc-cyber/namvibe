@@ -32,212 +32,436 @@ CREATE TABLE IF NOT EXISTS chain_profiles (
     deleted_at timestamptz
 );
 
-CREATE TABLE IF NOT EXISTS chain_posts (
+-- Notifications Engine
+CREATE TABLE IF NOT EXISTS chain_notifications (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    caption text,
-    content text,
-    category text,
-    media_url text,
-    thumbnail_url text,
-    storage_bucket text,
-    storage_path text,
-    likes_count integer NOT NULL DEFAULT 0,
-    comments_count integer NOT NULL DEFAULT 0,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
+    recipient_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    actor_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL,
+    event_type text NOT NULL,
+    title text,
+    body text,
+    entity_type text,
+    entity_id uuid,
+    action_url text,
+    is_read boolean DEFAULT false,
+    created_at timestamptz DEFAULT now(),
+    read_at timestamptz,
     deleted_at timestamptz
 );
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_read ON chain_notifications(recipient_profile_id, is_read, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS chain_status_posts (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    caption text,
-    media_url text,
-    thumbnail_url text,
-    storage_bucket text,
-    storage_path text,
-    expires_at timestamptz NOT NULL DEFAULT (now() + interval '24 hours'),
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS chain_stories (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    caption text,
-    media_url text,
-    thumbnail_url text,
-    storage_bucket text,
-    storage_path text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    deleted_at timestamptz
-);
-
+-- Reels Engine
 CREATE TABLE IF NOT EXISTS chain_reels (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
     profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
     caption text,
-    media_url text,
+    video_url text,
     thumbnail_url text,
+    media_url text,
     storage_bucket text,
     storage_path text,
-    likes_count integer NOT NULL DEFAULT 0,
-    comments_count integer NOT NULL DEFAULT 0,
+    status text DEFAULT 'published',
+    visibility text DEFAULT 'public',
+    views_count integer DEFAULT 0,
+    likes_count integer DEFAULT 0,
+    comments_count integer DEFAULT 0,
+    shares_count integer DEFAULT 0,
     is_private boolean NOT NULL DEFAULT false,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    deleted_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_reels_status_visibility ON chain_reels(status, visibility, created_at DESC);
+
+-- Ensure columns exist even if table was already there
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS normalized_email text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS normalized_phone text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS date_of_birth date;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS auth_user_id uuid;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS full_name text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS username text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS residential_address text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS preferred_language text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS interests jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS activities jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS looking_for jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS cover_url text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS bio text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS creator_category text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS verified boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS is_online boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS is_creator boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS dating_mode_enabled boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS profile_completed boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS wallet_balance numeric DEFAULT 0;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS onboarding_step text DEFAULT 'account';
+
+-- Notifications
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS recipient_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS actor_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS event_type text;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS is_read boolean DEFAULT false;
+
+-- Reels
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS video_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS thumbnail_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS media_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS storage_bucket text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS storage_path text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS status text DEFAULT 'published';
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS visibility text DEFAULT 'public';
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS views_count integer DEFAULT 0;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS shares_count integer DEFAULT 0;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS processing_status text DEFAULT 'ready';
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS duration_seconds numeric;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS width integer;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS height integer;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS mime_type text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS file_size bigint;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS processing_error text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS processed_at timestamptz;
+
+-- Messages
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS thread_id uuid REFERENCES chain_message_threads(id) ON DELETE CASCADE;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS is_seen boolean DEFAULT false;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS client_event_id text;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS delivery_status text DEFAULT 'sent';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_event ON chain_messages(thread_id, sender_profile_id, client_event_id) WHERE client_event_id IS NOT NULL;
+
+-- Wallets
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS tx_type text;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS source_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS status text DEFAULT 'pending';
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS idempotency_key text;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS balance_after numeric;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS metadata jsonb DEFAULT '{}'::jsonb;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_idempotency ON chain_wallet_transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+-- Messaging Engine
+CREATE TABLE IF NOT EXISTS chain_message_threads (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_by_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL,
+    thread_type text DEFAULT 'direct',
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
     deleted_at timestamptz
 );
 
-CREATE TABLE IF NOT EXISTS chain_live_rooms (
+CREATE TABLE IF NOT EXISTS chain_thread_members (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
+    thread_id uuid REFERENCES chain_message_threads(id) ON DELETE CASCADE,
     profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    title text,
-    category text,
-    cover_url text,
-    thumbnail_url text,
-    storage_bucket text,
-    storage_path text,
-    status text DEFAULT 'draft',
-    is_live boolean DEFAULT false,
-    viewer_count integer DEFAULT 0,
-    entry_fee numeric(12,2),
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    deleted_at timestamptz
+    last_read_at timestamptz,
+    muted boolean DEFAULT false,
+    blocked boolean DEFAULT false,
+    created_at timestamptz DEFAULT now(),
+    deleted_at timestamptz,
+    UNIQUE (thread_id, profile_id)
 );
+CREATE INDEX IF NOT EXISTS idx_thread_members_profile ON chain_thread_members(profile_id);
+CREATE INDEX IF NOT EXISTS idx_thread_members_thread_profile ON chain_thread_members(thread_id, profile_id);
 
 CREATE TABLE IF NOT EXISTS chain_messages (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
+    thread_id uuid REFERENCES chain_message_threads(id) ON DELETE CASCADE,
     sender_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    recipient_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
     body text,
     media_url text,
-    thumbnail_url text,
+    media_type text,
     storage_bucket text,
     storage_path text,
-    read_at timestamptz,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
+    is_seen boolean DEFAULT false,
+    moderation_status text DEFAULT 'clean',
+    created_at timestamptz DEFAULT now(),
     deleted_at timestamptz
 );
+CREATE INDEX IF NOT EXISTS idx_messages_thread_created ON chain_messages(thread_id, created_at ASC);
 
-CREATE TABLE IF NOT EXISTS chain_notifications (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    notification_type text,
-    title text,
-    body text,
-    read_at timestamptz,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS chain_follows (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    follower_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    following_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS chain_likes (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    post_id uuid REFERENCES chain_posts(id) ON DELETE CASCADE,
-    reel_id uuid REFERENCES chain_reels(id) ON DELETE CASCADE,
-    story_id uuid REFERENCES chain_stories(id) ON DELETE CASCADE,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    deleted_at timestamptz
-);
-
-CREATE TABLE IF NOT EXISTS chain_comments (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    post_id uuid REFERENCES chain_posts(id) ON DELETE CASCADE,
-    reel_id uuid REFERENCES chain_reels(id) ON DELETE CASCADE,
-    body text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-    deleted_at timestamptz
+-- Wallet Engine
+CREATE TABLE IF NOT EXISTS chain_wallets (
+    profile_id uuid PRIMARY KEY REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    coin_balance numeric(12,2) DEFAULT 0,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS chain_wallet_transactions (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
     profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    transaction_type text,
+    tx_type text NOT NULL,
     amount numeric(12,2) NOT NULL DEFAULT 0,
-    currency text DEFAULT 'CHAIN',
-    reference text,
-    metadata jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
+    currency text DEFAULT 'coins',
+    status text DEFAULT 'pending',
+    source_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL,
+    entity_type text,
+    entity_id uuid,
+    description text,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
     deleted_at timestamptz
 );
+CREATE INDEX IF NOT EXISTS idx_wallet_tx_profile_created ON chain_wallet_transactions(profile_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS chain_media_uploads (
+CREATE TABLE IF NOT EXISTS chain_gifts (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    auth_user_id uuid,
-    profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL,
-    upload_type text NOT NULL,
-    storage_bucket text NOT NULL,
-    storage_path text NOT NULL,
-    media_url text,
-    thumbnail_url text,
-    mime_type text,
-    file_size bigint,
-    original_filename text,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
+    sender_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    receiver_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    gift_type text NOT NULL,
+    coin_value integer DEFAULT 0,
+    entity_type text,
+    entity_id uuid,
+    created_at timestamptz DEFAULT now(),
     deleted_at timestamptz
 );
+CREATE INDEX IF NOT EXISTS idx_gifts_receiver_created ON chain_gifts(receiver_profile_id, created_at DESC);
+ALTER TABLE chain_gifts ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_gifts_idempotency ON chain_gifts(idempotency_key) WHERE idempotency_key IS NOT NULL;
+ALTER TABLE chain_gifts ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_gifts_idempotency ON chain_gifts(idempotency_key) WHERE idempotency_key IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_chain_profiles_deleted_at ON chain_profiles(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_chain_posts_profile_created ON chain_posts(profile_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_status_posts_profile_created ON chain_status_posts(profile_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_stories_profile_created ON chain_stories(profile_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_reels_profile_created ON chain_reels(profile_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_live_rooms_status_created ON chain_live_rooms(status, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_messages_recipient_created ON chain_messages(recipient_profile_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_notifications_profile_created ON chain_notifications(profile_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_wallet_transactions_profile_created ON chain_wallet_transactions(profile_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_chain_media_uploads_profile_created ON chain_media_uploads(profile_id, created_at DESC);
+-- Moderation Engine
+CREATE TABLE IF NOT EXISTS chain_reports (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    target_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    entity_type text NOT NULL,
+    entity_id uuid,
+    reason text NOT NULL,
+    details text,
+    status text DEFAULT 'open',
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    resolved_at timestamptz,
+    deleted_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_reports_status_created ON chain_reports(status, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS chain_blocks (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    blocker_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    blocked_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now(),
+    deleted_at timestamptz,
+    UNIQUE (blocker_profile_id, blocked_profile_id)
+);
+CREATE INDEX IF NOT EXISTS idx_blocks_blocker_blocked ON chain_blocks(blocker_profile_id, blocked_profile_id);
+
+CREATE TABLE IF NOT EXISTS chain_mutes (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    muter_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    muted_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    created_at timestamptz DEFAULT now(),
+    deleted_at timestamptz,
+    UNIQUE (muter_profile_id, muted_profile_id)
+);
+
+-- Presence Engine
+CREATE TABLE IF NOT EXISTS chain_presence (
+    profile_id uuid PRIMARY KEY REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    status text DEFAULT 'offline',
+    last_seen_at timestamptz DEFAULT now(),
+    typing_thread_id uuid,
+    typing_until timestamptz,
+    updated_at timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_presence_status_seen ON chain_presence(status, last_seen_at DESC);
+
+-- Feed Engine
+CREATE TABLE IF NOT EXISTS chain_feed_events (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    actor_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL,
+    event_type text,
+    entity_type text,
+    entity_id uuid,
+    score numeric DEFAULT 0,
+    created_at timestamptz DEFAULT now(),
+    deleted_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_feed_events_profile_score_created ON chain_feed_events(profile_id, score DESC, created_at DESC);
+
+-- Verification Engine
+CREATE TABLE IF NOT EXISTS chain_verification_requests (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    request_type text DEFAULT 'creator',
+    status text DEFAULT 'pending',
+    document_url text,
+    storage_bucket text,
+    storage_path text,
+    notes text,
+    reviewed_by_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    reviewed_at timestamptz,
+    deleted_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_verification_profile_status ON chain_verification_requests(profile_id, status);
+
+-- Background Jobs
+CREATE TABLE IF NOT EXISTS chain_background_jobs (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_type text NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb,
+    queue_name text DEFAULT 'default',
+    status text DEFAULT 'queued',
+    attempts integer DEFAULT 0,
+    max_attempts integer DEFAULT 3,
+    run_after timestamptz DEFAULT now(),
+    locked_at timestamptz,
+    locked_by text,
+    last_error text,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    completed_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_background_jobs_status_run_after ON chain_background_jobs(status, run_after);
+
+-- Ensure columns exist even if table was already there
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS date_of_birth date;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS residential_address text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS preferred_language text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS interests jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS activities jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS looking_for jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS cover_url text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS bio text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS creator_category text;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS verified boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS is_online boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS is_creator boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS dating_mode_enabled boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS profile_completed boolean DEFAULT false;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS wallet_balance numeric DEFAULT 0;
+ALTER TABLE chain_profiles ADD COLUMN IF NOT EXISTS onboarding_step text DEFAULT 'account';
+
+-- Notifications
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS recipient_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS actor_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS event_type text;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS title text;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS body text;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS entity_type text;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS entity_id uuid;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS action_url text;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS is_read boolean DEFAULT false;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS read_at timestamptz;
+ALTER TABLE chain_notifications ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
+-- Reels
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS caption text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS video_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS thumbnail_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS media_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS storage_bucket text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS storage_path text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS status text DEFAULT 'published';
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS visibility text DEFAULT 'public';
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS views_count integer DEFAULT 0;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS likes_count integer DEFAULT 0;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS comments_count integer DEFAULT 0;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS shares_count integer DEFAULT 0;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS moderation_status text DEFAULT 'clean';
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS processing_status text DEFAULT 'ready';
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS duration_seconds numeric;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS width integer;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS height integer;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS mime_type text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS file_size bigint;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS processing_error text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS processed_at timestamptz;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS transcoded_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS poster_url text;
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
+-- Messages
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS thread_id uuid REFERENCES chain_message_threads(id) ON DELETE CASCADE;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS sender_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS body text;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS media_url text;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS media_type text;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS storage_bucket text;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS storage_path text;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS is_seen boolean DEFAULT false;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS client_event_id text;
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS moderation_status text DEFAULT 'clean';
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+ALTER TABLE chain_messages ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_event ON chain_messages(thread_id, sender_profile_id, client_event_id) WHERE client_event_id IS NOT NULL;
+
+-- Wallets
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS tx_type text;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS amount numeric(12,2) DEFAULT 0;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS currency text DEFAULT 'coins';
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS source_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS entity_type text;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS entity_id uuid;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS status text DEFAULT 'pending';
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_idempotency ON chain_wallet_transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;
+ALTER TABLE chain_gifts ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_gifts_idempotency ON chain_gifts(idempotency_key) WHERE idempotency_key IS NOT NULL;
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS queue_name text DEFAULT 'default';
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS dead_letter_at timestamptz;
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS dead_lettered_at timestamptz;
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS dead_letter_reason text;
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS error_history jsonb DEFAULT '[]'::jsonb;
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS idempotency_key text;
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS retry_after timestamptz;
+ALTER TABLE chain_background_jobs ADD COLUMN IF NOT EXISTS retry_backoff_seconds integer;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_idempotency ON chain_background_jobs(idempotency_key) WHERE idempotency_key IS NOT NULL;
+ALTER TABLE chain_wallet_transactions ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_idempotency ON chain_wallet_transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;
+ALTER TABLE chain_gifts ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_gifts_idempotency ON chain_gifts(idempotency_key) WHERE idempotency_key IS NOT NULL;
+
+-- Message Threads
+ALTER TABLE chain_message_threads ADD COLUMN IF NOT EXISTS created_by_profile_id uuid REFERENCES chain_profiles(id) ON DELETE SET NULL;
+ALTER TABLE chain_message_threads ADD COLUMN IF NOT EXISTS thread_type text DEFAULT 'direct';
+
+-- Thread Members
+ALTER TABLE chain_thread_members ADD COLUMN IF NOT EXISTS thread_id uuid REFERENCES chain_message_threads(id) ON DELETE CASCADE;
+ALTER TABLE chain_thread_members ADD COLUMN IF NOT EXISTS profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE;
+ALTER TABLE chain_thread_members ADD COLUMN IF NOT EXISTS last_read_at timestamptz;
+ALTER TABLE chain_thread_members ADD COLUMN IF NOT EXISTS muted boolean DEFAULT false;
+ALTER TABLE chain_thread_members ADD COLUMN IF NOT EXISTS blocked boolean DEFAULT false;
+ALTER TABLE chain_thread_members ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+ALTER TABLE chain_thread_members ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
+-- Reports
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS reporter_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE;
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS target_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE;
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS entity_type text;
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS entity_id uuid;
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS reason text;
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS details text;
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS status text DEFAULT 'open';
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS resolved_at timestamptz;
+ALTER TABLE chain_reports ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+
+-- Existing tables and triggers
 DO $$
 DECLARE
     table_name text;
 BEGIN
     FOREACH table_name IN ARRAY ARRAY[
         'chain_profiles',
-        'chain_posts',
-        'chain_status_posts',
-        'chain_stories',
         'chain_reels',
-        'chain_live_rooms',
-        'chain_messages',
-        'chain_notifications',
-        'chain_follows',
-        'chain_likes',
-        'chain_comments',
+        'chain_message_threads',
         'chain_wallet_transactions',
-        'chain_media_uploads'
+        'chain_wallets',
+        'chain_reports',
+        'chain_verification_requests',
+        'chain_background_jobs'
     ]
     LOOP
         EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_touch_updated_at ON %I', table_name, table_name);

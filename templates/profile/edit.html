@@ -103,12 +103,21 @@
                 </div>
             </div>
             <label class="full"><span>Bio</span><textarea name="bio">{{ (form.bio if form else profile.bio) or '' }}</textarea></label>
+            <label><span>Preferred language</span><input type="text" name="preferred_language" value="{{ (form.preferred_language if form else profile.preferred_language) or '' }}"></label>
             <label class="full"><span>Languages</span><input type="text" name="languages" value="{{ ((form.languages if form else profile.languages) or [])|join(', ') if ((form.languages if form else profile.languages) or []) is iterable and ((form.languages if form else profile.languages) or []) is not string else (form.languages if form else profile.languages) or '' }}"></label>
             <label class="full"><span>Interests</span><input type="text" name="interests" value="{{ ((form.interests if form else profile.interests) or [])|join(', ') if ((form.interests if form else profile.interests) or []) is iterable and ((form.interests if form else profile.interests) or []) is not string else (form.interests if form else profile.interests) or '' }}"></label>
+            <label class="full"><span>Activities</span><input type="text" name="activities" value="{{ ((form.activities if form else profile.activities) or [])|join(', ') if ((form.activities if form else profile.activities) or []) is iterable and ((form.activities if form else profile.activities) or []) is not string else (form.activities if form else profile.activities) or '' }}"></label>
+            <label class="full"><span>Looking for</span><input type="text" name="looking_for" value="{{ ((form.looking_for if form else profile.looking_for) or [])|join(', ') if ((form.looking_for if form else profile.looking_for) or []) is iterable and ((form.looking_for if form else profile.looking_for) or []) is not string else (form.looking_for if form else profile.looking_for) or '' }}"></label>
+            <label><span>Relationship status</span><input type="text" name="relationship_status" value="{{ (form.relationship_status if form else profile.relationship_status) or '' }}"></label>
+            <label><span>Creator category</span><input type="text" name="creator_category" value="{{ (form.creator_category if form else profile.creator_category) or '' }}"></label>
 
             <div class="section-label">Privacy settings</div>
             <label class="checkbox"><input type="checkbox" name="is_public" {% if (form.is_public if form else profile.is_public) != False %}checked{% endif %}> <span>Public profile</span></label>
             <label class="checkbox"><input type="checkbox" name="is_premium" {% if (form.is_premium if form else profile.is_premium) %}checked{% endif %}> <span>Premium profile</span></label>
+            <label class="checkbox"><input type="checkbox" name="allow_messages" {% if (form.allow_messages if form else profile.allow_messages) != False %}checked{% endif %}> <span>Allow messages</span></label>
+            <label class="checkbox"><input type="checkbox" name="allow_gifts" {% if (form.allow_gifts if form else profile.allow_gifts) != False %}checked{% endif %}> <span>Allow gifts</span></label>
+            <label class="checkbox"><input type="checkbox" name="allow_dating" {% if (form.allow_dating if form else profile.allow_dating) %}checked{% endif %}> <span>Allow dating</span></label>
+            <label><span>Visibility</span><select name="visibility"><option value="public" {% if (form.visibility if form else profile.visibility) != 'private' %}selected{% endif %}>Public</option><option value="private" {% if (form.visibility if form else profile.visibility) == 'private' %}selected{% endif %}>Private</option></select></label>
 
             <div class="full action-cluster">
                 <button class="profile-empty-btn" type="submit">{% if setup_mode %}Complete Setup{% else %}Save Profile{% endif %}</button>

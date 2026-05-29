@@ -8,6 +8,13 @@ requests==2.32.3
 # Chain platform engines
 Flask-Caching==2.3.0
 redis==5.2.1
+flask-socketio==5.3.6
+python-socketio==5.11.2
+rq==1.16.2
+flask-limiter==3.8.0
+gevent==24.2.1
+gevent-websocket==0.10.1
+sentry-sdk==2.13.0
 APScheduler==3.10.4
 Pillow==11.1.0
 python-slugify==8.0.4

@@ -56,6 +56,7 @@
     </div>
 
     <!-- Integrity & Revenue Row -->
+    {% if section == "dashboard" %}
     <div class="executive-grid">
         <div class="integrity-card">
             <h3 style="margin:0 0 15px; font-size:14px; opacity:0.6;">PLATFORM INTEGRITY</h3>
@@ -130,6 +131,58 @@
             <button class="primary" style="width:100%; margin-top:15px; padding:12px; font-size:13px; background:#000;">Create New Campaign</button>
         </section>
     </div>
+
+    {% elif section == "users" %}
+    <section class="chain-data-card">
+        <h2>Recent Profiles</h2>
+        <div class="chain-list">
+            {% for profile in recent_profiles %}
+            <div class="chain-list-item">
+                <div>
+                    <strong>{{ profile.username }}</strong>
+                    <div class="chain-help">{{ profile.full_name }} · {{ profile.email }}</div>
+                </div>
+                <div>
+                    {% if profile.is_verified %}<span class="status-badge" style="background:#10b981; color:white;">Verified</span>{% endif %}
+                    <a href="/profile/@{{ profile.username }}" class="secondary">View</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% elif section == "content" %}
+    <div class="chain-portal-grid chain-portal-grid--2">
+        <section class="chain-data-card">
+            <h2>Recent Live Rooms</h2>
+            <div class="chain-list">
+                {% for room in recent_rooms %}
+                <div class="chain-list-item">
+                    <div>
+                        <strong>{{ room.title }}</strong>
+                        <div class="chain-help">{{ room.host_name }} · {{ room.status }}</div>
+                    </div>
+                    <span>{{ room.viewer_count }} viewers</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        <section class="chain-data-card">
+            <h2>Recent Posts</h2>
+            <div class="chain-list">
+                {% for post in recent_posts %}
+                <div class="chain-list-item">
+                    <div>
+                        <strong>Post by {{ post.profile_id }}</strong>
+                        <div class="chain-help">{{ (post.caption or post.body)[:50] }}...</div>
+                    </div>
+                    <small>{{ post.created_at }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+    {% endif %}
 
     <!-- Reports Row -->
     <div class="chain-portal-grid chain-portal-grid--3" style="margin-top:25px;">

@@ -1,119 +1,61 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for
-
+from flask import Blueprint, flash, redirect, render_template, request, url_for, jsonify
 from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile
-from services.storage_service import upload_payment_proof, upload_verification_file
-from services.wallet_action_service import (
-    create_pin_reset_request,
-    create_topup_request,
-    create_withdrawal_request,
-    get_or_create_wallet,
-    list_wallet_transactions,
-    set_wallet_pin,
-)
-from services.wallet_service import get_gift_page, get_wallet_home, send_gift_to_username
+from services.wallet_engine import get_wallet_summary, list_transactions, send_gift, request_payout
+from services.rate_limit_service import limiter, user_or_ip_key
+from flask import session
 
 wallet_bp = Blueprint("wallet", __name__, url_prefix="/wallet")
 
-
 @wallet_bp.route("/")
 @login_required
-def wallet_home():
-    current, wallet, gifts, transactions = get_wallet_home()
-    wallet = get_or_create_wallet(current["id"]) if current else wallet
-    transactions = list_wallet_transactions(current["id"]) if current else transactions
-    topups = [] if not current else []
-    withdrawals = [] if not current else []
-    if current:
-        from services.supabase_safe import safe_select
-        topups = safe_select("chain_wallet_topups", filters={"profile_id": current["id"]}, limit=10)
-        withdrawals = safe_select("chain_wallet_withdrawals", filters={"profile_id": current["id"]}, limit=10)
-    return render_template("wallet/index.html", current=current, wallet=wallet, gifts=gifts, transactions=transactions, topups=topups, withdrawals=withdrawals)
+def index():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        email = session.get("auth_email") or ""
+        username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
+        profile = {
+            "id": None,
+            "auth_user_id": session.get("auth_user_id"),
+            "email": email,
+            "username": username,
+            "full_name": session.get("full_name") or username.replace("_", " ").title(),
+        }
+        wallet = {"coin_balance": 0}
+        transactions = []
+        return render_template("wallet/index.html", wallet=wallet, transactions=transactions, profile=profile, setup_warning=True)
+    wallet = get_wallet_summary(profile['id'])
+    transactions = list_transactions(profile['id'])
+    return render_template("wallet/index.html", wallet=wallet, transactions=transactions, profile=profile)
 
-
-@wallet_bp.route("/top-up", methods=["GET", "POST"])
+@wallet_bp.route("/api/wallet/gift", methods=["POST"])
 @login_required
-def top_up():
-    current = get_current_profile()
-    if request.method == "POST":
-        proof_url = None
-        proof_upload_id = None
-        proof_file = request.files.get("proof")
-        if proof_file and proof_file.filename:
-            res, err = upload_payment_proof(current["id"], proof_file)
-            if res:
-                proof_url = res["public_url"] or res["file_path"]
-                proof_upload_id = res["upload_id"]
-            else:
-                flash(f"Proof upload failed: {err}", "error")
+@limiter.limit("30/minute", key_func=user_or_ip_key)
+def api_gift():
+    profile = get_current_profile()
+    recipient_id = request.form.get("recipient_id") or request.form.get("receiver_profile_id")
+    amount = request.form.get("amount", request.form.get("coin_value", 0))
+    gift_type = request.form.get("gift_type", "coins")
+    entity_type = request.form.get("entity_type")
+    entity_id = request.form.get("entity_id")
+    idempotency_key = request.form.get("idempotency_key")
 
-        ok, result = create_topup_request(current["id"], request.form.get("amount_nad"), request.form.get("payment_method"), proof_url=proof_url, proof_upload_id=proof_upload_id)
-        flash(result.get("reference") if ok and isinstance(result, dict) else result, "success" if ok else "error")
-        return redirect(url_for("wallet.wallet_home"))
-    wallet = get_or_create_wallet(current["id"])
-    return render_template("wallet/topup.html", current=current, wallet=wallet)
+    ok, result = send_gift(profile['id'], recipient_id, gift_type, amount, entity_type, entity_id, idempotency_key=idempotency_key)
+    if ok:
+        payload = {"success": True}
+        if isinstance(result, dict):
+            payload.update({"gift_id": result.get("gift_id"), "idempotent": bool(result.get("idempotent"))})
+        return jsonify(payload), 200
+    return jsonify({"success": False, "error": result}), 400
 
-
-@wallet_bp.route("/withdraw", methods=["GET", "POST"])
+@wallet_bp.route("/api/wallet/payout-request", methods=["POST"])
 @login_required
-def withdraw():
-    current = get_current_profile()
-    if request.method == "POST":
-        ok, result = create_withdrawal_request(
-            current["id"],
-            request.form.get("coins"),
-            {
-                "destination_method": request.form.get("destination_method"),
-                "destination_reference": request.form.get("destination_reference"),
-            },
-        )
-        flash("Withdrawal request submitted." if ok else result, "success" if ok else "error")
-        return redirect(url_for("wallet.wallet_home"))
-    wallet = get_or_create_wallet(current["id"])
-    return render_template("wallet/withdraw.html", current=current, wallet=wallet)
-
-
-@wallet_bp.route("/pin", methods=["GET", "POST"])
-@login_required
-def wallet_pin():
-    current = get_current_profile()
-    if request.method == "POST":
-        ok, message = set_wallet_pin(current["id"], request.form.get("pin"))
-        flash("Wallet PIN saved." if ok else message, "success" if ok else "error")
-        return redirect(url_for("wallet.wallet_home"))
-    wallet = get_or_create_wallet(current["id"])
-    return render_template("wallet/pin.html", current=current, wallet=wallet)
-
-
-@wallet_bp.route("/pin/reset", methods=["GET", "POST"])
-@login_required
-def wallet_pin_reset():
-    current = get_current_profile()
-    if request.method == "POST":
-        id_copy_url = None
-        id_copy_upload_id = None
-        id_file = request.files.get("id_copy")
-        if id_file and id_file.filename:
-            res, err = upload_verification_file(current["id"], id_file, upload_type='pin_reset_id')
-            if res:
-                id_copy_url = res["public_url"] or res["file_path"]
-                id_copy_upload_id = res["upload_id"]
-            else:
-                flash(f"ID copy upload failed: {err}", "error")
-
-        ok, result = create_pin_reset_request(current["id"], id_copy_url, request.form.get("reason"), id_copy_upload_id=id_copy_upload_id)
-        flash("PIN reset request submitted." if ok else result, "success" if ok else "error")
-        return redirect(url_for("wallet.wallet_home"))
-    wallet = get_or_create_wallet(current["id"])
-    return render_template("wallet/pin.html", current=current, wallet=wallet, reset_mode=True)
-
-
-@wallet_bp.route("/gift/<username>", methods=["GET", "POST"])
-@login_required
-def gift_user(username):
-    if request.method == "POST":
-        send_gift_to_username(username, request.form.get("gift_id"))
-        return redirect(url_for("wallet.wallet_home"))
-
-    current, receiver, wallet, gifts = get_gift_page(username)
-    return render_template("wallet/gift.html", current=current, receiver=receiver, wallet=wallet, gifts=gifts)
+def api_payout_request():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Profile setup incomplete"}), 400
+    amount = request.form.get("amount")
+    ok, error = request_payout(profile['id'], amount)
+    if ok:
+        return jsonify({"success": True}), 200
+    return jsonify({"error": error}), 400

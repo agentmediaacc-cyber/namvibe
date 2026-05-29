@@ -35,7 +35,7 @@
             </button>
             <a href="{{ home_route }}" class="chain-home__brand" aria-label="CHAIN home">
                 <span>CHAIN</span>
-                <strong>CHAIN</strong>
+                <strong>Home</strong>
             </a>
         </div>
 
@@ -77,8 +77,15 @@
             <a href="{{ live_route }}">Live</a>
             <a href="{{ drawer_messages }}">Messages</a>
             <a href="{{ drawer_wallet }}">Wallet</a>
-            <a href="{{ drawer_profile }}">Profile</a>
+            <a href="{{ drawer_notifications }}">Notifications</a>
+            <a href="{{ drawer_profile }}">My Profile</a>
             <a href="{{ drawer_settings }}">Settings</a>
+            {% if is_logged_in %}
+            <a href="/auth/logout">Sign Out</a>
+            {% else %}
+            <a href="{{ login_route }}">Login</a>
+            <a href="{{ register_route }}">Register</a>
+            {% endif %}
             <a href="{{ discover_route }}">Help</a>
         </nav>
     </aside>
@@ -120,6 +127,10 @@
                 <a href="{{ drawer_wallet }}"><i class="fas fa-wallet"></i><span>Wallet</span></a>
                 <a href="{{ dating_route }}"><i class="fas fa-heart"></i><span>Dating</span></a>
                 <a href="{{ drawer_notifications }}"><i class="fas fa-bell"></i><span>Notifications</span></a>
+                <a href="{{ drawer_profile }}"><i class="fas fa-user-circle"></i><span>My Profile</span></a>
+                {% if is_logged_in %}
+                <a href="/auth/logout"><i class="fas fa-sign-out-alt"></i><span>Sign Out</span></a>
+                {% endif %}
                 <a href="{{ drawer_settings }}"><i class="fas fa-cog"></i><span>Settings</span></a>
             </nav>
         </aside>

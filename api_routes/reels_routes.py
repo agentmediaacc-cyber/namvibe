@@ -1,49 +1,68 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from services.profile_service import get_current_profile
-from services.supabase_safe import safe_select, safe_insert, safe_update
+from services.reels_engine import list_reels, get_reel, create_reel, record_reel_view, like_reel, share_reel, delete_reel
 from api_routes.profile_routes import login_required
+from services.rate_limit_service import limiter, user_or_ip_key
 
 reels_bp = Blueprint("reels", __name__, url_prefix="/reels")
 
 @reels_bp.route("/")
 def index():
-    current = get_current_profile()
-    reels = safe_select("chain_reels", limit=20, order_by="created_at", desc=True)
-    # Enrich with profile info
-    for reel in reels:
-        profile = (safe_select("chain_profiles", filters={"id": reel["profile_id"]}, limit=1) or [{}])[0]
-        reel["creator"] = profile
-        
-    return render_template("reels/index.html", reels=reels, current=current)
+    profile = get_current_profile()
+    reels = list_reels(limit=20)
+    return render_template("reels/index.html", reels=reels, profile=profile, current=profile)
 
-@reels_bp.route("/upload", methods=["POST"])
+@reels_bp.route("/upload", methods=["GET", "POST"])
 @login_required
-def upload_reel():
-    current = get_current_profile()
-    data = request.form
-    file = request.files.get("video")
-    
-    if not file:
-        return jsonify({"error": "No video file provided"}), 400
-        
-    # In a real app, upload to Supabase Storage and get URL
-    # For now, we simulate the record creation
-    payload = {
-        "profile_id": current["id"],
-        "video_url": f"https://example.com/videos/{file.filename}", # Placeholder
-        "caption": data.get("caption"),
-        "is_private": data.get("is_private") == 'true'
-    }
-    safe_insert("chain_reels", payload)
-    return jsonify({"status": "ok"})
+@limiter.limit("20/hour", key_func=user_or_ip_key)
+def upload():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        from api_routes.profile_routes import _session_profile_stub
+        profile = _session_profile_stub()
+        return render_template("reels/upload.html", profile=profile, current=profile, setup_warning=True)
 
-@reels_bp.route("/<reel_id>/react", methods=["POST"])
+    if request.method == "POST":
+        video_file = request.files.get("video")
+        thumbnail_file = request.files.get("thumbnail")
+        caption = request.form.get("caption", "")
+
+        if not video_file:
+            return render_template("reels/upload.html", error="Video file is required", profile=profile, current=profile)
+
+        reel_id, error = create_reel(profile['id'], caption, video_file, thumbnail_file)
+        if error:
+            return render_template("reels/upload.html", error=error, profile=profile, current=profile)
+        
+        return redirect(url_for('reels.index'))
+
+    return render_template("reels/upload.html", profile=profile, current=profile)
+
+@reels_bp.route("/api/reels/<reel_id>/view", methods=["POST"])
+def api_view(reel_id):
+    record_reel_view(reel_id)
+    return jsonify({"success": True}), 200
+
+@reels_bp.route("/api/reels/<reel_id>/like", methods=["POST"])
 @login_required
-def react_reel(reel_id):
-    current = get_current_profile()
-    # Increment reaction count
-    reel = (safe_select("chain_reels", filters={"id": reel_id}, limit=1) or [None])[0]
-    if reel:
-        safe_update("chain_reels", {"likes_count": reel.get("likes_count", 0) + 1}, eq={"id": reel_id})
-        return jsonify({"status": "ok"})
-    return jsonify({"error": "Reel not found"}), 404
+def api_like(reel_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Profile not found"}), 404
+    like_reel(reel_id, profile['id'])
+    return jsonify({"success": True}), 200
+
+@reels_bp.route("/api/reels/<reel_id>/share", methods=["POST"])
+def api_share(reel_id):
+    share_reel(reel_id)
+    return jsonify({"success": True}), 200
+
+@reels_bp.route("/api/reels/<reel_id>/delete", methods=["POST"])
+@login_required
+def api_delete(reel_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Profile not found"}), 404
+    if delete_reel(reel_id, profile['id']):
+        return jsonify({"success": True}), 200
+    return jsonify({"error": "Failed to delete reel"}), 400

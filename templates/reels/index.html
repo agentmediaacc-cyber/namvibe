@@ -1,153 +1,62 @@
 {% extends "base.html" %}
-
-{% block title %}CHAIN Reels | Short Videos{% endblock %}
-{% block body_class %}chain-reels-page{% endblock %}
-
-{% block extra_css %}
-<style>
-    .reels-container {
-        height: calc(100vh - 70px);
-        overflow-y: scroll;
-        scroll-snap-type: y mandatory;
-        background: #000;
-        scrollbar-width: none;
-    }
-    .reel-item {
-        height: 100%;
-        width: 100%;
-        scroll-snap-align: start;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .reel-video {
-        height: 100%;
-        width: 100%;
-        object-fit: cover;
-    }
-    .reel-overlay {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.3) 100%);
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        color: white;
-        pointer-events: none;
-    }
-    .reel-actions {
-        position: absolute;
-        right: 20px;
-        bottom: 100px;
-        display: flex;
-        flex-direction: column;
-        gap: 25px;
-        align-items: center;
-        pointer-events: auto;
-    }
-    .action-btn {
-        background: none;
-        border: none;
-        color: white;
-        text-align: center;
-        cursor: pointer;
-    }
-    .action-btn i { font-size: 28px; display: block; margin-bottom: 5px; }
-    .action-btn span { font-size: 12px; font-weight: bold; }
-    
-    .creator-info {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 15px;
-        pointer-events: auto;
-    }
-    .creator-avatar {
-        width: 45px;
-        height: 45px;
-        border-radius: 50%;
-        border: 2px solid white;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="reels-container">
-    {% for reel in reels %}
-    <div class="reel-item">
-        <video class="reel-video" src="{{ reel.video_url }}" loop muted onclick="togglePlay(this)"></video>
-        
-        <div class="reel-overlay">
-            <div class="creator-info">
-                <img src="{{ reel.creator.avatar_url or '/static/img/default_avatar.png' }}" class="creator-avatar">
-                <div>
-                    <strong style="font-size:16px;">@{{ reel.creator.username }}</strong>
-                    <p style="font-size:14px; margin-top:5px; opacity:0.9;">{{ reel.caption }}</p>
+<div class="container-fluid p-0 bg-dark" style="height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory;">
+    {% if reels %}
+        {% for reel in reels %}
+            <div class="reel-container position-relative w-100 d-flex align-items-center justify-content-center" style="height: 100vh; scroll-snap-align: start;">
+                <video class="w-100 h-100" style="object-fit: cover;" loop playsinline onclick="this.paused ? this.play() : this.pause()">
+                    <source src="{{ reel.video_url }}" type="video/mp4">
+                </video>
+                
+                <div class="reel-overlay position-absolute bottom-0 start-0 w-100 p-3 text-white" style="background: linear-gradient(transparent, rgba(0,0,0,0.8));">
+                    <h5>@{{ reel.username }}</h5>
+                    <p>{{ reel.caption }}</p>
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="btn btn-link text-white p-0" onclick="likeReel('{{ reel.id }}')">
+                            <i class="fas fa-heart"></i> <span id="likes-{{ reel.id }}">{{ reel.likes_count }}</span>
+                        </button>
+                        <button class="btn btn-link text-white p-0" onclick="shareReel('{{ reel.id }}')">
+                            <i class="fas fa-share"></i> {{ reel.shares_count }}
+                        </button>
+                        <span class="small"><i class="fas fa-eye"></i> {{ reel.views_count }}</span>
+                    </div>
                 </div>
-                <button style="background:var(--premium-accent); border:none; color:white; padding:5px 15px; border-radius:50px; font-weight:bold; font-size:12px;">Follow</button>
             </div>
-            
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
-                <i class="fas fa-music" style="font-size:12px;"></i>
-                <small style="font-size:12px; font-weight:bold;">Original Sound - @{{ reel.creator.username }}</small>
-            </div>
-        </div>
-
-        <div class="reel-actions">
-            <button class="action-btn" onclick="reactReel('{{ reel.id }}')">
-                <i class="fas fa-heart"></i>
-                <span>{{ reel.likes_count }}</span>
-            </button>
-            <button class="action-btn">
-                <i class="fas fa-comment"></i>
-                <span>{{ reel.comments_count }}</span>
-            </button>
-            <button class="action-btn">
-                <i class="fas fa-share"></i>
-                <span>{{ reel.shares_count }}</span>
-            </button>
-            <div style="width:40px; height:40px; border-radius:50%; border:3px solid #333; overflow:hidden; animation: rotate 3s linear infinite;">
-                <img src="{{ reel.creator.avatar_url or '/static/img/default_avatar.png' }}" style="width:100%; height:100%; object-fit:cover;">
-            </div>
-        </div>
-    </div>
+        {% endfor %}
     {% else %}
-    <div style="height:100%; display:flex; align-items:center; justify-content:center; color:white; flex-direction:column;">
-        <i class="fas fa-film" style="font-size:64px; opacity:0.2; margin-bottom:20px;"></i>
-        <h3>No reels yet. Be the first to upload!</h3>
-        <a href="/reels/upload" class="primary" style="margin-top:20px;">Upload Reel</a>
-    </div>
-    {% endfor %}
+        <div class="d-flex align-items-center justify-content-center h-100 text-white flex-column">
+            <p>No reels yet. Upload the first reel.</p>
+            <a href="{{ url_for('reels.upload') }}" class="btn btn-primary">Upload Reel</a>
+        </div>
+    {% endif %}
+</div>
+
+<div class="position-fixed top-0 end-0 p-3">
+    <a href="{{ url_for('reels.upload') }}" class="btn btn-light rounded-circle shadow">
+        <i class="fas fa-plus"></i>
+    </a>
 </div>
 
 <script>
-    function togglePlay(video) {
-        if (video.paused) video.play();
-        else video.pause();
-    }
+function likeReel(reelId) {
+    fetch(`/reels/api/reels/${reelId}/like`, {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const el = document.getElementById(`likes-${reelId}`);
+            el.innerText = parseInt(el.innerText) + 1;
+        }
+    });
+}
 
-    function reactReel(reelId) {
-        fetch(`/reels/${reelId}/react`, {method: 'POST'})
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === 'ok') {
-                    // Update UI (simplified)
-                    console.log('Reacted to reel');
-                }
-            });
-    }
-
-    // Intersection Observer for autoplay
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            const video = entry.target.querySelector('video');
-            if (entry.isIntersecting) video.play();
-            else video.pause();
-        });
-    }, { threshold: 0.8 });
-
-    document.querySelectorAll('.reel-item').forEach(item => observer.observe(item));
+function shareReel(reelId) {
+    fetch(`/reels/api/reels/${reelId}/share`, {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Link copied to clipboard!');
+        }
+    });
+}
 </script>
 {% endblock %}

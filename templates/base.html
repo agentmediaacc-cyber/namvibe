@@ -18,6 +18,7 @@
     
     <link rel="stylesheet" href="/static/css/chain_theme.css">
     <link rel="stylesheet" href="/static/css/chain_wallpapers.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         /* Skeleton Loading */
@@ -30,65 +31,64 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-authenticated="{{ 'true' if g_current else 'false' }}">
     <!-- Sidebar -->
     <div class="chain-shell">
     <aside class="sidebar">
         <a href="/" class="sidebar-brand">
             <span class="rotating-logo">CHAIN</span>
-            <b>CHAIN PREMIUM</b>
+            <b>CHAIN</b>
         </a>
         
         <nav class="sidebar-nav">
             <a href="/" class="sidebar-link active"><i class="fas fa-home"></i> Home</a>
             <a href="/discover/" class="sidebar-link"><i class="fas fa-compass"></i> Discover</a>
-            <a href="/live/" class="sidebar-link"><i class="fas fa-video"></i> Live Now</a>
-            <a href="/discover/trending" class="sidebar-link"><i class="fas fa-fire"></i> Trending</a>
+            <a href="/live/" class="sidebar-link"><i class="fas fa-video"></i> Live</a>
             <a href="/reels/" class="sidebar-link"><i class="fas fa-film"></i> Reels</a>
             <a href="/status/" class="sidebar-link"><i class="fas fa-circle-notch"></i> Stories</a>
-            <a href="/notifications/" class="sidebar-link"><i class="fas fa-bell"></i> Notifications</a>
-            <a href="/messages/" class="sidebar-link"><i class="fas fa-comment"></i> Messages</a>
-            <a href="/favorites" class="sidebar-link"><i class="fas fa-heart"></i> Favorites</a>
-            <a href="/history" class="sidebar-link"><i class="fas fa-history"></i> History</a>
-            <hr style="border: none; border-top: 1px solid var(--border); margin: 15px 0;">
-            <a href="/wallet/" class="sidebar-link"><i class="fas fa-wallet"></i> Wallet & Gifts</a>
-            <a href="/live/studio" class="sidebar-link"><i class="fas fa-plus-circle"></i> Create Live</a>
-            <a href="{{ '/profile/' if g_current else '/auth/login' }}" class="sidebar-link"><i class="fas fa-user-circle"></i> My Profile</a>
-        </nav>
-
-        <div class="sidebar-footer" style="margin-top: 20px;">
+            
             {% if g_current %}
+            <a href="/messages/" class="sidebar-link"><i class="fas fa-comment"></i> Messages</a>
+            <a href="/notifications/" class="sidebar-link"><i class="fas fa-bell"></i> Notifications</a>
+            <a href="/wallet/" class="sidebar-link"><i class="fas fa-wallet"></i> Wallet</a>
+            <a href="/profile/" class="sidebar-link"><i class="fas fa-user-circle"></i> Profile</a>
+            <hr style="border: none; border-top: 1px solid var(--chain-border); margin: 15px 0;">
             <a href="/auth/logout" class="sidebar-link"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
             {% else %}
-            <a href="/auth/login" class="sidebar-link"><i class="fas fa-sign-in-alt"></i> Login/Register</a>
+            <hr style="border: none; border-top: 1px solid var(--chain-border); margin: 15px 0;">
+            <a href="/auth/login" class="sidebar-link"><i class="fas fa-sign-in-alt"></i> Login</a>
+            <a href="/auth/register" class="sidebar-link"><i class="fas fa-user-plus"></i> Register</a>
             {% endif %}
-        </div>
+        </nav>
     </aside>
 
     <!-- Main Content -->
     <main class="main-container">
         <header class="top-header">
             <form class="search-bar" id="chain-search-form" action="/search" method="get" autocomplete="off">
-                <i class="fas fa-search" style="color: #666;"></i>
-                <input id="chain-search-input" type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search creators, live rooms, hashtags, towns…">
-                <div class="search-dropdown" id="chain-search-dropdown" hidden></div>
+                <i class="fas fa-search" style="color: var(--chain-muted);"></i>
+                <input id="chain-search-input" type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search creators, live rooms…">
             </form>
 
             <div class="header-actions">
+                {% if g_current %}
                 <a href="/wallet/" class="chain-pill">
-                    <i class="fas fa-coins"></i> <span>{{ g_wallet_balance or '0' }}</span> <small style="opacity: .8;">Creator earnings</small>
+                    <i class="fas fa-coins"></i> <span>{{ g_wallet_balance or '0' }}</span>
                 </a>
                 <a href="/notifications/" class="notif-badge" style="text-decoration: none;">
                     <i class="fas fa-bell"></i>
                     <span class="notif-count" {% if not g_unread_count %}style="display: none;"{% endif %}>{{ g_unread_count or 0 }}</span>
                 </a>
-                <a href="{{ '/profile/' if g_current else '/auth/login' }}" class="user-profile" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.86); border: 1px solid var(--chain-border); display: grid; place-items: center; overflow: hidden; text-decoration: none; color: var(--chain-text);">
-                    {% if g_current and g_current.avatar_url %}
+                <a href="/profile/" class="user-profile" style="width: 40px; height: 40px; border-radius: 50%; background: var(--chain-bg-panel); border: 1px solid var(--chain-border); display: grid; place-items: center; overflow: hidden; text-decoration: none; color: var(--chain-text);">
+                    {% if g_current.avatar_url %}
                     <img src="{{ g_current.avatar_url }}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
                     {% else %}
                     <i class="fas fa-user"></i>
                     {% endif %}
                 </a>
+                {% else %}
+                <a href="/auth/login" class="primary" style="min-height: 40px; padding: 0 20px;">Login</a>
+                {% endif %}
             </div>
         </header>
 
@@ -99,28 +99,21 @@
     </div>
 
     <!-- Mobile Nav -->
-    <nav class="mobile-nav" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-top: 1px solid #eee; height: 70px; align-items: center; justify-content: space-around; z-index: 1000; padding-bottom: env(safe-area-inset-bottom);">
-        <a href="/" class="mobile-link active" style="text-decoration: none; color: #333; display: flex; flex-direction: column; align-items: center;">
-            <i class="fas fa-home" style="font-size: 20px;"></i>
-            <small style="font-size: 10px; margin-top: 2px;">Home</small>
+    <nav class="mobile-nav">
+        <a href="/" class="mobile-link active">
+            <i class="fas fa-home"></i>
         </a>
-        <a href="/discover/" class="mobile-link" style="text-decoration: none; color: #999; display: flex; flex-direction: column; align-items: center;">
-            <i class="fas fa-compass" style="font-size: 20px;"></i>
-            <small style="font-size: 10px; margin-top: 2px;">Explore</small>
+        <a href="/discover/" class="mobile-link">
+            <i class="fas fa-compass"></i>
         </a>
-        <a href="/live/studio" class="mobile-link center-btn" style="width: 55px; height: 55px; background: var(--premium-gradient); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; margin-top: -30px; box-shadow: 0 5px 15px rgba(255,47,125,0.4); text-decoration: none;">
-            <i class="fas fa-plus" style="font-size: 24px;"></i>
+        <a href="/live/studio" class="mobile-link center-btn">
+            <i class="fas fa-plus"></i>
         </a>
-        <a href="/notifications/" class="mobile-link" style="text-decoration: none; color: #999; display: flex; flex-direction: column; align-items: center; position: relative;">
-            <i class="fas fa-bell" style="font-size: 20px;"></i>
-            {% if g_unread_count %}
-            <span style="position: absolute; top: -5px; right: -5px; background: #ff2f7d; color: white; font-size: 10px; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">{{ g_unread_count }}</span>
-            {% endif %}
-            <small style="font-size: 10px; margin-top: 2px;">Alerts</small>
+        <a href="/messages/" class="mobile-link">
+            <i class="fas fa-comment"></i>
         </a>
-        <a href="{{ '/profile/' if g_current else '/auth/login' }}" class="mobile-link" style="text-decoration: none; color: #999; display: flex; flex-direction: column; align-items: center;">
-            <i class="fas fa-user" style="font-size: 20px;"></i>
-            <small style="font-size: 10px; margin-top: 2px;">Profile</small>
+        <a href="/profile/" class="mobile-link">
+            <i class="fas fa-user"></i>
         </a>
     </nav>
 

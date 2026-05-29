@@ -1,13 +1,13 @@
 :root {
-  --chain-home-bg: #fff8fb;
-  --chain-home-surface: rgba(255, 255, 255, 0.97);
-  --chain-home-border: rgba(143, 87, 172, 0.12);
-  --chain-home-shadow: 0 14px 34px rgba(82, 52, 104, 0.09);
-  --chain-home-shadow-lg: 0 24px 48px rgba(82, 52, 104, 0.13);
-  --chain-home-pink: #ef4d8d;
-  --chain-home-purple: #7e4fe0;
-  --chain-home-navy: #24142a;
-  --chain-home-muted: #70627a;
+  --chain-home-bg: #f8fafa;
+  --chain-home-surface: rgba(255, 255, 255, 0.9);
+  --chain-home-border: rgba(0, 194, 168, 0.1);
+  --chain-home-shadow: 0 8px 32px rgba(0, 194, 168, 0.05);
+  --chain-home-shadow-lg: 0 16px 48px rgba(0, 194, 168, 0.1);
+  --chain-home-primary: #00C2A8;
+  --chain-home-secondary: #00A8D8;
+  --chain-home-navy: #0a0a0a;
+  --chain-home-muted: #5e6b6b;
 }
 
 .chain-home-page .sidebar,
@@ -36,7 +36,7 @@
 
 .chain-home {
   color: var(--chain-home-navy);
-  padding: 78px 12px 104px;
+  padding: 78px 12px calc(116px + env(safe-area-inset-bottom));
 }
 
 .chain-home__app-header {
@@ -247,13 +247,15 @@
 .chain-home__insight-card {
   background: var(--chain-home-surface);
   border: 1px solid var(--chain-home-border);
-  border-radius: 22px;
+  border-radius: 18px;
   box-shadow: var(--chain-home-shadow);
+  backdrop-filter: blur(12px);
 }
 
 .chain-home__desktop-layout {
   max-width: 1420px;
   margin: 0 auto;
+  display: block;
 }
 
 .chain-home__desktop-sidebar {
@@ -513,7 +515,10 @@
 }
 
 .chain-home__grid--live,
-.chain-home__grid--profiles,
+.chain-home__grid--profiles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .chain-home__grid--matches,
 .chain-home__grid--safety {
   grid-template-columns: 1fr;
@@ -740,6 +745,15 @@
 }
 
 @media (max-width: 640px) {
+  .chain-home {
+    padding-inline: 10px;
+  }
+
+  .chain-home__app-header {
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+  }
+
   .chain-home__header-actions {
     gap: 6px;
   }
@@ -747,5 +761,24 @@
   .chain-home__icon-btn:nth-child(3),
   .chain-home__icon-btn:nth-child(4) {
     display: none;
+  }
+
+  .chain-home__quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chain-home__quick-card {
+    min-height: 92px;
+  }
+
+  .chain-home__story-row {
+    grid-auto-columns: 86px;
+  }
+
+  .chain-home__mobile-nav {
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
   }
 }

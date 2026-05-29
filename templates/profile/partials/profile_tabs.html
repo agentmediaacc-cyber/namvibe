@@ -1,8 +1,92 @@
-<nav class="profile-tab-row">
-    <a href="#posts">Posts</a>
-    <a href="#stories">Stories</a>
-    <a href="#live">Live</a>
-    <a href="#wallet">Wallet</a>
-    <a href="#creator">Creator Tools</a>
-    <a href="#foundation">Foundations</a>
-</nav>
+<div class="premium-tabs-container">
+    <nav class="premium-tabs">
+        <a href="#posts" class="tab-link is-active" onclick="switchPremiumTab(this, 'posts')">
+            <i class="fas fa-th-large"></i> <span>Posts</span>
+        </a>
+        <a href="#reels" class="tab-link" onclick="switchPremiumTab(this, 'reels')">
+            <i class="fas fa-film"></i> <span>Reels</span>
+        </a>
+        <a href="#live" class="tab-link" onclick="switchPremiumTab(this, 'live')">
+            <i class="fas fa-video"></i> <span>Live</span>
+        </a>
+        <a href="#stories" class="tab-link" onclick="switchPremiumTab(this, 'stories')">
+            <i class="fas fa-circle-notch"></i> <span>Stories</span>
+        </a>
+        <a href="#marketplace" class="tab-link" onclick="switchPremiumTab(this, 'marketplace')">
+            <i class="fas fa-shopping-bag"></i> <span>Shop</span>
+        </a>
+        <a href="#dating" class="tab-link" onclick="switchPremiumTab(this, 'dating')">
+            <i class="fas fa-heart"></i> <span>Dating</span>
+        </a>
+        <a href="#about" class="tab-link" onclick="switchPremiumTab(this, 'about')">
+            <i class="fas fa-info-circle"></i> <span>About</span>
+        </a>
+    </nav>
+</div>
+
+<style>
+    .premium-tabs-container {
+        border-bottom: 1px solid var(--chain-border);
+        background: var(--chain-bg-soft);
+        position: sticky;
+        top: 80px;
+        z-index: 15;
+    }
+    .premium-tabs {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        padding: 0 20px;
+    }
+    .tab-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 18px 10px;
+        color: var(--chain-muted);
+        font-weight: 700;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+    }
+    .tab-link:hover { color: var(--chain-text); }
+    .tab-link.is-active {
+        color: var(--chain-primary);
+        border-bottom-color: var(--chain-primary);
+    }
+    .tab-link i { font-size: 16px; }
+
+    @media (max-width: 900px) {
+        .premium-tabs { gap: 20px; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+        .premium-tabs::-webkit-scrollbar { display: none; }
+        .tab-link { white-space: nowrap; flex-shrink: 0; }
+        .tab-link span { display: none; }
+    }
+</style>
+
+<script>
+    function switchPremiumTab(el, tabId) {
+        document.querySelectorAll('.tab-link').forEach(t => t.classList.remove('is-active'));
+        el.classList.add('is-active');
+        
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        const target = document.getElementById(tabId + '-content');
+        if (target) target.style.display = 'block';
+        
+        // Update URL hash without jumping
+        history.replaceState(null, null, '#' + tabId);
+    }
+
+    // Auto-switch to tab from hash on load
+    window.addEventListener('load', () => {
+        const hash = window.location.hash.replace('#', '');
+        if (hash) {
+            const tabBtn = document.querySelector(`.tab-link[href="#${hash}"]`);
+            if (tabBtn) tabBtn.click();
+        }
+    });
+</script>

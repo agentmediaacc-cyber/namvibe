@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, redirect, render_template, request, url_fo
 from services.live_service import (
     create_live_room,
     get_live_rooms,
+    get_live_rooms_public,
     get_room,
     join_room,
     room_activity,
@@ -11,6 +12,7 @@ from services.live_service import (
     request_cohost,
     get_cohost_requests,
     update_cohost_status,
+    prime_live_rooms_public_cache,
 )
 from services.realtime_service import track_live_reaction
 from api_routes.profile_routes import login_required
@@ -23,6 +25,8 @@ live_bp = Blueprint("live", __name__, url_prefix="/live")
 @login_required
 def react_api(room_id):
     current = get_current_profile()
+    if not current or not current.get("id"):
+        return jsonify({"error": "Profile setup incomplete"}), 400
     data = request.json or {}
     r_type = data.get("type", "heart")
     track_live_reaction(room_id, current["id"], r_type)
@@ -31,30 +35,38 @@ def react_api(room_id):
 
 @live_bp.route("/")
 def live_channels():
-    rooms = get_live_rooms()
-    return render_template("live/channels.html", rooms=rooms)
+    profile = get_current_profile()
+    rooms = get_live_rooms_public(limit=8, allow_query=False)
+    return render_template("live/channels.html", rooms=rooms, profile=profile)
 
 
 @live_bp.route("/studio", methods=["GET", "POST"])
 @login_required
 def studio():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        from api_routes.profile_routes import _session_profile_stub
+        profile = _session_profile_stub()
+        return render_template("live/studio.html", profile=profile, setup_warning=True)
+
     if request.method == "POST":
         room = create_live_room(request.form, request.files)
         if not room:
-            return render_template("live/studio.html", error="We could not save this live room with the current Supabase schema.")
+            return render_template("live/studio.html", profile=profile, error="We could not save this live room with the current Supabase schema.")
         return redirect(url_for("live.watch_room", room_id=room["id"]))
-    return render_template("live/studio.html")
+    return render_template("live/studio.html", profile=profile)
 
 
 @live_bp.route("/room/<room_id>")
 def watch_room(room_id):
+    profile = get_current_profile()
     room = get_room(room_id)
     if not room:
         return "Live room not found", 404
 
     join_room(room_id, request.args.get("name"))
     gift_catalog = safe_select("chain_gift_catalog", filters={"is_active": True}, limit=8, order_by="coin_price", desc=False)
-    return render_template("live/watch.html", room=room, activity=room_activity(room_id), gift_catalog=gift_catalog)
+    return render_template("live/watch.html", room=room, activity=room_activity(room_id), gift_catalog=gift_catalog, profile=profile)
 
 
 @live_bp.route("/room/<room_id>/activity")
@@ -90,6 +102,34 @@ def gift(room_id):
         request.form.get("display_name"),
     )
     return redirect(url_for("live.watch_room", room_id=room_id))
+
+
+@live_bp.route("/api/live/<room_id>/gift", methods=["POST"])
+@login_required
+def api_live_gift(room_id):
+    current = get_current_profile()
+    if not current or not current.get("id"):
+        return jsonify({"error": "Profile setup incomplete"}), 400
+    gift_type = request.form.get("gift_type")
+    coin_value = request.form.get("coin_value", 0)
+    
+    from services.wallet_engine import send_gift as send_wallet_gift
+    room = get_room(room_id)
+    if not room:
+        return jsonify({"error": "Room not found"}), 404
+        
+    ok, error = send_wallet_gift(
+        sender_profile_id=current['id'],
+        receiver_profile_id=room['profile_id'],
+        gift_type=gift_type,
+        coin_value=coin_value,
+        entity_type='live_room',
+        entity_id=room_id
+    )
+    
+    if ok:
+        return jsonify({"success": True}), 200
+    return jsonify({"error": error}), 400
 
 
 @live_bp.route("/room/<room_id>/end", methods=["GET", "POST"])

@@ -1,26 +1,48 @@
 :root {
-  --chain-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --chain-bg: #fffaf4;
-  --chain-bg-soft: #fff3f1;
-  --chain-bg-panel: rgba(255, 252, 249, 0.92);
-  --chain-bg-panel-strong: rgba(255, 255, 255, 0.97);
-  --chain-text: #17121f;
-  --chain-muted: #6d6178;
-  --chain-primary: #eb6b7a;
-  --chain-primary-strong: #d94c68;
-  --chain-secondary: #7a63de;
-  --chain-secondary-strong: #654ed0;
-  --chain-gold: #d6a85b;
-  --chain-success: #1f9d68;
-  --chain-error: #c95c56;
-  --chain-border: rgba(155, 101, 135, 0.16);
-  --chain-border-strong: rgba(122, 99, 222, 0.18);
-  --chain-shadow-sm: 0 10px 30px rgba(116, 81, 118, 0.08);
-  --chain-shadow-md: 0 20px 60px rgba(116, 81, 118, 0.12);
-  --chain-shadow-lg: 0 30px 90px rgba(116, 81, 118, 0.16);
-  --chain-radius-sm: 16px;
-  --chain-radius-md: 24px;
-  --chain-radius-lg: 32px;
+  --chain-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --chain-bg: #0B0F19;
+  --chain-bg-soft: #121826;
+  --chain-bg-panel: rgba(26, 35, 51, 0.7);
+  --chain-bg-panel-strong: rgba(26, 35, 51, 0.9);
+  --chain-text: #F5F7FA;
+  --chain-muted: #9AA4B2;
+  --chain-primary: #6C5CE7;
+  --chain-primary-strong: #5849c4;
+  --chain-secondary: #00D4FF;
+  --chain-secondary-strong: #00b0d4;
+  --chain-accent: #A29BFE;
+  --chain-gold: #FFD32D;
+  --chain-success: #00C896;
+  --chain-error: #FF4D6D;
+  --chain-border: rgba(108, 92, 231, 0.15);
+  --chain-border-strong: rgba(0, 212, 255, 0.2);
+  --chain-shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --chain-shadow-md: 0 16px 48px rgba(0, 0, 0, 0.3);
+  --chain-shadow-lg: 0 24px 80px rgba(0, 0, 0, 0.4);
+  --chain-radius-sm: 12px;
+  --chain-radius-md: 18px;
+  --chain-radius-lg: 24px;
+  --chain-glass-bg: rgba(26, 35, 51, 0.4);
+  --chain-glass-border: rgba(255, 255, 255, 0.08);
+  --chain-glass-blur: blur(25px);
+  --chain-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.glass-card {
+  background: var(--chain-glass-bg);
+  backdrop-filter: var(--chain-glass-blur);
+  -webkit-backdrop-filter: var(--chain-glass-blur);
+  border-radius: var(--chain-radius-md);
+  border: 1px solid var(--chain-glass-border);
+  box-shadow: var(--chain-glass-shadow);
+}
+
+.premium-glass-card {
+  background: linear-gradient(135deg, rgba(108, 92, 231, 0.1), rgba(0, 212, 255, 0.05));
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border-radius: 20px;
 }
 
 * {
@@ -28,17 +50,18 @@
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   color: var(--chain-text);
-  background: linear-gradient(180deg, #fffdfb 0%, #fff7f3 58%, #fffaf7 100%);
+  background: var(--chain-bg);
   font-family: var(--chain-font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 a {

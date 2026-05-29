@@ -31,19 +31,47 @@
             </div>
 
             {% if oauth_error %}
-            <div class="chain-auth-alert chain-auth-alert--error">{{ oauth_error }}</div>
+            <div class="chain-auth-alert chain-auth-alert--error">
+                {{ oauth_error }}
+                <div style="margin-top: 5px;">
+                    <a href="/auth/oauth-diagnostics" style="font-size: 12px; color: inherit; text-decoration: underline;">Troubleshoot social login</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if success_message or request.args.get('message') or message %}
+            <div class="chain-auth-alert chain-auth-alert--success">
+                {{ success_message or request.args.get('message') or message }}
+            </div>
             {% endif %}
 
             {% if error %}
-            <div class="chain-auth-alert chain-auth-alert--error">{{ error }}</div>
+            <div class="chain-auth-alert chain-auth-alert--error">
+                {% if error is mapping %}
+                    <p>{{ error.message }}</p>
+                    {% if error.actions %}
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <a href="/auth/forgot-password{% if error.email %}?email={{ error.email }}{% endif %}" class="chain-auth-link--strong" style="font-size: 13px;">Reset password</a>
+                        {% if error.email %}
+                        <form action="/auth/resend-confirmation" method="POST" style="display: inline;">
+                            <input type="hidden" name="email" value="{{ error.email }}">
+                            <button type="submit" style="background: none; border: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; font-weight: 800; font-size: 13px;">Resend confirmation</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% else %}
+                    {{ error }}
+                {% endif %}
+            </div>
             {% endif %}
 
             <div class="chain-auth-panel">
                 <div class="chain-auth-oauth-grid chain-auth-oauth-grid--stacked">
-                    <a href="/auth/google" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Google...">
+                    <a href="/auth/google?mode=login" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Google...">
                         <strong>Continue with Google</strong>
                     </a>
-                    <a href="/auth/facebook" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Facebook...">
+                    <a href="/auth/facebook?mode=login" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Facebook...">
                         <strong>Continue with Facebook</strong>
                     </a>
                 </div>

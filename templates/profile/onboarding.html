@@ -1,338 +1,282 @@
 {% extends "base.html" %}
 
-{% block title %}CHAIN Onboarding{% endblock %}
+{% block title %}Complete your Profile | CHAIN{% endblock %}
 {% block body_class %}chain-wallpaper-onboarding{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/chain_onboarding.css">
+<style>
+    .onboard-card {
+        max-width: 500px;
+        margin: 40px auto;
+        padding: 30px;
+        background: var(--chain-bg-panel-strong);
+        border: 1px solid var(--chain-border);
+        border-radius: 18px;
+        box-shadow: var(--chain-shadow-lg);
+        backdrop-filter: blur(20px);
+    }
+    .onboard-step { display: none; }
+    .onboard-step.is-active { display: block; }
+    .chip-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    .choice-chip {
+        padding: 10px 20px;
+        border-radius: 999px;
+        background: var(--chain-bg-soft);
+        border: 1px solid var(--chain-border);
+        cursor: pointer;
+        font-weight: 700;
+        transition: all 0.2s;
+    }
+    .choice-chip.is-selected {
+        background: var(--chain-primary);
+        color: white;
+        border-color: var(--chain-primary);
+    }
+    .progress-track {
+        height: 6px;
+        background: var(--chain-border);
+        border-radius: 999px;
+        margin-bottom: 30px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background: var(--chain-primary);
+        width: 20%;
+        transition: width 0.3s ease;
+    }
+    .photo-upload-zone {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: var(--chain-bg-soft);
+        border: 2px dashed var(--chain-border);
+        margin: 0 auto 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+        cursor: pointer;
+    }
+    .photo-upload-zone img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .photo-upload-zone i {
+        font-size: 30px;
+        color: var(--chain-muted);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<section class="onboard-shell">
-    <form method="POST" enctype="multipart/form-data" class="onboard-wizard" id="chain-onboarding-form">
-        <div class="onboard-head">
-            <div>
-                <p class="onboard-eyebrow">CHAIN Social Onboarding</p>
-                <h1>Build your profile your way.</h1>
-                <p class="onboard-copy">Move through a guided setup for your social identity, content preferences, privacy, wallet and creator foundations.</p>
-            </div>
-            <div class="onboard-progress-wrap">
-                <div class="onboard-progress-label">
-                    <strong>Progress</strong>
-                    <span id="chain-onboard-progress-text">Step 1 of 10</span>
-                </div>
-                <div class="onboard-progress-bar"><span id="chain-onboard-progress-bar"></span></div>
-            </div>
+<div class="onboard-shell">
+    <div class="onboard-card" id="onboarding-wizard">
+        <div class="progress-track">
+            <div class="progress-fill" id="progress-bar"></div>
         </div>
 
-        {% if error %}
-        <div class="onboard-alert onboard-alert--error">{{ error }}</div>
-        {% endif %}
-
-        {% with messages = get_flashed_messages(category_filter=['success']) %}
-            {% if messages %}
-                {% for message in messages %}
-                <div class="onboard-alert onboard-alert--success">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <input type="hidden" name="wizard_complete" value="1">
-        <input type="hidden" name="account_mode" id="account_mode" value="{{ form.get('account_mode') if form else (profile.account_mode or profile.profile_type or 'member') }}">
-        <input type="hidden" name="zodiac_sign" id="zodiac_sign" value="{{ form.get('zodiac_sign') if form else (profile.zodiac_sign or '') }}">
-        <input type="hidden" name="age" id="age" value="{{ form.get('age') if form else (profile.age or '') }}">
-        <input type="hidden" name="live_categories" id="live_categories" value="{{ form.get('live_categories') if form else '' }}">
-        <input type="hidden" name="post_categories" id="post_categories" value="{{ form.get('post_categories') if form else '' }}">
-        <input type="hidden" name="language_preferences" id="language_preferences" value="{{ form.get('language_preferences') if form else ((profile.languages or [])|join(', ')) }}">
-        <input type="hidden" name="dating_interest" id="dating_interest" value="{{ form.get('dating_interest') if form else '' }}">
-        <input type="hidden" name="avatar_mode" id="avatar_mode" value="{{ form.get('avatar_mode') if form else 'upload' }}">
-        <input type="hidden" name="system_avatar_key" id="system_avatar_key" value="{{ form.get('system_avatar_key') if form else '' }}">
-        <input type="hidden" name="creator_category" id="creator_category" value="{{ form.get('creator_category') if form else (profile.creator_category or '') }}">
-        <input type="hidden" name="relationship_status" id="relationship_status" value="{{ form.get('relationship_status') if form else (profile.relationship_status or '') }}">
-
-        <div class="onboard-steps">
+        <form id="onboarding-form" method="POST" enctype="multipart/form-data">
+            <!-- Step 1: Photo -->
             <article class="onboard-step is-active" data-step="1">
-                <span class="onboard-kicker">Step 1</span>
-                <h2>What brings you to CHAIN?</h2>
-                <p>Choose the experience you want first. You can add more modes later without opening a second account.</p>
-                <div class="onboard-choice-grid onboard-choice-grid--purpose">
-                    {% for mode, label, copy in [('member','Meet people','Social discovery, messages and stories.'),('creator','Go live and grow','Stream, receive gifts and build community.'),('seller','Sell media','Prepare music, videos and art for marketplace approval.'),('dating','Dating opt-in','Keep dating separate until you choose it.')] %}
-                    <button type="button" class="choice-card choice-card--single {% if (form.get('account_mode') if form else (profile.account_mode or profile.profile_type or 'member')) == mode %}is-selected{% endif %}" data-target="account_mode" data-single-value="{{ mode }}">
-                        <strong>{{ label }}</strong>
-                        <span>{{ copy }}</span>
-                    </button>
-                    {% endfor %}
+                <h2>Add a profile photo</h2>
+                <p>Let people know who you are.</p>
+                
+                <div class="photo-upload-zone" onclick="document.getElementById('avatar-input').click()">
+                    <img id="avatar-preview" src="{{ profile.avatar_url or '' }}" style="{{ 'display:block' if profile.avatar_url else 'display:none' }}">
+                    <i class="fas fa-camera" style="{{ 'display:none' if profile.avatar_url else 'display:block' }}"></i>
                 </div>
+                <input type="file" id="avatar-input" name="avatar" accept="image/*" hidden onchange="previewImage(this, 'avatar-preview')">
+                
+                <div class="action-cluster" style="justify-content: center;">
+                    <button type="button" class="primary" onclick="document.getElementById('avatar-input').click()">Choose from gallery</button>
+                    <button type="button" class="secondary" onclick="capturePhoto()">Take photo</button>
+                </div>
+                <input type="file" id="camera-input" name="camera_avatar" accept="image/*" capture="environment" hidden onchange="previewImage(this, 'avatar-preview')">
             </article>
 
+            <!-- Step 2: Interests -->
             <article class="onboard-step" data-step="2">
-                <span class="onboard-kicker">Step 2</span>
-                <h2>Basic identity</h2>
-                <p>Keep it clean and clear. Most of your details can stay private while your display presence stays polished.</p>
-                <div class="onboard-field-grid">
-                    <label><span>Full name</span><input type="text" name="full_name" required value="{{ form.get('full_name') if form else (profile.full_name or session.get('full_name') or '') }}"></label>
-                    <label><span>Username</span><input type="text" name="username" required value="{{ form.get('username') if form else (profile.username or session.get('username') or '') }}"></label>
-                    <label><span>Phone</span><input type="text" name="phone" required value="{{ form.get('phone') if form else (profile.phone or '') }}"></label>
-                    <label><span>Profile type</span><select name="profile_type">
-                        {% for value in ['member','creator','seller','host'] %}
-                        <option value="{{ value }}" {% if (form.get('profile_type') if form else (profile.profile_type or 'member')) == value %}selected{% endif %}>{{ value|title }}</option>
-                        {% endfor %}
-                    </select></label>
-                    <label class="onboard-field-grid__full"><span>Bio</span><textarea name="bio" rows="4" placeholder="A short intro about your vibe, content or what you want to discover.">{{ form.get('bio') if form else (profile.bio or '') }}</textarea></label>
+                <h2>Your Interests</h2>
+                <p>Select what you love.</p>
+                <div class="chip-grid" data-target="interests">
+                    {% for interest in ['Music', 'Gaming', 'Fashion', 'Sports', 'Business', 'Travel', 'Dating', 'Technology', 'Movies', 'Food', 'Photography'] %}
+                    <div class="choice-chip" data-value="{{ interest }}">{{ interest }}</div>
+                    {% endfor %}
                 </div>
-                <div class="onboard-chip-section">
-                    <strong>Creator category</strong>
-                    <div class="chip-grid" data-target="creator_category" data-multi="false">
-                        {% for item in ['Live host','Musician','DJ','Videographer','Photographer','Artist','Lifestyle creator','Seller'] %}
-                        <button type="button" class="choice-chip" data-value="{{ item }}">{{ item }}</button>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="onboard-chip-section">
-                    <strong>Relationship status</strong>
-                    <div class="chip-grid" data-target="relationship_status" data-multi="false">
-                        {% for item in ['Single','Private','Open to meeting','Focused on work','Complicated'] %}
-                        <button type="button" class="choice-chip" data-value="{{ item }}">{{ item }}</button>
-                        {% endfor %}
-                    </div>
-                </div>
+                <input type="hidden" name="interests" id="interests-input" value="{{ profile.interests|join(',') if profile.interests else '' }}">
             </article>
 
+            <!-- Step 3: Languages -->
             <article class="onboard-step" data-step="3">
-                <span class="onboard-kicker">Step 3</span>
-                <h2>Country, region and town</h2>
-                <p>CHAIN is global. Pick your home country first, then narrow it down only as much as you want.</p>
-                <div class="onboard-field-grid">
-                    <label><span>Country origin</span><select name="country_origin" id="country_origin" required data-selected="{{ form.get('country_origin') if form else (profile.country_origin or '') }}"></select></label>
-                    <label><span>Region / State</span><select name="region" id="region" data-selected="{{ form.get('region') if form else (profile.region or '') }}"></select></label>
-                    <label><span>Town / City</span><input type="text" name="town" id="town" required value="{{ form.get('town') if form else (profile.town or '') }}" placeholder="Windhoek"></label>
-                    <label><span>Current location</span><input type="text" name="current_location" value="{{ form.get('current_location') if form else (profile.current_location or '') }}" placeholder="Visible location"></label>
-                    <label class="onboard-field-grid__full"><span>Current residential location</span><input type="text" name="current_residential_location" required value="{{ form.get('current_residential_location') if form else (profile.current_residential_location or profile.current_location or '') }}" placeholder="Area or neighborhood"></label>
-                    <label class="onboard-field-grid__full"><span>Residential address</span><input type="text" name="residential_address" required value="{{ form.get('residential_address') if form else (profile.residential_address or '') }}" placeholder="Private address for account safety"></label>
-                    <label><span>Country of birth</span><input type="text" name="country_of_birth" required value="{{ form.get('country_of_birth') if form else (profile.country_of_birth or profile.country_origin or '') }}"></label>
+                <h2>Languages</h2>
+                <p>What languages do you speak?</p>
+                <div class="chip-grid" data-target="languages">
+                    {% for lang in ['English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Portuguese', 'Arabic', 'Hindi'] %}
+                    <div class="choice-chip" data-value="{{ lang }}">{{ lang }}</div>
+                    {% endfor %}
                 </div>
+                <input type="hidden" name="languages" id="languages-input" value="{{ profile.languages|join(',') if profile.languages else '' }}">
             </article>
 
+            <!-- Step 4: Creator Type -->
             <article class="onboard-step" data-step="4">
-                <span class="onboard-kicker">Step 4</span>
-                <h2>Birthday and zodiac</h2>
-                <p>Your birthday helps keep the community adult-only and makes recommendations feel more personal.</p>
-                <div class="onboard-field-grid">
-                    <label><span>Date of birth</span><input type="date" name="date_of_birth" id="date_of_birth" required value="{{ form.get('date_of_birth') if form else (profile.date_of_birth or '') }}"></label>
-                    <label><span>Age</span><input type="text" id="age_preview" readonly value="{{ form.get('age') if form else (profile.age or '') }}"></label>
-                    <label><span>Zodiac</span><input type="text" id="zodiac_preview" readonly value="{{ form.get('zodiac_sign') if form else (profile.zodiac_sign or '') }}"></label>
-                    <label><span>Gender</span><select name="gender" required>
-                        <option value="">Select</option>
-                        {% for value in ['Woman','Man','Non-binary','Private'] %}
-                        <option value="{{ value }}" {% if (form.get('gender') if form else profile.gender) == value %}selected{% endif %}>{{ value }}</option>
-                        {% endfor %}
-                    </select></label>
+                <h2>Creator Type</h2>
+                <p>How will you use CHAIN?</p>
+                <div class="chip-grid" data-target="creator_type">
+                    {% for type in ['Viewer', 'Creator', 'Streamer', 'Business', 'Musician', 'Influencer'] %}
+                    <div class="choice-chip" data-value="{{ type }}">{{ type }}</div>
+                    {% endfor %}
                 </div>
-                <label class="onboard-toggle"><input type="checkbox" name="show_zodiac" {% if (form.get('show_zodiac') if form else profile.show_zodiac) %}checked{% endif %}> <span>Show my zodiac on my profile</span></label>
+                <input type="hidden" name="profile_type" id="creator_type-input" value="{{ profile.profile_type or 'viewer' }}">
             </article>
 
+            <!-- Step 5: Finish -->
             <article class="onboard-step" data-step="5">
-                <span class="onboard-kicker">Step 5</span>
-                <h2>Tell CHAIN what you want to see</h2>
-                <p>These picks will later shape which live rooms, posts and creator experiences surface first on your homepage.</p>
-                <div class="onboard-chip-section">
-                    <strong>Live feed interests</strong>
-                    <div class="chip-grid" data-target="live_categories" data-multi="true">
-                        {% for item in ['Live Music','Dating','Chill Room','Creators','Namibia Nightlife','Talent','Stories','Gaming','Fashion','Faith','Wellness','Talk Shows'] %}
-                        <button type="button" class="choice-chip" data-value="{{ item }}">{{ item }}</button>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="onboard-chip-section">
-                    <strong>Post interests</strong>
-                    <div class="chip-grid" data-target="post_categories" data-multi="true">
-                        {% for item in ['Music','Lifestyle','Travel','Dating','Comedy','Photography','Art','Fitness','Beauty','Business','Family','Nightlife'] %}
-                        <button type="button" class="choice-chip" data-value="{{ item }}">{{ item }}</button>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="onboard-chip-section">
-                    <strong>Language preferences</strong>
-                    <div class="chip-grid" data-target="language_preferences" data-multi="true">
-                        {% for item in ['English','Oshiwambo','Afrikaans','Damara/Nama','Otjiherero','Portuguese','French','German','Swahili','Hindi','Mandarin'] %}
-                        <button type="button" class="choice-chip" data-value="{{ item }}">{{ item }}</button>
-                        {% endfor %}
-                    </div>
+                <h2>You're all set!</h2>
+                <p>Your profile is ready. Welcome to CHAIN.</p>
+                <div style="text-align: center; margin-top: 30px;">
+                    <i class="fas fa-check-circle" style="font-size: 60px; color: var(--chain-primary);"></i>
                 </div>
             </article>
 
-            <article class="onboard-step" data-step="6">
-                <span class="onboard-kicker">Step 6</span>
-                <h2>Choose how you want to appear</h2>
-                <p>You can upload a photo, capture one on your phone, choose a system avatar or stay anonymous until you feel ready.</p>
-                <div class="onboard-choice-grid">
-                    {% for mode, label in [('upload','Upload picture'),('camera','Capture with phone camera'),('system','Choose system avatar'),('anonymous','Anonymous avatar')] %}
-                    <button type="button" class="choice-card choice-card--single {% if (form.get('avatar_mode') if form else 'upload') == mode %}is-selected{% endif %}" data-target="avatar_mode" data-single-value="{{ mode }}">
-                        <strong>{{ label }}</strong>
-                    </button>
-                    {% endfor %}
-                </div>
-                
-                <div class="onboard-upload-container" style="display:flex; gap:20px; margin-top:20px; flex-wrap:wrap;">
-                    <div class="onboard-upload-box" style="flex:1; min-width:280px;">
-                        <label><span>Profile Avatar</span><input type="file" name="avatar" id="avatar_input" accept="image/*" class="chain-file-input"></label>
-                        <div id="avatar_preview" class="upload-preview-circle" style="width:120px; height:120px; border-radius:50%; background:#221b26; margin-top:10px; border:2px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                            {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" style="width:100%; height:100%; object-fit:cover;">
-                            {% else %}
-                            <i class="fas fa-user" style="font-size:40px; color:rgba(255,255,255,0.2);"></i>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="onboard-upload-box" style="flex:1; min-width:280px;">
-                        <label><span>Profile Cover</span><input type="file" name="cover" id="cover_input" accept="image/*" class="chain-file-input"></label>
-                        <div id="cover_preview" class="upload-preview-rect" style="width:100%; height:120px; border-radius:12px; background:#221b26; margin-top:10px; border:2px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                            {% if profile.cover_url %}
-                            <img src="{{ profile.cover_url }}" style="width:100%; height:100%; object-fit:cover;">
-                            {% else %}
-                            <i class="fas fa-image" style="font-size:40px; color:rgba(255,255,255,0.2);"></i>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="onboard-field-grid" style="margin-top:20px;">
-                    <label class="onboard-field-grid__full"><span>Capture with phone camera</span><input type="file" name="camera_avatar" id="camera_avatar_input" accept="image/*" capture="user"></label>
-                </div>
-                
-                <div class="chip-grid chip-grid--avatars" data-target="system_avatar_key" data-multi="false" style="margin-top:20px;">
-                    {% for item in ['aurora','ember','starlight','midnight','lotus','signal'] %}
-                    <button type="button" class="choice-chip choice-chip--avatar" data-value="{{ item }}">{{ item|title }}</button>
-                    {% endfor %}
-                </div>
-                <label class="onboard-toggle" style="margin-top:20px;"><input type="checkbox" name="is_anonymous_avatar" {% if form and form.get('is_anonymous_avatar') %}checked{% endif %}> <span>Start with an anonymous avatar until I decide to show my face</span></label>
-            </article>
-
-            <article class="onboard-step" data-step="7">
-                <span class="onboard-kicker">Step 7</span>
-                <h2>Privacy and contact permissions</h2>
-                <p>Decide who can reach you, how visible you are, and what kind of communication is open on your account.</p>
-                <div class="onboard-field-grid">
-                    <label><span>Who can view profile</span><select name="who_can_view_profile">
-                        {% for value in ['everyone','members_only','followers_only'] %}
-                        <option value="{{ value }}" {% if (form.get('who_can_view_profile') if form else 'everyone') == value %}selected{% endif %}>{{ value.replace('_', ' ')|title }}</option>
-                        {% endfor %}
-                    </select></label>
-                    <label><span>Profile visibility</span><select name="profile_visibility">
-                        {% for value in ['public','private','premium_only'] %}
-                        <option value="{{ value }}" {% if (form.get('profile_visibility') if form else (profile.profile_visibility or 'public')) == value %}selected{% endif %}>{{ value.replace('_', ' ')|title }}</option>
-                        {% endfor %}
-                    </select></label>
-                    <label><span>Who can contact you</span><select name="allow_contact_from">
-                        {% for value in ['everyone','members_only','followers_only','nobody'] %}
-                        <option value="{{ value }}" {% if (form.get('allow_contact_from') if form else 'everyone') == value %}selected{% endif %}>{{ value.replace('_', ' ')|title }}</option>
-                        {% endfor %}
-                    </select></label>
-                </div>
-                <div class="onboard-toggle-list">
-                    <label class="onboard-toggle"><input type="checkbox" name="allow_profile_discovery" checked> <span>Let CHAIN recommend my profile</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="allow_messages" checked> <span>Allow messages</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="allow_audio_calls" checked> <span>Allow audio calls</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="allow_video_calls" checked> <span>Allow video calls</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="allow_high_quality_media" checked> <span>Allow high-quality media sharing</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="allow_status_video" checked> <span>Allow status videos</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="allow_music_uploads" checked> <span>Allow music uploads for streams</span></label>
-                </div>
-            </article>
-
-            <article class="onboard-step" data-step="8">
-                <span class="onboard-kicker">Step 8</span>
-                <h2>Optional modes and foundations</h2>
-                <p>Turn on creator, seller or dating mode only if you want them. Marketplace and wallet tools stay pending until admin approval where required.</p>
-                <div class="onboard-toggle-list">
-                    <label class="onboard-toggle"><input type="checkbox" name="creator_mode_enabled" {% if (form.get('creator_mode_enabled') if form else profile.creator_mode_enabled) %}checked{% endif %}> <span>Become a creator</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="seller_mode_enabled" {% if (form.get('seller_mode_enabled') if form else profile.seller_mode_enabled) %}checked{% endif %}> <span>Sell music, videos or photos/art</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="dating_mode_enabled" {% if (form.get('dating_mode_enabled') if form else profile.dating_mode_enabled) %}checked{% endif %}> <span>Opt in to dating mode on this same account</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="premium_mode_enabled" {% if (form.get('premium_mode_enabled') if form else profile.premium_mode_enabled) %}checked{% endif %}> <span>I want premium tools later</span></label>
-                </div>
-                <div class="onboard-chip-section">
-                    <strong>Dating interest</strong>
-                    <div class="chip-grid" data-target="dating_interest" data-multi="true">
-                        {% for item in ['Friendship','Long-term','Dating','Networking','Travel partner','Open to meeting'] %}
-                        <button type="button" class="choice-chip" data-value="{{ item }}">{{ item }}</button>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="marketplace-foundation-grid">
-                    <div class="foundation-card"><strong>Sell music</strong><span>Albums, singles, exclusive tracks.</span></div>
-                    <div class="foundation-card"><strong>Sell videos</strong><span>Blurred previews and locked premium access later.</span></div>
-                    <div class="foundation-card"><strong>Sell photos/art</strong><span>Admin approval before public marketplace visibility.</span></div>
-                    <div class="foundation-card"><strong>Wallet foundation</strong><span>1 CHAIN coin = NAD 5, manual top-up approvals, withdrawals and PIN foundation.</span></div>
-                </div>
-            </article>
-
-            <article class="onboard-step" data-step="9">
-                <span class="onboard-kicker">Step 9</span>
-                <h2>Human confirmation</h2>
-                <p>Keep CHAIN real, safe and welcoming. This is about trust, not robot prompts.</p>
-                <div class="onboard-toggle-list">
-                    <label class="onboard-toggle"><input type="checkbox" name="consent_accepted" required> <span>I agree to build a real profile and respect the community.</span></label>
-                    <label class="onboard-toggle"><input type="checkbox" name="real_person_confirmed" required> <span>I am a real person using my own account.</span></label>
-                </div>
-                <div class="onboard-field-grid">
-                    <label class="onboard-field-grid__full"><span>Optional selfie or verification photo</span><input type="file" name="verification_selfie" id="verification_selfie_input" accept="image/*" capture="user"></label>
-                    <div id="verification_selfie_preview" class="upload-preview-rect" style="width:100%; max-width:400px; height:200px; border-radius:12px; background:#221b26; margin-top:10px; border:2px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                        <i class="fas fa-camera" style="font-size:40px; color:rgba(255,255,255,0.2);"></i>
-                    </div>
-                </div>
-            </article>
-
-            <article class="onboard-step" data-step="10">
-                <span class="onboard-kicker">Step 10</span>
-                <h2>Ready to enter CHAIN</h2>
-                <p>Your profile, preferences, privacy, creator flags and onboarding foundations will be saved now.</p>
-                <div class="finish-grid">
-                    <div class="finish-card"><strong>Profile</strong><span>Identity, location and intro are ready.</span></div>
-                    <div class="finish-card"><strong>Preferences</strong><span>Live and post interests are captured.</span></div>
-                    <div class="finish-card"><strong>Privacy</strong><span>Contact and visibility settings are in place.</span></div>
-                    <div class="finish-card"><strong>Future foundations</strong><span>Dating, creator, seller, wallet and marketplace setup can grow from here.</span></div>
-                </div>
-            </article>
-        </div>
-
-        <div class="onboard-actions">
-            <button type="button" class="secondary" id="chain-onboard-prev">Back</button>
-            <div class="onboard-actions__right">
-                <a href="/auth/logout" class="onboard-soft-link">Exit</a>
-                <button type="button" class="primary" id="chain-onboard-next">Next</button>
-                <button type="submit" class="primary" id="chain-onboard-submit">Finish Profile</button>
+            <div class="onboard-actions" style="margin-top: 40px; display: flex; justify-content: space-between;">
+                <button type="button" class="secondary" id="prev-btn" style="visibility: hidden;">Back</button>
+                <button type="button" class="primary" id="next-btn">Next</button>
+                <button type="submit" class="primary" id="finish-btn" style="display: none;">Finish</button>
+                <button type="button" class="secondary" id="skip-btn">Skip</button>
             </div>
-        </div>
-    </form>
-</section>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/chain_locations.js"></script>
-<script src="/static/js/chain_onboarding.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    function setupPreview(inputId, previewId) {
-        const input = document.getElementById(inputId);
-        const preview = document.getElementById(previewId);
-        if (!input || !preview) return;
+    let currentStep = 1;
+    const totalSteps = 5;
+    const form = document.getElementById('onboarding-form');
+    const steps = document.querySelectorAll('.onboard-step');
+    const progressBar = document.getElementById('progress-bar');
+    const nextBtn = document.getElementById('next-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const finishBtn = document.getElementById('finish-btn');
+    const skipBtn = document.getElementById('skip-btn');
 
-        input.addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
-                }
-                reader.readAsDataURL(file);
-            }
-        });
+    function updateWizard() {
+        steps.forEach(s => s.classList.remove('is-active'));
+        document.querySelector(`[data-step="${currentStep}"]`).classList.add('is-active');
+        
+        progressBar.style.width = `${(currentStep / totalSteps) * 100}%`;
+        
+        prevBtn.style.visibility = currentStep === 1 ? 'hidden' : 'visible';
+        
+        if (currentStep === totalSteps) {
+            nextBtn.style.display = 'none';
+            skipBtn.style.display = 'none';
+            finishBtn.style.display = 'inline-flex';
+        } else {
+            nextBtn.style.display = 'inline-flex';
+            skipBtn.style.display = 'inline-flex';
+            finishBtn.style.display = 'none';
+        }
     }
 
-    setupPreview('avatar_input', 'avatar_preview');
-    setupPreview('cover_input', 'cover_preview');
-    setupPreview('camera_avatar_input', 'avatar_preview');
-    setupPreview('verification_selfie_input', 'verification_selfie_preview');
-});
+    nextBtn.addEventListener('click', async () => {
+        // Save current step data immediately
+        await saveStepData();
+        
+        if (currentStep < totalSteps) {
+            currentStep++;
+            updateWizard();
+        }
+    });
+
+    prevBtn.addEventListener('click', () => {
+        if (currentStep > 1) {
+            currentStep--;
+            updateWizard();
+        }
+    });
+
+    skipBtn.addEventListener('click', async () => {
+        if (currentStep < totalSteps) {
+            currentStep++;
+            updateWizard();
+        }
+    });
+
+    async function saveStepData() {
+        const formData = new FormData(form);
+        formData.append('partial_step', currentStep);
+        
+        try {
+            const response = await fetch('/profile/onboarding', {
+                method: 'POST',
+                body: formData
+            });
+            if (response.redirected) {
+                // If the server redirects, it means onboarding is complete
+                window.location.href = response.url;
+            }
+        } catch (error) {
+            console.error('Failed to save step:', error);
+        }
+    }
+
+    function previewImage(input, previewId) {
+        const preview = document.getElementById(previewId);
+        const icon = preview.nextElementSibling;
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                if (icon) icon.style.display = 'none';
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function capturePhoto() {
+        document.getElementById('camera-input').click();
+    }
+
+    // Chip Selection
+    document.querySelectorAll('.chip-grid').forEach(grid => {
+        const targetId = grid.dataset.target;
+        const input = document.getElementById(`${targetId}-input`);
+        
+        grid.querySelectorAll('.choice-chip').forEach(chip => {
+            // Initial state
+            const currentValues = input.value.split(',').filter(Boolean);
+            if (currentValues.includes(chip.dataset.value)) {
+                chip.classList.add('is-selected');
+            }
+
+            chip.addEventListener('click', () => {
+                if (targetId === 'creator_type') {
+                    // Single select
+                    grid.querySelectorAll('.choice-chip').forEach(c => c.classList.remove('is-selected'));
+                    chip.classList.add('is-selected');
+                    input.value = chip.dataset.value;
+                } else {
+                    // Multi select
+                    chip.classList.toggle('is-selected');
+                    const selected = Array.from(grid.querySelectorAll('.choice-chip.is-selected'))
+                                         .map(c => c.dataset.value);
+                    input.value = selected.join(',');
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}

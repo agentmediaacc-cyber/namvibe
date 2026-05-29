@@ -4,7 +4,17 @@ from datetime import datetime, timezone
 
 from flask import session
 from werkzeug.utils import secure_filename
+from engines.cache_engine import cache_key, get_cache, set_cache
 from engines.performance_engine import compact_room
+from services.neon_service import (
+    fetch_all_with_connection,
+    get_cached_table_columns,
+    get_connection,
+    get_pool_status,
+    get_table_columns,
+    get_neon_health,
+    release_connection,
+)
 from services.profile_service import get_current_profile
 from services.storage_service import upload_live_cover, upload_live_music
 from services.supabase_safe import safe_count, safe_insert, safe_select, safe_update
@@ -278,6 +288,75 @@ def get_live_rooms(limit=30):
     except Exception as error:
         print(f"[live_service] get_live_rooms failed: {error}")
         return []
+
+
+def get_live_rooms_public(limit=12, allow_query=True):
+    cached = get_cache(cache_key("chain_live_public_v1", limit))
+    if cached is not None:
+        return cached
+
+    if not allow_query:
+        payload = []
+        set_cache(cache_key("chain_live_public_v1", limit), payload, ttl=30)
+        return payload
+
+    pool_status = get_pool_status()
+    if not pool_status.get("recent_success"):
+        payload = []
+        set_cache(cache_key("chain_live_public_v1", limit), payload, ttl=30)
+        return payload
+
+    columns = set(get_cached_table_columns("chain_live_rooms") or get_table_columns("chain_live_rooms", timeout_ms=150))
+    required = {"id", "title", "created_at"}
+    if not required.issubset(columns):
+        payload = []
+        set_cache(cache_key("chain_live_public_v1", limit), payload, ttl=30)
+        return payload
+
+    select_columns = [column for column in [
+        "id", "profile_id", "title", "status", "is_live", "category",
+        "viewer_count", "cover_url", "entry_fee", "created_at"
+    ] if column in columns]
+    where = ["deleted_at IS NULL"] if "deleted_at" in columns else []
+    if "is_live" in columns:
+        where.append("is_live = TRUE")
+    elif "status" in columns:
+        where.append("LOWER(COALESCE(status, '')) IN ('live', 'published', 'active')")
+    query = f"SELECT {', '.join(select_columns)} FROM chain_live_rooms"
+    if where:
+        query += " WHERE " + " AND ".join(where)
+    query += " ORDER BY created_at DESC LIMIT %s"
+    connection = None
+    try:
+        connection = get_connection(statement_timeout_ms=200, fast_fail=True)
+        rows = fetch_all_with_connection(connection, query, [limit], timeout_ms=200)
+    except Exception:
+        rows = []
+    finally:
+        release_connection(connection)
+    normalized = []
+    for row in rows:
+        normalized.append(
+            {
+                "id": row.get("id"),
+                "title": row.get("title") or "",
+                "status": row.get("status") or ("live" if row.get("is_live") else "published"),
+                "category": row.get("category") or "",
+                "viewer_count": row.get("viewer_count"),
+                "cover_url": row.get("cover_url"),
+                "entry_fee": row.get("entry_fee"),
+                "watch_url": f"/live/room/{row.get('id')}",
+            }
+        )
+    set_cache(cache_key("chain_live_public_v1", limit), normalized, ttl=30)
+    return normalized
+
+
+def prime_live_rooms_public_cache(limit=8):
+    try:
+        get_live_rooms_public(limit=limit, allow_query=True)
+    except Exception:
+        set_cache(cache_key("chain_live_public_v1", limit), [], ttl=30)
 
 
 def get_room(room_id):

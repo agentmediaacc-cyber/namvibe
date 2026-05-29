@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const isAuthenticated = document.body?.dataset?.authenticated === 'true';
     const currentPath = window.location.pathname;
     const links = document.querySelectorAll('.sidebar-link, .mobile-link');
 
@@ -57,9 +58,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             updateNotifCount(data.count || 0);
         } catch (error) {
+        } finally {
+            if (isAuthenticated) {
+                setTimeout(refreshNotifCount, 20000);
+            }
         }
     };
 
-    refreshNotifCount();
-    window.setInterval(refreshNotifCount, 20000);
+    if (isAuthenticated) {
+        refreshNotifCount();
+    } else {
+        updateNotifCount(0);
+    }
 });

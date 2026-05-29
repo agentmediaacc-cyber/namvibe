@@ -4,14 +4,15 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/profile_premium.css">
+<link rel="stylesheet" href="/static/css/chain_profile.css">
 {% endblock %}
 
 {% block content %}
 <div class="premium-profile-shell">
     {% include "profile/partials/profile_header.html" %}
-    {% include "profile/partials/profile_stats.html" %}
-    {% include "profile/partials/profile_actions.html" %}
+    {% if not profile_fallback %}
     {% include "profile/partials/profile_tabs.html" %}
+    {% endif %}
     {% block profile_body %}{% endblock %}
 </div>
 {% endblock %}

@@ -12,12 +12,12 @@
         <span>Following</span>
     </article>
     <article class="stat-card">
-        <b>{{ stats.likes or profile.total_likes or 0 }}</b>
-        <span>Likes</span>
-    </article>
-    <article class="stat-card">
         <b>{{ stats.posts or 0 }}</b>
         <span>Posts</span>
+    </article>
+    <article class="stat-card">
+        <b>{{ stats.reels or profile.reels_count or 0 }}</b>
+        <span>Reels</span>
     </article>
     <article class="stat-card">
         <b>{{ stats.stories or 0 }}</b>

@@ -1,85 +1,68 @@
 {% extends "base.html" %}
-
-{% block title %}CHAIN Wallet{% endblock %}
-{% block body_class %}chain-wallpaper-wallet{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="/static/css/chain_portal.css">{% endblock %}
-
 {% block content %}
-<section class="chain-portal-shell">
-    <div class="chain-portal-grid chain-portal-grid--2" style="margin-bottom:16px;">
-        <article class="chain-portal-hero">
-            <p class="chain-portal-kicker">Wallet</p>
-            <h1>Coins, requests and payouts.</h1>
-            <p class="chain-portal-copy">Manual payments are reviewed by admin. Every request and approval now writes wallet transaction history.</p>
-            <div class="chain-badge-row">
-                <a href="/wallet/top-up" class="primary">Request top-up</a>
-                <a href="/wallet/withdraw" class="secondary">Withdraw coins</a>
-                <a href="/wallet/pin" class="secondary">Wallet PIN</a>
-            </div>
-        </article>
-        <article class="chain-data-card chain-rate-card">
-            <div class="chain-wallet-balance">
-                <div><span class="chain-help">Coin balance</span><strong>{{ wallet.coin_balance or 0 }}</strong></div>
-                <div><span class="chain-help">Available balance</span><strong>{{ wallet.available_balance or wallet.coin_balance or 0 }} coins</strong></div>
-                <div><span class="chain-help">Pending balance</span><strong>{{ wallet.pending_withdrawal_balance or wallet.pending_withdrawal or 0 }} coins</strong></div>
-                <div><span class="chain-help">1 CHAIN coin</span><strong>= NAD 5</strong></div>
-            </div>
-        </article>
-    </div>
-
-    <div class="chain-portal-grid chain-portal-grid--2" style="margin-bottom:16px;">
-        <section class="chain-data-card">
-            <h2>Top-up history</h2>
-            <div class="chain-list">
-                {% for row in topups %}
-                <div class="chain-list-item">
-                    <div>
-                        <strong>{{ row.reference }}</strong>
-                        <div class="chain-help">{{ row.amount_nad }} NAD · {{ row.method }}</div>
+<div class="container mt-4">
+    {% if setup_warning %}
+    <div class="alert alert-warning">Finishing your profile setup. Your wallet will appear here soon.</div>
+    {% endif %}
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <h6 class="text-muted text-uppercase small mb-2">My Balance</h6>
+                    <h2 class="mb-3"><i class="fas fa-coins text-warning"></i> {{ wallet.coin_balance }} <small class="text-muted fs-6">coins</small></h2>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#topupModal">Top Up Coins</button>
+                        <a href="{{ url_for('wallet.api_payout_request') }}" class="btn btn-outline-secondary btn-sm" onclick="event.preventDefault(); payoutRequest();">Request Payout</a>
                     </div>
-                    <span class="chain-status-{{ 'approved' if row.status == 'approved' else ('rejected' if row.status == 'rejected' else 'pending') }}">{{ row.status|title }}</span>
-                </div>
-                {% else %}
-                <div class="chain-empty-state">Your first top-up request will appear here after you fund your wallet.</div>
-                {% endfor %}
-            </div>
-        </section>
-        <section class="chain-data-card">
-            <h2>Withdrawal history</h2>
-            <div class="chain-list">
-                {% for row in withdrawals %}
-                <div class="chain-list-item">
-                    <div>
-                        <strong>{{ row.coins_redeemed }} coins</strong>
-                        <div class="chain-help">{{ row.amount_nad }} NAD · {{ row.destination_method }}</div>
-                    </div>
-                    <span class="chain-status-{{ 'approved' if row.status in ['approved','executed'] else ('rejected' if row.status == 'rejected' else 'pending') }}">{{ row.status|title }}</span>
-                </div>
-                {% else %}
-                <div class="chain-empty-state">Withdrawals will appear here once you move coins out of your wallet.</div>
-                {% endfor %}
-            </div>
-        </section>
-    </div>
-
-    <section class="chain-data-card">
-        <h2>Transaction history</h2>
-        <div class="chain-list">
-            {% for tx in transactions %}
-            <div class="chain-list-item">
-                <div>
-                    <strong>{{ tx.transaction_type|replace('_',' ')|title }}</strong>
-                    <div class="chain-help">{{ tx.description or 'Wallet activity' }}</div>
-                </div>
-                <div style="text-align:right;">
-                    <div>{{ tx.coins or 0 }} coins</div>
-                    <span class="chain-status-{{ 'approved' if tx.status in ['completed','approved','executed'] else ('rejected' if tx.status == 'rejected' else 'pending') }}">{{ tx.status|title }}</span>
                 </div>
             </div>
-            {% else %}
-            <div class="chain-empty-state">Your wallet activity ledger will appear here as soon as you top up, withdraw, gift, or buy.</div>
-            {% endfor %}
         </div>
-    </section>
-</section>
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Transaction History</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% if transactions %}
+                        {% for tx in transactions %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                <div>
+                                    <h6 class="mb-0">{{ tx.description or tx.tx_type|replace('_', ' ')|title }}</h6>
+                                    <small class="text-muted">{{ tx.created_at }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="{% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                        {% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}+{% else %}-{% endif %}{{ tx.amount }}
+                                    </span>
+                                    <div class="small text-muted text-uppercase">{{ tx.status }}</div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-5 text-center text-muted">
+                            <i class="fas fa-history fa-2x mb-3"></i>
+                            <p>No transactions found.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function payoutRequest() {
+    fetch("{{ url_for('wallet.api_payout_request') }}", {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+        if (data.error === 'setup_required') {
+            alert('setup_required: Please add a payout method first.');
+        } else if (data.success) {
+            alert('Payout request submitted!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+</script>
 {% endblock %}

@@ -1,87 +1,169 @@
 {% extends "profile/base_profile.html" %}
 
 {% block profile_body %}
-<section class="profile-dashboard-grid">
-    <div class="profile-main-column">
-        <section id="posts" class="glass-panel">
-            <div class="panel-head"><div><p>POSTS</p><h2>Public feed</h2></div></div>
-            {% if content.posts %}
-            <div class="content-grid">
-                {% for post in content.posts %}
-                <article class="content-card">
-                    {% if post.media_url %}<img src="{{ post.media_url }}" alt="Post media">{% endif %}
-                    <p>{{ post.body or post.caption or "Post" }}</p>
-                    <small>{{ post.created_at }}</small>
-                </article>
-                {% endfor %}
-            </div>
-            {% else %}
-            {% set title = "No public posts yet" %}
-            {% set message = "This member has not published any public posts in CHAIN yet." %}
-            {% set action_href = "/discover" %}
-            {% set action_label = "Browse Members" %}
-            {% set icon = "fa-user-astronaut" %}
-            {% include "profile/partials/profile_empty_state.html" %}
-            {% endif %}
-        </section>
 
-        <section id="stories" class="glass-panel">
-            <div class="panel-head"><div><p>STORIES</p><h2>Recent stories</h2></div></div>
-            {% if content.stories %}
-            <div class="story-grid">
-                {% for story in content.stories %}
-                <article class="story-card">
-                    {% if story.media_url %}<img src="{{ story.media_url }}" alt="Story media">{% endif %}
-                    <p>{{ story.caption or "Story update" }}</p>
-                    <small>{{ story.created_at }}</small>
+<div class="profile-tabs-container">
+    <nav class="profile-tabs">
+        <a href="#posts" class="tab-item is-active" onclick="switchTab(this, 'posts')">
+            <i class="fas fa-th-large"></i> <span>Posts</span>
+        </a>
+        <a href="#reels" class="tab-item" onclick="switchTab(this, 'reels')">
+            <i class="fas fa-film"></i> <span>Reels</span>
+        </a>
+        <a href="#live" class="tab-item" onclick="switchTab(this, 'live')">
+            <i class="fas fa-video"></i> <span>Live</span>
+        </a>
+        <a href="#about" class="tab-item" onclick="switchTab(this, 'about')">
+            <i class="fas fa-info-circle"></i> <span>About</span>
+        </a>
+    </nav>
+
+    <div class="tab-content" id="posts-content">
+        {% if content.posts %}
+            <div class="vertical-grid">
+                {% for post in content.posts %}
+                <article class="grid-card glass-card">
+                    {% if post.media_url %}<img src="{{ post.media_url }}" alt="Post media">{% endif %}
+                    <div class="card-info">
+                        <p>{{ post.caption or post.body }}</p>
+                    </div>
                 </article>
                 {% endfor %}
             </div>
-            {% else %}
-            {% set title = "No stories yet" %}
-            {% set message = "Story uploads will appear here automatically when this profile publishes them." %}
-            {% set action_href = "/discover" %}
-            {% set action_label = "Keep Exploring" %}
-            {% set icon = "fa-images" %}
-            {% include "profile/partials/profile_empty_state.html" %}
-            {% endif %}
-        </section>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-pen"></i>
+                <p>No posts yet.</p>
+            </div>
+        {% endif %}
     </div>
 
-    <aside class="profile-side-column">
-        <section id="live" class="glass-panel compact">
-            <div class="panel-head"><div><p>LIVE</p><h2>Rooms</h2></div></div>
-            {% if content.rooms %}
-            <div class="live-room-list">
-                {% for room in content.rooms %}
-                <a class="live-room-card" href="/live/room/{{ room.id }}">
-                    <div>
-                        <b>{{ room.title }}</b>
-                        <span>{{ room.category or room.access_type|title }}</span>
+    <div class="tab-content" id="reels-content" style="display: none;">
+        {% if content.reels %}
+            <div class="vertical-grid vertical-grid--reels">
+                {% for reel in content.reels %}
+                <article class="reel-thumbnail glass-card" onclick="window.location.href='/reels/{{ reel.id }}'">
+                    <img src="{{ reel.thumbnail_url or reel.media_url }}" alt="Reel">
+                    <div class="reel-stats">
+                        <span><i class="fas fa-play"></i> {{ reel.views_count or 0 }}</span>
                     </div>
-                    <small>{{ room.status or ("live" if room.is_live else "ended") }}</small>
+                </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-film"></i>
+                <p>No reels yet.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="tab-content" id="live-content" style="display: none;">
+        {% if content.rooms %}
+            <div class="live-list">
+                {% for room in content.rooms %}
+                <a href="/live/room/{{ room.id }}" class="live-item glass-card">
+                    <div class="live-info">
+                        <b>{{ room.title }}</b>
+                        <span>{{ room.category }}</span>
+                    </div>
+                    <span class="live-status">{{ room.status|upper }}</span>
                 </a>
                 {% endfor %}
             </div>
-            {% else %}
-            {% set title = "No live rooms" %}
-            {% set message = "When this profile opens a real live room it will appear here." %}
-            {% set action_href = "/live" %}
-            {% set action_label = "Open Live" %}
-            {% set icon = "fa-signal-stream" %}
-            {% include "profile/partials/profile_empty_state.html" %}
-            {% endif %}
-        </section>
-
-        <section class="glass-panel compact">
-            <div class="panel-head"><div><p>PREMIUM</p><h2>Membership</h2></div></div>
-            <div class="metric-stack">
-                <div><span>Tier</span><strong>{{ profile.premium_tier|title }}</strong></div>
-                <div><span>Verified</span><strong>{{ "Yes" if profile.is_verified else "No" }}</strong></div>
-                <div><span>Creator</span><strong>{{ profile.creator_category or profile.profile_type|title }}</strong></div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-video"></i>
+                <p>No live history.</p>
             </div>
-            <a class="profile-empty-btn" href="/profile/@{{ profile.username }}/premium">Open Premium Page</a>
-        </section>
-    </aside>
-</section>
+        {% endif %}
+    </div>
+
+    <div class="tab-content" id="about-content" style="display: none;">
+        <div class="glass-panel">
+            <div class="metric-stack">
+                {% if profile.preferred_language %}<div><span>Preferred language</span><strong>{{ profile.preferred_language }}</strong></div>{% endif %}
+                {% if profile.interests %}<div><span>Interests</span><strong>{{ profile.interests|join(', ') }}</strong></div>{% endif %}
+                {% if profile.activities %}<div><span>Hobbies / activities</span><strong>{{ profile.activities|join(', ') }}</strong></div>{% endif %}
+                {% if profile.looking_for %}<div><span>Looking for</span><strong>{{ profile.looking_for|join(', ') }}</strong></div>{% endif %}
+                {% if profile.relationship_status %}<div><span>Relationship status</span><strong>{{ profile.relationship_status }}</strong></div>{% endif %}
+                {% if profile.creator_category %}<div><span>Creator category</span><strong>{{ profile.creator_category }}</strong></div>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .profile-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 60px;
+        border-bottom: 1px solid var(--chain-border);
+        margin-bottom: 30px;
+    }
+    .tab-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 15px 10px;
+        color: var(--chain-muted);
+        text-decoration: none;
+        font-weight: 700;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .tab-item.is-active {
+        color: var(--chain-primary);
+        border-bottom-color: var(--chain-primary);
+    }
+    .vertical-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+    }
+    .grid-card, .reel-thumbnail {
+        aspect-ratio: 4/5;
+        overflow: hidden;
+        border-radius: 12px;
+        position: relative;
+    }
+    .reel-thumbnail { aspect-ratio: 9/16; cursor: pointer; }
+    .grid-card img, .reel-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .reel-stats {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        color: white;
+        font-size: 13px;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--chain-muted);
+    }
+    .empty-state i { font-size: 48px; margin-bottom: 20px; opacity: 0.3; }
+
+    @media (max-width: 768px) {
+        .vertical-grid { grid-template-columns: repeat(2, 1fr); }
+        .profile-tabs { gap: 30px; font-size: 14px; }
+    }
+</style>
+
+<script>
+    function switchTab(el, tabId) {
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('is-active'));
+        el.classList.add('is-active');
+        
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        document.getElementById(tabId + '-content').style.display = 'block';
+    }
+</script>
+
 {% endblock %}

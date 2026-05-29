@@ -1,19 +1,28 @@
-from datetime import datetime, timedelta, timezone
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 
-from flask import has_request_context
+from flask import has_request_context, session
 
 from engines.cache_engine import cache_key, get_cache, set_cache
-from services.neon_service import fetch_all_with_connection, get_connection, get_tables_columns, release_connection
+from services.request_cache import build_request_key, request_memoize
+from services.neon_service import (
+    fast_query,
+    get_cached_table_columns,
+    get_pool_status,
+    get_tables_columns,
+    is_circuit_open,
+)
 from services.profile_service import get_current_profile
 from services.wallet_service import ensure_wallet
 
 
-_CACHE_TTL_SECONDS = 45
-_QUERY_TIMEOUT_SECONDS = 500
-_TOTAL_BUDGET_MS = 400
-_UNAVAILABLE_TTL_SECONDS = 60
-_QUERY_BACKOFF = {}
+_CACHE_TTL_SECONDS = 30
+_EMPTY_CACHE_TTL_SECONDS = 15
+_QUERY_TIMEOUT_MS = 600
+_TOTAL_BUDGET_MS = 700
+_FAST_FALLBACK_MS = 400
 _HOMEPAGE_TABLES = [
     "chain_profiles",
     "chain_posts",
@@ -23,10 +32,22 @@ _HOMEPAGE_TABLES = [
     "chain_live_rooms",
 ]
 _SCHEMA_CACHE = {}
+_SCHEMA_LOCK = threading.Lock()
+_OUTAGE_LOG = {"expires_at": 0.0}
+_EXECUTOR = ThreadPoolExecutor(max_workers=10)
+_SHARED_FEED_CACHE_PREFIX = "chain_homepage_feed_v1"
 
 
 def _log(message):
     print(f"[homepage_service] {message}")
+
+
+def _log_outage_once(message):
+    now = time.monotonic()
+    if _OUTAGE_LOG["expires_at"] > now:
+        return
+    _OUTAGE_LOG["expires_at"] = now + 60
+    _log(message)
 
 
 def _utcnow():
@@ -106,62 +127,64 @@ def _format_relative(value):
     return parsed.strftime("%d %b")
 
 
-def _error_code(error):
-    code = getattr(error, "pgcode", None) or getattr(error, "code", None)
-    if code:
-        return str(code)
-    text = str(error)
-    if "42703" in text:
-        return "42703"
-    if "42P01" in text:
-        return "42P01"
-    return None
-
-
-def _variant_unavailable(query_key):
-    payload = _QUERY_BACKOFF.get(query_key)
-    if not payload:
-        return False
-    if payload["expires_at"] <= _now_ts():
-        _QUERY_BACKOFF.pop(query_key, None)
-        return False
-    return True
-
-
-def _mark_unavailable(query_key, reason):
-    _QUERY_BACKOFF[query_key] = {
-        "expires_at": _now_ts() + _UNAVAILABLE_TTL_SECONDS,
-        "reason": reason,
-    }
-
-
 def _table_columns(table_name):
-    if not _SCHEMA_CACHE:
-        for name, columns in get_tables_columns(_HOMEPAGE_TABLES, timeout_ms=_QUERY_TIMEOUT_SECONDS).items():
-            _SCHEMA_CACHE[name] = set(columns)
-    return _SCHEMA_CACHE.get(table_name, set())
+    global _SCHEMA_CACHE
+    now = time.monotonic()
+    
+    # 1. Quick cache check (no lock)
+    if _SCHEMA_CACHE and _SCHEMA_CACHE.get("_expires_at", 0) > now:
+        return _SCHEMA_CACHE.get(table_name, set())
+
+    # 2. Lock for lookup
+    with _SCHEMA_LOCK:
+        # Re-check cache
+        if _SCHEMA_CACHE and _SCHEMA_CACHE.get("_expires_at", 0) > now:
+            return _SCHEMA_CACHE.get(table_name, set())
+
+        # Initialize or refresh
+        new_cache = {"_expires_at": now + 300} # Cache schema for 5 mins
+        
+        try:
+            # Try local memory/filesystem cache first
+            for name in _HOMEPAGE_TABLES:
+                cached_columns = get_cached_table_columns(name)
+                if cached_columns:
+                    new_cache[name] = set(cached_columns)
+            
+            # If missing anything, try a quick DB lookup
+            if len(new_cache) < len(_HOMEPAGE_TABLES) + 1: # +1 for _expires_at
+                db_schemas = get_tables_columns(_HOMEPAGE_TABLES, timeout_ms=300)
+                for name, columns in db_schemas.items():
+                    new_cache[name] = set(columns)
+        except Exception as e:
+            _log(f"Schema lookup failed: {e}")
+            # If it failed, don't try again immediately (30s backoff)
+            new_cache["_expires_at"] = now + 30
+        
+        _SCHEMA_CACHE = new_cache
+        return _SCHEMA_CACHE.get(table_name, set())
 
 
 def _select_columns(table_name, candidates, required=None):
     available = _table_columns(table_name)
+    if not available:
+        # If schema lookup failed, skip table if it's reels or stories, or use minimal for profiles/posts
+        if table_name in {"chain_reels", "chain_stories", "chain_status_posts"}:
+            return []
+        return [c for c in candidates if c in {"id", "created_at", "username", "display_name", "profile_id"}]
+    
     if required and any(column not in available for column in required):
         return []
     return [column for column in candidates if column in available]
 
 
-def _run_sql(query_key, sql_text, params=None, timeout_ms=_QUERY_TIMEOUT_SECONDS, connection=None):
-    if _variant_unavailable(query_key):
-        return [], f"{query_key}: cached-unavailable"
-    try:
-        if connection is not None:
-            return fetch_all_with_connection(connection, sql_text, params=params or [], timeout_ms=timeout_ms), None
-        from services.neon_service import fetch_all
-        return fetch_all(sql_text, params=params or [], timeout_ms=timeout_ms), None
-    except Exception as error:
-        code = _error_code(error)
-        if code in {"42703", "42P01"}:
-            _mark_unavailable(query_key, code)
-        return [], f"{query_key}: unavailable"
+def _run_sql(query_key, sql_text, params=None, timeout_ms=_QUERY_TIMEOUT_MS):
+    rows = request_memoize(
+        build_request_key("homepage_sql", query_key, sql_text, tuple(params or [])),
+        lambda: fast_query(sql_text, params=params or [], timeout_ms=timeout_ms, default=[]),
+    )
+    issue = f"{query_key}: unavailable" if not rows and get_pool_status().get("backoff_active") else None
+    return rows, issue
 
 
 def _profile_select():
@@ -263,8 +286,9 @@ def _reel_select():
             "id",
             "profile_id",
             "caption",
-            "media_url",
+            "video_url",
             "thumbnail_url",
+            "media_url",
             "created_at",
             "deleted_at",
         ],
@@ -308,7 +332,7 @@ def _build_where(columns, extra=None):
     return clauses
 
 
-def _fetch_profiles(limit=10, only_creators=False, dating_only=False, connection=None):
+def _fetch_profiles(limit=10, only_creators=False, dating_only=False):
     columns = _profile_select()
     if not columns:
         return [], ["profiles: unavailable"]
@@ -326,11 +350,11 @@ def _fetch_profiles(limit=10, only_creators=False, dating_only=False, connection
         query += f" WHERE {' AND '.join(where)}"
     order_column = "created_at" if "created_at" in available else "id"
     query += f" ORDER BY {order_column} DESC LIMIT %s"
-    rows, issue = _run_sql(f"profiles:{limit}:{only_creators}:{dating_only}", query, [limit], connection=connection)
+    rows, issue = _run_sql(f"profiles:{limit}:{only_creators}:{dating_only}", query, [limit])
     return rows, [issue] if issue else []
 
 
-def _fetch_posts(connection=None):
+def _fetch_posts():
     columns = _post_select()
     if not columns:
         return [], ["posts: unavailable"]
@@ -344,11 +368,11 @@ def _fetch_posts(connection=None):
     else:
         query += " ORDER BY created_at DESC NULLS LAST"
     query += " LIMIT %s"
-    rows, issue = _run_sql("posts", query, [8], connection=connection)
+    rows, issue = _run_sql("posts", query, [8])
     return rows, [issue] if issue else []
 
 
-def _fetch_stories(connection=None):
+def _fetch_stories():
     issues = []
     story_rows = []
     story_columns = _story_select()
@@ -365,7 +389,7 @@ def _fetch_stories(connection=None):
         if where:
             query += f" WHERE {' AND '.join(where)}"
         query += " ORDER BY created_at DESC NULLS LAST LIMIT %s"
-        story_rows, issue = _run_sql("stories", query, [12], connection=connection)
+        story_rows, issue = _run_sql("stories", query, [12])
         if issue:
             issues.append(issue)
     else:
@@ -385,7 +409,7 @@ def _fetch_stories(connection=None):
             where.append("COALESCE(status, '') <> 'deleted'")
         query = f"SELECT {', '.join(status_columns)} FROM chain_status_posts WHERE {' AND '.join(where)} ORDER BY created_at DESC NULLS LAST LIMIT %s"
         params.append(12)
-        status_rows, issue = _run_sql("status_posts", query, params, connection=connection)
+        status_rows, issue = _run_sql("status_posts", query, params)
         if issue:
             issues.append(issue)
 
@@ -397,7 +421,7 @@ def _fetch_stories(connection=None):
     return combined[:12], issues
 
 
-def _fetch_reels(connection=None):
+def _fetch_reels():
     columns = _reel_select()
     if not columns:
         return [], ["reels: unavailable"]
@@ -407,11 +431,11 @@ def _fetch_reels(connection=None):
     if where:
         query += f" WHERE {' AND '.join(where)}"
     query += " ORDER BY created_at DESC NULLS LAST LIMIT %s"
-    rows, issue = _run_sql("reels", query, [8], connection=connection)
+    rows, issue = _run_sql("reels", query, [8])
     return rows, [issue] if issue else []
 
 
-def _fetch_live_rooms(connection=None):
+def _fetch_live_rooms():
     columns = _live_select()
     if not columns:
         return [], ["live_rooms: unavailable"]
@@ -425,12 +449,12 @@ def _fetch_live_rooms(connection=None):
     if where:
         query += f" WHERE {' AND '.join(where)}"
     query += " ORDER BY created_at DESC NULLS LAST LIMIT %s"
-    rows, issue = _run_sql("live_rooms", query, [8], connection=connection)
+    rows, issue = _run_sql("live_rooms", query, [8])
     live_only = [row for row in rows if _boolish(row.get("is_live")) or _clean_text(row.get("status")).lower() == "live"]
     return live_only[:8], [issue] if issue else []
 
 
-def _load_profile_map(profile_ids, connection=None):
+def _load_profile_map(profile_ids):
     unique_ids = [profile_id for profile_id in dict.fromkeys(profile_ids) if profile_id]
     columns = _profile_select()
     if not unique_ids or not columns:
@@ -439,7 +463,7 @@ def _load_profile_map(profile_ids, connection=None):
     placeholders = ", ".join(["%s"] * len(unique_ids))
     where = _build_where(available, [f"id IN ({placeholders})"])
     query = f"SELECT {', '.join(columns)} FROM chain_profiles WHERE {' AND '.join(where)}"
-    rows, issue = _run_sql(f"profile_map:{len(unique_ids)}", query, unique_ids, connection=connection)
+    rows, issue = _run_sql(f"profile_map:{len(unique_ids)}", query, unique_ids, timeout_ms=500)
     if issue:
         pass
     return {row.get("id"): _normalize_profile(row) for row in rows if row.get("id")}
@@ -550,110 +574,197 @@ def _safe_current_profile():
     if not has_request_context():
         return None
     try:
-        return get_current_profile()
+        profile = get_current_profile()
+        if profile:
+            return profile
+        auth_user_id = session.get("auth_user_id")
+        if not auth_user_id:
+            return None
+        email = session.get("auth_email") or ""
+        username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
+        full_name = session.get("full_name") or username.replace("_", " ").title()
+        return {
+            "id": None,
+            "auth_user_id": auth_user_id,
+            "email": email,
+            "username": username,
+            "full_name": full_name,
+            "display_name": full_name,
+            "avatar_url": None,
+            "profile_completed": False,
+        }
     except Exception as error:
         _log(f"current profile unavailable: {error}")
         return None
 
 
-def _load_public_homepage():
-    cached = get_cache(cache_key("chain_homepage_neon_v1", "public"))
+def build_homepage_payload(async_warm=False):
+    """Consolidated lightweight homepage payload builder with parallelization and tight budget."""
+    cache_key_str = cache_key("chain_homepage_v3", "public")
+    cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
 
-    raw = {}
-    issues = []
-    connection = None
-    started = time.perf_counter()
-    try:
-        connection = get_connection(statement_timeout_ms=_QUERY_TIMEOUT_SECONDS)
-        jobs = [
-            ("stories", lambda conn: _fetch_stories(connection=conn)),
-            ("live_rooms", lambda conn: _fetch_live_rooms(connection=conn)),
-            ("profiles", lambda conn: _fetch_profiles(10, True, False, connection=conn)),
-            ("posts", lambda conn: _fetch_posts(connection=conn)),
-            ("matches", lambda conn: _fetch_profiles(8, False, True, connection=conn)),
-            ("reels", lambda conn: _fetch_reels(connection=conn)),
-        ]
-        for key, loader in jobs:
-            elapsed_ms = (time.perf_counter() - started) * 1000
-            if elapsed_ms >= _TOTAL_BUDGET_MS:
-                raw[key] = []
-                issues.append(f"{key}: budget")
-                continue
-            rows, row_issues = loader(connection)
-            raw[key] = rows
-            issues.extend(issue for issue in row_issues if issue)
-    except Exception as error:
-        _log(f"homepage neon connection unavailable: {error}")
-        for key in ["stories", "live_rooms", "profiles", "posts", "matches", "reels"]:
-            raw.setdefault(key, [])
-        issues.append("neon: unavailable")
-    finally:
-        release_connection(connection)
-
-    related_profile_ids = []
-    for story in raw.get("stories", []):
-        related_profile_ids.append(story.get("profile_id"))
-    for room in raw.get("live_rooms", []):
-        related_profile_ids.append(_first_present(room, ["profile_id", "host_id", "creator_id"]))
-    for post in raw.get("posts", []):
-        related_profile_ids.append(post.get("profile_id"))
-    for row in raw.get("matches", []):
-        related_profile_ids.append(row.get("id"))
-    for row in raw.get("profiles", []):
-        related_profile_ids.append(row.get("id"))
-
-    profile_map = _load_profile_map(related_profile_ids)
-
-    normalized_profiles = []
-    for row in raw.get("profiles", []):
-        profile = _normalize_profile(row)
-        if profile:
-            profile_map.setdefault(profile["id"], profile)
-            normalized_profiles.append(profile)
-
-    normalized_matches = []
-    for row in raw.get("matches", []):
-        profile = profile_map.get(row.get("id")) or _normalize_profile(row)
-        if profile:
-            normalized_matches.append(profile)
-
     payload = {
-        "stories": [_normalize_story(row, profile_map) for row in raw.get("stories", []) if row.get("id")][:12],
-        "live_rooms": [_normalize_live_room(row, profile_map) for row in raw.get("live_rooms", []) if row.get("id")][:8],
-        "recommended_profiles": [profile for profile in normalized_profiles if profile][:10],
-        "trending_posts": [_normalize_post(row, profile_map) for row in raw.get("posts", []) if row.get("id")][:8],
-        "dating_matches": [profile for profile in normalized_matches if profile][:8],
-        "stats": {
-            "stories": len(raw.get("stories", [])),
-            "live_rooms": len(raw.get("live_rooms", [])),
-            "profiles": len(normalized_profiles),
-            "posts": len(raw.get("posts", [])),
-            "reels": len(raw.get("reels", [])),
-        },
-        "issues": issues,
+        "stories": [],
+        "live_rooms": [],
+        "recommended_profiles": [],
+        "trending_posts": [],
+        "dating_matches": [],
+        "reels": [],
+        "stats": {"stories": 0, "live_rooms": 0, "profiles": 0, "posts": 0, "reels": 0},
+        "issues": [],
     }
-    set_cache(cache_key("chain_homepage_neon_v1", "public"), payload, ttl=_CACHE_TTL_SECONDS)
-    return payload
 
+    # Fast exit if Neon circuit is open
+    if is_circuit_open():
+        payload["issues"].append("neon: unavailable")
+        return payload
+
+    pool_status = get_pool_status()
+    if not pool_status.get("recent_success") and not pool_status.get("pool_ready"):
+        payload["issues"].append("neon: cold-start-pending")
+        return payload
+
+    started = time.perf_counter()
+    
+    def fetch_stories():
+        cols = _story_select()
+        if not cols: return []
+        return fast_query(
+            f"SELECT {', '.join(cols)} FROM chain_stories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 12",
+            timeout_ms=300
+        )
+
+    def fetch_live():
+        cols = _live_select()
+        if not cols: return []
+        return fast_query(
+            f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE (is_live = TRUE OR status = 'live') AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
+            timeout_ms=300
+        )
+
+    def fetch_profiles():
+        cols = _profile_select()
+        if not cols: return []
+        return fast_query(
+            f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 10",
+            timeout_ms=300
+        )
+
+    def fetch_posts():
+        cols = _post_select()
+        if not cols: return []
+        return fast_query(
+            f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY likes_count DESC NULLS LAST, created_at DESC LIMIT 8",
+            timeout_ms=300
+        )
+
+    def fetch_matches():
+        cols = _profile_select()
+        if not cols: return []
+        return fast_query(
+            f"SELECT {', '.join(cols)} FROM chain_profiles WHERE dating_mode_enabled = TRUE AND deleted_at IS NULL ORDER BY random() LIMIT 8",
+            timeout_ms=300
+        )
+
+    def fetch_reels():
+        cols = _reel_select()
+        if not cols: return []
+        return fast_query(
+            f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
+            timeout_ms=300
+        )
+
+    tasks = {
+        "stories": fetch_stories,
+        "live_rooms": fetch_live,
+        "recommended_profiles": fetch_profiles,
+        "trending_posts": fetch_posts,
+        "dating_matches": fetch_matches,
+        "reels": fetch_reels,
+    }
+
+    futures = {name: _EXECUTOR.submit(fn) for name, fn in tasks.items()}
+    
+    # Wait for results with a tight budget
+    done_count = 0
+    budget_limit = _TOTAL_BUDGET_MS if async_warm else _FAST_FALLBACK_MS
+    for name, future in futures.items():
+        rem_budget = max(0, (budget_limit / 1000.0) - (time.perf_counter() - started))
+        try:
+            payload[name] = future.result(timeout=rem_budget)
+            done_count += 1
+        except Exception:
+            future.cancel()
+            if "partial_fallback" not in payload["issues"]:
+                payload["issues"].append("partial_fallback")
+
+    # 1. Collect all profile IDs for normalization
+    profile_ids = []
+    for row in payload["stories"]: profile_ids.append(row.get("profile_id"))
+    for row in payload["trending_posts"]: profile_ids.append(row.get("profile_id"))
+    for row in payload["live_rooms"]: 
+        profile_ids.append(_first_present(row, ["profile_id", "host_id", "creator_id"]))
+    for row in payload["recommended_profiles"]: profile_ids.append(row.get("id"))
+    for row in payload["dating_matches"]: profile_ids.append(row.get("id"))
+    for row in payload["reels"]: profile_ids.append(row.get("profile_id"))
+
+    # 2. Load the profile map
+    profile_map = _load_profile_map(profile_ids)
+
+    # 3. Normalize all collections
+    payload["stories"] = [row for row in (_normalize_story(r, profile_map) for r in payload["stories"]) if row.get("id")]
+    payload["live_rooms"] = [row for row in (_normalize_live_room(r, profile_map) for r in payload["live_rooms"]) if row.get("id")]
+    payload["trending_posts"] = [row for row in (_normalize_post(r, profile_map) for r in payload["trending_posts"]) if row.get("id")]
+    payload["recommended_profiles"] = [row for row in (_normalize_profile(r) for r in payload["recommended_profiles"]) if row.get("id")]
+    payload["dating_matches"] = [row for row in (_normalize_profile(r) for r in payload["dating_matches"]) if row.get("id")]
+    payload["reels"] = [row for row in (_normalize_post(r, profile_map) for r in payload["reels"]) if row.get("id")]
+
+    # Final check: if circuit is open or we have no data due to slowness
+    if is_circuit_open() and "neon: unavailable" not in payload["issues"]:
+        payload["issues"].append("neon: unavailable")
+
+    if not _profile_select():
+        if "profiles: schema_mismatch" not in payload["issues"]:
+            payload["issues"].append("profiles: schema_mismatch")
+    if not _reel_select():
+        if "reels: schema_mismatch" not in payload["issues"]:
+            payload["issues"].append("reels: schema_mismatch")
+    
+    payload["stats"] = {
+        "stories": len(payload["stories"]),
+        "live_rooms": len(payload["live_rooms"]),
+        "profiles": len(payload["recommended_profiles"]),
+        "posts": len(payload["trending_posts"]),
+        "reels": len(payload["reels"]),
+    }
+
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if elapsed_ms > _TOTAL_BUDGET_MS:
+        payload["issues"].append(f"budget_exceeded: {elapsed_ms:.1f}ms")
+        _log_outage_once(f"homepage budget exceeded: {elapsed_ms:.1f}ms")
+
+    # Only cache if we got everything or if this is the async warm
+    if (done_count == len(tasks) and not is_circuit_open()) or async_warm:
+        set_cache(cache_key_str, payload, ttl=_CACHE_TTL_SECONDS)
+    elif "partial_fallback" in payload["issues"] or "neon: unavailable" in payload["issues"]:
+        # Trigger async warm if we fell back
+        _EXECUTOR.submit(build_homepage_payload, async_warm=True)
+
+    return payload
 
 def get_homepage_data():
     current = _safe_current_profile()
-    public_data = _load_public_homepage()
+    public_data = build_homepage_payload()
     wallet = _wallet_snapshot(current)
     return {
         "current": current,
-        "stories": public_data.get("stories", []),
-        "live_rooms": public_data.get("live_rooms", []),
-        "recommended_profiles": public_data.get("recommended_profiles", []),
-        "trending_posts": public_data.get("trending_posts", []),
-        "dating_matches": public_data.get("dating_matches", []),
-        "stats": public_data.get("stats", {}),
+        **public_data,
         "wallet": wallet,
-        "hero_story_count": len(public_data.get("stories", [])),
-        "hero_live_count": len(public_data.get("live_rooms", [])),
-        "hero_profile_count": len(public_data.get("recommended_profiles", [])),
-        "hero_post_count": len(public_data.get("trending_posts", [])),
-        "missing_sources": public_data.get("issues", []),
+        "hero_story_count": len(public_data["stories"]),
+        "hero_live_count": len(public_data["live_rooms"]),
+        "hero_profile_count": len(public_data["recommended_profiles"]),
+        "hero_post_count": len(public_data["trending_posts"]),
+        "missing_sources": public_data["issues"],
     }

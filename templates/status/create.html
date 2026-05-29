@@ -1,81 +1,103 @@
 {% extends "base.html" %}
 
 {% block title %}Create Story | CHAIN{% endblock %}
-{% block body_class %}chain-wallpaper-profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-container {
+        max-width: 500px;
+        margin: 40px auto;
+        padding: 30px;
+        background: var(--chain-bg-panel-strong);
+        border: 1px solid var(--chain-border);
+        border-radius: 18px;
+        box-shadow: var(--chain-shadow-lg);
+        backdrop-filter: blur(20px);
+    }
+    
+    .media-placeholder {
+        width: 100%;
+        aspect-ratio: 9/16;
+        background: var(--chain-bg-soft);
+        border: 2px dashed var(--chain-border);
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    
+    .media-placeholder img, .media-placeholder video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .media-placeholder i {
+        font-size: 48px;
+        color: var(--chain-muted);
+        margin-bottom: 10px;
+    }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--chain-muted); }
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid var(--chain-border);
+        background: var(--chain-bg-soft);
+        outline: none;
+        resize: none;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<section class="status-shell" style="max-width: 600px; margin: 0 auto; padding: 20px 16px 80px;">
-    <div class="glass-panel" style="padding: 32px; border-radius: 28px;">
-        <h1 style="margin:0 0 8px; font-size:24px;">Create a new story</h1>
-        <p style="color:rgba(255,255,255,0.5); margin-bottom:24px; font-size:14px;">Stories last for 24 hours and can include photos, videos and music.</p>
-
-        <form method="POST" enctype="multipart/form-data" style="display:grid; gap:20px;">
-            <label style="display:grid; gap:8px;">
-                <span style="font-size:13px; font-weight:600; color:rgba(255,255,255,0.7);">Caption</span>
-                <textarea name="caption" rows="3" placeholder="What's on your mind?" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:12px; color:white; outline:none;"></textarea>
-            </label>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                <label style="display:grid; gap:8px;">
-                    <span style="font-size:13px; font-weight:600; color:rgba(255,255,255,0.7);">Media (Image/Video)</span>
-                    <input type="file" name="media" id="media_input" accept="image/*,video/*" style="font-size:12px;">
-                </label>
-                <label style="display:grid; gap:8px;">
-                    <span style="font-size:13px; font-weight:600; color:rgba(255,255,255,0.7);">Background Music</span>
-                    <input type="file" name="music" id="music_input" accept="audio/*" style="font-size:12px;">
-                </label>
+<div class="status-container">
+    <h2 style="margin: 0 0 10px;">Create Story</h2>
+    <p style="color: var(--chain-muted); font-size: 14px; margin-bottom: 25px;">Share a moment that lasts 24 hours.</p>
+    
+    <form method="POST" enctype="multipart/form-data" id="status-form">
+        <div class="media-placeholder" onclick="document.getElementById('media-input').click()">
+            <div id="preview-content">
+                <i class="fas fa-camera"></i>
+                <p>Tap to upload or take a photo/video</p>
             </div>
-
-            <div id="status_preview" style="width:100%; height:300px; border-radius:16px; background:rgba(255,255,255,0.03); border:2px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden;">
-                <div style="text-align:center; color:rgba(255,255,255,0.2);">
-                    <i class="fas fa-clapperboard" style="font-size:48px; margin-bottom:12px;"></i>
-                    <p style="margin:0; font-size:13px;">Preview will appear here</p>
-                </div>
-            </div>
-
-            <div id="audio_preview" style="display:none; padding:12px; border-radius:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);">
-                <audio id="audio_player" controls style="width:100%; height:32px;"></audio>
-            </div>
-
-            <div style="display:flex; gap:12px; margin-top:12px;">
-                <a href="/status/" class="secondary" style="flex:1; padding:14px; text-align:center; text-decoration:none; border-radius:16px;">Cancel</a>
-                <button type="submit" class="primary" style="flex:2; padding:14px; border-radius:16px;">Post Story</button>
-            </div>
-        </form>
-    </div>
-</section>
+            <input type="file" name="media" id="media-input" accept="image/*,video/*" hidden onchange="handleMedia(this)">
+        </div>
+        
+        <div class="form-group">
+            <label>Caption</label>
+            <textarea name="caption" rows="3" placeholder="Add a caption..."></textarea>
+        </div>
+        
+        <div class="action-cluster">
+            <button type="submit" class="primary" style="width: 100%; padding: 15px; border-radius: 12px;">Share Story</button>
+            <a href="/" class="secondary" style="width: 100%; padding: 15px; border-radius: 12px; text-align: center; text-decoration: none;">Cancel</a>
+        </div>
+    </form>
+</div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const mediaInput = document.getElementById('media_input');
-    const musicInput = document.getElementById('music_input');
-    const statusPreview = document.getElementById('status_preview');
-    const audioPreview = document.getElementById('audio_preview');
-    const audioPlayer = document.getElementById('audio_player');
-
-    mediaInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (file) {
+    function handleMedia(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
             const reader = new FileReader();
+            const preview = document.getElementById('preview-content');
+            
             reader.onload = function(e) {
                 if (file.type.startsWith('image/')) {
-                    statusPreview.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; object-fit:cover;">`;
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
                 } else if (file.type.startsWith('video/')) {
-                    statusPreview.innerHTML = `<video src="${e.target.result}" autoplay muted loop style="width:100%; height:100%; object-fit:cover;"></video>`;
+                    preview.innerHTML = `<video src="${e.target.result}" autoplay muted loop></video>`;
                 }
             }
             reader.readAsDataURL(file);
         }
-    });
-
-    musicInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if (file) {
-            const url = URL.createObjectURL(file);
-            audioPlayer.src = url;
-            audioPreview.style.display = 'block';
-        }
-    });
-});
+    }
 </script>
 {% endblock %}

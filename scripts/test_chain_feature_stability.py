@@ -117,7 +117,8 @@ def main():
     legacy_register, _ = fetch(client, "/register")
     admin_root, _ = fetch(client, "/admin/")
     discover_response, _ = fetch(client, "/discover/")
-    live_response, _ = fetch(client, "/live/")
+    live_response, live_cold_ms = fetch(client, "/live/")
+    _, live_warm_ms = fetch(client, "/live/")
     messages_response, _ = fetch(client, "/messages/")
     wallet_response, _ = fetch(client, "/wallet/")
     profile_response, _ = fetch(client, "/profile/")
@@ -137,6 +138,8 @@ def main():
     assert admin_root.headers.get("Location", "").endswith("/admin/login"), admin_root.headers.get("Location", "")
     assert discover_response.status_code in SAFE_STATUS_CODES, f"/discover/ returned {discover_response.status_code}"
     assert live_response.status_code in SAFE_STATUS_CODES, f"/live/ returned {live_response.status_code}"
+    assert live_cold_ms < 800, f"/live/ cold response too slow: {live_cold_ms:.1f}ms"
+    assert live_warm_ms < 200, f"/live/ warm response too slow: {live_warm_ms:.1f}ms"
     assert messages_response.status_code in SAFE_STATUS_CODES, f"/messages/ returned {messages_response.status_code}"
     assert wallet_response.status_code in SAFE_STATUS_CODES, f"/wallet/ returned {wallet_response.status_code}"
     assert profile_response.status_code in SAFE_STATUS_CODES, f"/profile/ returned {profile_response.status_code}"
@@ -147,6 +150,9 @@ def main():
     assert "/auth/login" in messages_response.headers.get("Location", ""), messages_response.headers.get("Location", "")
     assert "/auth/login" in wallet_response.headers.get("Location", ""), wallet_response.headers.get("Location", "")
     assert "/auth/login" in profile_response.headers.get("Location", ""), profile_response.headers.get("Location", "")
+
+    health_db_payload = health_db.get_json() or {}
+    assert health_db_payload.get("connected") is True or health_db_payload.get("stale_cache") is True or health_db.status_code == 503, f"/health/db payload unexpected: {health_db_payload}"
 
     homepage_html = home_response.get_data(as_text=True)
     homepage_text = visible_text(homepage_html)
@@ -176,6 +182,7 @@ def main():
     print(f" - /auth/login -> {login_response.status_code}")
     print(f" - /auth/register -> {register_response.status_code}")
     print(f" - /health/db -> {health_db.status_code}")
+    print(f" - /health/db payload -> connected={health_db_payload.get('connected')} stale_cache={health_db_payload.get('stale_cache')}")
     print(f" - /health/supabase -> {health_supabase.status_code}")
     print(f" - /login -> {legacy_login.status_code} -> {legacy_login.headers.get('Location')}")
     print(f" - /register -> {legacy_register.status_code} -> {legacy_register.headers.get('Location')}")

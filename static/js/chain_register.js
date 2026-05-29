@@ -59,11 +59,15 @@
       timer = window.setTimeout(async () => {
         const input = document.getElementById(`register_${field}`);
         if (!input?.value.trim()) return;
-        const params = new URLSearchParams({ field, value: input.value.trim(), town: town?.value || "" });
-        const response = await fetch(`/auth/check-availability?${params.toString()}`);
-        const payload = await response.json();
-        setAvailability(field, payload);
-      }, 220);
+        try {
+          const params = new URLSearchParams({ field, value: input.value.trim(), town: town?.value || "" });
+          const response = await fetch(`/auth/check-availability?${params.toString()}`);
+          const payload = await response.json();
+          setAvailability(field, payload);
+        } catch (e) {
+          console.error("Availability check failed", e);
+        }
+      }, 500);
     };
   };
 
@@ -80,7 +84,7 @@
       node.classList.add("is-strong");
       node.classList.remove("is-weak");
     } else if (value.length >= 8) {
-      node.textContent = "Good enough, but add numbers or capitals for extra strength.";
+      node.textContent = "Good enough.";
       node.classList.remove("is-weak");
       node.classList.remove("is-strong");
     } else {
@@ -93,6 +97,7 @@
   const validateConfirmPassword = () => {
     const match = password.value && confirmPassword.value && password.value === confirmPassword.value;
     confirmStatus.textContent = match ? "Passwords match." : "Passwords must match.";
+    confirmStatus.style.color = match ? "var(--chain-success)" : "var(--chain-error)";
     confirmStatus.classList.toggle("is-available", match);
     confirmStatus.classList.toggle("is-unavailable", !match && !!confirmPassword.value);
     validateSubmit();
@@ -102,7 +107,17 @@
     const terms = form.querySelector("#terms")?.checked;
     const human = form.querySelector("#human_confirmed")?.checked;
     const passwordsMatch = password.value && password.value === confirmPassword.value && password.value.length >= 8;
-    submitBtn.disabled = !(availabilityState.username && availabilityState.email && availabilityState.phone && passwordsMatch && terms && human);
+    
+    // Core fields check
+    const required = Array.from(form.querySelectorAll("input[required], select[required]"));
+    const allFilled = required.every(input => input.value.trim() !== "");
+
+    const canSubmit = allFilled && passwordsMatch && terms && human;
+    submitBtn.disabled = !canSubmit;
+    
+    if (submitBtn.disabled && stepIndex === 1) {
+        // Optional: show some hint why disabled if needed
+    }
   };
 
   const renderCountries = () => {
@@ -110,7 +125,11 @@
     country.innerHTML = ['<option value="">Select country</option>']
       .concat(window.CHAIN_LOCATIONS.map((item) => `<option value="${item.country}">${item.country}</option>`))
       .join("");
-    country.value = "Namibia";
+    
+    const selected = country.dataset.selected;
+    if (selected) country.value = selected;
+    else country.value = "Namibia";
+    renderRegions();
   };
 
   const renderRegions = () => {
@@ -119,6 +138,9 @@
     region.innerHTML = ['<option value="">Select region/state</option>']
       .concat(regions.map((item) => `<option value="${item}">${item}</option>`))
       .join("");
+    
+    const selected = region.dataset.selected;
+    if (selected) region.value = selected;
   };
 
   form.querySelectorAll(".toggle-password").forEach((button) => {
@@ -137,15 +159,6 @@
     });
   });
 
-  form.querySelectorAll(".chain-chip-grid[data-single-target] .chain-chip").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const target = document.getElementById(chip.parentElement.dataset.singleTarget);
-      chip.parentElement.querySelectorAll(".chain-chip").forEach((node) => node.classList.remove("is-selected"));
-      chip.classList.add("is-selected");
-      if (target) target.value = chip.dataset.value;
-    });
-  });
-
   document.getElementById("register_username")?.addEventListener("input", usernameCheck);
   document.getElementById("register_email")?.addEventListener("input", emailCheck);
   document.getElementById("register_phone")?.addEventListener("input", phoneCheck);
@@ -155,7 +168,9 @@
   });
   confirmPassword?.addEventListener("input", validateConfirmPassword);
   country?.addEventListener("change", renderRegions);
+  form.querySelectorAll("input, select").forEach((input) => input.addEventListener("input", validateSubmit));
   form.querySelectorAll("input[type='checkbox']").forEach((input) => input.addEventListener("change", validateSubmit));
+  
   nextBtn?.addEventListener("click", () => {
     stepIndex = Math.min(steps.length - 1, stepIndex + 1);
     updateStep();
@@ -166,7 +181,6 @@
   });
 
   renderCountries();
-  renderRegions();
   passwordStrength();
   updateStep();
 })();

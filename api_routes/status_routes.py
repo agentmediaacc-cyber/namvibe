@@ -11,10 +11,23 @@ def index():
     statuses = list_active_statuses()
     return render_template("status/index.html", statuses=statuses, profile=profile)
 
+@status_bp.route("/stories")
+@status_bp.route("/stories/")
+def stories_redirect():
+    return redirect(url_for("status.index"))
+
 @status_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def create():
     profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        from api_routes.profile_routes import _session_profile_stub
+        profile = _session_profile_stub()
+        if request.method == "POST":
+            flash("Profile setup is finishing. Please try again in a moment.", "warning")
+            return render_template("status/create.html", profile=profile, setup_warning=True)
+        return render_template("status/create.html", profile=profile, setup_warning=True)
+
     if request.method == "POST":
         caption = request.form.get("caption")
         media_file = request.files.get("media")

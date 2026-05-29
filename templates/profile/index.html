@@ -1,153 +1,219 @@
 {% extends "profile/base_profile.html" %}
 
 {% block profile_body %}
-<section class="profile-dashboard-grid" style="display: grid; grid-template-columns: 1fr 300px; gap: 20px; padding: 20px;">
-    
-    <div class="profile-main-column">
-        <!-- Tab Navigation -->
-        <div class="glass-panel" style="padding: 10px; margin-bottom: 20px; display: flex; gap: 10px; overflow-x: auto;">
-            <button class="tab-btn active" onclick="showTab('posts')" style="background:var(--premium-gradient); color:white; border:none; padding:8px 20px; border-radius:50px; cursor:pointer;">Posts</button>
-            <button class="tab-btn" onclick="showTab('live')" style="background:rgba(255,255,255,0.1); color:#333; border:none; padding:8px 20px; border-radius:50px; cursor:pointer;">Live Rooms</button>
-            <button class="tab-btn" onclick="showTab('marketplace')" style="background:rgba(255,255,255,0.1); color:#333; border:none; padding:8px 20px; border-radius:50px; cursor:pointer;">Marketplace</button>
-            <button class="tab-btn" onclick="showTab('music')" style="background:rgba(255,255,255,0.1); color:#333; border:none; padding:8px 20px; border-radius:50px; cursor:pointer;">Music</button>
-        </div>
+<div class="premium-profile-body">
+    <div class="premium-content-container">
+        <!-- AI Assistant Widget -->
+        <aside class="premium-sidebar">
+            <div class="premium-glass-card ai-widget">
+                <div class="ai-head">
+                    <div class="ai-orb"></div>
+                    <strong>CHAIN AI</strong>
+                </div>
+                <p>Hi! I'm your creator assistant. I can help you with your bio, captions, or recommend content.</p>
+                <button class="ai-action-btn">Ask AI</button>
+            </div>
 
-        <!-- Posts Tab -->
-        <div id="tab-posts" class="tab-content">
-            <section class="glass-panel" style="padding: 20px;">
-                <h2 style="margin-bottom:20px;">Recent Posts</h2>
-                {% if content.posts %}
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
+            <!-- Creator Stats Card -->
+            {% if profile.id == viewer.id %}
+            <div class="premium-glass-card creator-mini-dash">
+                <h3>Creator Earnings</h3>
+                <div class="earnings-row">
+                    <strong>N$ {{ stats.earnings or '0.00' }}</strong>
+                    <a href="/wallet/" class="withdraw-link">Withdraw</a>
+                </div>
+                <div class="mini-metrics">
+                    <div class="m-item"><span>Views</span><strong>{{ stats.views or 0 }}</strong></div>
+                    <div class="m-item"><span>Gifts</span><strong>{{ stats.gifts_received or 0 }}</strong></div>
+                </div>
+            </div>
+            {% endif %}
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="premium-main-content">
+            <!-- Posts Tab Content -->
+            <div id="posts-content" class="tab-content">
+                <div class="content-grid">
                     {% for post in content.posts %}
-                    <article class="post-card" style="background:#f9f9f9; border-radius:15px; overflow:hidden;">
-                        {% if post.media_url %}<img src="{{ post.media_url }}" style="width:100%; aspect-ratio:1; object-fit:cover;">{% endif %}
-                        <div style="padding:12px;">
-                            <p style="font-size:14px; margin:0 0 8px;">{{ post.caption or post.body }}</p>
-                            <small style="opacity:0.6;">{{ post.created_at }}</small>
+                    <article class="premium-glass-card post-card">
+                        {% if post.media_url %}
+                        <div class="post-media">
+                            <img src="{{ post.media_url }}" alt="Post content" loading="lazy">
+                        </div>
+                        {% endif %}
+                        <div class="post-info">
+                            <p>{{ post.caption or post.body }}</p>
+                            <div class="post-meta">
+                                <span><i class="far fa-heart"></i> {{ post.likes_count }}</span>
+                                <span><i class="far fa-comment"></i> {{ post.comments_count }}</span>
+                            </div>
                         </div>
                     </article>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div style="text-align:center; padding:40px; opacity:0.6;">No posts published yet.</div>
-                {% endif %}
-            </section>
-        </div>
-
-        <!-- Live Tab -->
-        <div id="tab-live" class="tab-content" style="display:none;">
-            <section class="glass-panel" style="padding: 20px;">
-                <h2 style="margin-bottom:20px;">Live History</h2>
-                {% if content.rooms %}
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    {% for room in content.rooms %}
-                    <a href="/live/room/{{ room.id }}" style="text-decoration:none; color:inherit; display:flex; gap:15px; background:#f9f9f9; padding:12px; border-radius:15px; align-items:center;">
-                        <div style="width:60px; height:60px; border-radius:10px; background:var(--premium-accent); display:flex; align-items:center; justify-content:center; color:white;">
-                            <i class="fas fa-video"></i>
-                        </div>
-                        <div style="flex:1;">
-                            <strong style="display:block;">{{ room.title }}</strong>
-                            <small style="opacity:0.6;">{{ room.category }} • {{ room.viewer_count }} viewers</small>
-                        </div>
-                        <span style="font-size:12px; font-weight:bold; color:var(--premium-accent);">{{ room.status|upper }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div style="text-align:center; padding:40px; opacity:0.6;">No live sessions recorded.</div>
-                {% endif %}
-            </section>
-        </div>
-
-        <!-- Marketplace Tab -->
-        <div id="tab-marketplace" class="tab-content" style="display:none;">
-            <section class="glass-panel" style="padding: 20px;">
-                <h2 style="margin-bottom:20px;">Marketplace Drops</h2>
-                {% if content.marketplace %}
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
-                    {% for item in content.marketplace %}
-                    <a href="/marketplace/item/{{ item.id }}" style="text-decoration:none; color:inherit; background:#f9f9f9; border-radius:15px; overflow:hidden; display:block;">
-                        <img src="{{ item.cover_url }}" style="width:100%; aspect-ratio:1; object-fit:cover;">
-                        <div style="padding:12px;">
-                            <strong style="display:block; font-size:14px; margin-bottom:4px;">{{ item.title }}</strong>
-                            <span style="color:var(--premium-accent); font-weight:bold;">{{ item.price_coins }} coins</span>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div style="text-align:center; padding:40px; opacity:0.6;">No marketplace items available.</div>
-                {% endif %}
-            </section>
-        </div>
-
-        <!-- Music Tab -->
-        <div id="tab-music" class="tab-content" style="display:none;">
-            <section class="glass-panel" style="padding: 20px;">
-                <h2 style="margin-bottom:20px;">Albums & Music</h2>
-                {% if content.albums %}
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px;">
-                    {% for album in content.albums %}
-                    <div style="background:#f9f9f9; border-radius:15px; overflow:hidden; text-align:center; padding:15px;">
-                        <img src="{{ album.cover_url }}" style="width:120px; height:120px; border-radius:10px; box-shadow:0 8px 15px rgba(0,0,0,0.1); margin-bottom:12px;">
-                        <strong style="display:block; font-size:14px;">{{ album.title }}</strong>
-                        <small style="opacity:0.6;">{{ album.genre }}</small>
+                    {% else %}
+                    <div class="empty-tab-state">
+                        <i class="fas fa-feather-alt"></i>
+                        <p>No posts to show yet.</p>
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <div style="text-align:center; padding:40px; opacity:0.6;">No music albums uploaded.</div>
-                {% endif %}
-            </section>
-        </div>
+            </div>
+
+            <!-- Reels Tab Content -->
+            <div id="reels-content" class="tab-content" style="display: none;">
+                <div class="reels-grid">
+                    {% for reel in content.reels %}
+                    <div class="reel-thumb premium-glass-card" onclick="window.location.href='/reels/{{ reel.id }}'">
+                        <img src="{{ reel.thumbnail_url or reel.media_url }}" alt="Reel">
+                        <div class="reel-overlay">
+                            <span><i class="fas fa-play"></i> {{ reel.views_count }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-tab-state">
+                        <i class="fas fa-film"></i>
+                        <p>No reels captured yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Live Tab Content -->
+            <div id="live-content" class="tab-content" style="display: none;">
+                <div class="live-history">
+                    {% for room in content.rooms %}
+                    <div class="live-history-card premium-glass-card">
+                        <div class="l-info">
+                            <strong>{{ room.title }}</strong>
+                            <span>{{ room.category }} · {{ room.created_at|datetime }}</span>
+                        </div>
+                        <div class="l-stats">
+                            <span><i class="fas fa-users"></i> {{ room.peak_viewers or 0 }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-tab-state">
+                        <i class="fas fa-video-slash"></i>
+                        <p>No past live streams.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- About Tab Content -->
+            <div id="about-content" class="tab-content" style="display: none;">
+                <div class="about-grid">
+                    <section class="premium-glass-card about-section">
+                        <h3>About {{ profile.full_name or profile.username }}</h3>
+                        <p>{{ profile.bio or 'This user hasn\'t added a bio yet.' }}</p>
+                        <hr class="premium-hr">
+                        <div class="about-details">
+                            <div class="d-item"><strong>Joined</strong> <span>{{ profile.created_at|datetime }}</span></div>
+                            <div class="d-item"><strong>Category</strong> <span>{{ profile.creator_category or 'Member' }}</span></div>
+                            <div class="d-item"><strong>Location</strong> <span>{{ profile.location or 'Global' }}</span></div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
     </div>
+</div>
 
-    <aside class="profile-side-column">
-        <!-- Wallet Summary -->
-        <section class="glass-panel" style="padding: 20px; margin-bottom:20px;">
-            <h3 style="font-size:14px; opacity:0.6; margin-bottom:15px;">WALLET SUMMARY</h3>
-            <div style="display:flex; flex-direction:column; gap:12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>Balance</span>
-                    <strong style="color:var(--premium-accent); font-size:18px;">{{ wallet.coin_balance or 0 }}</strong>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>Earnings</span>
-                    <strong>{{ wallet.gift_earnings or 0 }}</strong>
-                </div>
-                <a href="/wallet/" style="background:#f0f0f0; color:#333; text-decoration:none; text-align:center; padding:10px; border-radius:10px; font-size:12px; font-weight:bold; margin-top:10px;">Go to Wallet</a>
-            </div>
-        </section>
+<style>
+    .premium-profile-body {
+        background: var(--chain-bg);
+        min-height: 500px;
+        padding: 40px 20px;
+    }
+    .premium-content-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 40px;
+    }
 
-        <!-- Stats Highlights -->
-        <section class="glass-panel" style="padding: 20px;">
-            <h3 style="font-size:14px; opacity:0.6; margin-bottom:15px;">CREATOR RANK</h3>
-            <div style="text-align:center; padding:10px 0;">
-                <div style="width:80px; height:80px; border-radius:50%; background:var(--premium-gradient); color:white; display:flex; align-items:center; justify-content:center; margin:0 auto 15px; font-size:32px;">
-                    <i class="fas fa-crown"></i>
-                </div>
-                <strong style="display:block; font-size:16px;">Verified Creator</strong>
-                <p style="font-size:12px; opacity:0.6; margin-top:5px;">Ranking top 10% in Windhoek this week.</p>
-            </div>
-        </section>
-    </aside>
-</section>
+    .premium-glass-card {
+        background: var(--chain-bg-panel);
+        border: 1px solid var(--chain-border);
+        border-radius: 20px;
+        padding: 24px;
+        backdrop-filter: blur(20px);
+    }
 
-<script>
-function showTab(tabName) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
-    // Deactivate all buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.style.background = 'rgba(255,255,255,0.1)';
-        btn.style.color = '#333';
-    });
-    
-    // Show selected tab
-    document.getElementById('tab-' + tabName).style.display = 'block';
-    // Activate selected button
-    event.target.style.background = 'var(--premium-gradient)';
-    event.target.style.color = 'white';
-}
-</script>
+    /* AI Widget */
+    .ai-widget {
+        border: 1px solid var(--chain-primary);
+        box-shadow: 0 0 20px rgba(108, 92, 231, 0.1);
+        margin-bottom: 24px;
+    }
+    .ai-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .ai-orb {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--chain-primary);
+        box-shadow: 0 0 10px var(--chain-primary);
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.4); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .ai-widget p { font-size: 13px; color: var(--chain-muted); line-height: 1.5; margin-bottom: 16px; }
+    .ai-action-btn {
+        width: 100%;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(108, 92, 231, 0.1);
+        color: var(--chain-primary);
+        border: 1px solid var(--chain-primary);
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .ai-action-btn:hover { background: var(--chain-primary); color: white; }
+
+    /* Creator Mini Dash */
+    .creator-mini-dash h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--chain-muted); margin: 0 0 15px; }
+    .earnings-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; }
+    .earnings-row strong { font-size: 24px; font-weight: 900; color: var(--chain-success); }
+    .withdraw-link { font-size: 12px; color: var(--chain-secondary); font-weight: 700; }
+    .mini-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid var(--chain-border); pt: 15px; }
+    .m-item { display: flex; flex-direction: column; }
+    .m-item span { font-size: 11px; color: var(--chain-muted); text-transform: uppercase; }
+    .m-item strong { font-size: 16px; font-weight: 800; }
+
+    /* Content Grids */
+    .content-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    .post-card { padding: 0; overflow: hidden; }
+    .post-media { width: 100%; aspect-ratio: 16/9; overflow: hidden; }
+    .post-media img { width: 100%; height: 100%; object-fit: cover; }
+    .post-info { padding: 20px; }
+    .post-info p { margin: 0 0 15px; font-size: 15px; line-height: 1.6; }
+    .post-meta { display: flex; gap: 20px; color: var(--chain-muted); font-size: 14px; font-weight: 700; }
+
+    .reels-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+    .reel-thumb { padding: 0; aspect-ratio: 9/16; overflow: hidden; position: relative; cursor: pointer; }
+    .reel-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+    .reel-thumb:hover img { transform: scale(1.05); }
+    .reel-overlay { position: absolute; inset: 0; background: linear-gradient(transparent, rgba(0,0,0,0.5)); display: flex; align-items: flex-end; padding: 15px; color: white; font-weight: 800; }
+
+    .empty-tab-state { text-align: center; padding: 60px 20px; color: var(--chain-muted); }
+    .empty-tab-state i { font-size: 40px; margin-bottom: 15px; opacity: 0.3; }
+
+    .premium-hr { border: none; border-top: 1px solid var(--chain-border); margin: 20px 0; }
+    .about-details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .d-item { display: flex; flex-direction: column; gap: 4px; }
+    .d-item strong { font-size: 12px; color: var(--chain-muted); text-transform: uppercase; }
+    .d-item span { font-size: 14px; font-weight: 600; }
+
+    @media (max-width: 900px) {
+        .premium-content-container { grid-template-columns: 1fr; }
+        .premium-sidebar { order: 2; }
+        .premium-main-content { order: 1; }
+        .reels-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
 {% endblock %}
