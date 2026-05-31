@@ -331,7 +331,7 @@ def _find_profile_for_user(user):
     user_id = getattr(user, "id", None)
     email = clean_email(getattr(user, "email", None))
     if user_id:
-        ok, profile = ensure_neon_profile(
+        profile, error = ensure_neon_profile(
             user_id,
             {
                 "email": email,
@@ -341,7 +341,7 @@ def _find_profile_for_user(user):
                 "profile_completed": False,
             },
         )
-        if ok and profile:
+        if profile:
             return profile
     if email:
         rows = safe_select("chain_profiles", filters={"email": email}, columns="*", limit=1, order_by=None)
@@ -383,7 +383,7 @@ def sync_oauth_profile(user, provider):
     }
     profile_completed = is_profile_complete(draft_profile)
 
-    ok, synced_or_error = ensure_neon_profile(
+    synced_profile, sync_error = ensure_neon_profile(
         getattr(user, "id", None),
         {
             "email": email,
@@ -398,8 +398,8 @@ def sync_oauth_profile(user, provider):
         },
     )
     
-    if not ok:
-        print(f"[auth_service] sync_oauth_profile neon ensure failed (continuing): {synced_or_error}")
+    if not synced_profile:
+        print(f"[auth_service] sync_oauth_profile neon ensure failed (continuing): {sync_error}")
         # Return best-effort profile from metadata if Neon is down
         return {
             **(profile or {}),
@@ -415,7 +415,7 @@ def sync_oauth_profile(user, provider):
             "setup_warning": True
         }
     
-    normalized = synced_or_error
+    normalized = synced_profile
     if normalized:
         from services.profile_service import _neon_update_profile
         login_count = int(normalized.get("login_count") or 0) + 1
@@ -585,7 +585,7 @@ def best_effort_age_dob_update(profile_id, auth_user_id, dob):
         write_query(
             "UPDATE chain_profiles SET date_of_birth = %s, updated_at = now() WHERE id = %s",
             (dob, profile_id),
-            timeout_ms=300,
+            timeout_ms=1000,
         )
         return True
     except Exception as error:

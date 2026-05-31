@@ -24,6 +24,7 @@ from services.profile_service import (
     follow_profile,
     get_current_profile,
     get_profile_bundle,
+    get_profile_by_id,
     get_profile_by_username,
     get_profile_settings,
     is_adult_profile,
@@ -38,7 +39,9 @@ from services.profile_service import (
     verify_profile_age,
     _age_from_dob,
 )
+from services.profile_dashboard_service import build_profile_dashboard
 from services.storage_service import upload_avatar, upload_cover, upload_verification_file
+from services.logging_service import log_error, log_warning
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
@@ -125,41 +128,116 @@ def _profile_fallback_context():
     }
 
 
+def _apply_profile_session(profile, fallback_email=None):
+    if not profile:
+        return
+    profile_id = profile.get("id")
+    auth_user_id = profile.get("auth_user_id") or session.get("auth_user_id") or session.get("user_id")
+    email = profile.get("email") or fallback_email or session.get("auth_email") or session.get("email")
+    if profile_id:
+        session["profile_id"] = profile_id
+    if auth_user_id:
+        session["user_id"] = auth_user_id
+        session["auth_user_id"] = auth_user_id
+    if email:
+        session["email"] = email
+    if profile.get("username"):
+        session["username"] = profile.get("username")
+    session.modified = True
+
+
+def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0, setup_warning=False, bundle=None):
+    bundle = bundle or get_profile_bundle(profile_id=profile["id"], viewer=viewer)
+    if not bundle:
+        log_warning("profile_bundle_missing", profile_id=profile.get("id"), username=profile.get("username"))
+        return render_template("profile/not_found.html"), 404
+    dashboard = build_profile_dashboard(profile=profile, viewer=viewer, bundle=bundle)
+    render_bundle = dict(bundle)
+    render_profile = dashboard.get("profile") or render_bundle.pop("profile", profile)
+    render_bundle.pop("profile", None)
+    context = {
+        "unread_count": unread_count,
+        "viewer": viewer,
+        "profile": render_profile,
+        "setup_warning": setup_warning,
+    }
+    context.update(render_bundle)
+    context.update(dashboard)
+    context["profile"] = render_profile
+    context["viewer"] = viewer
+    return render_template("profile/index.html", **context), status_code
+
+
+def _resolve_profile_route(username=None, user_id=None):
+    viewer = get_current_profile() if is_logged_in() else None
+    profile = None
+    if username:
+        cleaned_username = username[1:] if username.startswith("@") else username
+        profile = get_profile_by_username(cleaned_username)
+    elif user_id:
+        profile = get_profile_by_id(user_id)
+
+    if not profile:
+        log_warning("public_profile_missing", username=username, user_id=user_id)
+        return render_template("profile/not_found.html"), 404
+
+    if viewer and viewer.get("id") != profile.get("id"):
+        record_profile_view(profile.get("id"), viewer.get("id"))
+
+    return _render_profile_index(profile, viewer=viewer)
+
+
+
+
 @profile_bp.route("/")
 @login_required
 def my_profile():
-    if session.get(K_AGE_CHECK_REQUIRED):
-        return redirect(url_for("profile.age_check"))
-
-    if session.get(K_PROFILE_WARNING):
-        return render_template("profile/index.html", **_profile_fallback_context())
-
-    viewer = get_current_profile()
-    if not viewer:
-        session[K_PROFILE_WARNING] = True
-        return render_template("profile/index.html", **_profile_fallback_context())
-    session.pop(K_PROFILE_WARNING, None)
-    
-    ok, result = verify_profile_age(viewer)
-    if not ok:
-        if result == "REDIRECT_AGE_CHECK":
-            session[K_AGE_CHECK_REQUIRED] = True
+    try:
+        if session.get(K_AGE_CHECK_REQUIRED):
             return redirect(url_for("profile.age_check"))
-        return render_template("auth/profile_error.html", error_detail=result), 200
-        
-    if not is_profile_complete(viewer):
-        return redirect(url_for("profile.onboarding"))
 
-    bundle = get_profile_bundle(profile_id=viewer["id"], viewer=viewer)
-    if not bundle:
-        session[K_PROFILE_WARNING] = True
-        return render_template("profile/index.html", **_profile_fallback_context())
-    _, _, unread_count = get_my_notifications()
-    
-    # Show warning if profile has setup issues
-    setup_warning = session.get(K_PROFILE_WARNING)
-    
-    return render_template("profile/index.html", unread_count=unread_count, viewer=viewer, setup_warning=setup_warning, **bundle)
+        viewer = get_current_profile()
+        if not viewer:
+            session[K_PROFILE_WARNING] = True
+            log_warning(
+                "profile_missing_for_session",
+                auth_user_id=session.get("auth_user_id") or session.get("user_id"),
+                profile_id=session.get("profile_id"),
+                email=session.get("auth_email") or session.get("email"),
+            )
+            return redirect(url_for("profile.create_profile"))
+
+        session.pop(K_PROFILE_WARNING, None)
+
+        ok, result = verify_profile_age(viewer)
+        if not ok:
+            if result == "REDIRECT_AGE_CHECK":
+                session[K_AGE_CHECK_REQUIRED] = True
+                return redirect(url_for("profile.age_check"))
+            log_warning("profile_age_verification_failed", profile_id=viewer.get("id"), detail=result)
+            return render_template("auth/profile_error.html", error_detail=result), 200
+
+        if not is_profile_complete(viewer):
+            return redirect(url_for("profile.onboarding"))
+
+        bundle = get_profile_bundle(profile_id=viewer["id"], viewer=viewer)
+        if not bundle:
+            session[K_PROFILE_WARNING] = True
+            log_warning("profile_bundle_missing_for_current_user", profile_id=viewer.get("id"))
+            return render_template("profile/index.html", **_profile_fallback_context())
+
+        _, _, unread_count = get_my_notifications()
+        setup_warning = session.get(K_PROFILE_WARNING)
+        return _render_profile_index(
+            viewer,
+            viewer=viewer,
+            unread_count=unread_count,
+            setup_warning=setup_warning,
+            bundle=bundle,
+        )
+    except Exception as error:
+        log_error("profile_route_failed", route="/profile/", error=str(error))
+        return render_template("auth/profile_error.html", error_detail="Profile could not be loaded right now."), 500
 
 
 @profile_bp.route("/age-check", methods=["GET", "POST"])
@@ -267,73 +345,47 @@ def edit_profile():
 
 
 @profile_bp.route("/@<username>")
-@profile_bp.route("/<user_id>")
-def public_profile(user_id=None, username=None):
-    """
-    Production-grade profile route with optimized SQL queries.
-    Handles UUID or @username.
-    """
-    from services.neon_service import fast_query
-    
-    viewer = get_current_profile()
-    viewer_id = viewer["id"] if viewer else None
-    
-    # 1. Fetch User Data
-    clean_id = username if username else (user_id[1:] if user_id.startswith("@") else user_id)
-    id_field = "username" if (username or user_id.startswith("@")) else "id"
-    
-    user_rows = fast_query(
-        f"SELECT * FROM chain_profiles WHERE {id_field} = %s AND deleted_at IS NULL LIMIT 1",
-        [clean_id]
-    )
-    if not user_rows:
-        return render_template("profile/not_found.html", username=clean_id), 404
-    
-    user = user_rows[0]
-    profile_id = user["id"]
-    
-    # Record view if not owner
-    if not viewer or viewer["id"] != profile_id:
-        record_profile_view(profile_id, viewer_profile_id=viewer_id)
-    
-    # 2. Optimized Content & Stats Queries
-    stats_data = fast_query(
-        """
-        SELECT 
-            (SELECT COUNT(*) FROM chain_follows WHERE following_profile_id = %s) as followers_count,
-            (SELECT COUNT(*) FROM chain_follows WHERE follower_profile_id = %s) as following_count,
-            (SELECT COUNT(*) FROM chain_posts WHERE profile_id = %s) as posts_count,
-            (SELECT EXISTS(SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s)) as is_following
-        """,
-        [profile_id, profile_id, profile_id, viewer_id, profile_id]
-    )[0]
-    
-    # 3. Fetch Content
-    posts = fast_query(
-        "SELECT * FROM chain_posts WHERE profile_id = %s ORDER BY created_at DESC LIMIT 30",
-        [profile_id]
-    )
-    
-    reels = fast_query(
-        "SELECT * FROM chain_reels WHERE profile_id = %s ORDER BY created_at DESC LIMIT 20",
-        [profile_id]
-    )
-    
-    rooms = fast_query(
-        "SELECT * FROM chain_live_rooms WHERE profile_id = %s AND status = 'live' LIMIT 1",
-        [profile_id]
-    )
+@profile_bp.route("/id/<user_id>")
+def view_profile(username=None, user_id=None):
+    try:
+        return _resolve_profile_route(username=username, user_id=user_id)
+    except Exception as error:
+        log_error("view_profile_failed", username=username, user_id=user_id, error=str(error))
+        return render_template("profile/not_found.html"), 404
 
-    return render_template(
-        "profile/premium_profile.html",
-        profile=user,
-        posts=posts,
-        reels=reels,
-        rooms=rooms,
-        stats=stats_data,
-        viewer=viewer,
-        is_following=stats_data["is_following"]
-    )
+
+@profile_bp.route("", methods=["GET"])
+def my_profile_no_slash():
+    return redirect(url_for("profile.my_profile"), code=308)
+
+
+@profile_bp.route("/<username>")
+def public_profile(username):
+    try:
+        return _resolve_profile_route(username=username)
+    except Exception as error:
+        log_error("public_profile_failed", username=username, error=str(error))
+        return render_template("profile/not_found.html"), 404
+
+
+@profile_bp.route("/api/current", methods=["GET"])
+def api_current_profile():
+    try:
+        if not is_logged_in():
+            return jsonify({"error": "Authentication required"}), 401
+        profile = get_current_profile()
+        if not profile:
+            log_warning(
+                "api_current_profile_missing",
+                auth_user_id=session.get("auth_user_id") or session.get("user_id"),
+                profile_id=session.get("profile_id"),
+                email=session.get("auth_email") or session.get("email"),
+            )
+            return jsonify({"error": "Profile not found"}), 404
+        return jsonify(profile), 200
+    except Exception as error:
+        log_error("api_current_profile_failed", error=str(error))
+        return jsonify({"error": "Profile lookup failed"}), 500
 
 
 @profile_bp.route("/avatar", methods=["POST"])
@@ -431,7 +483,7 @@ def premium(username):
     bundle = get_profile_bundle(username=username, viewer=viewer)
     if not bundle:
         return render_template("profile/not_found.html", username=username), 404
-    return render_template("profile/premium.html", viewer=viewer, **bundle)
+    return _render_profile_index(bundle["profile"], viewer=viewer, bundle=bundle)
 
 
 @profile_bp.route("/@<username>/creator-tools")
@@ -468,12 +520,27 @@ def onboarding():
                 progress=0,
                 setup_mode=True,
             ), 200
-        profile = get_current_profile()
+        profile = result if isinstance(result, dict) else None
+        if not profile:
+            profile = get_current_profile()
+        if not profile:
+            profile = _session_profile_stub()
 
-    if not is_adult_profile(profile):
+    adult_state = is_adult_profile(profile)
+    if adult_state is False:
         return render_template("auth/profile_error.html", error_detail="CHAIN is only available to users 18 and older."), 200
 
     if request.method == "POST":
+        if not profile or not profile.get("id"):
+            log_warning("onboarding_profile_unavailable_after_bootstrap")
+            return render_template(
+                "profile/onboarding.html",
+                profile=_session_profile_stub(),
+                form=request.form,
+                error="We could not finish linking your profile yet. Please try again.",
+                progress=0,
+                setup_mode=True,
+            ), 200
         data = dict(request.form)
         partial_step = data.get("partial_step")
         
@@ -499,20 +566,26 @@ def onboarding():
         if "languages" in data and isinstance(data["languages"], str):
             data["languages"] = [l.strip() for l in data["languages"].split(",") if l.strip()]
 
-        ok, result = update_profile_setup(profile["id"], data)
+        ok, result = update_profile_setup(profile["id"], data, current_profile=profile)
         
         if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json or partial_step:
+            if ok and isinstance(result, dict):
+                _apply_profile_session(result, fallback_email=data.get("email"))
             return jsonify({"status": "ok" if ok else "error", "message": "Profile updated" if ok else result})
 
         if ok:
+            completed_profile = result if isinstance(result, dict) else profile
+            _apply_profile_session(completed_profile, fallback_email=data.get("email"))
             flash("Profile updated.", "success")
             return redirect(url_for("profile.my_profile"))
+
+        log_error("onboarding_profile_write_failed", error=result, profile_id=profile.get("id"), auth_user_id=profile.get("auth_user_id"))
             
         return render_template(
             "profile/onboarding.html",
             profile=profile,
             form=request.form,
-            error="Please check the highlighted fields.",
+            error=result or "Profile could not be saved yet. Please check the highlighted fields and try again.",
             progress=profile.get("profile_completion", 0),
             setup_mode=True,
         )
@@ -790,4 +863,3 @@ def toggle_follow(user_id):
         "following": following,
         "followers_count": counts["count"]
     })
-

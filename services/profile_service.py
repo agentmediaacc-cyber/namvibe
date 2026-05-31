@@ -3,12 +3,18 @@ import re
 from datetime import datetime, timezone
 import uuid
 
-from flask import session
+from flask import has_request_context, session
+from psycopg2.extras import Json
 
 from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
 from engines.performance_engine import normalize_username, profile_completion_score, safe_int
-from services.neon_service import write_query, fast_query, get_table_columns, table_exists as neon_table_exists
+from services.neon_service import fetch_one, write_query, fast_query, get_table_columns, table_exists as neon_table_exists
 from services.supabase_safe import column_safe_payload, safe_count, safe_insert, safe_select, safe_update, table_exists
+from services.logging_service import log_error, log_info, log_warning
+
+_CHAIN_PROFILE_COLUMNS_CACHE = None
+_NEON_PROFILES_ENABLED_CACHE = None
+NEON_JSON_COLUMNS = {"interests", "activities", "looking_for", "linked_providers", "oauth_metadata", "portfolio_projects"}
 
 
 PROFILE_COLUMNS = {
@@ -57,6 +63,17 @@ PROFILE_COLUMNS = {
     "profile_completion",
     "profile_completed",
     "onboarding_step",
+    "website",
+    "pronouns",
+    "skills",
+    "profile_theme",
+    "rank",
+    "chain_score",
+    "trust_score",
+    "portfolio_url",
+    "portfolio_projects",
+    "business_name",
+    "video_intro_url",
     "password_set",
     "auth_provider",
     "provider_user_id",
@@ -129,7 +146,19 @@ NEON_PROFILE_COLUMNS = {
     "privacy_accepted_at",
     "onboarding_step",
     "profile_completed",
-    "tour_seen",
+    "website",
+    "pronouns",
+    "skills",
+    "profile_theme",
+    "rank",
+    "chain_score",
+    "trust_score",
+    "portfolio_url",
+    "portfolio_projects",
+    "business_name",
+    "premium_tier",
+    "profile_completion",
+    "relationship_goal",
     "last_login_at",
     "login_count",
     "dating_mode_enabled",
@@ -142,6 +171,34 @@ NEON_PROFILE_COLUMNS = {
 
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _chain_profile_columns_set(refresh=False):
+    global _CHAIN_PROFILE_COLUMNS_CACHE
+    if _CHAIN_PROFILE_COLUMNS_CACHE is None or refresh:
+        try:
+            columns = set(get_table_columns("chain_profiles", timeout_ms=5000) or [])
+            if columns:
+                _CHAIN_PROFILE_COLUMNS_CACHE = columns
+        except Exception:
+            if _CHAIN_PROFILE_COLUMNS_CACHE is None:
+                return set()
+    return _CHAIN_PROFILE_COLUMNS_CACHE or set()
+
+
+def _filter_chain_profile_payload(payload):
+    if not payload:
+        return {}
+    actual_columns = _chain_profile_columns_set()
+    if not actual_columns:
+        return {key: value for key, value in payload.items() if key in NEON_PROFILE_COLUMNS or key in PROFILE_COLUMNS}
+    return {key: value for key, value in payload.items() if key in actual_columns}
+
+
+def _adapt_neon_value(key, value):
+    if key in NEON_JSON_COLUMNS and isinstance(value, (list, dict)):
+        return Json(value)
+    return value
 
 
 def _normalize_list(value):
@@ -295,14 +352,40 @@ def normalize_profile(profile):
 
 
 def _neon_profiles_enabled():
-    return neon_table_exists("chain_profiles")
+    global _NEON_PROFILES_ENABLED_CACHE
+    if _NEON_PROFILES_ENABLED_CACHE is True:
+        return True
+    enabled = neon_table_exists("chain_profiles")
+    if enabled:
+        _NEON_PROFILES_ENABLED_CACHE = True
+    return enabled
 
 
 def _neon_profile_columns():
-    columns = [column for column in get_table_columns("chain_profiles", timeout_ms=500) if column in NEON_PROFILE_COLUMNS]
+    columns = [column for column in _chain_profile_columns_set() if column in NEON_PROFILE_COLUMNS]
     if not columns:
         columns = ["id", "auth_user_id", "email", "username", "display_name", "full_name", "profile_completed", "created_at", "updated_at"]
     return ", ".join(columns)
+
+
+def _direct_profile_lookup(field, value, timeout_ms=4000):
+    if not _neon_profiles_enabled() or value in (None, ""):
+        return None
+    if field in {"id", "auth_user_id"}:
+        try:
+            uuid.UUID(str(value))
+        except (ValueError, TypeError):
+            return None
+    try:
+        row = fetch_one(
+            f"SELECT {_neon_profile_columns()} FROM chain_profiles WHERE {field} = %s AND deleted_at IS NULL LIMIT 1",
+            [value],
+            timeout_ms=timeout_ms,
+        )
+        return normalize_profile(row) if row else None
+    except Exception as error:
+        print(f"[profile_service] direct neon lookup failed for {field}: {error}")
+        return None
 
 
 def _neon_get_profile_by(field, value):
@@ -321,13 +404,16 @@ def _neon_get_profile_by(field, value):
             timeout_ms=500,
         )
         row = rows[0] if rows else None
-        return normalize_profile(row) if row else None
+        if row:
+            return normalize_profile(row)
+        return _direct_profile_lookup(field, value)
     except Exception as error:
         print(f"[profile_service] neon lookup failed for {field}: {error}")
-        return None
+        return _direct_profile_lookup(field, value)
 
 
 def _neon_insert_profile(payload):
+    payload = _filter_chain_profile_payload(payload)
     if not payload:
         return None
     columns = list(payload.keys())
@@ -339,28 +425,29 @@ def _neon_insert_profile(payload):
         VALUES ({placeholders}) 
         ON CONFLICT (auth_user_id) DO UPDATE 
         SET updated_at = now() 
-        RETURNING id, auth_user_id, email, username, display_name, full_name, profile_completed
+        RETURNING {_neon_profile_columns()}
     """
     try:
-        results = write_query(sql, list(payload.values()), timeout_ms=3000)
-        return results[0] if results else None
+        results = write_query(sql, [_adapt_neon_value(key, value) for key, value in payload.items()], timeout_ms=3000)
+        return normalize_profile(results[0]) if results else None
     except Exception as error:
         print(f"[profile_service] _neon_insert_profile failed: {error}")
         raise
 
 
 def _neon_update_profile(profile_id, payload):
+    payload = _filter_chain_profile_payload(payload)
     if not payload:
         return None
     assignments = ", ".join(f"{key} = %s" for key in payload.keys())
-    params = list(payload.values()) + [profile_id]
+    params = [_adapt_neon_value(key, value) for key, value in payload.items()] + [profile_id]
     try:
-        write_query(
-            f"UPDATE chain_profiles SET {assignments}, updated_at = now() WHERE id = %s",
+        results = write_query(
+            f"UPDATE chain_profiles SET {assignments}, updated_at = now() WHERE id = %s RETURNING {_neon_profile_columns()}",
             params,
             timeout_ms=3000,
         )
-        return _neon_get_profile_by("id", profile_id)
+        return normalize_profile(results[0]) if results else None
     except Exception as error:
         print(f"[profile_service] _neon_update_profile failed: {error}")
         return None
@@ -370,15 +457,33 @@ def ensure_neon_profile(auth_user_id, defaults=None):
     defaults = defaults or {}
     profile = _neon_get_profile_by("auth_user_id", auth_user_id)
     if profile:
-        return True, profile
-    if not _neon_profiles_enabled():
-        return False, "Neon chain_profiles table is unavailable."
+        return profile, None
+    fallback_existing = _find_existing_profile(
+        uid=auth_user_id,
+        profile_id=session.get("profile_id") if has_request_context() else None,
+        username=normalize_username(defaults.get("username") or session.get("username") or "") if has_request_context() else normalize_username(defaults.get("username") or ""),
+        email=_clean_email(defaults.get("email") or (session.get("email") if has_request_context() else None)),
+    )
+    if fallback_existing and fallback_existing.get("id"):
+        update_payload = {}
+        if auth_user_id and "auth_user_id" in _chain_profile_columns_set():
+            update_payload["auth_user_id"] = auth_user_id
+        if defaults.get("full_name"):
+            update_payload["full_name"] = defaults.get("full_name")
+            update_payload["display_name"] = defaults.get("display_name") or defaults.get("full_name")
+        if update_payload:
+            updated = _neon_update_profile(fallback_existing["id"], update_payload)
+            if updated:
+                return updated, None
+            log_error("ensure_neon_profile_existing_update_failed", profile_id=fallback_existing.get("id"))
+            return None, "Profile could not be saved yet."
+        return normalize_profile(fallback_existing), None
     username = normalize_username(defaults.get("username") or session.get("username") or "chainuser")
     if not _username_valid(username):
         username = "chainuser"
     while _neon_get_profile_by("username", username):
         username = _username_suggestions(username, defaults.get("town"))[0]
-    payload = {
+    payload = _filter_chain_profile_payload({
         "auth_user_id": auth_user_id,
         "email": _clean_email(defaults.get("email") or session.get("email")),
         "username": username,
@@ -399,41 +504,70 @@ def ensure_neon_profile(auth_user_id, defaults=None):
         "is_creator": bool(defaults.get("profile_type") in {"creator", "host"}),
         "creator_category": defaults.get("profile_type"),
         "onboarding_step": defaults.get("onboarding_step") or "account",
-        "tour_seen": bool(defaults.get("tour_seen", False)),
-    }
+    })
     try:
-        _neon_insert_profile(payload)
-        return True, _neon_get_profile_by("auth_user_id", auth_user_id)
+        inserted = _neon_insert_profile(payload)
+        if inserted:
+            return normalize_profile({**payload, **inserted}), None
+        log_error("ensure_neon_profile_insert_empty_result", auth_user_id=auth_user_id)
+        return None, "Profile could not be saved yet."
     except Exception as error:
-        print(f"[profile_service] ensure_neon_profile failed: {error}")
-        return False, "Profile could not be saved yet."
+        log_error("ensure_neon_profile_failed", error=str(error), auth_user_id=auth_user_id)
+        return None, "Profile could not be saved yet."
 
 
 def get_current_profile():
     try:
-        auth_user_id = session.get("auth_user_id")
-        if not auth_user_id:
+        if not has_request_context():
+            print("[profile_service] get_current_profile called without request context")
             return None
 
-        cached_profile = get_cache(cache_key("current_profile", auth_user_id))
+        auth_user_id = session.get("auth_user_id") or session.get("user_id")
+        profile_id = session.get("profile_id")
+        email = session.get("auth_email") or session.get("email")
+        if not auth_user_id and not profile_id and not email:
+            return None
+
+        cache_id = auth_user_id or profile_id or email
+        cached_profile = get_cache(cache_key("current_profile", cache_id))
         if cached_profile is not None:
             return cached_profile
 
-        profile = _neon_get_profile_by("auth_user_id", auth_user_id)
-        if not profile and session.get("profile_id"):
-            profile = _neon_get_profile_by("id", session.get("profile_id"))
-        if not profile:
+        profile = None
+        if auth_user_id:
+            profile = _neon_get_profile_by("auth_user_id", auth_user_id)
+        if not profile and profile_id:
+            profile = _neon_get_profile_by("id", profile_id)
+        if not profile and auth_user_id:
+            profile = _direct_profile_lookup("auth_user_id", auth_user_id)
+        if not profile and profile_id:
+            profile = _direct_profile_lookup("id", profile_id)
+        if not profile and auth_user_id:
             profiles = safe_select("chain_profiles", columns="*", filters={"auth_user_id": auth_user_id}, limit=1)
-            if not profiles and session.get("profile_id"):
-                profiles = safe_select("chain_profiles", columns="*", filters={"id": session.get("profile_id")}, limit=1)
+            profile = normalize_profile(profiles[0]) if profiles else None
+        if not profile and profile_id:
+            profiles = safe_select("chain_profiles", columns="*", filters={"id": profile_id}, limit=1)
+            profile = normalize_profile(profiles[0]) if profiles else None
+        if not profile and email:
+            profile = _direct_profile_lookup("email", email)
+        if not profile and email:
+            profiles = safe_select("chain_profiles", columns="*", filters={"email": email}, limit=1)
             profile = normalize_profile(profiles[0]) if profiles else None
 
         if profile:
-            session["profile_id"] = profile["id"]
-            session["username"] = profile["username"]
-            set_cache(cache_key("current_profile", auth_user_id), profile, ttl=60)
+            if auth_user_id and not profile.get("auth_user_id") and "auth_user_id" in _chain_profile_columns_set():
+                updated = _neon_update_profile(profile.get("id"), {"auth_user_id": auth_user_id})
+                if updated:
+                    profile = updated
+            session["profile_id"] = profile.get("id")
+            session["username"] = profile.get("username")
+            if profile.get("auth_user_id"):
+                session["auth_user_id"] = profile.get("auth_user_id")
+                session["user_id"] = profile.get("auth_user_id")
+            set_cache(cache_key("current_profile", cache_id), profile, ttl=60)
             return profile
 
+        print(f"[profile_service] get_current_profile missing profile for auth_user_id={auth_user_id} profile_id={profile_id} email={email}")
         return None
     except Exception as error:
         print(f"[profile_service] get_current_profile failed: {error}")
@@ -521,6 +655,8 @@ def get_profile_completion(profile):
 def is_profile_complete(profile):
     if not profile:
         return False
+    if profile.get("profile_completed") is True:
+        return True
     return all((profile.get(field) not in (None, "", [])) for field in required_profile_fields())
 
 
@@ -540,12 +676,18 @@ def _profile_payload_from_form(data, auth_user_id=None):
         "email": email,
         "normalized_email": email,
         "full_name": (data.get("full_name") or "").strip(),
+        "display_name": (data.get("display_name") or data.get("full_name") or "").strip(),
         "bio": data.get("bio") or "",
         "gender": data.get("gender"),
         "age": safe_int(data.get("age"), None) if data.get("age") not in (None, "") else _age_from_dob(data.get("date_of_birth")),
         "country_origin": data.get("country_origin"),
         "preferred_language": data.get("preferred_language") or data.get("language_preferences"),
         "current_location": data.get("current_location"),
+        "website": data.get("website") or data.get("portfolio_url") or data.get("link_url"),
+        "pronouns": data.get("pronouns"),
+        "skills": _normalize_list(data.get("skills")),
+        "profile_theme": data.get("profile_theme"),
+        "portfolio_url": data.get("portfolio_url"),
         "phone": phone,
         "normalized_phone": phone,
         "residential_address": data.get("residential_address"),
@@ -584,6 +726,9 @@ def _profile_payload_from_form(data, auth_user_id=None):
         "is_verified": str(data.get("is_verified", "false")).lower() in {"true", "1", "on"},
         "is_premium": str(data.get("is_premium", "false")).lower() in {"true", "1", "on"} or premium_tier not in {"", "free"},
         "premium_tier": premium_tier,
+        "rank": data.get("rank"),
+        "chain_score": safe_int(data.get("chain_score"), None),
+        "trust_score": safe_int(data.get("trust_score"), None),
         "wallet_balance": data.get("wallet_balance"),
         "username_slug": username,
         "terms_accepted": _bool_value(data.get("terms_accepted") or data.get("consent_accepted")),
@@ -668,7 +813,7 @@ def bootstrap_profile_for_current_user():
         "phone": session.get("phone"),
         "profile_type": "member",
     }
-    ok, result = ensure_neon_profile(
+    profile, error = ensure_neon_profile(
         uid,
         {
             "email": email,
@@ -678,12 +823,12 @@ def bootstrap_profile_for_current_user():
             "profile_type": "member",
         },
     )
-    if ok and result:
-        session["profile_id"] = result.get("id")
-        session["username"] = result.get("username")
+    if profile:
+        session["profile_id"] = profile.get("id")
+        session["username"] = profile.get("username")
         delete_cache(cache_key("current_profile", uid))
-        return True, result
-    return False, result
+        return True, profile
+    return False, error
 
 
 def create_or_update_profile(data, auth_user_id=None):
@@ -709,7 +854,7 @@ def create_or_update_profile(data, auth_user_id=None):
             neon_payload = {
                 "email": payload.get("email"),
                 "username": payload.get("username"),
-                "display_name": payload.get("full_name"),
+                "display_name": payload.get("display_name") or payload.get("full_name"),
                 "full_name": payload.get("full_name"),
                 "bio": payload.get("bio"),
                 "phone": payload.get("phone"),
@@ -718,26 +863,38 @@ def create_or_update_profile(data, auth_user_id=None):
                 "current_location": payload.get("current_location"),
                 "country_origin": payload.get("country_origin"),
                 "avatar_url": payload.get("avatar_url"),
+                "cover_url": payload.get("cover_url"),
+                "date_of_birth": payload.get("date_of_birth"),
+                "website": payload.get("website"),
+                "pronouns": payload.get("pronouns"),
+                "skills": payload.get("skills"),
+                "profile_theme": payload.get("profile_theme"),
+                "portfolio_url": payload.get("portfolio_url"),
                 "creator_category": payload.get("creator_category"),
                 "profile_completed": False,
+                "profile_completion": payload.get("profile_completion"),
+                "onboarding_step": "profile",
                 "dating_mode_enabled": payload.get("dating_mode_enabled"),
                 "is_creator": payload.get("is_creator"),
             }
-            _neon_update_profile(existing["id"], {key: value for key, value in neon_payload.items() if key in NEON_PROFILE_COLUMNS})
+            _neon_update_profile(existing["id"], neon_payload)
         else:
-            ok, profile_or_error = ensure_neon_profile(
+            ensured_profile, ensure_error = ensure_neon_profile(
                 uid,
                 {
                     "email": payload.get("email"),
                     "username": payload.get("username"),
                     "full_name": payload.get("full_name"),
-                    "display_name": payload.get("full_name"),
+                    "display_name": payload.get("display_name") or payload.get("full_name"),
+                    "date_of_birth": payload.get("date_of_birth"),
+                    "town": payload.get("town"),
+                    "region": payload.get("region"),
                     "dating_mode_enabled": payload.get("dating_mode_enabled"),
                     "profile_type": payload.get("profile_type"),
                 },
             )
-            if not ok:
-                return False, profile_or_error
+            if not ensured_profile:
+                return False, ensure_error
 
         profile = _neon_get_profile_by("auth_user_id", uid)
         if profile:
@@ -755,9 +912,9 @@ def create_or_update_profile(data, auth_user_id=None):
         return False, str(error)
 
 
-def update_profile_setup(profile_id, form):
+def update_profile_setup(profile_id, form, current_profile=None):
     try:
-        profile = get_profile_by_id(profile_id)
+        profile = current_profile if current_profile and current_profile.get("id") == profile_id else get_profile_by_id(profile_id)
         if not profile:
             return False, "Profile not found."
 
@@ -774,7 +931,7 @@ def update_profile_setup(profile_id, form):
         neon_payload = {
             "email": payload.get("email"),
             "username": payload.get("username"),
-            "display_name": payload.get("full_name"),
+            "display_name": payload.get("display_name") or payload.get("full_name"),
             "full_name": payload.get("full_name"),
             "bio": payload.get("bio"),
             "phone": payload.get("phone"),
@@ -795,19 +952,20 @@ def update_profile_setup(profile_id, form):
             "creator_category": payload.get("creator_category"),
             "dating_mode_enabled": payload.get("dating_mode_enabled"),
             "is_creator": payload.get("is_creator"),
-            "allow_messages": _bool_value(form.get("allow_messages"), True),
-            "allow_dating": _bool_value(form.get("allow_dating")),
-            "allow_gifts": _bool_value(form.get("allow_gifts"), True),
             "visibility": form.get("visibility") or form.get("profile_visibility") or "public",
-            "tour_seen": _bool_value(form.get("tour_seen")),
-            "onboarding_step": form.get("onboarding_step") or "profile",
+            "profile_completion": payload.get("profile_completion"),
+            "profile_completed": True,
+            "onboarding_step": form.get("onboarding_step") or "complete",
         }
-        _neon_update_profile(profile_id, {key: value for key, value in neon_payload.items() if key in NEON_PROFILE_COLUMNS})
+        updated_profile = _neon_update_profile(profile_id, neon_payload)
+        if not updated_profile:
+            log_error("update_profile_setup_write_failed", profile_id=profile_id)
+            return False, "Profile could not be saved yet."
         _save_onboarding_foundations(profile_id, form, payload)
         delete_cache(cache_key("profile_id", profile_id))
         delete_cache(cache_key("profile_username", profile.get("username")))
         delete_cache(cache_key("current_profile", profile.get("auth_user_id")))
-        return complete_profile_setup(profile_id)
+        return complete_profile_setup(profile_id, updated_profile=updated_profile)
     except Exception as error:
         print(f"[profile_service] update_profile_setup failed: {error}")
         return False, str(error)
@@ -916,18 +1074,33 @@ def _save_onboarding_foundations(profile_id, form, profile_payload):
             )
 
 
-def complete_profile_setup(profile_id):
-    profile = get_profile_by_id(profile_id)
+def complete_profile_setup(profile_id, updated_profile=None):
+    profile = updated_profile or get_profile_by_id(profile_id)
     if not profile:
         return False, "Profile not found."
 
-    completed = is_profile_complete(profile)
-    _neon_update_profile(profile_id, {"profile_completed": completed, "onboarding_step": "complete" if completed else "profile"})
+    completed = True
+    refreshed = _neon_update_profile(
+        profile_id,
+        {
+            "profile_completed": completed,
+            "profile_completion": max(get_profile_completion(profile), 100),
+            "onboarding_step": "complete" if completed else "profile",
+        },
+    )
     delete_cache(cache_key("profile_id", profile_id))
     delete_cache(cache_key("current_profile", profile.get("auth_user_id")))
     if profile.get("username"):
         delete_cache(cache_key("profile_username", profile.get("username")))
-    refreshed = get_profile_by_id(profile_id)
+    if not refreshed:
+        log_error("complete_profile_setup_write_failed", profile_id=profile_id)
+        return False, "Profile could not be saved yet."
+    if has_request_context() and refreshed:
+        session["profile_id"] = refreshed.get("id")
+        session["username"] = refreshed.get("username")
+        if refreshed.get("auth_user_id"):
+            session["auth_user_id"] = refreshed.get("auth_user_id")
+            session["user_id"] = refreshed.get("auth_user_id")
     return True, refreshed
 
 
@@ -1152,41 +1325,144 @@ def get_profile_actions(profile, viewer=None):
 
 
 def get_profile_bundle(username=None, profile_id=None, viewer=None):
+    lookup_kind = "username" if username else "profile_id"
+    lookup_value = username or profile_id
     profile = get_profile_by_username(username) if username else get_profile_by_id(profile_id)
+    log_info("profile_bundle_profile_lookup", lookup_kind=lookup_kind, found=bool(profile))
     if not profile:
+        log_warning("profile_bundle_missing_profile", lookup_kind=lookup_kind)
         return None
     if profile.get("deleted_at"):
+        log_warning("profile_bundle_deleted_profile", profile_id=profile.get("id"), username=profile.get("username"))
         return None
-    if not is_adult_profile(profile):
-        return None
+
+    adult_result = is_adult_profile(profile)
+    own_profile = bool(viewer and viewer.get("id") == profile.get("id"))
+    log_info(
+        "profile_bundle_age_state",
+        profile_id=profile.get("id"),
+        own_profile=own_profile,
+        age_known=adult_result is not None,
+        is_adult=(adult_result is True),
+    )
+
+    restricted_fields = {"bio", "interests", "activities", "looking_for", "relationship_status", "residential_address", "phone", "email", "date_of_birth"}
+    restricted_view = False
+    if adult_result is False and not own_profile:
+        restricted_view = True
+    if adult_result is None and not own_profile:
+        restricted_view = True
+
     if profile.get("visibility") == "private" and (not viewer or viewer.get("id") != profile.get("id")):
         profile = {
             key: value
             for key, value in profile.items()
-            if key not in {"bio", "interests", "activities", "looking_for", "relationship_status", "residential_address", "phone", "email", "date_of_birth"}
+            if key not in restricted_fields
+        }
+        restricted_view = True
+    elif restricted_view:
+        profile = {
+            key: value
+            for key, value in profile.items()
+            if key not in restricted_fields
         }
 
-    stats = get_profile_stats(profile["id"])
-    content = get_profile_content(profile["id"])
-    activity = get_profile_activity(profile["id"])
-    wallet = get_wallet_snapshot(profile["id"])
-    creator_tools = get_creator_tools(profile["id"])
-    actions = get_profile_actions(profile, viewer=viewer)
+    try:
+        stats = get_profile_stats(profile["id"]) or {}
+    except Exception as error:
+        log_warning("profile_bundle_stats_failed", profile_id=profile.get("id"), error=str(error))
+        stats = {}
+    log_info("profile_bundle_stats_state", profile_id=profile.get("id"), stats_keys=sorted(list(stats.keys()))[:8], has_stats=bool(stats))
+
+    try:
+        content = get_profile_content(profile["id"]) or {}
+    except Exception as error:
+        log_warning("profile_bundle_content_failed", profile_id=profile.get("id"), error=str(error))
+        content = {}
+    content = {
+        "rooms": content.get("rooms", []),
+        "posts": content.get("posts", []),
+        "stories": content.get("stories", []),
+        "reels": content.get("reels", []),
+        "marketplace": content.get("marketplace", []),
+        "albums": content.get("albums", []),
+    }
+    log_info(
+        "profile_bundle_content_state",
+        profile_id=profile.get("id"),
+        posts_count=len(content["posts"]),
+        reels_count=len(content["reels"]),
+        rooms_count=len(content["rooms"]),
+        stories_count=len(content["stories"]),
+    )
+
+    try:
+        activity = get_profile_activity(profile["id"]) or {}
+    except Exception as error:
+        log_warning("profile_bundle_activity_failed", profile_id=profile.get("id"), error=str(error))
+        activity = {}
+    activity = {
+        "rooms": activity.get("rooms", []),
+        "posts": activity.get("posts", []),
+        "stories": activity.get("stories", []),
+        "gifts": activity.get("gifts", []),
+        "favorites": activity.get("favorites", []),
+        "recent_views": activity.get("recent_views", []),
+    }
+
+    try:
+        wallet = get_wallet_snapshot(profile["id"]) or {}
+    except Exception as error:
+        log_warning("profile_bundle_wallet_failed", profile_id=profile.get("id"), error=str(error))
+        wallet = {}
+    wallet = {
+        "coin_balance": wallet.get("coin_balance", profile.get("wallet_balance", 0) or 0),
+        "gift_earnings": wallet.get("gift_earnings", 0),
+        "pending_withdrawal": wallet.get("pending_withdrawal", 0),
+        **wallet,
+    }
+    log_info("profile_bundle_wallet_state", profile_id=profile.get("id"), has_wallet=bool(wallet), coin_balance=wallet.get("coin_balance", 0))
+
+    try:
+        creator_tools = get_creator_tools(profile["id"]) or {}
+    except Exception as error:
+        log_warning("profile_bundle_creator_tools_failed", profile_id=profile.get("id"), error=str(error))
+        creator_tools = {}
+    creator_tools = {
+        "profile_id": profile.get("id"),
+        "studio_enabled": creator_tools.get("studio_enabled", False),
+        "creator_notes": creator_tools.get("creator_notes", ""),
+        "featured_links": creator_tools.get("featured_links", []),
+        **creator_tools,
+    }
+    log_info("profile_bundle_creator_tools_state", profile_id=profile.get("id"), has_creator_tools=bool(creator_tools))
+
+    try:
+        actions = get_profile_actions(profile, viewer=viewer) or []
+    except Exception as error:
+        log_warning("profile_bundle_actions_failed", profile_id=profile.get("id"), error=str(error))
+        actions = []
     
     # Phase 8: Real-time Presence
-    presence_row = safe_select("chain_presence", filters={"profile_id": profile["id"]}, limit=1)
-    presence = presence_row[0] if presence_row else {"status": "offline", "last_seen": None}
+    try:
+        presence_row = safe_select("chain_presence", filters={"profile_id": profile["id"]}, limit=1)
+        presence = presence_row[0] if presence_row else {"status": "offline", "last_seen": None}
+    except Exception as error:
+        log_warning("profile_bundle_presence_failed", profile_id=profile.get("id"), error=str(error))
+        presence = {"status": "offline", "last_seen": None}
     
     # Phase 8: Follow Status
     is_following = False
     is_page_liked = False
     if viewer:
-        res = safe_select("chain_follows", filters={"follower_profile_id": viewer["id"], "following_profile_id": profile["id"]}, limit=1)
-        is_following = bool(res)
-        
-        if profile.get('is_page'):
-            res_like = safe_select("chain_page_likes", filters={"profile_id": viewer["id"], "page_id": profile["id"]}, limit=1)
-            is_page_liked = bool(res_like)
+        try:
+            res = safe_select("chain_follows", filters={"follower_profile_id": viewer["id"], "following_profile_id": profile["id"]}, limit=1)
+            is_following = bool(res)
+            if profile.get('is_page'):
+                res_like = safe_select("chain_page_likes", filters={"profile_id": viewer["id"], "page_id": profile["id"]}, limit=1)
+                is_page_liked = bool(res_like)
+        except Exception as error:
+            log_warning("profile_bundle_follow_state_failed", profile_id=profile.get("id"), error=str(error))
 
     return {
         "profile": profile,
@@ -1198,7 +1474,10 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
         "actions": actions,
         "presence": presence,
         "is_following": is_following,
-        "is_page_liked": is_page_liked
+        "is_page_liked": is_page_liked,
+        "age_gate_required": adult_result is None,
+        "age_restricted": adult_result is False,
+        "restricted_view": restricted_view,
     }
 
 
