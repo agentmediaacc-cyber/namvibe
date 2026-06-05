@@ -1,7 +1,9 @@
 import json
 from datetime import datetime, timezone, timedelta
 
-from flask import Blueprint, redirect, render_template, request, session
+import os
+
+from flask import Blueprint, jsonify, redirect, render_template, request, session
 
 from services.admin_auth_service import (
     admin_redirect_target,
@@ -170,10 +172,26 @@ def admin_end_stream(room_id):
     end_live(room_id)
     return redirect("/admin/dashboard")
 
-@admin_bp.route("/audit")
+@admin_bp.route("/system-audit")
 @require_master_admin
 def system_audit():
     return render_template("admin/system_audit.html", **_dashboard_context("audit"))
+
+
+@admin_bp.route("/system-health")
+@require_admin
+def system_health():
+    from services.system_health_service import get_platform_health_snapshot
+    health = get_platform_health_snapshot()
+    
+    from services.content_service import upload_folder_status, verify_content_tables
+    return render_template(
+        "admin/system_health.html",
+        admin_user=current_admin(),
+        health=health,
+        upload_folders=upload_folder_status(),
+        content_tables=verify_content_tables(),
+    )
 
 @admin_bp.route("/reports/payouts/latest")
 @require_master_admin
@@ -421,3 +439,119 @@ def developer_root():
 @require_master_admin
 def developer_dashboard():
     return render_template("admin/developer_dashboard.html", **_dashboard_context("developer"))
+
+@admin_bp.route("/moderation")
+@require_admin
+def admin_moderation():
+    from services.neon_service import fast_query
+    context = _dashboard_context("moderation")
+    
+    reports = fast_query("""
+        SELECT r.*, reporter.username as reporter_username, target.username as target_username
+        FROM chain_reports r
+        LEFT JOIN chain_profiles reporter ON r.reporter_profile_id = reporter.id
+        LEFT JOIN chain_profiles target ON r.target_profile_id = target.id
+        ORDER BY r.created_at DESC LIMIT 50
+    """)
+    
+    spam_reports = fast_query("""
+        SELECT r.*, reporter.username as reporter_username, target.username as target_username
+        FROM chain_spam_reports r
+        LEFT JOIN chain_profiles reporter ON r.reporter_profile_id = reporter.id
+        LEFT JOIN chain_profiles target ON r.target_profile_id = target.id
+        ORDER BY r.created_at DESC LIMIT 50
+    """)
+    
+    fake_accounts = fast_query("SELECT id, username, full_name, trust_score, last_ip FROM chain_profiles WHERE is_fake = TRUE LIMIT 20")
+    
+    return render_template(
+        "admin/moderation.html",
+        **context,
+        reports=reports,
+        spam_reports=spam_reports,
+        fake_accounts=fake_accounts
+    )
+
+@admin_bp.route("/moderation/action", methods=["POST"])
+@require_admin
+def admin_moderation_action():
+    from services.neon_service import write_query
+    admin = current_admin()
+    target_id = request.form.get("target_id")
+    target_type = request.form.get("target_type")
+    action = request.form.get("action")
+    reason = request.form.get("reason")
+    
+    log_admin_action(admin["id"], f"moderation_{action}", target_type, target_id, {"reason": reason})
+    
+    if target_type == "user":
+        if action == "suspend":
+            write_query("UPDATE chain_profiles SET deleted_at = now() WHERE id = %s", (target_id,))
+        elif action == "restrict":
+            write_query("UPDATE chain_profiles SET trust_score = 0.1 WHERE id = %s", (target_id,))
+        elif action == "warn":
+            # Placeholder for sending a warning notification
+            pass
+            
+    report_id = request.form.get("report_id")
+    if report_id:
+        write_query("UPDATE chain_reports SET status = 'resolved' WHERE id = %s", (report_id,))
+        write_query("UPDATE chain_spam_reports SET status = 'resolved' WHERE id = %s", (report_id,))
+
+    return redirect("/admin/moderation")
+
+@admin_bp.route("/verification")
+@require_admin
+def admin_verification():
+    from services.verification_engine import list_pending_verifications
+    pending = list_pending_verifications()
+    context = _dashboard_context("verification")
+    return render_template("admin/verifications.html", **context, pending=pending)
+
+@admin_bp.route("/verification/action", methods=["POST"])
+@require_admin
+def admin_verification_action():
+    from services.verification_engine import update_verification_status
+    admin = current_admin()
+    request_id = request.form.get("request_id")
+    status = request.form.get("status") # approved / rejected
+    notes = request.form.get("notes")
+    
+    update_verification_status(request_id, status, reviewer_profile_id=admin["id"], notes=notes)
+    flash(f"Verification {status}", "success")
+    return redirect(url_for("admin.admin_verification"))
+
+@admin_bp.route("/security")
+@require_admin
+def admin_security():
+    from services.neon_service import fast_query
+    context = _dashboard_context("security")
+    
+    anomalies = fast_query("""
+        SELECT h.*, p.username 
+        FROM chain_login_history h
+        JOIN chain_profiles p ON h.profile_id = p.id
+        WHERE is_anomaly = TRUE
+        ORDER BY h.created_at DESC LIMIT 50
+    """)
+    
+    ip_reputation = fast_query("SELECT * FROM chain_ip_reputation ORDER BY last_seen_at DESC LIMIT 50")
+    
+    return render_template("admin/security.html", **context, anomalies=anomalies, ip_reputation=ip_reputation)
+
+@admin_bp.route("/observability")
+@require_admin
+def admin_observability():
+    from services.neon_service import fast_query
+    context = _dashboard_context("observability")
+    
+    slow_queries = fast_query("""
+        SELECT request_path, method, status_code, latency_ms, created_at
+        FROM chain_performance_logs
+        WHERE latency_ms > 1000
+        ORDER BY latency_ms DESC LIMIT 50
+    """)
+    
+    avg_latency = fast_query("SELECT request_path, AVG(latency_ms) as avg_ms, COUNT(*) as count FROM chain_performance_logs GROUP BY request_path ORDER BY avg_ms DESC LIMIT 20")
+    
+    return render_template("admin/observability.html", **context, slow_queries=slow_queries, avg_latency=avg_latency)

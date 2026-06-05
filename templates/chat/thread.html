@@ -175,12 +175,28 @@
             </div>
         </header>
 
-        <div class="thread-body">
+        <div class="thread-body" id="chat-body">
             {% if messages %}
                 {% for m in messages %}
-                <article class="chat-bubble {% if current and m.sender_profile_id == current.id %}mine{% endif %}">
-                    <p>{{ m.body or m.message }}</p>
-                    <small>{{ m.created_at }}</small>
+                <article class="chat-bubble {% if current and m.sender_profile_id == current.id %}mine{% endif %}" data-msg-id="{{ m.id }}">
+                    {% if m.media_url and m.media_type and m.media_type.startswith('audio/') %}
+                        <div class="voice-note-player">
+                            <audio src="{{ m.media_url }}" id="audio-{{ m.id }}"></audio>
+                            <button class="play-btn" onclick="togglePlay('{{ m.id }}')"><i class="fas fa-play"></i></button>
+                            <div class="waveform-stub"></div>
+                            <select class="speed-select" onchange="setSpeed('{{ m.id }}', this.value)">
+                                <option value="1">1x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2x</option>
+                            </select>
+                        </div>
+                    {% elif m.media_url %}
+                        <img src="{{ m.media_url }}" style="max-width: 100%; border-radius: 12px; margin-bottom: 8px;">
+                    {% endif %}
+                    {% if m.body %}
+                        <p>{{ m.body }}</p>
+                    {% endif %}
+                    <small>{{ m.created_at|datetime }} {% if m.sender_profile_id == current.id %}<span class="ticks">✓✓</span>{% endif %}</small>
                 </article>
                 {% endfor %}
             {% else %}
@@ -194,10 +210,243 @@
             {% endif %}
         </div>
 
-        <form class="thread-form" method="POST" action="/messages/api/messages/send">
-            <input name="message" placeholder="Write a message..." autocomplete="off" required>
-            <button type="submit">Send Message</button>
+        <div id="recorder-ui" style="display: none; padding: 18px 22px; background: rgba(255,47,125,.1); border-top: 1px solid rgba(255,47,125,.2);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span id="record-timer" style="font-family: monospace; font-weight: 800; color: #ff2f7d;">00:00</span>
+                    <div class="recording-pulse" style="width: 12px; height: 12px; background: #ff2f7d; border-radius: 50%;"></div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="cancelRecording()" style="background: rgba(255,255,255,.1); border: none; padding: 8px 16px; border-radius: 12px; color: #fff;">Cancel</button>
+                    <button type="button" onclick="stopRecording()" style="background: #ff2f7d; border: none; padding: 8px 16px; border-radius: 12px; color: #fff;">Stop & Preview</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="preview-ui" style="display: none; padding: 18px 22px; background: rgba(124,58,237,.1); border-top: 1px solid rgba(124,58,237,.2);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <audio id="audio-preview" controls style="flex: 1; margin-right: 12px;"></audio>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" onclick="discardPreview()" style="background: rgba(255,255,255,.1); border: none; padding: 8px 16px; border-radius: 12px; color: #fff;">Discard</button>
+                    <button type="button" onclick="sendVoiceNote()" style="background: #7c3aed; border: none; padding: 8px 16px; border-radius: 12px; color: #fff;">Send Voice Note</button>
+                </div>
+            </div>
+        </div>
+
+        <form class="thread-form" id="msg-form" onsubmit="handleSend(event)">
+            <input name="message" id="msg-input" placeholder="Write a message..." autocomplete="off">
+            <button type="button" id="record-btn" onclick="startRecording()" title="Record Voice Note" style="background: rgba(255,255,255,.05);"><i class="fas fa-microphone"></i></button>
+            <button type="submit">Send</button>
         </form>
+    </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+<script>
+    const threadId = "{{ convo.id }}";
+    const profileId = "{{ current.id }}";
+    const socket = io();
+
+    socket.on('connect', () => {
+        console.log("Socket connected");
+        socket.emit('room:join', {room: 'thread:' + threadId});
+        socket.emit('message:seen', {thread_id: threadId});
+    });
+
+    socket.on('message:new', data => {
+        if (data.thread_id === threadId) {
+            appendMessage(data);
+            if (data.sender_profile_id !== profileId) {
+                socket.emit('message:delivered', {message_id: data.id, thread_id: threadId});
+                socket.emit('message:seen', {thread_id: threadId});
+            }
+        }
+    });
+
+    socket.on('message:delivered', data => {
+        const bubble = document.querySelector(`[data-msg-id="${data.message_id}"]`);
+        if (bubble) {
+            const ticks = bubble.querySelector('.ticks');
+            if (ticks) ticks.innerText = '✓✓';
+        }
+    });
+
+    socket.on('message:seen', data => {
+        if (data.profile_id !== profileId) {
+            document.querySelectorAll('.chat-bubble.mine .ticks').forEach(ticks => {
+                ticks.innerText = '✓✓';
+                ticks.style.color = '#38bdf8'; // Blue ticks
+            });
+        }
+    });
+
+    function appendMessage(m) {
+        const isMine = m.sender_profile_id === profileId;
+        const html = `
+            <article class="chat-bubble ${isMine ? 'mine' : ''}" data-msg-id="${m.id}">
+                ${m.media_url ? `<div class="voice-note-player">
+                    <audio src="${m.media_url}" id="audio-${m.id}"></audio>
+                    <button class="play-btn" onclick="togglePlay('${m.id}')"><i class="fas fa-play"></i></button>
+                    <div class="waveform-stub"></div>
+                    <select class="speed-select" onchange="setSpeed('${m.id}', this.value)">
+                        <option value="1">1x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                    </select>
+                </div>` : ''}
+                ${m.body ? `<p>${m.body}</p>` : ''}
+                <small>${new Date(m.created_at).toLocaleTimeString()} ${isMine ? '<span class="ticks">✓</span>' : ''}</small>
+            </article>
+        `;
+        document.getElementById('chat-body').insertAdjacentHTML('beforeend', html);
+        const chatBody = document.getElementById('chat-body');
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    let mediaRecorder;
+    let audioChunks = [];
+    let startTime;
+    let timerInterval;
+
+    function togglePlay(id) {
+        const audio = document.getElementById('audio-' + id);
+        const btn = document.querySelector(`[onclick="togglePlay('${id}')"]`);
+        if (audio.paused) {
+            audio.play();
+            btn.innerHTML = '<i class="fas fa-pause"></i>';
+        } else {
+            audio.pause();
+            btn.innerHTML = '<i class="fas fa-play"></i>';
+        }
+    }
+
+    function setSpeed(id, speed) {
+        const audio = document.getElementById('audio-' + id);
+        audio.playbackRate = parseFloat(speed);
+    }
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const url = URL.createObjectURL(audioBlob);
+                document.getElementById('audio-preview').src = url;
+                document.getElementById('recorder-ui').style.display = 'none';
+                document.getElementById('preview-ui').style.display = 'block';
+            };
+
+            mediaRecorder.start();
+            document.getElementById('msg-form').style.display = 'none';
+            document.getElementById('recorder-ui').style.display = 'block';
+            
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+        } catch (err) {
+            console.error("Error accessing microphone", err);
+            alert("Could not access microphone.");
+        }
+    }
+
+    function updateTimer() {
+        const diff = Math.floor((Date.now() - startTime) / 1000);
+        const mins = String(Math.floor(diff / 60)).padStart(2, '0');
+        const secs = String(diff % 60).padStart(2, '0');
+        document.getElementById('record-timer').innerText = `${mins}:${secs}`;
+    }
+
+    function stopRecording() {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        clearInterval(timerInterval);
+    }
+
+    function cancelRecording() {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        clearInterval(timerInterval);
+        document.getElementById('recorder-ui').style.display = 'none';
+        document.getElementById('msg-form').style.display = 'flex';
+    }
+
+    function discardPreview() {
+        document.getElementById('preview-ui').style.display = 'none';
+        document.getElementById('msg-form').style.display = 'flex';
+    }
+
+    async function sendVoiceNote() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('thread_id', threadId);
+        formData.append('media', audioBlob, 'voicenote.webm');
+        
+        try {
+            const resp = await fetch('/messages/api/messages/send', {
+                method: 'POST',
+                body: formData
+            });
+            if (resp.ok) {
+                discardPreview();
+                // Realtime will handle the update
+            } else {
+                alert("Failed to send voice note.");
+            }
+        } catch (err) {
+            console.error("Upload error", err);
+        }
+    }
+
+    function handleSend(e) {
+        e.preventDefault();
+        const body = document.getElementById('msg-input').value;
+        if (!body) return;
+        
+        const formData = new FormData();
+        formData.append('thread_id', threadId);
+        formData.append('body', body);
+        
+        fetch('/messages/api/messages/send', {
+            method: 'POST',
+            body: formData
+        }).then(res => {
+            if (res.ok) document.getElementById('msg-input').value = '';
+        });
+    }
+
+    // Scroll to bottom
+    const chatBody = document.getElementById('chat-body');
+    chatBody.scrollTop = chatBody.scrollHeight;
+</script>
+
+<style>
+    .voice-note-player {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(255,255,255,.05);
+        padding: 8px 12px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+    }
+    .waveform-stub {
+        flex: 1;
+        height: 24px;
+        background: linear-gradient(90deg, #ff2f7d 20%, rgba(255,255,255,.1) 20%);
+        border-radius: 4px;
+    }
+    .recording-pulse {
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(0.9); opacity: 1; }
+        70% { transform: scale(1.1); opacity: 0.7; }
+        100% { transform: scale(0.9); opacity: 1; }
+    }
+</style>
     </div>
 </section>
 {% endblock %}

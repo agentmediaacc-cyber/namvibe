@@ -1,89 +1,151 @@
 {% extends "base.html" %}
 
-{% block title %}Discover | Chain Premium{% endblock %}
+{% block title %}Discover | CHAIN Premium{% endblock %}
 
 {% block content %}
-<section class="section-head">
-    <p>DISCOVER</p>
-    <h2>{{ title }}</h2>
-</section>
+<main class="px-page platform-fade-up">
+    <section class="px-hero" style="padding:24px; margin-bottom:18px; background:radial-gradient(circle at 85% 12%, rgba(247,183,51,.26), transparent 28%), linear-gradient(135deg,#fff,#eef3f8);">
+        <div class="px-section-head" style="margin:0 0 18px;">
+            <div>
+                <p>DISCOVER</p>
+                <h1>{{ title or 'Explore CHAIN' }}</h1>
+                <span class="px-muted">Creators, reels, live rooms, dating profiles, towns and businesses worth discovering.</span>
+            </div>
+            <a href="/reels/" class="px-btn"><i class="fas fa-play"></i>Explore Reels</a>
+        </div>
+        <form class="px-search" action="/search" method="get">
+            <i class="fas fa-search"></i>
+            <input type="text" name="q" placeholder="Search creators, videos, businesses, towns, hashtags">
+        </form>
+    </section>
 
-<div class="discover-nav" style="max-width: 1280px; margin: auto; padding: 0 24px; display: flex; gap: 12px; overflow-x: auto; padding-bottom: 20px;">
-    <a href="/discover/recommended" class="secondary {% if section == 'recommended' %}active{% endif %}" style="white-space: nowrap; padding: 12px 24px;">Recommended</a>
-    <a href="/discover/live" class="secondary {% if section == 'live' %}active{% endif %}" style="white-space: nowrap; padding: 12px 24px;">Live Now</a>
-    <a href="/discover/trending" class="secondary {% if section == 'trending' %}active{% endif %}" style="white-space: nowrap; padding: 12px 24px;">Trending</a>
-    <a href="/discover/members" class="secondary {% if section == 'members' %}active{% endif %}" style="white-space: nowrap; padding: 12px 24px;">Members</a>
-    <a href="/discover/nearby" class="secondary {% if section == 'nearby' %}active{% endif %}" style="white-space: nowrap; padding: 12px 24px;">Nearby</a>
-</div>
+    <nav style="display:flex; gap:10px; overflow-x:auto; padding-bottom:12px;">
+        {% set tabs = [('All','/discover/'),('Creators','/discover/members'),('Videos','/discover/trending'),('Live','/discover/live'),('Dating','/dating/discover'),('Businesses','/marketplace/')] %}
+        {% for label, href in tabs %}
+        <a href="{{ href }}" class="px-tab {% if (section == 'recommended' and label == 'All') or (section == 'members' and label == 'Creators') or (section == 'trending' and label == 'Videos') or (section == 'live' and label == 'Live') %}is-active{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </nav>
 
-<section class="grid-container" style="max-width: 1280px; margin: auto; padding: 0 24px;">
+    <section class="discover-rail">
+        <article class="px-card" style="padding:16px;">
+            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Trending hashtags</p><h2>Now on CHAIN</h2></div></div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                {% for tag in ['#chainlive', '#windhoek', '#creatorpay', '#namibiatiktok', '#dating', '#business'] %}
+                <a class="px-chip" href="/search?q={{ tag|replace('#','%23') }}">{{ tag }}</a>
+                {% endfor %}
+            </div>
+        </article>
+        <article class="px-card" style="padding:16px;">
+            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Popular towns</p><h2>Local pulse</h2></div></div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                {% for town in ['Windhoek','Swakopmund','Walvis Bay','Ongwediva','Rundu','Keetmanshoop'] %}
+                <a class="px-chip" href="/search?q={{ town }}">{{ town }}</a>
+                {% endfor %}
+            </div>
+        </article>
+    </section>
+
+    <section class="px-section-head">
+        <div>
+            <p>{{ section|default('recommended')|replace('_',' ')|upper }}</p>
+            <h2>Explore Feed</h2>
+        </div>
+        <span class="px-chip"><i class="fas fa-fire"></i>{{ items|length if items else 0 }} results</span>
+    </section>
+
     {% if section == 'live' %}
-        <div class="live-grid">
-            {% for room in items %}
-              <a class="live-card" href="/live/room/{{ room.id }}">
-                <div class="badge">● {{ room.status|upper }}</div>
-                <h3>{{ room.title }}</h3>
-                <div class="mini-row">
-                  <span>👥 {{ room.viewer_count or 0 }}</span>
-                  <span>{{ room.access_type|title }}</span>
-                </div>
-              </a>
-            {% else %}
-              <div class="empty-card"><h3>No live rooms</h3><a href="/live/studio">Start One</a></div>
-            {% endfor %}
-        </div>
+    <section class="live-grid-premium">
+        {% for room in items %}
+        <a class="live-room-card" href="/live/room/{{ room.id }}">
+            <div class="live-room-media">
+                <i class="fas fa-video"></i>
+                <span class="live-badge">LIVE</span>
+                <span class="viewer-pill">{{ room.viewer_count or 0 }} viewers</span>
+            </div>
+            <div class="live-room-body">
+                <div class="creator-row"><span class="avatar-dot">C</span><div><h3>{{ room.title }}</h3><p class="px-muted">{{ room.access_type|title }} room</p></div></div>
+            </div>
+        </a>
+        {% else %}
+        <article class="premium-empty"><i class="fas fa-video"></i><h3>No live rooms</h3><p>Creators will appear here when they go live.</p><a class="px-btn" href="/live/studio">Start Live</a></article>
+        {% endfor %}
+    </section>
     {% elif section == 'trending' %}
-        <div class="feed-list">
-            {% for post in items %}
-              <article class="feed-card">
-                {% if post.media_url %}
-                  <img src="{{ post.media_url }}" alt="Post media">
-                {% endif %}
-                <p>{{ post.body or "Media post" }}</p>
-                <span>{{ post.created_at }}</span>
-              </article>
-            {% else %}
-              <div class="empty-card"><h3>No trending posts</h3></div>
-            {% endfor %}
-        </div>
+    <section class="px-masonry">
+        {% for post in items %}
+        <article class="explore-card">
+            <div class="explore-card__media">
+                {% if post.media_url %}<img src="{{ post.media_url }}" alt="Trending media">{% else %}<i class="fas fa-photo-film"></i>{% endif %}
+            </div>
+            <div class="explore-card__body">
+                <h3>{{ post.body or post.caption or 'Trending post' }}</h3>
+                <p class="px-muted">{{ post.created_at }}</p>
+            </div>
+        </article>
+        {% else %}
+        <article class="premium-empty"><i class="fas fa-photo-film"></i><h3>No trending videos yet</h3><p>Be the first to start the conversation on CHAIN.</p><a class="px-btn" href="/posts/create">Create Post</a></article>
+        {% endfor %}
+    </section>
     {% else %}
-        <div class="profile-grid">
-            {% for profile in items %}
-              <a class="profile-card" href="/profile/@{{ profile.username }}">
-                <div class="avatar">
-                  {% if profile.avatar_url %}
-                    <img src="{{ profile.avatar_url }}" alt="{{ profile.full_name }}">
-                  {% else %}
-                    <span>{{ (profile.full_name or profile.username or "C")[0]|upper }}</span>
-                  {% endif %}
-                </div>
+    <section class="discover-grid">
+        {% for profile in items %}
+        <article class="discover-card" style="overflow:hidden;">
+            <div style="height:90px; background:linear-gradient(135deg, rgba(30,136,229,.2), rgba(11,27,51,.92));"></div>
+            <div style="padding:0 16px 16px;">
+                <a href="/profile/@{{ profile.username }}" class="avatar-dot" style="width:72px;height:72px;margin-top:-36px;border:4px solid var(--px-card);">
+                    {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" alt="{{ profile.full_name }}" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ (profile.full_name or profile.username or "C")[0]|upper }}{% endif %}
+                </a>
                 <h3>{{ profile.full_name or profile.username }}</h3>
-                <p>@{{ profile.username }}</p>
-                <small>{{ profile.current_location or "Location not set" }}</small>
-              </a>
-              <div style="display: flex; gap: 8px; margin-top: -8px; margin-bottom: 18px; flex-wrap: wrap;">
-                <a class="secondary" href="/chat/start/{{ profile.username }}" style="padding: 10px 14px;">Message</a>
-                <a class="secondary" href="/calls/video/{{ profile.username }}" style="padding: 10px 14px;">Video Call</a>
-                <a class="secondary" href="/profile/@{{ profile.username }}" style="padding: 10px 14px;">View Profile</a>
-                <form method="POST" action="/profile/@{{ profile.username }}/follow">
-                    <button class="secondary" type="submit" style="padding: 10px 14px;">Follow</button>
-                </form>
-                <form method="POST" action="/profile/@{{ profile.username }}/favorite">
-                    <button class="secondary" type="submit" style="padding: 10px 14px;">Favorite</button>
-                </form>
-              </div>
-            {% else %}
-              <div class="empty-card"><h3>No members found</h3></div>
-            {% endfor %}
-        </div>
+                <p class="px-muted">@{{ profile.username }} · {{ profile.current_location or 'Location not set' }}</p>
+                <div style="display:flex; flex-wrap:wrap; gap:8px; margin:12px 0;">
+                    <a class="px-chip" href="/profile/@{{ profile.username }}">Profile</a>
+                    <a class="px-chip" href="/messages/">Message</a>
+                    <a class="px-chip" href="/calls/recent">Call</a>
+                </div>
+                <button type="button" class="px-btn" style="width:100%;" data-follow-profile="{{ profile.id }}">Follow</button>
+            </div>
+        </article>
+        {% else %}
+        <article class="premium-empty"><i class="fas fa-user-group"></i><h3>No suggestions found</h3><p>Explore creators, towns and live rooms while recommendations warm up.</p><a class="px-btn" href="/discover/">Refresh Discover</a></article>
+        {% endfor %}
+    </section>
     {% endif %}
-</section>
 
-<style>
-    .secondary.active {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: white;
-    }
-</style>
+    <section class="px-section-head">
+        <div><p>Businesses</p><h2>Suggested businesses</h2></div>
+        <a class="px-chip" href="/marketplace/">Open marketplace</a>
+    </section>
+    <section class="discover-grid">
+        {% for label in ['Creative Studio','Food Vendor','Tour Guide','Event Host'] %}
+        <a href="/marketplace/" class="explore-card">
+            <div class="explore-card__media"><i class="fas fa-store"></i></div>
+            <div class="explore-card__body"><h3>{{ label }}</h3><p class="px-muted">Premium local business</p></div>
+        </a>
+        {% endfor %}
+    </section>
+</main>
+
+<script>
+document.querySelectorAll('[data-follow-profile]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        const profileId = button.dataset.followProfile;
+        if (!profileId) return;
+        button.disabled = true;
+        try {
+            const response = await fetch(`/api/social/profiles/${profileId}/follow`, {method: 'POST'});
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            const data = await response.json();
+            if (data.success) {
+                button.classList.toggle('is-active', data.following);
+                button.textContent = data.following ? 'Following' : 'Follow';
+            }
+        } finally {
+            button.disabled = false;
+        }
+    });
+});
+</script>
 {% endblock %}

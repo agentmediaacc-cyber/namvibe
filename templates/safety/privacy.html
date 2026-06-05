@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('safety.index') }}">Safety Center</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Privacy Settings</li>
+              </ol>
+            </nav>
+            
+            <h2 class="mb-4">Privacy Settings</h2>
+            
+            <form action="{{ url_for('safety.update_privacy') }}" method="POST" class="bg-white p-4 shadow-sm rounded">
+                <div class="form-group mb-4">
+                    <label class="h6"><i class="fas fa-comment-alt mr-2 text-primary"></i> Who can message me?</label>
+                    <select name="who_can_message" class="form-control">
+                        <option value="everyone" {{ 'selected' if profile.who_can_message == 'everyone' }}>Everyone</option>
+                        <option value="friends" {{ 'selected' if profile.who_can_message == 'friends' }}>Friends Only</option>
+                        <option value="verified" {{ 'selected' if profile.who_can_message == 'verified' }}>Verified Users Only</option>
+                        <option value="none" {{ 'selected' if profile.who_can_message == 'none' }}>No One</option>
+                    </select>
+                    <small class="text-muted">Control who is allowed to start new conversations with you.</small>
+                </div>
+                
+                <div class="form-group mb-4">
+                    <label class="h6"><i class="fas fa-phone mr-2 text-success"></i> Who can call me?</label>
+                    <select name="who_can_call" class="form-control">
+                        <option value="everyone" {{ 'selected' if profile.who_can_call == 'everyone' }}>Everyone</option>
+                        <option value="friends" {{ 'selected' if profile.who_can_call == 'friends' }}>Friends Only</option>
+                        <option value="none" {{ 'selected' if profile.who_can_call == 'none' }}>No One</option>
+                    </select>
+                    <small class="text-muted">Control who is allowed to initiate voice and video calls.</small>
+                </div>
+                
+                <div class="form-group mb-4">
+                    <label class="h6"><i class="fas fa-eye mr-2 text-info"></i> Who can see my status?</label>
+                    <select name="who_can_see_status" class="form-control">
+                        <option value="everyone" {{ 'selected' if profile.who_can_see_status == 'everyone' }}>Everyone</option>
+                        <option value="friends" {{ 'selected' if profile.who_can_see_status == 'friends' }}>Friends Only</option>
+                        <option value="close_friends" {{ 'selected' if profile.who_can_see_status == 'close_friends' }}>Close Friends Only</option>
+                        <option value="none" {{ 'selected' if profile.who_can_see_status == 'none' }}>No One (Private)</option>
+                    </select>
+                    <small class="text-muted">Control the visibility of your status updates / stories.</small>
+                </div>
+                
+                <hr>
+                
+                <div class="form-group mb-4">
+                    <label class="h6"><i class="fas fa-envelope-open-text mr-2 text-warning"></i> Message Requests</label>
+                    <div class="custom-control custom-switch">
+                      <input type="checkbox" class="custom-control-input" id="filterSpam" name="filter_spam" checked disabled>
+                      <label class="custom-control-label" for="filterSpam">Filter potentially offensive messages</label>
+                    </div>
+                    <small class="text-muted">Messages from people you don't follow will be put in a Request folder.</small>
+                </div>
+
+                <hr>
+                
+                <h5 class="mb-3"><i class="fas fa-heart mr-2 text-danger"></i> Dating Privacy</h5>
+                
+                <div class="form-group mb-4">
+                    <div class="custom-control custom-switch">
+                      <input type="checkbox" class="custom-control-input" id="hideDating" name="hide_from_dating" {{ 'checked' if profile.hide_from_dating }}>
+                      <label class="custom-control-label" for="hideDating">Hide my profile from Dating Discover</label>
+                    </div>
+                    <small class="text-muted">When enabled, your profile will not be shown to others in the dating section.</small>
+                </div>
+
+                <div class="form-group mb-4">
+                    <div class="custom-control custom-switch">
+                      <input type="checkbox" class="custom-control-input" id="matchOnly" name="message_only_after_match" {{ 'checked' if profile.message_only_after_match }}>
+                      <label class="custom-control-label" for="matchOnly">Only allow messages after a match</label>
+                    </div>
+                    <small class="text-muted">Prevent people from messaging you unless you have both liked each other.</small>
+                </div>
+
+                <div class="form-group mb-4">
+                    <label class="h6">Dating Filters</label>
+                    <div class="custom-control custom-checkbox">
+                      <input type="checkbox" class="custom-control-input" id="verifiedOnly" name="verified_only_dating">
+                      <label class="custom-control-label" for="verifiedOnly">Show me verified profiles only (Premium)</label>
+                    </div>
+                </div>
+
+                <div class="alert alert-info py-3">
+                    <h6 class="alert-heading"><i class="fas fa-lightbulb mr-2"></i> Dating Safety Tips</h6>
+                    <ul class="mb-0 small">
+                        <li>Always meet in a public place for the first few times.</li>
+                        <li>Tell a friend or family member where you are going.</li>
+                        <li>Trust your instincts - if something feels off, leave.</li>
+                    </ul>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block p-2">Save Privacy Settings</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

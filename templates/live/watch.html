@@ -271,11 +271,18 @@
 
         async function sendReaction(type) {
             try {
-                fetch(`/live/${roomId}/react`, {
+                const response = await fetch(`/api/social/live_room/${roomId}/like`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reaction_type: type })
                 });
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                if (!response.ok) {
+                    return;
+                }
                 createFloatingReaction(type);
             } catch (err) {}
         }

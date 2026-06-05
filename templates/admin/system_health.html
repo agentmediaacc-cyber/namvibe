@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}System Health | CHAIN Admin{% endblock %}
+
+{% block content %}
+<main class="px-page platform-fade-up">
+    <section class="px-hero" style="padding:24px;margin-bottom:18px;">
+        <div class="px-section-head" style="margin:0;">
+            <div>
+                <p>ADMIN DIAGNOSTICS</p>
+                <h1>System Health</h1>
+                <span class="px-muted">Database, Redis, uploads and content persistence status.</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="discover-grid">
+        <article class="feed-card">
+            <h2>Database</h2>
+            <p>Status: {{ health.database.status or 'unknown' }}</p>
+            <p>Connected: {{ health.database.connected }}</p>
+            <p>Latency: {{ health.db_latency_ms or 0 }}ms</p>
+        </article>
+
+        <article class="feed-card">
+            <h2>Redis & Socket.IO</h2>
+            <p>Redis Status: {{ health.redis.status or 'unknown' }}</p>
+            <p>Redis Available: {{ health.redis.connected }}</p>
+            <p>Socket.IO Scalable: {{ health.socketio.scalable }}</p>
+            <p>Async Mode: {{ health.socketio.async_mode or 'Default' }}</p>
+        </article>
+
+        <article class="feed-card">
+            <h2>Environment</h2>
+            <p>FLASK_ENV: {{ health.environment.flask_env }}</p>
+            <p>Fast Local: {{ health.environment.fast_local }}</p>
+            <p>Timestamp: {{ health.timestamp }}</p>
+        </article>
+    </section>
+
+    <section class="discover-grid" style="margin-top:18px;">
+        <article class="feed-card">
+            <h2>Activity Metrics (24h)</h2>
+            <p>Online Users: {{ health.metrics.active_connections }}</p>
+            <p>Live Streams: {{ health.metrics.active_streams }}</p>
+            <p>Messages: {{ health.metrics.messages_24h }}</p>
+            <p>Calls: {{ health.metrics.calls_24h }}</p>
+            <p>Pending Payouts: {{ health.metrics.payouts_pending }}</p>
+        </article>
+        
+        <article class="feed-card">
+            <h2>Upload Folders</h2>
+            {% for key, folder in upload_folders.items() %}
+            <p>{{ key }}: exists={{ folder.exists }} · writable={{ folder.writable }}</p>
+            {% endfor %}
+        </article>
+    </section>
+</main>
+{% endblock %}

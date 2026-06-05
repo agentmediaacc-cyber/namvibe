@@ -1,53 +1,115 @@
 {% extends "base.html" %}
 
 {% block title %}Recent Calls | CHAIN{% endblock %}
-{% block body_class %}chain-wallpaper-profile{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="/static/css/calls.css">{% endblock %}
+
+{% block extra_css %}
+<style>
+    .calls-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px 16px;
+    }
+    
+    .call-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 16px;
+        border-bottom: 1px solid var(--chain-border);
+        text-decoration: none;
+        color: inherit;
+        background: var(--chain-bg-panel);
+        border-radius: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .call-icon {
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--chain-bg-soft);
+        font-size: 14px;
+    }
+    
+    .call-icon.missed { color: #ff3b30; }
+    .call-icon.incoming { color: #34c759; }
+    .call-icon.outgoing { color: var(--chain-primary); }
+    
+    .call-info { flex: 1; }
+    
+    .call-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+    
+    .call-meta { font-size: 12px; color: var(--chain-muted); display: flex; align-items: center; gap: 8px; }
+</style>
+{% endblock %}
 
 {% block content %}
-<section class="calls-shell" style="max-width: 600px; margin: 0 auto; padding: 20px 16px 80px;">
-    <div class="glass-panel" style="padding: 24px; border-radius: 28px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h1 style="margin:0; font-size:24px;">Recent Calls</h1>
-            <a href="/messages/" class="secondary" style="font-size:13px; text-decoration:none;">New Message</a>
-        </div>
-
-        <div class="call-list" style="display:flex; flex-direction:column; gap:12px;">
-            {% for call in calls %}
-            <article class="call-item" style="display:flex; justify-content:space-between; align-items:center; padding:16px; border-radius:18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);">
-                <div style="display:flex; gap:14px; align-items:center;">
-                    <div style="width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center;">
-                        {% if call.call_type == 'video' %}
-                        <i class="fas fa-video" style="color:#00d4ff;"></i>
-                        {% else %}
-                        <i class="fas fa-phone" style="color:#10b981;"></i>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <strong style="display:block; font-size:15px; color:white;">
-                            {% if call.caller_profile_id == profile.id %}
-                            Outgoing {{ call.call_type|title }}
-                            {% else %}
-                            Incoming {{ call.call_type|title }}
-                            {% endif %}
-                        </strong>
-                        <small style="color:rgba(255,255,255,0.5); font-size:12px;">{{ call.started_at }} · {{ call.call_status|title }}</small>
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    {% if call.duration_seconds > 0 %}
-                    <div style="font-size:13px; color:white;">{{ (call.duration_seconds // 60) }}:{{ "%02d"|format(call.duration_seconds % 60) }}</div>
-                    {% endif %}
-                    <a href="/messages/{{ call.conversation_id }}" style="color:rgba(255,255,255,0.4);"><i class="fas fa-chevron-right"></i></a>
-                </div>
-            </article>
-            {% else %}
-            <div style="padding:40px 20px; text-align:center; color:rgba(255,255,255,0.3);">
-                <i class="fas fa-phone-slash" style="font-size:40px; margin-bottom:12px; display:block;"></i>
-                <p>No recent calls found.</p>
-            </div>
-            {% endfor %}
+<div class="calls-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h1 style="margin: 0; font-size: 24px;">Calls</h1>
+        <div style="display: flex; gap: 12px;">
+            <button class="px-btn small" onclick="location.href='/messages/'">New Call</button>
         </div>
     </div>
-</section>
+
+    <div class="call-list">
+        {% if calls %}
+            {% for c in calls %}
+                <div class="call-item">
+                    <div class="call-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden;">
+                        {% if c.caller_profile_id == profile.id %}
+                        <img src="{{ c.receiver_avatar or '' }}" style="width:100%; height:100%; object-fit:cover;">
+                        {% else %}
+                        <img src="{{ c.caller_avatar or '' }}" style="width:100%; height:100%; object-fit:cover;">
+                        {% endif %}
+                    </div>
+                    <div class="call-info">
+                        <div class="call-name">
+                            {% if c.caller_profile_id == profile.id %}
+                            {{ c.receiver_username }}
+                            {% else %}
+                            {{ c.caller_username }}
+                            {% endif %}
+                        </div>
+                        <div class="call-meta">
+                            {% if c.call_status == 'missed' %}
+                            <i class="fas fa-phone-slash missed"></i> Missed
+                            {% elif c.caller_profile_id == profile.id %}
+                            <i class="fas fa-arrow-up-right outgoing"></i> Outgoing
+                            {% else %}
+                            <i class="fas fa-arrow-down-left incoming"></i> Incoming
+                            {% endif %}
+                            • {{ c.started_at|datetime }}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px;">
+                        <button class="px-icon-btn" onclick="initiateCall('audio', '{{ c.receiver_profile_id if c.caller_profile_id == profile.id else c.caller_profile_id }}')"><i class="fas fa-phone"></i></button>
+                        <button class="px-icon-btn" onclick="initiateCall('video', '{{ c.receiver_profile_id if c.caller_profile_id == profile.id else c.caller_profile_id }}')"><i class="fas fa-video"></i></button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div style="padding: 60px; text-align: center; color: var(--chain-muted);">
+                <i class="fas fa-phone-alt fa-3x" style="margin-bottom: 24px; opacity: 0.1;"></i>
+                <p>No recent calls</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function initiateCall(type, targetId) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/calls/start';
+        form.innerHTML = `
+            <input type="hidden" name="receiver_id" value="${targetId}">
+            <input type="hidden" name="call_type" value="${type}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
 {% endblock %}

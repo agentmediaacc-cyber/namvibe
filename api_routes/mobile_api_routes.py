@@ -55,12 +55,40 @@ def mobile_auth_status():
         return jsonify({"authenticated": True, "p_id": current["id"]})
     return jsonify({"authenticated": False}), 401
 
-@mobile_api_bp.route("/notifications/summary")
+@mobile_api_bp.route("/reels")
 @login_required
-def mobile_notifications():
-    from services.notification_service import get_my_notifications
-    notifs, _, unread = get_my_notifications(limit=5)
-    return jsonify({
-        "unread_count": unread,
-        "latest": notifs
-    })
+def mobile_reels():
+    from services.reels_engine import list_reels
+    limit = request.args.get("limit", 10, type=int)
+    reels = list_reels(limit=limit)
+    return jsonify({"reels": reels})
+
+@mobile_api_bp.route("/stories")
+@login_required
+def mobile_stories():
+    from services.status_service import get_active_statuses
+    stories = get_active_statuses()
+    return jsonify({"stories": stories})
+
+@mobile_api_bp.route("/messages")
+@login_required
+def mobile_messages():
+    from services.messaging_engine import list_threads
+    current = get_current_profile()
+    threads = list_threads(current["id"])
+    return jsonify({"threads": threads})
+
+@mobile_api_bp.route("/wallet")
+@login_required
+def mobile_wallet():
+    from services.wallet_service import get_wallet_data
+    current = get_current_profile()
+    wallet = get_wallet_data(current["id"])
+    return jsonify({"wallet": wallet})
+
+@mobile_api_bp.route("/dating/discover")
+@login_required
+def mobile_dating():
+    from services.matching_service import get_discover_profiles
+    profiles, _ = get_discover_profiles(limit=20)
+    return jsonify({"profiles": profiles})

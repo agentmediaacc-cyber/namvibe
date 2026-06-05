@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <h2 class="mb-4"><i class="fas fa-check-circle text-primary"></i> Get Verified</h2>
+                    
+                    {% if status %}
+                        <div class="alert alert-{{ 'warning' if status.status == 'pending' else 'success' if status.status == 'approved' else 'danger' }} mb-4">
+                            <h5 class="alert-heading">Status: {{ status.status | capitalize }}</h5>
+                            <p class="mb-0">
+                                {% if status.status == 'pending' %}
+                                    Your application was submitted on {{ status.created_at | datetime }}. Our team is currently reviewing it.
+                                {% elif status.status == 'approved' %}
+                                    Congratulations! Your account is verified.
+                                {% elif status.status == 'rejected' %}
+                                    Reason: {{ status.notes }}<br>
+                                    You can re-submit after addressing the feedback.
+                                {% endif %}
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    {% if not status or status.status == 'rejected' %}
+                        <p class="text-muted mb-4">Verify your identity to build trust with your audience and unlock premium features.</p>
+                        
+                        <form action="{{ url_for('verification.submit') }}" method="POST" enctype="multipart/form-data">
+                            <div class="form-group mb-4">
+                                <label class="h6">Account Type</label>
+                                <select name="request_type" class="form-control">
+                                    <option value="creator">Creator Verification</option>
+                                    <option value="business">Business Verification</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="h6">Upload ID Document / Business License</label>
+                                <input type="file" name="document" class="form-control" required>
+                                <small class="text-muted">Accepted formats: JPG, PNG, PDF. Max 5MB.</small>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="h6">Selfie with ID (Optional for businesses)</label>
+                                <input type="file" name="selfie" class="form-control">
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="h6">Additional Notes</label>
+                                <textarea name="notes" class="form-control" rows="3" placeholder="Tell us more about your content or business..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block p-2">Submit for Review</button>
+                        </form>
+                    {% endif %}
+
+                    <div class="mt-5 pt-4 border-top">
+                        <h5>Why get verified?</h5>
+                        <ul class="text-muted mt-3">
+                            <li><strong>Increased Visibility:</strong> Verified profiles appear higher in search and recommendations.</li>
+                            <li><strong>Trust:</strong> The blue badge shows users you are who you say you are.</li>
+                            <li><strong>Monetization:</strong> Higher revenue share and faster withdrawals for verified creators.</li>
+                            <li><strong>Support:</strong> Priority customer support for verified accounts.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -117,7 +117,7 @@ def get_recommended_profiles(profile_id, limit=10):
             ORDER BY COALESCE(p.is_verified, FALSE) DESC, COALESCE(live.viewer_count, 0) DESC, p.created_at DESC
             LIMIT %s
         """
-        rows = fast_query(sql, tuple(params + [limit]), timeout_ms=400, default=[])
+        rows = fast_query(sql, tuple(params + [limit]), timeout_ms=1000, default=[])
         ranked = []
         for row in rows:
             region_score = 1 if (row.get("viewer_region") and row.get("viewer_region") == row.get("author_region")) else 0
@@ -172,7 +172,7 @@ def get_recommended_posts(profile_id, limit=10):
     """
     payload = get_or_set(
         f"recommend_posts_payload:{profile_id or 'anon'}:{limit}",
-        lambda: fast_query(sql, (limit,), timeout_ms=350, default=[]),
+        lambda: fast_query(sql, (limit,), timeout_ms=1000, default=[]),
     )
     if payload is None:
         payload = []

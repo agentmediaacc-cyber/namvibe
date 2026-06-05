@@ -67,12 +67,22 @@
                 <i class="fas fa-camera"></i>
                 <p>Tap to upload or take a photo/video</p>
             </div>
-            <input type="file" name="media" id="media-input" accept="image/*,video/*" hidden onchange="handleMedia(this)">
+            <input type="file" name="media" id="media-input" accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov,image/*,video/*" hidden onchange="handleMedia(this)">
         </div>
         
         <div class="form-group">
             <label>Caption</label>
             <textarea name="caption" rows="3" placeholder="Add a caption..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Visibility</label>
+            <select name="visibility" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--chain-border);background:var(--chain-bg-soft);">
+                <option value="public">Public</option>
+                <option value="followers">Followers</option>
+                <option value="close_friends">Close Friends</option>
+                <option value="private">Private</option>
+            </select>
         </div>
         
         <div class="action-cluster">

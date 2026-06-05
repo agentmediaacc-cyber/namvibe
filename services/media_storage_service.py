@@ -14,6 +14,8 @@ SUPPORTED_BUCKETS = {
     "chain-reels",
     "chain-live",
     "chain-verification",
+    "chain-messages",
+    "chain-status",
 }
 
 _STORAGE_HEALTH_CACHE = {"expires_at": 0.0, "payload": None}
@@ -104,16 +106,9 @@ def upload_media_file(file_obj, *, bucket_name, profile_id, upload_type, public=
     
     if bucket_name not in SUPPORTED_BUCKETS:
         return None, f"Unsupported storage category: {bucket_name}"
-    if not _STORAGE_BREAKER.allow():
-        return None, "Media storage is temporarily unavailable. Please try again in a few minutes."
-
-    # Quick health check
-    health = get_storage_health()
-    if not health["connected"]:
-        return None, "Media storage is temporarily unavailable. Please try again in a few minutes."
     
-    if not health["buckets"].get(bucket_name):
-        return None, f"Storage setup required for {bucket_name}. Please contact support."
+    from services.media_provider import get_storage_provider, build_unique_path
+    provider = get_storage_provider()
 
     filename = os.path.basename(file_obj.filename or "").strip()
     if not filename:
@@ -125,19 +120,12 @@ def upload_media_file(file_obj, *, bucket_name, profile_id, upload_type, public=
     file_data = file_obj.read()
     file_obj.seek(0)
 
-    file_path = build_storage_path(profile_id, upload_type, filename)
+    file_path = build_unique_path(profile_id, upload_type, filename)
     mime_type = getattr(file_obj, "content_type", None) or "application/octet-stream"
-    public_url = None
 
     try:
-        storage = get_supabase_admin().storage
-        storage.from_(bucket_name).upload(
-            path=file_path,
-            file=file_data,
-            file_options={"content-type": mime_type},
-        )
-        if public and SUPABASE_URL:
-            public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{file_path}"
+        provider.upload(file_data, bucket_name, file_path, mime_type)
+        public_url = provider.get_url(bucket_name, file_path) if public else None
 
         upload_id = record_media_upload_metadata(
             profile_id=profile_id,
@@ -156,6 +144,5 @@ def upload_media_file(file_obj, *, bucket_name, profile_id, upload_type, public=
             "bucket": bucket_name,
         }, None
     except Exception as error:
-        _STORAGE_BREAKER.failure(error)
         _log(f"upload failed: {error}")
         return None, str(error)

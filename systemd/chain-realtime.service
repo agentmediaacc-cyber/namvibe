@@ -1,0 +1,14 @@
+[Unit]
+Description=Gunicorn instance to serve CHAIN (Realtime Mode)
+After=network.target redis.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/chain_app
+Environment="PATH=/var/www/chain_app/venv/bin"
+EnvironmentFile=/var/www/chain_app/.env
+ExecStart=/var/www/chain_app/venv/bin/gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:app --bind 127.0.0.1:5055 --timeout 60
+
+[Install]
+WantedBy=multi-user.target

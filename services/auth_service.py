@@ -1,15 +1,19 @@
+import os
 import random
 import re
 import threading
+import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from flask import current_app, request, session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
 from engines.performance_engine import clean_email, make_unique_username, normalize_username, profile_completion_score
 from services.neon_service import write_query, fast_query, is_circuit_open
 from services.supabase_safe import column_safe_payload, safe_count, safe_insert, safe_select, safe_update, table_exists
+from services.logging_service import log_warning
 from utils.supabase_client import get_supabase, get_supabase_admin
 from services.session_service import (
     store_auth_session, 
@@ -17,7 +21,7 @@ from services.session_service import (
     get_current_auth_user, 
     refresh_supabase_session_if_needed,
     K_USER_ID, K_EMAIL, K_PROFILE_ID, K_USERNAME, K_FULL_NAME, K_PROVIDER,
-    K_PROFILE_WARNING, K_AGE_CHECK_REQUIRED, K_PENDING_DATE_OF_BIRTH
+    K_LOGIN_AT, K_PROFILE_WARNING, K_AGE_CHECK_REQUIRED, K_PENDING_DATE_OF_BIRTH
 )
 
 
@@ -39,6 +43,8 @@ AUTH_PROFILE_COLUMNS = {
     "login_count",
     "profile_completed",
     "onboarding_step",
+    "email_verified",
+    "is_verified",
     "password_set",
     "signup_method",
     "terms_accepted",
@@ -52,8 +58,111 @@ AUTH_PROFILE_COLUMNS = {
 }
 
 
+_DEV_REGISTRATION_CREDENTIALS = {}
+
+
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _is_production_env():
+    if os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
+
+
+def _registration_result(ok=False, dev_fallback=False, profile=None, auth_user_id=None, redirect_to=None, error=None):
+    return {
+        "ok": bool(ok),
+        "dev_fallback": bool(dev_fallback),
+        "profile": profile,
+        "auth_user_id": auth_user_id,
+        "redirect_to": redirect_to,
+        "error": error,
+    }
+
+
+def _safe_auth_trace(event, **data):
+    safe = {}
+    for key, value in data.items():
+        if key in {"email", "username"} and value:
+            safe[key] = str(value)
+        elif key.endswith("_exists") or key in {"ok", "dev_fallback"}:
+            safe[key] = bool(value)
+        elif key in {"redirect_to", "error"}:
+            safe[key] = value
+        elif value is None:
+            safe[key] = None
+        else:
+            safe[key] = "[set]" if value else None
+    print(f"[auth_trace] {event} {safe}")
+
+
+def _remember_dev_registration_credential(email, username, password, auth_user_id=None, profile_id=None, profile=None):
+    if _is_production_env() or not password:
+        return
+    credential = {
+        "email": clean_email(email),
+        "username": normalize_username(username),
+        "password_hash": generate_password_hash(password),
+        "auth_user_id": auth_user_id,
+        "profile_id": profile_id,
+        "profile": profile,
+    }
+    for key in {credential.get("email"), credential.get("username"), credential.get("auth_user_id")}:
+        if key:
+            _DEV_REGISTRATION_CREDENTIALS[str(key).lower()] = credential
+
+
+def _get_dev_registration_credential(login_id, profile=None):
+    if _is_production_env():
+        return None
+    candidates = {str(login_id or "").lower()}
+    if profile:
+        candidates.update(
+            str(value).lower()
+            for value in (
+                profile.get("email"),
+                profile.get("username"),
+                profile.get("auth_user_id"),
+            )
+            if value
+        )
+    for candidate in candidates:
+        credential = _DEV_REGISTRATION_CREDENTIALS.get(candidate)
+        if credential:
+            return credential
+    return None
+
+
+def _build_local_dev_profile(auth_user_id, email, username, full_name, phone, dob, extra, email_verified=False, save_error=None):
+    if _is_production_env():
+        return None
+    profile = {
+        **_registration_profile_payload(
+            email,
+            username,
+            full_name,
+            phone,
+            dob,
+            {**(extra or {}), "auth_user_id": auth_user_id},
+            email_verified=email_verified,
+        ),
+        "id": str(uuid.uuid4()),
+        "auth_user_id": auth_user_id,
+        "setup_warning": True,
+        "dev_profile": True,
+        "profile_save_error": str(save_error or ""),
+    }
+    _safe_auth_trace(
+        "local_dev_profile_created",
+        auth_user_id=auth_user_id,
+        email=email,
+        username=username,
+        profile_id=profile.get("id"),
+        error=str(save_error or ""),
+    )
+    return profile
 
 
 def _age_from_date(date_of_birth):
@@ -245,6 +354,26 @@ def _profile_exists_by_username(username):
         return True
     rows = safe_select("chain_profiles", columns="id", filters={"username": username}, limit=1, order_by=None)
     return bool(rows)
+
+
+def _find_login_profile(login_id):
+    login_id = (login_id or "").strip().lower()
+    if not login_id:
+        return None
+    if "@" in login_id:
+        rows = safe_select("chain_profiles", columns="*", filters={"normalized_email": clean_email(login_id)}, limit=1, order_by=None)
+        if rows:
+            return rows[0]
+        rows = safe_select("chain_profiles", columns="*", filters={"email": clean_email(login_id)}, limit=1, order_by=None)
+        return rows[0] if rows else None
+
+    username = normalize_username(login_id)
+    from services.profile_service import get_profile_by_username
+    profile = get_profile_by_username(username)
+    if profile:
+        return profile
+    rows = safe_select("chain_profiles", columns="*", filters={"username": username}, limit=1, order_by=None)
+    return rows[0] if rows else None
 
 
 def _ensure_username(candidate, ignore_profile_id=None):
@@ -448,6 +577,77 @@ def _profile_redirect(profile):
     return "/profile/" if _is_profile_complete(profile) else "/profile/onboarding"
 
 
+def _registration_profile_payload(email, username, full_name, phone, dob, extra, email_verified=False):
+    payload = {
+        "auth_user_id": extra.get("auth_user_id"),
+        "email": email,
+        "normalized_email": email,
+        "full_name": full_name,
+        "display_name": full_name,
+        "username": username,
+        "username_slug": username,
+        "phone": phone,
+        "normalized_phone": phone,
+        "date_of_birth": dob,
+        "country_origin": extra.get("country_origin") or extra.get("country"),
+        "country_of_birth": extra.get("country_origin") or extra.get("country"),
+        "country": extra.get("current_country") or extra.get("country") or extra.get("country_origin"),
+        "current_country": extra.get("current_country") or extra.get("country"),
+        "current_residential_location": extra.get("current_country") or extra.get("current_location") or extra.get("town"),
+        "current_location": extra.get("town") or extra.get("current_location"),
+        "preferred_language": extra.get("preferred_language"),
+        "town": extra.get("town"),
+        "region": extra.get("region"),
+        "terms_accepted": bool(extra.get("terms_accepted")),
+        "human_confirmed": bool(extra.get("human_confirmed")),
+        "profile_type": extra.get("profile_type") or "member",
+        "terms_accepted_at": _utcnow_iso(),
+        "privacy_accepted_at": _utcnow_iso(),
+        "email_verified": bool(email_verified),
+        "is_verified": False,
+    }
+    registration_complete = all(
+        payload.get(field) not in (None, "", [])
+        for field in ("email", "full_name", "username", "phone", "country_origin", "country", "region", "town")
+    )
+    payload["onboarding_step"] = "complete" if registration_complete else "profile"
+    payload["profile_completed"] = registration_complete
+    return payload
+
+
+def _bootstrap_registration_profile(auth_user_id, email, username, full_name, phone, dob, extra, email_verified=False):
+    extra = {**(extra or {}), "auth_user_id": auth_user_id}
+    profile_defaults = {
+        **_registration_profile_payload(email, username, full_name, phone, dob, extra, email_verified=email_verified),
+        "profile_type": extra.get("profile_type") or "member",
+    }
+    profile, ensure_error = ensure_neon_profile(auth_user_id, profile_defaults)
+    if not profile:
+        return None, ensure_error or "Profile could not be saved yet."
+
+    from services.profile_service import _neon_update_profile
+
+    updated_profile = _neon_update_profile(profile["id"], profile_defaults)
+    return updated_profile or profile, None
+
+
+def _store_registration_session(user_id, email, profile):
+    session[K_USER_ID] = user_id
+    session["user_id"] = user_id
+    session[K_EMAIL] = email
+    session["email"] = email
+    session[K_PROVIDER] = "password"
+    session[K_LOGIN_AT] = int(datetime.now(timezone.utc).timestamp())
+    _store_session_profile(profile, warning=False)
+    dob = (profile or {}).get("date_of_birth")
+    if dob:
+        session[K_PENDING_DATE_OF_BIRTH] = dob
+        session["date_of_birth"] = dob
+        session["age_verified"] = True
+    session[K_AGE_CHECK_REQUIRED] = False
+    session.modified = True
+
+
 def _coerce_profile_row(row, user=None):
     if not row:
         return None
@@ -535,6 +735,11 @@ def _store_session_profile(profile, warning=False):
     session[K_PROFILE_WARNING] = bool(warning)
     if profile.get("date_of_birth"):
         session[K_PENDING_DATE_OF_BIRTH] = profile.get("date_of_birth")
+    if profile.get("email"):
+        session["email"] = profile.get("email")
+    if profile.get("auth_user_id"):
+        session["user_id"] = profile.get("auth_user_id")
+    session.modified = True
 
 
 def _schedule_profile_sync(user, provider):
@@ -606,32 +811,46 @@ def register_chain_user(email, password, username, full_name, extra=None):
     extra = extra or {}
     email = clean_email(email)
     username = normalize_username(username)
-    phone = normalize_phone(extra.get("phone"))
+    raw_phone = str(extra.get("phone") or "").strip()
+    phone_code = str(extra.get("phone_code") or "").strip()
+    phone = normalize_phone(raw_phone if raw_phone.startswith("+") else f"{phone_code}{raw_phone}")
     full_name = (full_name or "").strip()
     dob = extra.get("date_of_birth")
-    age = _age_from_date(dob)
+    age = _age_from_date(dob) if dob else None
+    country_origin = (extra.get("country_origin") or extra.get("country") or "").strip()
+    current_country = (extra.get("current_country") or extra.get("country") or "").strip()
+    region = (extra.get("region") or "").strip()
+    town = (extra.get("town") or "").strip()
     
-    if not email or not password or not username or not full_name or not phone or not dob:
-        return False, "Please complete all required fields (Name, Email, Username, Phone, Birthday, Password)."
-    if age is None or age < 18:
-        return False, "CHAIN is only available to users 18 and older."
+    if not email or not password or not username or not full_name or not phone or not country_origin or not current_country or not region or not town:
+        return _registration_result(error="Please complete all required fields (Name, Email, Phone, Username, Country, Region, Town, Password).")
+    if dob and (age is None or age < 18):
+        return _registration_result(error="CHAIN is only available to users 18 and older.")
     if not _username_valid(username):
-        return False, "Username must be 3 to 30 characters using lowercase letters, numbers or underscores only."
+        return _registration_result(error="Username must be 3 to 30 characters using lowercase letters, numbers or underscores only.")
     if len(password) < 8:
-        return False, "Password must be at least 8 characters."
-    if not extra.get("terms_accepted"):
-        return False, "You must agree to the Terms and Privacy Policy."
+        return _registration_result(error="Password must be at least 8 characters.")
+    agreement_fields = (
+        "agreement_true_details",
+        "agreement_identity_use",
+        "agreement_username_privacy",
+        "agreement_standards",
+        "agreement_no_abuse",
+        "terms_accepted",
+    )
+    if not all(extra.get(field) for field in agreement_fields):
+        return _registration_result(error="You must accept all account agreements before creating your CHAIN account.")
 
     if safe_select("chain_profiles", columns="id", filters={"normalized_email": email}, limit=1, order_by=None):
-        return False, "EMAIL_EXISTS"
+        return _registration_result(error="EMAIL_EXISTS")
     if _supabase_auth_email_exists(email):
-        return False, "EMAIL_EXISTS"
+        return _registration_result(error="EMAIL_EXISTS")
     
     if _profile_exists_by_username(username):
-        return False, f"Username is already taken. Try: {', '.join(username_suggestions(username, extra.get('town'))[:3])}"
+        return _registration_result(error=f"Username is already taken. Try: {', '.join(username_suggestions(username, extra.get('town'))[:3])}")
 
     if safe_select("chain_profiles", columns="id", filters={"normalized_phone": phone}, limit=1, order_by=None):
-        return False, "Phone number is already registered."
+        return _registration_result(error="Phone number is already registered.")
 
     final_username = username
     try:
@@ -639,7 +858,15 @@ def register_chain_user(email, password, username, full_name, extra=None):
             {
                 "email": email,
                 "password": password,
-                "options": {"data": {"full_name": full_name, "username": final_username}},
+                "options": {
+                    "data": {
+                        "full_name": full_name,
+                        "username": final_username,
+                        "phone": phone,
+                        "date_of_birth": dob,
+                        "country": current_country or country_origin,
+                    }
+                },
             }
         )
         user = getattr(auth_res, "user", None)
@@ -659,47 +886,166 @@ def register_chain_user(email, password, username, full_name, extra=None):
 
         # Final Truth Validation
         if not user or not getattr(user, "id", None):
-            return False, "Registration could not be completed. Please try again."
+            return _registration_result(error="Registration could not be completed. Please try again.")
             
         if clean_email(getattr(user, "email", None)) != email:
             print(f"[auth_service.register] email mismatch: expected {email}, got {getattr(user, 'email', 'None')}")
-            return False, "Registration failed. Email verification mismatch."
+            return _registration_result(error="Registration failed. Email verification mismatch.")
 
-        profile = sync_oauth_profile(user, "password")
-        if profile and profile.get("id"):
-            from services.profile_service import _neon_update_profile
-            # Minimal update for mandatory fields only
-            _neon_update_profile(
-                profile["id"],
-                {
-                    "email": email,
-                    "phone": phone,
-                    "date_of_birth": dob,
-                    "country_origin": extra.get("country_origin"),
-                    "preferred_language": extra.get("preferred_language"),
-                    "town": extra.get("town"),
-                    "region": extra.get("region"),
-                    "terms_accepted_at": _utcnow_iso(),
-                    "privacy_accepted_at": _utcnow_iso(),
-                    "onboarding_step": "preferences",
-                    "profile_completed": False,
-                },
+        auth_user_id = getattr(user, "id", None)
+        email_verified = bool(getattr(user, "email_confirmed_at", None) or getattr(user, "confirmed_at", None))
+        profile, profile_error = _bootstrap_registration_profile(
+            auth_user_id,
+            email,
+            final_username,
+            full_name,
+            phone,
+            dob,
+            extra,
+            email_verified=email_verified,
+        )
+        if not profile or not profile.get("id"):
+            log_warning("auth_register_profile_bootstrap_failed", auth_user_id=auth_user_id, email=email, error=profile_error)
+            dev_profile = _build_local_dev_profile(
+                auth_user_id,
+                email,
+                final_username,
+                full_name,
+                phone,
+                dob,
+                extra,
+                email_verified=email_verified,
+                save_error=profile_error,
             )
+            if not dev_profile:
+                return _registration_result(error=f"Your account was created, but your CHAIN profile could not be saved yet. Database error: {profile_error}")
+            _remember_dev_registration_credential(
+                email,
+                final_username,
+                password,
+                auth_user_id=auth_user_id,
+                profile_id=dev_profile.get("id"),
+                profile=dev_profile,
+            )
+            return _registration_result(
+                ok=True,
+                dev_fallback=True,
+                profile=dev_profile,
+                auth_user_id=auth_user_id,
+                redirect_to="/profile/",
+            )
+        _ensure_profile_dependencies(profile.get("id"))
+        _remember_dev_registration_credential(
+            email,
+            final_username,
+            password,
+            auth_user_id=auth_user_id,
+            profile_id=profile.get("id"),
+            profile=profile,
+        )
 
         # Handle case where email confirmation is required
         if not auth_session:
-            return True, "Account created. Check your email to confirm your account."
+            return _registration_result(
+                ok=True,
+                profile=profile,
+                auth_user_id=auth_user_id,
+                redirect_to="/profile/",
+            )
 
         # If we have a session, log them in immediately
         store_auth_session(auth_session, user, profile, provider="password")
         _log_login_event(profile, user, "password", "success")
-        return True, _profile_redirect(profile)
+        return _registration_result(
+            ok=True,
+            profile=profile,
+            auth_user_id=auth_user_id,
+            redirect_to="/profile/",
+        )
     except Exception as error:
         err_msg = str(error).lower()
         if "user_already_exists" in err_msg or "already registered" in err_msg:
-            return False, "EMAIL_EXISTS"
+            return _registration_result(error="EMAIL_EXISTS")
+        if "email rate limit" in err_msg:
+            if _is_production_env():
+                log_warning("auth_register_email_rate_limited", email=email)
+                return _registration_result(error="Email service is temporarily rate limited. Please try again later.")
+
+            auth_user_id = None
+            try:
+                fallback_user = get_auth_user_by_email(email)
+                auth_user_id = getattr(fallback_user, "id", None)
+            except Exception as lookup_error:
+                log_warning("auth_register_email_rate_limited_lookup_failed", email=email, error=str(lookup_error))
+
+            if not auth_user_id:
+                auth_user_id = str(uuid.uuid4())
+
+            profile, profile_error = _bootstrap_registration_profile(
+                auth_user_id,
+                email,
+                final_username,
+                full_name,
+                phone,
+                dob,
+                extra,
+                email_verified=False,
+            )
+            if not profile:
+                log_warning("auth_register_email_rate_limited_dev_fallback_failed", email=email, error=profile_error)
+                dev_profile = _build_local_dev_profile(
+                    auth_user_id,
+                    email,
+                    final_username,
+                    full_name,
+                    phone,
+                    dob,
+                    extra,
+                    email_verified=False,
+                    save_error=profile_error,
+                )
+                if not dev_profile:
+                    return _registration_result(error=f"Email verification is pending, but your CHAIN profile could not be created yet. Database error: {profile_error}")
+                _remember_dev_registration_credential(
+                    email,
+                    final_username,
+                    password,
+                    auth_user_id=auth_user_id,
+                    profile_id=dev_profile.get("id"),
+                    profile=dev_profile,
+                )
+                return _registration_result(
+                    ok=True,
+                    dev_fallback=True,
+                    profile=dev_profile,
+                    auth_user_id=auth_user_id,
+                    redirect_to="/profile/",
+                )
+            _ensure_profile_dependencies(profile.get("id"))
+            _remember_dev_registration_credential(
+                email,
+                final_username,
+                password,
+                auth_user_id=auth_user_id,
+                profile_id=profile.get("id"),
+                profile=profile,
+            )
+
+            log_warning(
+                "auth_register_email_rate_limited_dev_fallback",
+                auth_user_id=auth_user_id,
+                profile_id=profile.get("id"),
+                email=email,
+            )
+            return _registration_result(
+                ok=True,
+                dev_fallback=True,
+                profile=profile,
+                auth_user_id=auth_user_id,
+                redirect_to="/profile/",
+            )
         print(f"[auth_service] register_chain_user failed: {error}")
-        return False, "Registration failed. Please try again."
+        return _registration_result(error="Registration failed. Please try again.")
 
 
 def login_chain_user(email, password=None, remember=False):
@@ -715,16 +1061,20 @@ def login_chain_user(email, password=None, remember=False):
         return False, "Enter your email or username and password."
 
     resolved_email = login_id
+    login_profile = _find_login_profile(login_id)
+    dev_credential = _get_dev_registration_credential(login_id, profile=login_profile)
+    if not login_profile and dev_credential and dev_credential.get("profile"):
+        login_profile = dev_credential.get("profile")
     if "@" not in login_id:
         username = normalize_username(login_id)
-        from services.profile_service import get_profile_by_username
-        profile = get_profile_by_username(username)
-        if not profile:
+        if not login_profile:
             # If Neon is down and they use username, we can't resolve it easily
             if is_circuit_open():
                 return False, "Username login is temporarily unavailable. Please use your email."
-            return False, "Username not found."
-        resolved_email = clean_email(profile.get("email"))
+            return False, "Account not found."
+        resolved_email = clean_email(login_profile.get("email"))
+        if not resolved_email:
+            return False, "Account not found."
 
     try:
         auth_res = get_supabase().auth.sign_in_with_password({"email": resolved_email, "password": password})
@@ -735,12 +1085,16 @@ def login_chain_user(email, password=None, remember=False):
             return False, "Invalid email or password."
         store_auth_session(auth_session, user, None, provider="password", remember=remember)
 
-        profile = _quick_profile_snapshot(user, resolved_email=resolved_email, timeout_ms=300)
+        profile = _quick_profile_snapshot(user, resolved_email=resolved_email, timeout_ms=300) or login_profile
         session_profile = _build_session_profile(user, profile=profile)
         missing_profile_data = profile is None
         missing_dob = not session_profile.get("date_of_birth")
 
         _store_session_profile(session_profile, warning=missing_profile_data or is_circuit_open())
+        if session_profile.get("date_of_birth"):
+            session[K_PENDING_DATE_OF_BIRTH] = session_profile.get("date_of_birth")
+            session["date_of_birth"] = session_profile.get("date_of_birth")
+            session["age_verified"] = True
         session[K_AGE_CHECK_REQUIRED] = bool(missing_dob)
         if missing_dob:
             session.pop(K_PENDING_DATE_OF_BIRTH, None)
@@ -759,11 +1113,27 @@ def login_chain_user(email, password=None, remember=False):
     except Exception as error:
         err_msg = str(error).lower()
         if "invalid login credentials" in err_msg:
-            return False, "Invalid email or password."
+            if dev_credential and check_password_hash(dev_credential.get("password_hash", ""), password):
+                profile = login_profile or _find_login_profile(resolved_email) or dev_credential.get("profile")
+                if profile and profile.get("auth_user_id"):
+                    _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
+                    return True, "/profile/"
+            return False, "Invalid password." if login_profile else "Account not found."
         if "email not confirmed" in err_msg:
-            return False, "Email not confirmed. Please check your inbox."
+            profile = login_profile or _find_login_profile(resolved_email) or (dev_credential or {}).get("profile")
+            if profile and profile.get("auth_user_id"):
+                _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
+                return True, "/profile/"
+            return False, "Account not found."
         print(f"[auth_service] login_chain_user failed: {error}")
-        return False, "Invalid email or password."
+        if dev_credential:
+            if check_password_hash(dev_credential.get("password_hash", ""), password):
+                profile = login_profile or _find_login_profile(resolved_email) or dev_credential.get("profile")
+                if profile and profile.get("auth_user_id"):
+                    _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
+                    return True, "/profile/"
+            return False, "Invalid password."
+        return False, "Invalid password." if login_profile else "Account not found."
 
 
 def get_oauth_url(provider):

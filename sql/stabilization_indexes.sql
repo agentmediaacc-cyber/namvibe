@@ -34,3 +34,24 @@ WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_chain_posts_moderation 
 ON chain_posts (moderation_status) 
 WHERE moderation_status != 'clean';
+
+-- 8. Homepage Trending Posts (likes_count + created_at)
+CREATE INDEX IF NOT EXISTS idx_chain_posts_trending 
+ON chain_posts (deleted_at, likes_count DESC, created_at DESC);
+
+-- 9. Profile Lookups (Creators and Dating)
+CREATE INDEX IF NOT EXISTS idx_chain_profiles_creator 
+ON chain_profiles (is_creator, created_at DESC) 
+WHERE is_creator = TRUE AND deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_chain_profiles_dating 
+ON chain_profiles (dating_mode_enabled, created_at DESC) 
+WHERE dating_mode_enabled = TRUE AND deleted_at IS NULL;
+
+-- 10. Stories Feed
+CREATE INDEX IF NOT EXISTS idx_chain_stories_active 
+ON chain_stories (deleted_at, created_at DESC);
+
+-- 11. Status Posts (Expiry based)
+CREATE INDEX IF NOT EXISTS idx_chain_status_active 
+ON chain_status_posts (deleted_at, created_at DESC, expires_at);

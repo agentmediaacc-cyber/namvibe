@@ -1,5 +1,6 @@
 import random
 import re
+import os
 from datetime import datetime, timezone
 import uuid
 
@@ -14,7 +15,67 @@ from services.logging_service import log_error, log_info, log_warning
 
 _CHAIN_PROFILE_COLUMNS_CACHE = None
 _NEON_PROFILES_ENABLED_CACHE = None
-NEON_JSON_COLUMNS = {"interests", "activities", "looking_for", "linked_providers", "oauth_metadata", "portfolio_projects"}
+NEON_JSON_COLUMNS = {"interests", "activities", "looking_for", "linked_providers", "oauth_metadata", "portfolio_projects", "business_opening_hours", "business_location_data", "business_services", "business_products"}
+
+CHAIN_PROFILE_SAFE_COLUMNS = {
+    "id",
+    "auth_user_id",
+    "username",
+    "display_name",
+    "full_name",
+    "bio",
+    "avatar_url",
+    "town",
+    "city",
+    "location",
+    "creator_category",
+    "is_verified",
+    "verified",
+    "is_online",
+    "is_creator",
+    "dating_mode_enabled",
+    "profile_completed",
+    "created_at",
+    "updated_at",
+    "deleted_at",
+    "phone",
+    "date_of_birth",
+    "residential_address",
+    "preferred_language",
+    "interests",
+    "activities",
+    "looking_for",
+    "cover_url",
+    "wallet_balance",
+    "onboarding_step",
+    "current_location",
+    "region",
+    "country_origin",
+    "is_premium",
+    "premium_tier",
+    "followers_count",
+    "following_count",
+    "profile_views",
+    "total_likes",
+    "is_public",
+    "gender",
+    "age",
+    "relationship_status",
+    "languages",
+    "email",
+    "normalized_email",
+    "normalized_phone",
+    "account_type",
+    "business_name",
+    "business_website",
+    "business_opening_hours",
+    "business_location_data",
+    "business_services",
+    "business_products",
+    "business_contact_email",
+    "business_contact_phone",
+    "trust_score",
+}
 
 
 PROFILE_COLUMNS = {
@@ -28,6 +89,7 @@ PROFILE_COLUMNS = {
     "gender",
     "age",
     "country_origin",
+    "current_country",
     "current_location",
     "phone",
     "normalized_phone",
@@ -46,6 +108,16 @@ PROFILE_COLUMNS = {
     "profile_video_url",
     "video_intro_url",
     "relationship_status",
+    "account_type",
+    "business_name",
+    "business_website",
+    "business_opening_hours",
+    "business_location_data",
+    "business_services",
+    "business_products",
+    "business_contact_email",
+    "business_contact_phone",
+    "trust_score",
     "relationship_goal",
     "creator_category",
     "profile_type",
@@ -53,6 +125,7 @@ PROFILE_COLUMNS = {
     "languages",
     "is_public",
     "is_verified",
+    "email_verified",
     "is_premium",
     "premium_tier",
     "followers_count",
@@ -115,6 +188,7 @@ NEON_PROFILE_COLUMNS = {
     "town",
     "region",
     "country",
+    "current_country",
     "current_location",
     "country_origin",
     "avatar_url",
@@ -138,6 +212,7 @@ NEON_PROFILE_COLUMNS = {
     "profile_views",
     "wallet_balance",
     "verified",
+    "email_verified",
     "visibility",
     "allow_messages",
     "allow_dating",
@@ -191,7 +266,7 @@ def _filter_chain_profile_payload(payload):
         return {}
     actual_columns = _chain_profile_columns_set()
     if not actual_columns:
-        return {key: value for key, value in payload.items() if key in NEON_PROFILE_COLUMNS or key in PROFILE_COLUMNS}
+        return {key: value for key, value in payload.items() if key in CHAIN_PROFILE_SAFE_COLUMNS}
     return {key: value for key, value in payload.items() if key in actual_columns}
 
 
@@ -199,6 +274,32 @@ def _adapt_neon_value(key, value):
     if key in NEON_JSON_COLUMNS and isinstance(value, (list, dict)):
         return Json(value)
     return value
+
+
+def _is_production_env():
+    if os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
+
+
+def _extract_missing_column(error):
+    text = str(error or "")
+    match = re.search(r'column "([^"]+)" (?:of relation "[^"]+" )?does not exist', text, flags=re.I)
+    return match.group(1) if match else None
+
+
+def _safe_profile_save_log(event, payload=None, error=None, operation=None, auth_user_id=None):
+    payload = payload or {}
+    log_error(
+        event,
+        operation=operation,
+        auth_user_id_present=bool(auth_user_id or payload.get("auth_user_id")),
+        email_present=bool(payload.get("email")),
+        username_present=bool(payload.get("username")),
+        payload_keys=sorted(payload.keys()),
+        missing_column=_extract_missing_column(error),
+        error=str(error) if error else None,
+    )
 
 
 def _normalize_list(value):
@@ -254,14 +355,56 @@ def _bool_value(value, default=False):
     return str(value).strip().lower() in {"true", "1", "on", "yes"}
 
 
+def normalize_dob(date_of_birth):
+    if not date_of_birth:
+        return None
+    try:
+        dob_str = str(date_of_birth).strip()
+        # Try DD/MM/YYYY
+        if "/" in dob_str:
+            try:
+                dt = datetime.strptime(dob_str, "%d/%m/%Y")
+                return dt.date().isoformat()
+            except ValueError:
+                pass
+        # Try ISO
+        try:
+            dt = datetime.fromisoformat(dob_str)
+            return dt.date().isoformat()
+        except ValueError:
+            pass
+        return dob_str
+    except Exception:
+        return str(date_of_birth)
+
+
 def _age_from_dob(date_of_birth):
     if not date_of_birth:
         return None
     try:
-        dob = datetime.fromisoformat(str(date_of_birth)).date()
+        dob_str = str(date_of_birth).strip()
+        dob = None
+        
+        # Try DD/MM/YYYY
+        if "/" in dob_str:
+            try:
+                dob = datetime.strptime(dob_str, "%d/%m/%Y").date()
+            except ValueError:
+                pass
+        
+        # Try YYYY-MM-DD (ISO)
+        if not dob:
+            try:
+                dob = datetime.fromisoformat(dob_str).date()
+            except ValueError:
+                pass
+                
+        if not dob:
+            return None
+
         today = datetime.now(timezone.utc).date()
         return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
@@ -274,7 +417,14 @@ def profile_age(profile):
             return int(age)
         except (TypeError, ValueError):
             pass
-    return _age_from_dob(profile.get("date_of_birth"))
+            
+    dob = profile.get("date_of_birth")
+    if not dob and has_request_context():
+        # Fallback to session if DB is stale/missing
+        from services.session_service import K_PENDING_DATE_OF_BIRTH
+        dob = session.get(K_PENDING_DATE_OF_BIRTH) or session.get("date_of_birth")
+        
+    return _age_from_dob(dob)
 
 
 def is_adult_profile(profile):
@@ -295,6 +445,13 @@ def verify_profile_age(profile):
     Standard age gate check for routes.
     Returns (ok, redirect_target or error_message)
     """
+    if has_request_context():
+        from services.session_service import K_AGE_CHECK_REQUIRED
+        if not _is_production_env() and session.get("age_verified") is True:
+            return True, None
+        if session.get(K_AGE_CHECK_REQUIRED) is False:
+            return True, None
+
     is_adult = is_adult_profile(profile)
     if is_adult is True:
         return True, None
@@ -327,6 +484,8 @@ def normalize_profile(profile):
     normalized["creator_category"] = normalized.get("creator_category") or normalized.get("profile_type")
     normalized["premium_tier"] = normalized.get("premium_tier") or ("premium" if normalized.get("is_premium") else "free")
     normalized["is_premium"] = bool(normalized.get("is_premium") or normalized.get("premium_tier") not in {None, "", "free"})
+    normalized["email_verified"] = _bool_value(normalized.get("email_verified"))
+    normalized["is_verified"] = _bool_value(normalized.get("is_verified"))
     normalized["wallet_balance"] = normalized.get("wallet_balance") or 0
     normalized["interests"] = _normalize_list(normalized.get("interests"))
     normalized["activities"] = _normalize_list(normalized.get("activities"))
@@ -415,6 +574,7 @@ def _neon_get_profile_by(field, value):
 def _neon_insert_profile(payload):
     payload = _filter_chain_profile_payload(payload)
     if not payload:
+        _safe_profile_save_log("profile_insert_empty_payload", payload=payload, operation="insert")
         return None
     columns = list(payload.keys())
     placeholders = ", ".join(["%s"] * len(columns))
@@ -431,6 +591,13 @@ def _neon_insert_profile(payload):
         results = write_query(sql, [_adapt_neon_value(key, value) for key, value in payload.items()], timeout_ms=3000)
         return normalize_profile(results[0]) if results else None
     except Exception as error:
+        _safe_profile_save_log(
+            "profile_insert_failed",
+            payload=payload,
+            error=error,
+            operation="insert",
+            auth_user_id=payload.get("auth_user_id"),
+        )
         print(f"[profile_service] _neon_insert_profile failed: {error}")
         raise
 
@@ -438,6 +605,7 @@ def _neon_insert_profile(payload):
 def _neon_update_profile(profile_id, payload):
     payload = _filter_chain_profile_payload(payload)
     if not payload:
+        _safe_profile_save_log("profile_update_empty_payload", payload=payload, operation="update")
         return None
     assignments = ", ".join(f"{key} = %s" for key in payload.keys())
     params = [_adapt_neon_value(key, value) for key, value in payload.items()] + [profile_id]
@@ -449,12 +617,29 @@ def _neon_update_profile(profile_id, payload):
         )
         return normalize_profile(results[0]) if results else None
     except Exception as error:
+        _safe_profile_save_log(
+            "profile_update_failed",
+            payload=payload,
+            error=error,
+            operation="update",
+            auth_user_id=payload.get("auth_user_id"),
+        )
         print(f"[profile_service] _neon_update_profile failed: {error}")
         return None
 
 
 def ensure_neon_profile(auth_user_id, defaults=None):
     defaults = defaults or {}
+    try:
+        uuid.UUID(str(auth_user_id))
+    except (TypeError, ValueError):
+        _safe_profile_save_log(
+            "ensure_neon_profile_invalid_auth_user_id",
+            payload=defaults,
+            operation="validate",
+            auth_user_id=auth_user_id,
+        )
+        return None, "Profile save failed: auth_user_id is not a valid UUID."
     profile = _neon_get_profile_by("auth_user_id", auth_user_id)
     if profile:
         return profile, None
@@ -465,18 +650,25 @@ def ensure_neon_profile(auth_user_id, defaults=None):
         email=_clean_email(defaults.get("email") or (session.get("email") if has_request_context() else None)),
     )
     if fallback_existing and fallback_existing.get("id"):
-        update_payload = {}
-        if auth_user_id and "auth_user_id" in _chain_profile_columns_set():
-            update_payload["auth_user_id"] = auth_user_id
-        if defaults.get("full_name"):
-            update_payload["full_name"] = defaults.get("full_name")
-            update_payload["display_name"] = defaults.get("display_name") or defaults.get("full_name")
+        update_payload = _filter_chain_profile_payload({
+            **defaults,
+            "auth_user_id": auth_user_id,
+            "email": _clean_email(defaults.get("email") or fallback_existing.get("email")),
+            "username": normalize_username(defaults.get("username") or fallback_existing.get("username") or ""),
+            "display_name": defaults.get("display_name") or defaults.get("full_name") or fallback_existing.get("full_name"),
+            "full_name": defaults.get("full_name") or defaults.get("display_name") or fallback_existing.get("full_name"),
+        })
         if update_payload:
             updated = _neon_update_profile(fallback_existing["id"], update_payload)
             if updated:
                 return updated, None
-            log_error("ensure_neon_profile_existing_update_failed", profile_id=fallback_existing.get("id"))
-            return None, "Profile could not be saved yet."
+            _safe_profile_save_log(
+                "ensure_neon_profile_existing_update_failed",
+                payload=update_payload,
+                operation="update",
+                auth_user_id=auth_user_id,
+            )
+            return None, "Profile update failed for existing profile."
         return normalize_profile(fallback_existing), None
     username = normalize_username(defaults.get("username") or session.get("username") or "chainuser")
     if not _username_valid(username):
@@ -484,12 +676,16 @@ def ensure_neon_profile(auth_user_id, defaults=None):
     while _neon_get_profile_by("username", username):
         username = _username_suggestions(username, defaults.get("town"))[0]
     payload = _filter_chain_profile_payload({
+        **defaults,
         "auth_user_id": auth_user_id,
         "email": _clean_email(defaults.get("email") or session.get("email")),
+        "normalized_email": _clean_email(defaults.get("normalized_email") or defaults.get("email") or session.get("email")),
         "username": username,
+        "username_slug": username,
         "display_name": (defaults.get("display_name") or defaults.get("full_name") or username).strip(),
         "full_name": (defaults.get("full_name") or defaults.get("display_name") or username).strip(),
         "phone": defaults.get("phone") or session.get("phone"),
+        "normalized_phone": defaults.get("normalized_phone") or _normalize_phone(defaults.get("phone") or session.get("phone")),
         "date_of_birth": defaults.get("date_of_birth"),
         "residential_address": defaults.get("residential_address"),
         "preferred_language": defaults.get("preferred_language"),
@@ -499,21 +695,49 @@ def ensure_neon_profile(auth_user_id, defaults=None):
         "bio": defaults.get("bio") or "",
         "town": defaults.get("town"),
         "region": defaults.get("region"),
+        "country_origin": defaults.get("country_origin"),
+        "country": defaults.get("country"),
+        "current_country": defaults.get("current_country") or defaults.get("country"),
+        "current_location": defaults.get("current_location") or defaults.get("town"),
         "profile_completed": bool(defaults.get("profile_completed", False)),
+        "email_verified": bool(defaults.get("email_verified", False)),
+        "is_verified": bool(defaults.get("is_verified", False)),
         "dating_mode_enabled": bool(defaults.get("dating_mode_enabled", False)),
         "is_creator": bool(defaults.get("profile_type") in {"creator", "host"}),
         "creator_category": defaults.get("profile_type"),
         "onboarding_step": defaults.get("onboarding_step") or "account",
     })
+    required_after_filter = {"auth_user_id", "email", "username"}
+    missing_required = sorted(required_after_filter - set(payload.keys()))
+    if missing_required:
+        _safe_profile_save_log(
+            "ensure_neon_profile_missing_required_columns",
+            payload=payload,
+            error=f"missing required columns after schema filtering: {', '.join(missing_required)}",
+            operation="insert",
+            auth_user_id=auth_user_id,
+        )
+        return None, f"Profile save failed: missing required profile columns ({', '.join(missing_required)})."
     try:
         inserted = _neon_insert_profile(payload)
         if inserted:
             return normalize_profile({**payload, **inserted}), None
-        log_error("ensure_neon_profile_insert_empty_result", auth_user_id=auth_user_id)
-        return None, "Profile could not be saved yet."
+        _safe_profile_save_log(
+            "ensure_neon_profile_insert_empty_result",
+            payload=payload,
+            operation="insert",
+            auth_user_id=auth_user_id,
+        )
+        return None, "Profile insert returned no row."
     except Exception as error:
-        log_error("ensure_neon_profile_failed", error=str(error), auth_user_id=auth_user_id)
-        return None, "Profile could not be saved yet."
+        _safe_profile_save_log(
+            "ensure_neon_profile_failed",
+            payload=payload,
+            error=error,
+            operation="insert",
+            auth_user_id=auth_user_id,
+        )
+        return None, f"Profile insert failed: {error}"
 
 
 def get_current_profile():
@@ -553,6 +777,21 @@ def get_current_profile():
         if not profile and email:
             profiles = safe_select("chain_profiles", columns="*", filters={"email": email}, limit=1)
             profile = normalize_profile(profiles[0]) if profiles else None
+        
+        if not profile and not _is_production_env():
+            if session.get("dev_profile_fallback") or session.get("dev_profile"):
+                dev_data = session.get("dev_profile") or {}
+                profile = normalize_profile({
+                    "id": session.get("profile_id") or dev_data.get("id") or f"dev_{uuid.uuid4()}",
+                    "auth_user_id": session.get("auth_user_id") or dev_data.get("auth_user_id"),
+                    "username": session.get("username") or dev_data.get("username") or "dev_user",
+                    "full_name": session.get("full_name") or dev_data.get("full_name") or "Dev User",
+                    "email": session.get("email") or dev_data.get("email"),
+                    "is_verified": False,
+                    "email_verified": False,
+                    "dev_profile": True,
+                    **{k: v for k, v in dev_data.items() if k not in {"id", "auth_user_id", "username", "full_name", "email"}}
+                })
 
         if profile:
             if auth_user_id and not profile.get("auth_user_id") and "auth_user_id" in _chain_profile_columns_set():
@@ -1185,13 +1424,11 @@ def record_profile_view(profile_id, viewer_profile_id=None):
 
 def get_profile_counts(profile_id):
     profile = get_profile_by_id(profile_id) or {}
-    followers = safe_count("chain_followers", filters={"following_profile_id": profile_id})
-    if followers == 0:
-        followers = safe_count("chain_follows", filters={"following_profile_id": profile_id})
+    followers = safe_count("chain_follows", filters={"following_profile_id": profile_id})
 
-    following = safe_count("chain_followers", filters={"follower_profile_id": profile_id})
+    following = safe_count("chain_follows", filters={"follower_profile_id": profile_id})
     if following == 0:
-        following = safe_count("chain_followers", filters={"profile_id": profile_id})
+        following = safe_count("chain_follows", filters={"profile_id": profile_id})
     if following == 0:
         following = safe_count("chain_follows", filters={"follower_profile_id": profile_id})
 
@@ -1237,9 +1474,21 @@ def get_profile_stats(profile_id):
 
 def get_profile_content(profile_id, limit=8):
     rooms = safe_select("chain_live_rooms", columns="id,title,profile_id,status,is_live,category,viewer_count,cover_url,created_at", filters={"profile_id": profile_id}, limit=limit)
-    posts = safe_select("chain_posts", columns="id,profile_id,body,caption,category,media_url,created_at", filters={"profile_id": profile_id}, limit=limit)
-    reels = safe_select("chain_reels", columns="id,profile_id,caption,media_url,thumbnail_url,created_at", filters={"profile_id": profile_id}, limit=limit)
+    posts = safe_select("chain_posts", columns="id,profile_id,body,caption,category,media_url,video_url,link_url,town_tag,created_at", filters={"profile_id": profile_id}, limit=limit)
+    reels = safe_select("chain_reels", columns="id,profile_id,caption,media_url,video_url,thumbnail_url,music_title,created_at", filters={"profile_id": profile_id}, limit=limit)
     stories = safe_select("chain_stories", columns="id,profile_id,caption,media_url,created_at", filters={"profile_id": profile_id}, limit=limit)
+    if not posts or not reels or not stories:
+        try:
+            from services.content_service import local_content, active_local_stories
+            local = local_content()
+            if not posts:
+                posts = [post for post in local["posts"] if post.get("profile_id") == profile_id][:limit]
+            if not reels:
+                reels = [reel for reel in local["reels"] if reel.get("profile_id") == profile_id][:limit]
+            if not stories:
+                stories = active_local_stories(profile_id=profile_id)[:limit]
+        except Exception:
+            pass
     return {
         "rooms": rooms, 
         "posts": posts, 
@@ -1387,6 +1636,12 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
         "marketplace": content.get("marketplace", []),
         "albums": content.get("albums", []),
     }
+    saved_items = []
+    if viewer and viewer.get("id") == profile.get("id"):
+        try:
+            saved_items = safe_select("chain_saved_items", filters={"profile_id": profile["id"]}, limit=20) or []
+        except Exception as error:
+            log_warning("profile_bundle_saved_items_failed", profile_id=profile.get("id"), error=str(error))
     log_info(
         "profile_bundle_content_state",
         profile_id=profile.get("id"),
@@ -1468,6 +1723,7 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
         "profile": profile,
         "stats": stats,
         "content": content,
+        "saved_items": saved_items,
         "activity": activity,
         "wallet": wallet,
         "creator_tools": creator_tools,
@@ -1541,21 +1797,20 @@ def follow_profile(username):
         return False
 
     existing = safe_select(
-        "chain_followers",
+        "chain_follows",
         filters={"follower_profile_id": current["id"], "following_profile_id": target["id"]},
         limit=1,
         order_by=None,
     )
     if not existing:
         safe_insert(
-            "chain_followers",
+            "chain_follows",
             {
-                "profile_id": current["id"],
                 "follower_profile_id": current["id"],
                 "following_profile_id": target["id"],
                 "created_at": _utcnow_iso(),
             },
-            fallback_columns={"profile_id", "follower_profile_id", "following_profile_id", "created_at"},
+            fallback_columns={"follower_profile_id", "following_profile_id", "created_at"},
         )
     _recount_and_store_profile_counts(target["id"])
     _recount_and_store_profile_counts(current["id"])

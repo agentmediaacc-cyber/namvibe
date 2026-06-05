@@ -1,59 +1,177 @@
 (() => {
+  console.log("CHAIN REGISTER V7 LOADED");
   const form = document.getElementById("chain-register-form");
   if (!form) return;
 
   const steps = Array.from(form.querySelectorAll(".chain-register-step"));
+  const stepDots = Array.from(form.querySelectorAll("[data-jump-step]"));
   const nextBtn = document.getElementById("register_next");
   const prevBtn = document.getElementById("register_prev");
   const submitBtn = document.getElementById("register_submit");
+  const successPanel = document.getElementById("chain-register-success");
   const progressText = document.getElementById("chain-register-progress-text");
   const progressBar = document.getElementById("chain-register-progress-bar");
-  const country = document.getElementById("register_country");
+  const signupMethod = document.getElementById("signup_method") || form.querySelector("input[name='signup_method']");
+  const countryOrigin = document.getElementById("register_country_origin");
+  const currentCountry = document.getElementById("register_current_country");
   const region = document.getElementById("register_region");
-  const regionText = document.getElementById("register_region_text");
   const town = document.getElementById("register_town");
-  const townSelect = document.getElementById("register_town_select");
   const phoneCode = document.getElementById("register_phone_code");
   const password = document.getElementById("register_password");
   const confirmPassword = document.getElementById("register_confirm_password");
   const confirmStatus = document.getElementById("confirm_password_status");
-  const availabilityState = { username: false, email: false, phone: false };
+  const strengthText = document.getElementById("password_strength");
+  const strengthBar = document.getElementById("password_strength_bar");
+  const availabilityState = { username: null, email: null, phone: null };
+  const countries = window.CHAIN_LOCATIONS || [];
+  const namibiaRegions = window.CHAIN_NAMIBIA_REGIONS || [];
   let stepIndex = 0;
+  let stepMessage = document.getElementById("chain-register-step-message");
 
-  const NAMIBIA_REGIONS = [
-    "Erongo",
-    "Hardap",
-    "//Karas",
-    "Kavango East",
-    "Kavango West",
-    "Khomas",
-    "Kunene",
-    "Ohangwena",
-    "Omaheke",
-    "Omusati",
-    "Oshana",
-    "Oshikoto",
-    "Otjozondjupa",
-    "Zambezi"
-  ];
-  console.log("[CHAIN register] Namibia regions loaded", NAMIBIA_REGIONS.length);
-  console.log("[CHAIN register] region field found", region);
+  if (!stepMessage) {
+    stepMessage = document.createElement("div");
+    stepMessage.id = "chain-register-step-message";
+    stepMessage.className = "chain-auth-alert chain-auth-alert--error chain-step-message";
+    stepMessage.hidden = true;
+    progressBar?.closest(".chain-auth-progress")?.after(stepMessage);
+  }
+
+  const log = (message, detail) => {
+    if (detail !== undefined) console.log(`[CHAIN register] ${message}`, detail);
+    else console.log(`[CHAIN register] ${message}`);
+  };
+
+  const normalize = (value) => String(value || "").trim().toLowerCase();
+  const countryNames = countries.map((item) => item.country).filter(Boolean);
+
+  const getCountryRecord = (value) => {
+    const key = normalize(value);
+    return countries.find((item) => normalize(item.country) === key || normalize(item.code) === key) || null;
+  };
+
+  const activeCountry = () => getCountryRecord(currentCountry?.value) || getCountryRecord(countryOrigin?.value);
+  const isNamibia = () => {
+    const selected = activeCountry();
+    return selected?.code === "NA" || normalize(currentCountry.value) === "namibia" || normalize(countryOrigin.value) === "namibia";
+  };
+
+  const filtered = (items, query, limit = 8) => {
+    const needle = normalize(query);
+    const source = Array.from(new Set(items.filter(Boolean)));
+    if (!needle) return source.slice(0, limit);
+    return source
+      .filter((item) => normalize(item).includes(needle))
+      .slice(0, limit);
+  };
+
+  const closeResults = (box) => {
+    if (!box) return;
+    box.innerHTML = "";
+    box.classList.remove("is-open");
+  };
+
+  const renderResults = (input, box, items, onPick) => {
+    if (!input || !box) return;
+    const matches = filtered(items, input.value);
+    box.innerHTML = "";
+    if (!matches.length) {
+      closeResults(box);
+      return;
+    }
+    matches.forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = item;
+      button.addEventListener("click", () => {
+        input.value = item;
+        closeResults(box);
+        onPick?.(item);
+        validateSubmit();
+      });
+      box.appendChild(button);
+    });
+    box.classList.add("is-open");
+  };
+
+  const countryBoxFor = (input) => document.getElementById(input.id === "register_country_origin" ? "country_origin_results" : "current_country_results");
+
+  const setupCountrySearch = (input) => {
+    if (!input) return;
+    const box = countryBoxFor(input);
+    const pick = (value) => {
+      log("country selected", value);
+      updatePhoneCode();
+      loadRegionSuggestions();
+    };
+    input.addEventListener("focus", () => renderResults(input, box, countryNames, pick));
+    input.addEventListener("input", () => {
+      renderResults(input, box, countryNames, pick);
+      updatePhoneCode();
+      loadRegionSuggestions();
+    });
+    input.addEventListener("blur", () => window.setTimeout(() => closeResults(box), 120));
+  };
+
+  const updatePhoneCode = () => {
+    const selected = activeCountry();
+    if (phoneCode && selected?.phoneCode) phoneCode.value = selected.phoneCode;
+  };
+
+  const loadRegionSuggestions = () => {
+    if (!region) return;
+    const record = activeCountry();
+    const regionItems = isNamibia() ? namibiaRegions : (record?.regions || []);
+    region.dataset.suggestions = JSON.stringify(regionItems);
+    log("region suggestions loaded", { country: record?.country || currentCountry.value || countryOrigin.value, count: regionItems.length });
+  };
+
+  const setupRegionSearch = () => {
+    if (!region) return;
+    const box = document.getElementById("region_results");
+    const render = () => {
+      let items = [];
+      try {
+        items = JSON.parse(region.dataset.suggestions || "[]");
+      } catch {
+        items = [];
+      }
+      renderResults(region, box, items, () => renderTownSuggestions());
+    };
+    region.addEventListener("focus", render);
+    region.addEventListener("input", () => {
+      render();
+      renderTownSuggestions();
+    });
+    region.addEventListener("blur", () => window.setTimeout(() => closeResults(box), 120));
+  };
+
+  const renderTownSuggestions = () => {
+    if (!town) return;
+    const box = document.getElementById("town_results");
+    const record = activeCountry();
+    let towns = [];
+    if (isNamibia()) {
+      const regionKey = namibiaRegions.find((item) => normalize(item) === normalize(region.value));
+      towns = regionKey ? (window.CHAIN_NAMIBIA_TOWNS?.[regionKey] || []) : ["Windhoek"];
+    } else if (record?.towns && typeof record.towns === "object") {
+      towns = Object.values(record.towns).flat();
+    }
+    renderResults(town, box, towns, null);
+  };
+
+  const setupTownSearch = () => {
+    if (!town) return;
+    const box = document.getElementById("town_results");
+    town.addEventListener("focus", renderTownSuggestions);
+    town.addEventListener("input", renderTownSuggestions);
+    town.addEventListener("blur", () => window.setTimeout(() => closeResults(box), 120));
+  };
 
   const availabilityReady = (field, value) => {
     if (field === "email") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
     if (field === "phone") return value.replace(/\D/g, "").length >= 6;
     if (field === "username") return value.trim().length >= 3;
-    return Boolean(value.trim());
-  };
-
-  const updateStep = () => {
-    steps.forEach((step, index) => step.classList.toggle("is-active", index === stepIndex));
-    progressText.textContent = `Step ${stepIndex + 1} of ${steps.length}`;
-    progressBar.style.width = `${((stepIndex + 1) / steps.length) * 100}%`;
-    prevBtn.style.visibility = stepIndex === 0 ? "hidden" : "visible";
-    nextBtn.style.display = stepIndex === steps.length - 1 ? "none" : "inline-flex";
-    submitBtn.style.display = stepIndex === steps.length - 1 ? "inline-flex" : "none";
-    validateSubmit();
+    return false;
   };
 
   const setAvailability = (field, payload) => {
@@ -61,7 +179,7 @@
     if (!node) return;
     node.textContent = payload.message || "";
     node.classList.toggle("is-available", Boolean(payload.available));
-    node.classList.toggle("is-unavailable", !payload.available);
+    node.classList.toggle("is-unavailable", payload.available === false);
     availabilityState[field] = Boolean(payload.available);
 
     const suggestionNode = document.getElementById(`suggestions_${field}`);
@@ -72,7 +190,8 @@
         button.type = "button";
         button.textContent = item;
         button.addEventListener("click", () => {
-          document.getElementById(`register_${field}`).value = item;
+          const input = document.getElementById(`register_${field}`);
+          if (input) input.value = item;
           debounceCheck(field)();
         });
         suggestionNode.appendChild(button);
@@ -88,156 +207,137 @@
       timer = window.setTimeout(async () => {
         const input = document.getElementById(`register_${field}`);
         const value = input?.value.trim() || "";
-        if (!availabilityReady(field, value)) return;
+        if (!availabilityReady(field, value)) {
+          availabilityState[field] = null;
+          return;
+        }
         try {
           const params = new URLSearchParams({ field, value, town: town?.value || "" });
           const response = await fetch(`/auth/check-availability?${params.toString()}`);
           const payload = await response.json();
           setAvailability(field, payload);
-        } catch (e) {
-          console.error("Availability check failed", e);
+        } catch (error) {
+          console.error("[CHAIN register] availability check failed", error);
         }
       }, 700);
     };
   };
 
-  const usernameCheck = debounceCheck("username");
-  const emailCheck = debounceCheck("email");
-  const phoneCheck = debounceCheck("phone");
+  const passwordScore = () => {
+    if (!password) return 0;
+    const value = password.value || "";
+    let score = 0;
+    if (value.length >= 8) score += 1;
+    if (value.length >= 12) score += 1;
+    if (/[A-Z]/.test(value) && /[a-z]/.test(value)) score += 1;
+    if (/[0-9]/.test(value)) score += 1;
+    if (/[^A-Za-z0-9]/.test(value)) score += 1;
+    return score;
+  };
 
   const passwordStrength = () => {
-    const node = document.getElementById("password_strength");
-    if (!node || !password) return;
-    const value = password.value || "";
-    if (value.length >= 12 && /[A-Z]/.test(value) && /[0-9]/.test(value)) {
-      node.textContent = "Strong password.";
-      node.classList.add("is-strong");
-      node.classList.remove("is-weak");
-    } else if (value.length >= 8) {
-      node.textContent = "Good enough.";
-      node.classList.remove("is-weak");
-      node.classList.remove("is-strong");
+    if (!strengthText || !password) return;
+    const score = passwordScore();
+    const width = Math.min(score * 20, 100);
+    strengthBar.style.width = `${width}%`;
+    strengthBar.dataset.score = String(score);
+    if (score >= 4) {
+      strengthText.textContent = "Strong password.";
+      strengthText.classList.add("is-strong");
+      strengthText.classList.remove("is-weak");
+    } else if ((password.value || "").length >= 8) {
+      strengthText.textContent = "Good enough. Add numbers or symbols for extra strength.";
+      strengthText.classList.remove("is-weak", "is-strong");
     } else {
-      node.textContent = "Use at least 8 characters.";
-      node.classList.add("is-weak");
-      node.classList.remove("is-strong");
+      strengthText.textContent = "Use at least 8 characters.";
+      strengthText.classList.add("is-weak");
+      strengthText.classList.remove("is-strong");
     }
   };
 
   const validateConfirmPassword = () => {
-    const match = password.value && confirmPassword.value && password.value === confirmPassword.value;
-    confirmStatus.textContent = match ? "Passwords match." : "Passwords must match.";
-    confirmStatus.style.color = match ? "var(--chain-success)" : "var(--chain-error)";
-    confirmStatus.classList.toggle("is-available", match);
-    confirmStatus.classList.toggle("is-unavailable", !match && !!confirmPassword.value);
+    if (!password || !confirmPassword || !confirmStatus) return;
+    const hasConfirm = Boolean(confirmPassword.value);
+    const match = password.value && hasConfirm && password.value === confirmPassword.value;
+    confirmStatus.textContent = match ? "Passwords match." : (hasConfirm ? "Passwords must match." : "");
+    confirmStatus.classList.toggle("is-available", Boolean(match));
+    confirmStatus.classList.toggle("is-unavailable", !match && hasConfirm);
     validateSubmit();
+  };
+
+  const requiredForStep = (index) => {
+    const step = steps[index];
+    if (!step) return [];
+    return Array.from(step.querySelectorAll("input[required], select[required], textarea[required]")).filter((input) => !input.disabled && !input.hidden);
+  };
+
+  const showStepMessage = (message) => {
+    if (!message) {
+      if (stepMessage) {
+        stepMessage.textContent = "";
+        stepMessage.hidden = true;
+      }
+      return;
+    }
+    if (stepMessage) {
+      stepMessage.textContent = message;
+      stepMessage.hidden = false;
+    }
+    console.warn("[CHAIN register] validation blocked", message);
+  };
+
+  const stepValid = (index, report = false) => {
+    const step = steps[index];
+    if (!step) return false;
+    const required = requiredForStep(index);
+    const firstInvalid = required.find((input) => {
+      if (input.type === "checkbox") return !input.checked;
+      return !input.value.trim() || !input.checkValidity();
+    });
+    if (firstInvalid) {
+      const label = firstInvalid.closest("label")?.querySelector("span")?.textContent?.replace("*", "").trim();
+      const message = firstInvalid.validationMessage || `${label || firstInvalid.name || "This field"} is required.`;
+      if (report) {
+        showStepMessage(message);
+        firstInvalid.focus();
+        firstInvalid.reportValidity?.();
+      }
+      return false;
+    }
+    if (step.dataset.stepName === "password") {
+      const ok = password.value.length >= 8 && password.value === confirmPassword.value;
+      if (!ok && report) {
+        const message = password.value.length < 8 ? "Password must be at least 8 characters." : "Passwords must match.";
+        showStepMessage(message);
+        (confirmPassword.value ? confirmPassword : password).reportValidity?.();
+      }
+      return ok;
+    }
+    if (report) showStepMessage("");
+    return true;
   };
 
   const validateSubmit = () => {
-    const terms = form.querySelector("#terms")?.checked;
-    const human = form.querySelector("#human_confirmed")?.checked;
-    const passwordsMatch = password.value && password.value === confirmPassword.value && password.value.length >= 8;
-    
-    // Core fields check
-    const required = Array.from(form.querySelectorAll("input[required], select[required]")).filter((input) => !input.disabled && !input.hidden);
-    const allFilled = required.every(input => input.value.trim() !== "");
-
-    const canSubmit = allFilled && passwordsMatch && terms && human;
-    submitBtn.disabled = !canSubmit;
-    
-    if (submitBtn.disabled && stepIndex === steps.length - 1) {
-        // Optional: show some hint why disabled if needed
-    }
+    const allStepsValid = steps.every((_, index) => stepValid(index));
+    submitBtn.disabled = !allStepsValid;
   };
 
-  const escapeOption = (value) => String(value || "").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  }[char]));
-
-  const selectedCountryRecord = () => window.CHAIN_LOCATIONS?.find((item) => item.country === country.value);
-
-  const renderCountries = () => {
-    if (!country || !window.CHAIN_LOCATIONS) return;
-    console.log("Loading country options...");
-    country.innerHTML = ['<option value="">Select country</option>']
-      .concat(window.CHAIN_LOCATIONS.map((item) => `<option value="${escapeOption(item.country)}">${escapeOption(item.country)}</option>`))
-      .join("");
-    
-    const selected = country.dataset.selected || window.CHAIN_DEFAULT_COUNTRY || "Namibia";
-    country.value = selected;
-    if (!country.value) country.value = "Namibia";
-    console.log("Country set to:", country.value);
-    renderPhoneCodes();
-    renderRegions();
-  };
-
-  const renderPhoneCodes = () => {
-    if (!phoneCode || !window.CHAIN_LOCATIONS) return;
-    const current = selectedCountryRecord();
-    phoneCode.innerHTML = window.CHAIN_LOCATIONS
-      .filter((item) => item.phoneCode)
-      .map((item) => `<option value="${escapeOption(item.phoneCode)}">${escapeOption(item.country)} ${escapeOption(item.phoneCode)}</option>`)
-      .join("");
-    const selected = phoneCode.dataset.selected || current?.phoneCode || "+264";
-    phoneCode.value = selected;
-    console.log("Phone code set to:", phoneCode.value);
-  };
-
-  const renderRegions = () => {
-    const isNamibia = country.value === "Namibia" || (selectedCountryRecord()?.code === "NA");
-    const regions = isNamibia ? NAMIBIA_REGIONS : [];
-    
-    console.log(`[CHAIN register] Rendering regions for ${country.value}. isNamibia: ${isNamibia}`);
-
-    if (isNamibia) {
-      region.hidden = false;
-      region.disabled = false;
-      region.name = "region";
-      region.required = true;
-      regionText.hidden = true;
-      regionText.disabled = true;
-      regionText.name = "";
-      regionText.required = false;
-      
-      region.innerHTML = ['<option value="">Select region/state</option>']
-        .concat(regions.map((item) => `<option value="${escapeOption(item)}">${escapeOption(item)}</option>`))
-        .join("");
-      
-      const selected = region.dataset.selected;
-      if (selected && NAMIBIA_REGIONS.includes(selected)) {
-          region.value = selected;
-      }
-    } else {
-      region.hidden = true;
-      region.disabled = true;
-      region.name = "";
-      region.required = false;
-      regionText.hidden = false;
-      regionText.disabled = false;
-      regionText.name = "region";
-      regionText.required = false; // Optional for other countries
-      regionText.value = region.dataset.selected || regionText.value || "";
-    }
-    renderTowns();
+  const setStep = (index) => {
+    stepIndex = Math.max(0, Math.min(index, steps.length - 1));
+    steps.forEach((step, idx) => step.classList.toggle("is-active", idx === stepIndex));
+    stepDots.forEach((dot, idx) => {
+      dot.classList.toggle("is-active", idx === stepIndex);
+      dot.classList.toggle("is-complete", idx < stepIndex);
+    });
+    progressText.textContent = `Step ${stepIndex + 1} of ${steps.length}`;
+    progressBar.style.width = `${((stepIndex + 1) / steps.length) * 100}%`;
+    prevBtn.style.visibility = stepIndex === 0 ? "hidden" : "visible";
+    nextBtn.style.display = stepIndex === steps.length - 1 ? "none" : "inline-flex";
+    nextBtn.textContent = stepIndex === 0 ? "Get Started" : "Continue";
+    submitBtn.style.display = stepIndex === steps.length - 1 ? "inline-flex" : "none";
+    log("step changed", { step: stepIndex + 1 });
+    showStepMessage("");
     validateSubmit();
-  };
-
-  const renderTowns = () => {
-    // Reverted to simple free-text input as per "Fix ONLY Region / State" directive
-    if (townSelect) {
-      townSelect.hidden = true;
-      townSelect.disabled = true;
-      townSelect.name = "";
-      townSelect.required = false;
-    }
-    town.hidden = false;
-    town.disabled = false;
-    town.name = "town";
-    town.required = true;
   };
 
   form.querySelectorAll(".toggle-password").forEach((button) => {
@@ -249,47 +349,64 @@
     });
   });
 
-  form.querySelectorAll("[data-select-signup]").forEach((button) => {
-    button.addEventListener("click", () => {
-      stepIndex = 1;
-      updateStep();
-    });
-  });
-
-  document.getElementById("register_username")?.addEventListener("input", usernameCheck);
-  document.getElementById("register_email")?.addEventListener("input", emailCheck);
-  document.getElementById("register_phone")?.addEventListener("input", phoneCheck);
+  document.getElementById("register_username")?.addEventListener("input", debounceCheck("username"));
+  document.getElementById("register_email")?.addEventListener("input", debounceCheck("email"));
+  document.getElementById("register_phone")?.addEventListener("input", debounceCheck("phone"));
   password?.addEventListener("input", () => {
     passwordStrength();
     validateConfirmPassword();
   });
   confirmPassword?.addEventListener("input", validateConfirmPassword);
-  country?.addEventListener("change", () => {
-    renderPhoneCodes();
-    renderRegions();
-  });
-  region?.addEventListener("change", renderTowns);
-  regionText?.addEventListener("input", renderTowns);
-  form.querySelectorAll("input, select").forEach((input) => input.addEventListener("input", validateSubmit));
+  form.querySelectorAll("input").forEach((input) => input.addEventListener("input", validateSubmit));
   form.querySelectorAll("input[type='checkbox']").forEach((input) => input.addEventListener("change", validateSubmit));
-  
-  nextBtn?.addEventListener("click", () => {
-    const currentRequired = Array.from(steps[stepIndex].querySelectorAll("input[required], select[required]")).filter((input) => !input.disabled && !input.hidden);
-    const firstEmpty = currentRequired.find((input) => !input.value.trim() || (input.type === "checkbox" && !input.checked));
-    if (firstEmpty) {
-      firstEmpty.focus();
-      firstEmpty.reportValidity?.();
-      return;
-    }
-    stepIndex = Math.min(steps.length - 1, stepIndex + 1);
-    updateStep();
-  });
-  prevBtn?.addEventListener("click", () => {
-    stepIndex = Math.max(0, stepIndex - 1);
-    updateStep();
+  form.querySelectorAll("[data-select-signup]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const method = button.dataset.selectSignup || "email";
+      if (signupMethod) signupMethod.value = method;
+      form.querySelectorAll("[data-select-signup]").forEach((item) => item.classList.toggle("is-selected", item === button));
+      log("signup method selected", method);
+      validateSubmit();
+    });
   });
 
-  renderCountries();
+  nextBtn?.addEventListener("click", () => {
+    const currentStep = stepIndex + 1;
+    const nextStep = Math.min(steps.length, stepIndex + 2);
+    console.log("NEXT CLICKED");
+    console.log("CURRENT STEP", currentStep);
+    console.log("GOING TO STEP", nextStep);
+    if (!stepValid(stepIndex, true)) return;
+    setStep(stepIndex + 1);
+  });
+  prevBtn?.addEventListener("click", () => setStep(stepIndex - 1));
+  stepDots.forEach((dot) => {
+    dot.addEventListener("click", () => {
+      const target = Number(dot.dataset.jumpStep || 0);
+      if (target <= stepIndex || steps.slice(0, target).every((_, index) => stepValid(index, true))) {
+        setStep(target);
+      }
+    });
+  });
+
+  form.addEventListener("submit", (event) => {
+    if (!steps.every((_, index) => stepValid(index, true))) {
+      event.preventDefault();
+      return;
+    }
+    log("submit started");
+    form.classList.add("is-submitting");
+    if (successPanel) successPanel.classList.add("is-visible");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Creating account...";
+    window.setTimeout(() => log("submit finished"), 0);
+  });
+
+  setupCountrySearch(countryOrigin);
+  setupCountrySearch(currentCountry);
+  setupRegionSearch();
+  setupTownSearch();
+  updatePhoneCode();
+  loadRegionSuggestions();
   passwordStrength();
-  updateStep();
+  setStep(0);
 })();

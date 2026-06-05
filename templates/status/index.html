@@ -1,54 +1,136 @@
 {% extends "base.html" %}
 
-{% block title %}Stories | CHAIN{% endblock %}
-{% block body_class %}chain-wallpaper-profile{% endblock %}
+{% block title %}Status | CHAIN{% endblock %}
 
-{% block content %}
-<section class="status-shell" style="max-width: 800px; margin: 0 auto; padding: 20px 16px 80px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-        <h1 style="margin:0; font-size:28px;">Stories</h1>
-        <a href="/status/create" class="primary" style="padding:10px 20px; border-radius:20px; text-decoration:none;">Create Status</a>
-    </div>
-
-    <!-- Status Rail / Grid -->
-    <div class="status-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:16px;">
-        <!-- My Status Placeholder if no active -->
-        <a href="/status/create" style="text-decoration:none;">
-            <div class="status-card" style="height:220px; border-radius:18px; background:rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.1); display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden;">
-                <div style="width:50px; height:50px; border-radius:50%; background: #ff2f7d; display:flex; align-items:center; justify-content:center; margin-bottom:12px;">
-                    <i class="fas fa-plus" style="color:white; font-size:20px;"></i>
-                </div>
-                <strong style="color:white; font-size:14px;">Add to story</strong>
-            </div>
-        </a>
-
-        {% for status in statuses %}
-        <a href="/status/{{ status.id }}" style="text-decoration:none;">
-            <div class="status-card" style="height:220px; border-radius:18px; background:rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); position:relative; overflow:hidden; transition: transform 0.2s;">
-                {% if status.media_url %}
-                <img src="{{ status.media_url }}" style="width:100%; height:100%; object-fit:cover; opacity:0.7;">
-                {% endif %}
-                
-                <div style="position:absolute; top:12px; left:12px; width:40px; height:40px; border-radius:50%; border:2px solid #ff2f7d; overflow:hidden; background: #221b26;">
-                    {% if status.profile_avatar %}
-                    <img src="{{ status.profile_avatar }}" style="width:100%; height:100%; object-fit:cover;">
-                    {% else %}
-                    <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;"><i class="fas fa-user" style="color:rgba(255,255,255,0.3); font-size:20px;"></i></div>
-                    {% endif %}
-                </div>
-                
-                <div style="position:absolute; bottom:0; left:0; right:0; padding:12px; background: linear-gradient(transparent, rgba(0,0,0,0.8));">
-                    <p style="margin:0; color:white; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ status.caption or status.username or 'Story' }}</p>
-                </div>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-</section>
-
+{% block extra_css %}
 <style>
-    .status-card:hover {
-        transform: scale(1.02);
+    .status-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px 16px;
+    }
+    
+    .status-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 16px;
+    }
+    
+    .status-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .status-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        padding: 3px;
+        background: linear-gradient(45deg, #00C2A8, #00FFD1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    
+    .status-circle.viewed {
+        background: var(--chain-border);
+    }
+    
+    .status-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 3px solid var(--chain-bg);
+        overflow: hidden;
+        background: var(--chain-bg-soft);
+    }
+    
+    .status-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .status-name {
+        font-size: 12px;
+        font-weight: 600;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+    }
+    
+    .add-status {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 24px;
+        height: 24px;
+        background: var(--chain-primary);
+        color: white;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        border: 2px solid var(--chain-bg);
+        font-size: 12px;
     }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="status-container">
+    <div class="status-header">
+        <h1 style="margin: 0; font-size: 24px;">Status</h1>
+        <a href="/status/create" class="px-btn primary small">Update Status</a>
+    </div>
+
+    <div class="status-grid">
+        <!-- My Status -->
+        <a href="/status/create" class="status-item">
+            <div class="status-circle viewed">
+                <div class="status-avatar">
+                    {% if profile and profile.avatar_url %}
+                    <img src="{{ profile.avatar_url }}">
+                    {% else %}
+                    <div style="width:100%; height:100%; display:grid; place-items:center; background:var(--chain-bg-soft);"><i class="fas fa-user"></i></div>
+                    {% endif %}
+                </div>
+                <div class="add-status"><i class="fas fa-plus"></i></div>
+            </div>
+            <span class="status-name">My Status</span>
+        </a>
+
+        <!-- Friends Status -->
+        {% if statuses %}
+            {% for s in statuses %}
+            <a href="/status/{{ s.id }}" class="status-item">
+                <div class="status-circle">
+                    <div class="status-avatar">
+                        {% if s.avatar_url %}
+                        <img src="{{ s.avatar_url }}">
+                        {% else %}
+                        <div style="width:100%; height:100%; display:grid; place-items:center; background:var(--chain-bg-soft);"><i class="fas fa-user"></i></div>
+                        {% endif %}
+                    </div>
+                </div>
+                <span class="status-name">{{ s.username }}</span>
+            </a>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

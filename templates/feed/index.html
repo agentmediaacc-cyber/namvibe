@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h2 class="mb-4">Your Feed</h2>
+            
+            {% if feed %}
+                {% for item in feed %}
+                    <div class="card mb-4 shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                {% if item.type == 'reel' %}
+                                    <span class="badge bg-primary">Reel</span>
+                                {% elif item.type == 'live_room' %}
+                                    <span class="badge bg-danger">Live</span>
+                                {% endif %}
+                                {{ item.title }}
+                            </h5>
+                            <p class="text-muted small">Posted by User ID: {{ item.profile_id }} on {{ item.created_at }}</p>
+                            <a href="/{{ item.type }}s/{{ item.id }}" class="btn btn-outline-primary btn-sm">View {{ item.type|replace('_', ' ') }}</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted">No content in your feed yet. Start following creators!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

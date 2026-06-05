@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.full_name or profile.username }} | CHAIN Premium{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --bg-color: #0B0F19;
+        --card-color: #1A2333;
+        --primary-color: #6C5CE7;
+        --accent-blue: #00D4FF;
+        --success-color: #00C896;
+        --danger-color: #FF4D6D;
+        --text-color: #F5F7FA;
+        --muted-color: #9AA4B2;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Inter', sans-serif;
+    }
+
+    .glass {
+        background: rgba(26, 35, 51, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .neon-glow:hover {
+        box-shadow: 0 0 20px rgba(108, 92, 231, 0.4);
+    }
+
+    .tab-btn.active {
+        color: var(--primary-color);
+        border-bottom: 2px solid var(--primary-color);
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.9);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .aspect-reel {
+        aspect-ratio: 9 / 16;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 pb-20">
+    
+    <!-- 1. HEADER SECTION -->
+    <header class="relative mb-8">
+        <!-- Cover Image -->
+        <div class="h-64 sm:h-96 w-full overflow-hidden rounded-b-3xl sm:rounded-3xl relative">
+            <img src="{{ profile.cover_url or 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2064&auto=format&fit=crop' }}" 
+                 class="w-full h-full object-cover transition-transform duration-700 hover:scale-110" 
+                 alt="Cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent opacity-80"></div>
+        </div>
+
+        <!-- Avatar & Identity -->
+        <div class="px-6 -mt-20 sm:-mt-24 relative z-10">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div class="flex items-end gap-6">
+                    <!-- Avatar with Pulse Ring -->
+                    <div class="relative group">
+                        <div class="w-32 h-32 sm:w-44 sm:h-44 rounded-full border-4 border-[#0B0F19] overflow-hidden bg-gray-900 ring-2 ring-purple-500 ring-offset-4 ring-offset-[#0B0F19]">
+                            <img src="{{ profile.avatar_url or 'https://i.pravatar.cc/300?u=' + (profile.username or 'default') }}" 
+                                 class="w-full h-full object-cover" alt="Avatar">
+                        </div>
+                        {% if profile.is_verified %}
+                        <div class="absolute bottom-2 right-2 bg-blue-500 rounded-full p-1.5 border-4 border-[#0B0F19]">
+                            <i class="fas fa-check text-white text-xs sm:text-sm"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-2">
+                        <div class="flex items-center gap-3">
+                            <h1 class="text-3xl sm:text-4xl font-black tracking-tight">{{ profile.full_name or profile.username }}</h1>
+                            {% if profile.pronouns %}
+                            <span class="text-xs font-bold px-2 py-0.5 rounded bg-white/10 text-gray-400">{{ profile.pronouns }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-lg font-bold text-purple-400">@{{ profile.username }}</span>
+                            {% if profile.location %}
+                            <span class="text-sm text-gray-500 flex items-center gap-1">
+                                <i class="fas fa-map-marker-alt"></i> {{ profile.location }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. ACTION BUTTONS -->
+                <div class="flex flex-wrap gap-3 mb-2">
+                    {% if viewer and viewer.id != profile.id %}
+                        <button id="followToggle" 
+                                data-profile-id="{{ profile.id }}"
+                                class="px-8 py-3 rounded-full font-black text-sm uppercase tracking-widest transition-all transform hover:-translate-y-1 active:scale-95 shadow-xl {{ 'bg-gray-800 text-white border border-white/10' if is_following else 'bg-purple-600 text-white shadow-purple-500/20 hover:bg-purple-700' }}">
+                            {{ 'Following' if is_following else 'Follow' }}
+                        </button>
+                        <a href="/messages/{{ profile.id }}" class="px-6 py-3 glass rounded-full font-black text-sm uppercase hover:bg-white/10 transition-all flex items-center gap-2">
+                            <i class="far fa-comment-dots text-lg"></i>
+                        </a>
+                        <button onclick="openGiftModal()" class="px-6 py-3 glass rounded-full font-black text-sm uppercase hover:bg-white/10 transition-all text-yellow-400">
+                            <i class="fas fa-gift"></i>
+                        </button>
+                    {% elif viewer and viewer.id == profile.id %}
+                        <a href="/profile/edit" class="px-8 py-3 bg-white text-black rounded-full font-black text-sm uppercase tracking-widest hover:bg-gray-200 transition-all">
+                            Edit Profile
+                        </a>
+                    {% endif %}
+                    <button onclick="shareProfile()" class="p-3 glass rounded-full hover:bg-white/10 transition-all">
+                        <i class="fas fa-share-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bio -->
+            <div class="mt-6 max-w-2xl">
+                <p class="text-gray-300 text-lg leading-relaxed">{{ profile.bio or 'Developing the future of CHAIN ecosystem. 🚀' }}</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. STATS BAR -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 px-4 sm:px-0 mb-10">
+        <div class="glass p-6 rounded-3xl text-center group cursor-pointer">
+            <div id="followersCount" class="text-2xl font-black text-white">{{ stats.followers_count or 0 }}</div>
+            <div class="text-[10px] uppercase font-bold tracking-widest text-gray-500 mt-1 group-hover:text-purple-400 transition-colors">Followers</div>
+        </div>
+        <div class="glass p-6 rounded-3xl text-center group cursor-pointer">
+            <div class="text-2xl font-black text-white">{{ stats.following_count or 0 }}</div>
+            <div class="text-[10px] uppercase font-bold tracking-widest text-gray-500 mt-1 group-hover:text-purple-400 transition-colors">Following</div>
+        </div>
+        <div class="glass p-6 rounded-3xl text-center group cursor-pointer">
+            <div class="text-2xl font-black text-white">{{ stats.posts_count or 0 }}</div>
+            <div class="text-[10px] uppercase font-bold tracking-widest text-gray-500 mt-1 group-hover:text-purple-400 transition-colors">Posts</div>
+        </div>
+        <div class="glass p-6 rounded-3xl text-center group cursor-pointer border border-yellow-500/20">
+            <div class="text-2xl font-black text-yellow-400">N$ {{ "%.2f"|format(profile.wallet_balance or 0) }}</div>
+            <div class="text-[10px] uppercase font-bold tracking-widest text-yellow-600 mt-1">Wallet</div>
+        </div>
+    </div>
+
+    <!-- 4. CONTENT TABS -->
+    <div class="px-4 sm:px-0">
+        <nav class="flex items-center justify-center gap-12 border-b border-white/5 mb-8">
+            <button onclick="switchTab('posts')" class="tab-btn active pb-4 font-black text-xs uppercase tracking-[0.2em] transition-all">Posts</button>
+            <button onclick="switchTab('reels')" class="tab-btn pb-4 font-bold text-gray-500 text-xs uppercase tracking-[0.2em] hover:text-gray-300 transition-all">Reels</button>
+            <button onclick="switchTab('live')" class="tab-btn pb-4 font-bold text-gray-500 text-xs uppercase tracking-[0.2em] hover:text-gray-300 transition-all">Live</button>
+            <button onclick="switchTab('about')" class="tab-btn pb-4 font-bold text-gray-500 text-xs uppercase tracking-[0.2em] hover:text-gray-300 transition-all">About</button>
+        </nav>
+
+        <!-- 5. POSTS GRID -->
+        <div id="postsTab" class="content-tab">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-4">
+                {% for post in posts %}
+                <div onclick="openModal('{{ post.id }}', '{{ post.media_url }}', '{{ post.caption|replace(\"'\", \"\\\\'\") }}')" 
+                     class="aspect-square glass rounded-xl sm:rounded-2xl overflow-hidden group cursor-pointer relative transition-all duration-300 hover:scale-[1.02] hover:ring-2 hover:ring-purple-500">
+                    <img src="{{ post.media_url }}" class="w-full h-full object-cover" alt="Post">
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6">
+                        <span class="flex items-center gap-2 font-black text-white">
+                            <i class="fas fa-heart text-red-500"></i> {{ post.likes_count or 0 }}
+                        </span>
+                        <span class="flex items-center gap-2 font-black text-white">
+                            <i class="fas fa-comment"></i> {{ post.comments_count or 0 }}
+                        </span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-span-full py-20 text-center glass rounded-3xl">
+                    <i class="fas fa-camera text-4xl text-gray-700 mb-4"></i>
+                    <p class="text-gray-500 font-bold uppercase tracking-widest">No posts yet</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 6. REELS SECTION -->
+        <div id="reelsTab" class="content-tab hidden">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {% for reel in reels %}
+                <div class="aspect-reel glass rounded-3xl overflow-hidden relative group cursor-pointer"
+                     onmouseenter="this.querySelector('video')?.play()"
+                     onmouseleave="this.querySelector('video')?.pause(); this.querySelector('video').currentTime = 0;">
+                    <video src="{{ reel.media_url }}" loop muted playsinline class="w-full h-full object-cover"></video>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute bottom-4 left-4 right-4">
+                        <p class="text-xs font-bold line-clamp-1 mb-1">{{ reel.caption }}</p>
+                        <div class="flex items-center gap-3 text-[10px] font-black uppercase text-gray-300">
+                            <span><i class="fas fa-play mr-1"></i> {{ reel.views_count or 0 }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-span-full py-20 text-center glass rounded-3xl">
+                    <i class="fas fa-film text-4xl text-gray-700 mb-4"></i>
+                    <p class="text-gray-500 font-bold uppercase tracking-widest">No reels yet</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- LIVE PLACEHOLDER -->
+        <div id="liveTab" class="content-tab hidden">
+            <div class="py-32 text-center glass rounded-3xl">
+                {% if rooms %}
+                    <!-- Real live room logic here -->
+                {% else %}
+                    <div class="relative inline-block mb-6">
+                        <i class="fas fa-broadcast-tower text-5xl text-gray-700"></i>
+                        <div class="absolute -top-2 -right-2 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
+                    </div>
+                    <p class="text-gray-500 font-black uppercase tracking-[0.3em]">Currently Offline</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ABOUT SECTION -->
+        <div id="aboutTab" class="content-tab hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="glass p-8 rounded-3xl">
+                    <h3 class="text-lg font-black uppercase tracking-widest text-purple-400 mb-6">Profile Details</h3>
+                    <ul class="space-y-6">
+                        <li class="flex items-center justify-between">
+                            <span class="text-gray-500 font-bold uppercase text-[10px]">Joined</span>
+                            <span class="font-black">{{ profile.created_at|datetime if profile.created_at else 'May 2026' }}</span>
+                        </li>
+                        <li class="flex items-center justify-between">
+                            <span class="text-gray-500 font-bold uppercase text-[10px]">Category</span>
+                            <span class="font-black text-blue-400">{{ profile.creator_category or 'Creator' }}</span>
+                        </li>
+                        <li class="flex items-center justify-between">
+                            <span class="text-gray-500 font-bold uppercase text-[10px]">Status</span>
+                            <span class="flex items-center gap-2 font-black text-green-400">
+                                <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Verified Member
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- EARNINGS CARD (Creator Section) -->
+                <div class="glass p-8 rounded-3xl bg-gradient-to-br from-purple-600/10 to-transparent border-purple-500/20 relative overflow-hidden">
+                    <div class="absolute -right-20 -bottom-20 w-64 h-64 bg-purple-600/10 blur-3xl rounded-full"></div>
+                    <h3 class="text-lg font-black uppercase tracking-widest text-purple-400 mb-6">Creator Earnings</h3>
+                    <div class="mb-8">
+                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Received</div>
+                        <div class="text-4xl font-black text-white">N$ {{ "%.2f"|format(profile.total_earnings or 1250.00) }}</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <div class="text-xl font-black text-blue-400">45</div>
+                            <div class="text-[8px] font-bold text-gray-500 uppercase tracking-tighter">Gifts Received</div>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <div class="text-xl font-black text-green-400">120</div>
+                            <div class="text-[8px] font-bold text-gray-500 uppercase tracking-tighter">Paid Subscribers</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- POST PREVIEW MODAL -->
+<div id="postModal" class="modal" onclick="closeModal()">
+    <div class="max-w-5xl w-full h-[90vh] glass rounded-3xl overflow-hidden flex flex-col md:flex-row relative mx-4" onclick="event.stopPropagation()">
+        <button onclick="closeModal()" class="absolute top-6 right-6 z-50 text-white text-2xl hover:text-gray-400 transition-colors">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <!-- Media Side -->
+        <div class="flex-1 bg-black flex items-center justify-center relative">
+            <img id="modalImg" src="" class="max-w-full max-h-full object-contain" alt="Preview">
+        </div>
+        
+        <!-- Content Side -->
+        <div class="w-full md:w-[400px] flex flex-col bg-[#1A2333] border-l border-white/5">
+            <div class="p-6 border-b border-white/5 flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full overflow-hidden border border-purple-500">
+                    <img src="{{ profile.avatar_url or 'https://i.pravatar.cc/100?u=' + profile.username }}" class="w-full h-full object-cover" alt="User">
+                </div>
+                <div>
+                    <div class="font-black text-sm">{{ profile.full_name or profile.username }}</div>
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Original Post</div>
+                </div>
+            </div>
+            
+            <div class="p-6 flex-1 overflow-y-auto">
+                <p id="modalCaption" class="text-gray-300 leading-relaxed"></p>
+                <div class="mt-10 text-[10px] font-bold text-gray-600 uppercase tracking-[0.2em]">Comments Disabled for preview</div>
+            </div>
+
+            <div class="p-6 border-t border-white/5 bg-white/5">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex gap-4">
+                        <i class="far fa-heart text-2xl hover:text-red-500 transition-colors cursor-pointer"></i>
+                        <i class="far fa-comment text-2xl hover:text-purple-400 transition-colors cursor-pointer"></i>
+                        <i class="far fa-paper-plane text-2xl hover:text-blue-400 transition-colors cursor-pointer"></i>
+                    </div>
+                    <i class="far fa-bookmark text-2xl"></i>
+                </div>
+                <div class="font-black text-sm">1.2K Likes</div>
+                <div class="text-[10px] text-gray-600 uppercase font-bold mt-1">2 hours ago</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // AJAX FOLLOW SYSTEM
+    document.getElementById('followToggle')?.addEventListener('click', async function() {
+        const btn = this;
+        const profileId = btn.dataset.profileId;
+        const isCurrentlyFollowing = btn.innerText.trim() === 'Following';
+        
+        try {
+            const response = await fetch(`/profile/${profileId}/follow`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                // Update UI
+                if (data.following) {
+                    btn.innerText = 'Following';
+                    btn.classList.add('bg-gray-800', 'border', 'border-white/10');
+                    btn.classList.remove('bg-purple-600', 'shadow-purple-500/20');
+                } else {
+                    btn.innerText = 'Follow';
+                    btn.classList.remove('bg-gray-800', 'border', 'border-white/10');
+                    btn.classList.add('bg-purple-600', 'shadow-purple-500/20');
+                }
+                
+                // Update Followers Count
+                const counter = document.getElementById('followersCount');
+                if (counter) counter.innerText = data.followers_count;
+            }
+        } catch (error) {
+            console.error('Follow error:', error);
+        }
+    });
+
+    // DYNAMIC TAB SWITCHING
+    function switchTab(tabName) {
+        // Update buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active', 'font-black', 'text-purple-400');
+            btn.classList.add('font-bold', 'text-gray-500');
+            if (btn.innerText.toLowerCase() === tabName) {
+                btn.classList.add('active', 'font-black');
+                btn.classList.remove('text-gray-500');
+            }
+        });
+
+        // Update content
+        document.querySelectorAll('.content-tab').forEach(tab => tab.classList.add('hidden'));
+        document.getElementById(tabName + 'Tab').classList.remove('hidden');
+    }
+
+    // MODAL PREVIEW
+    function openModal(id, img, caption) {
+        document.getElementById('modalImg').src = img;
+        document.getElementById('modalCaption').innerText = caption;
+        document.getElementById('postModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        document.getElementById('postModal').classList.remove('active');
+        document.body.style.overflow = 'auto';
+    }
+
+    function shareProfile() {
+        if (navigator.share) {
+            navigator.share({
+                title: 'Check out this profile on CHAIN',
+                url: window.location.href
+            });
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            alert('Profile link copied to clipboard!');
+        }
+    }
+
+    function openGiftModal() {
+        alert('Gifting system initializing... Wallet N$ balance will be used.');
+    }
+</script>
+{% endblock %}
+
+{% endblock %}

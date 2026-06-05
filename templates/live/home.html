@@ -1,38 +1,77 @@
-<!doctype html>
-<html>
-<head>
-  <title>Live Now | Chain</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/live.css') }}">
-</head>
-<body>
-<main class="live-home">
-  <section class="studio-hero">
-    <p>CHAIN LIVE</p>
-    <h1>Live rooms happening now.</h1>
-    <a href="/live/studio">🔴 Start Live</a>
+{% extends "base.html" %}
+
+{% block title %}Live Now | CHAIN{% endblock %}
+
+{% block content %}
+<main class="px-page platform-fade-up">
+  <section class="px-hero" style="padding:24px; background:radial-gradient(circle at 82% 8%, rgba(215,38,56,.16), transparent 30%), linear-gradient(135deg,#fff,#eef3f8);">
+    <div class="px-section-head" style="margin:0;">
+      <div>
+        <p>CHAIN LIVE</p>
+        <h1>Premium rooms happening now.</h1>
+        <span class="px-muted">Watch creators, learn, date, play, build, and earn in real time.</span>
+      </div>
+      <a class="px-btn" href="/live/studio"><i class="fas fa-video"></i>Start Live</a>
+    </div>
+  </section>
+
+  <section style="display:flex; gap:10px; overflow-x:auto; padding:18px 0 4px;">
+    {% for cat in ['Gaming','Music','Education','Business','Lifestyle','Dating'] %}
+    <a href="/live/" class="px-tab {% if loop.first %}is-active{% endif %}">{{ cat }}</a>
+    {% endfor %}
+  </section>
+
+  <section class="px-section-head">
+    <div><p>Trending live</p><h2>Live Rooms</h2></div>
+    <span class="px-chip">{{ rooms|length if rooms else 0 }} active</span>
   </section>
 
   {% if rooms %}
-    <section class="room-grid">
-      {% for r in rooms %}
-        <a class="room-card" href="/live/room/{{ r.id }}">
-          <div class="room-logo">⛓️</div>
-          <h2>{{ r.title }}</h2>
-          <p>{{ r.welcome_message }}</p>
-          <span>👀 {{ r.viewer_count or 0 }} viewers</span>
-          <span>🎁 {{ r.total_gift_coins or 0 }} coins</span>
-          <b>{{ r.access_type }}</b>
-        </a>
-      {% endfor %}
-    </section>
+  <section class="live-grid-premium">
+    {% for r in rooms %}
+    <a class="live-room-card" href="/live/room/{{ r.id }}">
+      <div class="live-room-media">
+        {% if r.cover_url %}<img src="{{ r.cover_url }}" alt="{{ r.title }}" style="width:100%;height:100%;object-fit:cover;">{% else %}<i class="fas fa-video"></i>{% endif %}
+        <span class="live-badge">LIVE</span>
+        <span class="viewer-pill">{{ r.viewer_count or 0 }} viewers</span>
+      </div>
+      <div class="live-room-body">
+        <div class="creator-row">
+          <span class="avatar-dot">C</span>
+          <div>
+            <h3 style="margin:0;">{{ r.title }}</h3>
+            <p class="px-muted" style="margin:4px 0 0;">{{ r.welcome_message or 'Join the room' }}</p>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+          <span class="px-chip">{{ r.access_type|title }}</span>
+          <span class="px-chip">{{ r.total_gift_coins or 0 }} coins</span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </section>
   {% else %}
-    <section class="empty-live">
-      <h2>No live rooms now</h2>
-      <p>Start the first real Chain live room.</p>
-      <a href="/live/studio">Go Live</a>
-    </section>
+  <section class="premium-empty">
+    <i class="fas fa-video"></i>
+    <h2>No live rooms now</h2>
+    <p class="px-muted">Start the first real CHAIN live room.</p>
+    <a href="/live/studio" class="px-btn">Go Live</a>
+  </section>
   {% endif %}
+
+  <section class="px-section-head">
+    <div><p>Featured creators</p><h2>Hosts to watch</h2></div>
+  </section>
+  <section class="discover-grid">
+    {% for label in ['Creator Studio','Music Host','Business Mentor','Dating Live'] %}
+    <a href="/discover/live" class="discover-card" style="padding:16px;">
+      <span class="avatar-dot" style="width:64px;height:64px;">{{ label[0] }}</span>
+      <h3>{{ label }}</h3>
+      <p class="px-muted">Premium live creator</p>
+      <span class="px-btn" style="width:100%;">View Live</span>
+    </a>
+    {% endfor %}
+  </section>
 </main>
-</body>
-</html>
+{% endblock %}

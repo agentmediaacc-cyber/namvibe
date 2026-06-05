@@ -1,0 +1,64 @@
+{% extends "profile/base_profile.html" %}
+
+{% block profile_content %}
+<div class="upload-container">
+    <h2>Upload Reel</h2>
+    <p>Share a vertical short-form video with the CHAIN community.</p>
+
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <form action="{{ url_for('reels.upload') }}" method="POST" enctype="multipart/form-data" class="upload-form">
+        <div class="form-group">
+            <label for="video">Video (Vertical, MP4/MOV)</label>
+            <input type="file" name="video" id="video" accept=".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime" required class="form-control">
+            <video id="video-preview" controls muted playsinline style="display:none;width:100%;margin-top:12px;border-radius:8px;background:#000;"></video>
+        </div>
+
+        <div class="form-group">
+            <label for="thumbnail">Thumbnail (Optional)</label>
+            <input type="file" name="thumbnail" id="thumbnail" accept="image/*" class="form-control">
+        </div>
+
+        <div class="form-group">
+            <label for="caption">Caption</label>
+            <textarea name="caption" id="caption" rows="3" class="form-control" placeholder="Tell us about your reel..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="music_title">Music title</label>
+            <input type="text" name="music_title" id="music_title" class="form-control" placeholder="Original sound">
+        </div>
+
+        <div class="form-group">
+            <label for="visibility">Visibility</label>
+            <select name="visibility" id="visibility" class="form-control">
+                <option value="public">Public</option>
+                <option value="followers">Followers</option>
+                <option value="private">Private</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Publish Reel</button>
+    </form>
+</div>
+
+<style>
+.upload-container { max-width: 500px; margin: 40px auto; padding: 30px; background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+.upload-form { margin-top: 25px; }
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+.form-control { width: 100%; padding: 12px; border: 1px solid var(--chain-border); border-radius: 8px; }
+</style>
+
+<script>
+document.getElementById('video')?.addEventListener('change', (event) => {
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById('video-preview');
+    if (!file || !preview) return;
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+});
+</script>
+{% endblock %}

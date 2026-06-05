@@ -20,6 +20,50 @@ from services.storage_service import upload_live_cover, upload_live_music
 from services.supabase_safe import safe_count, safe_insert, safe_select, safe_update
 
 
+def _notify_followers_live_started(room):
+    host_id = room.get("profile_id") or room.get("host_profile_id")
+    room_id = room.get("id")
+    if not host_id or not room_id:
+        return
+    followers = safe_select("chain_follows", columns="follower_profile_id", filters={"following_profile_id": host_id}, limit=100, order_by=None)
+    if not followers:
+        return
+    try:
+        from services.notification_engine import create_notification
+
+        for follower in followers:
+            recipient_id = follower.get("follower_profile_id")
+            if not recipient_id:
+                continue
+            create_notification(
+                recipient_profile_id=recipient_id,
+                actor_profile_id=host_id,
+                event_type="live_started",
+                title="Live started",
+                body=f"{room.get('host_name') or 'A creator'} is live now.",
+                entity_type="live_room",
+                entity_id=room_id,
+                action_url=f"/live/room/{room_id}",
+            )
+    except Exception:
+        try:
+            from services.notification_service import create_notification
+
+            for follower in followers:
+                recipient_id = follower.get("follower_profile_id")
+                if recipient_id:
+                    create_notification(
+                        profile_id=recipient_id,
+                        actor_profile_id=host_id,
+                        title="Live started",
+                        body=f"{room.get('host_name') or 'A creator'} is live now.",
+                        n_type="live_started",
+                        link_url=f"/live/room/{room_id}",
+                    )
+        except Exception:
+            return
+
+
 def youtube_id(url):
     if not url:
         return None
@@ -265,11 +309,15 @@ def create_live_room(form, files=None):
                 if inserted:
                     room_id = inserted[0].get("id")
                 if room_id:
-                    return get_room(room_id)
+                    room = get_room(room_id)
+                    if room:
+                        _notify_followers_live_started(room)
+                    return room
 
                 recent_rooms = get_live_rooms(limit=10)
                 for room in recent_rooms:
                     if room.get("title") == payload["title"] and room.get("host_name") == payload["host_name"]:
+                        _notify_followers_live_started(room)
                         return room
 
         return None
@@ -563,6 +611,100 @@ def create_live_event(profile_id, data):
 def get_upcoming_events(limit=10):
     """Fetches upcoming scheduled live events"""
     return safe_select("chain_live_events", filters={"status": "scheduled"}, limit=limit, order_by="scheduled_start")
+
+def get_room_leaderboard(room_id, limit=5):
+    """Returns top gifters for a live room"""
+    sql = """
+        SELECT sender_profile_id, SUM(coins) as total_coins, p.username, p.avatar_url
+        FROM chain_live_gifts g
+        JOIN chain_profiles p ON g.sender_profile_id = p.id
+        WHERE room_id = %s
+        GROUP BY sender_profile_id, p.username, p.avatar_url
+        ORDER BY total_coins DESC
+        LIMIT %s
+    """
+    return fast_query(sql, (room_id, limit))
+
+def add_moderator(room_id, profile_id, permissions=None):
+    """Adds a moderator to a live room"""
+    payload = {
+        "room_id": room_id,
+        "profile_id": profile_id,
+        "permissions": permissions or ["mute", "remove"]
+    }
+    return safe_insert("chain_live_moderators", payload)
+
+def is_moderator(room_id, profile_id):
+    """Checks if a user is a moderator of a room"""
+    room = get_room(room_id)
+    if room and room.get("host_profile_id") == profile_id:
+        return True
+    
+    rows = safe_select("chain_live_moderators", filters={"room_id": room_id, "profile_id": profile_id}, limit=1)
+    return len(rows) > 0
+
+def pin_comment(room_id, comment_id, profile_id):
+    """Pins a comment in a live room"""
+    if not is_moderator(room_id, profile_id):
+        return False, "Unauthorized"
+    
+    payload = {
+        "room_id": room_id,
+        "comment_id": comment_id,
+        "profile_id": profile_id
+    }
+    # Using ON CONFLICT (room_id) UPDATE if supported, otherwise manual
+    existing = safe_select("chain_live_pinned_comments", filters={"room_id": room_id}, limit=1)
+    if existing:
+        return safe_update("chain_live_pinned_comments", payload, eq={"room_id": room_id}) is not None, None
+    return safe_insert("chain_live_pinned_comments", payload) is not None, None
+
+def get_pinned_comment(room_id):
+    """Gets the pinned comment for a room"""
+    sql = """
+        SELECT p.*, c.body, c.display_name
+        FROM chain_live_pinned_comments p
+        JOIN chain_live_comments c ON p.comment_id = c.id
+        WHERE p.room_id = %s
+        LIMIT 1
+    """
+    rows = fast_query(sql, (room_id,))
+    return rows[0] if rows else None
+
+def mute_user_live(room_id, target_profile_id, duration_minutes=15):
+    """Mutes a user in a live stream"""
+    # Placeholder for real mute logic, maybe a redis set with TTL
+    from services.redis_service import cache_set
+    key = f"live_mute:{room_id}:{target_profile_id}"
+    cache_set(key, True, ttl=duration_minutes * 60)
+    return True
+
+def remove_user_live(room_id, target_profile_id):
+    """Removes a user from a live stream"""
+    # Mark as left in viewers table and optionally block from re-joining
+    safe_update("chain_live_viewers", {"left_at": _utcnow_iso()}, eq={"room_id": room_id, "profile_id": target_profile_id})
+    from services.redis_service import cache_set
+    key = f"live_ban:{room_id}:{target_profile_id}"
+    cache_set(key, True, ttl=3600) # 1 hour ban
+    return True
+
+def get_live_room_analytics(room_id):
+    """Returns analytics for a live room session"""
+    room = get_room(room_id)
+    if not room: return None
+    
+    return {
+        "peak_viewers": room.get("viewer_count", 0), # Simplified
+        "total_gifts": room.get("gift_total", 0) or room.get("total_gift_coins", 0),
+        "comment_count": safe_count("chain_live_comments", filters={"room_id": room_id}),
+        "unique_viewers": safe_count("chain_live_viewers", filters={"room_id": room_id}),
+        "duration": (datetime.now(timezone.utc) - _parse_dt(room.get("created_at"))).total_seconds() / 60 if room.get("is_live") else room.get("duration_seconds", 0) / 60
+    }
+
+def _parse_dt(value):
+    if isinstance(value, datetime): return value
+    try: return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except: return datetime.now(timezone.utc)
 
 def end_live(room_id):
     try:

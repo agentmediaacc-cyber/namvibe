@@ -3,17 +3,16 @@
 {% block title %}Search | Chain Premium{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/profile_premium.css">
 <style>
     .search-shell {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 0 24px 120px;
+        padding: 24px 24px 120px;
     }
 
     .result-summary {
         margin-bottom: 24px;
-        color: #9ca3af;
+        color: var(--px-muted);
     }
 
     .search-member-grid {
@@ -30,9 +29,16 @@
 
     .search-member-body {
         padding: 18px;
-        border-radius: 24px;
-        background: rgba(255,255,255,.04);
-        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 20px;
+        background: var(--px-card);
+        border: 1px solid var(--px-border);
+        box-shadow: var(--px-shadow);
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+
+    .search-member-body:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--px-shadow-lg);
     }
 
     .search-member-body .avatar {
@@ -74,19 +80,27 @@
 {% endblock %}
 
 {% block content %}
-<section class="section-head">
-    <p>DISCOVERY ENGINE</p>
-    <h2>{% if has_query %}Search results for "{{ query }}"{% else %}Search Chain{% endif %}</h2>
-</section>
-
 <div class="search-shell">
-    {% if not has_query %}
-    <div class="feed-card" style="padding: 56px; text-align: center;">
-        <div style="width: 88px; height: 88px; border-radius: 24px; margin: 0 auto 20px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(255,47,125,.18), rgba(0,212,255,.18));">
-            <i class="fas fa-search" style="font-size: 32px;"></i>
+    <section class="px-hero" style="padding:24px; margin-bottom:18px;">
+        <div class="px-section-head" style="margin:0 0 16px;">
+            <div>
+                <p>DISCOVERY ENGINE</p>
+                <h1>{% if has_query %}Search results for "{{ query }}"{% else %}Search CHAIN{% endif %}</h1>
+                <span class="px-muted">Find creators, posts, live rooms, towns and hashtags.</span>
+            </div>
         </div>
+        <form class="px-search" action="/search" method="get">
+            <i class="fas fa-search"></i>
+            <input name="q" value="{{ query }}" placeholder="Search CHAIN">
+        </form>
+    </section>
+
+    {% if not has_query %}
+    <div class="premium-empty">
+        <i class="fas fa-search"></i>
         <h3 style="margin-bottom: 12px;">Search creators, posts, and live rooms</h3>
-        <p style="max-width: 560px; margin: 0 auto; color: #9ca3af;">Results come directly from `chain_profiles`, `chain_posts`, and `chain_live_rooms`. Use the header search bar or add `?q=` to the URL.</p>
+        <p style="max-width: 560px;">Try a creator name, town, hashtag, live room or topic.</p>
+        <a class="px-btn" href="/discover/">Explore Discover</a>
     </div>
     {% else %}
     <div class="result-summary">{{ total_results }} result{{ '' if total_results == 1 else 's' }} found.</div>
@@ -124,7 +138,24 @@
             </div>
             </div>
             {% else %}
-            <div class="empty-card"><h3>No matching profiles</h3></div>
+            <div class="premium-empty"><i class="fas fa-user-group"></i><h3>No matching profiles</h3><p>Try another name, town or creator category.</p><a class="px-btn" href="/discover/">Browse creators</a></div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+        <div class="section-head left" style="padding: 0; max-width: none;">
+            <p>HASHTAGS</p>
+            <h2>Tags</h2>
+        </div>
+        <div class="search-post-list" style="margin-top: 16px;">
+            {% for tag in hashtags %}
+            <a class="feed-card" href="/search?q=%23{{ tag.tag }}">
+                <p>#{{ tag.tag }}</p>
+                <span>{{ (tag.posts_count or 0) + (tag.reels_count or 0) + (tag.stories_count or 0) }} posts</span>
+            </a>
+            {% else %}
+            <div class="premium-empty"><i class="fas fa-hashtag"></i><h3>No matching hashtags</h3><p>Hashtags appear after people use them in posts, reels or stories.</p></div>
             {% endfor %}
         </div>
     </section>
@@ -144,7 +175,27 @@
                 <span>{{ post.created_at }}</span>
             </article>
             {% else %}
-            <div class="empty-card"><h3>No matching posts</h3></div>
+            <div class="premium-empty"><i class="fas fa-pen"></i><h3>No matching posts</h3><p>Be the first to start the conversation on CHAIN.</p><a class="px-btn" href="/posts/create">Create Post</a></div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+        <div class="section-head left" style="padding: 0; max-width: none;">
+            <p>REELS</p>
+            <h2>Short video</h2>
+        </div>
+        <div class="search-post-list" style="margin-top: 16px;">
+            {% for reel in reels %}
+            <article class="feed-card">
+                {% if reel.video_url or reel.media_url %}
+                <video src="{{ reel.video_url or reel.media_url }}" controls playsinline preload="metadata" style="width:100%;border-radius:12px;background:#000;"></video>
+                {% endif %}
+                <p>{{ reel.caption or "Reel" }}</p>
+                <span>{{ reel.music_title or reel.created_at }}</span>
+            </article>
+            {% else %}
+            <div class="premium-empty"><i class="fas fa-film"></i><h3>No matching reels</h3><p>Upload a reel to start short-form discovery.</p><a class="px-btn" href="/reels/upload">Upload Reel</a></div>
             {% endfor %}
         </div>
     </section>
@@ -166,7 +217,7 @@
                 </div>
             </a>
             {% else %}
-            <div class="empty-card"><h3>No matching live rooms</h3></div>
+            <div class="premium-empty"><i class="fas fa-video"></i><h3>No matching live rooms</h3><p>Creators will appear here when they go live.</p><a class="px-btn" href="/live/studio">Start Live</a></div>
             {% endfor %}
         </div>
     </section>

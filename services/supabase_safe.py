@@ -13,7 +13,14 @@ from utils.supabase_client import get_supabase_admin
 _COLUMN_CACHE = {}
 _TABLE_EXISTS_CACHE = {}
 _WARNED_MESSAGES = set()
-_SCHEMA_CACHE_TTL = 600 if os.getenv("FLASK_ENV", "development") != "production" else 300
+_SCHEMA_CACHE_TTL = 3600 * 24 # 24 hours
+
+
+def prime_supabase_schema(table_names):
+    """Pre-loads columns and existence for Supabase tables."""
+    for table in table_names:
+        table_exists(table)
+        _load_columns(table)
 
 
 def _fast_local_enabled():

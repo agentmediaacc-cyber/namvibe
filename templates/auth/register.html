@@ -5,29 +5,24 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/chain_auth.css">
-<style>
-    .chain-auth-card {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-    .chain-auth-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    @media (max-width: 600px) {
-        .chain-auth-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<section class="chain-auth-shell">
-    <form method="POST" class="chain-auth-card" id="chain-register-form" novalidate>
-        <div class="chain-auth-head">
-            <p class="chain-auth-eyebrow">CHAIN Account Creation</p>
-            <h1>Join with intention, not friction.</h1>
-            <p>Create your account first. Your social profile, interests, creator identity and dating setup continue later in your profile.</p>
+<!-- CHAIN_REGISTER_V7_ACTIVE -->
+<section class="chain-auth-shell chain-register-shell chain-register-premium" data-register-version="v7">
+    <div class="chain-register-bg" aria-hidden="true">
+        <span>CHAIN</span>
+        <span>CONNECT</span>
+        <span>CREATE</span>
+    </div>
+
+    <form method="POST" class="chain-auth-card chain-register-card chain-register-card--premium chain-onboarding-card" id="chain-register-form" novalidate>
+        <div class="chain-register-social-art" aria-hidden="true">
+            <div class="social-node social-node--gold"><i class="fas fa-user-plus"></i></div>
+            <div class="social-line"></div>
+            <div class="social-node social-node--blue"><i class="fas fa-heart"></i></div>
+            <div class="social-line social-line--short"></div>
+            <div class="social-node social-node--green"><i class="fas fa-comment-dots"></i></div>
         </div>
 
         {% if request.args.get('oauth_signup_required') %}
@@ -39,12 +34,12 @@
             {% if error is mapping %}
                 <p>{{ error.message }}</p>
                 {% if error.exists %}
-                <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <a href="/auth/login" class="chain-auth-link--strong" style="font-size: 13px;">Log in</a>
-                    <a href="/auth/forgot-password?email={{ error.email }}" class="chain-auth-link--strong" style="font-size: 13px;">Reset password</a>
-                    <form action="/auth/resend-confirmation" method="POST" style="display: inline;">
+                <div class="chain-auth-inline-actions">
+                    <a href="/auth/login" class="chain-auth-link--strong">Log in</a>
+                    <a href="/auth/forgot-password?email={{ error.email }}" class="chain-auth-link--strong">Reset password</a>
+                    <form action="/auth/resend-confirmation" method="POST">
                         <input type="hidden" name="email" value="{{ error.email }}">
-                        <button type="submit" style="background: none; border: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; font-weight: 800; font-size: 13px;">Resend confirmation</button>
+                        <button type="submit" class="chain-link-button">Resend confirmation</button>
                     </form>
                 </div>
                 {% endif %}
@@ -54,78 +49,150 @@
         </div>
         {% endif %}
 
+        <div class="chain-register-stepper chain-onboarding-stepper" aria-label="Registration progress">
+            <button type="button" class="step-dot is-active" data-jump-step="0"><span>1</span></button>
+            <button type="button" class="step-dot" data-jump-step="1"><span>2</span></button>
+            <button type="button" class="step-dot" data-jump-step="2"><span>3</span></button>
+            <button type="button" class="step-dot" data-jump-step="3"><span>4</span></button>
+            <button type="button" class="step-dot" data-jump-step="4"><span>5</span></button>
+            <button type="button" class="step-dot" data-jump-step="5"><span>6</span></button>
+            <button type="button" class="step-dot" data-jump-step="6"><span>7</span></button>
+        </div>
+
         <div class="chain-auth-progress">
-            <span id="chain-register-progress-text">Step 1 of 2</span>
-            <div><span id="chain-register-progress-bar" style="width: 50%;"></span></div>
+            <span id="chain-register-progress-text">Step 1 of 7</span>
+            <div><span id="chain-register-progress-bar" style="width: 14.2857%;"></span></div>
         </div>
 
-        <!-- STEP 1: Method -->
-        <div class="chain-register-step is-active" data-step="1">
-            <span class="chain-auth-step-label">Step 1</span>
-            <h2>Choose how you want to sign up.</h2>
-            <div class="chain-auth-oauth-grid">
-                <a href="/auth/google?mode=signup" class="chain-auth-oauth chain-auth-oauth--google"><strong>Google</strong><span>Use your Google account</span></a>
-                <a href="/auth/facebook?mode=signup" class="chain-auth-oauth chain-auth-oauth--facebook"><strong>Facebook</strong><span>Use your Facebook account</span></a>
-                <button type="button" class="chain-auth-oauth chain-auth-oauth--email" data-select-signup="email"><strong>Email</strong><span>Create with email and password</span></button>
+        <div class="chain-register-step chain-onboarding-step is-active" data-step="1" data-step-name="welcome">
+            <div class="chain-onboarding-center">
+                <span class="chain-auth-brand-mark">CH</span>
+                <span class="chain-auth-step-label">Step 1 · Welcome</span>
+                <h1>Join CHAIN</h1>
+                <p>Your account starts here. We will set up your identity, location, security, and account standards one step at a time.</p>
+                <a href="/auth/login" class="chain-auth-link">Already have an account?</a>
             </div>
-            <input type="hidden" name="signup_method" id="signup_method" value="email">
         </div>
 
-        <!-- STEP 2: Core Details -->
-        <div class="chain-register-step" data-step="2">
-            <span class="chain-auth-step-label">Step 2</span>
-            <h2>Account details</h2>
-            <div class="chain-auth-grid">
-                <label><span>Full name <span class="req">*</span></span><input type="text" name="full_name" required value="{{ form.get('full_name') if form else '' }}"></label>
-                <label>
-                    <span>Username <span class="req">*</span></span>
-                    <input type="text" name="username" id="register_username" minlength="3" maxlength="30" required value="{{ form.get('username') if form else '' }}">
-                    <small class="availability" id="availability_username"></small>
-                    <div class="suggestions" id="suggestions_username"></div>
-                </label>
-                <label>
+        <div class="chain-register-step chain-onboarding-step" data-step="2" data-step-name="full-name">
+            <span class="chain-auth-step-label">Step 2 · Full Name</span>
+            <h2>What is your full name?</h2>
+            <p class="chain-step-copy">Use your real name for account ownership. Your public identity can still be your username.</p>
+            <label class="chain-field-xl">
+                <span>Full name <span class="req">*</span></span>
+                <input type="text" name="full_name" id="register_full_name" autocomplete="name" required value="{{ form.get('full_name') if form else '' }}" placeholder="Your full name">
+            </label>
+        </div>
+
+        <div class="chain-register-step chain-onboarding-step" data-step="3" data-step-name="contact">
+            <span class="chain-auth-step-label">Step 3 · Email + Phone</span>
+            <h2>How can CHAIN secure your account?</h2>
+            <p class="chain-step-copy">These details are used for account identity and ownership.</p>
+            <div class="chain-single-task-stack">
+                <label class="chain-field-xl">
                     <span>Email <span class="req">*</span></span>
-                    <input type="email" name="email" id="register_email" required value="{{ form.get('email') if form else '' }}">
+                    <input type="email" name="email" id="register_email" autocomplete="email" required value="{{ form.get('email') if form else '' }}" placeholder="you@example.com">
                     <small class="availability" id="availability_email"></small>
                 </label>
-                <label>
+                <label class="chain-field-xl">
                     <span>Phone number <span class="req">*</span></span>
-                    <input type="text" name="phone" id="register_phone" required value="{{ form.get('phone') if form else '' }}">
+                    <input type="tel" name="phone" id="register_phone" autocomplete="tel" required value="{{ form.get('phone') if form else '' }}" placeholder="+264 81 123 4567">
+                    <input type="hidden" name="phone_code" id="register_phone_code" value="{{ (form.get('phone_code') if form else '') or '+264' }}">
                     <small class="availability" id="availability_phone"></small>
                 </label>
-                <label>
+            </div>
+        </div>
+
+        <div class="chain-register-step chain-onboarding-step" data-step="4" data-step-name="username">
+            <span class="chain-auth-step-label">Step 4 · Username</span>
+            <h2>Choose your public username</h2>
+            <p class="chain-step-copy">Other users will mainly find and contact you by username.</p>
+            <label class="chain-field-xl">
+                <span>Username <span class="req">*</span></span>
+                <input type="text" name="username" id="register_username" minlength="3" maxlength="30" autocomplete="username" required value="{{ form.get('username') if form else '' }}" placeholder="your_name">
+                <small class="availability" id="availability_username"></small>
+                <div class="suggestions" id="suggestions_username"></div>
+            </label>
+        </div>
+
+        <div class="chain-register-step chain-onboarding-step" data-step="5" data-step-name="location">
+            <span class="chain-auth-step-label">Step 5 · Location</span>
+            <h2>Where should CHAIN place you?</h2>
+            <p class="chain-step-copy">Search or type your location. Region and town stay typeable if suggestions are missing.</p>
+            <div class="chain-single-task-stack">
+                <label class="chain-field-xl search-field">
+                    <span>Country of origin <span class="req">*</span></span>
+                    <input type="text" name="country_origin" id="register_country_origin" autocomplete="country-name" required value="{{ (form.get('country_origin') if form else '') or 'Namibia' }}" data-country-field>
+                    <div class="search-results" id="country_origin_results"></div>
+                </label>
+                <label class="chain-field-xl search-field">
+                    <span>Country where you currently live <span class="req">*</span></span>
+                    <input type="text" name="current_country" id="register_current_country" autocomplete="country-name" required value="{{ (form.get('current_country') if form else '') or (form.get('country') if form else '') or 'Namibia' }}" data-country-field>
+                    <div class="search-results" id="current_country_results"></div>
+                </label>
+                <label class="chain-field-xl search-field">
+                    <span>Region / State / Province <span class="req">*</span></span>
+                    <input type="text" name="region" id="register_region" autocomplete="address-level1" required value="{{ form.get('region') if form else '' }}" placeholder="Search or type your region">
+                    <div class="search-results" id="region_results"></div>
+                </label>
+                <label class="chain-field-xl search-field">
+                    <span>Town / City <span class="req">*</span></span>
+                    <input type="text" name="town" id="register_town" autocomplete="address-level2" required value="{{ form.get('town') if form else '' }}" placeholder="Search or type your town">
+                    <div class="search-results" id="town_results"></div>
+                </label>
+            </div>
+        </div>
+
+        <div class="chain-register-step chain-onboarding-step" data-step="6" data-step-name="password">
+            <span class="chain-auth-step-label">Step 6 · Password</span>
+            <h2>Create a secure password</h2>
+            <p class="chain-step-copy">Use at least 8 characters. A stronger password helps protect your CHAIN account.</p>
+            <div class="chain-single-task-stack">
+                <label class="chain-field-xl">
                     <span>Password <span class="req">*</span></span>
                     <div class="password-row">
-                        <input type="password" name="password" id="register_password" minlength="8" required>
+                        <input type="password" name="password" id="register_password" minlength="8" autocomplete="new-password" required>
                         <button type="button" class="toggle-password" data-target="register_password">Show</button>
                     </div>
+                    <div class="password-meter"><span id="password_strength_bar"></span></div>
                     <small class="password-strength" id="password_strength">Use at least 8 characters.</small>
                 </label>
-                <label>
+                <label class="chain-field-xl">
                     <span>Confirm password <span class="req">*</span></span>
                     <div class="password-row">
-                        <input type="password" name="confirm_password" id="register_confirm_password" minlength="8" required>
+                        <input type="password" name="confirm_password" id="register_confirm_password" minlength="8" autocomplete="new-password" required>
                         <button type="button" class="toggle-password" data-target="register_confirm_password">Show</button>
                     </div>
                     <small class="availability" id="confirm_password_status"></small>
                 </label>
-                <label><span>Date of birth <span class="req">*</span></span><input type="date" name="date_of_birth" required value="{{ form.get('date_of_birth') if form else '' }}"></label>
-                <label><span>Preferred language <span class="req">*</span></span><input type="text" name="preferred_language" required value="{{ (form.get('preferred_language') if form else '') or 'English' }}"></label>
-                <label><span>Country <span class="req">*</span></span><select name="country_origin" id="register_country" required data-selected="{{ form.get('country_origin') if form else '' }}"></select></label>
-                <label><span>Region / State <span class="req">*</span></span><select name="region" id="register_region" data-selected="{{ form.get('region') if form else '' }}"></select></label>
-                <label class="full"><span>Town / City <span class="req">*</span></span><input type="text" name="town" id="register_town" required value="{{ form.get('town') if form else '' }}"></label>
             </div>
+        </div>
 
-            <div class="chain-toggle-list" style="margin-top: 20px;">
-                <label class="chain-toggle"><input type="checkbox" name="human_confirmed" id="human_confirmed" required> <span>I am a real person creating my own account.</span></label>
+        <div class="chain-register-step chain-onboarding-step" data-step="7" data-step-name="agreements">
+            <span class="chain-auth-step-label">Step 7 · Agreements</span>
+            <h2>Confirm your account standards</h2>
+            <div class="chain-toggle-list chain-agreement-list">
+                <label class="chain-toggle"><input type="checkbox" name="agreement_true_details" required> <span>I confirm that my full name and phone number are my true details.</span></label>
+                <label class="chain-toggle"><input type="checkbox" name="agreement_identity_use" required> <span>I understand CHAIN collects these details only for account identity and ownership.</span></label>
+                <label class="chain-toggle"><input type="checkbox" name="agreement_username_privacy" required> <span>I understand other users communicate with me mainly by username, not my private details.</span></label>
+                <label class="chain-toggle"><input type="checkbox" name="agreement_standards" required> <span>I agree CHAIN may block accounts that violate standards.</span></label>
+                <label class="chain-toggle"><input type="checkbox" name="agreement_no_abuse" required> <span>I agree not to misuse the platform, disrespect users, scam, harass, impersonate, or abuse services.</span></label>
                 <label class="chain-toggle"><input type="checkbox" name="terms" id="terms" required> <span>I agree to the <a href="/terms">Terms and Conditions</a> and <a href="/privacy">Privacy Policy</a>.</span></label>
             </div>
+            <input type="hidden" name="human_confirmed" id="human_confirmed" value="on">
+            <input type="hidden" name="profile_type" value="member">
+            <input type="hidden" name="signup_method" value="email">
+        </div>
+
+        <div class="chain-register-success" id="chain-register-success" aria-live="polite">
+            <span class="chain-auth-brand-mark">CH</span>
+            <h2>Creating your CHAIN profile</h2>
+            <p>When this finishes, you will enter your profile. If your email is not confirmed yet, your profile will show Not Verified.</p>
         </div>
 
         <div class="chain-auth-actions">
             <button type="button" class="secondary" id="register_prev">Back</button>
             <div class="chain-auth-actions__right">
-                <a href="/auth/login" class="chain-auth-link">Already have an account?</a>
                 <button type="button" class="primary" id="register_next">Next</button>
                 <button type="submit" class="primary" id="register_submit" disabled>Create Account</button>
             </div>

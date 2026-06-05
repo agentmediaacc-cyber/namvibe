@@ -28,7 +28,7 @@ def _discovery_cache_key(section, viewer_id=None):
     return cache_key("discovery_v2", section)
 
 
-def _load_profiles(where_clause="", params=None, limit=20, timeout_ms=350):
+def _load_profiles(where_clause="", params=None, limit=20, timeout_ms=1000):
     query = f"""
         SELECT {", ".join("chain_profiles." + column for column in DISCOVERY_PROFILE_COLUMNS)},
                COALESCE(reel_counts.reel_count, 0) AS reel_count,
@@ -59,7 +59,7 @@ def _load_profiles(where_clause="", params=None, limit=20, timeout_ms=350):
     return [normalize_profile(profile) for profile in rows]
 
 
-def _load_trending(limit=50, timeout_ms=350):
+def _load_trending(limit=50, timeout_ms=1000):
     query = """
         SELECT id, profile_id, body, caption, media_url, created_at, visibility
         FROM chain_posts
@@ -73,7 +73,7 @@ def _load_trending(limit=50, timeout_ms=350):
     )
 
 
-def _load_live(limit=50, timeout_ms=350):
+def _load_live(limit=50, timeout_ms=1000):
     query = """
         SELECT id, title, status, access_type, viewer_count
         FROM chain_live_rooms
@@ -108,13 +108,13 @@ def get_discovery_data(section, viewer_id=None):
             return result
 
         if section == "dating":
-            profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=50, timeout_ms=450)
+            profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=50, timeout_ms=1000)
             viewer_profile = {}
             if viewer_id:
                 viewer_rows = fast_query(
                     f"SELECT {', '.join(DISCOVERY_PROFILE_COLUMNS)} FROM chain_profiles WHERE id = %s AND deleted_at IS NULL LIMIT 1",
                     [viewer_id],
-                    timeout_ms=250,
+                    timeout_ms=1000,
                     default=[],
                 )
                 viewer_profile = normalize_profile(viewer_rows[0]) if viewer_rows else {}

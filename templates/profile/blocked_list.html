@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Blocked Users | CHAIN{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin: 40px auto; padding: 0 20px;">
+    <div class="glass-card" style="padding: 30px;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 25px;">
+            <a href="/profile/privacy" style="color: var(--chain-text); font-size: 20px;"><i class="fas fa-arrow-left"></i></a>
+            <h2 style="margin: 0;">Blocked Users</h2>
+        </div>
+        
+        <div class="blocked-list">
+            {% if users %}
+                {% for user in users %}
+                <div class="blocked-item" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid var(--chain-border);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 45px; height: 45px; border-radius: 50%; background: var(--chain-bg-soft); overflow: hidden;">
+                            {% if user.avatar_url %}
+                            <img src="{{ user.avatar_url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                            <div style="width: 100%; height: 100%; display: grid; place-items: center; color: var(--chain-muted);"><i class="fas fa-user"></i></div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <div style="font-weight: 700;">{{ user.full_name or user.username }}</div>
+                            <div style="font-size: 13px; color: var(--chain-muted);">@{{ user.username }}</div>
+                        </div>
+                    </div>
+                    <button class="secondary-pill" onclick="unblockUser('{{ user.id }}', this)" style="padding: 8px 16px; border-radius: 999px; border: 1px solid var(--chain-border); background: var(--chain-bg-soft); cursor: pointer; font-weight: 600;">Unblock</button>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="text-align: center; padding: 40px 0; color: var(--chain-muted);">
+                    <i class="fas fa-user-shield" style="font-size: 48px; margin-bottom: 15px; opacity: 0.2;"></i>
+                    <p>No blocked users.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    async function unblockUser(userId, btn) {
+        if (!confirm("Unblock this user?")) return;
+        try {
+            const res = await fetch(`/profile/unblock/${userId}`, { method: 'POST' });
+            if (res.ok) {
+                btn.closest('.blocked-item').remove();
+                if (document.querySelectorAll('.blocked-item').length === 0) {
+                    location.reload();
+                }
+            }
+        } catch (e) { console.error(e); }
+    }
+</script>
+{% endblock %}

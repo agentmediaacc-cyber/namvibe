@@ -1,0 +1,232 @@
+from flask import Blueprint, flash, redirect, render_template, request, url_for, session, jsonify
+from api_routes.profile_routes import login_required
+from services.profile_service import get_current_profile
+from services.messaging_engine import (
+    list_threads, get_thread, send_message_realtime, 
+    get_or_create_direct_thread, mark_thread_seen, set_typing,
+    add_reaction, remove_reaction, delete_message, 
+    pin_thread, archive_thread, mute_thread, search_messages,
+    move_thread, get_stickers
+)
+from services.neon_service import write_query
+from services.rate_limit_service import limiter, user_or_ip_key
+from services.supabase_safe import safe_insert
+
+message_bp = Blueprint("messages", __name__, url_prefix="/messages")
+
+@message_bp.route("/")
+@login_required
+def inbox():
+    profile = get_current_profile()
+    folder = request.args.get('folder', 'primary')
+    if not profile or not profile.get("id"):
+        return render_template("messages/index.html", threads=[], profile=profile, setup_warning=True)
+    threads = list_threads(profile["id"], folder=folder)
+    return render_template("messages/index.html", threads=threads, profile=profile, active_folder=folder)
+
+@message_bp.route("/<thread_id>")
+@login_required
+def thread_view(thread_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return redirect(url_for("messages.inbox"))
+    
+    thread = get_thread(thread_id, profile["id"])
+    if not thread:
+        return redirect(url_for("messages.inbox"))
+    
+    mark_thread_seen(thread_id, profile["id"])
+    return render_template("messages/thread.html", thread=thread, profile=profile)
+
+@message_bp.route("/api/messages/threads")
+@login_required
+def api_threads():
+    profile = get_current_profile()
+    folder = request.args.get('folder', 'primary')
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify([]), 200
+    threads = list_threads(profile_id, folder=folder)
+    return jsonify(threads), 200
+
+@message_bp.route("/api/messages/search")
+@login_required
+def api_search():
+    profile = get_current_profile()
+    query = request.args.get("q")
+    if not profile or not query:
+        return jsonify([]), 200
+    results = search_messages(profile["id"], query)
+    return jsonify(results), 200
+
+@message_bp.route("/api/messages/<thread_id>")
+@login_required
+def api_thread(thread_id):
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"error": "Profile setup incomplete"}), 400
+    thread = get_thread(thread_id, profile_id)
+    if not thread:
+        return jsonify({"error": "Thread not found"}), 404
+    return jsonify(thread), 200
+
+@message_bp.route("/api/messages/send", methods=["POST"])
+@login_required
+@limiter.limit("60/minute", key_func=user_or_ip_key)
+def api_send():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"error": "Profile setup incomplete"}), 400
+    data = request.get_json(silent=True) or {}
+    
+    thread_id = request.form.get("thread_id") or data.get("thread_id")
+    body = request.form.get("body") or data.get("body")
+    media_file = request.files.get("media")
+    client_message_id = request.form.get("client_message_id") or data.get("client_message_id")
+    parent_message_id = request.form.get("parent_message_id") or data.get("parent_message_id")
+    is_forwarded = request.form.get("is_forwarded") == 'true' or data.get("is_forwarded", False)
+    status_id = request.form.get("status_id") or data.get("status_id")
+    
+    # Premium Fields
+    sticker_id = request.form.get("sticker_id") or data.get("sticker_id")
+    gif_url = request.form.get("gif_url") or data.get("gif_url")
+    location = data.get("location")
+    contact = data.get("contact")
+
+    body = (body or "").strip()
+    if not body and not media_file and not sticker_id and not gif_url and not location and not contact:
+        return jsonify({"error": "Message cannot be empty"}), 400
+    if not thread_id:
+        return jsonify({"error": "Thread is required"}), 400
+
+    from services.messaging_engine import send_message
+    result = send_message(
+        thread_id, profile_id, body, media_file, 
+        client_message_id=client_message_id, 
+        parent_message_id=parent_message_id,
+        is_forwarded=is_forwarded,
+        status_id=status_id,
+        sticker_id=sticker_id,
+        gif_url=gif_url,
+        location=location,
+        contact=contact
+    )
+    if result and result.get("success"):
+        return jsonify({"success": True, **result}), 200
+    return jsonify(result or {"error": "Failed to send message"}), 400
+
+@message_bp.route("/api/stickers")
+@login_required
+def api_stickers():
+    return jsonify(get_stickers()), 200
+
+@message_bp.route("/api/threads/<thread_id>/move", methods=["POST"])
+@login_required
+def api_move(thread_id):
+    data = request.get_json(silent=True) or {}
+    folder = data.get("folder", "primary")
+    if move_thread(thread_id, folder):
+        return jsonify({"success": True}), 200
+    return jsonify({"error": "Failed"}), 400
+
+@message_bp.route("/api/messages/<message_id>/reaction", methods=["POST"])
+@login_required
+def api_reaction(message_id):
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or {}
+    reaction_type = data.get("reaction") or request.form.get("reaction")
+    action = data.get("action", "add")
+    
+    if not profile or not reaction_type:
+        return jsonify({"error": "Missing data"}), 400
+        
+    if action == "add":
+        add_reaction(message_id, profile["id"], reaction_type)
+    else:
+        remove_reaction(message_id, profile["id"], reaction_type)
+        
+    return jsonify({"success": True}), 200
+
+@message_bp.route("/api/messages/<message_id>/delete", methods=["POST"])
+@login_required
+def api_delete_msg(message_id):
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or {}
+    for_everyone = data.get("for_everyone", False)
+    
+    if not profile:
+        return jsonify({"error": "Unauthorized"}), 401
+        
+    if delete_message(message_id, profile["id"], for_everyone=for_everyone):
+        return jsonify({"success": True}), 200
+    return jsonify({"error": "Failed to delete"}), 400
+
+@message_bp.route("/api/threads/<thread_id>/pin", methods=["POST"])
+@login_required
+def api_pin(thread_id):
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or {}
+    pinned = data.get("pinned", True)
+    if pin_thread(thread_id, profile["id"], pinned):
+        return jsonify({"success": True}), 200
+    return jsonify({"error": "Failed"}), 400
+
+@message_bp.route("/api/threads/<thread_id>/archive", methods=["POST"])
+@login_required
+def api_archive(thread_id):
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or {}
+    archived = data.get("archived", True)
+    if archive_thread(thread_id, profile["id"], archived):
+        return jsonify({"success": True}), 200
+    return jsonify({"error": "Failed"}), 400
+
+@message_bp.route("/api/threads/<thread_id>/mute", methods=["POST"])
+@login_required
+def api_mute(thread_id):
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or {}
+    muted = data.get("muted", True)
+    if mute_thread(thread_id, profile["id"], muted):
+        return jsonify({"success": True}), 200
+    return jsonify({"error": "Failed"}), 400
+
+@message_bp.route("/api/messages/<thread_id>/seen", methods=["POST"])
+@login_required
+def api_seen(thread_id):
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"success": False}), 400
+    mark_thread_seen(thread_id, profile_id)
+    return jsonify({"success": True}), 200
+
+@message_bp.route("/api/group/create", methods=["POST"])
+@login_required
+def api_group_create():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"error": "Profile setup incomplete"}), 400
+    name = request.form.get("name")
+    member_ids = request.form.getlist("member_ids")
+    
+    if not member_ids:
+        return jsonify({"error": "Members required"}), 400
+        
+    new_thread = safe_insert("chain_message_threads", {
+        "created_by_profile_id": profile_id,
+        "thread_type": "group",
+        "thread_name": name or "New Group"
+    })
+    
+    if not new_thread:
+        return jsonify({"error": "Failed to create thread"}), 500
+        
+    thread_id = new_thread[0]["id"]
+    members_payload = [{"thread_id": thread_id, "profile_id": pid} for pid in set(member_ids + [profile_id])]
+    safe_insert("chain_thread_members", members_payload)
+    
+    return jsonify({"success": True, "thread_id": thread_id}), 201

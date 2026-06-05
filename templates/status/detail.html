@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Status Detail | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .status-viewer {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        z-index: 5000;
+        color: white;
+    }
+    
+    .viewer-header {
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        z-index: 10;
+    }
+    
+    .progress-bar-container {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        gap: 4px;
+        height: 3px;
+    }
+    
+    .progress-bar {
+        flex: 1;
+        background: rgba(255,255,255,0.3);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: white;
+        width: 0%;
+        transition: width 0.1s linear;
+    }
+    
+    .viewer-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    
+    .status-media {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    
+    .viewer-footer {
+        padding: 20px;
+        background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+        z-index: 10;
+    }
+    
+    .reply-box {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 24px;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .reply-input {
+        background: transparent;
+        border: none;
+        color: white;
+        flex: 1;
+        outline: none;
+        font-size: 15px;
+    }
+
+    .viewers-modal {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--chain-bg-panel);
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        padding: 20px;
+        color: var(--chain-text);
+        transform: translateY(100%);
+        transition: transform 0.3s;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    
+    .viewers-modal.active {
+        transform: translateY(0);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="status-viewer">
+    <div class="progress-bar-container">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+
+    <div class="viewer-header">
+        <a href="/status/" style="color: white;"><i class="fas fa-arrow-left"></i></a>
+        <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden;">
+            <img src="{{ status.avatar_url or '' }}" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+        <div style="flex: 1;">
+            <div style="font-weight: 700;">{{ status.username }}</div>
+            <div style="font-size: 11px; opacity: 0.7;">{{ status.created_at|datetime }}</div>
+        </div>
+        {% if can_delete %}
+        <form action="/status/{{ status.id }}/delete" method="POST" onsubmit="return confirm('Delete this status?')">
+            <button type="submit" style="background: none; border: none; color: white;"><i class="fas fa-trash"></i></button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="viewer-content" id="viewer-content">
+        <!-- Navigation Areas -->
+        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 30%; z-index: 20;" onclick="prevStatus()"></div>
+        <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 30%; z-index: 20;" onclick="nextStatus()"></div>
+
+        {% if 'video' in (status.media_type or '') %}
+        <video src="{{ status.media_url }}" class="status-media" id="status-video" autoplay playsinline></video>
+        {% else %}
+        <img src="{{ status.media_url }}" class="status-media">
+        {% endif %}
+        
+        {% if status.caption %}
+        <div style="position: absolute; bottom: 80px; left: 20px; right: 20px; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 25;">
+            {{ status.caption }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="viewer-footer">
+        {% if not can_delete %}
+        <form class="reply-box" onsubmit="replyToStatus(event)">
+            <input type="text" class="reply-input" placeholder="Reply to status..." id="status-reply-input">
+            <button type="submit" style="background: none; border: none;"><i class="fas fa-paper-plane" style="color: var(--chain-primary);"></i></button>
+        </form>
+        {% else %}
+        <div style="text-align: center; cursor: pointer;" onclick="toggleViewers()">
+            <i class="fas fa-chevron-up"></i>
+            <div style="font-size: 13px;">{{ viewers|length }} Views</div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if can_delete %}
+    <div class="viewers-modal" id="viewers-modal">
+        <h3 style="margin-top: 0;">Viewers</h3>
+        {% if viewers %}
+            {% for v in viewers %}
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden;">
+                    <img src="{{ v.avatar_url or '/static/img/default_avatar.png' }}" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <span>{{ v.username }}</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">No views yet.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let progress = 0;
+    const fill = document.getElementById('progress-fill');
+    const duration = 5000; // 5 seconds
+    const interval = 50;
+    let isPaused = false;
+    
+    const timer = setInterval(() => {
+        if (isPaused) return;
+        progress += (interval / duration) * 100;
+        fill.style.width = progress + '%';
+        if (progress >= 100) {
+            clearInterval(timer);
+            nextStatus();
+        }
+    }, interval);
+
+    function nextStatus() {
+        // Placeholder for real logic to go to next status in sequence
+        window.location.href = '/status/';
+    }
+
+    function prevStatus() {
+        // Placeholder for real logic to go to previous status
+        window.history.back();
+    }
+
+    function toggleViewers() {
+        const modal = document.getElementById('viewers-modal');
+        if (modal) {
+            modal.classList.toggle('active');
+            isPaused = modal.classList.contains('active');
+        }
+    }
+
+    // Swipe down to close
+    let touchstartY = 0;
+    document.getElementById('viewer-content').addEventListener('touchstart', e => {
+        touchstartY = e.changedTouches[0].screenY;
+    });
+    document.getElementById('viewer-content').addEventListener('touchend', e => {
+        if (e.changedTouches[0].screenY - touchstartY > 100) {
+            window.location.href = '/status/';
+        }
+    });
+
+    function replyToStatus(e) {
+        e.preventDefault();
+        const body = document.getElementById('status-reply-input').value;
+        if (!body) return;
+        
+        // This would typically send a message to the status owner
+        alert('Reply sent!');
+        document.getElementById('status-reply-input').value = '';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,730 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.display_name or profile.username }} | Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_theme.css">
+<style>
+    /* Premium Dark Neon Dashboard Styles */
+    :root {
+        --dash-bg: #0B0F19;
+        --dash-card: rgba(26, 35, 51, 0.7);
+        --dash-border: rgba(108, 92, 231, 0.2);
+        --primary: #6C5CE7;
+        --secondary: #00D4FF;
+        --success: #00C896;
+        --danger: #FF4D6D;
+        --text: #F5F7FA;
+        --muted: #9AA4B2;
+    }
+    .glass-card {
+        background: var(--dash-card);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--dash-border);
+        border-radius: 24px;
+        transition: all 0.3s ease;
+    }
+    .glass-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 0 20px rgba(108, 92, 231, 0.2);
+    }
+    .avatar-ring {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        padding: 3px;
+        display: inline-block;
+    }
+    .avatar-ring.is-online {
+        animation: pulse-ring 1.5s infinite;
+    }
+    @keyframes pulse-ring {
+        0% { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 200, 150, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 200, 150, 0); }
+    }
+    .avatar-ring.is-live {
+        background: linear-gradient(135deg, #FF4D6D, #FF6B8A);
+        animation: pulse-ring-red 1s infinite;
+    }
+    @keyframes pulse-ring-red {
+        0% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 77, 109, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0); }
+    }
+    .avatar-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        overflow: hidden;
+        background: var(--dash-bg);
+    }
+    .avatar-inner img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .stat-number {
+        font-size: 1.8rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .action-btn {
+        padding: 10px 20px;
+        border-radius: 999px;
+        font-weight: 700;
+        transition: all 0.2s;
+        cursor: pointer;
+        border: none;
+    }
+    .action-btn-primary {
+        background: linear-gradient(135deg, var(--primary), #8B5CF6);
+        color: white;
+    }
+    .action-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(108, 92, 231, 0.3);
+    }
+    .action-btn-secondary {
+        background: rgba(255,255,255,0.1);
+        color: var(--text);
+        border: 1px solid var(--dash-border);
+    }
+    .action-btn-secondary:hover {
+        background: rgba(108, 92, 231, 0.2);
+        border-color: var(--primary);
+    }
+    .tab-btn {
+        padding: 12px 24px;
+        font-weight: 700;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+        cursor: pointer;
+        color: var(--muted);
+    }
+    .tab-btn.active {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+    }
+    .content-tab {
+        display: none;
+    }
+    .content-tab.active {
+        display: block;
+    }
+    .story-highlight {
+        width: 80px;
+        text-align: center;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .story-highlight:hover {
+        transform: scale(1.05);
+    }
+    .story-ring {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        padding: 2px;
+        margin: 0 auto;
+    }
+    .story-ring img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        background: var(--dash-bg);
+    }
+    .badge-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,0.1);
+        font-size: 18px;
+    }
+    .reel-preview {
+        aspect-ratio: 9/16;
+        border-radius: 16px;
+        overflow: hidden;
+        position: relative;
+        cursor: pointer;
+    }
+    .reel-preview video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .online-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--success);
+        display: inline-block;
+        margin-left: 8px;
+        animation: pulse-green 1.5s infinite;
+    }
+    @keyframes pulse-green {
+        0% { opacity: 0.5; transform: scale(1); }
+        100% { opacity: 1; transform: scale(1.2); }
+    }
+    .live-badge {
+        background: var(--danger);
+        color: white;
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-weight: bold;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.8);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal.active {
+        display: flex;
+    }
+    @media (max-width: 768px) {
+        .glass-card { padding: 16px; }
+        .avatar-ring { width: 80px; height: 80px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen" style="background: #0B0F19; color: #F5F7FA;">
+    <div class="max-w-7xl mx-auto px-4 py-6 md:py-10">
+        
+        <!-- ==================== 1. IDENTITY & BRANDING SECTION ==================== -->
+        <div class="glass-card p-6 md:p-8 mb-6">
+            <!-- Cover/Banner with optional video -->
+            <div class="relative h-48 md:h-64 rounded-2xl overflow-hidden mb-12">
+                {% if profile.cover_url %}
+                    <img src="{{ profile.cover_url }}" class="w-full h-full object-cover" 
+alt="Cover">
+                {% else %}
+                    <div class="w-full h-full bg-gradient-to-r from-purple-900/30 
+to-cyan-900/30"></div>
+                {% endif %}
+                <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] 
+to-transparent"></div>
+            </div>
+            
+            <!-- Avatar with animated ring + Profile Info Row -->
+            <div class="flex flex-col md:flex-row md:items-end gap-6 -mt-20 relative z-10">
+                <!-- Avatar Ring with status -->
+                <div class="avatar-ring {% if presence and presence.status == 'online' 
+%}is-online{% elif presence and presence.status == 'live' %}is-live{% endif %}">
+                    <div class="avatar-inner">
+                        <img src="{{ profile.avatar_url or '/static/img/default_avatar.png' 
+}}" alt="Avatar">
+                    </div>
+                </div>
+                
+                <div class="flex-1">
+                    <div class="flex flex-wrap items-center gap-3 mb-2">
+                        <h1 class="text-3xl md:text-4xl font-black">{{ profile.full_name or 
+profile.username }}</h1>
+                        {% if profile.is_verified %}<span class="text-blue-400"><i class="fas 
+fa-check-circle"></i> Verified</span>{% endif %}
+                        <span class="text-xs bg-white/10 px-3 py-1 rounded-full">@{{ 
+profile.username }}</span>
+                        {% if profile.pronouns %}<span class="text-xs text-muted">{{ 
+profile.pronouns }}</span>{% endif %}
+                    </div>
+                    
+                    <!-- Bio with emoji/hashtag support -->
+                    <p class="text-gray-300 mb-3 max-w-2xl">{{ profile.bio or 'No bio yet. Add 
+one in settings!' }}</p>
+                    
+                    <!-- Location & Website/Social Links -->
+                    <div class="flex flex-wrap gap-4 text-sm text-gray-400 mb-3">
+                        {% if profile.location %}
+                        <span class="flex items-center gap-1"><i class="fas 
+fa-map-marker-alt"></i> {{ profile.location }}</span>
+                        {% endif %}
+                        {% if profile.website %}<a href="{{ profile.website }}" 
+target="_blank" class="hover:text-purple-400"><i class="fas fa-link"></i> Website</a>{% endif 
+%}
+                        {% if profile.instagram %}<a href="https://instagram.com/{{ 
+profile.instagram }}" target="_blank" class="hover:text-pink-400"><i class="fab 
+fa-instagram"></i></a>{% endif %}
+                        {% if profile.twitter %}<a href="https://twitter.com/{{ 
+profile.twitter }}" target="_blank" class="hover:text-blue-400"><i class="fab 
+fa-twitter"></i></a>{% endif %}
+                        {% if profile.tiktok %}<a href="https://tiktok.com/@{{ profile.tiktok 
+}}" target="_blank" class="hover:text-white"><i class="fab fa-tiktok"></i></a>{% endif %}
+                        {% if profile.youtube %}<a href="{{ profile.youtube }}" 
+target="_blank" class="hover:text-red-500"><i class="fab fa-youtube"></i></a>{% endif %}
+                    </div>
+                    
+                    <!-- Join date + account age badge + music note -->
+                    <div class="flex flex-wrap gap-4 text-xs text-gray-500">
+                        <span><i class="far fa-calendar-alt"></i> Joined {{ 
+profile.created_at|datetime if profile.created_at else 'recently' }}</span>
+                        <span><i class="fas fa-birthday-cake"></i> Account age: {{ ((now - 
+profile.created_at).days // 30) if profile.created_at else 0 }} months</span>
+                        <span><i class="fas fa-music"></i> Listening: <span 
+id="current-track">Offline</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== 2. SOCIAL STATS (Real-time) ==================== -->
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+            <div class="glass-card p-4 text-center">
+                <div class="stat-number" id="followersCount">{{ stats.followers or 0 }}</div>
+                <div class="text-xs uppercase tracking-wider text-gray-400 
+mt-1">Followers</div>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <div class="stat-number">{{ stats.following or 0 }}</div>
+                <div class="text-xs uppercase tracking-wider text-gray-400 
+mt-1">Following</div>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <div class="stat-number">{{ stats.posts or 0 }}</div>
+                <div class="text-xs uppercase tracking-wider text-gray-400 mt-1">Posts</div>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <div class="stat-number">{{ stats.total_likes or 0 }}</div>
+                <div class="text-xs uppercase tracking-wider text-gray-400 mt-1">Total 
+Likes</div>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <div class="stat-number">{{ stats.views_last_7d or 0 }}</div>
+                <div class="text-xs uppercase tracking-wider text-gray-400 mt-1">Views 
+(7d)</div>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <div class="stat-number">{{ stats.engagement_rate or 0 }}%</div>
+                <div class="text-xs uppercase tracking-wider text-gray-400 
+mt-1">Engagement</div>
+            </div>
+        </div>
+        
+        <!-- ==================== 3. ACTION BUTTONS (Context-aware) ==================== -->
+        <div class="glass-card p-6 mb-6">
+            <div class="flex flex-wrap gap-3">
+                <!-- For viewer (if not owner) we'd show different buttons; for demo we show 
+both with placeholders -->
+                <button id="followBtn" class="action-btn action-btn-primary" 
+data-profile-id="{{ profile.id }}">Follow</button>
+                <button class="action-btn action-btn-secondary" onclick="messageUser()"><i 
+class="fas fa-comment"></i> Message</button>
+                <button class="action-btn action-btn-secondary" onclick="startVideoCall()"><i 
+class="fas fa-video"></i> Video Call</button>
+                <button class="action-btn action-btn-secondary" onclick="openGiftModal()"><i 
+class="fas fa-gift"></i> Send Gift</button>
+                <button class="action-btn action-btn-secondary" onclick="shareProfile()"><i 
+class="fas fa-share-alt"></i> Share</button>
+                <button class="action-btn action-btn-secondary" onclick="subscribeUser()"><i 
+class="fas fa-star"></i> Subscribe</button>
+                <div class="dropdown relative">
+                    <button class="action-btn action-btn-secondary" id="moreActionsBtn"><i 
+class="fas fa-ellipsis-h"></i></button>
+                    <div id="moreActionsMenu" class="hidden absolute right-0 mt-2 w-48 
+glass-card z-20">
+                        <a href="#" onclick="reportUser()" class="block px-4 py-2 
+hover:bg-white/10">Report</a>
+                        <a href="#" onclick="blockUser()" class="block px-4 py-2 
+hover:bg-white/10">Block</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== 4. CREATOR DASHBOARD ==================== -->
+        <div class="glass-card p-6 mb-6">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2"><i class="fas 
+fa-chart-line text-purple-400"></i> Creator Dashboard</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div><div class="text-2xl font-black text-green-400">N$ {{ 
+"%.2f"|format(wallet_balance) }}</div><div class="text-xs text-gray-400">Wallet 
+Balance</div></div>
+                <div><div class="text-2xl font-black text-blue-400">N$ {{ 
+"%.2f"|format(earnings.lifetime or 0) }}</div><div class="text-xs text-gray-400">Lifetime 
+Earnings</div></div>
+                <div><div class="text-2xl font-black text-purple-400">{{ earnings.monthly or 0 
+}}</div><div class="text-xs text-gray-400">Gifts (30d)</div></div>
+                <div><div class="text-2xl font-black text-cyan-400">{{ stats.followers or 0 
+}}</div><div class="text-xs text-gray-400">Paid Subscribers</div></div>
+            </div>
+            <div class="flex gap-3">
+                <button class="action-btn action-btn-primary" 
+onclick="withdrawFunds()">Withdraw</button>
+                <button class="action-btn action-btn-secondary" 
+onclick="promoteContent()">Promote</button>
+            </div>
+            {% if top_post %}
+            <div class="mt-4 pt-4 border-t border-white/10">
+                <div class="text-sm text-gray-400">🏆 Top Performing Post</div>
+                <div class="flex items-center gap-3 mt-2">
+                    <img src="{{ top_post.media_url }}" class="w-16 h-16 rounded-lg 
+object-cover">
+                    <div>{{ top_post.caption[:50] }}... <span class="text-purple-400">{{ 
+top_post.likes_count }} likes</span></div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- ==================== 5. CONTENT TABS (Dynamic loading) ==================== -->
+        <div class="glass-card p-0 overflow-hidden">
+            <div class="flex overflow-x-auto border-b border-white/10">
+                <button class="tab-btn active" data-tab="posts">📷 Posts</button>
+                <button class="tab-btn" data-tab="reels">🎬 Reels</button>
+                <button class="tab-btn" data-tab="live">🔴 Live</button>
+                <button class="tab-btn" data-tab="stories">📖 Stories</button>
+                <button class="tab-btn" data-tab="tagged">🏷️ Tagged</button>
+                <button class="tab-btn" data-tab="saved">🔒 Saved</button>
+                <button class="tab-btn" data-tab="liked">❤️ Liked</button>
+                <button class="tab-btn" data-tab="marketplace">🛒 Marketplace</button>
+                {% if dating_enabled %}<button class="tab-btn" data-tab="dating">💕 
+Dating</button>{% endif %}
+                <button class="tab-btn" data-tab="music">🎵 Music</button>
+                <button class="tab-btn" data-tab="about">ℹ️ About</button>
+            </div>
+            
+            <!-- Posts Tab -->
+            <div id="posts-tab" class="content-tab active p-6">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <!-- Dynamic posts from backend -->
+                    {% for post in posts %}
+                    <div class="aspect-square bg-gray-800 rounded-xl overflow-hidden 
+cursor-pointer" onclick="openPostModal('{{ post.id }}')">
+                        <img src="{{ post.media_url }}" class="w-full h-full object-cover 
+hover:scale-105 transition">
+                    </div>
+                    {% else %}
+                    <div class="col-span-full text-center py-12 text-gray-500">No posts yet. 
+Create your first post!</div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Reels Tab -->
+            <div id="reels-tab" class="content-tab p-6 hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {% for reel in reels %}
+                    <div class="reel-preview" 
+onmouseenter="this.querySelector('video')?.play()" 
+onmouseleave="this.querySelector('video')?.pause(); 
+this.querySelector('video').currentTime=0">
+                        <video src="{{ reel.media_url }}" loop muted playsinline></video>
+                        <div class="absolute bottom-2 left-2 text-xs bg-black/50 px-2 py-1 
+rounded">{{ reel.views_count }} views</div>
+                    </div>
+                    {% else %}
+                    <div class="col-span-full text-center py-12 text-gray-500">No reels 
+yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Live Tab -->
+            <div id="live-tab" class="content-tab p-6 hidden">
+                <div class="grid gap-4">
+                    {% for stream in live_streams %}
+                    <div class="glass-card p-4 flex items-center justify-between">
+                        <div><i class="fas fa-video text-red-500"></i> {{ stream.title }} 
+<span class="live-badge ml-2">LIVE</span></div>
+                        <span>{{ stream.viewer_count }} watching</span>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-12 text-gray-500">No live streams currently. Go 
+live!</div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Stories Tab (Highlights row) -->
+            <div id="stories-tab" class="content-tab p-6 hidden">
+                <div class="flex gap-4 overflow-x-auto pb-4">
+                    <div class="story-highlight">
+                        <div class="story-ring"><img src="{{ profile.avatar_url or 
+'/static/img/default_avatar.png' }}"></div>
+                        <div class="text-xs mt-1">Your Story</div>
+                    </div>
+                    <!-- Additional highlights from DB -->
+                </div>
+                <div class="mt-6 text-center">
+                    <button class="action-btn action-btn-secondary" 
+onclick="addStoryHighlight()">+ Add Highlight</button>
+                </div>
+            </div>
+            
+            <!-- Tagged Tab -->
+            <div id="tagged-tab" class="content-tab p-6 hidden">
+                <div class="text-center py-12 text-gray-500">Photos you're tagged in will 
+appear here.</div>
+            </div>
+            
+            <!-- Saved Tab (private) -->
+            <div id="saved-tab" class="content-tab p-6 hidden">
+                <div class="text-center py-12 text-gray-500">Your saved posts are 
+private.</div>
+            </div>
+            
+            <!-- Liked Tab (private) -->
+            <div id="liked-tab" class="content-tab p-6 hidden">
+                <div class="text-center py-12 text-gray-500">Posts you've liked are 
+private.</div>
+            </div>
+            
+            <!-- Marketplace Tab -->
+            <div id="marketplace-tab" class="content-tab p-6 hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {% for item in marketplace_items %}
+                    <div class="glass-card p-2">
+                        <img src="{{ item.media_url }}" class="w-full h-32 object-cover 
+rounded-lg">
+                        <div class="p-2"><strong>{{ item.title }}</strong><br>N$ {{ item.price 
+}}</div>
+                    </div>
+                    {% else %}
+                    <div class="col-span-full text-center py-12 text-gray-500">No items for 
+sale yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Dating Tab (if enabled) -->
+            {% if dating_enabled %}
+            <div id="dating-tab" class="content-tab p-6 hidden">
+                <div class="glass-card p-6 max-w-lg mx-auto text-center">
+                    <h3 class="text-xl font-black mb-2">Your Dating Profile</h3>
+                    <p>Looking for: {{ dating_profile.looking_for or 'Not specified' }}</p>
+                    <p>Interests: {{ dating_profile.interests or 'Add some' }}</p>
+                    <button class="action-btn action-btn-primary mt-4">Edit Dating 
+Profile</button>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Music Tab -->
+            <div id="music-tab" class="content-tab p-6 hidden">
+                <div class="text-center py-12 text-gray-500">Your uploaded tracks will appear 
+here.</div>
+            </div>
+            
+            <!-- About Tab -->
+            <div id="about-tab" class="content-tab p-6 hidden">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="glass-card p-6">
+                        <h3 class="font-black mb-3">Bio</h3>
+                        <p>{{ profile.bio or 'No bio yet.' }}</p>
+                        <h3 class="font-black mt-4 mb-2">Interests</h3>
+                        <div class="flex flex-wrap gap-2">
+                            {% for interest in profile.interests or [] %}
+                            <span class="bg-white/10 px-3 py-1 rounded-full text-sm">{{ 
+interest }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="glass-card p-6">
+                        <h3 class="font-black mb-3">FAQ</h3>
+                        <div class="space-y-2 text-sm">Coming soon...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== 6. STORIES HIGHLIGHTS ROW (already included above) 
+==================== -->
+        
+        <!-- ==================== 7. REAL-TIME PRESENCE (Footer) ==================== -->
+        <div class="fixed bottom-4 right-4 glass-card px-4 py-2 rounded-full flex items-center 
+gap-2 z-50">
+            <span class="online-dot"></span>
+            <span class="text-sm" id="presence-status">Online</span>
+            <span id="last-active" class="text-xs text-gray-400">Active now</span>
+            <span id="typing-indicator" class="hidden text-xs text-purple-400">Someone is 
+typing...</span>
+        </div>
+        
+        <!-- ==================== 8. BADGES & ACHIEVEMENTS (in sidebar) ==================== 
+-->
+        <div class="fixed left-4 top-1/3 glass-card p-4 rounded-2xl hidden md:block z-40">
+            <div class="text-xs text-gray-400 mb-2">Achievements</div>
+            <div class="flex flex-col gap-2">
+                {% for badge in badges %}
+                <div class="flex items-center gap-2 text-sm"><div class="badge-icon"><i 
+class="fas {{ badge.icon }}" style="color: {{ badge.color }}"></i></div> {{ badge.name 
+}}</div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- ==================== 9. PRIVACY & SECURITY CONTROLS (Modal/Settings) 
+==================== -->
+        <div id="privacyModal" class="modal">
+            <div class="glass-card p-6 max-w-md w-full mx-4">
+                <h3 class="text-xl font-black mb-4">Privacy Settings</h3>
+                <div class="space-y-3">
+                    <label class="flex justify-between items-center"><span>Profile 
+visibility</span><select id="privacy_visibility" class="bg-black/30 border border-white/10 
+rounded p-1"><option>Public</option><option>Private</option><option>Followers 
+only</option></select></label>
+                    <label class="flex justify-between items-center"><span>Show activity 
+status</span><input type="checkbox" id="privacy_show_status" checked></label>
+                    <label class="flex justify-between items-center"><span>Allow messages 
+from</span><select 
+id="privacy_allow_messages"><option>Everyone</option><option>Followers</option><option>Mutuals</option><option>No 
+one</option></select></label>
+                    <button class="action-btn action-btn-primary w-full mt-4" 
+onclick="savePrivacySettings()">Save</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== 10. AI FEATURES ==================== -->
+        <div class="fixed right-4 bottom-20 md:bottom-4 z-50">
+            <button id="aiFab" class="w-14 h-14 rounded-full bg-gradient-to-r from-purple-600 
+to-cyan-600 shadow-lg flex items-center justify-center text-2xl">✨</button>
+            <div id="aiPanel" class="hidden absolute bottom-20 right-0 glass-card p-4 w-80 
+rounded-2xl">
+                <h4 class="font-black mb-2">AI Assistant</h4>
+                <button class="w-full text-left p-2 hover:bg-white/10 rounded" 
+onclick="generateBio()">✨ Bio Generator</button>
+                <button class="w-full text-left p-2 hover:bg-white/10 rounded" 
+onclick="generateCaption()">📝 Caption Writer</button>
+                <button class="w-full text-left p-2 hover:bg-white/10 rounded" 
+onclick="enhanceProfilePic()">🖼️ Enhance Profile Pic</button>
+                <div id="aiResult" class="mt-3 text-sm text-gray-300"></div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tabId = btn.dataset.tab;
+            document.querySelectorAll('.content-tab').forEach(tab => 
+tab.classList.add('hidden'));
+            document.getElementById(`${tabId}-tab`).classList.remove('hidden');
+        });
+    });
+    
+    // AJAX Follow toggle
+    const followBtn = document.getElementById('followBtn');
+    if (followBtn) {
+        followBtn.addEventListener('click', async () => {
+            const profileId = followBtn.dataset.profileId;
+            const res = await fetch(`/dashboard/follow/${profileId}`, { method: 'POST', 
+headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                followBtn.innerText = data.following ? 'Following' : 'Follow';
+                document.getElementById('followersCount').innerText = data.followers_count;
+            }
+        });
+    }
+    
+    // Share profile
+    function shareProfile() {
+        if (navigator.share) navigator.share({ title: 'Check out my CHAIN profile', url: 
+window.location.href });
+        else navigator.clipboard.writeText(window.location.href).then(() => alert('Link 
+copied!'));
+    }
+    
+    // Gift modal (simple)
+    function openGiftModal() {
+        const amount = prompt('Enter gift amount (N$):', '5');
+        if (amount) fetch('/dashboard/send-gift', { method: 'POST', headers: { 'Content-Type': 
+'application/json' }, body: JSON.stringify({ recipient_id: '{{ profile.id }}', amount }) });
+    }
+    
+    // AI Bio Generator
+    async function generateBio() {
+        const interests = prompt('What are your interests? (comma separated)');
+        if (!interests) return;
+        const res = await fetch('/dashboard/ai-bio', { method: 'POST', headers: { 
+'Content-Type': 'application/json' }, body: JSON.stringify({ interests }) });
+        const data = await res.json();
+        document.getElementById('aiResult').innerHTML = '<strong>Suggestions:</strong><br>' + 
+data.suggestions.join('<br>');
+    }
+    
+    async function generateCaption() {
+        const topic = prompt('Topic for caption?');
+        if (!topic) return;
+        const res = await fetch('/dashboard/ai-caption', { method: 'POST', headers: { 
+'Content-Type': 'application/json' }, body: JSON.stringify({ topic }) });
+        const data = await res.json();
+        document.getElementById('aiResult').innerHTML = '<strong>Captions:</strong><br>' + 
+data.captions.join('<br>');
+    }
+    
+    function enhanceProfilePic() { alert('AI enhancement coming soon!'); }
+    
+    // AI Fab toggle
+    const aiFab = document.getElementById('aiFab');
+    const aiPanel = document.getElementById('aiPanel');
+    if (aiFab) aiFab.addEventListener('click', () => aiPanel.classList.toggle('hidden'));
+    
+    // Privacy modal
+    function openPrivacyModal() { 
+document.getElementById('privacyModal').classList.add('active'); }
+    function savePrivacySettings() {
+        const visibility = document.getElementById('privacy_visibility').value;
+        const showStatus = document.getElementById('privacy_show_status').checked;
+        const allowMessages = document.getElementById('privacy_allow_messages').value;
+        fetch('/dashboard/update-privacy', { method: 'POST', headers: { 'Content-Type': 
+'application/json' }, body: JSON.stringify({ visibility, show_status: showStatus, 
+allow_messages: allowMessages }) })
+        .then(() => { document.getElementById('privacyModal').classList.remove('active'); 
+alert('Privacy settings saved'); });
+    }
+    
+    // Simulate real-time presence
+    setInterval(() => {
+        fetch('/api/presence/status')
+            .then(res => res.json())
+            .then(data => {
+                if (data.online) document.getElementById('presence-status').innerHTML = 
+'Online <span class="online-dot"></span>';
+                else document.getElementById('presence-status').innerHTML = 'Offline';
+                document.getElementById('last-active').innerText = data.last_active || 
+'recently';
+            });
+    }, 30000);
+    
+    function messageUser() { window.location.href = '/messages/new?user={{ profile.id }}'; }
+    function startVideoCall() { window.location.href = '/calls/start/{{ profile.id }}'; }
+    function subscribeUser() { alert('Subscription feature coming soon!'); }
+    function withdrawFunds() { window.location.href = '/wallet/'; }
+    function promoteContent() { alert('Promotion tools coming soon.'); }
+    function addStoryHighlight() { alert('Add story highlight'); }
+    function reportUser() { alert('Report user'); }
+    function blockUser() { alert('Block user'); }
+    
+    // More actions dropdown
+    const moreBtn = document.getElementById('moreActionsBtn');
+    if (moreBtn) {
+        moreBtn.addEventListener('click', () => {
+            document.getElementById('moreActionsMenu').classList.toggle('hidden');
+        });
+    }
+</script>
+{% endblock %}

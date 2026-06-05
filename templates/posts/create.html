@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Create Post | CHAIN{% endblock %}
+{% block body_class %}chain-wallpaper-onboarding{% endblock %}
+
+{% block extra_css %}
+<style>
+    .post-composer-card {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 30px;
+        background: var(--chain-bg-panel-strong);
+        border: 1px solid var(--chain-border);
+        border-radius: 18px;
+        box-shadow: var(--chain-shadow-lg);
+        backdrop-filter: blur(20px);
+    }
+    .composer-head {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    .composer-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+    .composer-textarea {
+        width: 100%;
+        min-height: 120px;
+        background: transparent;
+        border: none;
+        color: var(--chain-text);
+        font-size: 18px;
+        resize: none;
+        outline: none;
+        margin-bottom: 20px;
+    }
+    .media-preview-zone {
+        width: 100%;
+        max-height: 400px;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        display: none;
+        position: relative;
+    }
+    .media-preview-zone img,
+    .media-preview-zone video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #000;
+    }
+    .composer-fields {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+    .composer-fields input,
+    .composer-fields select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--chain-border);
+        border-radius: 12px;
+        background: var(--chain-bg-soft);
+        color: var(--chain-text);
+    }
+    .remove-media {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0,0,0,0.5);
+        color: white;
+        border: none;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .composer-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid var(--chain-border);
+        padding-top: 20px;
+    }
+    .media-btn {
+        color: var(--chain-primary);
+        font-size: 20px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="onboard-shell">
+    <div class="post-composer-card">
+        <div class="composer-head">
+            <img src="{{ profile.avatar_url or '/static/img/default_avatar.png' }}" class="composer-avatar" alt="Avatar">
+            <strong>{{ profile.full_name or profile.username }}</strong>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="chain-auth-alert chain-auth-alert--error">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('posts.create') }}" method="POST" enctype="multipart/form-data" id="post-form">
+            <textarea name="caption" class="composer-textarea" placeholder="What's happening on CHAIN?"></textarea>
+            <div class="composer-fields">
+                <input type="url" name="link_url" placeholder="Optional link">
+                <input type="text" name="town_tag" placeholder="Town or location tag">
+                <select name="visibility" aria-label="Post visibility">
+                    <option value="public">Public</option>
+                    <option value="followers">Followers</option>
+                    <option value="private">Private</option>
+                </select>
+            </div>
+            
+            <div class="media-preview-zone" id="media-preview">
+                <div id="preview-node"></div>
+                <button type="button" class="remove-media" onclick="clearMedia()"><i class="fas fa-times"></i></button>
+            </div>
+
+            <input type="file" name="media" id="media-input" accept="image/*,video/*" hidden onchange="previewMedia(this)">
+
+            <div class="composer-actions">
+                <div class="media-btn" onclick="document.getElementById('media-input').click()">
+                    <i class="far fa-image"></i>
+                </div>
+                <button type="submit" class="primary" style="padding: 10px 30px; border-radius: 999px;">Post</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function previewMedia(input) {
+        const preview = document.getElementById('media-preview');
+        const previewNode = document.getElementById('preview-node');
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (file.type.startsWith('video/')) {
+                    previewNode.innerHTML = `<video src="${e.target.result}" controls muted playsinline></video>`;
+                } else {
+                    previewNode.innerHTML = `<img src="${e.target.result}" alt="Media preview">`;
+                }
+                preview.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function clearMedia() {
+        const input = document.getElementById('media-input');
+        const preview = document.getElementById('media-preview');
+        document.getElementById('preview-node').innerHTML = "";
+        input.value = "";
+        preview.style.display = 'none';
+    }
+
+    document.getElementById('post-form').addEventListener('submit', function() {
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = 'Posting...';
+    });
+</script>
+{% endblock %}

@@ -16,6 +16,55 @@ from psycopg2.extras import Json, RealDictCursor
 from services.circuit_breaker import CircuitBreaker
 from services.logging_service import log_error, log_warning, log_info, log_metric
 
+# CHAIN_STATIC_SCHEMA_CACHE
+# Avoid slow pg_attribute/pg_class schema checks during hot requests.
+CHAIN_STATIC_COLUMNS = {
+    "chain_profiles": {
+        "id", "auth_user_id", "email", "username", "display_name", "full_name",
+        "avatar_url",   "thumbnail_url", "town", "city",
+        "location", "region",  "country_origin", "current_location",
+        "is_verified", "verified", "is_online", "is_creator", "creator_category",
+        "dating_mode_enabled", "is_premium", "wallet_balance", "profile_completed",
+        "deleted_at", "created_at", "updated_at", "bio"
+    },
+    "chain_posts": {
+        "id", "profile_id", "body", "caption", "content", "post_type", "link_url",
+        "town_tag", "visibility",  "video_url", "thumbnail_url",
+        "likes_count", "comments_count", "shares_count", "category",
+        "deleted_at", "created_at", "updated_at"
+    },
+    "chain_reels": {
+        "id", "profile_id", "caption", "video_url",  "thumbnail_url",
+        "storage_bucket", "storage_path", "music_title", "status", "visibility",
+        "processing_status", "mime_type", "file_size", "likes_count",
+        "comments_count", "shares_count", "deleted_at", "created_at", "updated_at"
+    },
+    "chain_status_posts": {
+        "id", "profile_id", "caption",  "thumbnail_url", "media_type",
+        "storage_bucket", "storage_path", "visibility", "expires_at",
+        "deleted_at", "created_at", "updated_at"
+    },
+    "chain_stories": {
+        "id", "profile_id", "caption",  "thumbnail_url",
+        "deleted_at", "created_at", "updated_at"
+    },
+    "chain_live_rooms": {
+        "id", "profile_id",   "title", 
+        "category", "status", "is_live", "viewer_count", 
+        "cover_url", "thumbnail_url",  "entry_fee", 
+        "deleted_at", "created_at", "updated_at"
+    },
+    "chain_notifications": {
+        "id", "recipient_profile_id", "actor_profile_id", "event_type",
+        "title", "body", "entity_type", "entity_id", "action_url",
+        "is_read", "deleted_at", "created_at", "updated_at"
+    },
+    "chain_ip_reputation": {
+        "ip_address", "is_blocked", "created_at", "updated_at"
+    },
+}
+
+
 load_dotenv(dotenv_path=".env")
 
 
@@ -47,11 +96,20 @@ _LAST_SUCCESS_AT = 0.0
 _NEON_BREAKER = CircuitBreaker("neon", failure_threshold=5, recovery_seconds=30)
 _DB_EXECUTOR = ThreadPoolExecutor(max_workers=POOL_MAX + 5, thread_name_prefix="neon_db")
 
-# Caches
+# Schema Caching
 _COLUMN_CACHE = {}
 _TABLE_EXISTS_CACHE = {}
-_COLUMN_CACHE_TTL = 600 if not _is_production_env() else 300
-_TABLE_EXISTS_CACHE_TTL = 600 if not _is_production_env() else 300
+_TABLE_COLUMNS_CACHE = {}
+_COLUMN_CACHE_TTL = 3600 * 24 # 1 hour in dev, 24 hours in prod
+_TABLE_EXISTS_CACHE_TTL = 3600 * 24
+
+def prime_schema_cache(table_names: List[str]):
+    """Warms up the column cache for a list of tables."""
+    now = time.time()
+    for table in table_names:
+        get_table_columns(table, timeout_ms=5000)
+        table_exists(table, timeout_ms=2000)
+
 _HEALTH_CACHE = {"expires_at": 0.0, "payload": None}
 
 class NeonError(Exception):
@@ -259,6 +317,11 @@ def fast_query(sql_text: str, params: Any = None, timeout_ms: int = 2000, defaul
     if not _NEON_BREAKER.allow():
         return default if default is not None else []
 
+    # Early exit for simple health check pings in fast local mode
+    if not _is_production_env() and _flag_enabled("CHAIN_FAST_LOCAL"):
+        if sql_text.strip().upper() == "SELECT 1":
+            return [{"?column?": 1}] if default is None else default
+
     future = _DB_EXECUTOR.submit(_run_query, sql_text, params, "all", timeout_ms)
     try:
         results = future.result(timeout=timeout_ms / 1000.0)
@@ -311,7 +374,9 @@ def get_neon_health():
     if _HEALTH_CACHE["payload"] and _HEALTH_CACHE["expires_at"] > now:
         return _HEALTH_CACHE["payload"]
 
-    if not _is_production_env() and (_flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_DB_PING")):
+    is_local_fast = not _is_production_env() and (_flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_DB_PING"))
+
+    if is_local_fast:
         payload = {
             "status": "disabled",
             "connected": False,
@@ -323,13 +388,12 @@ def get_neon_health():
             "local_fast_mode": True,
         }
         _HEALTH_CACHE["payload"] = payload
-        _HEALTH_CACHE["expires_at"] = now + 60
+        _HEALTH_CACHE["expires_at"] = now + 300 # 5 min cache for disabled state
         return payload
 
     try:
         start = time.perf_counter()
-        timeout_ms = 500 if _flag_enabled("CHAIN_DISABLE_DB_PING") else 5000
-        res = fast_query("SELECT 1", timeout_ms=timeout_ms)
+        res = fast_query("SELECT 1", timeout_ms=5000)
         latency = (time.perf_counter() - start) * 1000
         connected = bool(res)
         payload = {
@@ -349,7 +413,7 @@ def get_neon_health():
 
 def prime_neon_runtime():
     """Pre-warms the connection pool."""
-    if not _is_production_env() and (_flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_PREWARM")):
+    if not _is_production_env() and (_flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_PREWARM") or _flag_enabled("CHAIN_DISABLE_DB_PING")):
         return None
     _DB_EXECUTOR.submit(_pool_instance)
 
@@ -364,6 +428,11 @@ def get_pool_status():
     }
 
 def get_table_columns(table_name: str, timeout_ms=5000):
+    cached = _TABLE_COLUMNS_CACHE.get(table_name)
+    if cached is not None:
+        log_info("schema_cache_hit", table=table_name, kind="columns")
+        return cached
+
     """Retrieves column names for a table using a faster pg_attribute query."""
     now = time.time()
     if table_name in _COLUMN_CACHE:
@@ -489,4 +558,11 @@ def get_tables_columns(table_names: List[str], timeout_ms=1000) -> Dict[str, Lis
     return results
 
 # Aliases for backward compatibility
-get_cached_table_columns = get_table_columns
+
+def get_cached_table_columns(table_name: str, timeout_ms=5000):
+    """Cached wrapper for table columns to avoid pg_attribute checks during requests."""
+    static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
+    if static_cols:
+        log_info("schema_cache_static_hit", table=table_name, kind="columns")
+        return set(static_cols)
+    return get_table_columns(table_name, timeout_ms=timeout_ms)

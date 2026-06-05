@@ -1,77 +1,203 @@
-from services.supabase_safe import safe_select
-from utils.supabase_client import get_supabase_admin
+from services.neon_service import fast_query
+from services.content_service import local_content, search_hashtags
 
-def smart_search(query, limit=20):
-    if not query or not query.strip():
-        return {"profiles": [], "live_rooms": [], "posts": [], "hashtags": [], "marketplace": [], "music": []}
+
+def _like(q):
+    return f"%{q}%"
+
+
+def _local_search(q, limit):
+    lowered = q.lower().lstrip("#")
+    local = local_content()
+    profiles = []
+    posts = [
+        {**post, "excerpt": (post.get("caption") or post.get("body") or "")[:180]}
+        for post in local["posts"]
+        if lowered in (post.get("caption") or post.get("body") or post.get("town_tag") or "").lower()
+        or lowered in " ".join(f"#{tag}" for tag in local["hashtags"]).lower()
+    ][:limit]
+    reels = [
+        reel for reel in local["reels"]
+        if lowered in (reel.get("caption") or reel.get("music_title") or "").lower()
+    ][:limit]
+    return profiles, posts, reels
+
+def record_search(profile_id, query):
+    """Records a search query for history and trending analytics."""
+    if not profile_id or not query:
+        return
+
+    import uuid
+    from flask import session, has_request_context
+
+    resolved_profile_id = profile_id
+
+    try:
+        uuid.UUID(str(resolved_profile_id))
+    except Exception:
+        resolved_profile_id = None
+        if has_request_context():
+            resolved_profile_id = session.get("profile_id")
+
+    try:
+        uuid.UUID(str(resolved_profile_id))
+    except Exception:
+        return
+
+    sql = "INSERT INTO chain_search_history (profile_id, query) VALUES (%s, %s)"
+    from services.neon_service import write_query
+    write_query(sql, (str(resolved_profile_id), query.strip()))
+
+def get_recent_searches(profile_id, limit=5):
+    """Returns recent searches for a user."""
+    if not profile_id:
+        return []
+
+    import uuid
+    from flask import session, has_request_context
+
+    resolved_profile_id = profile_id
+
+    try:
+        uuid.UUID(str(resolved_profile_id))
+    except Exception:
+        resolved_profile_id = None
+        if has_request_context():
+            resolved_profile_id = session.get("profile_id")
+
+    try:
+        uuid.UUID(str(resolved_profile_id))
+    except Exception:
+        return []
+
+    sql = """
+        SELECT query
+        FROM (
+            SELECT query, MAX(created_at) AS last_used
+            FROM chain_search_history
+            WHERE profile_id = %s
+            GROUP BY query
+        ) recent
+        ORDER BY last_used DESC
+        LIMIT %s
+    """
+    return fast_query(sql, (str(resolved_profile_id), limit), default=[])
+
+def get_trending_searches(limit=5):
+    """Returns popular searches in the last 24 hours"""
+    sql = """
+        SELECT query, COUNT(*) as frequency
+        FROM chain_search_history
+        WHERE created_at > now() - interval '24 hours'
+        GROUP BY query
+        ORDER BY frequency DESC
+        LIMIT %s
+    """
+    return fast_query(sql, (limit,))
+
+def get_suggested_searches(limit=5):
+    """Returns suggested searches based on popular creators and hashtags"""
+    # Placeholder for real suggestion logic
+    sql = "SELECT username as query FROM chain_profiles WHERE is_creator = TRUE AND is_verified = TRUE ORDER BY followers_count DESC LIMIT %s"
+    return fast_query(sql, (limit,))
+
+def smart_search(query, profile_id=None, limit=20):
+    q = (query or "").strip()
+    if not q:
+        return {
+            "query": q, "has_query": False, "profiles": [], "live_rooms": [], "posts": [], 
+            "hashtags": [], "reels": [], "total_results": 0,
+            "recent": [],
+            "trending": [],
+            "suggested": []
+        }
+
+    # Caching search results
+    from services.redis_service import cache_get, cache_set
+    cache_key = f"search_v2:{q}:{limit}"
+    cached = cache_get(cache_key)
+    if cached:
+        return cached
+
+    # Skip blocking search-history writes during page render.
+    # TODO: move this to a background job.
+    pass
     
-    q = query.strip()
     results = {
+        "query": q,
+        "has_query": True,
         "profiles": [],
         "live_rooms": [],
         "posts": [],
         "hashtags": [],
-        "marketplace": [],
-        "music": []
+        "reels": [],
+        "recent": [],
+        "trending": [],
+        "suggested": [],
+        "total_results": 0,
     }
-    
-    supabase = get_supabase_admin()
-    
-    # 1. Search Profiles
-    profiles = (
-        supabase.table("chain_profiles")
-        .select("*")
-        .or_(f"username.ilike.%{q}%,full_name.ilike.%{q}%")
-        .limit(limit)
-        .execute()
-        .data or []
+
+    profiles = fast_query(
+        """
+        SELECT id, username, full_name, display_name, avatar_url, bio, current_location
+        FROM chain_profiles
+        WHERE deleted_at IS NULL
+        AND (username ILIKE %s OR full_name ILIKE %s OR display_name ILIKE %s OR current_location ILIKE %s)
+        ORDER BY created_at DESC NULLS LAST LIMIT %s
+        """,
+        (_like(q), _like(q), _like(q), _like(q), limit),
+        timeout_ms=1500,
+        default=[],
     )
-    results["profiles"] = profiles
-    
-    # 2. Search Live Rooms
-    rooms = (
-        supabase.table("chain_live_rooms")
-        .select("*")
-        .or_(f"title.ilike.%{q}%,category.ilike.%{q}%")
-        .limit(limit)
-        .execute()
-        .data or []
+    posts = fast_query(
+        """
+        SELECT id, profile_id, body, caption, media_url, video_url, link_url, town_tag, created_at
+        FROM chain_posts
+        WHERE deleted_at IS NULL AND visibility = 'public'
+        AND (caption ILIKE %s OR body ILIKE %s OR town_tag ILIKE %s)
+        ORDER BY created_at DESC NULLS LAST LIMIT %s
+        """,
+        (_like(q), _like(q), _like(q), limit),
+        timeout_ms=1500,
+        default=[],
     )
-    results["live_rooms"] = rooms
-    
-    # 3. Search Posts & Hashtags
-    posts = (
-        supabase.table("chain_posts")
-        .select("*")
-        .or_(f"caption.ilike.%{q}%,body.ilike.%{q}%")
-        .limit(limit)
-        .execute()
-        .data or []
+    live_rooms = fast_query(
+        """
+        SELECT id, title, category, status, viewer_count
+        FROM chain_live_rooms
+        WHERE deleted_at IS NULL AND (title ILIKE %s OR category ILIKE %s)
+        ORDER BY created_at DESC NULLS LAST LIMIT %s
+        """,
+        (_like(q), _like(q), limit),
+        timeout_ms=1500,
+        default=[],
     )
-    results["posts"] = posts
-    
-    # 4. Search Marketplace
-    marketplace = (
-        supabase.table("chain_marketplace_items")
-        .select("*")
-        .or_(f"title.ilike.%{q}%,description.ilike.%{q}%")
-        .eq("approval_status", "approved")
-        .limit(limit)
-        .execute()
-        .data or []
+    reels = fast_query(
+        """
+        SELECT id, profile_id, caption, video_url, media_url, music_title, created_at
+        FROM chain_reels
+        WHERE deleted_at IS NULL AND visibility = 'public'
+        AND (caption ILIKE %s OR music_title ILIKE %s)
+        ORDER BY created_at DESC NULLS LAST LIMIT %s
+        """,
+        (_like(q), _like(q), limit),
+        timeout_ms=1500,
+        default=[],
     )
-    results["marketplace"] = marketplace
+    local_profiles, local_posts, local_reels = _local_search(q, limit)
+    results["profiles"] = profiles or local_profiles
+    results["posts"] = [
+        {**post, "excerpt": (post.get("caption") or post.get("body") or "")[:180]}
+        for post in (posts or local_posts)
+    ]
+    results["live_rooms"] = live_rooms
+    results["reels"] = reels or local_reels
+    results["hashtags"] = search_hashtags(q)
+    results["total_results"] = sum(len(results[key]) for key in ("profiles", "live_rooms", "posts", "hashtags", "reels"))
     
-    # 5. Search Music (Albums & Tracks)
-    albums = (
-        supabase.table("chain_music_albums")
-        .select("*")
-        .or_(f"title.ilike.%{q}%,genre.ilike.%{q}%")
-        .limit(limit)
-        .execute()
-        .data or []
-    )
-    results["music"] = albums
+    # Cache for 5 minutes
+    from services.redis_service import cache_set
+    cache_set(f"search_v2:{q}:{limit}", results, ttl=300)
     
     return results
 

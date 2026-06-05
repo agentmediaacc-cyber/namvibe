@@ -1,0 +1,14 @@
+[Unit]
+Description=RQ Worker for CHAIN
+After=network.target redis.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/chain_app
+Environment="PATH=/var/www/chain_app/venv/bin"
+EnvironmentFile=/var/www/chain_app/.env
+ExecStart=/var/www/chain_app/venv/bin/python scripts/rq_worker.py
+
+[Install]
+WantedBy=multi-user.target

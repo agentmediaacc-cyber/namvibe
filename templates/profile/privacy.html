@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Settings | CHAIN{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin: 40px auto; padding: 0 20px;">
+    <div class="glass-card" style="padding: 30px;">
+        <h2 style="margin-bottom: 25px;">Privacy & Safety</h2>
+        
+        <form action="/profile/settings/privacy" method="POST">
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label style="display: block; font-weight: 700; margin-bottom: 10px;">Account Visibility</label>
+                <select name="visibility" class="form-control" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--chain-border); background: var(--chain-bg-soft);">
+                    <option value="public" {% if profile.profile_visibility == 'public' %}selected{% endif %}>Public (Everyone can see your content)</option>
+                    <option value="private" {% if profile.profile_visibility == 'private' %}selected{% endif %}>Private (Only followers can see your content)</option>
+                    <option value="premium" {% if profile.profile_visibility == 'premium' %}selected{% endif %}>Premium Only (Only subscribers can see your content)</option>
+                </select>
+                <small style="color: var(--chain-muted); margin-top: 8px; display: block;">Control who can view your profile and media.</small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                    <input type="checkbox" name="allow_audio" {% if profile.allow_audio_calls != False %}checked{% endif %} style="width: 20px; height: 20px;">
+                    <span style="font-weight: 600;">Allow Audio Calls</span>
+                </label>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                    <input type="checkbox" name="allow_video" {% if profile.allow_video_calls != False %}checked{% endif %} style="width: 20px; height: 20px;">
+                    <span style="font-weight: 600;">Allow Video Calls</span>
+                </label>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 30px;">
+                <a href="/profile/blocked" style="color: var(--chain-primary); text-decoration: none; font-weight: 700;">
+                    <i class="fas fa-user-slash"></i> Manage Blocked Users
+                </a>
+            </div>
+
+            <button type="submit" class="primary" style="width: 100%; padding: 15px; border-radius: 12px;">Save Changes</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

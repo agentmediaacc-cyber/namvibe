@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.display_name or profile.username }} | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .neon-text {
+        text-shadow: 0 0 10px rgba(108, 92, 231, 0.5);
+    }
+    .neon-border:hover {
+        border-color: #6C5CE7;
+        box-shadow: 0 0 15px rgba(108, 92, 231, 0.3);
+    }
+    .tab-active {
+        color: #6C5CE7;
+        border-bottom: 3px solid #6C5CE7;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen text-white bg-[#0B0F19] font-sans">
+    <!-- Profile Header -->
+    <div class="relative">
+        <!-- Cover Image -->
+        <div class="h-64 w-full overflow-hidden">
+            <img src="{{ profile.cover_image or profile.cover_url or 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=2070' }}" 
+                 class="w-full h-full object-cover" alt="Cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] to-transparent opacity-60"></div>
+        </div>
+
+        <!-- Avatar & Identity Container -->
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="relative -mt-24 pb-6 border-b border-gray-800">
+                <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                    <div class="flex items-end gap-5">
+                        <div class="relative group">
+                            <div class="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-[#0B0F19] overflow-hidden bg-gray-900 ring-2 ring-purple-500 ring-offset-4 ring-offset-[#0B0F19]">
+                                <img src="{{ profile.avatar or profile.avatar_url or 'https://i.pravatar.cc/150?u=' + profile.username }}" class="w-full h-full object-cover" alt="Avatar">
+                            </div>
+                            {% if profile.verified %}
+                            <div class="absolute bottom-2 right-2 bg-[#0B0F19] rounded-full p-1">
+                                <i class="fas fa-check-circle text-blue-400 text-2xl"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-2">
+                            <h1 class="text-3xl font-black neon-text">{{ profile.display_name or profile.username }}</h1>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-gray-400 font-bold">@{{ profile.username }}</span>
+                                {% if profile.pronouns %}
+                                <span class="text-xs bg-white/10 px-2 py-1 rounded-md text-gray-300">{{ profile.pronouns }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-wrap gap-3 mb-2">
+                        <button class="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 rounded-full font-bold transition-all transform hover:-translate-y-1 shadow-lg shadow-purple-500/20">
+                            Follow
+                        </button>
+                        <button class="px-6 py-2.5 glass hover:bg-white/10 rounded-full font-bold transition-all transform hover:-translate-y-1">
+                            Message
+                        </button>
+                        <button class="px-4 py-2.5 glass hover:bg-white/10 rounded-full transition-all">
+                            <i class="fas fa-gift text-yellow-400"></i>
+                        </button>
+                        <button class="px-4 py-2.5 glass hover:bg-white/10 rounded-full transition-all">
+                            <i class="fas fa-share-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bio & Meta -->
+                <div class="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div class="max-w-2xl">
+                        <p class="text-gray-300 leading-relaxed">{{ profile.bio or 'African next-generation creator. 🌍' }}</p>
+                        <div class="flex flex-wrap gap-5 mt-4 text-sm font-medium text-gray-400">
+                            <span class="flex items-center gap-1.5"><i class="fas fa-map-marker-alt"></i> {{ profile.location or 'Windhoek, Namibia' }}</span>
+                            <span class="flex items-center gap-1.5"><i class="fas fa-link text-blue-400"></i> chain.africa/{{ profile.username }}</span>
+                            <span class="flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Joined May 2026</span>
+                        </div>
+                    </div>
+
+                    <!-- Header Stats -->
+                    <div class="flex gap-8 p-4 glass rounded-2xl">
+                        <div class="text-center">
+                            <div class="text-xl font-black">{{ profile.followers or '12.4K' }}</div>
+                            <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Followers</div>
+                        </div>
+                        <div class="text-center border-x border-white/10 px-8">
+                            <div class="text-xl font-black">{{ profile.following or '890' }}</div>
+                            <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Following</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-xl font-black">{{ stats.posts_count or '42' }}</div>
+                            <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Posts</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Sidebar: Creator Section -->
+            <aside class="lg:col-span-4 space-y-6">
+                <!-- Creator Card -->
+                <div class="glass p-6 rounded-3xl relative overflow-hidden group">
+                    <div class="absolute -right-10 -top-10 w-32 h-32 bg-purple-600/20 blur-3xl rounded-full"></div>
+                    <h3 class="text-sm uppercase tracking-widest text-purple-400 font-black mb-6">Creator Dashboard</h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold uppercase">Net Earnings</span>
+                            <div class="text-3xl font-black text-green-400 mt-1">N$ {{ "%.2f"|format(profile.wallet_balance or 450.75) }}</div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <div class="text-lg font-black">{{ stats.gifts or '45' }}</div>
+                                <div class="text-[10px] text-gray-400 uppercase font-bold">Gifts Received</div>
+                            </div>
+                            <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                <div class="text-lg font-black">{{ stats.subscribers or '120' }}</div>
+                                <div class="text-[10px] text-gray-400 uppercase font-bold">Subscribers</div>
+                            </div>
+                        </div>
+
+                        <button class="w-full py-3 bg-white text-black rounded-xl font-black hover:bg-gray-200 transition-colors">
+                            Withdraw to Wallet
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Wallet Mini-Card -->
+                <div class="glass p-5 rounded-2xl flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-yellow-400/10 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-coins text-yellow-400"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-black">Chain Wallet</div>
+                            <div class="text-xs text-gray-400">Manage your assets</div>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-600"></i>
+                </div>
+
+                <!-- Subscribe Banner -->
+                <div class="p-6 rounded-3xl bg-gradient-to-br from-purple-600 to-indigo-700 shadow-xl shadow-purple-600/20">
+                    <h4 class="text-lg font-black mb-2">Support this Creator</h4>
+                    <p class="text-sm text-purple-100/80 mb-6">Get exclusive content, badges, and prioritized messages.</p>
+                    <button class="w-full py-3 bg-black/20 hover:bg-black/30 backdrop-blur-md rounded-xl font-bold border border-white/10 transition-all">
+                        Subscribe N$ 50/mo
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Feed -->
+            <div class="lg:col-span-8">
+                <!-- Tabs -->
+                <div class="flex items-center gap-10 border-b border-white/5 mb-8">
+                    <button class="tab-active pb-4 font-black text-sm uppercase tracking-widest">Posts</button>
+                    <button class="pb-4 font-bold text-gray-500 text-sm uppercase tracking-widest hover:text-gray-300 transition-colors">Reels</button>
+                    <button class="pb-4 font-bold text-gray-500 text-sm uppercase tracking-widest hover:text-gray-300 transition-colors">Live</button>
+                    <button class="pb-4 font-bold text-gray-500 text-sm uppercase tracking-widest hover:text-gray-300 transition-colors">About</button>
+                </div>
+
+                <!-- Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {% for post in posts %}
+                    <div class="aspect-square bg-gray-900 rounded-xl overflow-hidden group cursor-pointer relative neon-border border border-transparent transition-all">
+                        {% if post.media_url %}
+                        <img src="{{ post.media_url }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="Post">
+                        {% else %}
+                        <div class="w-full h-full flex items-center justify-center p-4 text-center text-xs text-gray-500 italic">
+                            {{ post.caption[:30] }}...
+                        </div>
+                        {% endif %}
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                            <span class="flex items-center gap-1 text-sm font-bold"><i class="fas fa-heart text-red-500"></i> 1.2K</span>
+                            <span class="flex items-center gap-1 text-sm font-bold"><i class="fas fa-comment text-white"></i> 48</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Sample Post Fallback -->
+                    {% for i in range(9) %}
+                    <div class="aspect-square bg-white/5 rounded-xl overflow-hidden group cursor-pointer relative border border-white/5 hover:border-purple-500/50 transition-all">
+                        <img src="https://picsum.photos/seed/{{ i }}/800/800" class="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-opacity" alt="Placeholder">
+                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i class="fas fa-eye text-2xl text-white/50"></i>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,54 +1,58 @@
 {% extends "base.html" %}
+
+{% block title %}Wallet | CHAIN{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<main class="wallet-premium platform-fade-up">
     {% if setup_warning %}
-    <div class="alert alert-warning">Finishing your profile setup. Your wallet will appear here soon.</div>
+    <div class="px-card" style="padding:14px;margin-bottom:16px;">Finishing your profile setup. Your wallet will appear here soon.</div>
     {% endif %}
-    <div class="row">
-        <div class="col-md-4">
-            <div class="card shadow-sm mb-4">
-                <div class="card-body text-center">
-                    <h6 class="text-muted text-uppercase small mb-2">My Balance</h6>
-                    <h2 class="mb-3"><i class="fas fa-coins text-warning"></i> {{ wallet.coin_balance }} <small class="text-muted fs-6">coins</small></h2>
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#topupModal">Top Up Coins</button>
-                        <a href="{{ url_for('wallet.api_payout_request') }}" class="btn btn-outline-secondary btn-sm" onclick="event.preventDefault(); payoutRequest();">Request Payout</a>
-                    </div>
-                </div>
+
+    <section class="px-hero wallet-panel" style="margin-bottom:16px;background:radial-gradient(circle at 85% 12%, rgba(247,183,51,.28), transparent 30%), linear-gradient(135deg,#fff,#eef3f8);">
+        <div class="px-section-head" style="margin:0;">
+            <div>
+                <p>Creator Wallet</p>
+                <h1>{{ wallet.coin_balance or 0 }} coins</h1>
+                <span class="px-muted">Balance, earnings, withdrawable funds and creator growth in one premium dashboard.</span>
             </div>
+            <a href="{{ url_for('wallet.api_payout_request') }}" class="px-btn" onclick="event.preventDefault(); payoutRequest();">Withdraw</a>
         </div>
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Transaction History</h5>
-                </div>
-                <div class="list-group list-group-flush">
-                    {% if transactions %}
-                        {% for tx in transactions %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
-                                <div>
-                                    <h6 class="mb-0">{{ tx.description or tx.tx_type|replace('_', ' ')|title }}</h6>
-                                    <small class="text-muted">{{ tx.created_at }}</small>
-                                </div>
-                                <div class="text-end">
-                                    <span class="{% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}text-success{% else %}text-danger{% endif %} fw-bold">
-                                        {% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}+{% else %}-{% endif %}{{ tx.amount }}
-                                    </span>
-                                    <div class="small text-muted text-uppercase">{{ tx.status }}</div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="p-5 text-center text-muted">
-                            <i class="fas fa-history fa-2x mb-3"></i>
-                            <p>No transactions found.</p>
-                        </div>
-                    {% endif %}
-                </div>
+    </section>
+
+    <section class="wallet-stat-grid" style="margin-bottom:16px;">
+        <article class="wallet-stat"><span>Balance</span><strong>{{ wallet.coin_balance or 0 }}</strong><small class="px-muted">coins</small></article>
+        <article class="wallet-stat"><span>Pending earnings</span><strong>{{ wallet.pending_withdrawal or 0 }}</strong><small class="px-muted">coins</small></article>
+        <article class="wallet-stat"><span>Withdrawable</span><strong>{{ wallet.available_balance or wallet.coin_balance or 0 }}</strong><small class="px-muted">coins</small></article>
+    </section>
+
+    <section class="wallet-grid">
+        <article class="wallet-panel">
+            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Revenue chart</p><h2>Creator growth</h2></div><span class="px-chip">Rank #{{ wallet.creator_rank or '—' }}</span></div>
+            <div class="wallet-chart">
+                <span style="height:35%"></span><span style="height:58%"></span><span style="height:44%"></span><span style="height:76%"></span><span style="height:68%"></span><span style="height:90%"></span>
             </div>
-        </div>
-    </div>
-</div>
+            <div class="wallet-chart" style="height:110px;margin-top:12px;">
+                <span style="height:45%"></span><span style="height:52%"></span><span style="height:66%"></span><span style="height:62%"></span><span style="height:74%"></span>
+            </div>
+        </article>
+
+        <article class="wallet-panel">
+            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Recent</p><h2>Transactions</h2></div><a class="px-chip" href="/wallet/topup">Top up</a></div>
+            {% if transactions %}
+            <div style="display:grid;gap:10px;">
+                {% for tx in transactions %}
+                <div class="px-card" style="padding:12px;display:flex;justify-content:space-between;gap:12px;">
+                    <div><strong>{{ tx.description or tx.tx_type|replace('_', ' ')|title }}</strong><p class="px-muted" style="margin:4px 0 0;">{{ tx.created_at }}</p></div>
+                    <div style="text-align:right;"><strong style="color:{% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}var(--px-success){% else %}var(--px-danger){% endif %};">{% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}+{% else %}-{% endif %}{{ tx.amount }}</strong><p class="px-muted" style="margin:4px 0 0;">{{ tx.status }}</p></div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="premium-empty"><i class="fas fa-history"></i><h3>No transactions yet</h3><p>Your top-ups, gifts, earnings and payouts will appear here.</p><a class="px-btn" href="/wallet/topup">Top Up Coins</a></div>
+            {% endif %}
+        </article>
+    </section>
+</main>
 
 <script>
 function payoutRequest() {

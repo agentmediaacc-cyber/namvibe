@@ -1,4 +1,7 @@
-from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+import os
+import time
+
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 
 from services.auth_service import (
     get_current_profile,
@@ -22,6 +25,66 @@ from services.rate_limit_service import limiter
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+def _is_production_env():
+    if os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
+
+
+def _register_rate_limit_exempt():
+    return not _is_production_env() or os.getenv("CHAIN_FAST_LOCAL") == "1"
+
+
+def _auth_rate_limit_key():
+    return request.headers.get("X-Forwarded-For") or request.remote_addr
+
+
+def _apply_registration_session(result):
+    profile = result.get("profile") or {}
+    auth_user_id = result.get("auth_user_id") or profile.get("auth_user_id")
+    email = profile.get("email")
+    if auth_user_id:
+        session["auth_user_id"] = auth_user_id
+        session["user_id"] = auth_user_id
+    if email:
+        session["auth_email"] = email
+        session["email"] = email
+    if profile.get("id"):
+        session["profile_id"] = profile.get("id")
+    if profile.get("username"):
+        session["username"] = profile.get("username")
+    if profile.get("full_name") or profile.get("display_name"):
+        session["full_name"] = profile.get("full_name") or profile.get("display_name")
+    
+    if result.get("dev_fallback") and profile:
+        session["dev_profile"] = profile
+        session["dev_profile_fallback"] = True
+
+    session["auth_provider"] = "password"
+    session["login_at"] = int(time.time())
+    session["age_check_required"] = False
+    session["age_verified"] = bool(profile.get("date_of_birth"))
+    if profile.get("date_of_birth"):
+        session["date_of_birth"] = profile.get("date_of_birth")
+        session["pending_date_of_birth"] = profile.get("date_of_birth")
+    session.modified = True
+
+
+def _log_registration_route_state(result, redirect_to=None):
+    profile = result.get("profile") or {}
+    print(
+        "[auth.register] result",
+        {
+            "ok": bool(result.get("ok")),
+            "auth_user_id_exists": bool(result.get("auth_user_id")),
+            "profile_exists": bool(profile),
+            "profile_id_exists": bool(profile.get("id")),
+            "session_profile_id_exists": bool(session.get("profile_id")),
+            "redirect_to": redirect_to,
+        },
+    )
+
+
 def _age_from_date(date_of_birth):
     from datetime import datetime, timezone
     if not date_of_birth:
@@ -34,7 +97,7 @@ def _age_from_date(date_of_birth):
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 def _queue_oauth_error():
-    session["oauth_error_message"] = "We could not complete social login. Please try again or use email login."
+    session["oauth_error_message"] = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
 
 
 def _clear_oauth_error_state():
@@ -103,7 +166,7 @@ def login():
     elif request.args.get("registered") == "1":
         success_message = "Account created. Check your email to confirm your account."
     elif request.args.get("oauth_error") == "1":
-        oauth_error = "We could not complete social login. Try again or use email."
+        oauth_error = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
 
     if request.method == "POST":
         ok, result = login_chain_user(request.form.get("login_id"), request.form.get("password"))
@@ -125,7 +188,7 @@ def login():
         
     if request.method == "GET":
         if not oauth_error and _should_show_oauth_error():
-            oauth_error = session.pop("oauth_error_message", None) or "We could not complete social login. Try again or use email."
+            oauth_error = session.pop("oauth_error_message", None) or "Google sign-in could not complete. Try email registration or check OAuth callback settings."
         else:
             _clear_oauth_error_state()
             
@@ -136,65 +199,106 @@ def login():
                            next_path=session.get("auth_next"))
 
 
-@auth_bp.route("/register", methods=["GET", "POST"])
-@limiter.limit("5/hour", key_func=lambda: request.headers.get("X-Forwarded-For") or request.remote_addr)
+@auth_bp.route("/register", methods=["GET"])
+@limiter.exempt
 def register():
     existing_target = _existing_session_redirect()
-    if request.method == "GET" and existing_target:
+    if existing_target:
         return redirect(existing_target)
+    return render_template("auth/register.html", error=None, form=None)
+
+
+@auth_bp.route("/register", methods=["POST"])
+@limiter.limit(
+    "5/hour",
+    key_func=_auth_rate_limit_key,
+    methods=["POST"],
+    exempt_when=_register_rate_limit_exempt,
+)
+def register_post():
     error = None
-    if request.method == "POST":
-        password = request.form.get("password") or ""
-        confirm_password = request.form.get("confirm_password") or ""
-        if password != confirm_password:
-            error = "Passwords do not match."
-            return render_template("auth/register.html", error=error)
-        age = _age_from_date(request.form.get("date_of_birth"))
-        if age is None or age < 18:
-            error = "CHAIN is only available to users 18 and older."
-            return render_template("auth/register.html", error=error, form=request.form)
-        if not request.form.get("terms"):
-            error = "You must agree to the Terms and Conditions and Privacy Policy."
-            return render_template("auth/register.html", error=error, form=request.form)
-        ok, result = register_chain_user(
-            request.form.get("email"),
-            request.form.get("password"),
-            request.form.get("username"),
-            request.form.get("full_name"),
-            extra={
-                "phone": request.form.get("phone"),
-                "date_of_birth": request.form.get("date_of_birth"),
-                "residential_address": request.form.get("residential_address"),
-                "country_origin": request.form.get("country_origin"),
-                "preferred_language": request.form.get("preferred_language"),
-                "current_location": request.form.get("town") or request.form.get("current_location"),
-                "town": request.form.get("town"),
-                "region": request.form.get("region"),
-                "interests": [item.strip() for item in (request.form.get("interests") or "").split(",") if item.strip()],
-                "activities": [item.strip() for item in (request.form.get("activities") or "").split(",") if item.strip()],
-                "looking_for": request.form.getlist("looking_for") or [item.strip() for item in (request.form.get("looking_for") or "").split(",") if item.strip()],
-                "profile_type": request.form.get("profile_type"),
-                "dating_mode_enabled": request.form.get("dating_mode_enabled"),
-                "premium_mode_enabled": request.form.get("premium_mode_enabled"),
-                "terms_accepted": request.form.get("terms"),
-                "human_confirmed": request.form.get("human_confirmed"),
-            },
-        )
-        if ok:
-            if result.startswith("/"):
-                return redirect(_post_login_redirect(result))
-            # Success message (e.g. check email)
-            return redirect(url_for("auth.login", registered=1, message=result))
-        
-        if result == "EMAIL_EXISTS":
-            error = {
-                "message": "This email already has a CHAIN account.",
-                "email": request.form.get("email"),
-                "exists": True
-            }
-        else:
-            error = result
-    return render_template("auth/register.html", error=error, form=request.form if request.method == "POST" else None)
+    password = request.form.get("password") or ""
+    confirm_password = request.form.get("confirm_password") or ""
+    required_fields = {
+        "full_name": "Full name is required.",
+        "email": "Email is required.",
+        "phone": "Phone number is required.",
+        "username": "Username is required.",
+        "country_origin": "Country of origin is required.",
+        "current_country": "Current country is required.",
+        "region": "Region, state, or province is required.",
+        "town": "Town or city is required.",
+        "password": "Password is required.",
+        "confirm_password": "Confirm your password.",
+    }
+    for field, message in required_fields.items():
+        if not (request.form.get(field) or "").strip():
+            return render_template("auth/register.html", error=message, form=request.form)
+    if password != confirm_password:
+        error = "Passwords do not match."
+        return render_template("auth/register.html", error=error, form=request.form)
+    agreement_fields = (
+        "agreement_true_details",
+        "agreement_identity_use",
+        "agreement_username_privacy",
+        "agreement_standards",
+        "agreement_no_abuse",
+        "terms",
+    )
+    if not all(request.form.get(field) for field in agreement_fields):
+        error = "You must accept all account agreements before creating your CHAIN account."
+        return render_template("auth/register.html", error=error, form=request.form)
+    result = register_chain_user(
+        request.form.get("email"),
+        request.form.get("password"),
+        request.form.get("username"),
+        request.form.get("full_name"),
+        extra={
+            "phone": request.form.get("phone"),
+            "phone_code": request.form.get("phone_code"),
+            "date_of_birth": request.form.get("date_of_birth"),
+            "residential_address": request.form.get("residential_address"),
+            "country_origin": request.form.get("country_origin") or request.form.get("country"),
+            "current_country": request.form.get("current_country"),
+            "country": request.form.get("current_country") or request.form.get("country") or request.form.get("country_origin"),
+            "preferred_language": request.form.get("preferred_language"),
+            "current_location": request.form.get("town") or request.form.get("current_location"),
+            "town": request.form.get("town"),
+            "region": request.form.get("region"),
+            "interests": [item.strip() for item in (request.form.get("interests") or "").split(",") if item.strip()],
+            "activities": [item.strip() for item in (request.form.get("activities") or "").split(",") if item.strip()],
+            "looking_for": request.form.getlist("looking_for") or [item.strip() for item in (request.form.get("looking_for") or "").split(",") if item.strip()],
+            "profile_type": request.form.get("profile_type"),
+            "creator_mode_enabled": request.form.get("creator_mode_enabled"),
+            "seller_mode_enabled": request.form.get("seller_mode_enabled") or request.form.get("business_mode_enabled"),
+            "dating_mode_enabled": request.form.get("dating_mode_enabled"),
+            "premium_mode_enabled": request.form.get("premium_mode_enabled"),
+            "terms_accepted": request.form.get("terms"),
+            "human_confirmed": request.form.get("human_confirmed"),
+            "agreement_true_details": request.form.get("agreement_true_details"),
+            "agreement_identity_use": request.form.get("agreement_identity_use"),
+            "agreement_username_privacy": request.form.get("agreement_username_privacy"),
+            "agreement_standards": request.form.get("agreement_standards"),
+            "agreement_no_abuse": request.form.get("agreement_no_abuse"),
+        },
+    )
+    if result.get("ok"):
+        _apply_registration_session(result)
+        redirect_to = result.get("redirect_to") or "/profile/"
+        _log_registration_route_state(result, redirect_to=redirect_to)
+        if result.get("dev_fallback"):
+            flash("Email verification is pending. You can continue testing your profile.", "info")
+        return redirect(redirect_to)
+
+    if result.get("error") == "EMAIL_EXISTS":
+        error = {
+            "message": "This email already has a CHAIN account.",
+            "email": request.form.get("email"),
+            "exists": True
+        }
+    else:
+        error = result.get("error") or "Registration failed. Please try again."
+    return render_template("auth/register.html", error=error, form=request.form)
 
 
 @auth_bp.route("/resend-confirmation", methods=["POST"])
@@ -238,6 +342,11 @@ def onboarding_tour():
 
 
 @auth_bp.route("/check-availability")
+@limiter.limit(
+    "180/minute",
+    key_func=_auth_rate_limit_key,
+    exempt_when=_register_rate_limit_exempt,
+)
 def check_availability():
     field = request.args.get("field")
     value = request.args.get("value")
@@ -303,6 +412,7 @@ def oauth_callback():
     mode = session.pop("oauth_mode", "login")
     if not request.args.get("code"):
         print(f"[auth.oauth_callback] {provider} callback missing code: {dict(request.args)}")
+        session["oauth_error_message"] = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
         return redirect(url_for("auth.login", oauth_error=1))
     
     ok, result = handle_oauth_callback(provider, request.args, mode=mode)

@@ -6,7 +6,7 @@
     <title>{% block title %}Chain | Premium Live Social{% endblock %}</title>
     <link rel="icon" href="/favicon.ico">
     <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#ff2f7d">
+    <meta name="theme-color" content="#F4F7FB">
     <link rel="apple-touch-icon" href="/static/img/icon-192.png">
     
     <!-- SEO & Social Sharing -->
@@ -17,6 +17,7 @@
     <meta name="twitter:card" content="summary_large_image">
     
     <link rel="stylesheet" href="/static/css/chain_theme.css">
+    <link rel="stylesheet" href="/static/css/platform_premium.css">
     <link rel="stylesheet" href="/static/css/chain_wallpapers.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -49,9 +50,12 @@
             
             {% if g_current %}
             <a href="/messages/" class="sidebar-link"><i class="fas fa-comment"></i> Messages</a>
-            <a href="/notifications/" class="sidebar-link"><i class="fas fa-bell"></i> Notifications</a>
             <a href="/wallet/" class="sidebar-link"><i class="fas fa-wallet"></i> Wallet</a>
+            <a href="/dating/discover" class="sidebar-link"><i class="fas fa-heart"></i> Dating</a>
+            <a href="/notifications/" class="sidebar-link"><i class="fas fa-bell"></i> Notifications</a>
+            <a href="/safety/" class="sidebar-link"><i class="fas fa-shield-alt"></i> Safety Center</a>
             <a href="/profile/" class="sidebar-link"><i class="fas fa-user-circle"></i> Profile</a>
+            <a href="/profile/settings" class="sidebar-link"><i class="fas fa-cog"></i> Settings</a>
             <hr style="border: none; border-top: 1px solid var(--chain-border); margin: 15px 0;">
             <a href="/auth/logout" class="sidebar-link"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
             {% else %}
@@ -67,10 +71,20 @@
         <header class="top-header">
             <form class="search-bar" id="chain-search-form" action="/search" method="get" autocomplete="off">
                 <i class="fas fa-search" style="color: var(--chain-muted);"></i>
-                <input id="chain-search-input" type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search creators, live rooms…">
+                <input id="chain-search-input" type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search creators, live rooms, hashtags, towns…">
             </form>
 
             <div class="header-actions">
+                <div class="theme-switcher" data-theme-switcher>
+                    <button type="button" class="theme-switcher__btn" data-theme-toggle aria-label="Theme mode">
+                        <i class="fas fa-circle-half-stroke"></i>
+                    </button>
+                    <div class="theme-switcher__menu" data-theme-menu hidden>
+                        <button type="button" data-theme-option="light">Light Mode</button>
+                        <button type="button" data-theme-option="dark">Dark Mode</button>
+                        <button type="button" data-theme-option="system">System Mode</button>
+                    </div>
+                </div>
                 {% if g_current %}
                 <a href="/wallet/" class="chain-pill">
                     <i class="fas fa-coins"></i> <span>{{ g_wallet_balance or '0' }}</span>
@@ -93,6 +107,9 @@
         </header>
 
         <div class="content-body">
+            <div id="error-retry-banner" style="display: none; background: #ff3b30; color: white; padding: 10px 20px; text-align: center; position: sticky; top: 80px; z-index: 100;">
+                <i class="fas fa-exclamation-circle mr-2"></i> Connection lost. <a href="#" onclick="location.reload()" style="color: white; text-decoration: underline; font-weight: bold;">Retry</a>
+            </div>
             {% block content %}{% endblock %}
         </div>
     </main>
@@ -116,6 +133,9 @@
             <i class="fas fa-user"></i>
         </a>
     </nav>
+    <a href="/posts/create" class="app-floating-create" aria-label="Create post">
+        <i class="fas fa-plus"></i>
+    </a>
 
     <script src="/static/js/main.js"></script>
     <script>

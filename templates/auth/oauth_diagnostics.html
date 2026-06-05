@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}OAuth Diagnostics | CHAIN{% endblock %}
+{% block body_class %}chain-wallpaper-auth{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_auth.css">
+<style>
+    .diag-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 800px; margin: 40px auto; color: #333; }
+    .diag-head { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+    .diag-section { margin-bottom: 25px; }
+    .diag-label { font-weight: 800; color: #666; font-size: 13px; text-transform: uppercase; margin-bottom: 8px; display: block; }
+    .diag-value { background: #f8f9fa; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 14px; word-break: break-all; border: 1px solid #e9ecef; display: block; }
+    .diag-hint { font-size: 13px; color: #777; margin-top: 5px; line-height: 1.4; }
+    .diag-btn { display: inline-block; background: #000; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 700; margin-top: 15px; }
+    .diag-btn:hover { background: #333; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="diag-card">
+    <div class="diag-head">
+        <h1>OAuth Diagnostics</h1>
+        <p>Use these settings to configure Supabase and Provider Dashboards.</p>
+    </div>
+
+    <div class="diag-section">
+        <span class="diag-label">Supabase Authentication → URL Configuration</span>
+        <span class="diag-label">Site URL</span>
+        <code class="diag-value">{{ site_url }}</code>
+        <p class="diag-hint">Must match exactly. Use 127.0.0.1:5000 for local dev.</p>
+    </div>
+
+    <div class="diag-section">
+        <span class="diag-label">Redirect URLs</span>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            {% for url in redirect_urls %}
+            <code class="diag-value">{{ url }}</code>
+            {% endfor %}
+        </div>
+        <p class="diag-hint">Add these to Supabase "Redirect URLs" whitelist.</p>
+    </div>
+
+    <div class="diag-section">
+        <span class="diag-label">Google Cloud Console → Authorized redirect URIs</span>
+        <code class="diag-value">{{ google_redirect }}</code>
+        <p class="diag-hint">Set this in Google Cloud Console OAuth 2.0 Client ID settings.</p>
+    </div>
+
+    <div class="diag-section">
+        <span class="diag-label">Facebook for Developers → Valid OAuth Redirect URIs</span>
+        <code class="diag-value">{{ facebook_redirect }}</code>
+        <p class="diag-hint">Set this in Facebook Login → Settings.</p>
+    </div>
+
+    <div class="diag-section" style="border-top: 1px solid #eee; padding-top: 20px;">
+        <a href="/auth/login" class="diag-btn">Return to Login</a>
+    </div>
+</div>
+{% endblock %}

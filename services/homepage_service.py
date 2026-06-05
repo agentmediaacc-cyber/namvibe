@@ -9,6 +9,7 @@ from flask import has_request_context, session
 from engines.cache_engine import cache_key, get_cache, set_cache
 from services.request_cache import build_request_key, request_memoize
 from services.neon_service import (
+    fetch_all,
     fast_query,
     get_cached_table_columns,
     get_pool_status,
@@ -17,12 +18,13 @@ from services.neon_service import (
 )
 from services.profile_service import get_current_profile
 from services.wallet_service import ensure_wallet
+from services.content_service import local_content, active_local_stories
 
 
-_CACHE_TTL_SECONDS = 300
-_EMPTY_CACHE_TTL_SECONDS = 60
+_CACHE_TTL_SECONDS = 3000
+_EMPTY_CACHE_TTL_SECONDS = 300
 _QUERY_TIMEOUT_MS = 1500
-_TOTAL_BUDGET_MS = 3000
+_TOTAL_BUDGET_MS = 1200
 _FAST_FALLBACK_MS = 2000
 _HOMEPAGE_TABLES = [
     "chain_profiles",
@@ -257,6 +259,10 @@ def _post_select():
             "media_url",
             "video_url",
             "thumbnail_url",
+            "link_url",
+            "town_tag",
+            "visibility",
+            "post_type",
             "likes_count",
             "comments_count",
             "created_at",
@@ -277,6 +283,7 @@ def _story_select():
             "media_url",
             "video_url",
             "thumbnail_url",
+            "visibility",
             "created_at",
             "status",
             "active",
@@ -390,10 +397,7 @@ def _fetch_posts():
     query = f"SELECT {', '.join(columns)} FROM chain_posts"
     if where:
         query += f" WHERE {' AND '.join(where)}"
-    if "likes_count" in available:
-        query += " ORDER BY likes_count DESC NULLS LAST, created_at DESC NULLS LAST"
-    else:
-        query += " ORDER BY created_at DESC NULLS LAST"
+    query += " ORDER BY created_at DESC NULLS LAST"
     query += " LIMIT %s"
     rows, issue = _run_sql("posts", query, [8])
     return rows, [issue] if issue else []
@@ -483,16 +487,31 @@ def _fetch_live_rooms():
 
 def _load_profile_map(profile_ids):
     unique_ids = [profile_id for profile_id in dict.fromkeys(profile_ids) if profile_id]
+
+    # Hard limit: homepage must not load too many profiles in one request.
+    unique_ids = unique_ids[:12]
+
     columns = _profile_select()
     if not unique_ids or not columns:
         return {}
+
     available = set(columns)
     placeholders = ", ".join(["%s"] * len(unique_ids))
     where = _build_where(available, [f"id IN ({placeholders})"])
     query = f"SELECT {', '.join(columns)} FROM chain_profiles WHERE {' AND '.join(where)}"
-    rows, issue = _run_sql(f"profile_map:{len(unique_ids)}", query, unique_ids, timeout_ms=1000)
+
+    # Very tight timeout so profile enrichment cannot freeze homepage.
+    rows, issue = _run_sql(
+        f"profile_map:{len(unique_ids)}",
+        query,
+        unique_ids,
+        timeout_ms=250
+    )
+
     if issue:
-        pass
+        _log_outage_once(f"profile_map skipped: {issue}")
+        return {}
+
     return {row.get("id"): _normalize_profile(row) for row in rows if row.get("id")}
 
 
@@ -575,6 +594,11 @@ def _normalize_post(row, profile_map):
         "caption": caption,
         "excerpt": caption[:180] + ("..." if len(caption) > 180 else ""),
         "media_url": _first_present(row, ["media_url", "thumbnail_url", "video_url"]),
+        "video_url": _first_present(row, ["video_url"]),
+        "link_url": _clean_text(row.get("link_url"), ""),
+        "town_tag": _clean_text(row.get("town_tag"), ""),
+        "visibility": _clean_text(row.get("visibility"), "public"),
+        "post_type": _clean_text(row.get("post_type"), ""),
         "likes_count": _safe_int(row.get("likes_count"), 0),
         "comments_count": _safe_int(row.get("comments_count"), 0),
         "category": _clean_text(row.get("category"), ""),
@@ -585,7 +609,7 @@ def _normalize_post(row, profile_map):
 
 def _wallet_snapshot(current):
     snapshot = {"coin_balance": 0, "gift_earnings": 0, "label_balance": "0"}
-    if not current:
+    if not current or not current.get("id"):
         return snapshot
     try:
         wallet = ensure_wallet(current["id"]) or {}
@@ -601,25 +625,23 @@ def _safe_current_profile():
     if not has_request_context():
         return None
     try:
-        profile = get_current_profile()
-        if profile:
-            return profile
         auth_user_id = session.get("auth_user_id")
-        if not auth_user_id:
-            return None
-        email = session.get("auth_email") or ""
-        username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
-        full_name = session.get("full_name") or username.replace("_", " ").title()
-        return {
-            "id": None,
-            "auth_user_id": auth_user_id,
-            "email": email,
-            "username": username,
-            "full_name": full_name,
-            "display_name": full_name,
-            "avatar_url": None,
-            "profile_completed": False,
-        }
+        if auth_user_id:
+            email = session.get("auth_email") or ""
+            username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
+            full_name = session.get("full_name") or username.replace("_", " ").title()
+            return {
+                "id": session.get("profile_id"),
+                "auth_user_id": auth_user_id,
+                "email": email,
+                "username": username,
+                "full_name": full_name,
+                "display_name": full_name,
+                "avatar_url": session.get("avatar_url"),
+                "profile_completed": bool(session.get("profile_completed")),
+            }
+        profile = get_current_profile()
+        return profile if profile else None
     except Exception as error:
         _log(f"current profile unavailable: {error}")
         return None
@@ -679,7 +701,7 @@ def build_homepage_payload(async_warm=False):
         cols = _post_select()
         if not cols: return []
         return fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY likes_count DESC NULLS LAST, created_at DESC LIMIT 8",
+            f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY created_at DESC NULLS LAST LIMIT 8",
             timeout_ms=1000
         )
 
@@ -779,10 +801,67 @@ def build_homepage_payload(async_warm=False):
     return payload
 
 def get_homepage_data():
+    from flask import session
+    current_profile_id = "public_local_cache"
+    full_cache_key = cache_key("chain_homepage_full_v1", current_profile_id)
+
+    cached_full = get_cache(full_cache_key)
+    if cached_full is not None:
+        return cached_full
+
     current = _safe_current_profile()
     public_data = build_homepage_payload()
+    if current and current.get("id"):
+        own_rows = fetch_all(
+            """
+            SELECT id, profile_id, caption, content, body, media_url, video_url, thumbnail_url, visibility,
+                   likes_count, comments_count, created_at, category, deleted_at
+            FROM chain_posts
+            WHERE deleted_at IS NULL
+              AND (
+                profile_id = %s
+                OR profile_id IN (SELECT id FROM chain_profiles WHERE auth_user_id = %s)
+              )
+            ORDER BY created_at DESC NULLS LAST
+            LIMIT 4
+            """,
+            (current["id"], current.get("auth_user_id")),
+            timeout_ms=30000,
+        )
+        if own_rows:
+            profile_map = {current.get("id"): _normalize_profile(current)}
+            own_posts = [_normalize_post(row, profile_map) for row in own_rows]
+            seen = {row.get("id") for row in public_data.get("trending_posts", [])}
+            public_data["trending_posts"] = [row for row in own_posts if row.get("id") not in seen] + public_data.get("trending_posts", [])
+            public_data["own_recent_posts"] = own_posts
+            public_data["latest_own_post_text"] = own_posts[0].get("caption") or own_posts[0].get("excerpt") or ""
+        else:
+            public_data["own_recent_posts"] = []
+            public_data["latest_own_post_text"] = ""
+    else:
+        public_data["own_recent_posts"] = []
+        public_data["latest_own_post_text"] = ""
+    local = local_content()
+    if local["posts"]:
+        profile_map = {current.get("id"): _normalize_profile(current)} if current and current.get("id") else {}
+        local_posts = [_normalize_post(row, profile_map) for row in local["posts"] if row.get("visibility", "public") == "public" or (current and row.get("profile_id") == current.get("id"))]
+        seen = {row.get("id") for row in public_data.get("trending_posts", [])}
+        public_data["trending_posts"] = [row for row in local_posts if row.get("id") not in seen] + public_data.get("trending_posts", [])
+    if local["reels"]:
+        profile_map = {current.get("id"): _normalize_profile(current)} if current and current.get("id") else {}
+        local_reels = [_normalize_post(row, profile_map) for row in local["reels"] if row.get("visibility", "public") == "public" or (current and row.get("profile_id") == current.get("id"))]
+        seen = {row.get("id") for row in public_data.get("reels", [])}
+        public_data["reels"] = [row for row in local_reels if row.get("id") not in seen] + public_data.get("reels", [])
+    if local["stories"]:
+        profile_map = {current.get("id"): _normalize_profile(current)} if current and current.get("id") else {}
+        local_stories = [_normalize_story(row, profile_map) for row in active_local_stories() if row.get("visibility", "public") == "public" or (current and row.get("profile_id") == current.get("id"))]
+        seen = {row.get("id") for row in public_data.get("stories", [])}
+        public_data["stories"] = [row for row in local_stories if row.get("id") not in seen] + public_data.get("stories", [])
+    public_data["stats"]["posts"] = len(public_data.get("trending_posts", []))
+    public_data["stats"]["reels"] = len(public_data.get("reels", []))
+    public_data["stats"]["stories"] = len(public_data.get("stories", []))
     wallet = _wallet_snapshot(current)
-    return {
+    result = {
         "current": current,
         **public_data,
         "wallet": wallet,
@@ -792,3 +871,6 @@ def get_homepage_data():
         "hero_post_count": len(public_data["trending_posts"]),
         "missing_sources": public_data["issues"],
     }
+
+    set_cache(full_cache_key, result, ttl=60)
+    return result

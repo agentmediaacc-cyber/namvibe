@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Age Verification | CHAIN{% endblock %}
+{% block body_class %}chain-wallpaper-auth{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_auth.css">
+{% endblock %}
+
+{% block content %}
+<section class="chain-auth-shell">
+    <div class="chain-auth-layout">
+        <aside class="chain-auth-brand-panel">
+            <div class="chain-auth-brand-mark" aria-hidden="true">C</div>
+            <h2>Safety is our priority.</h2>
+            <p>CHAIN is a premium community for adults. We need to verify your date of birth before you can continue.</p>
+        </aside>
+
+        <div class="chain-auth-card">
+            <div class="chain-auth-head">
+                <h1>Verify Your Age</h1>
+                <p>Please provide your date of birth to confirm you are 18 or older.</p>
+            </div>
+
+            {% if error %}
+            <div class="chain-auth-alert chain-auth-alert--error">{{ error }}</div>
+            {% endif %}
+
+            <div class="chain-auth-panel">
+                <form class="auth-submit-form chain-auth-form" method="POST">
+                    <label>
+                        <span>Date of Birth</span>
+                        <input type="date" name="date_of_birth" required max="{{ current_year - 1 }}-12-31" value="{{ viewer.date_of_birth or '' }}">
+                    </label>
+                    <p style="font-size: 13px; color: #777; margin-bottom: 20px;">
+                        By clicking "Verify Age", you confirm that you are at least 18 years old.
+                    </p>
+                    <button type="submit" class="primary auth-submit-btn">
+                        <span class="btn-label">Verify Age</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="chain-auth-actions" style="margin-top: 20px;">
+                <a href="/auth/logout" class="chain-auth-link">Sign out</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('.auth-submit-form');
+    const submitBtn = document.querySelector('.auth-submit-btn');
+    form?.addEventListener('submit', () => {
+        if (!submitBtn) return;
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+    });
+});
+</script>
+{% endblock %}

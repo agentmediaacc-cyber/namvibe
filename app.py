@@ -1,3 +1,9 @@
+try:
+    import gevent.monkey
+    gevent.monkey.patch_all()
+except ImportError:
+    pass
+
 import os
 import threading
 import time
@@ -30,17 +36,20 @@ from api_routes.live_media_routes import live_media_bp
 from api_routes.realtime_routes import realtime_bp
 from api_routes.reels_routes import reels_bp
 from api_routes.presence_routes import presence_bp
+from api_routes.safety_routes import safety_bp
+from api_routes.admin_safety_routes import admin_safety_bp
 from api_routes.feed_routes import feed_bp
 from api_routes.verification_routes import verification_bp
 from api_routes.mobile_api_routes import mobile_api_bp
 from api_routes.engagement_routes import engagement_bp
 from api_routes.marketplace_routes import marketplace_bp
 from api_routes.creator_routes import creator_bp
-from api_routes.post_routes import post_bp
+from api_routes.post_routes import post_bp, media_bp
 from api_routes.metrics_routes import metrics_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload
+from services.content_service import hashtag_links
 from services.profile_service import get_current_profile, get_profile_by_username
 from services.notification_service import get_my_notifications
 from services.auth_service import get_current_user, refresh_chain_session
@@ -137,8 +146,28 @@ def format_datetime_filter(value):
     return value.strftime("%b %d, %Y") if hasattr(value, "strftime") else str(value)
 
 
+from utils.observability_utils import start_request_timer, log_request_performance
+from utils.security_utils import check_ip_reputation
+
 def create_app():
     app = Flask(__name__)
+    
+    # Phase 13 Performance: Schema Registry Warming
+    if os.getenv("CHAIN_WARM_SCHEMA", "0") == "1":
+        from services.schema_registry import warm_schema_cache
+        warm_schema_cache()
+
+    @app.before_request
+    def before_req():
+        start_request_timer()
+        check_ip_reputation()
+
+    @app.after_request
+    def after_req(response):
+        return log_request_performance(response)
+
+    if os.getenv("FLASK_TESTING") == "1":
+        app.config["TESTING"] = True
     
     flask_env = os.getenv("FLASK_ENV", "development")
     is_prod = flask_env == "production"
@@ -160,7 +189,16 @@ def create_app():
     )
     
     init_cache(app)
-    init_scheduler(app)
+    scheduler = init_scheduler(app)
+    if scheduler.running:
+        try:
+            from services.call_service import check_call_timeouts
+            from services.status_service import expire_old_statuses
+            scheduler.add_job(check_call_timeouts, 'interval', seconds=60, id='call_timeouts')
+            scheduler.add_job(expire_old_statuses, 'interval', minutes=15, id='status_expiry')
+        except Exception as e:
+            print(f"[app] Failed to add background jobs: {e}")
+
     init_observability(app)
     app.limiter = init_rate_limiter(app)
     socketio = init_socketio(app)
@@ -199,6 +237,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
     app.add_template_filter(format_datetime_filter, "datetime")
+    app.add_template_filter(hashtag_links, "hashtag_links")
 
     @app.get("/api/profile/current")
     def api_profile_current_alias():
@@ -269,13 +308,23 @@ def create_app():
     app.register_blueprint(realtime_bp)
     app.register_blueprint(reels_bp)
     app.register_blueprint(presence_bp)
+    app.register_blueprint(safety_bp)
+    app.register_blueprint(admin_safety_bp)
     app.register_blueprint(feed_bp)
     app.register_blueprint(verification_bp)
     app.register_blueprint(mobile_api_bp)
     app.register_blueprint(engagement_bp)
     app.register_blueprint(metrics_bp)
     app.register_blueprint(post_bp)
+    app.register_blueprint(media_bp)
     app.register_blueprint(creator_bp)
+
+    try:
+        from services.content_service import ensure_content_schema
+        if os.getenv("CHAIN_BOOTSTRAP_SCHEMA", "0") == "1":
+            ensure_content_schema()
+    except Exception as error:
+        log_warning("content_schema_bootstrap_failed", error=str(error))
 
     for bp in api_v1_blueprints:
         app.register_blueprint(bp, url_prefix=f"/api/v1{bp.url_prefix}")
@@ -329,14 +378,17 @@ def create_app():
             "reels": ["/reels/", "/discover/"],
             "notifications": ["/notifications/", "/profile/"],
             "dating": ["/dating/discover", "/discover/"],
-            "create_post": ["/features/create-post", "/posts/create", "/post/create", "/create-post", "/profile/"],
+            "create_post": ["/posts/create", "/features/create-post", "/post/create", "/create-post"],
             "create_story": ["/status/create", "/profile/"],
-            "upload_reel": ["/features/upload-reel", "/reels/", "/profile/"],
-            "upload_video": ["/features/upload-video", "/upload/video", "/media/upload", "/profile/"],
+            "upload_reel": ["/reels/upload", "/features/upload-reel", "/reels/"],
+            "upload_video": ["/features/upload-video", "/upload/video", "/media/upload"],
             "go_live": ["/live/studio", "/live/"],
             "settings": ["/profile/settings", "/discover/"],
             "help": ["/discover/"],
         }
+
+        def route_exists(path):
+            return path in available_routes
 
         def safe_link(feature_name, logged_in=None):
             signed_in = current_profile is not None if logged_in is None else bool(logged_in)
@@ -393,6 +445,7 @@ def create_app():
             "g_wallet_balance": wallet_balance,
             "session": session,
             "safe_link": safe_link,
+            "route_exists": route_exists,
         }
 
     @app.route("/stories")
@@ -403,6 +456,14 @@ def create_app():
     @app.route("/live/create")
     def live_create_root_redirect():
         return redirect("/live/studio", code=302)
+
+    @app.route("/dating")
+    def dating_root_redirect():
+        return redirect("/dating/discover", code=302)
+
+    @app.route("/settings")
+    def settings_root_redirect():
+        return redirect("/profile/settings", code=302)
 
     @app.route("/")
     def home():
@@ -442,6 +503,9 @@ def create_app():
         """Cached Redis health check."""
         from services.redis_service import get_redis_health
         health = get_redis_health()
+        health["available"] = bool(health.get("connected"))
+        health["unavailable"] = not bool(health.get("connected"))
+        health["fallback_mode"] = bool(health.get("fallback"))
         status = 200 if health.get("status") == "ok" else 503
         return jsonify({"service": "redis", **health}), status
 

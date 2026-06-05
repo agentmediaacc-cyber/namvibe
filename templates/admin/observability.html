@@ -1,0 +1,76 @@
+{% extends "admin/dashboard.html" %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Platform Observability</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Average Latency by Route</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Path</th>
+                                <th class="text-right">Avg (ms)</th>
+                                <th class="text-right">Hits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for route in avg_latency %}
+                            <tr>
+                                <td><code class="small">{{ route.request_path }}</code></td>
+                                <td class="text-right {{ 'text-danger' if route.avg_ms > 500 else 'text-success' }}">
+                                    {{ route.avg_ms | round(1) }}
+                                </td>
+                                <td class="text-right text-muted">{{ route.count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Slow Requests (>1s)</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Path</th>
+                                <th class="text-right">Latency</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in slow_queries %}
+                            <tr>
+                                <td><small class="text-muted">{{ log.created_at | datetime }}</small></td>
+                                <td><code class="small">{{ log.request_path }}</code></td>
+                                <td class="text-right font-weight-bold text-danger">{{ log.latency_ms | int }}ms</td>
+                            </tr>
+                            {% endfor %}
+                            {% if not slow_queries %}
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">No slow requests detected recently.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

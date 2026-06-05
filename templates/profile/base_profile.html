@@ -7,6 +7,11 @@
 <link rel="stylesheet" href="/static/css/chain_profile.css">
 {% endblock %}
 
+{% block extra_js %}
+{{ super() }}
+<script src="/static/js/profile.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="premium-profile-shell">
     {% include "profile/partials/profile_header.html" %}

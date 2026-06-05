@@ -82,6 +82,15 @@
 
 {% block content %}
 <div class="dating-shell">
+    <aside class="dating-panel" style="max-width:280px;">
+        <p class="px-kicker">Dating</p>
+        <h2>Premium matches</h2>
+        <p class="px-muted">Swipe through verified profiles, discover compatibility, and start a chat when it feels right.</p>
+        <div style="display:grid;gap:10px;margin-top:18px;">
+            <a href="/matching/matches" class="px-btn">Matches Page</a>
+            <a href="/messages/" class="px-chip">Chat CTA</a>
+        </div>
+    </aside>
     <div class="swipe-card-container" id="card-container">
         {% for profile in items %}
         <div class="swipe-card" style="z-index: {{ loop.revindex }}">
@@ -90,10 +99,15 @@
             </div>
             <div class="card-info">
                 <h2 style="margin:0;">{{ profile.full_name }}, {{ profile.age or '24' }}</h2>
-                <p style="color:#666; margin-top:5px;"><i class="fas fa-map-marker-alt"></i> {{ profile.current_location or 'Windhoek' }}</p>
+                <p style="color:var(--chain-muted); margin-top:5px;"><i class="fas fa-map-marker-alt"></i> {{ profile.current_location or 'Windhoek' }} · {{ profile.distance_km or (loop.index * 3) }} km away</p>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;">
+                    <span style="height:48px;border-radius:12px;background:var(--chain-bg-soft);display:grid;place-items:center;"><i class="fas fa-image"></i></span>
+                    <span style="height:48px;border-radius:12px;background:var(--chain-bg-soft);display:grid;place-items:center;"><i class="fas fa-camera"></i></span>
+                    <span style="height:48px;border-radius:12px;background:var(--chain-bg-soft);display:grid;place-items:center;"><i class="fas fa-heart"></i></span>
+                </div>
                 <div style="display:flex; gap:8px; margin-top:10px;">
                     {% for interest in profile.interests[:3] %}
-                    <span style="background:#f5f5f5; padding:4px 10px; border-radius:50px; font-size:10px;">{{ interest }}</span>
+                    <span style="background:var(--chain-bg-soft); padding:4px 10px; border-radius:50px; font-size:10px;">{{ interest }}</span>
                     {% endfor %}
                 </div>
             </div>
@@ -112,6 +126,16 @@
         <button class="circle-btn btn-super" onclick="swipe('up')"><i class="fas fa-star"></i></button>
         <button class="circle-btn btn-like" onclick="swipe('right')"><i class="fas fa-heart"></i></button>
     </div>
+    <aside class="dating-panel" style="max-width:280px;">
+        <p class="px-kicker">Controls</p>
+        <h2>Like · Pass · Super Like</h2>
+        <p class="px-muted">Matches unlock chat CTAs and profile previews.</p>
+        <div class="dating-grid" style="margin-top:16px;">
+            <span class="px-chip"><i class="fas fa-heart"></i>Like</span>
+            <span class="px-chip"><i class="fas fa-xmark"></i>Pass</span>
+            <span class="px-chip"><i class="fas fa-star"></i>Super Like</span>
+        </div>
+    </aside>
 </div>
 
 <script>
