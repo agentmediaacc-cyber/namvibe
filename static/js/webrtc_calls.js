@@ -28,6 +28,13 @@ function wCallInit(socket) {
     CHAIN_WEBRTC.socket = socket;
     loadICEServers();
     bindSocketEvents();
+    initSoundSettings();
+}
+
+function initSoundSettings() {
+    if (localStorage.getItem('chain_call_sound_enabled') === null) {
+        localStorage.setItem('chain_call_sound_enabled', 'true');
+    }
 }
 
 async function loadICEServers() {
@@ -64,14 +71,32 @@ function bindSocketEvents() {
     s.on('call:reconnecting', handleRemoteReconnecting);
     s.on('call:reconnected', handleRemoteReconnected);
     s.on('call:failed', handleRemoteFailed);
+    s.on('call:incoming', function(data) {
+        stopCallTimeoutTimer();
+    });
+    s.on('call:accepted', function() {
+        stopCallTimeoutTimer();
+    });
+    s.on('call:rejected', function() {
+        stopCallTimeoutTimer();
+    });
+    s.on('call:busy', function() {
+        stopCallTimeoutTimer();
+        showCallNotification('User is on another call');
+    });
+    s.on('call:blocked', function() {
+        stopCallTimeoutTimer();
+        showCallNotification('Unable to call this user');
+    });
 }
 
-/* ---- Incoming Call ---- */
+/* ---- Incoming Call (Phase 2 Enhanced) ---- */
 function handleIncomingCall(data) {
     if (CHAIN_WEBRTC.currentCallId) {
         CHAIN_WEBRTC.socket.emit('call:busy', { call_id: data.call_id });
         return;
     }
+    stopCallTimeoutTimer();
     CHAIN_WEBRTC.currentCallId = data.call_id;
     CHAIN_WEBRTC.currentTargetId = data.caller_id;
     CHAIN_WEBRTC.currentCallType = data.call_type || 'audio';
@@ -272,7 +297,7 @@ function getOrCreatePC(callId) {
     return pc;
 }
 
-/* ---- Start Call ---- */
+/* ---- Start Call (Phase 2 Enhanced) ---- */
 async function wStartCall(targetId, threadId, callType) {
     if (CHAIN_WEBRTC.currentCallId) {
         showCallNotification('Already in a call');
@@ -287,6 +312,10 @@ async function wStartCall(targetId, threadId, callType) {
         thread_id: threadId,
         call_type: callType
     });
+
+    // Start ringback tone and timeout for caller
+    startRingbackTone();
+    startCallTimeoutTimer(CHAIN_WEBRTC.currentCallId, 15);
 }
 
 /* ---- Accept / Reject / End Call ---- */
@@ -374,20 +403,26 @@ function wToggleSpeaker() {
     updateSpeakerButton();
 }
 
-/* ---- Ringtone (Phase 41 Enhanced) ---- */
+/* ---- Phase 2: Premium Ringtone Engine ---- */
 function startRingtone() {
     stopRingtone();
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        let gainVal = 0.1;
+        const savedPref = localStorage.getItem('chain_call_sound_enabled');
+        if (savedPref === 'false') { stopRingtone(); return; }
         function playBeep() {
+            if (localStorage.getItem('chain_call_sound_enabled') === 'false') return;
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
+            osc.type = 'sine';
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.frequency.value = 440;
-            gain.gain.value = 0.1;
+            gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
             osc.start();
-            setTimeout(() => osc.stop(), 600);
+            setTimeout(() => { try { osc.stop(); } catch(e) {} }, 600);
         }
         playBeep();
         CHAIN_WEBRTC.ringingInterval = setInterval(playBeep, 1200);
@@ -398,7 +433,49 @@ function startRingtone() {
     } catch (e) {}
 }
 
-/* ---- Phase 41: Vibration Fallback ---- */
+function startRingbackTone() {
+    stopRingtone();
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const savedPref = localStorage.getItem('chain_call_sound_enabled');
+        if (savedPref === 'false') return;
+        function playRingback() {
+            if (localStorage.getItem('chain_call_sound_enabled') === 'false') return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 420;
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            osc.start();
+            setTimeout(() => { try { osc.stop(); } catch(e) {} }, 400);
+        }
+        playRingback();
+        CHAIN_WEBRTC.ringingInterval = setInterval(playRingback, 1800);
+    } catch (e) {}
+}
+
+function playTestSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 440;
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1);
+        osc.start();
+        setTimeout(() => { try { osc.stop(); } catch(e) {} }, 1000);
+        const btn = document.getElementById('testSoundBtn');
+        if (btn) { btn.textContent = 'Playing...'; setTimeout(() => { btn.textContent = 'Test Sound'; }, 1200); }
+    } catch (e) {}
+}
+
+/* ---- Vibration Fallback ---- */
 function vibrateRing() {
     if (navigator.vibrate) {
         navigator.vibrate([400, 100, 400, 100, 400, 100, 400, 100, 400]);
@@ -410,6 +487,69 @@ function stopRingtone() {
         clearInterval(CHAIN_WEBRTC.ringingInterval);
         CHAIN_WEBRTC.ringingInterval = null;
     }
+}
+
+/* ---- Phase 2: Auto Timeout ---- */
+let _callTimeoutTimer = null;
+
+function startCallTimeoutTimer(callId, seconds) {
+    stopCallTimeoutTimer();
+    const timeoutSeconds = seconds || 15;
+    _callTimeoutTimer = setTimeout(function() {
+        if (CHAIN_WEBRTC.currentCallId === callId && CHAIN_WEBRTC.currentCallId) {
+            CHAIN_WEBRTC.socket.emit('call:timeout', { call_id: callId });
+            CHAIN_WEBRTC.socket.emit('call:end', { call_id: callId, target_id: CHAIN_WEBRTC.currentTargetId, reason: 'timeout' });
+            showCallNotification('No answer');
+            cleanupCall();
+        }
+    }, timeoutSeconds * 1000);
+}
+
+function stopCallTimeoutTimer() {
+    if (_callTimeoutTimer) {
+        clearTimeout(_callTimeoutTimer);
+        _callTimeoutTimer = null;
+    }
+}
+
+/* ---- Phase 2: ICE Restart ---- */
+function wRestartICE() {
+    const pc = CHAIN_WEBRTC.peerConnection;
+    if (!pc) return;
+    pc.restartIce();
+    CHAIN_WEBRTC.socket.emit('call:reconnecting', {
+        call_id: CHAIN_WEBRTC.currentCallId,
+        target_id: CHAIN_WEBRTC.currentTargetId
+    });
+}
+
+/* ---- Phase 2: Switch Camera ---- */
+function wSwitchCamera() {
+    if (!CHAIN_WEBRTC.localStream) return;
+    const videoTracks = CHAIN_WEBRTC.localStream.getVideoTracks();
+    if (videoTracks.length === 0) return;
+    const track = videoTracks[0];
+    const settings = track.getSettings();
+    const newFacing = settings.facingMode === 'user' ? 'environment' : 'user';
+    navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: newFacing } })
+        .then(function(newStream) {
+            const newTrack = newStream.getVideoTracks()[0];
+            if (newTrack) {
+                track.stop();
+                CHAIN_WEBRTC.localStream.removeTrack(track);
+                CHAIN_WEBRTC.localStream.addTrack(newTrack);
+                const pc = CHAIN_WEBRTC.peerConnection;
+                if (pc) {
+                    const sender = pc.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; });
+                    if (sender) sender.replaceTrack(newTrack);
+                }
+                const localVideo = document.getElementById('local-video');
+                if (localVideo && localVideo.srcObject) {
+                    localVideo.srcObject = CHAIN_WEBRTC.localStream;
+                }
+            }
+        })
+        .catch(function(e) { console.warn('[wCall] Camera switch error:', e); });
 }
 
 /* ---- Timer ---- */
@@ -438,6 +578,7 @@ function stopCallTimer() {
 function cleanupCall() {
     stopRingtone();
     stopCallTimer();
+    stopCallTimeoutTimer();
 
     if (CHAIN_WEBRTC.peerConnection) {
         CHAIN_WEBRTC.peerConnection.close();
@@ -863,3 +1004,18 @@ window.endCurrentCall = endCurrentCall;
 window.toggleMute = toggleMute;
 window.toggleCamera = toggleCamera;
 window.toggleSpeaker = toggleSpeaker;
+window.startRingtone = startRingtone;
+window.startRingbackTone = startRingbackTone;
+window.playTestSound = playTestSound;
+window.stopRingtone = stopRingtone;
+window.startCallTimeoutTimer = startCallTimeoutTimer;
+window.stopCallTimeoutTimer = stopCallTimeoutTimer;
+window.wRestartICE = wRestartICE;
+window.wSwitchCamera = wSwitchCamera;
+
+/* ---- Phase 2: Init sound settings on load ---- */
+(function() {
+    if (localStorage.getItem('chain_call_sound_enabled') === null) {
+        localStorage.setItem('chain_call_sound_enabled', 'true');
+    }
+})();

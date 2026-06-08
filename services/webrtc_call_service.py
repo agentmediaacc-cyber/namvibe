@@ -2,11 +2,55 @@ import os
 import uuid
 import json
 import random
+import time
 from datetime import datetime, timezone, timedelta
 
 from services.neon_service import fast_query, write_query, get_pool_status
 from services.socketio_service import emit_to_profile
 from services.logging_service import log_info
+
+_CALL_RATE_LIMIT = {}
+_CALL_RATE_LIMIT_TTL = 60
+
+def _check_rate_limit(caller_id, receiver_id):
+    key = f"{caller_id}:{receiver_id}"
+    now = time.time()
+    entry = _CALL_RATE_LIMIT.get(key)
+    if entry and now - entry.get("ts", 0) < 30:
+        entry["count"] = entry.get("count", 0) + 1
+        if entry["count"] >= 3:
+            return {"ok": False, "message": "This user may be offline or unavailable. Try again later or send a message."}
+    else:
+        _CALL_RATE_LIMIT[key] = {"count": 1, "ts": now}
+    return {"ok": True}
+
+
+def _check_blocked(caller_id, receiver_id):
+    try:
+        rows = fast_query(
+            "SELECT id FROM chain_blocked_users WHERE (blocked_by_profile_id = %s AND blocked_profile_id = %s) OR (blocked_by_profile_id = %s AND blocked_profile_id = %s) LIMIT 1",
+            (receiver_id, caller_id, caller_id, receiver_id),
+            timeout_ms=300, default=[],
+        )
+        if rows:
+            return {"ok": False, "error": "blocked"}
+    except Exception:
+        pass
+    return {"ok": True}
+
+
+def _check_muted(caller_id, receiver_id):
+    try:
+        rows = fast_query(
+            "SELECT id FROM chain_muted_users WHERE muter_profile_id = %s AND muted_profile_id = %s LIMIT 1",
+            (receiver_id, caller_id),
+            timeout_ms=300, default=[],
+        )
+        if rows:
+            return {"ok": False, "error": "muted"}
+    except Exception:
+        pass
+    return {"ok": True, "muted": False}
 
 
 def _db_available():
@@ -84,6 +128,18 @@ def create_call(caller_profile_id, receiver_profile_id, thread_id=None, call_typ
     receiver_profile_id = _uuid(receiver_profile_id)
     call_id = str(uuid.uuid4())
 
+    rate = _check_rate_limit(caller_profile_id, receiver_profile_id)
+    if not rate.get("ok"):
+        return {"ok": False, "error": rate.get("message", "rate_limited"), "status": "rate_limited"}
+
+    blocked = _check_blocked(caller_profile_id, receiver_profile_id)
+    if not blocked.get("ok"):
+        return {"ok": False, "error": "blocked", "status": "blocked"}
+
+    muted = _check_muted(caller_profile_id, receiver_profile_id)
+    if not muted.get("ok"):
+        return {"ok": False, "error": "receiver_muted_caller", "status": "muted"}
+
     active_caller = get_active_call(caller_profile_id)
     if active_caller:
         return {"ok": False, "error": "caller_busy", "status": "busy"}
@@ -94,8 +150,8 @@ def create_call(caller_profile_id, receiver_profile_id, thread_id=None, call_typ
 
     try:
         write_query(
-            """INSERT INTO chain_calls (id, caller_profile_id, receiver_profile_id, thread_id, call_type, call_mode, status)
-               VALUES (%s, %s, %s, %s, %s, %s, 'ringing')""",
+            """INSERT INTO chain_calls (id, caller_profile_id, receiver_profile_id, thread_id, call_type, call_mode, status, started_at)
+               VALUES (%s, %s, %s, %s, %s, %s, 'ringing', now())""",
             (call_id, caller_profile_id, receiver_profile_id, thread_id, call_type, call_type),
         )
     except Exception:

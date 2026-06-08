@@ -898,6 +898,13 @@ def handle_webrtc_call_start(data):
         return {"ok": True, "call": call}
     if result.get("status") == "busy":
         emit("call:busy", {"reason": result.get("error", "busy")})
+    elif result.get("status") == "blocked":
+        emit_to_profile(target_id, "call:blocked", {"message": "Unable to call this user"})
+        emit("call:blocked", {"reason": "blocked"})
+    elif result.get("status") == "muted":
+        emit("call:blocked", {"reason": "muted", "message": "This user has muted you"})
+    elif result.get("status") == "rate_limited":
+        emit("call:blocked", {"reason": "rate_limited", "message": result.get("error", "Please try again later")})
     return {"ok": False, "error": result.get("error", "failed")}
 
 
@@ -982,6 +989,21 @@ def handle_webrtc_call_end(data):
     target_id = (data or {}).get("target_id")
     if target_id:
         emit_to_profile(target_id, "call:ended", {"call_id": call_id, "from_id": profile_id, "reason": reason})
+        if reason in ("timeout", "no_answer"):
+            from services.webrtc_call_service import _create_call_notification
+            _create_call_notification(target_id, call_id, "missed_call",
+                title="Missed call",
+                body="You missed a call"
+            )
+            sender_profile = get_current_profile()
+            sender_name = (sender_profile or {}).get("display_name") or (sender_profile or {}).get("username") or "Someone"
+            queue_push_event(
+                target_id,
+                "missed_call",
+                "Missed call",
+                f"from {sender_name}",
+                {"url": "/calls/recent"},
+            )
     w_add_call_event(call_id, profile_id, "ended", {"reason": reason})
     return {"ok": True}
 
@@ -1005,6 +1027,23 @@ def handle_webrtc_call_timeout(data):
     if call_id:
         w_mark_call_timeout(call_id)
         w_add_call_event(call_id, profile_id, "timeout")
+        target_id = (data or {}).get("target_id")
+        if target_id:
+            emit_to_profile(target_id, "call:no-answer", {"call_id": call_id, "from_id": profile_id})
+            from services.webrtc_call_service import _create_call_notification
+            _create_call_notification(target_id, call_id, "missed_call",
+                title="Missed call",
+                body="You missed a call"
+            )
+    return {"ok": True}
+
+
+@socketio.on("call:blocked")
+def handle_webrtc_call_blocked(data):
+    profile_id = _get_profile_id()
+    call_id = (data or {}).get("call_id")
+    if profile_id:
+        emit_to_profile(profile_id, "call:blocked", {"call_id": call_id, "message": "Unable to call this user"})
     return {"ok": True}
 
 

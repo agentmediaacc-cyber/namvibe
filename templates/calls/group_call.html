@@ -63,13 +63,12 @@
 {% endblock %}
 
 {% block content %}
-<div id="group-call-container" class="group-call-overlay">
+<div id="group-call-container" class="group-call-overlay" style="display:{{ 'flex' if call and call.status == 'active' else 'none' }};">
     <div class="group-call-header">
         <div class="room-info">
-            <span class="room-name" id="gc-room-name">Group Call</span>
-            <span class="participant-badge" id="gc-participant-count">0 participants</span>
+            <span class="room-name" id="gc-room-name">{{ call.room_name or 'Group Call' }}</span>
+            <span class="participant-badge" id="gc-participant-count">{{ (participants|length) if participants else 0 }} participants</span>
             <span class="participant-badge" id="gc-call-timer" style="font-family:monospace">00:00</span>
-            <span class="participant-badge" id="gc-e2ee-badge" style="background:rgba(34,197,94,.2);color:#22c55e;display:none;"><i class="fas fa-lock"></i> E2EE</span>
         </div>
         <div>
             <button class="gc-btn" onclick="CHAIN_GROUP_CALL.raiseHand()" title="Raise Hand"><i class="fas fa-hand-paper"></i></button>
@@ -96,18 +95,48 @@
         <button class="gc-btn danger" onclick="CHAIN_GROUP_CALL.leave()" title="Leave Call">
             <i class="fas fa-phone-slash"></i>
         </button>
-        <button class="gc-btn danger" onclick="if(confirm('End call for everyone?'))CHAIN_GROUP_CALL.end()" title="End Call" id="gc-end-btn" style="display:none">
+        {% if role == 'host' %}
+        <button class="gc-btn danger" onclick="if(confirm('End call for everyone?'))CHAIN_GROUP_CALL.end()" title="End Call" id="gc-end-btn">
             <i class="fas fa-stop-circle"></i>
         </button>
+        {% endif %}
     </div>
 </div>
 
-<script src="/static/js/push_notifications.js"></script>
-<script src="/static/js/notification_badge.js"></script>
+{% if not call %}
+<div class="calls-container" style="max-width:480px;margin:40px auto;padding:20px;text-align:center;">
+    <h1 style="font-size:24px;font-weight:800;margin-bottom:8px;">Start a Group Call</h1>
+    <p style="color:var(--chain-muted);margin-bottom:24px;">Create a room and invite others to join.</p>
+    <form method="POST" action="/calls/group/start" style="display:flex;flex-direction:column;gap:12px;">
+        <input type="text" name="room_name" placeholder="Room name (optional)" class="modal-input" style="width:100%;padding:12px 16px;border-radius:12px;border:1px solid var(--chain-border);font-size:15px;background:var(--chain-bg-soft);color:var(--chain-text);outline:none;">
+        <select name="call_type" class="modal-input" style="width:100%;padding:12px 16px;border-radius:12px;border:1px solid var(--chain-border);font-size:15px;background:var(--chain-bg-soft);color:var(--chain-text);outline:none;">
+            <option value="audio">Audio</option>
+            <option value="video">Video</option>
+        </select>
+        <button type="submit" class="px-btn" style="padding:14px;font-size:16px;font-weight:700;"><i class="fas fa-phone"></i> Start Group Call</button>
+    </form>
+</div>
+{% endif %}
+
 <script src="/static/js/group_calls.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-    // Show end-call button only for host
+    {% if call and call.id %}
+    var callId = "{{ call.id }}";
+    var role = "{{ role }}";
+    var isHost = role === 'host';
+    CHAIN_GROUP_CALL.joinRoom(callId, { audio: true, video: {{ 'true' if call.call_type == 'video' else 'false' }} })
+        .then(function(result) {
+            if (result.ok) {
+                document.getElementById('group-call-container').style.display = 'flex';
+                document.getElementById('gc-room-name').textContent = "{{ call.room_name or 'Group Call' }}";
+            }
+        })
+        .catch(function(err) {
+            console.error('Failed to join group call:', err);
+        });
+    {% endif %}
+
     setInterval(function(){
         var state = CHAIN_GROUP_CALL.getState();
         var endBtn = document.getElementById('gc-end-btn');

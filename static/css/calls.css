@@ -97,4 +97,65 @@
         min-height: 62vh;
         height: 62vh;
     }
+
+    .call-target-card {
+        top: 12px;
+        left: 12px;
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+
+    .call-target-card b {
+        font-size: 15px;
+    }
+
+    .call-controls button {
+        padding: 12px 16px;
+        font-size: 13px;
+        border-radius: 14px;
+    }
+
+    .call-controls {
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    .call-empty h1 {
+        font-size: 1.6rem;
+    }
+
+    .call-empty p {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .call-shell {
+        padding: 10px 10px 50px;
+    }
+
+    .call-stage,
+    .call-stage video {
+        min-height: 54vh;
+        height: 54vh;
+        border-radius: 24px;
+    }
+
+    .call-target-card {
+        top: 8px;
+        left: 8px;
+        padding: 10px 12px;
+        border-radius: 14px;
+    }
+
+    .call-controls button {
+        padding: 10px 14px;
+        font-size: 12px;
+        border-radius: 12px;
+    }
+
+    .call-controls {
+        gap: 6px;
+        margin-top: 10px;
+    }
 }

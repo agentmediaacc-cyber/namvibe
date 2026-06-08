@@ -644,3 +644,92 @@ def api_phase41_participants(call_id):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     participants = w_get_participants_with_profiles(call_id)
     return jsonify({"ok": True, "participants": participants}), 200
+
+
+# =========== PHASE 2: Premium Contact Search & Safety ===========
+
+@call_bp.route("/api/contacts/search", methods=["GET"])
+@login_required
+def api_contacts_search():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    q = request.args.get("q", "").strip()
+    if not q or len(q) < 1:
+        return jsonify({"ok": True, "contacts": []})
+    from services.neon_service import fast_query
+    rows = fast_query(
+        "SELECT id, username, display_name, avatar_url FROM chain_profiles WHERE (username ILIKE %s OR display_name ILIKE %s) AND deleted_at IS NULL LIMIT 20",
+        (f"%{q}%", f"%{q}%"),
+        default=[]
+    )
+    contacts = []
+    for r in rows:
+        contacts.append({
+            "id": str(r["id"]),
+            "username": r.get("username", ""),
+            "display_name": r.get("display_name", ""),
+            "avatar_url": r.get("avatar_url"),
+        })
+    return jsonify({"ok": True, "contacts": contacts})
+
+
+@call_bp.route("/api/safety/check", methods=["POST"])
+@login_required
+def api_safety_check():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    target_id = data.get("target_id")
+    if not target_id:
+        return jsonify({"ok": False, "error": "target_required"}), 400
+    from services.webrtc_call_service import _check_blocked, _check_muted
+    blocked = _check_blocked(profile["id"], target_id)
+    muted = _check_muted(profile["id"], target_id)
+    return jsonify({
+        "ok": True,
+        "blocked": not blocked.get("ok"),
+        "muted": not muted.get("ok"),
+        "can_call": blocked.get("ok") and muted.get("ok"),
+    })
+
+
+# =========== PHASE 2: Group / Conference Call Routes ===========
+
+@call_bp.route("/group/start", methods=["GET", "POST"])
+@login_required
+def group_call_start():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return redirect("/auth/login")
+    if request.method == "GET":
+        return render_template("calls/group_call.html", call=None, profile=profile, role="host")
+    from services.group_call_service import create_group_call, get_group_call, get_participants_with_profiles
+    data = request.form.to_dict() or {}
+    room_name = data.get("room_name", f"{profile.get('display_name', 'User')}'s Room")
+    call_type = data.get("call_type", "audio")
+    thread_id = data.get("thread_id")
+    call = create_group_call(profile["id"], room_name=room_name, call_type=call_type, thread_id=thread_id)
+    if not call:
+        flash("Could not create group call.", "error")
+        return redirect("/calls/recent")
+    return render_template("calls/group_call.html", call=call, profile=profile, role="host",
+                           participants=get_participants_with_profiles(call["id"]))
+
+
+@call_bp.route("/group/<call_id>/view", methods=["GET"])
+@login_required
+def group_call_view(call_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return redirect("/auth/login")
+    from services.group_call_service import get_group_call, join_group_call, get_participants_with_profiles
+    call = get_group_call(call_id)
+    if not call:
+        flash("Group call not found.", "error")
+        return redirect("/calls/recent")
+    join_group_call(call_id, profile["id"])
+    participants = get_participants_with_profiles(call_id)
+    role = "host" if call["host_profile_id"] == profile["id"] else "participant"
+    return render_template("calls/group_call.html", call=call, profile=profile, role=role, participants=participants)

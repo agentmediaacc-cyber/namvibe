@@ -135,6 +135,57 @@
   .modal-btn.secondary:hover { background: var(--chain-border); }
   .modal-error { color: #ff3b30; font-size: 13px; margin-top: -12px; margin-bottom: 12px; }
 
+  /* Phase 2: Sound Settings */
+  .sound-settings { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .sound-settings label { font-size: 13px; font-weight: 600; color: var(--chain-muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .sound-settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--chain-primary); cursor: pointer; }
+  .sound-btn {
+    padding: 6px 14px; border-radius: 999px; border: 1px solid var(--chain-border);
+    background: var(--chain-bg-soft); color: var(--chain-text); font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .sound-btn:hover { border-color: var(--chain-primary); color: var(--chain-primary); }
+
+  /* Phase 2: Contact Search */
+  .contact-search-wrap { margin-bottom: 16px; }
+  .contact-search-input {
+    width: 100%; padding: 12px 16px 12px 40px; border-radius: 12px;
+    border: 1px solid var(--chain-border); font-size: 14px;
+    background: var(--chain-bg-soft); color: var(--chain-text); outline: none;
+  }
+  .contact-search-input:focus { border-color: var(--chain-primary); }
+  .contact-search-wrap { position: relative; }
+  .contact-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--chain-muted); font-size: 14px; }
+  .contact-search-results {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+    background: var(--chain-card); border: 1px solid var(--chain-border);
+    border-radius: 12px; margin-top: 4px; max-height: 240px; overflow-y: auto;
+    display: none; box-shadow: var(--chain-shadow-lg);
+  }
+  .contact-search-results.open { display: block; }
+  .contact-search-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .contact-search-item:hover { background: var(--chain-card-2); }
+  .contact-search-item img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+  .contact-search-item .csi-info { flex: 1; min-width: 0; }
+  .contact-search-item .csi-name { font-size: 14px; font-weight: 600; }
+  .contact-search-item .csi-user { font-size: 12px; color: var(--chain-muted); }
+  .contact-search-item .csi-call {
+    padding: 6px 12px; border-radius: 999px; border: none; font-size: 12px;
+    font-weight: 600; cursor: pointer; background: var(--chain-primary); color: #fff;
+  }
+  .contact-search-item .csi-call:hover { opacity: 0.85; }
+
+  .contact-search-no-results { padding: 20px; text-align: center; color: var(--chain-muted); font-size: 13px; }
+
+  /* Phase 2: Duration badge */
+  .call-duration-badge {
+    font-size: 11px; color: var(--chain-muted); background: var(--chain-bg-soft);
+    padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
+  }
+
   /* Reconnecting overlay */
   #reconnectingOverlay {
     position: fixed; inset: 0; z-index: 1500; display: none;
@@ -168,6 +219,44 @@
     transition: all 0.2s;
   }
   .denied-btn:hover { background: #6d5203; }
+
+  /* ── Mobile Responsiveness ── */
+  @media (max-width: 600px) {
+    .calls-container { padding: 12px 10px; }
+    .calls-header h1 { font-size: 20px; }
+    .calls-header-actions .px-btn { font-size: 12px; padding: 6px 12px; }
+    .call-item { padding: 10px 12px; gap: 10px; }
+    .call-avatar-wrap { width: 42px; height: 42px; }
+    .call-name { font-size: 14px; }
+    .call-meta { font-size: 11px; gap: 4px; }
+    .call-actions { gap: 6px; }
+    .call-action-btn { width: 32px; height: 32px; font-size: 12px; }
+    .filter-btn { font-size: 12px; padding: 6px 14px; }
+    .modal-box { padding: 20px 16px; }
+    .sound-settings { gap: 8px; }
+    .sound-settings label { font-size: 12px; }
+    .sound-btn { font-size: 11px; padding: 5px 12px; }
+    .contact-search-input { font-size: 13px; padding: 10px 14px 10px 36px; }
+    .contact-search-icon { left: 12px; font-size: 12px; }
+    .contact-search-item { padding: 8px 12px; }
+    .contact-search-item .csi-name { font-size: 13px; }
+    .contact-search-item .csi-call { font-size: 11px; padding: 5px 10px; }
+  }
+
+  @media (max-width: 400px) {
+    .calls-container { padding: 8px 6px; }
+    .calls-header { flex-direction: column; gap: 10px; align-items: stretch; }
+    .calls-header .calls-header-actions { justify-content: center; }
+    .call-item { flex-wrap: wrap; }
+    .call-avatar-wrap { width: 36px; height: 36px; }
+    .call-actions { width: 100%; justify-content: flex-end; }
+    .call-filters { gap: 4px; }
+    .filter-btn { font-size: 11px; padding: 4px 10px; }
+    .empty-title { font-size: 18px; }
+    .empty-sub { font-size: 13px; }
+    .empty-icon-wrap { width: 80px; height: 80px; }
+    .empty-phone { font-size: 28px; }
+  }
 </style>
 {% endblock %}
 
@@ -195,6 +284,19 @@
       <h3>Reconnecting...</h3>
       <p>Your call connection was lost. We're trying to restore it.</p>
     </div>
+  </div>
+
+  <!-- Phase 2: Sound Settings -->
+  <div class="sound-settings">
+    <label><input type="checkbox" id="callSoundEnabled" checked onchange="toggleCallSound(this.checked)"> <i class="fas fa-volume-up"></i> Enable call sound</label>
+    <button class="sound-btn" onclick="playTestSound()"><i class="fas fa-play"></i> Test Sound</button>
+  </div>
+
+  <!-- Phase 2: Contact Search -->
+  <div class="contact-search-wrap">
+    <i class="fas fa-search contact-search-icon"></i>
+    <input type="text" class="contact-search-input" id="contactSearch" placeholder="Search contacts to call..." autocomplete="off">
+    <div class="contact-search-results" id="contactSearchResults"></div>
   </div>
 
   <!-- Filters -->
@@ -293,6 +395,74 @@
 </div>
 
 <script>
+  // ── Phase 2: Sound Settings ──
+  function toggleCallSound(enabled) {
+    localStorage.setItem('chain_call_sound_enabled', enabled ? 'true' : 'false');
+  }
+  (function() {
+    var saved = localStorage.getItem('chain_call_sound_enabled');
+    if (saved === 'false') {
+      document.getElementById('callSoundEnabled').checked = false;
+    }
+  })();
+
+  // ── Phase 2: Contact Search ──
+  var _searchTimeout = null;
+  var contactSearch = document.getElementById('contactSearch');
+  var contactResults = document.getElementById('contactSearchResults');
+
+  if (contactSearch) {
+    contactSearch.addEventListener('input', function() {
+      var q = this.value.trim();
+      clearTimeout(_searchTimeout);
+      if (q.length < 1) { contactResults.classList.remove('open'); contactResults.innerHTML = ''; return; }
+      _searchTimeout = setTimeout(function() {
+        fetch('/calls/api/contacts/search?q=' + encodeURIComponent(q))
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            var contacts = data.contacts || [];
+            if (!contacts.length) {
+              contactResults.innerHTML = '<div class="contact-search-no-results">No contacts found</div>';
+              contactResults.classList.add('open');
+              return;
+            }
+            contactResults.innerHTML = contacts.map(function(c) {
+              var avatar = c.avatar_url || '';
+              var name = c.display_name || c.username || 'User';
+              return '<div class="contact-search-item" data-id="' + c.id + '">' +
+                (avatar ? '<img src="' + avatar + '" alt="">' : '<div style="width:36px;height:36px;border-radius:50%;background:var(--chain-card-2);display:grid;place-items:center;font-size:14px;color:var(--chain-muted);"><i class="fas fa-user"></i></div>') +
+                '<div class="csi-info"><div class="csi-name">' + name + '</div><div class="csi-user">@' + (c.username || '') + '</div></div>' +
+                '<button class="csi-call" data-id="' + c.id + '"><i class="fas fa-phone"></i> Call</button>' +
+                '</div>';
+            }).join('');
+            contactResults.classList.add('open');
+            contactResults.querySelectorAll('.csi-call').forEach(function(btn) {
+              btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var pid = this.getAttribute('data-id');
+                initiateCall('audio', pid);
+              });
+            });
+            contactResults.querySelectorAll('.contact-search-item').forEach(function(item) {
+              item.addEventListener('click', function() {
+                var pid = this.getAttribute('data-id');
+                initiateCall('audio', pid);
+              });
+            });
+          })
+          .catch(function() {});
+      }, 300);
+    });
+    contactSearch.addEventListener('blur', function() {
+      setTimeout(function() { contactResults.classList.remove('open'); }, 200);
+    });
+    contactSearch.addEventListener('focus', function() {
+      if (this.value.trim().length > 0 && contactResults.innerHTML) {
+        contactResults.classList.add('open');
+      }
+    });
+  }
+
   function initiateCall(type, targetId) {
     const form = document.createElement('form');
     form.method = 'POST';

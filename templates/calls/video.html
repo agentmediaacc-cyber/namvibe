@@ -218,6 +218,31 @@
     .call-overlay h2 { font-size: 22px; }
     .incoming-btn { width: 60px; height: 60px; font-size: 24px; }
     #participantGrid.multi { grid-template-columns: 1fr; }
+    .video-container { border-radius: 8px; }
+    .video-label { font-size: 10px; padding: 3px 8px; }
+    #networkBadge { font-size: 10px; padding: 3px 8px; top: 8px; left: 8px; }
+    .sig-bars span { width: 3px; }
+    .sig-bars span:nth-child(1) { height: 4px; }
+    .sig-bars span:nth-child(2) { height: 6px; }
+    .sig-bars span:nth-child(3) { height: 8px; }
+    .sig-bars span:nth-child(4) { height: 10px; }
+    #callTimer { font-size: 12px; padding: 4px 10px; min-width: 60px; }
+    .incoming-btn-label { font-size: 10px; }
+    .call-overlay p { font-size: 14px; }
+    .call-icon-big { font-size: 40px; }
+  }
+
+  @media (max-width: 400px) {
+    .control-btn { width: 40px; height: 40px; font-size: 14px; }
+    .control-btn.btn-sm { width: 34px; height: 34px; font-size: 12px; }
+    .call-controls { gap: 6px; padding: 8px 6px; }
+    .call-controls .control-btn { flex-shrink: 0; }
+    .call-avatar-lg { width: 64px; height: 64px; margin-bottom: 14px; }
+    .call-overlay h2 { font-size: 18px; }
+    .incoming-btn { width: 52px; height: 52px; font-size: 20px; }
+    #incomingOverlay .incoming-actions { gap: 24px; }
+    #cancelCallBtn { font-size: 14px; padding: 10px 24px; }
+    #callTimer { font-size: 11px; padding: 3px 8px; min-width: 50px; }
   }
 </style>
 {% endblock %}
