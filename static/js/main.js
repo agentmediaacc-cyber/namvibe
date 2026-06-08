@@ -195,6 +195,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateNotifCount(0);
     }
 
+    // Push Notification Registration
+    if (isAuthenticated && 'serviceWorker' in navigator && 'PushManager' in window) {
+        const pushScript = document.createElement('script');
+        pushScript.src = '/static/js/push_notifications.js';
+        pushScript.async = true;
+        document.body.appendChild(pushScript);
+    }
+
     // Online/Offline Check
     const errorBanner = document.getElementById('error-retry-banner');
     window.addEventListener('online', () => {

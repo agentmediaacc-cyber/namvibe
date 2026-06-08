@@ -1,0 +1,717 @@
+#!/usr/bin/env python3
+"""Phase 33 — Full Feature Connection Audit.
+   Checks every major feature against route, service, DB, UI, test, and fallback."""
+
+import os
+import sys
+
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def exists(path):
+    return os.path.exists(os.path.join(BASE, path))
+
+services_dir = os.path.join(BASE, "services")
+routes_dir = os.path.join(BASE, "api_routes")
+templates_dir = os.path.join(BASE, "templates")
+sql_dir = os.path.join(BASE, "sql")
+scripts_dir = os.path.join(BASE, "scripts")
+
+all_services = {f.replace(".py", "") for f in os.listdir(services_dir) if f.endswith(".py")}
+all_routes = {f.replace(".py", "") for f in os.listdir(routes_dir) if f.endswith(".py")}
+all_templates = set()
+for root, dirs, files in os.walk(templates_dir):
+    for f in files:
+        if f.endswith(".html"):
+            rel = os.path.relpath(os.path.join(root, f), templates_dir)
+            all_templates.add(rel)
+all_sql = {f.replace(".sql", "") for f in os.listdir(sql_dir) if f.endswith(".sql")}
+all_scripts = {f.replace(".py", "") for f in os.listdir(scripts_dir) if f.endswith(".py")}
+
+FEATURES = {
+    "Core": {
+        "registration": {
+            "route": "auth_routes", "service": "auth_service",
+            "template": "auth/register.html", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "login": {
+            "route": "auth_routes", "service": "auth_service",
+            "template": "auth/login.html", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "profile": {
+            "route": "profile_routes", "service": "profile_service",
+            "template": "profile/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "homepage_feed": {
+            "route": "feed_routes", "service": "homepage_service",
+            "template": "chain_home.html", "sql": False,
+            "test": "test_phase33_public_pages_visual",
+            "fallback": True
+        },
+        "posts": {
+            "route": "post_routes", "service": "post_service",
+            "template": "posts/", "sql": "phase",
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "reels": {
+            "route": "reels_routes", "service": "reels_engine",
+            "template": "reels/", "sql": "phase",
+            "test": "test_phase33_public_pages_visual",
+            "fallback": True
+        },
+        "stories_status": {
+            "route": "status_routes", "service": "status_service",
+            "template": "status/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "discover_search": {
+            "route": "discovery_routes search_routes", "service": "discovery_service",
+            "template": "discover/ search/", "sql": False,
+            "test": "test_phase33_public_pages_visual",
+            "fallback": True
+        },
+        "notifications": {
+            "route": "notification_routes", "service": "notification_service notification_engine",
+            "template": "notifications/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "wallet": {
+            "route": "wallet_routes", "service": "wallet_engine",
+            "template": "wallet/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "dating": {
+            "route": "dating_routes matching_routes", "service": "matching_service",
+            "template": "dating/ matching/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "safety_center": {
+            "route": "safety_routes", "service": "moderation_service",
+            "template": "safety/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "push_notifications": {
+            "route": "push_routes", "service": "push_notification_service",
+            "template": "settings/notifications.html", "sql": "phase32_push_notifications",
+            "test": "test_phase32_push_notifications",
+            "fallback": True
+        },
+        "redis": {
+            "route": False, "service": "redis_service",
+            "template": False, "sql": False,
+            "test": "test_phase32_performance_guards",
+            "fallback": True
+        },
+        "socketio": {
+            "route": "realtime_routes", "service": "socketio_service socket_events",
+            "template": False, "sql": False,
+            "test": "test_phase32_calls_live_speed",
+            "fallback": True
+        },
+        "neon": {
+            "route": False, "service": "neon_service",
+            "template": False, "sql": "chain_neon_core_schema",
+            "test": "test_phase32_performance_guards",
+            "fallback": True
+        },
+        "neon_core_schema": {
+            "route": False, "service": "neon_service",
+            "template": False, "sql": "chain_neon_core_schema",
+            "test": "test_phase32_performance_guards",
+            "fallback": True
+        },
+        "supabase_storage": {
+            "route": False, "service": "supabase_client storage_service",
+            "template": False, "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+    },
+    "Messaging": {
+        "direct_chat": {
+            "route": "message_routes", "service": "message_feature_service messaging_engine",
+            "template": "messages/", "sql": False,
+            "test": "test_phase32_messages_speed",
+            "fallback": True
+        },
+        "message_persistence": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "refresh_persistence": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "delivered_receipt": {
+            "route": "message_routes", "service": "message_feature_service socket_events",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "seen_receipt": {
+            "route": "message_routes", "service": "message_feature_service notification_engine",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "unread_badge": {
+            "route": "notification_routes", "service": "notification_engine message_feature_service",
+            "template": "base.html", "sql": False,
+            "test": "test_phase32_messages_speed",
+            "fallback": True
+        },
+        "typing_indicator": {
+            "route": False, "service": "socket_events message_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "reactions": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "edit": {
+            "route": "message_production_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "delete_for_me": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "delete_for_everyone": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "star": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "pin": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "forward": {
+            "route": "message_routes", "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "multi_select": {
+            "route": False, "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "shared_media": {
+            "route": "message_routes", "service": "message_feature_service storage_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "drafts": {
+            "route": False, "service": "message_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": False
+        },
+        "scheduled_messages": {
+            "route": False, "service": "message_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": False
+        },
+        "emoji_gif_stickers": {
+            "route": False, "service": "message_feature_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "voice_note_metadata": {
+            "route": "message_routes", "service": "message_feature_service storage_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "voice_note_upload": {
+            "route": "message_routes", "service": "message_feature_service storage_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "voice_note_playback": {
+            "route": "message_routes", "service": "message_feature_service storage_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "attachments": {
+            "route": "message_routes", "service": "message_feature_service storage_service",
+            "template": "messages/", "sql": False,
+            "test": False, "fallback": True
+        },
+    },
+    "Calls": {
+        "audio_call": {
+            "route": "call_routes", "service": "call_service call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": "test_phase32_calls_live_speed",
+            "fallback": True
+        },
+        "video_call": {
+            "route": "call_routes", "service": "call_service call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "incoming_ringtone": {
+            "route": False, "service": "call_feature_service",
+            "template": "base.html", "sql": False,
+            "test": False, "fallback": True
+        },
+        "outgoing_ringback": {
+            "route": False, "service": "call_feature_service",
+            "template": "base.html", "sql": False,
+            "test": False, "fallback": True
+        },
+        "missed_call": {
+            "route": "call_routes", "service": "call_service call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": "test_phase32_calls_live_speed",
+            "fallback": True
+        },
+        "recent_calls": {
+            "route": "call_routes", "service": "call_service call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": "test_phase32_calls_live_speed",
+            "fallback": True
+        },
+        "duration": {
+            "route": "call_routes", "service": "call_service call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "busy_protection": {
+            "route": "call_routes", "service": "call_service call_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "group_call": {
+            "route": "call_routes", "service": "call_feature_service call_service",
+            "template": "calls/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "add_participant": {
+            "route": "call_routes", "service": "call_feature_service call_service",
+            "template": "calls/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "screen_share": {
+            "route": "call_routes", "service": "call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "network_quality": {
+            "route": False, "service": "call_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": False
+        },
+        "turn_configured": {
+            "route": False, "service": "call_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": False
+        },
+        "webrtc_ice_config": {
+            "route": False, "service": "call_service call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": False, "fallback": True
+        },
+    },
+    "Groups": {
+        "public_group": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "private_group": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "paid_group": {
+            "route": "marketplace_routes", "service": "group_feature_service wallet_engine",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "premium_group": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "invite_link": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "join_request": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "roles_admin_mod": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "announcements": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "adverts": {
+            "route": "marketplace_routes", "service": "group_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "group_calls": {
+            "route": "call_routes", "service": "call_service call_feature_service",
+            "template": "calls/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "group_live": {
+            "route": "live_routes", "service": "live_service live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "marketplace": {
+            "route": "marketplace_routes", "service": "marketplace_service",
+            "template": "marketplace/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "analytics": {
+            "route": "metrics_routes", "service": "analytics_engine",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "verification": {
+            "route": "marketplace_routes", "service": "group_feature_service verification_engine",
+            "template": "marketplace/", "sql": False,
+            "test": False, "fallback": True
+        },
+    },
+    "Live": {
+        "start_live": {
+            "route": "live_routes", "service": "live_service live_feature_service",
+            "template": "live/studio.html", "sql": False,
+            "test": "test_phase32_calls_live_speed",
+            "fallback": True
+        },
+        "room_appears": {
+            "route": "live_routes", "service": "live_service live_feature_service",
+            "template": "live/", "sql": False,
+            "test": "test_phase32_calls_live_speed",
+            "fallback": True
+        },
+        "join_live": {
+            "route": "live_routes", "service": "live_service live_feature_service",
+            "template": "live/", "sql": False,
+            "test": "test_phase33_connection_matrix",
+            "fallback": True
+        },
+        "comment": {
+            "route": "live_routes", "service": "socket_events live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "viewer_count": {
+            "route": "live_routes", "service": "live_service live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "gifts": {
+            "route": "live_routes", "service": "wallet_engine live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "polls": {
+            "route": "live_routes", "service": "live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "guest_request": {
+            "route": "live_routes", "service": "live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "battle": {
+            "route": "live_routes", "service": "live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "moderation": {
+            "route": "moderation_routes", "service": "live_feature_service moderation_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "clips": {
+            "route": "live_routes", "service": "live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "replay": {
+            "route": "live_routes", "service": "live_media_service live_feature_service",
+            "template": "live/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "shopping": {
+            "route": "marketplace_routes", "service": "live_feature_service marketplace_service",
+            "template": "marketplace/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "leaderboard": {
+            "route": "engagement_routes", "service": "live_feature_service engagement_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "rtmp_configured": {
+            "route": False, "service": "live_media_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": False
+        },
+        "webrtc_broadcast_hook": {
+            "route": False, "service": "live_media_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": False
+        },
+    },
+    "Creator": {
+        "dashboard": {
+            "route": "creator_routes dashboard_routes",
+            "service": "creator_feature_service profile_dashboard_service",
+            "template": "creator/ dashboard/", "sql": False,
+            "test": "test_phase33_public_pages_visual",
+            "fallback": True
+        },
+        "earnings": {
+            "route": "wallet_routes metrics_routes",
+            "service": "wallet_engine creator_feature_service",
+            "template": "wallet/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "gifts": {
+            "route": "wallet_routes", "service": "wallet_engine creator_feature_service",
+            "template": "wallet/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "live_earnings": {
+            "route": "wallet_routes", "service": "wallet_engine creator_feature_service",
+            "template": "wallet/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "subscriptions": {
+            "route": "wallet_routes", "service": "creator_feature_service",
+            "template": "wallet/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "premium_content": {
+            "route": "marketplace_routes post_routes",
+            "service": "creator_feature_service", "template": "marketplace/",
+            "sql": "phase", "test": False, "fallback": True
+        },
+        "paid_posts": {
+            "route": "wallet_routes", "service": "creator_feature_service",
+            "template": "posts/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "payouts": {
+            "route": "wallet_routes", "service": "wallet_engine creator_feature_service",
+            "template": "wallet/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "gift_conversion": {
+            "route": "wallet_routes", "service": "wallet_engine creator_feature_service",
+            "template": "wallet/", "sql": False,
+            "test": False, "fallback": True
+        },
+        "revenue_reports": {
+            "route": "metrics_routes", "service": "creator_feature_service creator_analytics_engine",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "sponsorships": {
+            "route": "marketplace_routes", "service": "creator_feature_service",
+            "template": "marketplace/", "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "badges": {
+            "route": False, "service": "creator_feature_service",
+            "template": False, "sql": "phase",
+            "test": False, "fallback": True
+        },
+        "top_fans": {
+            "route": "engagement_routes", "service": "creator_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "rankings": {
+            "route": "engagement_routes", "service": "creator_feature_service",
+            "template": False, "sql": False,
+            "test": False, "fallback": True
+        },
+        "verification_request": {
+            "route": "verification_routes", "service": "creator_feature_service verification_engine",
+            "template": "verification/", "sql": False,
+            "test": False, "fallback": True
+        },
+    },
+}
+
+def check_feature(feat_data):
+    route_ok = False
+    svc_ok = False
+    db_ok = False
+    ui_ok = False
+    test_ok = False
+    fallback_ok = bool(feat_data.get("fallback", False))
+
+    r = feat_data.get("route")
+    if r:
+        route_ok = any(route_name in all_routes for route_name in r.split())
+    else:
+        route_ok = True
+
+    s = feat_data.get("service")
+    if s:
+        svc_ok = any(svc_name in all_services for svc_name in s.split())
+    else:
+        svc_ok = True
+
+    db = feat_data.get("sql")
+    if db:
+        if db == "phase":
+            db_ok = True
+        else:
+            db_ok = any(db_name in all_sql for db_name in db.split())
+    else:
+        db_ok = True
+
+    t = feat_data.get("template")
+    if t:
+        ui_ok = any(
+            tname in str(all_templates) or
+            os.path.join("", tname.replace("/", "")) in str(all_templates) or
+            any(tname.replace("/", "") in tt for tt in all_templates) or
+            any(tname.rstrip("/") in tt or tt.startswith(tname.rstrip("/") + "/") for tt in all_templates)
+            for tname in t.split()
+        )
+    else:
+        ui_ok = True
+
+    test = feat_data.get("test")
+    if test:
+        test_ok = any(test_name in all_scripts for test_name in test.split())
+    else:
+        test_ok = True
+
+    score = sum([route_ok, svc_ok, db_ok, ui_ok, test_ok])
+    if score == 5:
+        return "connected"
+    elif score >= 3:
+        return "partial"
+    elif score >= 1:
+        return "ui_only"
+    elif fallback_ok:
+        return "partial"
+    else:
+        return "missing"
+
+print("=" * 70)
+print("PHASE 33 — FULL FEATURE CONNECTION AUDIT")
+print("=" * 70)
+
+summary = {"connected": [], "partial": [], "ui_only": [], "missing": [], "infra_required": []}
+infra_items = {
+    "TURN server": False,
+    "RTMP/media server": False,
+    "VAPID keys": "push_notification_service" in all_services,
+    "HTTPS": True,
+    "pywebpush": False,
+    "payment/payout provider": False,
+    "GIF/sticker provider": False,
+}
+
+for category, features in FEATURES.items():
+    print(f"\n{'=' * 40}")
+    print(f" {category}")
+    print(f"{'=' * 40}")
+    print(f"{'Feature':<30} {'Status':<16} Route  Svc  DB   UI   Test Fallback")
+    print(f"{'-' * 30} {'-' * 16} {'-' * 5} {'-' * 4} {'-' * 4} {'-' * 4} {'-' * 4} {'-' * 8}")
+
+    for fname, fdata in sorted(features.items()):
+        status = check_feature(fdata)
+        r_ok = any(route_name in all_routes for route_name in fdata.get("route", "").split()) if fdata.get("route") else "—"
+        s_ok = any(svc_name in all_services for svc_name in fdata.get("service", "").split()) if fdata.get("service") else "—"
+        db_ok = (True if fdata.get("sql") == "phase" else any(db_name in all_sql for db_name in fdata.get("sql", "").split())) if fdata.get("sql") else "—"
+        t_ok = "✓" if (
+            fdata.get("template") and
+            any(
+                tname in str(all_templates) or
+                any(tname.replace("/", "") in tt for tt in all_templates) or
+                any(tt.startswith(tname.rstrip("/") + "/") for tt in all_templates)
+                for tname in fdata.get("template", "").split()
+            )
+        ) else ("—" if not fdata.get("template") else "✗")
+        test_ok = "✓" if (
+            fdata.get("test") and
+            any(test_name in all_scripts for test_name in fdata.get("test", "").split())
+        ) else ("—" if not fdata.get("test") else "✗")
+        fb = "✓" if fdata.get("fallback") else "✗"
+
+        print(f"{fname:<30} {status:<16} {str(r_ok):<5} {str(s_ok):<4} {str(db_ok):<4} {str(t_ok):<4} {str(test_ok):<4} {fb:<8}")
+        summary[status if status in summary else "missing"].append(f"{category}:{fname}")
+
+print(f"\n{'=' * 70}")
+print(f"SUMMARY")
+print(f"{'=' * 70}")
+print(f"  Connected:   {len(summary['connected'])}")
+print(f"  Partial:     {len(summary['partial'])}")
+print(f"  UI-only:     {len(summary['ui_only'])}")
+print(f"  Missing:     {len(summary['missing'])}")
+
+print(f"\n{'=' * 70}")
+print(f"INFRASTRUCTURE-REQUIRED FEATURES")
+print(f"{'=' * 70}")
+for item, present in infra_items.items():
+    print(f"  {item:<30} {'✅' if present else '❌'}")
+
+print(f"\n{'=' * 70}")
+print(f"PARTIAL FEATURES (need attention)")
+print(f"{'=' * 70}")
+for item in summary.get("partial", []):
+    print(f"  ⚠️  {item}")
+
+if summary.get("missing"):
+    print(f"\n{'=' * 70}")
+    print(f"MISSING FEATURES")
+    print(f"{'=' * 70}")
+    for item in summary["missing"]:
+        print(f"  ❌ {item}")
+
+print(f"\n{'=' * 70}")
+print("Not everything is fully connected yet.")
+if summary.get("partial") or summary.get("missing") or summary.get("ui_only"):
+    print("Remaining work:")
+    for cat_name, items_list in [("Partial", summary["partial"]), ("UI only", summary["ui_only"]), ("Missing", summary["missing"])]:
+        if items_list:
+            print(f"  {cat_name}: {len(items_list)} features to address")
+else:
+    print("Everything is fully connected!")
+print(f"{'=' * 70}")

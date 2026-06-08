@@ -228,19 +228,6 @@
                 {% endif %}
             </section>
 
-            <section class="chain-home__section chain-home__section--tight chain-home__mobile-only">
-                <div class="chain-home__quick-grid">
-                    <a href="{{ friends_route }}" class="chain-home__quick-card chain-card"><i class="fas fa-user-friends"></i><span>Friends</span></a>
-                    <a href="{{ discover_route }}" class="chain-home__quick-card chain-card"><i class="fas fa-compass"></i><span>Discover</span></a>
-                    <a href="{{ live_route }}" class="chain-home__quick-card chain-card"><i class="fas fa-video"></i><span>Live Rooms</span></a>
-                    <a href="{{ reel_route }}" class="chain-home__quick-card chain-card"><i class="fas fa-film"></i><span>Reels</span></a>
-                    <a href="{{ drawer_messages }}" class="chain-home__quick-card chain-card"><i class="fas fa-comment"></i><span>Messages</span></a>
-                    <a href="{{ drawer_wallet }}" class="chain-home__quick-card chain-card"><i class="fas fa-wallet"></i><span>Wallet</span></a>
-                    <a href="{{ dating_route }}" class="chain-home__quick-card chain-card"><i class="fas fa-heart"></i><span>Dating</span></a>
-                    <a href="{{ drawer_notifications }}" class="chain-home__quick-card chain-card"><i class="fas fa-bell"></i><span>Notifications</span></a>
-                </div>
-            </section>
-
             <section class="chain-home__section">
                 <div class="chain-home__section-head">
                     <div>
@@ -331,6 +318,132 @@
                     {% endfor %}
                     {% if not trending_posts %}
                     {{ empty_state('fa-table-cells-large', 'No posts yet', 'Start the feed with a clean update, photo or thought.', composer_fallback if post_available else none, 'Create post' if post_available else none) }}
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="chain-home__section">
+                <div class="chain-home__section-head">
+                    <div>
+                        <p class="chain-home__kicker">Trending Groups</p>
+                        <h2>Trending Groups</h2>
+                        <p class="chain-home__section-subtitle">Communities growing fast on CHAIN.</p>
+                    </div>
+                    <a href="{{ discover_route }}" class="chain-home__section-link">Browse groups</a>
+                </div>
+                <div class="chain-home__group-row">
+                    {% for group in groups %}
+                    <article class="chain-home__group-card chain-card">
+                        <div class="chain-home__group-cover">
+                            {% if group.cover_url %}
+                            <img src="{{ group.cover_url }}" alt="{{ group.display_name }}">
+                            {% else %}
+                            <div class="chain-home__group-cover-fallback">{{ (group.display_name or group.name or 'G')[:1] }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="chain-home__group-body">
+                            <div class="chain-home__name-line">
+                                <h3>{{ group.display_name or group.name }}</h3>
+                            </div>
+                            <small><i class="fas fa-users"></i> {{ group.member_count }} members</small>
+                            <div class="chain-home__meta-row">
+                                <span class="chain-pill chain-pill--{{ group.access_type or 'public' }}">{{ (group.access_type or 'public')|title }}</span>
+                            </div>
+                            <button type="button" class="chain-home__join-btn" data-join-group="{{ group.id }}">Join</button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                    {% if not groups %}
+                    {{ empty_state('fa-users', 'No groups yet', 'Trending groups will appear here as communities grow.', discover_route, 'Discover groups') }}
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="chain-home__section">
+                <div class="chain-home__section-head">
+                    <div>
+                        <p class="chain-home__kicker">Sponsored</p>
+                        <h2>Sponsored Posts</h2>
+                        <p class="chain-home__section-subtitle">Promoted content from partners and creators.</p>
+                    </div>
+                </div>
+                <div class="chain-home__stack">
+                    {% for post in sponsored_posts %}
+                    <article id="sponsored-{{ post.id }}" class="chain-home__post-card chain-card chain-home__post-card--sponsored">
+                        <div class="chain-home__post-head">
+                            <span class="chain-home__sponsored-label">Sponsored</span>
+                            <a href="{{ post.profile_url }}" class="chain-home__person-link">
+                                <span class="chain-home__avatar">
+                                    {% if post.avatar_url %}
+                                    <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
+                                    {% elif post.display_name %}
+                                    {{ post.display_name[:1] }}
+                                    {% endif %}
+                                </span>
+                                <div>
+                                    <div class="chain-home__name-line">
+                                        {% if post.display_name %}<strong>{{ post.display_name }}</strong>{% endif %}
+                                        {% if post.verified %}<i class="fas fa-circle-check"></i>{% endif %}
+                                    </div>
+                                    <small>@{{ post.username or 'chain' }} &bull; {{ post.created_label }}</small>
+                                </div>
+                            </a>
+                        </div>
+                        <p>{{ post.excerpt|hashtag_links|safe }}</p>
+                        {% if post.town_tag %}<div class="chain-home__meta-row"><span><i class="fas fa-location-dot"></i> {{ post.town_tag }}</span></div>{% endif %}
+                        {% if post.link_url %}<p><a href="{{ post.link_url }}" target="_blank" rel="noopener">{{ post.link_url }}</a></p>{% endif %}
+                        {% if post.media_url %}
+                        <div class="chain-home__post-media">
+                            {% if post.video_url or post.post_type == 'video' %}
+                            <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
+                            {% else %}
+                            <img src="{{ post.media_url }}" alt="{{ post.display_name }} post">
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        <div class="chain-home__meta-row">
+                            <span><strong data-social-count="post:{{ post.id }}:like">{{ post.likes_count or 0 }}</strong> likes</span>
+                            <span><strong data-social-count="post:{{ post.id }}:comment">{{ post.comments_count or 0 }}</strong> comments</span>
+                        </div>
+                        <div class="chain-home__post-actions">
+                            <button type="button" data-social-like="post:{{ post.id }}"><i class="far fa-heart"></i><span>Like</span></button>
+                            <button type="button" data-social-comment="post:{{ post.id }}"><i class="far fa-comment"></i><span>Comment</span></button>
+                            <a href="{{ post.profile_url }}"><i class="fas fa-share"></i><span>Share</span></a>
+                            <button type="button" data-social-save="post:{{ post.id }}"><i class="far fa-bookmark"></i><span>Bookmark</span></button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                    {% if not sponsored_posts %}
+                    {{ empty_state('fa-ad', 'No sponsored posts yet', 'Promoted content from partners will appear here.', wide=True) }}
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="chain-home__section">
+                <div class="chain-home__section-head">
+                    <div>
+                        <p class="chain-home__kicker">Announcements</p>
+                        <h2>Public Announcements</h2>
+                        <p class="chain-home__section-subtitle">Official updates and community notices.</p>
+                    </div>
+                </div>
+                <div class="chain-home__stack chain-home__announcements-stack">
+                    {% for ann in announcements %}
+                    <article class="chain-home__announcement-card chain-card">
+                        <div class="chain-home__announcement-head">
+                            <div>
+                                <h3>{{ ann.title }}</h3>
+                                <small>{{ ann.created_label }}</small>
+                            </div>
+                            {% if ann.priority %}
+                            <span class="chain-pill chain-pill--{{ ann.priority }}">{{ ann.priority|title }}</span>
+                            {% endif %}
+                        </div>
+                        <p>{{ ann.body }}</p>
+                    </article>
+                    {% endfor %}
+                    {% if not announcements %}
+                    {{ empty_state('fa-bullhorn', 'No announcements yet', 'Official updates and community notices will appear here.', wide=True) }}
                     {% endif %}
                 </div>
             </section>
@@ -574,6 +687,37 @@
                     {% endfor %}
                     {% if not dating_matches %}
                     {{ empty_state('fa-heart', 'No matches yet', 'Dating profiles will appear here once members opt in.', dating_route, 'Open dating') }}
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="chain-home__section">
+                <div class="chain-home__section-head">
+                    <div>
+                        <p class="chain-home__kicker">Nearby Users</p>
+                        <h2>Nearby Users</h2>
+                        <p class="chain-home__section-subtitle">Trending people in your area.</p>
+                    </div>
+                </div>
+                <div class="chain-home__grid chain-home__grid--sidebar chain-home__grid--nearby">
+                    {% for profile in nearby_users %}
+                    <a href="{{ profile.profile_url if profile.profile_url else '#' }}" class="chain-home__nearby-card chain-clickable-card chain-card">
+                        <span class="chain-home__avatar chain-home__avatar--sm">
+                            {% if profile.avatar_url %}
+                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
+                            {% else %}
+                            {{ profile.initial or (profile.display_name or '?')[:1] }}
+                            {% endif %}
+                        </span>
+                        <div class="chain-home__nearby-info">
+                            {% if profile.display_name %}<strong>{{ profile.display_name }}</strong>{% endif %}
+                            {% if profile.location %}<small>{{ profile.location }}</small>{% endif %}
+                        </div>
+                        <span class="chain-home__nearby-dot"></span>
+                    </a>
+                    {% endfor %}
+                    {% if not nearby_users %}
+                    {{ empty_state('fa-location-dot', 'No nearby users yet', 'Check back when users in your area are active.') }}
                     {% endif %}
                 </div>
             </section>

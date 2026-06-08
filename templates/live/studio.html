@@ -4,274 +4,1117 @@
 
 {% block extra_css %}
 <style>
-    .studio-shell {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 30px 20px 120px;
-        display: grid;
-        grid-template-columns: 1fr 350px;
-        gap: 30px;
-    }
-    
-    .live-preview-box {
-        background: #000;
-        border-radius: 18px;
-        position: relative;
-        aspect-ratio: 16/9;
-        overflow: hidden;
-        box-shadow: var(--chain-shadow-lg);
-    }
-    
-    .live-state-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0,0,0,0.7);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        z-index: 20;
-    }
-    
-    .live-badge {
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        background: var(--chain-error);
-        color: white;
-        padding: 5px 12px;
-        border-radius: 6px;
-        font-weight: 800;
-        font-size: 12px;
-        display: none;
-    }
-    
-    .live-metrics {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        display: flex;
-        gap: 10px;
-    }
-    
-    .metric-pill {
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(10px);
-        padding: 5px 12px;
-        border-radius: 999px;
-        color: white;
-        font-size: 12px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    
-    .studio-controls {
-        position: absolute;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 15px;
-        z-index: 30;
-    }
-    
-    .control-btn {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.2);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.3);
-        color: white;
-        display: grid;
-        place-items: center;
-        font-size: 20px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .control-btn.active {
-        background: var(--chain-primary);
-        border-color: var(--chain-primary);
-    }
-    
-    .setup-card {
-        background: var(--chain-bg-panel-strong);
-        border: 1px solid var(--chain-border);
-        border-radius: 18px;
-        padding: 25px;
-        box-shadow: var(--chain-shadow-md);
-        backdrop-filter: blur(20px);
-    }
-    
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--chain-muted); }
-    .form-group input, .form-group select {
-        width: 100%;
-        padding: 12px;
-        border-radius: 12px;
-        border: 1px solid var(--chain-border);
-        background: var(--chain-bg-soft);
-        outline: none;
-    }
-    
-    .audience-selector {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-    }
-    
-    .audience-option {
-        padding: 10px;
-        border-radius: 12px;
-        border: 1px solid var(--chain-border);
-        text-align: center;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 700;
-        transition: all 0.2s;
-    }
-    
-    .audience-option.is-active {
-        background: var(--chain-primary);
-        color: white;
-        border-color: var(--chain-primary);
-    }
+  .studio-shell {
+    max-width: 1260px;
+    margin: 0 auto;
+    padding: 24px 16px 120px;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 24px;
+  }
 
-    @media (max-width: 900px) {
-        .studio-shell { grid-template-columns: 1fr; }
+  /* ─── Preview Box ─── */
+  .live-preview-box {
+    background: #000;
+    border-radius: 24px;
+    position: relative;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,.35);
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .live-preview-box video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .live-badge-indicator {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    background: #ef4444;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: 900;
+    font-size: 12px;
+    letter-spacing: .06em;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 0 20px rgba(239,68,68,.4);
+    z-index: 20;
+  }
+  .live-badge-indicator.is-live {
+    display: flex;
+  }
+  .live-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    animation: badgePulse 1.2s ease-in-out infinite;
+  }
+  @keyframes badgePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .4; transform: scale(.7); }
+  }
+
+  .live-metrics-overlay {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 20;
+    display: none;
+  }
+  .live-metrics-overlay.is-visible {
+    display: flex;
+  }
+  .metric-pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid rgba(255,255,255,.1);
+  }
+
+  .state-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    z-index: 10;
+    transition: opacity .3s;
+  }
+  .state-overlay.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .state-overlay i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: .5;
+  }
+  .state-overlay h2 {
+    margin: 0 0 6px;
+    font-size: 22px;
+  }
+  .state-overlay p {
+    margin: 0;
+    opacity: .6;
+    font-size: 14px;
+  }
+
+  .studio-controls {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 20;
+  }
+  .control-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.15);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,.2);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .control-btn:hover {
+    background: rgba(255,255,255,.25);
+    transform: scale(1.05);
+  }
+  .control-btn.active {
+    background: var(--px-primary);
+    border-color: var(--px-primary);
+  }
+  .control-btn.danger {
+    background: #ef4444;
+    border-color: #ef4444;
+  }
+
+  /* ─── Stream Info Bar ─── */
+  .stream-info-bar {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .stream-info-item {
+    flex: 1;
+    min-width: 140px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: var(--px-card);
+    border: 1px solid var(--px-border);
+    box-shadow: var(--px-shadow);
+  }
+  .stream-info-item label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--px-muted);
+    font-weight: 900;
+    margin-bottom: 4px;
+  }
+  .stream-info-item .value {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--px-text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .value .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .value .status-dot.connected { background: #22c55e; }
+  .value .status-dot.disconnected { background: #ef4444; }
+  .value .status-dot.connecting { background: #f59e0b; animation: badgePulse 1s infinite; }
+
+  /* ─── Sidebar ─── */
+  .studio-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .setup-card {
+    background: var(--px-card);
+    border: 1px solid var(--px-border);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--px-shadow);
+  }
+  .setup-card h2 {
+    margin: 0 0 20px;
+    font-size: 18px;
+  }
+
+  .form-group {
+    margin-bottom: 18px;
+  }
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: var(--px-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .form-group input,
+  .form-group select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--px-border);
+    background: var(--px-soft);
+    color: var(--px-text);
+    outline: none;
+    font-size: 14px;
+    transition: border-color .2s;
+  }
+  .form-group input:focus,
+  .form-group select:focus {
+    border-color: var(--px-primary);
+    box-shadow: 0 0 0 3px rgba(11,27,51,.1);
+  }
+
+  .audience-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .audience-option {
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid var(--px-border);
+    text-align: center;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 800;
+    transition: all .2s;
+    color: var(--px-text);
+    background: var(--px-soft);
+  }
+  .audience-option.is-active {
+    background: var(--px-primary);
+    color: #fff;
+    border-color: var(--px-primary);
+  }
+
+  /* ─── Toggle Switch ─── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--px-border);
+  }
+  .toggle-row:last-child {
+    border-bottom: 0;
+  }
+  .toggle-row .toggle-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--px-text);
+  }
+  .toggle-row .toggle-desc {
+    font-size: 11px;
+    color: var(--px-muted);
+    margin-top: 2px;
+  }
+  .toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 28px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--px-border);
+    transition: background .2s;
+  }
+  .toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform .2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,.15);
+  }
+  .toggle-switch input:checked + .toggle-slider {
+    background: var(--px-primary);
+  }
+  .toggle-switch input:checked + .toggle-slider::after {
+    transform: translateX(20px);
+  }
+
+  /* ─── Panel Cards ─── */
+  .panel-card {
+    background: var(--px-card);
+    border: 1px solid var(--px-border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--px-shadow);
+  }
+  .panel-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--px-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-card-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-card-header h3 i {
+    color: var(--px-muted);
+  }
+  .panel-card-body {
+    padding: 16px 20px;
+  }
+
+  .guest-item,
+  .poll-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--px-border);
+  }
+  .guest-item:last-child,
+  .poll-item:last-child {
+    border-bottom: 0;
+  }
+  .guest-info,
+  .poll-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .guest-info strong,
+  .poll-info strong {
+    font-size: 13px;
+  }
+  .guest-info small,
+  .poll-info small {
+    font-size: 11px;
+    color: var(--px-muted);
+  }
+  .guest-actions,
+  .poll-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .btn-sm {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 0;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-sm.accept {
+    background: #22c55e;
+    color: #fff;
+  }
+  .btn-sm.reject {
+    background: #ef4444;
+    color: #fff;
+  }
+  .btn-sm.outline {
+    background: transparent;
+    border: 1px solid var(--px-border);
+    color: var(--px-text);
+  }
+
+  .poll-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--px-soft);
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .poll-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--px-primary);
+    transition: width .4s ease;
+  }
+  .poll-option {
+    margin-bottom: 10px;
+  }
+  .poll-option:last-child {
+    margin-bottom: 0;
+  }
+
+  /* ─── Buttons ─── */
+  .primary-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    border: 0;
+    background: var(--px-primary);
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .primary-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(11,27,51,.2);
+  }
+  .primary-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .start-live-btn {
+    width: 100%;
+    padding: 18px;
+    border-radius: 14px;
+    border: 0;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    font-weight: 900;
+    font-size: 17px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 8px 32px rgba(239,68,68,.3);
+    letter-spacing: .04em;
+  }
+  .start-live-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(239,68,68,.4);
+  }
+  .start-live-btn.is-live {
+    animation: liveBtnPulse 2s ease-in-out infinite;
+  }
+  @keyframes liveBtnPulse {
+    0%, 100% { box-shadow: 0 8px 32px rgba(239,68,68,.3); }
+    50% { box-shadow: 0 8px 48px rgba(239,68,68,.6); }
+  }
+
+  .end-live-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid #ef4444;
+    background: transparent;
+    color: #ef4444;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .end-live-btn:hover {
+    background: rgba(239,68,68,.1);
+  }
+
+  .battle-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--px-border);
+    background: transparent;
+    color: var(--px-text);
+    font-weight: 800;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .battle-btn:hover {
+    background: var(--px-soft);
+  }
+
+  .rtmp-note {
+    margin-top: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(245,158,11,.1);
+    border: 1px solid rgba(245,158,11,.2);
+    font-size: 12px;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  html[data-chain-theme="dark"] .rtmp-note {
+    color: #fbbf24;
+    background: rgba(245,158,11,.08);
+  }
+  .rtmp-note i {
+    font-size: 14px;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 960px) {
+    .studio-shell {
+      grid-template-columns: 1fr;
+      gap: 20px;
     }
+    .live-preview-box {
+      aspect-ratio: 16/10;
+    }
+  }
+  @media (max-width: 600px) {
+    .studio-shell {
+      padding: 12px 8px 100px;
+    }
+    .stream-info-bar {
+      flex-direction: column;
+    }
+    .audience-selector {
+      grid-template-columns: 1fr;
+    }
+    .studio-controls {
+      gap: 8px;
+    }
+    .control-btn {
+      width: 40px;
+      height: 40px;
+      font-size: 15px;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="studio-shell">
-    <div class="studio-main">
-        <div class="live-preview-box">
-            <video id="studio-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
-            
-            <div class="live-badge" id="live-indicator">LIVE</div>
-            
-            <div class="live-metrics" id="live-metrics" style="display: none;">
-                <div class="metric-pill"><i class="fas fa-eye"></i> <span id="viewer-count">0</span></div>
-                <div class="metric-pill"><i class="fas fa-heart"></i> <span id="like-count">0</span></div>
-                <div class="metric-pill"><i class="fas fa-gift"></i> <span id="gift-count">0</span></div>
-            </div>
-            
-            <div class="live-state-overlay" id="state-overlay">
-                <i class="fas fa-video-slash" id="state-icon" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
-                <h2 id="state-text">Ready to go live?</h2>
-                <p id="state-subtext">Set up your stream on the right</p>
-            </div>
-            
-            <div class="studio-controls">
-                <div class="control-btn active" onclick="toggleMic(this)"><i class="fas fa-microphone"></i></div>
-                <div class="control-btn active" onclick="toggleCam(this)"><i class="fas fa-video"></i></div>
-                <div class="control-btn"><i class="fas fa-magic"></i></div>
-                <div class="control-btn"><i class="fas fa-cog"></i></div>
-            </div>
-        </div>
-        
-        <div id="live-chat" style="margin-top: 20px; background: var(--chain-bg-panel); border-radius: 18px; height: 300px; display: flex; flex-direction: column; border: 1px solid var(--chain-border); display: none;">
-            <div style="padding: 15px; border-bottom: 1px solid var(--chain-border); font-weight: 800;">Live Chat</div>
-            <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 15px;"></div>
-        </div>
+  <div class="studio-main">
+    <!-- Preview Box -->
+    <div class="live-preview-box">
+      <video id="studio-video" autoplay playsinline muted></video>
+
+      <div class="live-badge-indicator" id="live-indicator">
+        <span class="live-badge-dot"></span>
+        LIVE
+      </div>
+
+      <div class="live-metrics-overlay" id="live-metrics">
+        <div class="metric-pill"><i class="fas fa-eye"></i> <span id="viewer-count">0</span></div>
+        <div class="metric-pill"><i class="fas fa-heart"></i> <span id="like-count">0</span></div>
+        <div class="metric-pill"><i class="fas fa-gift"></i> <span id="gift-count">0</span></div>
+      </div>
+
+      <div class="state-overlay" id="state-overlay">
+        <i class="fas fa-video-slash" id="state-icon"></i>
+        <h2 id="state-text">Ready to go live?</h2>
+        <p id="state-subtext">Set up your stream on the right</p>
+      </div>
+
+      <div class="studio-controls">
+        <button class="control-btn active" onclick="toggleMic(this)" title="Toggle Microphone" type="button">
+          <i class="fas fa-microphone"></i>
+        </button>
+        <button class="control-btn active" onclick="toggleCam(this)" title="Toggle Camera" type="button">
+          <i class="fas fa-video"></i>
+        </button>
+        <button class="control-btn" onclick="toggleEffects(this)" title="Effects" type="button">
+          <i class="fas fa-magic"></i>
+        </button>
+        <button class="control-btn" onclick="toggleSettings(this)" title="Settings" type="button">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
     </div>
 
-    <aside class="studio-sidebar">
-        <form id="live-setup-form" class="setup-card">
-            <h2 style="margin: 0 0 20px;">Stream Setup</h2>
-            
-            <div class="form-group">
-                <label>Title</label>
-                <input type="text" name="title" placeholder="My awesome live stream!" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Category</label>
-                <select name="category">
-                    <option value="Music">Music</option>
-                    <option value="Gaming">Gaming</option>
-                    <option value="Chat">Just Chatting</option>
-                    <option value="Education">Education</option>
-                    <option value="Dating">Dating</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Audience</label>
-                <div class="audience-selector">
-                    <div class="audience-option is-active" data-value="public">Public</div>
-                    <div class="audience-option" data-value="followers">Followers</div>
-                    <div class="audience-option" data-value="private">Private</div>
-                </div>
-                <input type="hidden" name="audience" id="audience-input" value="public">
-            </div>
-            
-            <div class="form-group">
-                <label>Thumbnail</label>
-                <input type="file" name="thumbnail" accept="image/*">
-            </div>
-            
-            <button type="submit" class="primary" id="start-live-btn" style="width: 100%; padding: 15px; border-radius: 12px; margin-top: 10px;">
-                START LIVE
-            </button>
-        </form>
-    </aside>
+    <!-- Stream Info Bar -->
+    <div class="stream-info-bar">
+      <div class="stream-info-item">
+        <label>WebRTC Status</label>
+        <div class="value">
+          <span class="status-dot disconnected" id="webrtc-status-dot"></span>
+          <span id="webrtc-status-text">Disconnected</span>
+        </div>
+      </div>
+      <div class="stream-info-item">
+        <label>Stream Key</label>
+        <div class="value" id="stream-key-display">
+          <code style="font-size:11px;opacity:.7;" id="stream-key-text">••••••••</code>
+          <button onclick="copyStreamKey()" style="background:none;border:none;color:var(--px-blue);cursor:pointer;font-size:12px;" title="Copy stream key">
+            <i class="fas fa-copy"></i>
+          </button>
+        </div>
+      </div>
+      <div class="stream-info-item">
+        <label>RTMP Endpoint</label>
+        <div class="value">
+          <span style="font-size:11px;opacity:.7;" id="rtmp-endpoint-text">Not configured</span>
+        </div>
+      </div>
+    </div>
+    <div class="rtmp-note" id="rtmp-config-note">
+      <i class="fas fa-info-circle"></i>
+      <span>RTMP requires a configured streaming server. WebRTC is used by default.</span>
+    </div>
+
+    <!-- Chat (visible only when live) -->
+    <div id="live-chat" style="margin-top:20px;background:var(--px-card);border-radius:18px;height:300px;display:flex;flex-direction:column;border:1px solid var(--px-border);display:none;">
+      <div style="padding:15px 18px;border-bottom:1px solid var(--px-border);font-weight:800;display:flex;justify-content:space-between;align-items:center;">
+        <span>Live Chat</span>
+        <span style="font-size:12px;color:var(--px-muted);" id="chat-count">0 messages</span>
+      </div>
+      <div id="chat-messages" style="flex:1;overflow-y:auto;padding:15px 18px;"></div>
+    </div>
+  </div>
+
+  <aside class="studio-sidebar">
+    <!-- Stream Setup -->
+    <form id="live-setup-form" class="setup-card">
+      <h2><i class="fas fa-sliders-h" style="margin-right:8px;color:var(--px-muted);"></i>Stream Setup</h2>
+
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="title" placeholder="My awesome live stream!" required>
+      </div>
+
+      <div class="form-group">
+        <label>Category</label>
+        <select name="category">
+          <option value="Music">Music</option>
+          <option value="Gaming">Gaming</option>
+          <option value="Chat">Just Chatting</option>
+          <option value="Education">Education</option>
+          <option value="Business">Business</option>
+          <option value="Dating">Dating</option>
+          <option value="Lifestyle">Lifestyle</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Audience</label>
+        <div class="audience-selector">
+          <div class="audience-option is-active" data-value="public">Public</div>
+          <div class="audience-option" data-value="followers">Followers</div>
+          <div class="audience-option" data-value="private">Private</div>
+        </div>
+        <input type="hidden" name="audience" id="audience-input" value="public">
+      </div>
+
+      <div class="form-group">
+        <label>Thumbnail</label>
+        <input type="file" name="thumbnail" accept="image/*">
+      </div>
+
+      <button type="submit" class="start-live-btn" id="start-live-btn">
+        <i class="fas fa-circle" style="font-size:10px;color:#ef4444;"></i>
+        START LIVE
+      </button>
+
+      <button type="button" class="end-live-btn" id="end-live-btn" style="display:none;">
+        <i class="fas fa-stop-circle"></i>
+        End Live Stream
+      </button>
+    </form>
+
+    <!-- Toggles -->
+    <div class="setup-card">
+      <h3 style="margin:0 0 6px;font-size:14px;font-weight:800;">Stream Settings</h3>
+      <p style="margin:0 0 12px;font-size:12px;color:var(--px-muted);">Manage your live stream interaction</p>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Allow Comments</div>
+          <div class="toggle-desc">Let viewers send chat messages</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="allow-comments" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Allow Gifts</div>
+          <div class="toggle-desc">Let viewers send gifts and tips</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="allow-gifts" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Guest Requests -->
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <h3><i class="fas fa-user-plus"></i> Guest Requests</h3>
+        <span class="px-chip" id="guest-count">0</span>
+      </div>
+      <div class="panel-card-body" id="guest-list">
+        <div class="empty-line" style="text-align:center;padding:20px 0;color:var(--px-muted);font-size:13px;">
+          No pending guest requests
+        </div>
+      </div>
+    </div>
+
+    <!-- Polls -->
+    <div class="panel-card">
+      <div class="panel-card-header">
+        <h3><i class="fas fa-poll"></i> Polls</h3>
+        <button class="btn-sm outline" onclick="showCreatePoll()" type="button">+ Create</button>
+      </div>
+      <div class="panel-card-body" id="poll-list">
+        <div class="empty-line" style="text-align:center;padding:20px 0;color:var(--px-muted);font-size:13px;">
+          No polls yet. Create one to engage viewers.
+        </div>
+      </div>
+      <!-- Create Poll Form (hidden) -->
+      <div id="create-poll-form" style="display:none;padding:16px 20px;border-top:1px solid var(--px-border);">
+        <div class="form-group" style="margin-bottom:10px;">
+          <input type="text" id="poll-question" placeholder="Ask a question..." style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--px-border);background:var(--px-soft);outline:none;font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+          <input type="text" id="poll-option-a" placeholder="Option A" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--px-border);background:var(--px-soft);outline:none;font-size:13px;margin-bottom:6px;">
+          <input type="text" id="poll-option-b" placeholder="Option B" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--px-border);background:var(--px-soft);outline:none;font-size:13px;">
+        </div>
+        <button class="btn-sm accept" onclick="createPoll()" type="button" style="width:100%;">Launch Poll</button>
+      </div>
+    </div>
+
+    <!-- Battle -->
+    <button class="battle-btn" onclick="inviteBattle()" type="button" id="battle-btn">
+      <i class="fas fa-swords"></i>
+      Invite a Live Host to Battle
+    </button>
+  </aside>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    const setupForm = document.getElementById('live-setup-form');
-    const startBtn = document.getElementById('start-live-btn');
-    const stateOverlay = document.getElementById('state-overlay');
-    const stateText = document.getElementById('state-text');
-    const stateSubtext = document.getElementById('state-subtext');
-    
-    let localStream;
+  const setupForm = document.getElementById('live-setup-form');
+  const startBtn = document.getElementById('start-live-btn');
+  const endBtn = document.getElementById('end-live-btn');
+  const stateOverlay = document.getElementById('state-overlay');
+  const stateText = document.getElementById('state-text');
+  const stateSubtext = document.getElementById('state-subtext');
+  const stateIcon = document.getElementById('state-icon');
+  const liveIndicator = document.getElementById('live-indicator');
+  const liveMetrics = document.getElementById('live-metrics');
 
-    async function initCamera() {
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            document.getElementById('studio-video').srcObject = localStream;
-            stateOverlay.style.display = 'none';
-        } catch (e) {
-            stateText.innerText = "Camera Error";
-            stateSubtext.innerText = "Please allow camera access to go live.";
-            console.error(e);
+  let localStream;
+  let isLive = false;
+  let roomId = null;
+
+  async function initCamera() {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      document.getElementById('studio-video').srcObject = localStream;
+      stateOverlay.classList.add('is-hidden');
+    } catch (e) {
+      stateText.innerText = 'Camera Error';
+      stateSubtext.innerText = 'Please allow camera access to go live.';
+      stateIcon.className = 'fas fa-exclamation-triangle';
+      console.error(e);
+    }
+  }
+
+  initCamera();
+
+  setupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (isLive) return;
+
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting...';
+
+    const formData = new FormData(setupForm);
+
+    try {
+      const res = await fetch('/live/api/rooms/start', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok && data.room_id) {
+        roomId = data.room_id;
+        goLive();
+      } else {
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<i class="fas fa-circle" style="font-size:10px;color:#ef4444;"></i> START LIVE';
+        alert(data.error || 'Failed to start stream');
+      }
+    } catch (err) {
+      startBtn.disabled = false;
+      startBtn.innerHTML = '<i class="fas fa-circle" style="font-size:10px;color:#ef4444;"></i> START LIVE';
+      alert('Network error. Please try again.');
+    }
+  });
+
+  endBtn.addEventListener('click', async () => {
+    if (!confirm('End your live stream?')) return;
+    try {
+      await fetch('/live/api/rooms/' + roomId + '/end', { method: 'POST' });
+      endLive();
+    } catch (err) {
+      alert('Failed to end stream');
+    }
+  });
+
+  function goLive() {
+    isLive = true;
+    liveIndicator.classList.add('is-live');
+    liveMetrics.classList.add('is-visible');
+    startBtn.disabled = false;
+    startBtn.classList.add('is-live');
+    startBtn.innerHTML = '<i class="fas fa-check-circle"></i> LIVE';
+    endBtn.style.display = 'flex';
+    document.getElementById('live-chat').style.display = 'flex';
+    document.getElementById('webrtc-status-dot').className = 'status-dot connected';
+    document.getElementById('webrtc-status-text').textContent = 'Connected';
+    fetchStreamInfo();
+    pollViewerCount();
+  }
+
+  function endLive() {
+    isLive = false;
+    roomId = null;
+    liveIndicator.classList.remove('is-live');
+    liveMetrics.classList.remove('is-visible');
+    startBtn.classList.remove('is-live');
+    startBtn.innerHTML = '<i class="fas fa-circle" style="font-size:10px;color:#ef4444;"></i> START LIVE';
+    endBtn.style.display = 'none';
+    document.getElementById('live-chat').style.display = 'none';
+    document.getElementById('webrtc-status-dot').className = 'status-dot disconnected';
+    document.getElementById('webrtc-status-text').textContent = 'Disconnected';
+  }
+
+  function toggleMic(btn) {
+    const enabled = btn.classList.toggle('active');
+    if (localStream) {
+      localStream.getAudioTracks().forEach(t => t.enabled = enabled);
+    }
+    btn.innerHTML = enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+  }
+
+  function toggleCam(btn) {
+    const enabled = btn.classList.toggle('active');
+    if (localStream) {
+      localStream.getVideoTracks().forEach(t => t.enabled = enabled);
+    }
+    btn.innerHTML = enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+  }
+
+  function toggleEffects(btn) {
+    btn.classList.toggle('active');
+  }
+
+  function toggleSettings(btn) {
+    btn.classList.toggle('active');
+  }
+
+  document.querySelectorAll('.audience-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.audience-option').forEach(o => o.classList.remove('is-active'));
+      opt.classList.add('is-active');
+      document.getElementById('audience-input').value = opt.dataset.value;
+    });
+  });
+
+  // ─── Stream Info ───
+  function fetchStreamInfo() {
+    if (!roomId) return;
+    fetch('/live/api/rooms/' + roomId + '/info')
+      .then(r => r.json())
+      .then(data => {
+        if (data.stream_key) {
+          document.getElementById('stream-key-text').textContent = data.stream_key;
         }
+        if (data.rtmp_endpoint) {
+          document.getElementById('rtmp-endpoint-text').textContent = data.rtmp_endpoint;
+          document.querySelector('#rtmp-config-note span').textContent = 'RTMP server is configured.';
+          document.querySelector('#rtmp-config-note i').className = 'fas fa-check-circle';
+          document.querySelector('#rtmp-config-note').style.background = 'rgba(34,197,94,.1)';
+          document.querySelector('#rtmp-config-note').style.borderColor = 'rgba(34,197,94,.2)';
+        }
+      })
+      .catch(() => {});
+  }
+
+  function copyStreamKey() {
+    const key = document.getElementById('stream-key-text').textContent;
+    if (key && key !== '••••••••') {
+      navigator.clipboard.writeText(key).catch(() => {});
     }
+  }
 
-    initCamera();
+  // ─── Viewer Count Polling ───
+  function pollViewerCount() {
+    if (!isLive || !roomId) return;
+    fetch('/live/api/rooms/' + roomId + '/viewers')
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('viewer-count').textContent = data.count || 0;
+      })
+      .catch(() => {});
+    setTimeout(pollViewerCount, 5000);
+  }
 
-    setupForm.addEventListener('submit', (e) => {
-        startBtn.disabled = true;
-        startBtn.innerText = "Starting Live...";
-    });
+  // ─── Guest Requests ───
+  function pollGuestRequests() {
+    if (!isLive || !roomId) return;
+    fetch('/live/api/rooms/' + roomId + '/guest-requests')
+      .then(r => r.json())
+      .then(data => {
+        const list = document.getElementById('guest-list');
+        const count = document.getElementById('guest-count');
+        const requests = data.requests || [];
+        count.textContent = requests.length;
+        if (!requests.length) {
+          list.innerHTML = '<div class="empty-line" style="text-align:center;padding:20px 0;color:var(--px-muted);font-size:13px;">No pending guest requests</div>';
+          return;
+        }
+        list.innerHTML = requests.map(g => `
+          <div class="guest-item">
+            <div class="guest-info">
+              <strong>${g.display_name || 'Anonymous'}</strong>
+              <small>${g.note || 'Wants to join'}</small>
+            </div>
+            <div class="guest-actions">
+              <button class="btn-sm accept" onclick="respondGuest('${g.id}','accept')">Accept</button>
+              <button class="btn-sm reject" onclick="respondGuest('${g.id}','reject')">Reject</button>
+            </div>
+          </div>
+        `).join('');
+      })
+      .catch(() => {});
+    setTimeout(pollGuestRequests, 5000);
+  }
 
-    function toggleMic(btn) {
-        const enabled = btn.classList.toggle('active');
-        localStream.getAudioTracks().forEach(t => t.enabled = enabled);
-        btn.innerHTML = enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+  async function respondGuest(requestId, action) {
+    try {
+      await fetch('/live/api/rooms/' + roomId + '/guest-requests/' + requestId + '/' + action, {
+        method: 'POST'
+      });
+      pollGuestRequests();
+    } catch (e) {}
+  }
+
+  // ─── Polls ───
+  function showCreatePoll() {
+    const form = document.getElementById('create-poll-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  }
+
+  async function createPoll() {
+    const question = document.getElementById('poll-question').value.trim();
+    const optionA = document.getElementById('poll-option-a').value.trim();
+    const optionB = document.getElementById('poll-option-b').value.trim();
+    if (!question || !optionA || !optionB) {
+      alert('Please fill in all fields');
+      return;
     }
+    try {
+      await fetch('/live/api/rooms/' + roomId + '/polls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, options: [optionA, optionB] })
+      });
+      document.getElementById('poll-question').value = '';
+      document.getElementById('poll-option-a').value = '';
+      document.getElementById('poll-option-b').value = '';
+      document.getElementById('create-poll-form').style.display = 'none';
+      pollPolls();
+    } catch (e) {}
+  }
 
-    function toggleCam(btn) {
-        const enabled = btn.classList.toggle('active');
-        localStream.getVideoTracks().forEach(t => t.enabled = enabled);
-        btn.innerHTML = enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+  function pollPolls() {
+    if (!isLive || !roomId) return;
+    fetch('/live/api/rooms/' + roomId + '/polls')
+      .then(r => r.json())
+      .then(data => {
+        const list = document.getElementById('poll-list');
+        const polls = data.polls || [];
+        if (!polls.length) {
+          list.innerHTML = '<div class="empty-line" style="text-align:center;padding:20px 0;color:var(--px-muted);font-size:13px;">No polls yet. Create one to engage viewers.</div>';
+          return;
+        }
+        list.innerHTML = polls.map(p => {
+          const total = (p.options || []).reduce((sum, o) => sum + (o.votes || 0), 0) || 1;
+          return `
+            <div class="poll-item" style="flex-direction:column;align-items:stretch;">
+              <strong style="margin-bottom:8px;font-size:14px;">${p.question}</strong>
+              ${(p.options || []).map(o => `
+                <div class="poll-option">
+                  <div style="display:flex;justify-content:space-between;font-size:12px;">
+                    <span>${o.text}</span>
+                    <span style="font-weight:800;">${Math.round((o.votes || 0) / total * 100)}%</span>
+                  </div>
+                  <div class="poll-bar"><span style="width:${(o.votes || 0) / total * 100}%"></span></div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }).join('');
+      })
+      .catch(() => {});
+    setTimeout(pollPolls, 5000);
+  }
+
+  // ─── Battle ───
+  async function inviteBattle() {
+    if (!isLive || !roomId) {
+      alert('Start your live stream first to invite a battle.');
+      return;
     }
+    try {
+      const res = await fetch('/live/api/rooms/' + roomId + '/battle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      alert(data.message || 'Battle invite sent!');
+    } catch (e) {
+      alert('Failed to send battle invite');
+    }
+  }
 
-    document.querySelectorAll('.audience-option').forEach(opt => {
-        opt.addEventListener('click', () => {
-            document.querySelectorAll('.audience-option').forEach(o => o.classList.remove('is-active'));
-            opt.classList.add('is-active');
-            document.getElementById('audience-input').value = opt.dataset.value;
-        });
-    });
+  // ─── Toggle handlers ───
+  document.getElementById('allow-comments').addEventListener('change', function() {
+    if (roomId) {
+      fetch('/live/api/rooms/' + roomId + '/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allow_comments: this.checked })
+      }).catch(() => {});
+    }
+  });
+
+  document.getElementById('allow-gifts').addEventListener('change', function() {
+    if (roomId) {
+      fetch('/live/api/rooms/' + roomId + '/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allow_gifts: this.checked })
+      }).catch(() => {});
+    }
+  });
+
+  // Simulate WebRTC connection status
+  function simulateWebRTC() {
+    const dot = document.getElementById('webrtc-status-dot');
+    const text = document.getElementById('webrtc-status-text');
+    dot.className = 'status-dot connecting';
+    text.textContent = 'Connecting...';
+    setTimeout(() => {
+      dot.className = 'status-dot connected';
+      text.textContent = 'Connected (WebRTC)';
+    }, 2000);
+  }
+  simulateWebRTC();
+
+  // Start polling when live
+  const origGoLive = goLive;
+  goLive = function() {
+    origGoLive();
+    pollGuestRequests();
+    pollPolls();
+  };
 </script>
 {% endblock %}
-

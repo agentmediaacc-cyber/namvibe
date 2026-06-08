@@ -4,6 +4,7 @@ from services.reels_engine import list_reels, get_reel, create_reel, record_reel
 from services.engagement_service import add_comment, toggle_like, toggle_save
 from api_routes.profile_routes import login_required
 from services.rate_limit_service import limiter, user_or_ip_key
+from services.content_service import get_session_profile_id, session_profile_stub
 
 reels_bp = Blueprint("reels", __name__, url_prefix="/reels")
 
@@ -17,19 +18,11 @@ def index():
 @login_required
 @limiter.limit("20/hour", key_func=user_or_ip_key)
 def upload():
-    profile = get_current_profile()
-    if not profile and session.get("profile_id"):
-        profile = {
-            "id": session.get("profile_id"),
-            "username": session.get("username"),
-            "full_name": session.get("full_name") or session.get("username") or "CHAIN user",
-        }
-    if not profile or not profile.get("id"):
-        from api_routes.profile_routes import _session_profile_stub
-        profile = _session_profile_stub()
-        return render_template("reels/upload.html", profile=profile, current=profile, setup_warning=True)
-
     if request.method == "POST":
+        profile_id = get_session_profile_id()
+        profile = session_profile_stub() if profile_id else None
+        if not profile_id:
+            return redirect(url_for("auth.login", next=request.path))
         video_file = request.files.get("video")
         thumbnail_file = request.files.get("thumbnail")
         caption = request.form.get("caption", "")
@@ -39,11 +32,17 @@ def upload():
         if not video_file:
             return render_template("reels/upload.html", error="Video file is required", profile=profile, current=profile)
 
-        reel_id, error = create_reel(profile['id'], caption, video_file, thumbnail_file, music_title=music_title, visibility=visibility)
+        reel_id, error = create_reel(profile_id, caption, video_file, thumbnail_file, music_title=music_title, visibility=visibility)
         if error:
             return render_template("reels/upload.html", error=error, profile=profile, current=profile)
         
         return redirect(url_for('reels.index'))
+
+    profile = get_current_profile() or (session_profile_stub() if get_session_profile_id() else None)
+    if not profile or not profile.get("id"):
+        from api_routes.profile_routes import _session_profile_stub
+        profile = _session_profile_stub()
+        return render_template("reels/upload.html", profile=profile, current=profile, setup_warning=True)
 
     return render_template("reels/upload.html", profile=profile, current=profile)
 

@@ -4,112 +4,390 @@
 
 {% block extra_css %}
 <style>
-    .calls-container {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 20px 16px;
-    }
-    
-    .call-item {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        padding: 16px;
-        border-bottom: 1px solid var(--chain-border);
-        text-decoration: none;
-        color: inherit;
-        background: var(--chain-bg-panel);
-        border-radius: 12px;
-        margin-bottom: 8px;
-    }
-    
-    .call-icon {
-        width: 40px;
-        height: 40px;
-        display: grid;
-        place-items: center;
-        border-radius: 50%;
-        background: var(--chain-bg-soft);
-        font-size: 14px;
-    }
-    
-    .call-icon.missed { color: #ff3b30; }
-    .call-icon.incoming { color: #34c759; }
-    .call-icon.outgoing { color: var(--chain-primary); }
-    
-    .call-info { flex: 1; }
-    
-    .call-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
-    
-    .call-meta { font-size: 12px; color: var(--chain-muted); display: flex; align-items: center; gap: 8px; }
+  .calls-container { max-width: 640px; margin: 0 auto; padding: 20px 16px; }
+  .calls-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .calls-header h1 { margin: 0; font-size: 24px; font-weight: 800; }
+  .calls-header-actions { display: flex; gap: 10px; }
+
+  /* Filters */
+  .call-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .filter-btn {
+    padding: 8px 18px; border-radius: 999px; border: 1px solid var(--chain-border);
+    background: var(--chain-bg-panel); color: var(--chain-muted); font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .filter-btn:hover { border-color: var(--chain-primary); color: var(--chain-primary); }
+  .filter-btn.active { background: var(--chain-primary); border-color: var(--chain-primary); color: #fff; }
+
+  /* Call Item */
+  .call-item {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+    background: var(--chain-bg-panel); border-radius: 14px; margin-bottom: 8px;
+    transition: all 0.2s; border: 1px solid transparent;
+  }
+  .call-item:hover { border-color: var(--chain-border); box-shadow: var(--chain-shadow-sm); }
+  .call-avatar-wrap { position: relative; width: 50px; height: 50px; flex-shrink: 0; }
+  .call-avatar-wrap img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+  .call-type-badge {
+    position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--chain-bg-panel); border: 2px solid var(--chain-bg-panel);
+    display: grid; place-items: center; font-size: 9px; box-shadow: var(--chain-shadow-sm);
+  }
+  .call-type-badge.audio { color: var(--chain-secondary); }
+  .call-type-badge.video { color: var(--chain-accent); }
+  .call-info { flex: 1; min-width: 0; }
+  .call-name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .call-name .last-seen { font-size: 11px; font-weight: 400; color: var(--chain-muted); }
+  .call-meta { font-size: 12px; color: var(--chain-muted); display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap; }
+  .call-meta .status-icon { font-size: 10px; }
+  .call-meta .status-icon.missed { color: #ff3b30; }
+  .call-meta .status-icon.incoming { color: #34c759; }
+  .call-meta .status-icon.outgoing { color: var(--chain-primary); }
+  .call-meta .status-icon.rejected { color: #ff6b35; }
+  .call-duration {
+    font-size: 11px; color: var(--chain-muted); background: var(--chain-bg-soft);
+    padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .call-actions { display: flex; gap: 10px; flex-shrink: 0; }
+  .call-action-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none; display: grid;
+    place-items: center; font-size: 14px; cursor: pointer; transition: all 0.2s;
+    background: var(--chain-bg-soft); color: var(--chain-text);
+  }
+  .call-action-btn:hover { background: var(--chain-primary); color: #fff; }
+
+  /* Network Badge */
+  .net-badge {
+    display: inline-flex; align-items: center; gap: 3px; font-size: 10px;
+    padding: 2px 7px; border-radius: 6px; font-weight: 600;
+  }
+  .net-badge.excellent { background: #d4edda; color: #155724; }
+  .net-badge.good { background: #fff3cd; color: #856404; }
+  .net-badge.fair { background: #ffeeba; color: #856404; }
+  .net-badge.poor { background: #f8d7da; color: #721c24; }
+  .signal-bar { display: inline-flex; gap: 1px; align-items: end; height: 10px; }
+  .signal-bar span {
+    width: 3px; background: currentColor; border-radius: 1px; opacity: 0.3;
+    transition: opacity 0.3s;
+  }
+  .signal-bar span.on { opacity: 1; }
+  .signal-bar span:nth-child(1) { height: 4px; }
+  .signal-bar span:nth-child(2) { height: 6px; }
+  .signal-bar span:nth-child(3) { height: 8px; }
+  .signal-bar span:nth-child(4) { height: 10px; }
+
+  /* Empty State */
+  .empty-state {
+    padding: 80px 20px; text-align: center; display: flex; flex-direction: column;
+    align-items: center; gap: 16px;
+  }
+  .empty-icon-wrap {
+    width: 100px; height: 100px; border-radius: 50%; background: var(--chain-bg-soft);
+    display: grid; place-items: center; position: relative;
+  }
+  .empty-phone {
+    font-size: 36px; color: var(--chain-muted); animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .empty-ring {
+    position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--chain-primary);
+    opacity: 0; animation: ring-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes ring-pulse {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 0; }
+    100% { transform: scale(0.8); opacity: 0; }
+  }
+  .empty-title { font-size: 20px; font-weight: 700; color: var(--chain-text); }
+  .empty-sub { font-size: 14px; color: var(--chain-muted); max-width: 260px; line-height: 1.5; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.5);
+    display: none; place-items: center; backdrop-filter: blur(6px);
+  }
+  .modal-overlay.open { display: grid; }
+  .modal-box {
+    background: var(--chain-bg-panel); border-radius: 20px; padding: 28px 24px;
+    width: 90%; max-width: 400px; box-shadow: var(--chain-shadow-lg);
+    animation: modal-in 0.25s ease;
+  }
+  @keyframes modal-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-box h2 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
+  .modal-box p { margin: 0 0 20px; font-size: 14px; color: var(--chain-muted); }
+  .modal-input {
+    width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--chain-border);
+    font-size: 15px; background: var(--chain-bg-soft); color: var(--chain-text);
+    margin-bottom: 16px; outline: none;
+  }
+  .modal-input:focus { border-color: var(--chain-primary); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-btn {
+    padding: 10px 22px; border-radius: 999px; border: none; font-weight: 700;
+    font-size: 14px; cursor: pointer; transition: all 0.2s;
+  }
+  .modal-btn.primary { background: var(--chain-primary); color: #fff; }
+  .modal-btn.primary:hover { background: var(--chain-primary-strong); }
+  .modal-btn.secondary { background: var(--chain-bg-soft); color: var(--chain-text); }
+  .modal-btn.secondary:hover { background: var(--chain-border); }
+  .modal-error { color: #ff3b30; font-size: 13px; margin-top: -12px; margin-bottom: 12px; }
+
+  /* Reconnecting overlay */
+  #reconnectingOverlay {
+    position: fixed; inset: 0; z-index: 1500; display: none;
+    background: rgba(0,0,0,0.6); place-items: center; backdrop-filter: blur(4px);
+  }
+  #reconnectingOverlay.open { display: grid; }
+  .reconnecting-card {
+    background: var(--chain-bg-panel); border-radius: 20px; padding: 36px 32px;
+    text-align: center; max-width: 320px; animation: modal-in 0.3s ease;
+  }
+  .reconnecting-spinner {
+    width: 48px; height: 48px; border: 4px solid var(--chain-border);
+    border-top-color: var(--chain-primary); border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .reconnecting-card h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
+  .reconnecting-card p { margin: 0; font-size: 13px; color: var(--chain-muted); }
+
+  /* Camera Denied */
+  #cameraDeniedBanner {
+    display: none; align-items: center; gap: 12px; background: #fff3cd;
+    border: 1px solid #ffc107; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px;
+  }
+  #cameraDeniedBanner.open { display: flex; }
+  #cameraDeniedBanner i { font-size: 20px; color: #856404; }
+  #cameraDeniedBanner .denied-text { flex: 1; font-size: 13px; color: #856404; font-weight: 500; }
+  .denied-btn {
+    padding: 6px 14px; border-radius: 999px; border: none; font-size: 12px;
+    font-weight: 700; cursor: pointer; background: #856404; color: #fff;
+    transition: all 0.2s;
+  }
+  .denied-btn:hover { background: #6d5203; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="calls-container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h1 style="margin: 0; font-size: 24px;">Calls</h1>
-        <div style="display: flex; gap: 12px;">
-            <button class="px-btn small" onclick="location.href='/messages/'">New Call</button>
-        </div>
+  <div class="calls-header">
+    <h1>Calls</h1>
+    <div class="calls-header-actions">
+      <button class="px-btn small" onclick="openAddParticipantModal()"><i class="fas fa-user-plus"></i> Add</button>
+      <button class="px-btn small" onclick="location.href='/messages/'"><i class="fas fa-phone"></i> New Call</button>
     </div>
+  </div>
 
-    <div class="call-list">
-        {% if calls %}
-            {% for c in calls %}
-                <div class="call-item">
-                    <div class="call-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden;">
-                        {% if c.caller_profile_id == profile.id %}
-                        <img src="{{ c.receiver_avatar or '' }}" style="width:100%; height:100%; object-fit:cover;">
-                        {% else %}
-                        <img src="{{ c.caller_avatar or '' }}" style="width:100%; height:100%; object-fit:cover;">
-                        {% endif %}
-                    </div>
-                    <div class="call-info">
-                        <div class="call-name">
-                            {% if c.caller_profile_id == profile.id %}
-                            {{ c.receiver_username }}
-                            {% else %}
-                            {{ c.caller_username }}
-                            {% endif %}
-                        </div>
-                        <div class="call-meta">
-                            {% if c.call_status == 'missed' %}
-                            <i class="fas fa-phone-slash missed"></i> Missed
-                            {% elif c.caller_profile_id == profile.id %}
-                            <i class="fas fa-arrow-up-right outgoing"></i> Outgoing
-                            {% else %}
-                            <i class="fas fa-arrow-down-left incoming"></i> Incoming
-                            {% endif %}
-                            • {{ c.started_at|datetime }}
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 15px;">
-                        <button class="px-icon-btn" onclick="initiateCall('audio', '{{ c.receiver_profile_id if c.caller_profile_id == profile.id else c.caller_profile_id }}')"><i class="fas fa-phone"></i></button>
-                        <button class="px-icon-btn" onclick="initiateCall('video', '{{ c.receiver_profile_id if c.caller_profile_id == profile.id else c.caller_profile_id }}')"><i class="fas fa-video"></i></button>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <div style="padding: 60px; text-align: center; color: var(--chain-muted);">
-                <i class="fas fa-phone-alt fa-3x" style="margin-bottom: 24px; opacity: 0.1;"></i>
-                <p>No recent calls</p>
-            </div>
-        {% endif %}
+  <!-- Camera Denied Banner -->
+  <div id="cameraDeniedBanner">
+    <i class="fas fa-exclamation-triangle"></i>
+    <span class="denied-text">Camera access was denied. Switch to audio-only?</span>
+    <button class="denied-btn" onclick="switchToAudioOnly()">Audio Only</button>
+  </div>
+
+  <!-- Reconnecting Overlay -->
+  <div id="reconnectingOverlay">
+    <div class="reconnecting-card">
+      <div class="reconnecting-spinner"></div>
+      <h3>Reconnecting...</h3>
+      <p>Your call connection was lost. We're trying to restore it.</p>
     </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="call-filters">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="missed">Missed</button>
+    <button class="filter-btn" data-filter="received">Received</button>
+    <button class="filter-btn" data-filter="outgoing">Outgoing</button>
+    <button class="filter-btn" data-filter="rejected">Rejected</button>
+  </div>
+
+  <!-- Call List -->
+  <div class="call-list">
+    {% if calls %}
+      {% for c in calls %}
+        {% set other_username = c.receiver_username if c.caller_profile_id == profile.id else c.caller_username %}
+        {% set other_avatar = c.receiver_avatar if c.caller_profile_id == profile.id else c.caller_avatar %}
+        {% set is_outgoing = c.caller_profile_id == profile.id %}
+        {% set data_status = 'missed' if c.call_status == 'missed' else ('rejected' if c.call_status == 'rejected' else ('outgoing' if is_outgoing else 'received')) %}
+        {% set status_icon = 'missed' if c.call_status == 'missed' else ('rejected' if c.call_status == 'rejected' else ('outgoing' if is_outgoing else 'incoming')) %}
+        <div class="call-item" data-call-status="{{ data_status }}">
+          <div class="call-avatar-wrap">
+            <img src="{{ other_avatar or '' }}" alt="">
+            <span class="call-type-badge {{ c.call_type or 'audio' }}">
+              <i class="fas fa-{{ 'video' if c.call_type == 'video' else 'phone' }}"></i>
+            </span>
+          </div>
+          <div class="call-info">
+            <div class="call-name">
+              {{ other_username or 'Unknown' }}
+              {% if c.last_seen %}
+              <span class="last-seen">{{ c.last_seen }}</span>
+              {% endif %}
+            </div>
+            <div class="call-meta">
+              <span class="status-icon {{ status_icon }}">
+                {% if c.call_status == 'missed' %}
+                  <i class="fas fa-phone-slash"></i> Missed
+                {% elif c.call_status == 'rejected' %}
+                  <i class="fas fa-ban"></i> Rejected
+                {% elif is_outgoing %}
+                  <i class="fas fa-arrow-up-right"></i> Outgoing
+                {% else %}
+                  <i class="fas fa-arrow-down-left"></i> Incoming
+                {% endif %}
+              </span>
+              <span>•</span>
+              <span>{{ c.started_at|datetime }}</span>
+              {% if c.duration_seconds and c.duration_seconds > 0 %}
+              {% set mins = c.duration_seconds // 60 %}
+              {% set secs = c.duration_seconds % 60 %}
+              <span class="call-duration"><i class="far fa-clock"></i> {{ mins }}m {% if secs < 10 %}0{% endif %}{{ secs }}s</span>
+              {% endif %}
+              {% if c.network_quality %}
+              <span class="net-badge {{ c.network_quality }}">
+                <span class="signal-bar">
+                  <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+                </span>
+                {{ c.network_quality|title }}
+              </span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="call-actions">
+            <button class="call-action-btn" onclick="initiateCall('audio', '{{ c.receiver_profile_id if is_outgoing else c.caller_profile_id }}')" title="Audio call"><i class="fas fa-phone"></i></button>
+            <button class="call-action-btn" onclick="initiateCall('video', '{{ c.receiver_profile_id if is_outgoing else c.caller_profile_id }}')" title="Video call"><i class="fas fa-video"></i></button>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon-wrap">
+          <div class="empty-ring"></div>
+          <i class="fas fa-phone-alt empty-phone"></i>
+        </div>
+        <div class="empty-title">No recent calls</div>
+        <div class="empty-sub">When you make or receive calls, they'll appear here. Start a conversation to connect.</div>
+        <button class="px-btn" onclick="location.href='/messages/'"><i class="fas fa-comment"></i> Start a conversation</button>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Add Participant Modal -->
+<div id="addParticipantModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>Add Participant</h2>
+    <p>Enter the username of the person you'd like to call.</p>
+    <input type="text" id="participantUsername" class="modal-input" placeholder="Username" autocomplete="off">
+    <div id="modalError" class="modal-error" style="display:none;"></div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" onclick="closeAddParticipantModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="addParticipant()">Call</button>
+    </div>
+  </div>
 </div>
 
 <script>
-    function initiateCall(type, targetId) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/calls/start';
-        form.innerHTML = `
-            <input type="hidden" name="receiver_id" value="${targetId}">
-            <input type="hidden" name="call_type" value="${type}">
-        `;
-        document.body.appendChild(form);
-        form.submit();
+  function initiateCall(type, targetId) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/calls/start';
+    form.innerHTML = '<input type="hidden" name="receiver_id" value="' + targetId + '"><input type="hidden" name="call_type" value="' + type + '">';
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  // ── Filters ──
+  document.querySelectorAll('.filter-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      var filter = this.getAttribute('data-filter');
+      document.querySelectorAll('.call-item').forEach(function(item) {
+        if (filter === 'all' || item.getAttribute('data-call-status') === filter) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    });
+  });
+
+  // ── Add Participant Modal ──
+  function openAddParticipantModal() {
+    document.getElementById('addParticipantModal').classList.add('open');
+    document.getElementById('participantUsername').value = '';
+    document.getElementById('modalError').style.display = 'none';
+    document.getElementById('participantUsername').focus();
+  }
+  function closeAddParticipantModal() {
+    document.getElementById('addParticipantModal').classList.remove('open');
+  }
+  document.getElementById('addParticipantModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddParticipantModal();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeAddParticipantModal();
+  });
+  document.getElementById('participantUsername').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') addParticipant();
+  });
+
+  function addParticipant() {
+    var username = document.getElementById('participantUsername').value.trim();
+    var errorEl = document.getElementById('modalError');
+    if (!username) {
+      errorEl.textContent = 'Please enter a username.';
+      errorEl.style.display = 'block';
+      return;
     }
+    // Look up username and start call
+    fetch('/search?q=' + encodeURIComponent(username) + '&format=json')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.profiles && data.profiles.length > 0) {
+          var profile = data.profiles[0];
+          if (profile && profile.id) {
+            closeAddParticipantModal();
+            initiateCall('video', profile.id);
+          } else {
+            errorEl.textContent = 'User not found.';
+            errorEl.style.display = 'block';
+          }
+        } else {
+          errorEl.textContent = 'User not found.';
+          errorEl.style.display = 'block';
+        }
+      })
+      .catch(function() {
+        errorEl.textContent = 'Could not find user. Please try again.';
+        errorEl.style.display = 'block';
+      });
+  }
+
+  // ── Reconnecting State ──
+  function showReconnecting() { document.getElementById('reconnectingOverlay').classList.add('open'); }
+  function hideReconnecting() { document.getElementById('reconnectingOverlay').classList.remove('open'); }
+
+  // ── Camera Denied Fallback ──
+  function showCameraDenied() { document.getElementById('cameraDeniedBanner').classList.add('open'); }
+  function hideCameraDenied() { document.getElementById('cameraDeniedBanner').classList.remove('open'); }
+  function switchToAudioOnly() {
+    hideCameraDenied();
+    // Will fall back to audio-only in the call
+  }
+
+  // ── Socket Listeners ──
+  if (window.socket) {
+    window.socket.on('call:quality', function(data) {
+      var items = document.querySelectorAll('.call-item');
+      // In a real app, update per-call network badge
+    });
+  }
 </script>
 {% endblock %}

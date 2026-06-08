@@ -249,6 +249,17 @@ def my_profile():
 
         viewer = get_current_profile()
         if not viewer:
+            if not _is_production_env() and session.get("profile_id"):
+                viewer = _session_profile_stub()
+                context = _profile_fallback_context()
+                context["profile"] = viewer
+                context["viewer"] = viewer
+                try:
+                    context["content"] = get_profile_content(viewer.get("id"))
+                    context["stats"] = get_profile_stats(viewer.get("id"))
+                except Exception:
+                    pass
+                return render_template("profile/index.html", **context)
             session[K_PROFILE_WARNING] = True
             log_warning(
                 "profile_missing_for_session",
@@ -257,6 +268,17 @@ def my_profile():
                 email=session.get("auth_email") or session.get("email"),
             )
             return redirect(url_for("profile.create_profile"))
+
+        if viewer.get("profile_fallback"):
+            context = _profile_fallback_context()
+            context["profile"] = viewer
+            context["viewer"] = viewer
+            try:
+                context["content"] = get_profile_content(viewer.get("id"))
+                context["stats"] = get_profile_stats(viewer.get("id"))
+            except Exception:
+                pass
+            return render_template("profile/index.html", **context)
 
         session.pop(K_PROFILE_WARNING, None)
 
@@ -905,7 +927,21 @@ def update_privacy():
     payload = {
         "profile_visibility": visibility,
         "allow_audio_calls": allow_audio,
-        "allow_video_calls": allow_video
+        "allow_video_calls": allow_video,
+        "allow_group_calls": request.form.get("allow_group_calls") == "on",
+        "allow_conference_calls": request.form.get("allow_conference_calls") == "on",
+        "allow_add_to_call": request.form.get("allow_add_to_call") == "on",
+        "allow_unknown_callers": request.form.get("allow_unknown_callers") == "on",
+        "call_quality_audio": request.form.get("call_quality_audio", "auto"),
+        "call_quality_video": request.form.get("call_quality_video", "auto"),
+        "call_ringtone": request.form.get("call_ringtone", "chain_classic"),
+        "call_vibration": request.form.get("call_vibration") == "on",
+        "auto_answer_headset": request.form.get("auto_answer_headset") == "on",
+        "speaker_default": request.form.get("speaker_default") == "on",
+        "noise_suppression": request.form.get("noise_suppression") == "on",
+        "echo_cancellation": request.form.get("echo_cancellation") == "on",
+        "hd_video": request.form.get("hd_video") == "on",
+        "save_call_history": request.form.get("save_call_history") == "on"
     }
     ok = safe_update("chain_profiles", payload, eq={"id": profile["id"]})
     flash("Privacy settings updated.", "success")

@@ -1,3 +1,4 @@
+import copy
 import time
 import threading
 import os
@@ -16,12 +17,22 @@ from services.neon_service import (
     get_tables_columns,
     is_circuit_open,
 )
+from services.homepage_cache_service import (
+    HOMEPAGE_TTL_SECONDS,
+    get_full,
+    get_payload,
+    remember_section,
+    set_full,
+    set_payload,
+)
+from services.query_optimizer import HOMEPAGE_QUERY_BUDGET_MS, batch_load_profiles, profiled_query
+from services.logging_service import log_info
 from services.profile_service import get_current_profile
 from services.wallet_service import ensure_wallet
 from services.content_service import local_content, active_local_stories
 
 
-_CACHE_TTL_SECONDS = 3000
+_CACHE_TTL_SECONDS = HOMEPAGE_TTL_SECONDS
 _EMPTY_CACHE_TTL_SECONDS = 300
 _QUERY_TIMEOUT_MS = 1500
 _TOTAL_BUDGET_MS = 1200
@@ -39,10 +50,27 @@ _SCHEMA_LOCK = threading.Lock()
 _OUTAGE_LOG = {"expires_at": 0.0}
 _EXECUTOR = ThreadPoolExecutor(max_workers=10)
 _SHARED_FEED_CACHE_PREFIX = "chain_homepage_feed_v1"
+_TIMING_ROOT = threading.local()
 
 
 def _log(message):
     print(f"[homepage_service] {message}")
+
+
+def _timing_origin():
+    return getattr(_TIMING_ROOT, "started_at", None) or time.perf_counter()
+
+
+def _log_section_timing(section_name, start, end=None):
+    end = end or time.perf_counter()
+    origin = _timing_origin()
+    log_info(
+        "homepage_section_timing",
+        section_name=section_name,
+        start_ms=round((start - origin) * 1000, 2),
+        end_ms=round((end - origin) * 1000, 2),
+        duration_ms=round((end - start) * 1000, 2),
+    )
 
 
 def _fast_local_enabled():
@@ -210,7 +238,14 @@ def _select_columns(table_name, candidates, required=None):
 def _run_sql(query_key, sql_text, params=None, timeout_ms=_QUERY_TIMEOUT_MS):
     rows = request_memoize(
         build_request_key("homepage_sql", query_key, sql_text, tuple(params or [])),
-        lambda: fast_query(sql_text, params=params or [], timeout_ms=timeout_ms, default=[]),
+        lambda: profiled_query(
+            query_key,
+            sql_text,
+            params=params or [],
+            timeout_ms=timeout_ms,
+            default=[],
+            budget_ms=HOMEPAGE_QUERY_BUDGET_MS.get(query_key.split(":")[0]),
+        ),
     )
     issue = f"{query_key}: unavailable" if not rows and get_pool_status().get("backoff_active") else None
     return rows, issue
@@ -221,26 +256,14 @@ def _profile_select():
         "chain_profiles",
         [
             "id",
-            "auth_user_id",
             "username",
             "display_name",
             "full_name",
             "avatar_url",
-            "photo_url",
-            "town",
-            "city",
-            "location",
-            "region",
-            "country",
-            "country_origin",
-            "current_location",
             "is_verified",
             "verified",
-            "is_online",
             "is_creator",
             "creator_category",
-            "dating_mode_enabled",
-            "created_at",
             "deleted_at",
         ],
         required=["id"],
@@ -486,33 +509,14 @@ def _fetch_live_rooms():
 
 
 def _load_profile_map(profile_ids):
-    unique_ids = [profile_id for profile_id in dict.fromkeys(profile_ids) if profile_id]
-
-    # Hard limit: homepage must not load too many profiles in one request.
-    unique_ids = unique_ids[:12]
-
+    started = time.perf_counter()
     columns = _profile_select()
-    if not unique_ids or not columns:
+    if not profile_ids or not columns:
+        _log_section_timing("_load_profile_map", started)
         return {}
-
-    available = set(columns)
-    placeholders = ", ".join(["%s"] * len(unique_ids))
-    where = _build_where(available, [f"id IN ({placeholders})"])
-    query = f"SELECT {', '.join(columns)} FROM chain_profiles WHERE {' AND '.join(where)}"
-
-    # Very tight timeout so profile enrichment cannot freeze homepage.
-    rows, issue = _run_sql(
-        f"profile_map:{len(unique_ids)}",
-        query,
-        unique_ids,
-        timeout_ms=250
-    )
-
-    if issue:
-        _log_outage_once(f"profile_map skipped: {issue}")
-        return {}
-
-    return {row.get("id"): _normalize_profile(row) for row in rows if row.get("id")}
+    result = batch_load_profiles(profile_ids, columns, _build_where, _normalize_profile, timeout_ms=200)
+    _log_section_timing("_load_profile_map", started)
+    return result
 
 
 def _normalize_profile(row):
@@ -611,6 +615,8 @@ def _wallet_snapshot(current):
     snapshot = {"coin_balance": 0, "gift_earnings": 0, "label_balance": "0"}
     if not current or not current.get("id"):
         return snapshot
+    if current.get("profile_fallback") or os.getenv("FLASK_TESTING") == "1" or (os.getenv("CHAIN_FAST_LOCAL") == "1" and os.getenv("FLASK_ENV", "development") != "production"):
+        return snapshot
     try:
         wallet = ensure_wallet(current["id"]) or {}
         snapshot["coin_balance"] = _safe_int(wallet.get("coin_balance"), 0)
@@ -640,6 +646,8 @@ def _safe_current_profile():
                 "avatar_url": session.get("avatar_url"),
                 "profile_completed": bool(session.get("profile_completed")),
             }
+        if not session.get("profile_id"):
+            return None
         profile = get_current_profile()
         return profile if profile else None
     except Exception as error:
@@ -649,14 +657,36 @@ def _safe_current_profile():
 
 def build_homepage_payload(async_warm=False):
     """Consolidated lightweight homepage payload builder with parallelization and tight budget."""
+    total_started = time.perf_counter()
+    previous_origin = getattr(_TIMING_ROOT, "started_at", None)
+    _TIMING_ROOT.started_at = total_started
+
+    def restore_timing_origin():
+        if previous_origin is None:
+            try:
+                delattr(_TIMING_ROOT, "started_at")
+            except Exception:
+                pass
+        else:
+            _TIMING_ROOT.started_at = previous_origin
+
     cache_key_str = cache_key("chain_homepage_v3", "public")
-    cached = get_cache(cache_key_str)
+    cached = get_payload() or get_cache(cache_key_str)
     if cached is not None:
+        log_info(
+            "homepage_timing",
+            homepage_total_ms=round((time.perf_counter() - total_started) * 1000, 2),
+            cache_hit=True,
+        )
+        _log_section_timing("build_homepage_payload", total_started)
+        restore_timing_origin()
         return cached
 
     if _fast_local_enabled():
         payload = _empty_homepage_payload("fast_local_defaults")
         set_cache(cache_key_str, payload, ttl=_EMPTY_CACHE_TTL_SECONDS)
+        _log_section_timing("build_homepage_payload", total_started)
+        restore_timing_origin()
         return payload
 
     payload = _empty_homepage_payload()
@@ -664,61 +694,119 @@ def build_homepage_payload(async_warm=False):
     # Fast exit if Neon circuit is open
     if is_circuit_open():
         payload["issues"].append("neon: unavailable")
+        _log_section_timing("build_homepage_payload", total_started)
+        restore_timing_origin()
         return payload
 
     pool_status = get_pool_status()
     if not pool_status.get("recent_success") and not pool_status.get("pool_ready"):
         payload["issues"].append("neon: cold-start-pending")
+        _log_section_timing("build_homepage_payload", total_started)
+        restore_timing_origin()
         return payload
 
     started = time.perf_counter()
+    section_timings = {}
+    section_cache_hits = {}
+
+    def timed_section(cache_name, section_name, loader, ttl=HOMEPAGE_TTL_SECONDS):
+        section_started = time.perf_counter()
+        value, cache_hit, _ = remember_section(cache_name, loader, ttl=ttl)
+        _log_section_timing(section_name, section_started)
+        section_timings[f"{section_name}_ms"] = round((time.perf_counter() - section_started) * 1000, 2)
+        section_cache_hits[cache_name] = cache_hit
+        return value
     
     def fetch_stories():
         cols = _story_select()
         if not cols: return []
-        return fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_stories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 12",
-            timeout_ms=1000
+        return timed_section(
+            "stories",
+            "_fetch_stories",
+            lambda: profiled_query(
+                "stories",
+                f"SELECT {', '.join(cols)} FROM chain_stories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 12",
+                timeout_ms=100,
+                default=[],
+                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["stories"],
+            ),
         )
 
     def fetch_live():
         cols = _live_select()
         if not cols: return []
-        return fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE (is_live = TRUE OR status = 'live') AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
-            timeout_ms=1000
+        return timed_section(
+            "live_rooms",
+            "_fetch_live_rooms",
+            lambda: profiled_query(
+                "live_rooms",
+                f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE (is_live = TRUE OR status = 'live') AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
+                timeout_ms=100,
+                default=[],
+                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["live_rooms"],
+            ),
         )
 
     def fetch_profiles():
         cols = _profile_select()
         if not cols: return []
-        return fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 10",
-            timeout_ms=1000
+        return timed_section(
+            "creator_profiles",
+            "creator_section",
+            lambda: profiled_query(
+                "profiles",
+                f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 10",
+                timeout_ms=200,
+                default=[],
+                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["profiles"],
+            ),
+            ttl=60,
         )
 
     def fetch_posts():
         cols = _post_select()
         if not cols: return []
-        return fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY created_at DESC NULLS LAST LIMIT 8",
-            timeout_ms=1000
+        return timed_section(
+            "trending_posts",
+            "_fetch_posts",
+            lambda: profiled_query(
+                "posts",
+                f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY created_at DESC NULLS LAST LIMIT 8",
+                timeout_ms=200,
+                default=[],
+                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["posts"],
+            ),
         )
 
     def fetch_matches():
         cols = _profile_select()
         if not cols: return []
-        return fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_profiles WHERE dating_mode_enabled = TRUE AND deleted_at IS NULL ORDER BY random() LIMIT 8",
-            timeout_ms=1000
+        return timed_section(
+            "dating_previews",
+            "dating_previews",
+            lambda: profiled_query(
+                "profiles",
+                f"SELECT {', '.join(cols)} FROM chain_profiles WHERE dating_mode_enabled = TRUE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
+                timeout_ms=200,
+                default=[],
+                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["profiles"],
+            ),
+            ttl=60,
         )
 
     def fetch_reels():
         cols = _reel_select()
         if not cols: return []
-        return fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
-            timeout_ms=1000
+        return timed_section(
+            "reels",
+            "_fetch_reels",
+            lambda: profiled_query(
+                "reels",
+                f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
+                timeout_ms=100,
+                default=[],
+                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["reels"],
+            ),
         )
 
     tasks = {
@@ -756,7 +844,9 @@ def build_homepage_payload(async_warm=False):
     for row in payload["reels"]: profile_ids.append(row.get("profile_id"))
 
     # 2. Load the profile map
+    profile_started = time.perf_counter()
     profile_map = _load_profile_map(profile_ids)
+    section_timings["profiles_ms"] = round((time.perf_counter() - profile_started) * 1000, 2)
 
     # 3. Normalize all collections
     payload["stories"] = [row for row in (_normalize_story(r, profile_map) for r in payload["stories"]) if row.get("id")]
@@ -786,6 +876,17 @@ def build_homepage_payload(async_warm=False):
     }
 
     elapsed_ms = (time.perf_counter() - started) * 1000
+    log_info(
+        "homepage_timing",
+        homepage_total_ms=round((time.perf_counter() - total_started) * 1000, 2),
+        stories_ms=section_timings.get("_fetch_stories_ms", 0),
+        reels_ms=section_timings.get("_fetch_reels_ms", 0),
+        live_rooms_ms=section_timings.get("_fetch_live_rooms_ms", 0),
+        posts_ms=section_timings.get("_fetch_posts_ms", 0),
+        profiles_ms=section_timings.get("profiles_ms", 0),
+        cache_hit=False,
+        section_cache_hits=section_cache_hits,
+    )
     if elapsed_ms > _TOTAL_BUDGET_MS:
         payload["issues"].append(f"budget_exceeded: {elapsed_ms:.1f}ms")
         _log_outage_once(f"homepage budget exceeded: {elapsed_ms:.1f}ms")
@@ -793,24 +894,149 @@ def build_homepage_payload(async_warm=False):
     # Only cache if we got everything or if this is the async warm
     if (done_count == len(tasks) and not is_circuit_open()) or async_warm:
         set_cache(cache_key_str, payload, ttl=_CACHE_TTL_SECONDS)
+        set_payload(payload, ttl=_CACHE_TTL_SECONDS)
     elif "partial_fallback" in payload["issues"] or "neon: unavailable" in payload["issues"]:
         # Trigger async warm if we fell back
         if not _fast_local_enabled():
             _EXECUTOR.submit(build_homepage_payload, async_warm=True)
 
+    _log_section_timing("build_homepage_payload", total_started)
+    if previous_origin is None:
+        try:
+            delattr(_TIMING_ROOT, "started_at")
+        except Exception:
+            pass
+    else:
+        _TIMING_ROOT.started_at = previous_origin
     return payload
+
+def _fetch_groups():
+    """Fetch trending/public groups for homepage."""
+    cached = get_cache(cache_key("home_groups"))
+    if cached is not None:
+        return cached
+    try:
+        from services.group_feature_service import get_public_groups
+        groups = get_public_groups(limit=6) or []
+        result = [{
+            "id": g.get("id"),
+            "name": g.get("name") or g.get("display_name") or "Group",
+            "display_name": g.get("display_name") or g.get("name") or "Group",
+            "member_count": g.get("member_count") or g.get("members_count") or 0,
+            "access_type": g.get("access_type") or g.get("type") or "public",
+            "cover_url": g.get("cover_url") or g.get("thumbnail_url") or "",
+            "description": g.get("description") or g.get("welcome_message") or "",
+            "created_label": _format_relative(g.get("created_at")),
+        } for g in (groups or [])]
+        set_cache(cache_key("home_groups"), result, ttl=30)
+        return result
+    except Exception as e:
+        _log(f"groups unavailable: {e}")
+        return []
+
+
+def _fetch_sponsored_posts():
+    """Fetch sponsored/ad posts for homepage."""
+    started = time.perf_counter()
+    cached = get_cache(cache_key("home_sponsored"))
+    if cached is not None:
+        _log_section_timing("sponsored_posts_section", started)
+        return cached
+    try:
+        cols = _post_select()
+        if not cols:
+            _log_section_timing("sponsored_posts_section", started)
+            return []
+        available = set(cols)
+        where = _build_where(available)
+        query = "SELECT " + ", ".join(cols) + " FROM chain_posts"
+        if where:
+            query += " WHERE " + " AND ".join(where)
+        query += " ORDER BY created_at DESC NULLS LAST LIMIT 4"
+        rows, _ = _run_sql("sponsored_posts", query, [])
+        p_map = {}
+        result = [{
+            **_normalize_post(r, p_map),
+            "sponsored": True,
+        } for r in rows if r.get("id")]
+        set_cache(cache_key("home_sponsored"), result, ttl=60)
+        _log_section_timing("sponsored_posts_section", started)
+        return result
+    except Exception as e:
+        _log(f"sponsored_posts unavailable: {e}")
+        _log_section_timing("sponsored_posts_section", started)
+        return []
+
+
+def _fetch_announcements():
+    """Fetch public announcements for homepage."""
+    return []
+
+
+def _fetch_nearby_users(current_profile=None):
+    """Fetch nearby/trending users for homepage sidebar."""
+    started = time.perf_counter()
+    cached = get_cache(cache_key("home_nearby"))
+    if cached is not None:
+        _log_section_timing("nearby_users_section", started)
+        return cached
+    try:
+        cols = _profile_select()
+        if not cols:
+            _log_section_timing("nearby_users_section", started)
+            return []
+        available = set(cols)
+        where = _build_where(available)
+        query = "SELECT " + ", ".join(cols) + " FROM chain_profiles"
+        if where:
+            query += " WHERE " + " AND ".join(where)
+        query += " ORDER BY created_at DESC NULLS LAST LIMIT 4"
+        rows, _ = _run_sql("nearby_users", query, [])
+        result = [_normalize_profile(r) for r in rows if r.get("id")]
+        set_cache(cache_key("home_nearby"), result, ttl=60)
+        _log_section_timing("nearby_users_section", started)
+        return result
+    except Exception as e:
+        _log(f"nearby_users unavailable: {e}")
+        _log_section_timing("nearby_users_section", started)
+        return []
+
 
 def get_homepage_data():
     from flask import session
-    current_profile_id = "public_local_cache"
-    full_cache_key = cache_key("chain_homepage_full_v1", current_profile_id)
+    page_started = time.perf_counter()
+    previous_origin = getattr(_TIMING_ROOT, "started_at", None)
+    _TIMING_ROOT.started_at = page_started
 
-    cached_full = get_cache(full_cache_key)
+    def restore_timing_origin():
+        if previous_origin is None:
+            try:
+                delattr(_TIMING_ROOT, "started_at")
+            except Exception:
+                pass
+        else:
+            _TIMING_ROOT.started_at = previous_origin
+
+    has_session_profile = bool(session.get("profile_id") or session.get("auth_user_id") or session.get("user_id"))
+    full_cache_key = cache_key("homepage", "full", "public")
+
+    cached_full = None if has_session_profile else (get_full("public") or get_cache(full_cache_key))
     if cached_full is not None:
+        log_info(
+            "homepage_timing",
+            homepage_total_ms=round((time.perf_counter() - page_started) * 1000, 2),
+            stories_ms=0,
+            reels_ms=0,
+            live_rooms_ms=0,
+            posts_ms=0,
+            profiles_ms=0,
+            cache_hit=True,
+        )
+        restore_timing_origin()
         return cached_full
 
     current = _safe_current_profile()
-    public_data = build_homepage_payload()
+    public_data = copy.deepcopy(build_homepage_payload())
     if current and current.get("id"):
         own_rows = fetch_all(
             """
@@ -826,7 +1052,7 @@ def get_homepage_data():
             LIMIT 4
             """,
             (current["id"], current.get("auth_user_id")),
-            timeout_ms=30000,
+            timeout_ms=500,
         )
         if own_rows:
             profile_map = {current.get("id"): _normalize_profile(current)}
@@ -860,6 +1086,10 @@ def get_homepage_data():
     public_data["stats"]["posts"] = len(public_data.get("trending_posts", []))
     public_data["stats"]["reels"] = len(public_data.get("reels", []))
     public_data["stats"]["stories"] = len(public_data.get("stories", []))
+    public_data["groups"] = _fetch_groups()
+    public_data["sponsored_posts"] = _fetch_sponsored_posts()
+    public_data["announcements"] = _fetch_announcements()
+    public_data["nearby_users"] = _fetch_nearby_users(current)
     wallet = _wallet_snapshot(current)
     result = {
         "current": current,
@@ -872,5 +1102,9 @@ def get_homepage_data():
         "missing_sources": public_data["issues"],
     }
 
-    set_cache(full_cache_key, result, ttl=60)
+    if not current:
+        set_cache(full_cache_key, result, ttl=_CACHE_TTL_SECONDS)
+        set_full("public", result, ttl=_CACHE_TTL_SECONDS)
+    _log_section_timing("get_homepage_data", page_started)
+    restore_timing_origin()
     return result

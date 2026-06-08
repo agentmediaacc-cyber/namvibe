@@ -1,0 +1,50 @@
+from services.cache_service import delete, get, remember, set, status
+
+
+HOMEPAGE_TTL_SECONDS = 30
+SECTION_KEYS = {
+    "stories": "phase51:homepage:stories",
+    "reels": "phase51:homepage:reels",
+    "live_rooms": "phase51:homepage:live_rooms",
+    "trending_posts": "phase51:homepage:trending_posts",
+    "payload": "phase51:homepage:payload",
+    "full": "phase51:homepage:full",
+}
+
+
+def get_section(name, default=None):
+    return get(SECTION_KEYS[name], default=default)
+
+
+def set_section(name, value, ttl=HOMEPAGE_TTL_SECONDS):
+    return set(SECTION_KEYS[name], value, ttl=ttl)
+
+
+def remember_section(name, loader, ttl=HOMEPAGE_TTL_SECONDS):
+    return remember(SECTION_KEYS[name], loader, ttl=ttl, default=[])
+
+
+def get_payload():
+    return get(SECTION_KEYS["payload"])
+
+
+def set_payload(value, ttl=HOMEPAGE_TTL_SECONDS):
+    return set(SECTION_KEYS["payload"], value, ttl=ttl)
+
+
+def get_full(key_suffix="public"):
+    return get(f"{SECTION_KEYS['full']}:{key_suffix}")
+
+
+def set_full(key_suffix, value, ttl=HOMEPAGE_TTL_SECONDS):
+    return set(f"{SECTION_KEYS['full']}:{key_suffix}", value, ttl=ttl)
+
+
+def invalidate_homepage_cache():
+    for key in SECTION_KEYS.values():
+        delete(key)
+    delete(f"{SECTION_KEYS['full']}:public_local_cache")
+
+
+def cache_status():
+    return {"ttl_seconds": HOMEPAGE_TTL_SECONDS, **status()}

@@ -1,0 +1,338 @@
+import os
+import re
+import uuid
+from datetime import datetime, timezone
+
+from services.neon_service import fast_query, get_pool_status, write_query
+from services.socketio_service import emit_to_profile, emit_to_thread
+
+_THREADS = {}
+_MESSAGES = {}
+_READS = {}
+_REACTIONS = {}
+_STARS = set()
+_VOICE_NOTES = {}
+_ATTACHMENTS = {}
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _uuid(value=None):
+    if value:
+        try:
+            return str(uuid.UUID(str(value)))
+        except (TypeError, ValueError):
+            pass
+    return str(uuid.uuid4())
+
+
+def _db_available():
+    if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    status = get_pool_status()
+    return bool(status.get("pool_ready") or status.get("recent_success") or status.get("configured"))
+
+
+def _safe_write(sql, params=(), timeout_ms=900):
+    if not _db_available():
+        raise RuntimeError("db_unavailable")
+    return write_query(sql, params, timeout_ms=timeout_ms)
+
+
+def _safe_query(sql, params=(), timeout_ms=700, default=None):
+    if not _db_available():
+        return default if default is not None else []
+    return fast_query(sql, params, timeout_ms=timeout_ms, default=default if default is not None else [])
+
+
+def create_direct_thread(profile_a, profile_b):
+    profile_a = _uuid(profile_a)
+    profile_b = _uuid(profile_b)
+    if profile_a == profile_b:
+        return {"ok": False, "error": "same_profile"}
+    existing = _safe_query(
+        """
+        SELECT tm1.thread_id
+        FROM chain_thread_members tm1
+        JOIN chain_thread_members tm2 ON tm1.thread_id = tm2.thread_id
+        JOIN chain_message_threads t ON t.id = tm1.thread_id
+        WHERE tm1.profile_id = %s AND tm2.profile_id = %s AND t.thread_type = 'direct'
+        LIMIT 1
+        """,
+        (profile_a, profile_b),
+        default=[],
+    )
+    if existing:
+        return {"ok": True, "thread_id": str(existing[0]["thread_id"]), "existing": True}
+
+    thread_id = str(uuid.uuid4())
+    try:
+        _safe_write(
+            "INSERT INTO chain_message_threads (id, created_by_profile_id, thread_type, folder_type, created_at, updated_at) VALUES (%s, %s, 'direct', 'primary', now(), now())",
+            (thread_id, profile_a),
+        )
+        _safe_write(
+            "INSERT INTO chain_thread_members (thread_id, profile_id) VALUES (%s, %s), (%s, %s) ON CONFLICT DO NOTHING",
+            (thread_id, profile_a, thread_id, profile_b),
+        )
+    except Exception:
+        _THREADS[thread_id] = {"id": thread_id, "thread_type": "direct", "members": [profile_a, profile_b], "created_at": _now()}
+        _MESSAGES.setdefault(thread_id, [])
+    return {"ok": True, "thread_id": thread_id, "existing": False}
+
+
+def send_text_message(thread_id, sender_profile_id, body, **meta):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    body = (body or "").strip()
+    if not body:
+        return {"ok": False, "error": "empty_message"}
+    message_id = str(uuid.uuid4())
+    client_event_id = meta.get("client_event_id") or str(uuid.uuid4())
+    parent_message_id = meta.get("parent_message_id")
+    is_forwarded = bool(meta.get("is_forwarded"))
+    try:
+        rows = _safe_write(
+            """
+            INSERT INTO chain_messages
+                (id, thread_id, sender_profile_id, body, message_type, client_event_id, parent_message_id, is_forwarded, delivery_status, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'sent', now())
+            RETURNING *
+            """,
+            (message_id, thread_id, sender_profile_id, body, meta.get("message_type", "text"), client_event_id, parent_message_id, is_forwarded),
+        )
+        message = rows[0] if rows else {"id": message_id, "thread_id": thread_id, "sender_profile_id": sender_profile_id, "body": body}
+        _safe_write("UPDATE chain_message_threads SET updated_at = now() WHERE id = %s", (thread_id,), timeout_ms=500)
+    except Exception:
+        message = {
+            "id": message_id,
+            "thread_id": thread_id,
+            "sender_profile_id": sender_profile_id,
+            "body": body,
+            "message_type": meta.get("message_type", "text"),
+            "delivery_status": "sent",
+            "created_at": _now(),
+        }
+        _MESSAGES.setdefault(thread_id, []).append(message)
+    emit_to_thread(thread_id, "message:new", message)
+    return {"ok": True, "message": message, "message_id": message_id}
+
+
+def get_thread_messages(thread_id, profile_id=None, limit=100):
+    thread_id = _uuid(thread_id)
+    rows = _safe_query(
+        """
+        SELECT * FROM chain_messages
+        WHERE thread_id = %s AND deleted_at IS NULL
+        ORDER BY created_at ASC
+        LIMIT %s
+        """,
+        (thread_id, int(limit)),
+        default=None,
+    )
+    if rows:
+        return rows
+    return [message for message in list(_MESSAGES.get(thread_id, [])) if not message.get("deleted_at")][-int(limit):]
+
+
+def mark_delivered(thread_id, profile_id):
+    thread_id = _uuid(thread_id)
+    profile_id = _uuid(profile_id)
+    try:
+        _safe_write(
+            "UPDATE chain_messages SET delivery_status = 'delivered', delivered_at = COALESCE(delivered_at, now()) WHERE thread_id = %s AND sender_profile_id != %s AND delivery_status = 'sent'",
+            (thread_id, profile_id),
+        )
+    except Exception:
+        for message in _MESSAGES.get(thread_id, []):
+            if message.get("sender_profile_id") != profile_id and message.get("delivery_status") == "sent":
+                message["delivery_status"] = "delivered"
+                message["delivered_at"] = _now()
+    emit_to_thread(thread_id, "message:delivered", {"thread_id": thread_id, "profile_id": profile_id})
+    return {"ok": True}
+
+
+def mark_seen(thread_id, profile_id):
+    thread_id = _uuid(thread_id)
+    profile_id = _uuid(profile_id)
+    try:
+        _safe_write(
+            "UPDATE chain_messages SET is_seen = TRUE, delivery_status = 'seen', seen_at = COALESCE(seen_at, now()), read_at = COALESCE(read_at, now()) WHERE thread_id = %s AND sender_profile_id != %s",
+            (thread_id, profile_id),
+        )
+        _safe_write("UPDATE chain_thread_members SET last_read_at = now() WHERE thread_id = %s AND profile_id = %s", (thread_id, profile_id), timeout_ms=500)
+    except Exception:
+        _READS[(thread_id, profile_id)] = _now()
+        for message in _MESSAGES.get(thread_id, []):
+            if message.get("sender_profile_id") != profile_id:
+                message["is_seen"] = True
+                message["delivery_status"] = "seen"
+                message["seen_at"] = _now()
+    emit_to_thread(thread_id, "message:seen", {"thread_id": thread_id, "profile_id": profile_id})
+    return {"ok": True}
+
+
+def unread_count(profile_id):
+    profile_id = _uuid(profile_id)
+    rows = _safe_query(
+        """
+        SELECT COUNT(*) AS count
+        FROM chain_messages m
+        JOIN chain_thread_members tm ON tm.thread_id = m.thread_id AND tm.profile_id = %s
+        WHERE m.sender_profile_id != %s AND COALESCE(m.is_seen, FALSE) = FALSE AND m.deleted_at IS NULL
+        """,
+        (profile_id, profile_id),
+        default=None,
+    )
+    if rows:
+        return int(rows[0].get("count") or 0)
+    total = 0
+    for thread_id, messages in _MESSAGES.items():
+        if profile_id in (_THREADS.get(thread_id, {}).get("members") or []):
+            total += sum(1 for m in messages if m.get("sender_profile_id") != profile_id and not m.get("is_seen"))
+    return total
+
+
+def add_reaction(message_id, profile_id, reaction_type):
+    message_id = _uuid(message_id)
+    profile_id = _uuid(profile_id)
+    reaction_type = (reaction_type or "like").strip()
+    try:
+        _safe_write(
+            "INSERT INTO chain_message_reactions (message_id, profile_id, reaction_type) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+            (message_id, profile_id, reaction_type),
+        )
+    except Exception:
+        _REACTIONS.setdefault(message_id, set()).add((profile_id, reaction_type))
+    emit_to_thread(message_thread_id(message_id), "message:reaction", {"message_id": message_id, "profile_id": profile_id, "reaction_type": reaction_type})
+    return {"ok": True}
+
+
+def edit_message(message_id, editor_profile_id, new_body):
+    message_id = _uuid(message_id)
+    editor_profile_id = _uuid(editor_profile_id)
+    new_body = (new_body or "").strip()
+    if not new_body:
+        return {"ok": False, "error": "empty_message"}
+    try:
+        rows = _safe_query("SELECT body, thread_id FROM chain_messages WHERE id = %s LIMIT 1", (message_id,), default=[])
+        old_body = rows[0].get("body") if rows else None
+        _safe_write("UPDATE chain_messages SET body = %s, edited_at = now() WHERE id = %s AND sender_profile_id = %s", (new_body, message_id, editor_profile_id))
+        _safe_write("INSERT INTO chain_message_edits (message_id, editor_profile_id, old_body, new_body) VALUES (%s, %s, %s, %s)", (message_id, editor_profile_id, old_body, new_body), timeout_ms=500)
+    except Exception:
+        for messages in _MESSAGES.values():
+            for message in messages:
+                if message.get("id") == message_id:
+                    message["body"] = new_body
+                    message["edited_at"] = _now()
+    return {"ok": True, "message_id": message_id, "body": new_body}
+
+
+def delete_message(message_id, profile_id, for_everyone=False):
+    message_id = _uuid(message_id)
+    profile_id = _uuid(profile_id)
+    try:
+        if for_everyone:
+            _safe_write("UPDATE chain_messages SET deleted_at = now() WHERE id = %s AND sender_profile_id = %s", (message_id, profile_id))
+        else:
+            _safe_write("INSERT INTO chain_message_deletions (message_id, profile_id, delete_scope) VALUES (%s, %s, 'me') ON CONFLICT DO NOTHING", (message_id, profile_id))
+    except Exception:
+        for messages in _MESSAGES.values():
+            for message in messages:
+                if message.get("id") == message_id:
+                    if for_everyone:
+                        message["deleted_at"] = _now()
+                    else:
+                        message.setdefault("deleted_for", []).append(profile_id)
+    emit_to_thread(message_thread_id(message_id), "message:delete", {"message_id": message_id, "for_everyone": bool(for_everyone)})
+    return {"ok": True}
+
+
+def star_message(message_id, profile_id, starred=True):
+    message_id = _uuid(message_id)
+    profile_id = _uuid(profile_id)
+    try:
+        if starred:
+            _safe_write("INSERT INTO chain_message_stars (message_id, profile_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (message_id, profile_id))
+        else:
+            _safe_write("DELETE FROM chain_message_stars WHERE message_id = %s AND profile_id = %s", (message_id, profile_id))
+    except Exception:
+        key = (message_id, profile_id)
+        _STARS.add(key) if starred else _STARS.discard(key)
+    return {"ok": True, "starred": bool(starred)}
+
+
+def save_voice_note(message_id, profile_id, audio_url=None, duration_seconds=0, waveform=None, **meta):
+    message_id = _uuid(message_id)
+    profile_id = _uuid(profile_id)
+    payload = {
+        "message_id": message_id,
+        "profile_id": profile_id,
+        "audio_url": audio_url,
+        "duration_seconds": float(duration_seconds or 0),
+        "waveform": waveform or [],
+        "mime_type": meta.get("mime_type"),
+        "file_size": meta.get("file_size"),
+    }
+    try:
+        _safe_write(
+            """
+            INSERT INTO chain_message_voice_notes (message_id, profile_id, audio_url, duration_seconds, waveform, mime_type, file_size)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
+            """,
+            (message_id, profile_id, audio_url, payload["duration_seconds"], str(payload["waveform"]).replace("'", '"'), payload["mime_type"], payload["file_size"]),
+        )
+    except Exception:
+        _VOICE_NOTES[message_id] = payload
+    return {"ok": True, "voice_note": payload}
+
+
+def save_attachment(message_id, profile_id, attachment_type="file", **meta):
+    message_id = _uuid(message_id)
+    profile_id = _uuid(profile_id)
+    payload = {"message_id": message_id, "profile_id": profile_id, "attachment_type": attachment_type, **meta}
+    try:
+        _safe_write(
+            """
+            INSERT INTO chain_message_attachments (message_id, profile_id, attachment_type, file_name, media_url, storage_bucket, storage_path, mime_type, file_size)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (message_id, profile_id, attachment_type, meta.get("file_name"), meta.get("media_url"), meta.get("storage_bucket"), meta.get("storage_path"), meta.get("mime_type"), meta.get("file_size")),
+        )
+    except Exception:
+        _ATTACHMENTS.setdefault(message_id, []).append(payload)
+    return {"ok": True, "attachment": payload}
+
+
+def search_messages(profile_id, query):
+    profile_id = _uuid(profile_id)
+    query = (query or "").strip()
+    if len(query) < 2:
+        return []
+    rows = _safe_query(
+        """
+        SELECT m.* FROM chain_messages m
+        JOIN chain_thread_members tm ON tm.thread_id = m.thread_id
+        WHERE tm.profile_id = %s AND m.body ILIKE %s AND m.deleted_at IS NULL
+        ORDER BY m.created_at DESC LIMIT 50
+        """,
+        (profile_id, f"%{query}%"),
+        default=None,
+    )
+    if rows:
+        return rows
+    pattern = re.compile(re.escape(query), re.I)
+    return [m for messages in _MESSAGES.values() for m in messages if pattern.search(m.get("body") or "")]
+
+
+def message_thread_id(message_id):
+    message_id = str(message_id)
+    rows = _safe_query("SELECT thread_id FROM chain_messages WHERE id = %s LIMIT 1", (message_id,), default=[])
+    if rows:
+        return str(rows[0]["thread_id"])
+    for thread_id, messages in _MESSAGES.items():
+        if any(m.get("id") == message_id for m in messages):
+            return thread_id
+    return ""

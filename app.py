@@ -22,7 +22,7 @@ from api_routes.dashboard_routes import dashboard_bp
 from api_routes.matching_routes import matching_bp
 from api_routes.dating_routes import dating_bp
 from api_routes.message_routes import message_bp
-from api_routes.call_routes import call_bp
+from api_routes.call_routes import call_bp, messages_call_bp
 from api_routes.notification_routes import notification_engine_bp
 from api_routes.live_routes import live_bp
 from api_routes.wallet_routes import wallet_bp
@@ -38,6 +38,8 @@ from api_routes.reels_routes import reels_bp
 from api_routes.presence_routes import presence_bp
 from api_routes.safety_routes import safety_bp
 from api_routes.admin_safety_routes import admin_safety_bp
+from api_routes.system_routes import system_bp
+from api_routes.production_routes import production_bp
 from api_routes.feed_routes import feed_bp
 from api_routes.verification_routes import verification_bp
 from api_routes.mobile_api_routes import mobile_api_bp
@@ -46,9 +48,18 @@ from api_routes.marketplace_routes import marketplace_bp
 from api_routes.creator_routes import creator_bp
 from api_routes.post_routes import post_bp, media_bp
 from api_routes.metrics_routes import metrics_bp
+from api_routes.push_routes import push_bp
+from api_routes.message_production_routes import message_production_bp
+from api_routes.security_routes import security_bp
+from api_routes.privacy_routes import privacy_api_bp
+from api_routes.group_call_routes import group_call_bp
+from api_routes.push_notification_routes import push_notifications_api_bp
+from api_routes.encryption_routes import encryption_bp
+from api_routes.dev_diagnostics_routes import dev_bp as dev_diagnostics_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload
+from services.homepage_warmup_service import warm_homepage_cache
 from services.content_service import hashtag_links
 from services.profile_service import get_current_profile, get_profile_by_username
 from services.notification_service import get_my_notifications
@@ -126,7 +137,7 @@ def schedule_delayed_homepage_prewarm(app, debug=False):
                 check_readiness()
                 prime_neon_runtime()
                 prime_live_rooms_public_cache(limit=8)
-                build_homepage_payload(async_warm=True)
+                warm_homepage_cache()
                 print("[app] Startup sequence complete")
             except Exception as e:
                 print(f"[app] Startup sequence failed: {e}")
@@ -196,8 +207,20 @@ def create_app():
             from services.status_service import expire_old_statuses
             scheduler.add_job(check_call_timeouts, 'interval', seconds=60, id='call_timeouts')
             scheduler.add_job(expire_old_statuses, 'interval', minutes=15, id='status_expiry')
+            scheduler.add_job(warm_homepage_cache, 'interval', seconds=30, id='homepage_cache_warmup', replace_existing=True)
         except Exception as e:
             print(f"[app] Failed to add background jobs: {e}")
+    try:
+        from services.job_queue_service import enqueue_unique_job
+        enqueue_unique_job(
+            "homepage_cache_warmup",
+            payload={"source": "app_startup"},
+            unique_key="homepage_cache_warmup:startup",
+            priority=1,
+            queue="default",
+        )
+    except Exception as e:
+        print(f"[app] Failed to enqueue homepage cache warmup: {e}")
 
     init_observability(app)
     app.limiter = init_rate_limiter(app)
@@ -297,6 +320,7 @@ def create_app():
     app.register_blueprint(wallet_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(developer_bp)
+    app.register_blueprint(messages_call_bp)
     app.register_blueprint(discovery_bp)
     app.register_blueprint(activity_bp)
     app.register_blueprint(search_bp)
@@ -310,6 +334,8 @@ def create_app():
     app.register_blueprint(presence_bp)
     app.register_blueprint(safety_bp)
     app.register_blueprint(admin_safety_bp)
+    app.register_blueprint(system_bp)
+    app.register_blueprint(production_bp)
     app.register_blueprint(feed_bp)
     app.register_blueprint(verification_bp)
     app.register_blueprint(mobile_api_bp)
@@ -318,6 +344,12 @@ def create_app():
     app.register_blueprint(post_bp)
     app.register_blueprint(media_bp)
     app.register_blueprint(creator_bp)
+    app.register_blueprint(push_bp)
+    app.register_blueprint(security_bp)
+    app.register_blueprint(privacy_api_bp)
+    app.register_blueprint(group_call_bp)
+    app.register_blueprint(push_notifications_api_bp)
+    app.register_blueprint(encryption_bp)
 
     try:
         from services.content_service import ensure_content_schema
@@ -465,6 +497,20 @@ def create_app():
     def settings_root_redirect():
         return redirect("/profile/settings", code=302)
 
+    @app.route("/settings/notifications")
+    def notification_settings():
+        from services.push_notification_service import get_preferences, get_vapid_public_key
+        from services.profile_service import get_current_profile
+        profile = get_current_profile()
+        profile_id = (profile or {}).get("id") or session.get("profile_id")
+        prefs = get_preferences(profile_id) if profile_id else {}
+        vapid_key = get_vapid_public_key()
+        return render_template("settings/notifications.html",
+            preferences=prefs,
+            vapid_configured=bool(vapid_key),
+            profile=profile,
+        )
+
     @app.route("/")
     def home():
         with timed("home"):
@@ -489,7 +535,14 @@ def create_app():
     @app.route("/healthz")
     def healthz():
         """Lightweight health check for load balancers. No external DB touch."""
-        return jsonify({"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}), 200
+        try:
+            from api_routes.system_routes import _health_payload
+            payload = _health_payload()
+        except Exception:
+            payload = {"ok": True, "components": {"app": {"ok": True, "status": "ok"}}}
+        payload["status"] = "ok" if payload.get("ok") else "degraded"
+        payload["timestamp"] = datetime.now(timezone.utc).isoformat()
+        return jsonify(payload), 200
 
     @app.route("/health/db")
     def health_db():
@@ -632,6 +685,10 @@ def create_app():
 
 app = create_app()
 
+app.register_blueprint(message_production_bp)
+if os.getenv("CHAIN_DEV_DIAGNOSTICS") == "1":
+    app.register_blueprint(dev_diagnostics_bp)
+
 if __name__ == "__main__":
     from services.socketio_service import socketio
 
@@ -642,4 +699,4 @@ if __name__ == "__main__":
     if is_production:
         app.run(host="0.0.0.0", port=port, debug=False)
     else:
-        socketio.run(app, host="0.0.0.0", port=port, debug=True, use_reloader=True)
+        socketio.run(app, host="0.0.0.0", port=port, debug=False, use_reloader=False)

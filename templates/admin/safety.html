@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Safety Operations | CHAIN{% endblock %}
+
+{% block content %}
+<section class="chain-portal-shell">
+    <div class="chain-portal-header--split" style="margin-bottom:24px;">
+        <div>
+            <p class="chain-portal-kicker">SAFETY OPERATIONS</p>
+            <h1>Trust Signals</h1>
+        </div>
+        <form action="{{ url_for('admin_safety.detect_fake') }}" method="POST">
+            <button class="primary" type="submit">Run Detection</button>
+        </form>
+    </div>
+
+    <div class="chain-portal-grid chain-portal-grid--3">
+        <article class="chain-data-card">
+            <p class="chain-help">Spam Reports</p>
+            <h2>{{ stats.spam_reports or 0 }}</h2>
+        </article>
+        <article class="chain-data-card">
+            <p class="chain-help">Flagged Accounts</p>
+            <h2>{{ stats.fake_accounts or 0 }}</h2>
+        </article>
+        <article class="chain-data-card">
+            <p class="chain-help">Removed Accounts</p>
+            <h2>{{ stats.banned_users or 0 }}</h2>
+        </article>
+    </div>
+
+    <section class="chain-data-card" style="margin-top:24px;">
+        <h2>Recent Reports</h2>
+        <div class="chain-list">
+            {% for report in reports %}
+            <div class="chain-list-item">
+                <div>
+                    <strong>@{{ report.reporter_username or 'reporter' }} reported @{{ report.target_username or 'profile' }}</strong>
+                    <div class="chain-help">{{ report.reason or 'No reason supplied' }}</div>
+                </div>
+                <small>{{ report.created_at or '' }}</small>
+            </div>
+            {% else %}
+            <div class="chain-list-item">
+                <div>
+                    <strong>No safety reports</strong>
+                    <div class="chain-help">When reports are submitted, they appear here.</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</section>
+{% endblock %}

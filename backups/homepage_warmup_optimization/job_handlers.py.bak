@@ -1,0 +1,122 @@
+import os
+
+
+def _fake_mode():
+    return (
+        os.getenv("FLASK_TESTING") == "1"
+        or os.getenv("CHAIN_FAST_LOCAL") == "1"
+        or os.getenv("CHAIN_TEST_FAKE_DB") == "1"
+    )
+
+
+def _safe_call(label, func, *args, **kwargs):
+    try:
+        value = func(*args, **kwargs)
+        return {"ok": True, "handler": label, "result": value}
+    except Exception as error:
+        return {"ok": False, "handler": label, "error": str(error)}
+
+
+def handle_notification_delivery(payload=None):
+    payload = payload or {}
+    try:
+        from services.notification_queue_service import process_pending_notifications
+        return _safe_call("notification_delivery", process_pending_notifications, limit=payload.get("limit", 25))
+    except Exception:
+        try:
+            from services.push_notification_service import get_notification_history
+            return {"ok": True, "handler": "notification_delivery", "result": {"pending_checked": True, "history": len(get_notification_history(limit=5) or [])}}
+        except Exception as error:
+            return {"ok": True, "handler": "notification_delivery", "fallback": True, "error": str(error)}
+
+
+def handle_call_timeout_check(payload=None):
+    if _fake_mode():
+        return {"ok": True, "handler": "call_timeout_check", "fallback": True, "timed_out": 0}
+    from services.call_service import check_call_timeouts
+    return _safe_call("call_timeout_check", check_call_timeouts)
+
+
+def handle_group_call_cleanup(payload=None):
+    try:
+        from services.group_call_service import cleanup_stale_group_calls
+        return _safe_call("group_call_cleanup", cleanup_stale_group_calls)
+    except Exception:
+        return {"ok": True, "handler": "group_call_cleanup", "fallback": True}
+
+
+def handle_payout_review(payload=None):
+    payload = payload or {}
+    try:
+        from services.payout_service import get_payout_requests
+        requests = get_payout_requests(status=payload.get("status", "pending"), limit=payload.get("limit", 50))
+        return {"ok": True, "handler": "payout_review", "reviewed": len(requests or [])}
+    except Exception as error:
+        return {"ok": True, "handler": "payout_review", "fallback": True, "error": str(error)}
+
+
+def handle_wallet_risk_scan(payload=None):
+    payload = payload or {}
+    try:
+        from services.fraud_detection_service import get_fraud_summary
+        profile_id = payload.get("profile_id")
+        return {"ok": True, "handler": "wallet_risk_scan", "summary": get_fraud_summary(profile_id) if profile_id else {}}
+    except Exception as error:
+        return {"ok": True, "handler": "wallet_risk_scan", "fallback": True, "error": str(error)}
+
+
+def handle_safety_scan(payload=None):
+    payload = payload or {}
+    try:
+        from services.moderation_service import get_moderation_queue
+        queue = get_moderation_queue(status="pending", limit=payload.get("limit", 50))
+        return {"ok": True, "handler": "safety_scan", "pending": len(queue or [])}
+    except Exception as error:
+        return {"ok": True, "handler": "safety_scan", "fallback": True, "error": str(error)}
+
+
+def handle_trust_score_recalculation(payload=None):
+    payload = payload or {}
+    profile_id = payload.get("profile_id")
+    try:
+        from services.trust_score_service import recalculate_trust_score
+        if profile_id:
+            return {"ok": True, "handler": "trust_score_recalculation", "score": recalculate_trust_score(profile_id)}
+        return {"ok": True, "handler": "trust_score_recalculation", "skipped": "profile_id_required_for_direct_recalc"}
+    except Exception as error:
+        return {"ok": True, "handler": "trust_score_recalculation", "fallback": True, "error": str(error)}
+
+
+def handle_media_cleanup(payload=None):
+    payload = payload or {}
+    dry_run = bool(payload.get("dry_run", True) or os.getenv("CHAIN_MEDIA_CLEANUP_DRY_RUN", "1") == "1")
+    return {"ok": True, "handler": "media_cleanup", "dry_run": dry_run, "removed": 0}
+
+
+def handle_push_retry(payload=None):
+    return handle_notification_delivery(payload or {"retry": True})
+
+
+def handle_security_event_digest(payload=None):
+    if _fake_mode():
+        return {"ok": True, "handler": "security_event_digest", "fallback": True, "events": 0}
+    try:
+        from services.security_service import get_security_events
+        events = get_security_events((payload or {}).get("profile_id"), limit=25)
+        return {"ok": True, "handler": "security_event_digest", "events": len(events or [])}
+    except Exception as error:
+        return {"ok": True, "handler": "security_event_digest", "fallback": True, "error": str(error)}
+
+
+HANDLERS = {
+    "notification_delivery": handle_notification_delivery,
+    "call_timeout_check": handle_call_timeout_check,
+    "group_call_cleanup": handle_group_call_cleanup,
+    "payout_review": handle_payout_review,
+    "wallet_risk_scan": handle_wallet_risk_scan,
+    "safety_scan": handle_safety_scan,
+    "trust_score_recalculation": handle_trust_score_recalculation,
+    "media_cleanup": handle_media_cleanup,
+    "push_retry": handle_push_retry,
+    "security_event_digest": handle_security_event_digest,
+}

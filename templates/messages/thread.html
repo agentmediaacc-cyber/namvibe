@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 <style>
     :root {
         --chat-mine-bg: var(--chain-primary);
@@ -317,15 +318,19 @@
                         <span id="presence-text">Offline</span>
                         <span id="last-seen" style="display:none; font-size: 10px; margin-left: 5px;"></span>
                     {% endif %}
+                    <span id="e2ee-indicator" style="margin-left:8px;font-size:10px;color:var(--chain-muted);display:inline-flex;align-items:center;gap:3px;">
+                        <i class="fas fa-lock" style="font-size:8px;opacity:0.6;"></i> <span id="e2ee-label">checking...</span>
+                    </span>
                 </div>
             </div>
         </div>
         
         <div style="display: flex; gap: 8px;">
             {% if thread.thread_type != 'group' %}
-            <button class="composer-btn" onclick="initiateCall('audio')"><i class="fas fa-phone"></i></button>
-            <button class="composer-btn" onclick="initiateCall('video')"><i class="fas fa-video"></i></button>
+            <button class="composer-btn" onclick="initiateCall('audio')" title="Audio Call"><i class="fas fa-phone"></i></button>
+            <button class="composer-btn" onclick="initiateCall('video')" title="Video Call"><i class="fas fa-video"></i></button>
             {% endif %}
+            <button class="composer-btn" onclick="CHAIN_GROUP_CALL.create({threadId:'{{ thread.id }}',callType:'audio'})" title="Start Group Call"><i class="fas fa-users"></i></button>
             <button class="composer-btn" onclick="toggleChatInfo()"><i class="fas fa-info-circle"></i></button>
         </div>
     </header>
@@ -334,9 +339,11 @@
         {% for msg in thread.messages %}
             <div class="msg-group" id="msg-{{ msg.id }}">
                 <div class="msg-bubble-container {% if msg.sender_profile_id == profile.id %}msg-mine-container{% else %}msg-theirs-container{% endif %}">
-                    <div class="msg-bubble {% if msg.sender_profile_id == profile.id %}msg-mine{% else %}msg-theirs{% endif %}" 
+                    <div class="msg-bubble {% if msg.sender_profile_id == profile.id %}msg-mine{% else %}msg-theirs{% endif %}"
+                         data-id="{{ msg.id }}"
                          oncontextmenu="showMsgMenu(event, '{{ msg.id }}')"
                          onclick="handleMsgClick('{{ msg.id }}')">
+                        <input type="checkbox" data-message-select value="{{ msg.id }}" aria-label="Select message" style="position:absolute;left:-28px;top:10px;">
                         
                         {% if msg.parent_message %}
                         <div class="msg-reply-ref">
@@ -368,6 +375,10 @@
                         {% if msg.body %}
                         <div class="msg-text">{{ msg.body }}</div>
                         {% endif %}
+
+                        {% if msg.edited %}
+                        <div class="msg-edited" style="font-size:9px; color:var(--chain-muted); margin-top:2px;">edited</div>
+                        {% endif %}
                         
                         <div class="msg-status">
                             <span style="font-size: 9px; opacity: 0.6;">{{ msg.created_at|datetime }}</span>
@@ -378,12 +389,16 @@
                         </div>
 
                         {% if msg.reactions %}
-                        <div class="msg-reactions">
+                        <div class="msg-reactions" data-message-id="{{ msg.id }}">
                             {% for r in msg.reactions %}
-                            <span>{{ r.reaction_type }}</span>
+                            <span class="reaction-badge {% if r.profile_id == profile.id %}mine{% endif %}" onclick="toggleReaction('{{ msg.id }}', '{{ r.reaction_type }}')">{{ r.reaction_type }}</span>
                             {% endfor %}
                         </div>
                         {% endif %}
+                        <div class="msg-actions">
+                            <button class="msg-action" onclick="showReactionPicker(event, '{{ msg.id }}')" title="React"><i class="far fa-face-smile"></i></button>
+                            <button class="msg-action" onclick="initReplyFromMsg('{{ msg.id }}')" title="Reply"><i class="fas fa-reply"></i></button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -412,6 +427,11 @@
         </div>
     </div>
 
+    <!-- Typing Indicator -->
+    <div id="typing-indicator" style="display:none; padding:4px 16px; font-size:12px; color:var(--chain-muted); background:var(--chain-bg-panel); border-top:1px solid var(--chain-border);">
+        <span id="typing-text">Someone is typing...</span>
+    </div>
+
     <div id="reply-preview" style="display: none; padding: 8px 16px; background: var(--chain-bg-panel); border-top: 1px solid var(--chain-border); display: flex; align-items: center; gap: 10px;">
         <i class="fas fa-reply color-primary"></i>
         <div id="reply-text" style="flex: 1; font-size: 13px; color: var(--chain-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
@@ -423,19 +443,19 @@
         <input type="hidden" id="parent_message_id" name="parent_message_id" value="">
         
         <button type="button" class="composer-btn" onclick="toggleMediaPanel()"><i class="fas fa-plus"></i></button>
-        <button type="button" class="composer-btn"><i class="far fa-face-smile"></i></button>
+        <button type="button" class="composer-btn" onclick="toggleEmojiPanel()"><i class="far fa-face-smile"></i></button>
         
-        <input type="file" id="file-input" hidden onchange="uploadFile(this.files[0])">
+        <input type="file" id="file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden>
         
         <div class="composer-main">
-            <textarea id="msg-input" class="composer-input" placeholder="Message..." rows="1"></textarea>
+            <textarea id="msg-input" class="composer-input" data-draft-input="{{ thread.id }}" placeholder="Message..." rows="1"></textarea>
             <button type="button" class="composer-btn"><i class="fas fa-camera"></i></button>
         </div>
         
         <button type="submit" class="send-btn" id="send-btn">
             <i class="fas fa-paper-plane"></i>
         </button>
-        <button type="button" class="send-btn" id="mic-btn" style="background: var(--chain-bg-soft); color: var(--chain-muted); box-shadow: none;">
+        <button type="button" class="send-btn" id="mic-btn" data-voice-record data-thread-id="{{ thread.id }}" style="background: var(--chain-bg-soft); color: var(--chain-muted); box-shadow: none;">
             <i class="fas fa-microphone"></i>
         </button>
     </form>
@@ -449,8 +469,22 @@
         <div id="recording-waveform" style="flex: 1; margin: 0 20px; height: 20px; background: rgba(0,0,0,0.05); border-radius: 10px;"></div>
         <div style="display: flex; gap: 20px; align-items: center;">
             <span style="color: var(--chain-muted); font-size: 13px;">Slide to cancel <i class="fas fa-chevron-left"></i></span>
-            <i class="fas fa-lock" style="opacity: 0.3;"></i>
+            <button type="button" data-voice-control="lock" class="composer-btn" title="Lock recording"><i class="fas fa-lock"></i></button>
+            <button type="button" data-voice-control="pause" class="composer-btn" title="Pause recording"><i class="fas fa-pause"></i></button>
+            <button type="button" data-voice-control="resume" class="composer-btn" title="Resume recording"><i class="fas fa-play"></i></button>
         </div>
+    </div>
+
+    <div class="attachment-preview" id="attachment-preview" hidden>
+        <div class="attachment-preview-body" id="attachment-preview-body"></div>
+        <button type="button" class="attachment-remove" id="attachment-remove"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="voice-note-preview" id="voice-note-preview" hidden>
+        <audio id="voice-note-audio" controls preload="metadata"></audio>
+        <div class="voice-wave mini"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <button type="button" class="voice-preview-btn" id="voice-preview-send">Send</button>
+        <button type="button" class="voice-preview-btn" id="voice-preview-delete">Delete</button>
+        <button type="button" class="voice-preview-btn" id="voice-preview-rerecord">Re-record</button>
     </div>
 
     <!-- Message Context Menu -->
@@ -459,8 +493,15 @@
         <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initReply()"><i class="fas fa-reply mr-3 text-muted"></i> Reply</a>
         <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initForward()"><i class="fas fa-share mr-3 text-muted"></i> Forward</a>
         <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initPin()"><i class="fas fa-thumbtack mr-3 text-muted"></i> Pin Message</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="saveDraftNow()"><i class="fas fa-pen mr-3 text-muted"></i> Save Draft</a>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDelete()"><i class="far fa-trash-can mr-3"></i> Delete</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initEdit()"><i class="fas fa-pen mr-3 text-muted"></i> Edit</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="showReactionPicker(event, selectedMsgId)"><i class="far fa-face-smile mr-3 text-muted"></i> React</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteMe()"><i class="far fa-trash-can mr-3"></i> Delete for me</a>
+        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteEveryone()"><i class="fas fa-user-slash mr-3"></i> Delete for everyone</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="blockUser()"><i class="fas fa-ban mr-3"></i> Block User</a>
     </div>
 
     <!-- Emoji Picker Panel -->
@@ -469,11 +510,15 @@
             <h6 class="mb-0">Emojis</h6>
             <i class="fas fa-times" onclick="toggleEmojiPanel()" style="cursor: pointer;"></i>
         </div>
-        <div class="emoji-grid p-3" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; overflow-y: auto; height: 240px;">
-            {% for emoji in ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','🤨','🧐','🤓'] %}
-            <div class="emoji-item" onclick="insertEmoji('{{ emoji }}')" style="font-size: 24px; cursor: pointer; text-align: center;">{{ emoji }}</div>
-            {% endfor %}
+        <div class="emoji-tabs">
+            <button type="button" data-emoji-tab="Smileys">Smileys</button>
+            <button type="button" data-emoji-tab="Hearts">Hearts</button>
+            <button type="button" data-emoji-tab="Hands">Hands</button>
+            <button type="button" data-emoji-tab="Fire">Fire</button>
+            <button type="button" data-emoji-tab="Food">Food</button>
+            <button type="button" data-emoji-tab="Flags">Flags</button>
         </div>
+        <div class="emoji-grid p-3" id="emoji-grid" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; overflow-y: auto; height: 190px;"></div>
     </div>
 
     <!-- Sticker Picker Panel -->
@@ -483,16 +528,12 @@
             <i class="fas fa-times" onclick="toggleStickers()" style="cursor: pointer;"></i>
         </div>
         <div class="sticker-grid p-3" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; overflow-y: auto; height: 290px;">
-            <!-- Placeholder stickers -->
-            <div class="sticker-item" onclick="sendSticker('sticker1.png')" style="cursor: pointer; text-align: center; background: #f0f0f0; border-radius: 8px; padding: 10px;">
-                <i class="fas fa-ghost fa-2x text-muted"></i>
-            </div>
-            <div class="sticker-item" onclick="sendSticker('sticker2.png')" style="cursor: pointer; text-align: center; background: #f0f0f0; border-radius: 8px; padding: 10px;">
-                <i class="fas fa-cat fa-2x text-muted"></i>
-            </div>
-            <div class="sticker-item" onclick="sendSticker('sticker3.png')" style="cursor: pointer; text-align: center; background: #f0f0f0; border-radius: 8px; padding: 10px;">
-                <i class="fas fa-dog fa-2x text-muted"></i>
-            </div>
+            {% for sticker in [{'id':'spark','label':'Spark','icon':'fa-bolt'},{'id':'heart','label':'Heart','icon':'fa-heart'},{'id':'flame','label':'Fire','icon':'fa-fire'}] %}
+            <button type="button" class="sticker-item" onclick="sendSticker('{{ sticker.id }}')" style="cursor: pointer; text-align: center; background: var(--chain-bg-soft); color: var(--chain-text); border: 1px solid var(--chain-border); border-radius: 8px; padding: 10px;">
+                <i class="fas {{ sticker.icon }} fa-2x"></i>
+                <span style="display:block;font-size:11px;margin-top:6px;">{{ sticker.label }}</span>
+            </button>
+            {% endfor %}
         </div>
     </div>
 
@@ -508,10 +549,11 @@
             </div>
         </div>
         <div class="gif-grid p-3" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; overflow-y: auto; height: 320px;">
-            <div class="gif-item" style="height: 100px; background: #eee; border-radius: 8px;"></div>
-            <div class="gif-item" style="height: 100px; background: #eee; border-radius: 8px;"></div>
-            <div class="gif-item" style="height: 100px; background: #eee; border-radius: 8px;"></div>
-            <div class="gif-item" style="height: 100px; background: #eee; border-radius: 8px;"></div>
+            {% for gif in [{'url':'/static/img/gifs/spark-loop.gif','label':'Spark loop'},{'url':'/static/img/gifs/celebrate-loop.gif','label':'Celebrate loop'},{'url':'/static/img/gifs/live-loop.gif','label':'Live loop'},{'url':'/static/img/gifs/thanks-loop.gif','label':'Thanks loop'}] %}
+            <button type="button" class="gif-item" onclick="sendGif('{{ gif.url }}')" style="min-height: 100px; background: var(--chain-bg-soft); color: var(--chain-text); border: 1px solid var(--chain-border); border-radius: 8px;">
+                {{ gif.label }}
+            </button>
+            {% endfor %}
         </div>
     </div>
             <span onclick="cancelRecording()" style="color: var(--chain-muted); cursor: pointer;">Cancel</span>
@@ -520,41 +562,52 @@
     </div>
 </div>
 
-<!-- Call Overlay -->
+<!-- Call Overlay (Phase 41 Premium) -->
 <div class="call-overlay" id="call-overlay">
-    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;">
-        <div id="call-avatar" style="width: 120px; height: 120px; border-radius: 50%; overflow: hidden; border: 4px solid var(--chain-primary);">
-            <img src="{{ thread.display_avatar }}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy">
-        </div>
-        <h2 id="call-status-text">Calling...</h2>
-        <p>{{ thread.display_name }}</p>
-        
-        <div id="call-active-meta" style="display: none; flex-direction: column; align-items: center;">
-            <div id="call-timer" style="font-size: 24px; font-weight: 700;">00:00</div>
-            <div class="call-meta-info">
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <i class="fas fa-wifi"></i>
-                    <div class="quality-indicator">
-                        <div class="quality-bar" style="height: 4px;"></div>
-                        <div class="quality-bar" style="height: 7px;"></div>
-                        <div class="quality-bar" style="height: 10px;"></div>
-                        <div class="quality-bar" style="height: 12px;"></div>
-                    </div>
-                </div>
-                <span>Secure E2EE</span>
-            </div>
-            <div id="network-warning" style="display: none; color: #ffcc00; font-size: 12px; margin-top: 10px;">
-                <i class="fas fa-exclamation-triangle"></i> Poor connection...
-            </div>
-        </div>
+    <div id="remote-mute-indicator" style="display:none;position:absolute;top:16px;left:16px;z-index:10;background:rgba(0,0,0,0.6);padding:4px 10px;border-radius:8px;font-size:11px;color:#fff;">
+        <i class="fas fa-microphone-slash"></i> Muted
     </div>
-    <div class="call-controls" style="padding: 40px; display: flex; justify-content: space-around; width: 100%;">
-        <button class="call-control-btn" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
-        <button class="call-control-btn" onclick="toggleCamera()"><i class="fas fa-video"></i></button>
-        <button class="call-control-btn" onclick="toggleSpeaker()"><i class="fas fa-volume-up"></i></button>
-        <button class="call-control-btn end-call" style="background: #ff3b30;" onclick="endCurrentCall()"><i class="fas fa-phone-slash"></i></button>
-        <button id="answer-btn" class="call-control-btn" style="background: #34c759; display: none;" onclick="answerIncomingCall()"><i class="fas fa-phone"></i></button>
+    <div class="co-video">
+        <video id="remote-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
+        <video id="local-video" autoplay playsinline muted style="position:absolute;top:80px;right:16px;width:120px;height:160px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,0.3);object-fit:cover;display:none;background:#222;"></video>
     </div>
+    <div class="co-info" style="position:absolute;top:0;left:0;right:0;padding:16px;text-align:center;background:linear-gradient(to bottom,rgba(0,0,0,0.6),transparent);">
+        <h2 id="call-status-text" style="margin:0;font-size:18px;color:#fff;">Calling...</h2>
+        <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.7);">{{ thread.display_name }}</p>
+        <div id="call-timer" style="font-size:24px;font-weight:700;color:#fff;display:none;margin-top:4px;">00:00</div>
+        <div id="network-warning" style="display:none;color:#ffcc00;font-size:12px;margin-top:6px;">
+            <i class="fas fa-exclamation-triangle"></i> Poor connection...
+        </div>
+        <!-- Phase 41: Quality Monitor -->
+        <div id="call-quality-status" style="display:none;font-size:11px;margin-top:2px;color:#9ca3af;"></div>
+    </div>
+    <!-- Phase 41: ICE Connection State Display -->
+    <div id="call-connection-state" style="position:absolute;top:60px;left:16px;font-size:10px;color:rgba(255,255,255,0.4);z-index:10;display:none;"></div>
+    <!-- Phase 41: Weak Network Banner -->
+    <div id="weak-network-banner" style="display:none;position:absolute;top:56px;left:16px;right:16px;background:#f59e0b;color:#000;text-align:center;padding:6px 12px;font-size:12px;z-index:250;border-radius:8px;">Weak network connection</div>
+    <!-- Phase 41: Reconnecting Overlay -->
+    <div id="reconnecting-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;flex-direction:column;z-index:300;">
+        <div style="font-size:40px;margin-bottom:12px;"><i class="fas fa-sync-alt fa-spin"></i></div>
+        <p style="color:#fff;font-size:16px;">Reconnecting...</p>
+    </div>
+    <div class="co-controls">
+        <button class="co-mute" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
+        <button class="co-vid" onclick="toggleCamera()"><i class="fas fa-video"></i></button>
+        <button class="co-speaker" onclick="toggleSpeaker()"><i class="fas fa-volume-up"></i></button>
+        <button class="co-end end-call" onclick="endCurrentCall()"><i class="fas fa-phone-slash"></i></button>
+        <button id="answer-btn" style="display:none;width:56px;height:56px;border-radius:50%;border:none;background:#22c55e;color:#fff;font-size:22px;cursor:pointer;" onclick="answerIncomingCall()"><i class="fas fa-phone"></i></button>
+    </div>
+    <!-- Phase 41: Participant Chips -->
+    <div class="participant-chips" id="participant-chips" style="display:none;"></div>
+</div>
+
+<!-- Phase 41: Call History Section -->
+<div class="call-history-section" id="call-history-section" style="display:none;padding:12px;border-top:1px solid var(--chat-border);">
+    <h3 style="font-size:13px;color:var(--chat-muted);margin:0 0 8px;display:flex;align-items:center;gap:6px;">
+        <i class="fas fa-history"></i> Recent Calls
+        <span id="call-history-missed-badge" class="missed-call-badge" style="display:none;margin-left:auto;">0</span>
+    </h3>
+    <div id="call-history-list"></div>
 </div>
 
 <style>
@@ -572,20 +625,154 @@
     }
     .call-control-btn:active { transform: scale(0.9); }
     .call-control-btn.active { background: white; color: black; }
+    .call-timeout-bar { position:absolute; top:0; left:0; right:0; height:4px; background:rgba(255,255,255,.1); z-index:100; }
+    .call-timeout-bar .timeout-fill { height:100%; background:linear-gradient(90deg,#22c55e,#ef4444); width:100%; }
+    @keyframes timeoutShrink { from{width:100%} to{width:0%} }
 </style>
 
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+<script src="{{ url_for('static', filename='js/webrtc_calls.js') }}"></script>
+<script src="{{ url_for('static', filename='js/group_calls.js') }}"></script>
 <script>
-    const socket = io();
     const threadId = "{{ thread.id }}";
     const myId = "{{ profile.id }}";
     const list = document.getElementById('message-list');
     const input = document.getElementById('msg-input');
     const form = document.getElementById('chat-form');
+    const sendBtn = document.getElementById('send-btn');
+    const fileInput = document.getElementById('file-input');
+    const socket = (typeof io !== 'undefined')
+        ? io({ transports: ['websocket', 'polling'], upgrade: true, reconnection: true })
+        : { on(){}, emit(){}, connected:false };
+    socket.on('connect', () => {
+        if (window.wCallInit) wCallInit(socket);
+    });
+    const currentTargetProfileId = "{{ thread.other_member.id if thread.other_member else '' }}";
+    window.currentTargetProfileId = currentTargetProfileId;
+    window.currentThreadId = threadId;
+    let pollTimer = null;
+    let pendingAttachment = null;
     
+    function timeAgo(dateStr) {
+        if (!dateStr) return '';
+        const now = new Date();
+        const d = new Date(dateStr);
+        const sec = Math.floor((now - d) / 1000);
+        if (sec < 5) return 'now';
+        if (sec < 60) return sec + 's ago';
+        const min = Math.floor(sec / 60);
+        if (min < 60) return min + 'm ago';
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return hr + 'h ago';
+        const day = Math.floor(hr / 24);
+        if (day < 7) return day + 'd ago';
+        return d.toLocaleDateString();
+    }
+
+    function appendMessage(msg) {
+        const existing = document.getElementById('msg-' + msg.id) || document.querySelector(`[data-client-id="${msg.optimistic_id || msg.client_event_id || ''}"]`);
+        if (existing && !String(msg.id || '').startsWith('temp-')) {
+            existing.id = 'msg-' + msg.id;
+            existing.querySelector('.msg-bubble')?.setAttribute('data-id', msg.id);
+            setMessageState(existing, msg.delivery_status || 'sent');
+            return;
+        }
+        const group = document.createElement('div');
+        group.className = 'msg-group';
+        group.id = 'msg-' + msg.id;
+        if (msg.optimistic_id || msg.client_event_id) group.dataset.clientId = msg.optimistic_id || msg.client_event_id;
+        const mine = msg.sender_profile_id === myId;
+        const replyHtml = msg.parent_message ? `<div class="msg-reply-ref"><i class="fas fa-reply" style="font-size:10px;"></i> ${escapeHtml(String(msg.parent_message.body || msg.parent_message).slice(0,30))}...</div>` : '';
+        const reactionsHtml = msg.reactions && msg.reactions.length ? `<div class="msg-reactions" data-message-id="${msg.id}">${msg.reactions.map(r => `<span class="reaction-badge${r.profile_id === myId ? ' mine' : ''}" onclick="toggleReaction('${msg.id}','${r.reaction_type}')">${r.reaction_type}</span>`).join('')}</div>` : '';
+        group.innerHTML = `
+            <div class="msg-bubble-container ${mine ? 'msg-mine-container' : 'msg-theirs-container'}">
+                <div class="msg-bubble ${mine ? 'msg-mine' : 'msg-theirs'}" data-id="${msg.id}" oncontextmenu="showMsgMenu(event,'${msg.id}')">
+                    ${replyHtml}
+                    ${msg.body ? `<div class="msg-text">${escapeHtml(msg.body)}</div>` : ''}
+                    ${msg.media_url ? renderMediaTag(msg.media_url, msg.media_type) : ''}
+                    ${msg.edited ? '<div class="msg-edited" style="font-size:9px;color:var(--chain-muted);margin-top:2px;">edited</div>' : ''}
+                    <div class="msg-status">
+                        <span style="font-size:9px;opacity:0.6;">${timeAgo(msg.created_at)}</span>
+                        ${mine ? `<span class="delivery-label" data-state="${msg.delivery_status || 'sending'}">${statusLabel(msg.delivery_status || 'sending')}</span><i class="${statusIcon(msg.delivery_status || 'sending')}" id="tick-${msg.id}"></i>` : ''}
+                    </div>
+                    ${reactionsHtml}
+                    <div class="msg-actions">
+                        <button class="msg-action" onclick="showReactionPicker(event,'${msg.id}')" title="React"><i class="far fa-face-smile"></i></button>
+                        <button class="msg-action" onclick="initReplyFromMsg('${msg.id}')" title="Reply"><i class="fas fa-reply"></i></button>
+                    </div>
+                </div>
+            </div>`;
+        document.getElementById('message-list').appendChild(group);
+        document.getElementById('message-list').scrollTop = document.getElementById('message-list').scrollHeight;
+    }
+
+    function renderMediaTag(url, type) {
+        if (!url) return '';
+        const safeUrl = escapeHtml(url);
+        if (type && type.startsWith('video')) return `<video src="${safeUrl}" class="msg-media" controls playsinline></video>`;
+        if (type && type.startsWith('audio')) return `<div class="voice-bubble"><button type="button" class="voice-play"><i class="fas fa-play"></i></button><div class="voice-wave mini"><span></span><span></span><span></span><span></span><span></span><span></span></div><audio src="${safeUrl}" controls preload="metadata"></audio></div>`;
+        if (type && !type.startsWith('image')) return `<a class="doc-attachment" href="${safeUrl}" target="_blank" rel="noopener"><i class="fas fa-file"></i> Attachment</a>`;
+        return `<img src="${safeUrl}" class="msg-media" loading="lazy" alt="Attachment">`;
+    }
+
+    function statusLabel(state) {
+        return ({sending:'Sending', sent:'Sent', delivered:'Delivered', seen:'Seen', failed:'Failed'}[state] || 'Sent');
+    }
+
+    function statusIcon(state) {
+        if (state === 'failed') return 'fas fa-exclamation-circle status-tick failed';
+        if (state === 'seen') return 'fas fa-check-double status-tick read';
+        if (state === 'delivered') return 'fas fa-check-double status-tick delivered';
+        if (state === 'sending') return 'fas fa-clock status-tick sending';
+        return 'fas fa-check status-tick sent';
+    }
+
+    function setMessageState(group, state) {
+        const label = group.querySelector('.delivery-label');
+        const tick = group.querySelector('.status-tick');
+        if (label) {
+            label.dataset.state = state;
+            label.textContent = statusLabel(state);
+        }
+        if (tick) tick.className = statusIcon(state);
+        const retry = group.querySelector('.retry-send');
+        if (retry) retry.style.display = state === 'failed' ? 'inline-flex' : 'none';
+    }
+
+    function addOptimisticMessage(body, file) {
+        const tempId = 'temp-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+        const url = file ? URL.createObjectURL(file) : '';
+        appendMessage({
+            id: tempId,
+            optimistic_id: tempId,
+            sender_profile_id: myId,
+            body: body || (file ? file.name : ''),
+            media_url: url,
+            media_type: file ? file.type : '',
+            delivery_status: 'sending',
+            created_at: new Date().toISOString()
+        });
+        const group = document.getElementById('msg-' + tempId);
+        if (group) {
+            const bubble = group.querySelector('.msg-bubble');
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.className = 'retry-send';
+            retry.style.display = 'none';
+            retry.innerHTML = '<i class="fas fa-rotate-right"></i> Retry';
+            retry.onclick = () => sendMessage(body, file, tempId);
+            bubble?.appendChild(retry);
+        }
+        return tempId;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'})[c]);
+    }
+
     socket.on('connect', () => {
         socket.emit('join_thread', { thread_id: threadId });
         startHeartbeat();
@@ -600,6 +787,24 @@
         }
     });
 
+    // Phase 46: E2EE indicator
+    async function updateE2eeIndicator() {
+        try {
+            const res = await fetch('/encryption/api/status');
+            const data = await res.json();
+            const el = document.getElementById('e2ee-label');
+            const icon = document.querySelector('#e2ee-indicator i');
+            if (el && data.ok && data.has_keys) {
+                el.textContent = 'E2EE';
+                if (icon) { icon.style.color = '#22c55e'; icon.style.opacity = '1'; }
+            } else if (el) {
+                el.textContent = 'not encrypted';
+                if (icon) { icon.style.color = 'var(--chain-muted)'; icon.style.opacity = '0.4'; }
+            }
+        } catch(e) {}
+    }
+    updateE2eeIndicator();
+
     socket.on('message:seen', (data) => {
         // Update ticks to blue
         const ticks = document.querySelectorAll('.status-tick');
@@ -607,13 +812,174 @@
     });
 
     socket.on('message:delivered', (data) => {
-        const tick = document.getElementById(`tick-${data.message_id}`);
-        if (tick) tick.classList.add('delivered');
+        if (data.message_id) {
+            const group = document.getElementById(`msg-${data.message_id}`);
+            if (group) setMessageState(group, 'delivered');
+        } else {
+            document.querySelectorAll('.msg-group').forEach(group => setMessageState(group, 'delivered'));
+        }
     });
 
     socket.on('typing:update', (data) => {
         if (data.profile_id !== myId) {
             document.getElementById('presence-text').innerText = data.typing ? 'Typing...' : 'Online';
+        }
+    });
+
+    // ---- Phase 39: Real-Time Messaging Handlers ----
+
+    let typingTimer = null;
+    let typingTimeout = null;
+    const TYPING_TIMEOUT_MS = 3000;
+
+    socket.on('user_typing', (data) => {
+        if (data.profile_id !== myId && data.thread_id === threadId) {
+            const el = document.getElementById('typing-indicator');
+            const text = document.getElementById('typing-text');
+            if (data.typing) {
+                text.innerText = (data.display_name || data.username || 'Someone') + ' is typing...';
+                el.style.display = 'block';
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(() => { el.style.display = 'none'; }, 4000);
+            } else {
+                el.style.display = 'none';
+            }
+        }
+    });
+
+    socket.on('message_reaction', handleReactionUpdate);
+    socket.on('reaction:new', handleReactionUpdate);
+    function handleReactionUpdate(data) {
+        if (data.thread_id === threadId) {
+            const container = document.querySelector(`.msg-reactions[data-message-id="${data.message_id}"]`);
+            const reaction = data.reaction_type || data.reaction;
+            if (container) {
+                const existing = container.querySelector(`.reaction-badge[data-reaction="${reaction}"]`);
+                if (!data.removed) {
+                    if (!existing) {
+                        const badge = document.createElement('span');
+                        badge.className = 'reaction-badge' + (data.profile_id === myId ? ' mine' : '');
+                        badge.setAttribute('data-reaction', reaction);
+                        badge.onclick = () => toggleReaction(data.message_id, reaction);
+                        badge.innerText = reaction;
+                        container.appendChild(badge);
+                    }
+                } else {
+                    if (existing) existing.remove();
+                }
+            } else if (data.added) {
+                const bubble = document.querySelector(`.msg-bubble[data-id="${data.message_id}"]`);
+                if (bubble) {
+                    const actions = bubble.querySelector('.msg-actions');
+                    const newContainer = document.createElement('div');
+                    newContainer.className = 'msg-reactions';
+                    newContainer.setAttribute('data-message-id', data.message_id);
+                    const badge = document.createElement('span');
+                    badge.className = 'reaction-badge' + (data.profile_id === myId ? ' mine' : '');
+                    badge.setAttribute('data-reaction', reaction);
+                    badge.onclick = () => toggleReaction(data.message_id, reaction);
+                    badge.innerText = reaction;
+                    newContainer.appendChild(badge);
+                    bubble.insertBefore(newContainer, actions);
+                }
+            }
+        }
+    }
+
+    socket.on('message_edited', (data) => {
+        if (data.thread_id === threadId) {
+            const bubble = document.querySelector(`.msg-bubble[data-id="${data.message_id}"]`);
+            if (bubble) {
+                const textDiv = bubble.querySelector('.msg-text');
+                if (textDiv) textDiv.innerText = data.body;
+                let editDiv = bubble.querySelector('.msg-edited');
+                if (!editDiv) {
+                    editDiv = document.createElement('div');
+                    editDiv.className = 'msg-edited';
+                    editDiv.style.cssText = 'font-size:9px;color:var(--chain-muted);margin-top:2px;';
+                    editDiv.innerText = 'edited';
+                    const status = bubble.querySelector('.msg-status');
+                    if (status) bubble.insertBefore(editDiv, status);
+                    else bubble.appendChild(editDiv);
+                }
+            }
+        }
+    });
+
+    socket.on('message_deleted', handleDeleteUpdate);
+    socket.on('message:deleted', handleDeleteUpdate);
+    function handleDeleteUpdate(data) {
+        if (data.thread_id === threadId) {
+            const group = document.getElementById(`msg-${data.message_id}`);
+            if (group) {
+                if (data.for_everyone) {
+                    group.innerHTML = '<div class="msg-deleted-notice" style="text-align:center;font-size:11px;color:var(--chain-muted);padding:4px;">This message was deleted</div>';
+                } else {
+                    group.remove();
+                }
+            }
+        }
+    }
+
+    socket.on('message_seen', (data) => {
+        if (data.thread_id === threadId) {
+            document.querySelectorAll('.status-tick').forEach(t => t.className = 'fas fa-check-double status-tick read');
+        }
+    });
+
+    socket.on('presence_update', (data) => {
+        const el = document.getElementById('presence-text');
+        const lastSeen = document.getElementById('last-seen');
+        if (data.is_online) {
+            el.innerText = 'Online';
+            if (lastSeen) lastSeen.style.display = 'none';
+        } else {
+            el.innerText = 'Offline';
+            if (lastSeen && data.last_seen) {
+                lastSeen.innerText = 'Last seen ' + timeAgo(data.last_seen);
+                lastSeen.style.display = '';
+            }
+        }
+    });
+
+    // ---- Typing emission ----
+    input.addEventListener('input', () => {
+        if (sendBtn) sendBtn.disabled = input.value.trim().length === 0 && !pendingAttachment;
+        clearTimeout(typingTimeout);
+        if (input.value.trim().length > 0) {
+            socket.emit('typing:start', { thread_id: threadId });
+        } else {
+            socket.emit('typing:stop', { thread_id: threadId });
+        }
+        typingTimeout = setTimeout(() => {
+            socket.emit('typing:stop', { thread_id: threadId });
+        }, TYPING_TIMEOUT_MS);
+    });
+    if (sendBtn) sendBtn.disabled = true;
+    input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+            event.preventDefault();
+            form.requestSubmit();
+        }
+    });
+
+    async function pollMessages() {
+        try {
+            const res = await fetch('/messages/api/messages/' + encodeURIComponent(threadId), {credentials:'same-origin'});
+            const data = await res.json();
+            (data.messages || []).forEach(appendMessage);
+        } catch(e) {}
+    }
+    socket.on('connect_error', () => {
+        if (!pollTimer) pollTimer = setInterval(pollMessages, 5000);
+    });
+    socket.on('disconnect', () => {
+        if (!pollTimer) pollTimer = setInterval(pollMessages, 5000);
+    });
+    socket.on('connect', () => {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
         }
     });
 
@@ -623,19 +989,49 @@
         }, 30000);
     }
 
+    async function sendMessage(body, file, existingTempId) {
+        const tempId = existingTempId || addOptimisticMessage(body, file);
+        const formData = new FormData();
+        formData.append('thread_id', threadId);
+        formData.append('body', body || '');
+        formData.append('client_message_id', tempId);
+        const parentId = document.getElementById('parent_message_id').value || '';
+        if (parentId) formData.append('parent_message_id', parentId);
+        if (file) formData.append('media', file, file.name || 'attachment');
+        try {
+            const resp = await fetch('/messages/api/messages/send', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+            const data = await resp.json().catch(() => ({}));
+            const group = document.getElementById('msg-' + tempId);
+            if (!resp.ok || (!data.success && !data.ok)) {
+                if (group) setMessageState(group, 'failed');
+                return;
+            }
+            if (group && (data.message_id || data.id)) {
+                group.id = 'msg-' + (data.message_id || data.id);
+                group.querySelector('.msg-bubble')?.setAttribute('data-id', data.message_id || data.id);
+            }
+            if (group) setMessageState(group, 'sent');
+        } catch(e) {
+            const group = document.getElementById('msg-' + tempId);
+            if (group) setMessageState(group, 'failed');
+        }
+    }
+
     form.onsubmit = async (e) => {
         e.preventDefault();
         const body = input.value.trim();
-        if (!body) return;
-        
-        const payload = {
-            thread_id: threadId,
-            body: body,
-            parent_message_id: document.getElementById('parent_message_id').value || null
-        };
-        
-        socket.emit('message:send', payload);
+        const file = pendingAttachment;
+        if (!body && !file) return;
         input.value = '';
+        pendingAttachment = null;
+        if (fileInput) fileInput.value = '';
+        hideAttachmentPreview();
+        if (sendBtn) sendBtn.disabled = true;
+        await sendMessage(body, file);
         cancelReply();
     };
 
@@ -644,12 +1040,68 @@
         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         document.getElementById('sticker-panel').style.display = 'none';
         document.getElementById('gif-panel').style.display = 'none';
+        renderEmojiGrid(activeEmojiCategory);
     }
 
     function insertEmoji(emoji) {
         input.value += emoji;
         input.focus();
+        if (sendBtn) sendBtn.disabled = false;
     }
+
+    const emojiCategories = {
+        Smileys: ['😀','😃','😄','😁','😆','😂','🤣','😊','😍','🥰','😘','😎','🤩','🥳','😮','😭','😅','🙂','😉','😌','🤔','😴','🤯','🥹'],
+        Hearts: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💕','💞','💓','💗','💖','💘','💝','💟','❣️','❤️‍🔥','❤️‍🩹'],
+        Hands: ['👋','🤚','✋','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','👍','👎','✊','👊','👏','🙌','🫶','🙏','🤝'],
+        Fire: ['🔥','💥','⚡','✨','🌟','⭐','💫','🚀','🏆','💯','🎉','🎊','🔴','🟠','🟡','🟢','🔵','🟣'],
+        Food: ['🍎','🍌','🍇','🍓','🍒','🥭','🍍','🥑','🍔','🍟','🍕','🌮','🍗','🍖','🍩','🍪','🍰','☕','🍺','🥂'],
+        Flags: ['🇳🇦','🇿🇦','🇧🇼','🇿🇲','🇿🇼','🇦🇴','🇺🇸','🇬🇧','🇪🇺','🇨🇦','🇧🇷','🇮🇳','🇨🇳','🇯🇵','🇦🇺','🏁','🚩','🏳️']
+    };
+    let activeEmojiCategory = 'Smileys';
+
+    function renderEmojiGrid(category) {
+        activeEmojiCategory = category || activeEmojiCategory;
+        const grid = document.getElementById('emoji-grid');
+        if (!grid) return;
+        grid.innerHTML = (emojiCategories[activeEmojiCategory] || []).map(emoji => `<button type="button" class="emoji-item" data-emoji="${emoji}">${emoji}</button>`).join('');
+        document.querySelectorAll('[data-emoji-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.emojiTab === activeEmojiCategory));
+    }
+
+    document.querySelectorAll('[data-emoji-tab]').forEach(btn => {
+        btn.addEventListener('click', () => renderEmojiGrid(btn.dataset.emojiTab));
+    });
+    document.getElementById('emoji-grid')?.addEventListener('click', event => {
+        const btn = event.target.closest('[data-emoji]');
+        if (btn) insertEmoji(btn.dataset.emoji);
+    });
+    renderEmojiGrid('Smileys');
+
+    function hideAttachmentPreview() {
+        const preview = document.getElementById('attachment-preview');
+        const body = document.getElementById('attachment-preview-body');
+        if (preview) preview.hidden = true;
+        if (body) body.innerHTML = '';
+    }
+
+    function uploadFile(file) {
+        if (!file) return;
+        pendingAttachment = file;
+        const preview = document.getElementById('attachment-preview');
+        const body = document.getElementById('attachment-preview-body');
+        if (!preview || !body) return;
+        const url = URL.createObjectURL(file);
+        body.innerHTML = renderMediaTag(url, file.type) + `<span class="attachment-name">${escapeHtml(file.name)}</span>`;
+        preview.hidden = false;
+        if (sendBtn) sendBtn.disabled = false;
+    }
+    window.uploadFile = uploadFile;
+    fileInput?.addEventListener('change', () => uploadFile(fileInput.files && fileInput.files[0]));
+    document.getElementById('attachment-remove')?.addEventListener('click', () => {
+        pendingAttachment = null;
+        if (fileInput) fileInput.value = '';
+        hideAttachmentPreview();
+        if (sendBtn) sendBtn.disabled = input.value.trim().length === 0;
+    });
 
     function toggleStickers() {
         const panel = document.getElementById('sticker-panel');
@@ -664,6 +1116,14 @@
             sticker_id: stickerUrl
         });
         toggleStickers();
+    }
+
+    function sendGif(gifUrl) {
+        socket.emit('message:send', {
+            thread_id: threadId,
+            gif_url: gifUrl
+        });
+        toggleGIFs();
     }
 
     function toggleGIFs() {
@@ -717,17 +1177,41 @@
     }
 
     function initForward() {
-        alert('Forwarding UI coming soon - Select a contact to forward to.');
+        const toThreadId = prompt('Forward to thread ID');
+        if (selectedMsgId && toThreadId) {
+            fetch('/messages/api/messages/forward', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message_ids: [selectedMsgId], to_thread_ids: [toThreadId]})
+            });
+        }
     }
 
     function initPin() {
-        socket.emit('thread:pin', { thread_id: threadId, message_id: selectedMsgId });
+        if (selectedMsgId) {
+            fetch(`/messages/api/messages/${selectedMsgId}/pin`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({pinned: true})
+            });
+        }
     }
 
     function initDelete() {
         if (confirm('Delete this message?')) {
             socket.emit('message:delete', { message_id: selectedMsgId });
         }
+    }
+
+    function saveDraftNow() {
+        fetch(`/messages/api/threads/${threadId}/draft`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({body: input.value || selectedMsgText || ''})
+        });
     }
 
     function toggleMediaPanel() {
@@ -828,38 +1312,148 @@
         }
     }
 
+    let pendingVoiceFile = null;
+
     async function uploadVoiceNote() {
         if (audioChunks.length === 0) return;
-        
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append('media', audioBlob, 'voice_note.webm');
-        formData.append('thread_id', threadId);
-        
-        // Optimistic UI Placeholder
-        const tempId = 'temp-' + Date.now();
-        appendMessage({
-            id: tempId,
-            sender_profile_id: myId,
-            media_type: 'audio/webm',
-            media_url: URL.createObjectURL(audioBlob),
-            created_at: new Date().toISOString(),
-            is_loading: true
-        });
+        pendingVoiceFile = new File([audioBlob], 'voice-note.webm', { type: 'audio/webm' });
+        const preview = document.getElementById('voice-note-preview');
+        const audio = document.getElementById('voice-note-audio');
+        if (audio) audio.src = URL.createObjectURL(audioBlob);
+        if (preview) preview.hidden = false;
+    }
 
-        try {
-            const resp = await fetch('/messages/api/messages/send', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await resp.json();
-            if (data.success) {
-                // Real message will come via socket
-            }
-        } catch (err) {
-            console.error('Failed to upload voice note', err);
-            alert('Failed to upload voice note. Tap to retry.');
+    document.getElementById('voice-preview-send')?.addEventListener('click', async () => {
+        if (!pendingVoiceFile) return;
+        await sendMessage('', pendingVoiceFile);
+        pendingVoiceFile = null;
+        document.getElementById('voice-note-preview').hidden = true;
+    });
+
+    document.getElementById('voice-preview-delete')?.addEventListener('click', () => {
+        pendingVoiceFile = null;
+        audioChunks = [];
+        document.getElementById('voice-note-preview').hidden = true;
+    });
+
+    document.getElementById('voice-preview-rerecord')?.addEventListener('click', () => {
+        pendingVoiceFile = null;
+        audioChunks = [];
+        document.getElementById('voice-note-preview').hidden = true;
+        startRecording();
+    });
+
+    function blockUser() {
+        const username = "{{ thread.other_member.username if thread.other_member else '' }}";
+        if (!username) { alert('Cannot block: unknown user'); return; }
+        if (!confirm('Block @' + username + '? They will not be able to message or call you.')) return;
+        fetch('/messages/api/block', {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: username})
+        }).then(r => r.json()).then(d => { alert(d.message || 'User blocked'); })
+        .catch(() => alert('Failed to block user'));
+    }
+
+    // ---- Phase 39: Reaction Picker ----
+    function showReactionPicker(event, msgId) {
+        event.stopPropagation();
+        selectedMsgId = msgId || selectedMsgId;
+        const reactions = ['❤️','😂','😮','😢','🙏','🔥'];
+        const menu = document.getElementById('msg-context-menu');
+        menu.innerHTML = reactions.map(r => `<a class="dropdown-item p-3" href="#" onclick="toggleReaction('${selectedMsgId}','${r}'); return false;">${r}</a>`).join('');
+        menu.style.display = 'block';
+        menu.style.left = `${event.pageX}px`;
+        menu.style.top = `${event.pageY}px`;
+        setTimeout(() => { menu.style.display = 'none'; }, 5000);
+    }
+
+    function toggleReaction(msgId, reaction) {
+        fetch('/messages/api/message/' + msgId + '/react', {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({reaction_type: reaction})
+        }).then(r => r.json()).catch(() => {});
+    }
+
+    function initEdit() {
+        if (!selectedMsgId) return;
+        const newBody = prompt('Edit message:', selectedMsgText || '');
+        if (newBody && newBody.trim()) {
+            fetch('/messages/api/message/' + selectedMsgId + '/edit', {
+                method: 'POST', credentials: 'same-origin',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({body: newBody.trim()})
+            }).then(r => r.json()).then(d => {
+                if (d.success) {
+                    const bubble = document.querySelector(`.msg-bubble[data-id="${selectedMsgId}"]`);
+                    if (bubble) {
+                        const textDiv = bubble.querySelector('.msg-text');
+                        if (textDiv) textDiv.innerText = newBody.trim();
+                        let editDiv = bubble.querySelector('.msg-edited');
+                        if (!editDiv) {
+                            editDiv = document.createElement('div');
+                            editDiv.className = 'msg-edited';
+                            editDiv.style.cssText = 'font-size:9px;color:var(--chain-muted);margin-top:2px;';
+                            editDiv.innerText = 'edited';
+                            const status = bubble.querySelector('.msg-status');
+                            if (status) bubble.insertBefore(editDiv, status);
+                            else bubble.appendChild(editDiv);
+                        }
+                    }
+                } else {
+                    alert(d.error || 'Failed to edit message');
+                }
+            }).catch(() => alert('Failed to edit message'));
         }
+    }
+
+    function initDeleteMe() {
+        if (!selectedMsgId) return;
+        if (!confirm('Delete this message for you?')) return;
+        socket.emit('message:delete', { message_id: selectedMsgId, thread_id: threadId, for_everyone: false });
+    }
+
+    function initDeleteEveryone() {
+        if (!selectedMsgId) return;
+        if (!confirm('Delete this message for everyone?')) return;
+        socket.emit('message:delete', { message_id: selectedMsgId, thread_id: threadId, for_everyone: true });
+    }
+
+    function initReplyFromMsg(msgId) {
+        selectedMsgId = msgId;
+        const bubble = document.querySelector(`.msg-bubble[data-id="${msgId}"]`);
+        selectedMsgText = bubble ? (bubble.querySelector('.msg-text')?.innerText || 'Media') : 'Media';
+        initReply();
+    }
+
+    function initiateCall(type) {
+        document.getElementById('call-overlay').style.display = 'flex';
+        document.getElementById('call-status-text').innerText = 'Calling...';
+        const overlay = document.getElementById('call-overlay');
+        if (overlay) {
+            const connState = document.getElementById('call-connection-state');
+            if (connState) connState.style.display = 'block';
+        }
+        socket.emit('call:start', { thread_id: threadId, call_type: type });
+        showCallTimeoutBar();
+    }
+
+    // Call Timeout
+    let callTimeoutDuration = 30;
+    let timeoutBarEl = document.getElementById('call-timeout-bar');
+    function showCallTimeoutBar() {
+        if (!timeoutBarEl) return;
+        timeoutBarEl.style.display = '';
+        timeoutBarEl.style.setProperty('--call-timeout', callTimeoutDuration + 's');
+        const fill = document.getElementById('timeout-fill');
+        if (fill) {
+            fill.style.animation = 'none';
+            void fill.offsetHeight;
+            fill.style.animation = 'timeoutShrink ' + callTimeoutDuration + 's linear forwards';
+        }
+        setTimeout(() => { if (timeoutBarEl) timeoutBarEl.style.display = 'none'; }, callTimeoutDuration * 1000);
     }
 
     // Call Signaling & Timer
@@ -885,6 +1479,19 @@
         clearInterval(callInterval);
     });
 
-    // ... existing heartbeat ...
+    // Phase 41: Update missed call badge on load
+    if (window.wUpdateMissedCallBadge) {
+        setTimeout(() => wUpdateMissedCallBadge(), 500);
+    }
+    // Phase 41: Load call history
+    if (window.wLoadCallHistory) {
+        setTimeout(() => {
+            const section = document.getElementById('call-history-section');
+            if (section) section.style.display = 'block';
+            wLoadCallHistory('call-history-list');
+        }, 1000);
+    }
 </script>
+<a class="safety-report-user" href="/safety/report">Report User</a>
+<button class="safety-report-message" type="button" data-safety-action="report-message">Report Message</button>
 {% endblock %}

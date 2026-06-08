@@ -1,0 +1,100 @@
+.call-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 24px 24px 80px;
+}
+
+.call-stage {
+    position: relative;
+    min-height: 72vh;
+    border-radius: 34px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 15% 20%, rgba(255,47,125,.28), transparent 22%),
+        radial-gradient(circle at 80% 18%, rgba(0,212,255,.18), transparent 20%),
+        linear-gradient(135deg, #090916, #04040a 62%);
+    border: 1px solid rgba(255,255,255,.08);
+}
+
+.call-stage video {
+    width: 100%;
+    height: 72vh;
+    object-fit: cover;
+    display: none;
+}
+
+.call-empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    text-align: center;
+}
+
+.call-empty p,
+.call-target-card span {
+    color: #9ca3af;
+    letter-spacing: .14em;
+}
+
+.call-empty h1 {
+    margin: 14px 0 8px;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.call-empty small {
+    display: block;
+    margin-top: 16px;
+    color: #cbd5e1;
+}
+
+.call-target-card {
+    position: absolute;
+    top: 22px;
+    left: 22px;
+    padding: 16px 18px;
+    border-radius: 20px;
+    background: rgba(6,6,18,.72);
+    border: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(16px);
+}
+
+.call-target-card b {
+    display: block;
+    color: #fff;
+}
+
+.call-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 18px;
+}
+
+.call-controls button {
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 18px;
+    background: rgba(255,255,255,.05);
+    color: #fff;
+    padding: 14px 20px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.call-controls .danger {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    border-color: rgba(239,68,68,.4);
+}
+
+@media (max-width: 720px) {
+    .call-shell {
+        padding: 16px 16px 60px;
+    }
+
+    .call-stage,
+    .call-stage video {
+        min-height: 62vh;
+        height: 62vh;
+    }
+}

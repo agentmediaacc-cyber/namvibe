@@ -1,0 +1,86 @@
+from flask import Blueprint, jsonify, request, session
+from api_routes.profile_routes import login_required
+from services.profile_service import get_current_profile
+from services.message_delivery_service import (
+    ensure_message_tables,
+    get_thread_messages,
+    send_message,
+    unread_count,
+    mark_delivered_for_online_user,
+)
+
+message_production_bp = Blueprint("message_production", __name__, url_prefix="/messages/api")
+
+@message_production_bp.before_app_request
+def _ensure_once():
+    if not getattr(_ensure_once, "done", False):
+        ensure_message_tables()
+        _ensure_once.done = True
+
+@message_production_bp.route("/thread/<thread_id>", methods=["GET"])
+@login_required
+def api_thread(thread_id):
+    profile = get_current_profile()
+    if not profile:
+        return jsonify({"ok": False, "error": "Login required"}), 401
+
+    rows = get_thread_messages(thread_id, profile["id"])
+    return jsonify({
+        "ok": True,
+        "thread_id": thread_id,
+        "messages": rows
+    })
+
+@message_production_bp.route("/thread/<thread_id>/send", methods=["POST"])
+@login_required
+def api_send(thread_id):
+    profile = get_current_profile()
+    if not profile:
+        return jsonify({"ok": False, "error": "Login required"}), 401
+
+    data = request.get_json(silent=True) or request.form.to_dict()
+    body = (data.get("body") or "").strip()
+    if not body:
+        return jsonify({"ok": False, "error": "Message is empty"}), 400
+
+    msg = send_message(
+        thread_id=thread_id,
+        sender_profile_id=profile["id"],
+        body=body,
+        message_type=data.get("message_type", "text")
+    )
+    return jsonify({"ok": True, "message": msg})
+
+@message_production_bp.route("/thread/<thread_id>/voice-note", methods=["POST"])
+@login_required
+def api_voice(thread_id):
+    profile = get_current_profile()
+    if not profile:
+        return jsonify({"ok": False, "error": "Login required"}), 401
+
+    seconds = request.form.get("seconds") or "0"
+    msg = send_message(
+        thread_id=thread_id,
+        sender_profile_id=profile["id"],
+        body=f"🎙 Voice note • {seconds}s",
+        message_type="voice_note",
+        voice_duration_seconds=int(float(seconds or 0))
+    )
+    return jsonify({"ok": True, "message": msg})
+
+@message_production_bp.route("/unread-count", methods=["GET"])
+@login_required
+def api_unread():
+    profile = get_current_profile()
+    if not profile:
+        return jsonify({"ok": True, "unread": 0})
+    return jsonify({"ok": True, "unread": unread_count(profile["id"])})
+
+@message_production_bp.route("/online", methods=["POST"])
+@login_required
+def api_online():
+    profile = get_current_profile()
+    if not profile:
+        return jsonify({"ok": False}), 401
+    mark_delivered_for_online_user(profile["id"])
+    return jsonify({"ok": True, "delivery": "updated"})

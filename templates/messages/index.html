@@ -1,210 +1,1866 @@
 {% extends "base.html" %}
-
 {% block title %}Messages | CHAIN{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 <style>
-    .chat-layout {
-        display: flex;
-        height: calc(100vh - 70px);
-        background: var(--chain-bg);
-    }
-    
-    .chat-sidebar {
-        width: 100%;
-        max-width: 400px;
-        border-right: 1px solid var(--chain-border);
-        display: flex;
-        flex-direction: column;
-        background: var(--chain-bg-panel);
-    }
-    
-    .sidebar-header {
-        padding: 20px 16px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid var(--chain-border);
-    }
-    
-    .sidebar-tabs {
-        display: flex;
-        padding: 10px 16px;
-        gap: 12px;
-        overflow-x: auto;
-        border-bottom: 1px solid var(--chain-border);
-    }
-    
-    .tab-btn {
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        background: var(--chain-bg-soft);
-        color: var(--chain-muted);
-        white-space: nowrap;
-    }
-    
-    .tab-btn.active {
-        background: var(--chain-primary);
-        color: white;
-    }
-    
-    .chat-list {
-        flex: 1;
-        overflow-y: auto;
-    }
-    
-    .chat-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 16px;
-        border-bottom: 1px solid var(--chain-border);
-        cursor: pointer;
-        transition: background 0.2s;
-        text-decoration: none;
-        color: inherit;
-    }
-    
-    .chat-item:hover { background: var(--chain-bg-soft); }
-    
-    .chat-item.pinned { border-left: 3px solid var(--chain-primary); }
-    
-    .chat-info { flex: 1; min-width: 0; }
-    
-    .chat-name-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    
-    .chat-name { font-weight: 700; font-size: 15px; }
-    
-    .chat-time { font-size: 11px; color: var(--chain-muted); }
-    
-    .chat-preview { 
-        font-size: 13px; 
-        color: var(--chain-muted); 
-        white-space: nowrap; 
-        overflow: hidden; 
-        text-overflow: ellipsis; 
-    }
-    
-    .unread-badge {
-        width: 18px; height: 18px;
-        background: var(--chain-primary);
-        color: white;
-        border-radius: 50%;
-        font-size: 10px;
-        display: grid;
-        place-items: center;
-        font-weight: 700;
-    }
-    
-    .search-box {
-        margin: 12px 16px;
-        background: var(--chain-bg-soft);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        padding: 8px 12px;
-        border: 1px solid var(--chain-border);
-    }
-    
-    .search-input {
-        background: transparent;
-        border: none;
-        padding: 4px 8px;
-        flex: 1;
-        outline: none;
-        font-size: 14px;
-    }
+body.chain-message-mode header,
+body.chain-message-mode nav,
+body.chain-message-mode aside:not(.chain-msg-sidebar),
+body.chain-message-mode .sidebar,
+body.chain-message-mode .topbar,
+body.chain-message-mode .navbar,
+body.chain-message-mode .desktop-nav,
+body.chain-message-mode .mobile-bottom-nav,
+body.chain-message-mode .search-global{display:none!important}
+body.chain-message-mode{background:#050505!important;overflow:hidden}
+body.chain-message-mode main,
+body.chain-message-mode .content,
+body.chain-message-mode .container{max-width:none!important;width:100%!important;padding:0!important;margin:0!important}
 
-    @media (max-width: 768px) {
-        .chat-sidebar { max-width: 100%; }
-        .chat-main-placeholder { display: none; }
-    }
-    
-    .chat-main-placeholder {
-        flex: 1;
-        display: grid;
-        place-items: center;
-        background: var(--chain-bg-soft);
-    }
+.chain-msg-app{
+    height:100vh;
+    display:grid;
+    grid-template-columns:390px 1fr;
+    background:radial-gradient(circle at top left,rgba(255,0,80,.25),transparent 35%),
+               radial-gradient(circle at top right,rgba(0,242,234,.20),transparent 35%),#050505;
+    color:white;
+}
+.chain-msg-sidebar{
+    background:rgba(8,8,8,.92);
+    border-right:1px solid rgba(255,255,255,.1);
+    backdrop-filter:blur(22px);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+}
+.chain-msg-top{padding:14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.chain-msg-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.chain-msg-brand{display:flex;align-items:center;gap:10px}
+.hamburger,.icon-btn,.action-circle{
+    border:0;
+    background:rgba(255,255,255,.1);
+    color:white;
+    cursor:pointer;
+}
+.hamburger,.icon-btn{width:44px;height:44px;border-radius:15px}
+.chain-msg-logo{
+    width:42px;height:42px;border-radius:15px;display:grid;place-items:center;
+    font-weight:950;background:linear-gradient(135deg,#ff0050,#00f2ea);color:#050505
+}
+.chain-msg-brand h1{margin:0;font-size:22px}
+.chain-msg-brand span{font-size:12px;color:#bdbdbd}
+.msg-search{margin-top:14px;position:relative}
+.msg-search i{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:#aaa}
+.msg-search input{
+    width:100%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);
+    color:white;border-radius:18px;padding:14px 14px 14px 42px;outline:none;font-weight:800
+}
+.msg-tabs{display:flex;gap:8px;overflow:auto;padding-top:13px}
+.msg-tabs button,.msg-tabs a{
+    color:#cfcfcf;text-decoration:none;border:0;padding:9px 13px;background:rgba(255,255,255,.08);
+    border-radius:999px;font-size:13px;font-weight:900;white-space:nowrap;cursor:pointer
+}
+.msg-tabs .active{color:#050505;background:linear-gradient(135deg,#00f2ea,#ff0050)}
+.thread-list{overflow:auto;flex:1;padding:8px}
+.thread-card{
+    display:flex;gap:12px;padding:13px;border-radius:22px;color:white;text-decoration:none;
+    transition:.18s ease;border:1px solid transparent;cursor:pointer;position:relative;
+}
+.thread-card:hover,.thread-card.active{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.12)}
+.thread-avatar{
+    width:54px;height:54px;border-radius:20px;background:linear-gradient(135deg,#ff0050,#00f2ea);
+    display:grid;place-items:center;overflow:hidden;flex-shrink:0;position:relative;
+}
+.thread-avatar img{width:100%;height:100%;object-fit:cover}
+.thread-body{min-width:0;flex:1}
+.thread-line{display:flex;justify-content:space-between;gap:8px}
+.thread-name{font-weight:950;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.thread-time{color:#9ca3af;font-size:12px;white-space:nowrap}
+.thread-preview{margin-top:5px;color:#bdbdbd;font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.thread-meta{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.thread-pill{font-size:10px;font-weight:950;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.1);color:#ddd}
+.thread-pill.live{background:#ff0050;color:white}
+.thread-draft-indicator{color:#ff0050;font-size:11px;font-weight:900;margin-left:6px;display:none}
+.thread-online-dot{
+    position:absolute;bottom:2px;right:2px;width:14px;height:14px;
+    border-radius:50%;border:2px solid #050505;display:none;
+}
+.thread-online-dot.online{display:block;background:#34c759;}
+.thread-online-dot.offline{display:block;background:#9ca3af;}
+
+.chain-chat-panel{display:flex;flex-direction:column;min-width:0;background:linear-gradient(rgba(5,5,5,.68),rgba(5,5,5,.92))}
+.chat-header{
+    height:76px;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid rgba(255,255,255,.1);background:rgba(5,5,5,.72);backdrop-filter:blur(18px)
+}
+.chat-user{display:flex;align-items:center;gap:12px;min-width:0;cursor:pointer}
+.chat-user-avatar{width:50px;height:50px;border-radius:18px;background:linear-gradient(135deg,#00f2ea,#ff0050);display:grid;place-items:center;position:relative;flex-shrink:0}
+.chat-user h2{margin:0;font-size:19px}
+.chat-user p{margin:3px 0 0;color:#aaa;font-size:12px}
+.chat-online-dot{
+    position:absolute;bottom:1px;right:1px;width:12px;height:12px;
+    border-radius:50%;border:2px solid #050505;
+}
+.chat-online-dot.online{background:#34c759;}
+.chat-online-dot.offline{background:#9ca3af;}
+.chat-actions{display:flex;gap:9px;flex-wrap:wrap}
+.action-circle{width:43px;height:43px;border-radius:50%}
+.action-circle.call{background:rgba(0,242,234,.18)}
+.action-circle.video{background:rgba(255,0,80,.2)}
+.messages-area{flex:1;overflow:auto;padding:22px}
+.chat-empty{height:100%;display:grid;place-items:center;text-align:center}
+.empty-phone{
+    width:120px;height:120px;border-radius:38px;background:linear-gradient(135deg,#ff0050,#00f2ea);
+    display:grid;place-items:center;font-size:48px;margin:0 auto 22px;color:#050505
+}
+.chat-empty h3{font-size:34px;margin:0 0 8px}
+.chat-empty p{margin:0 auto 20px;color:#bdbdbd;max-width:520px}
+.bubble{max-width:70%;padding:13px 15px;border-radius:22px;margin:8px 0;background:rgba(255,255,255,.11);position:relative}
+.bubble.me{margin-left:auto;background:linear-gradient(135deg,#ff0050,#9333ea)}
+.bubble .sender{font-size:12px;font-weight:950;color:#00f2ea;margin-bottom:5px}
+.bubble .delete-msg{position:absolute;right:8px;top:6px;border:0;background:transparent;color:white;opacity:.7;cursor:pointer}
+.composer{padding:14px;display:flex;gap:10px;border-top:1px solid rgba(255,255,255,.1)}
+.composer input,.composer select{
+    border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(255,255,255,.08);color:white;outline:none;padding:13px
+}
+.composer input{flex:1}
+.premium-btn{
+    border:0;border-radius:999px;padding:13px 17px;color:white;background:rgba(255,255,255,.12);
+    font-weight:950;cursor:pointer;text-decoration:none;transition:.18s ease;
+}
+.premium-btn:hover{background:rgba(255,255,255,.2)}
+.premium-btn.primary{background:linear-gradient(135deg,#ff0050,#00f2ea);color:#050505}
+.premium-btn.danger{background:#ef4444;color:white}
+.modal,.drawer{position:fixed;inset:0;display:none;z-index:2000}
+.modal.active,.drawer.active{display:block}
+.modal-bg,.drawer-bg{position:absolute;inset:0;background:rgba(0,0,0,.62)}
+.drawer-card{
+    position:absolute;left:0;top:0;bottom:0;width:315px;background:#090909;border-right:1px solid rgba(255,255,255,.1);padding:18px;overflow-y:auto
+}
+.drawer-link{display:flex;gap:12px;align-items:center;color:white;text-decoration:none;padding:13px;border-radius:16px;background:rgba(255,255,255,.06);margin-bottom:8px;font-weight:900;transition:.18s ease}
+.drawer-link:hover{background:linear-gradient(135deg,rgba(255,0,80,.35),rgba(0,242,234,.25))}
+.modal-card{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(620px,92vw);
+    background:#0a0a0a;border:1px solid rgba(255,255,255,.12);border-radius:28px;padding:20px;color:white;max-height:80vh;overflow-y:auto
+}
+.field{
+    width:100%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);color:white;
+    border-radius:16px;padding:14px;margin-bottom:10px;outline:none
+}
+.check-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-top:1px solid rgba(255,255,255,.08)}
+.modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:12px;flex-wrap:wrap}
+.call-log-card{
+    padding:13px;border-radius:18px;background:rgba(255,255,255,.08);margin-bottom:10px;display:flex;justify-content:space-between;gap:12px;align-items:center
+}
+
+/* Phase 41: Missed Call Badge */
+.missed-call-badge{
+    position:absolute;top:-4px;right:-4px;
+    min-width:18px;height:18px;border-radius:999px;
+    background:#ef4444;color:#fff;
+    font-size:10px;font-weight:900;
+    display:none;align-items:center;justify-content:center;
+    padding:0 4px;border:2px solid #050505;z-index:10;
+}
+/* Phase 41: Premium Call Cards */
+.call-log-card.phase41{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:14px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.1);
+    margin-bottom:6px;transition:all .15s;
+}
+.call-log-card.phase41:hover{
+    background:rgba(255,255,255,.15);
+    border-color:#ff0050;
+}
+.call-log-card.phase41 .clc-avatar{
+    width:40px;height:40px;border-radius:12px;
+    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:16px;flex-shrink:0;
+}
+.call-log-card.phase41 .clc-body{flex:1;min-width:0}
+.call-log-card.phase41 .clc-line1{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.call-log-card.phase41 .clc-line1 strong{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.call-log-card.phase41 .clc-status{font-size:11px;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.call-log-card.phase41 .clc-line2{font-size:11px;color:#aaa;margin-top:2px;display:flex;align-items:center;gap:4px}
+.call-log-card.phase41 .clc-date{margin-left:auto;font-size:10px;color:#aaa}
+.call-log-card.phase41 .clc-actions{display:flex;gap:4px;flex-shrink:0}
+.call-log-card.phase41 .clc-btn{
+    width:32px;height:32px;border-radius:50%;
+    border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    font-size:13px;transition:all .15s;
+}
+.call-log-card.phase41 .clc-callback{background:linear-gradient(135deg,#ff0050,#00f2ea);color:#fff}
+.call-log-card.phase41 .clc-callback:hover{transform:scale(1.1)}
+/* Phase 41: Participant Chips */
+.participant-chips{
+    display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;
+    border-top:1px solid rgba(255,255,255,.1);
+}
+.participant-chip{
+    display:flex;align-items:center;gap:6px;
+    padding:4px 10px 4px 4px;border-radius:20px;
+    background:rgba(255,255,255,.08);border:2px solid transparent;
+    font-size:12px;transition:all .15s;max-width:160px;
+}
+.participant-chip .pc-avatar{
+    width:24px;height:24px;border-radius:50%;
+    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:700;flex-shrink:0;
+}
+.participant-chip .pc-info{display:flex;flex-direction:column;gap:1px;min-width:0}
+.participant-chip .pc-name{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.participant-chip .pc-states{display:flex;gap:3px;font-size:9px}
+/* Phase 41: Call History Section */
+.call-history-section{padding:12px;border-top:1px solid rgba(255,255,255,.1)}
+.call-history-section h3{font-size:13px;color:#aaa;margin:0 0 8px;display:flex;align-items:center;gap:6px}
+.call-screen{
+    position:fixed;inset:0;background:radial-gradient(circle at top,#ff0050,#050505 55%);z-index:3000;
+    display:none;align-items:center;justify-content:center;color:white;text-align:center
+}
+.call-screen.active{display:flex}
+.call-avatar{width:130px;height:130px;border-radius:42px;background:linear-gradient(135deg,#00f2ea,#ff0050);display:grid;place-items:center;font-size:56px;margin:0 auto 20px;color:#050505}
+.ring-pulse{animation:pulse 1.2s infinite}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes timeoutShrink{from{width:100%}to{width:0%}}
+.call-controls{display:flex;gap:14px;justify-content:center;margin-top:25px}
+.call-ctrl{width:58px;height:58px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:white;font-size:18px;cursor:pointer;transition:.18s ease}
+.call-ctrl:hover{background:rgba(255,255,255,.25)}
+.call-ctrl.end{background:#ef4444}
+.no-results{display:none;padding:25px;text-align:center;color:#aaa;font-weight:900}
+
+/* Pinned Message Bar */
+.pinned-bar{
+    display:none;align-items:center;gap:12px;padding:10px 18px;
+    background:rgba(255,0,80,.12);border-bottom:1px solid rgba(255,255,255,.08);
+    font-size:13px;cursor:pointer;transition:.18s ease;
+}
+.pinned-bar.active{display:flex}
+.pinned-bar i{color:#00f2ea;font-size:16px}
+.pinned-bar-text{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#ddd}
+.pinned-bar-close{color:#aaa;cursor:pointer;border:0;background:transparent;font-size:16px}
+
+/* Multi-Select Toolbar */
+.multi-select-toolbar{
+    display:none;align-items:center;gap:12px;padding:10px 18px;
+    background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.1);
+    position:sticky;bottom:0;z-index:100;backdrop-filter:blur(18px);
+}
+.multi-select-toolbar.active{display:flex}
+.multi-select-count{font-weight:900;color:#00f2ea;min-width:80px;font-size:14px}
+.multi-select-btn{
+    border:0;background:rgba(255,255,255,.1);color:white;width:42px;height:42px;
+    border-radius:12px;cursor:pointer;font-size:16px;transition:.18s ease;
+}
+.multi-select-btn:hover{background:rgba(255,255,255,.2)}
+.multi-select-btn.danger:hover{background:#ef4444}
+.multi-select-btn.forward:hover{background:#00f2ea;color:#050505}
+
+/* Forward Contact Picker */
+.forward-contact{
+    display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;
+    background:rgba(255,255,255,.06);margin-bottom:8px;cursor:pointer;transition:.18s ease;
+}
+.forward-contact:hover,.forward-contact.selected{background:rgba(255,0,80,.2);border:1px solid rgba(255,0,80,.3)}
+.forward-contact-avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#ff0050,#00f2ea);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.forward-contact-avatar img{width:100%;height:100%;object-fit:cover}
+.forward-contact-info{flex:1;min-width:0}
+.forward-contact-name{font-weight:950;font-size:14px}
+.forward-contact-preview{color:#aaa;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+/* Shared Media Drawer */
+.shared-drawer{
+    position:absolute;right:0;top:76px;bottom:0;width:360px;
+    background:#0a0a0a;border-left:1px solid rgba(255,255,255,.1);
+    display:none;flex-direction:column;z-index:150;
+}
+.shared-drawer.active{display:flex}
+.shared-drawer-head{
+    padding:16px;border-bottom:1px solid rgba(255,255,255,.08);
+    display:flex;justify-content:space-between;align-items:center;
+}
+.shared-drawer-head h3{margin:0;font-size:18px}
+.shared-tabs{display:flex;gap:4px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.shared-tab{
+    border:0;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.08);
+    color:#cfcfcf;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap;transition:.18s ease;
+}
+.shared-tab.active{background:linear-gradient(135deg,#00f2ea,#ff0050);color:#050505}
+.shared-content{flex:1;overflow:auto;padding:16px}
+.shared-empty{text-align:center;padding:40px 20px;color:#aaa}
+.shared-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.shared-grid img,.shared-grid video{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px}
+.shared-doc-item{padding:12px;border-radius:12px;background:rgba(255,255,255,.06);margin-bottom:8px;display:flex;gap:8px;align-items:center}
+.shared-link-item{padding:12px;border-radius:12px;background:rgba(255,255,255,.06);margin-bottom:8px;display:flex;gap:8px;align-items:center}
+
+/* Reply Preview */
+.reply-preview{
+    display:none;align-items:center;gap:10px;padding:8px 18px;
+    background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.08);
+}
+.reply-preview.active{display:flex}
+.reply-preview-bar{width:4px;border-radius:99px;background:linear-gradient(180deg,#00f2ea,#ff0050);height:32px;flex-shrink:0}
+.reply-preview-content{flex:1;min-width:0}
+.reply-preview-sender{font-size:12px;font-weight:900;color:#00f2ea}
+.reply-preview-text{font-size:13px;color:#aaa;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.reply-preview-close{color:#aaa;cursor:pointer;border:0;background:transparent;font-size:16px}
+
+/* Voice Preview Card with Speed Control */
+.voice-preview{
+    display:none;align-items:center;gap:10px;margin:0 14px 10px;
+    padding:12px;background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12);border-radius:22px;
+}
+.voice-preview.active{display:flex;flex-wrap:wrap}
+.voice-wave{
+    flex:1;height:34px;display:flex;align-items:center;gap:4px;min-width:120px;
+}
+.voice-wave span{
+    width:4px;border-radius:99px;background:#00f2ea;
+    animation:wave 1s infinite ease-in-out;
+}
+.voice-wave span:nth-child(2n){height:22px}
+.voice-wave span:nth-child(3n){height:30px}
+.voice-wave span:nth-child(4n){height:15px}
+@keyframes wave{
+    0%,100%{opacity:.45;transform:scaleY(.7)}
+    50%{opacity:1;transform:scaleY(1.2)}
+}
+.voice-time{min-width:42px;font-weight:950;font-size:13px}
+.voice-speed-group{display:flex;gap:4px}
+.voice-speed-btn{
+    border:0;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.1);
+    color:#aaa;font-size:10px;font-weight:900;cursor:pointer;transition:.18s ease;
+}
+.voice-speed-btn.active{background:#00f2ea;color:#050505}
+.voice-preview button{
+    border:0;width:38px;height:38px;border-radius:50%;color:white;cursor:pointer;display:grid;place-items:center;flex-shrink:0;
+}
+.voice-delete{background:#ef4444;}
+.voice-send{background:linear-gradient(135deg,#00f2ea,#ff0050);color:#050505!important;}
+.recording-dot{
+    width:10px;height:10px;border-radius:50%;background:white;animation:pulse 1s infinite;
+}
+
+/* Emoji Panel with Categories */
+.emoji-panel{
+    position:fixed;bottom:86px;right:18px;
+    width:min(380px,92vw);max-height:420px;
+    background:#0a0a0a;border:1px solid rgba(255,255,255,.14);
+    border-radius:24px;padding:0;display:none;z-index:2600;overflow:hidden;
+    box-shadow:0 20px 80px rgba(0,0,0,.45);
+}
+.emoji-panel.active{display:flex;flex-direction:column}
+.emoji-categories{display:flex;gap:2px;padding:10px 12px 6px;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.08)}
+.emoji-cat-btn{
+    border:0;padding:6px 10px;border-radius:8px;background:transparent;
+    color:#aaa;font-size:16px;cursor:pointer;transition:.18s ease;white-space:nowrap;
+}
+.emoji-cat-btn.active{background:rgba(255,255,255,.1);color:white}
+.emoji-grid-wrapper{overflow:auto;flex:1;padding:8px 12px 12px}
+.emoji-category-label{font-size:11px;font-weight:900;color:#aaa;margin:8px 0 4px;text-transform:uppercase}
+.emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.emoji-panel button.emoji-item{
+    border:0;background:rgba(255,255,255,.06);border-radius:8px;padding:6px;
+    cursor:pointer;font-size:22px;transition:.18s ease;
+}
+.emoji-panel button.emoji-item:hover{background:rgba(255,255,255,.15);transform:scale(1.15)}
+
+/* Attach Menu */
+.attach-menu{
+    position:fixed;left:410px;bottom:86px;
+    background:#0a0a0a;border:1px solid rgba(255,255,255,.14);
+    border-radius:24px;padding:12px;display:none;z-index:2500;
+    box-shadow:0 20px 80px rgba(0,0,0,.45);
+}
+.attach-menu.active{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.attach-item{
+    border:0;border-radius:18px;background:rgba(255,255,255,.09);color:white;
+    padding:14px;min-width:96px;cursor:pointer;font-weight:900;transition:.18s ease;
+}
+.attach-item:hover{background:rgba(255,255,255,.18)}
+.attach-item i{display:block;font-size:22px;margin-bottom:7px;color:#00f2ea}
+.attach-item.photo i{color:#ff0050}
+.attach-item.document i{color:#7c3aed}
+.attach-item.gif i{color:#ff9800}
+
+/* Sticker/GIF Panel */
+.sticker-gif-panel{
+    position:fixed;bottom:86px;left:50%;transform:translateX(-50%);
+    width:min(480px,94vw);max-height:440px;
+    background:#0a0a0a;border:1px solid rgba(255,255,255,.14);
+    border-radius:24px;padding:0;display:none;z-index:2600;overflow:hidden;
+    box-shadow:0 20px 80px rgba(0,0,0,.45);
+}
+.sticker-gif-panel.active{display:flex;flex-direction:column}
+.sticker-gif-tabs{display:flex;gap:2px;padding:10px 12px 6px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sticker-gif-tab{
+    border:0;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.08);
+    color:#cfcfcf;font-size:12px;font-weight:900;cursor:pointer;transition:.18s ease;
+}
+.sticker-gif-tab.active{background:linear-gradient(135deg,#00f2ea,#ff0050);color:#050505}
+.sticker-gif-content{overflow:auto;flex:1;padding:12px}
+.sticker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sticker-item{
+    aspect-ratio:1;border-radius:14px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.08);cursor:pointer;display:grid;place-items:center;
+    font-size:32px;transition:.18s ease;
+}
+.sticker-item:hover{background:rgba(255,255,255,.15);transform:scale(1.05)}
+.gif-search-bar{display:flex;gap:8px;padding:0 0 12px}
+.gif-search-bar input{
+    flex:1;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);
+    color:white;border-radius:12px;padding:10px 14px;outline:none;
+}
+.gif-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.gif-grid-item{
+    border-radius:14px;overflow:hidden;cursor:pointer;aspect-ratio:16/9;
+    background:rgba(255,255,255,.06);display:grid;place-items:center;
+    font-size:12px;color:#aaa;border:1px solid rgba(255,255,255,.08);transition:.18s ease;
+}
+.gif-grid-item:hover{background:rgba(255,255,255,.12);transform:scale(1.02)}
+
+/* Group Management */
+.group-empty-card{
+    margin:18px;padding:22px;border-radius:26px;
+    background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.18);text-align:center;
+}
+.group-access-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.group-access-grid select,.group-access-grid input{width:100%}
+
+/* Responsive */
+@media(max-width:850px){
+    .chain-msg-app{grid-template-columns:1fr}
+    .chain-chat-panel{display:none}
+    body.chat-open .chain-msg-sidebar{display:none}
+    body.chat-open .chain-chat-panel{display:flex;height:100vh}
+    .attach-menu{left:12px;right:12px;bottom:80px;grid-template-columns:repeat(2,1fr)}
+    .emoji-panel{right:12px;left:12px;width:auto}
+    .sticker-gif-panel{left:12px;right:12px;width:auto;transform:none}
+    .shared-drawer{width:100%;right:0}
+}
+
+.composer{align-items:center;background:rgba(5,5,5,.92);backdrop-filter:blur(18px);}
+.composer select#keyboardLang{display:none!important}
+.composer textarea#messageInput{
+    min-height:48px;
+    max-height:124px;
+    font-size:15px;
+    padding:13px 16px;
+    flex:1;
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:22px;
+    background:rgba(255,255,255,.08);
+    color:white;
+    outline:none;
+    resize:none;
+    line-height:1.35;
+}
+.composer .premium-btn{min-width:46px;height:46px;padding:0;display:grid;place-items:center}
+.composer-tools{position:relative;display:flex;gap:8px}
+.typing-line{color:#00f2ea;font-size:12px;font-weight:900;margin-top:3px;display:none}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="chat-layout">
-    <aside class="chat-sidebar">
-        <div class="sidebar-header">
-            <h1 style="margin:0; font-size: 20px;">Messages</h1>
-            <button class="px-btn primary small" onclick="location.href='/discover/'" style="padding: 6px 12px; font-size: 12px;">New Chat</button>
+<div class="chain-msg-app">
+    <aside class="chain-msg-sidebar">
+        <div class="chain-msg-top">
+            <div class="chain-msg-head">
+                <div class="chain-msg-brand">
+                    <button class="hamburger" id="openDrawer" type="button"><i class="fas fa-bars"></i></button>
+                    <div class="chain-msg-logo">C</div>
+                    <div><h1>Messages</h1><span>Chat • Calls • Groups</span></div>
+                </div>
+                <button class="icon-btn" id="openNewChat" type="button"><i class="fas fa-plus"></i></button>
+            </div>
+
+            <div class="msg-search"><i class="fas fa-search"></i><input id="chatSearch" placeholder="Search chats, groups, calls..."></div>
+
+            <div class="msg-tabs">
+                <button class="active" data-tab="all">All</button>
+                <button data-tab="unread">Unread</button>
+                <button data-tab="groups">Groups</button>
+                <button data-tab="calls" style="position:relative;">
+                    Calls <span id="sidebar-missed-call-badge" class="missed-call-badge" style="display:none;">0</span>
+                </button>
+            </div>
         </div>
-        
-        <div class="search-box">
-            <i class="fas fa-search" style="color: var(--chain-muted);"></i>
-            <input type="text" id="chat-search" class="search-input" placeholder="Search messages...">
-        </div>
-        
-        <div class="sidebar-tabs">
-            <div class="tab-btn active">All</div>
-            <div class="tab-btn">Unread</div>
-            <div class="tab-btn">Archived</div>
-            <div class="tab-btn">Groups</div>
-        </div>
-        
-        <div class="chat-list" id="chat-list">
+
+        <div class="thread-list" id="threadList">
             {% if threads %}
                 {% for t in threads %}
-                <a href="/messages/{{ t.id }}" class="chat-item {{ 'pinned' if t.is_pinned else '' }}">
-                    <div class="chat-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background: var(--chain-bg-soft); flex-shrink: 0;">
-                        {% if t.display_avatar %}
-                        <img src="{{ t.display_avatar }}" style="width: 100%; height: 100%; object-fit: cover;">
-                        {% else %}
-                        <div style="width:100%; height:100%; display:grid; place-items:center;"><i class="fas fa-{{ 'users' if t.thread_type == 'group' else 'user' }}"></i></div>
-                        {% endif %}
+                <div class="thread-card"
+                     data-type="{{ t.thread_type or 'direct' }}"
+                     data-id="{{ t.id }}"
+                     data-name="{{ t.display_name or 'Conversation' }}"
+                     data-has-draft="{{ 'true' if t.has_draft else 'false' }}"
+                     data-search="{{ (t.display_name ~ ' ' ~ (t.last_message or '') ~ ' ' ~ (t.thread_type or ''))|lower }}">
+                    <div class="thread-avatar">
+                        {% if t.display_avatar %}<img src="{{ t.display_avatar }}" alt="">{% else %}<i class="fas fa-{{ 'users' if t.thread_type == 'group' else 'user' }}"></i>{% endif %}
+                        <span class="thread-online-dot {{ 'online' if t.is_online else 'offline' }}"></span>
                     </div>
-                    <div class="chat-info">
-                        <div class="chat-name-row">
-                            <span class="chat-name">{{ t.display_name }}</span>
-                            <span class="chat-time">{{ t.last_message_at|datetime if t.last_message_at else '' }}</span>
+                    <div class="thread-body">
+                        <div class="thread-line">
+                            <span class="thread-name">{{ t.display_name or 'Conversation' }}<span class="thread-draft-indicator" data-draft="{{ t.id }}">(draft)</span></span>
+                            <span class="thread-time">{{ t.last_message_at|datetime if t.last_message_at else '' }}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span class="chat-preview">{{ t.last_message or 'No messages' }}</span>
-                            {% if t.unread_count > 0 %}
-                            <div class="unread-badge">{{ t.unread_count }}</div>
-                            {% endif %}
+                        <div class="thread-preview">{{ t.last_message or 'Start the conversation' }}</div>
+                        <div class="thread-meta">
+                            <span class="thread-pill">{{ 'Group' if t.thread_type == 'group' else 'Direct' }}</span>
+                            {% if t.is_online %}<span class="thread-pill live">Online</span>{% endif %}
+                            <span class="thread-pill" style="background:rgba(34,197,94,.15);color:#22c55e;display:none;" data-e2ee="{{ t.id }}"><i class="fas fa-lock"></i> E2EE</span>
                         </div>
                     </div>
-                </a>
-                {% endfor %}
-            {% else %}
-                <div style="padding: 40px; text-align: center; color: var(--chain-muted);">
-                    <i class="fas fa-comment-slash fa-3x" style="margin-bottom: 20px; opacity: 0.3;"></i>
-                    <p>No conversations yet</p>
                 </div>
+                {% endfor %}
+            {% endif %}
+
+            {% if not threads %}
+            <div class="group-empty-card">
+                <h3>No conversations yet</h3>
+                <p>Start a new chat or create a group to begin messaging.</p>
+                <button class="premium-btn primary" id="openNewChatEmpty">Start Chat</button>
+            </div>
             {% endif %}
         </div>
+
+        <div class="no-results" id="noResults">No chat found.</div>
     </aside>
-    
-    <main class="chat-main-placeholder">
-        <div style="text-align: center; color: var(--chain-muted);">
-            <i class="fas fa-comments fa-4x" style="margin-bottom: 24px; opacity: 0.1;"></i>
-            <h3>Your Messages</h3>
-            <p>Select a conversation to start chatting</p>
+
+    <main class="chain-chat-panel">
+        <div class="chat-header">
+            <div class="chat-user" id="chatUserInfo">
+                <div class="chat-user-avatar" id="chatAvatar">
+                    <i class="fas fa-user"></i>
+                    <span class="chat-online-dot" id="chatOnlineDot"></span>
+                </div>
+                <div>
+                    <h2 id="chatTitle">CHAIN Chat</h2>
+                    <p id="chatSub">Select chat or start new conversation</p>
+                    <p id="chatLastSeen" style="display:none;color:#9ca3af;font-size:11px;margin:0;"></p>
+                    <div class="typing-line" id="typingLine">Typing...</div>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <button class="action-circle" id="sharedMediaBtn" title="Shared Media"><i class="fas fa-images"></i></button>
+                <button class="action-circle call" id="quickAudio" onclick="startQuickCall('audio')"><i class="fas fa-phone"></i></button>
+                <button class="action-circle video" id="quickVideo" onclick="startQuickCall('video')"><i class="fas fa-video"></i></button>
+                <button class="action-circle" onclick="CHAIN_GROUP_CALL.create({threadId:currentThreadId,callType:'audio'})" title="Start Group Call"><i class="fas fa-users"></i></button>
+                <button class="action-circle" id="openGroup"><i class="fas fa-users"></i></button>
+                <button class="action-circle" id="shareChat"><i class="fas fa-share"></i></button>
+                <button class="action-circle" id="blockUserBtn" title="Block User"><i class="fas fa-ban"></i></button>
+                <button class="action-circle" id="deleteThread"><i class="fas fa-trash"></i></button>
+            </div>
+        </div>
+
+        <!-- Pinned Message Bar -->
+        <div class="pinned-bar" id="pinnedBar">
+            <i class="fas fa-thumbtack"></i>
+            <span class="pinned-bar-text" id="pinnedBarText">Pinned message</span>
+            <button class="pinned-bar-close" id="pinnedBarClose"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Messages Area -->
+        <section class="messages-area" id="messagesArea">
+            <div class="chat-empty" id="chatEmpty">
+                <div>
+                    <div class="empty-phone"><i class="fas fa-comment-dots"></i></div>
+                    <h3>Your Messages</h3>
+                    <p>Click any message on the left. It will open here with chat, calls, group posting, adverts, comments, emoji and delete controls.</p>
+                    <button class="premium-btn primary" id="openNewChatMain">Start Chat</button>
+                    <button class="premium-btn" id="openGroupMain">Create Group</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reply Preview -->
+        <div class="reply-preview" id="replyPreview">
+            <div class="reply-preview-bar"></div>
+            <div class="reply-preview-content">
+                <div class="reply-preview-sender" id="replyPreviewSender">Reply to</div>
+                <div class="reply-preview-text" id="replyPreviewText">Message content</div>
+            </div>
+            <button class="reply-preview-close" id="replyPreviewClose"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Voice Preview with Speed Control -->
+        <div class="voice-preview" id="voicePreview">
+            <button class="voice-delete" id="deleteVoicePreview" type="button"><i class="fas fa-trash"></i></button>
+            <div class="voice-time" id="voicePreviewTime">0s</div>
+            <div class="voice-wave">
+                <span style="height:18px"></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="voice-speed-group" id="voiceSpeedGroup">
+                <button class="voice-speed-btn" data-speed="0.5">0.5x</button>
+                <button class="voice-speed-btn active" data-speed="1">1x</button>
+                <button class="voice-speed-btn" data-speed="1.5">1.5x</button>
+                <button class="voice-speed-btn" data-speed="2">2x</button>
+            </div>
+            <button class="voice-send" id="sendVoicePreview" type="button"><i class="fas fa-paper-plane"></i></button>
+        </div>
+
+        <!-- Composer -->
+        <div class="composer">
+            <button class="premium-btn" id="attachBtn" type="button"><i class="fas fa-paperclip"></i></button>
+            <textarea id="messageInput" placeholder="Message" rows="1"></textarea>
+            <div class="composer-tools">
+                <button class="premium-btn" id="emojiBtn" type="button">😊</button>
+                <button class="premium-btn" id="stickerGifBtn" type="button"><i class="fas fa-sticky-note"></i></button>
+                <button class="premium-btn" id="voiceBtn" type="button"><i class="fas fa-microphone"></i></button>
+                <button class="premium-btn primary" id="sendBtn" type="button"><i class="fas fa-paper-plane"></i></button>
+            </div>
+            <input type="file" id="hiddenFile" hidden>
+        </div>
+        <div class="attachment-preview" id="inboxAttachmentPreview" hidden>
+            <div class="attachment-preview-body" id="inboxAttachmentPreviewBody"></div>
+            <button type="button" class="attachment-remove" id="inboxAttachmentRemove"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Multi-Select Toolbar -->
+        <div class="multi-select-toolbar" id="multiSelectToolbar">
+            <span class="multi-select-count" id="multiSelectCount">0 selected</span>
+            <button class="multi-select-btn forward" id="multiForwardBtn" title="Forward"><i class="fas fa-share"></i></button>
+            <button class="multi-select-btn" id="multiStarBtn" title="Star"><i class="far fa-star"></i></button>
+            <button class="multi-select-btn" id="multiPinBtn" title="Pin"><i class="fas fa-thumbtack"></i></button>
+            <button class="multi-select-btn danger" id="multiDeleteBtn" title="Delete"><i class="fas fa-trash"></i></button>
+            <button class="premium-btn" id="multiCancelBtn" style="margin-left:auto;padding:8px 14px;font-size:12px;">Cancel</button>
+        </div>
+
+        <!-- Shared Media Drawer -->
+        <div class="shared-drawer" id="sharedDrawer">
+            <div class="shared-drawer-head">
+                <h3>Shared</h3>
+                <button class="premium-btn" id="sharedDrawerClose" style="padding:8px 12px;font-size:12px;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="shared-tabs">
+                <button class="shared-tab active" data-shared-tab="media">Media</button>
+                <button class="shared-tab" data-shared-tab="docs">Docs</button>
+                <button class="shared-tab" data-shared-tab="links">Links</button>
+            </div>
+            <div class="shared-content" id="sharedContent">
+                <div class="shared-empty"><i class="fas fa-image" style="font-size:32px;opacity:.3;margin-bottom:12px;display:block"></i>No shared media yet</div>
+            </div>
         </div>
     </main>
+</div>
+
+<!-- Drawer -->
+<div class="drawer" id="drawer">
+    <div class="drawer-bg" data-close="drawer"></div>
+    <div class="drawer-card">
+        <h3>CHAIN Menu</h3>
+        <a class="drawer-link" href="/messages/"><i class="fas fa-comment"></i> Messages</a>
+        <button class="drawer-link" id="drawerCalls" type="button"><i class="fas fa-phone"></i> Recent Calls</button>
+        <a class="drawer-link" href="/profile/settings"><i class="fas fa-sliders-h"></i> Call Settings</a>
+        <a class="drawer-link" href="/profile/"><i class="fas fa-user"></i> Profile</a>
+        <a class="drawer-link" href="/"><i class="fas fa-home"></i> Home</a>
+    </div>
+</div>
+
+<!-- New Chat Modal -->
+<div class="modal" id="newChatModal">
+    <div class="modal-bg" data-close="newChatModal"></div>
+    <div class="modal-card">
+        <h3>Start Chat or Call</h3>
+        <input class="field" id="chatUsername" placeholder="Username or group name">
+        <div class="modal-actions">
+            <button class="premium-btn" data-close="newChatModal">Cancel</button>
+            <button class="premium-btn" id="startAudio"><i class="fas fa-phone"></i> Audio</button>
+            <button class="premium-btn" id="startVideo"><i class="fas fa-video"></i> Video</button>
+            <button class="premium-btn primary" id="startChat">Chat</button>
+        </div>
+    </div>
+</div>
+
+<!-- Forward Modal -->
+<div class="modal" id="forwardModal">
+    <div class="modal-bg" data-close="forwardModal"></div>
+    <div class="modal-card">
+        <h3>Forward Message</h3>
+        <input class="field" id="forwardSearch" placeholder="Search contacts...">
+        <div id="forwardContactList" style="max-height:300px;overflow:auto;margin-top:10px;">
+            <div class="forward-contact selected">
+                <div class="forward-contact-avatar"><i class="fas fa-user"></i></div>
+                <div class="forward-contact-info">
+                    <div class="forward-contact-name">Recent conversations</div>
+                    <div class="forward-contact-preview">Select from active threads</div>
+                </div>
+            </div>
+            <div class="shared-empty" style="padding:20px">Type a name to search contacts</div>
+        </div>
+        <div class="modal-actions">
+            <button class="premium-btn" data-close="forwardModal">Cancel</button>
+            <button class="premium-btn primary" id="forwardSubmitBtn">Forward</button>
+        </div>
+    </div>
+</div>
+
+<!-- Group Modal -->
+<div class="modal" id="groupModal">
+    <div class="modal-bg" data-close="groupModal"></div>
+    <div class="modal-card">
+        <h3>Create Public Group / Room</h3>
+        <input class="field" id="groupName" placeholder="Group name">
+        <input class="field" id="groupMembers" placeholder="Members usernames separated by comma">
+        <div class="group-access-grid">
+            <select class="field" id="groupAccessType">
+                <option value="public">Public - anyone can search and join</option>
+                <option value="private">Private - invite or approval only</option>
+                <option value="paid">Paid - join with funds</option>
+                <option value="premium">Premium members only</option>
+            </select>
+            <input class="field" id="groupJoinFee" placeholder="Join fee e.g. 20" value="0">
+        </div>
+        <div class="check-row"><span>Allow members to type messages</span><input type="checkbox" id="allowType" checked></div>
+        <div class="check-row"><span>Allow members to reply</span><input type="checkbox" id="allowReply" checked></div>
+        <div class="check-row"><span>Allow comments/adverts/posts</span><input type="checkbox" id="allowComments" checked></div>
+        <div class="check-row"><span>Allow members to invite others</span><input type="checkbox" id="allowInvite"></div>
+        <div class="check-row"><span>Require host approval</span><input type="checkbox" id="approveMembers"></div>
+        <div class="check-row"><span>Premium members only</span><input type="checkbox" id="premiumOnly"></div>
+        <div class="modal-actions">
+            <button class="premium-btn" data-close="groupModal">Cancel</button>
+            <button class="premium-btn primary" id="createGroupBtn">Create Group</button>
+        </div>
+    </div>
+</div>
+
+<!-- Calls Modal -->
+<div class="modal" id="callsModal">
+    <div class="modal-bg" data-close="callsModal"></div>
+    <div class="modal-card">
+        <h3>Recent Calls</h3>
+        <div id="callLogs"></div>
+        <div class="modal-actions"><button class="premium-btn" data-close="callsModal">Close</button></div>
+    </div>
+</div>
+
+<!-- Emoji Panel -->
+<div class="emoji-panel" id="emojiPanel">
+    <div class="emoji-categories">
+        <button class="emoji-cat-btn active" data-cat="smileys">😀</button>
+        <button class="emoji-cat-btn" data-cat="people">👋</button>
+        <button class="emoji-cat-btn" data-cat="animals">🐶</button>
+        <button class="emoji-cat-btn" data-cat="food">🍕</button>
+        <button class="emoji-cat-btn" data-cat="travel">🚗</button>
+        <button class="emoji-cat-btn" data-cat="activities">⚽</button>
+        <button class="emoji-cat-btn" data-cat="objects">💡</button>
+        <button class="emoji-cat-btn" data-cat="symbols">❤️</button>
+        <button class="emoji-cat-btn" data-cat="flags">🏁</button>
+    </div>
+    <div class="emoji-grid-wrapper">
+        <div class="emoji-category-label">Smileys</div>
+        <div class="emoji-grid" data-cat="smileys">
+            <button class="emoji-item">😀</button><button class="emoji-item">😂</button><button class="emoji-item">😍</button><button class="emoji-item">🥰</button>
+            <button class="emoji-item">🙏</button><button class="emoji-item">🔥</button><button class="emoji-item">❤️</button><button class="emoji-item">👍</button>
+            <button class="emoji-item">🎉</button><button class="emoji-item">📢</button><button class="emoji-item">💰</button><button class="emoji-item">📞</button>
+            <button class="emoji-item">🎥</button><button class="emoji-item">😎</button><button class="emoji-item">😭</button><button class="emoji-item">👏</button>
+            <button class="emoji-item">💯</button><button class="emoji-item">⭐</button><button class="emoji-item">🚀</button><button class="emoji-item">✅</button>
+            <button class="emoji-item">🇳🇦</button><button class="emoji-item">🫶</button><button class="emoji-item">😅</button><button class="emoji-item">🤝</button>
+        </div>
+        <div class="emoji-category-label">People</div>
+        <div class="emoji-grid" data-cat="people">
+            <button class="emoji-item">👋</button><button class="emoji-item">✋</button><button class="emoji-item">👌</button><button class="emoji-item">🤘</button>
+            <button class="emoji-item">👍</button><button class="emoji-item">👎</button><button class="emoji-item">👊</button><button class="emoji-item">✊</button>
+            <button class="emoji-item">🤞</button><button class="emoji-item">✌️</button><button class="emoji-item">🤙</button><button class="emoji-item">👈</button>
+            <button class="emoji-item">👉</button><button class="emoji-item">👆</button><button class="emoji-item">👇</button><button class="emoji-item">🖐️</button>
+        </div>
+    </div>
+</div>
+
+<!-- Sticker/GIF Panel -->
+<div class="sticker-gif-panel" id="stickerGifPanel">
+    <div class="sticker-gif-tabs">
+        <button class="sticker-gif-tab active" data-sg-tab="stickers">Stickers</button>
+        <button class="sticker-gif-tab" data-sg-tab="gifs">GIFs</button>
+    </div>
+    <div class="sticker-gif-content">
+        <div class="sticker-grid" id="stickerGrid">
+            <button class="sticker-item" data-sticker="spark">⚡</button>
+            <button class="sticker-item" data-sticker="heart">❤️</button>
+            <button class="sticker-item" data-sticker="fire">🔥</button>
+            <button class="sticker-item" data-sticker="star">⭐</button>
+            <button class="sticker-item" data-sticker="clap">👏</button>
+            <button class="sticker-item" data-sticker="wave">👋</button>
+            <button class="sticker-item" data-sticker="crown">👑</button>
+            <button class="sticker-item" data-sticker="rocket">🚀</button>
+        </div>
+        <div class="gif-grid" id="gifGrid" style="display:none">
+            <div class="gif-search-bar">
+                <input id="gifSearchInput" placeholder="Search GIFs...">
+                <button class="premium-btn" id="gifSearchBtn"><i class="fas fa-search"></i></button>
+            </div>
+            <div style="grid-column:1/-1;text-align:center;padding:30px;color:#aaa;font-size:13px" id="gifEmpty">
+                Search for GIFs to send
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Call Screen -->
+<div class="call-screen" id="callScreen">
+    <div class="call-timeout-bar" id="callScreenTimeoutBar" style="position:absolute;top:0;left:0;right:0;height:4px;background:rgba(255,255,255,.1);z-index:10;display:none;">
+        <div class="timeout-fill" style="height:100%;background:linear-gradient(90deg,#22c55e,#ef4444);width:100%;" id="callScreenTimeoutFill"></div>
+    </div>
+    <div>
+        <div class="call-avatar ring-pulse"><i class="fas fa-phone"></i></div>
+        <h1 id="callName">Calling...</h1>
+        <p id="callStatus">Ringing...</p>
+        <div class="call-controls">
+            <button class="call-ctrl" id="muteBtn"><i class="fas fa-microphone"></i></button>
+            <button class="call-ctrl" id="speakerBtn"><i class="fas fa-volume-up"></i></button>
+            <button class="call-ctrl end" id="endCallBtn"><i class="fas fa-phone-slash"></i></button>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/push_notifications.js"></script>
+<script src="/static/js/notification_badge.js"></script>
 <script>
-    document.getElementById('chat-search').addEventListener('input', async (e) => {
-        const q = e.target.value;
-        if (q.length < 2) return;
-        
-        const res = await fetch(`/messages/api/messages/search?q=${q}`);
-        const data = await res.json();
-        // Update list with search results
+(function(){
+    document.body.classList.add('chain-message-mode');
+
+    const $ = id => document.getElementById(id);
+    const open = id => $(id)?.classList.add('active');
+    const close = id => $(id)?.classList.remove('active');
+
+    let currentThreadId = null;
+    let currentThreadName = null;
+    let currentThreadType = 'direct';
+    window.myProfileId = "{{ profile.id if profile else '' }}";
+    let ringingAudio = null;
+    let selectedMsgIds = new Set();
+    let forwardMsgIds = [];
+    let pendingAttachment = null;
+
+    function makeBeep(){
+        try{
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            oscillator.connect(gain);
+            gain.connect(ctx.destination);
+            oscillator.frequency.value = 720;
+            gain.gain.value = 0.05;
+            oscillator.start();
+            setTimeout(()=>oscillator.stop(), 220);
+        }catch(e){}
+    }
+
+    function startRing(){
+        stopRing();
+        makeBeep();
+        ringingAudio = setInterval(makeBeep, 1300);
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
+    }
+
+    function loadCallHistory() {
+        fetch('/calls/api/history')
+            .then(r => r.json())
+            .then(data => {
+                const logs = data.history || [];
+                const container = document.getElementById('callLogs');
+                if (!container) return;
+                if (!logs.length) {
+                    container.innerHTML = '<div class="shared-empty" style="padding:20px">No recent calls</div>';
+                    return;
+                }
+                container.innerHTML = logs.map(l => {
+                    const icon = l.direction === 'outgoing' ? 'fa-phone' : 'fa-phone-alt';
+                    const statusIcon = l.status === 'ended' ? 'fa-check-circle' : l.status === 'missed' ? 'fa-times-circle' : 'fa-clock';
+                    const statusColor = l.status === 'missed' ? '#ef4444' : l.status === 'ended' ? '#22c55e' : '#f59e0b';
+                    const name = l.other_display_name || l.other_username || 'Unknown';
+                    const dur = l.duration_seconds ? Math.floor(l.duration_seconds / 60) + 'm ' + (l.duration_seconds % 60) + 's' : '';
+                    return `<div class="call-log-card">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#ff0050,#00f2ea);display:grid;place-items:center;flex-shrink:0;">
+                                <i class="fas ${icon}" style="color:#050505;"></i>
+                            </div>
+                            <div>
+                                <div style="font-weight:950;font-size:14px;">${name}</div>
+                                <div style="font-size:11px;color:#aaa;display:flex;align-items:center;gap:4px;">
+                                    <i class="fas ${statusIcon}" style="color:${statusColor};font-size:10px;"></i>
+                                    ${l.call_type} call ${dur ? '· ' + dur : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div style="font-size:11px;color:#aaa;">${timeAgo(l.created_at)}</div>
+                    </div>`;
+                }).join('');
+            })
+            .catch(() => {});
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Init WebRTC if socket exists
+        if (typeof io !== 'undefined') {
+            const tempSocket = io({ transports: ['polling'], upgrade: false });
+            tempSocket.on('connect', () => {
+                if (window.wCallInit) wCallInit(tempSocket);
+            });
+        }
+        // Phase 41: Update missed call badge on load
+        if (window.wUpdateMissedCallBadge) {
+            setTimeout(() => wUpdateMissedCallBadge(), 1000);
+        }
     });
+
+    function stopRing(){
+        if(ringingAudio){ clearInterval(ringingAudio); ringingAudio = null; }
+    }
+
+    function escapeHtml(s){
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    }
+
+    function timeAgo(dateStr){
+        if(!dateStr) return '';
+        const now = new Date();
+        const d = new Date(dateStr);
+        const sec = Math.floor((now - d) / 1000);
+        if(sec < 5) return 'now';
+        if(sec < 60) return sec + 's ago';
+        const min = Math.floor(sec / 60);
+        if(min < 60) return min + 'm ago';
+        const hr = Math.floor(min / 60);
+        if(hr < 24) return hr + 'h ago';
+        const day = Math.floor(hr / 24);
+        if(day < 7) return day + 'd ago';
+        return d.toLocaleDateString();
+    }
+
+    function renderAttachment(m) {
+        if (!m.media_url) return '';
+        const url = escapeHtml(m.media_url);
+        const type = m.media_type || '';
+        if (type.startsWith('image')) return `<img src="${url}" class="msg-media" alt="Attachment" loading="lazy">`;
+        if (type.startsWith('video')) return `<video src="${url}" class="msg-media" controls playsinline></video>`;
+        if (type.startsWith('audio')) return `<div class="voice-bubble"><div class="voice-wave mini"><span></span><span></span><span></span><span></span><span></span></div><audio src="${url}" controls preload="metadata"></audio></div>`;
+        return `<a class="doc-attachment" href="${url}" target="_blank" rel="noopener"><i class="fas fa-file"></i> Attachment</a>`;
+    }
+
+    function deliveryHtml(m) {
+        if (!m.mine) return '';
+        const state = m.delivery_status || 'sent';
+        const icon = state === 'seen' ? 'fa-check-double read' : state === 'delivered' ? 'fa-check-double delivered' : state === 'failed' ? 'fa-exclamation-circle failed' : state === 'sending' ? 'fa-clock sending' : 'fa-check sent';
+        const label = {sending:'Sending', sent:'Sent', delivered:'Delivered', seen:'Seen', failed:'Failed'}[state] || 'Sent';
+        return `<span class="delivery-label" data-state="${state}">${label}</span> <i class="fas ${icon} status-tick"></i>`;
+    }
+
+    function renderMessages(name, messages){
+        $('messagesArea').innerHTML = '';
+        if(!messages.length){
+            $('messagesArea').innerHTML = '<div class="chat-empty"><div><div class="empty-phone"><i class="fas fa-comments"></i></div><h3>No messages yet</h3><p>Send the first message, advert, group post or comment.</p></div></div>';
+            updateMultiSelectToolbar();
+            return;
+        }
+        messages.forEach(m=>{
+            const div = document.createElement('div');
+            div.className = 'bubble ' + (m.mine ? 'me' : '');
+            div.dataset.msgId = m.id;
+            div.innerHTML = `
+                <input type="checkbox" class="msg-select-cb" data-msg-id="${m.id}" style="position:absolute;left:-32px;top:10px;display:none">
+                <button class="delete-msg" data-id="${m.id}"><i class="fas fa-times"></i></button>
+                <div class="sender">${m.sender || name}</div>
+                ${renderAttachment(m)}
+                <div>${escapeHtml(m.body || '')}</div>
+                <div style="font-size:10px;opacity:0.75;margin-top:4px;text-align:right">${timeAgo(m.created_at)} ${deliveryHtml(m)}</div>
+                <div class="msg-reactions" data-message-id="${m.id}">${(m.reactions || []).map(r => `<span class="reaction-badge">${escapeHtml(r.reaction_type || r.reaction || '')}</span>`).join('')}</div>
+            `;
+            $('messagesArea').appendChild(div);
+        });
+        $('messagesArea').scrollTop = $('messagesArea').scrollHeight;
+    }
+
+    async function openThread(id, name, type){
+        currentThreadId = id;
+        currentThreadName = name;
+        currentThreadType = type || 'direct';
+        document.body.classList.add('chat-open');
+        $('chatTitle').textContent = name;
+        $('chatSub').textContent = type === 'group' ? 'Group chat • posts • adverts • comments • group call' : 'Private chat • audio • video • share';
+        document.querySelectorAll('.thread-card').forEach(c=>c.classList.toggle('active', c.dataset.id === id));
+
+        let messages = [];
+        try{
+            const res = await fetch('/messages/api/thread/' + encodeURIComponent(id));
+            const json = await res.json();
+            messages = json.messages || [];
+            if(json.pinned_message){
+                showPinnedMessage(json.pinned_message);
+            } else {
+                hidePinnedMessage();
+            }
+        }catch(e){}
+
+        renderMessages(name, messages);
+        selectedMsgIds.clear();
+        updateMultiSelectToolbar();
+        $('sharedDrawer')?.classList.remove('active');
+    }
+
+    function showPinnedMessage(msg){
+        $('pinnedBarText').textContent = msg.body || 'Pinned message';
+        $('pinnedBar')?.classList.add('active');
+    }
+
+    function hidePinnedMessage(){
+        $('pinnedBar')?.classList.remove('active');
+    }
+
+    $('pinnedBarClose')?.addEventListener('click', hidePinnedMessage);
+
+    document.querySelectorAll('.thread-card').forEach(card=>{
+        card.addEventListener('click',()=>openThread(card.dataset.id, card.dataset.name, card.dataset.type));
+        if(card.dataset.hasDraft === 'true'){
+            card.querySelector('.thread-draft-indicator').style.display = 'inline';
+        }
+    });
+
+    function updateSendState() {
+        if ($('sendBtn')) $('sendBtn').disabled = !$('messageInput').value.trim() && !pendingAttachment;
+    }
+    updateSendState();
+
+    function appendOptimistic(body, file) {
+        const tempId = 'temp-' + Date.now();
+        const mediaUrl = file ? URL.createObjectURL(file) : '';
+        const div = document.createElement('div');
+        div.className = 'bubble me optimistic';
+        div.dataset.msgId = tempId;
+        div.innerHTML = `
+            ${file ? renderAttachment({media_url: mediaUrl, media_type: file.type}) : ''}
+            <div>${escapeHtml(body || (file ? file.name : ''))}</div>
+            <div style="font-size:10px;opacity:.75;margin-top:4px;text-align:right"><span class="delivery-label" data-state="sending">Sending</span> <i class="fas fa-clock status-tick sending"></i></div>
+            <button type="button" class="retry-send" style="display:none"><i class="fas fa-rotate-right"></i> Retry</button>
+        `;
+        $('messagesArea').appendChild(div);
+        $('messagesArea').scrollTop = $('messagesArea').scrollHeight;
+        return div;
+    }
+
+    function markBubbleState(bubble, state) {
+        const label = bubble?.querySelector('.delivery-label');
+        const tick = bubble?.querySelector('.status-tick');
+        const retry = bubble?.querySelector('.retry-send');
+        if (label) {
+            label.dataset.state = state;
+            label.textContent = {sending:'Sending', sent:'Sent', delivered:'Delivered', seen:'Seen', failed:'Failed'}[state] || 'Sent';
+        }
+        if (tick) tick.className = 'fas status-tick ' + (state === 'seen' ? 'fa-check-double read' : state === 'delivered' ? 'fa-check-double delivered' : state === 'failed' ? 'fa-exclamation-circle failed' : state === 'sending' ? 'fa-clock sending' : 'fa-check sent');
+        if (retry) retry.style.display = state === 'failed' ? 'inline-flex' : 'none';
+    }
+
+    async function sendCurrentMessage() {
+        const body = $('messageInput').value.trim();
+        const file = pendingAttachment;
+        if(!body && !file) return;
+        if(!currentThreadId){
+            alert('Open a chat first.');
+            return;
+        }
+
+        const optimistic = appendOptimistic(body, file);
+        const form = new FormData();
+        form.append('thread_id', currentThreadId);
+        form.append('body', body);
+        form.append('client_message_id', optimistic.dataset.msgId);
+        if (file) form.append('media', file, file.name || 'attachment');
+        try {
+            const res = await fetch('/messages/api/messages/send',{method:'POST',body:form,credentials:'same-origin'});
+            const json = await res.json().catch(()=>({}));
+            if(!res.ok || (!json.success && !json.ok)) throw new Error(json.error || 'send_failed');
+            $('messageInput').value = '';
+            pendingAttachment = null;
+            $('hiddenFile').value = '';
+            $('inboxAttachmentPreview').hidden = true;
+            markBubbleState(optimistic, 'sent');
+        } catch(e) {
+            markBubbleState(optimistic, 'failed');
+        }
+        updateSendState();
+    }
+
+    $('sendBtn')?.addEventListener('click', sendCurrentMessage);
+
+    $('messageInput')?.addEventListener('keydown',e=>{
+        if(e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+            e.preventDefault();
+            sendCurrentMessage();
+        }
+    });
+    $('messageInput')?.addEventListener('input', updateSendState);
+
+    // Emoji Panel with Categories
+    $('emojiBtn')?.addEventListener('click',()=>{
+        $('emojiPanel')?.classList.toggle('active');
+        $('stickerGifPanel')?.classList.remove('active');
+    });
+
+    document.querySelectorAll('.emoji-item').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            $('messageInput').value += btn.textContent;
+            $('messageInput').focus();
+            showTyping();
+        });
+    });
+
+    document.querySelectorAll('.emoji-cat-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            document.querySelectorAll('.emoji-cat-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.emoji-grid').forEach(g=>{
+                g.style.display = g.dataset.cat === btn.dataset.cat ? 'grid' : 'none';
+            });
+        });
+    });
+    document.querySelectorAll('.emoji-grid').forEach((g,i)=>g.style.display = i === 0 ? 'grid' : 'none');
+
+    // Sticker/GIF Panel
+    $('stickerGifBtn')?.addEventListener('click',()=>{
+        $('stickerGifPanel')?.classList.toggle('active');
+        $('emojiPanel')?.classList.remove('active');
+    });
+
+    document.querySelectorAll('[data-sg-tab]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            document.querySelectorAll('[data-sg-tab]').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            $('stickerGrid').style.display = btn.dataset.sgTab === 'stickers' ? 'grid' : 'none';
+            $('gifGrid').style.display = btn.dataset.sgTab === 'gifs' ? 'grid' : 'none';
+        });
+    });
+
+    document.querySelectorAll('.sticker-item').forEach(btn=>{
+        btn.addEventListener('click',async ()=>{
+            if(!currentThreadId) return;
+            await fetch('/messages/api/thread/' + encodeURIComponent(currentThreadId) + '/send',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({body: btn.textContent + ' sticker'})
+            });
+            $('stickerGifPanel')?.classList.remove('active');
+            openThread(currentThreadId,currentThreadName,currentThreadType);
+        });
+    });
+
+    $('gifSearchBtn')?.addEventListener('click',()=>{
+        $('gifEmpty').textContent = 'GIF search requires a GIF provider API key. Configure one in settings.';
+    });
+
+    // Multi-Select
+    $('messagesArea')?.addEventListener('change', e=>{
+        const cb = e.target.closest('.msg-select-cb');
+        if(!cb) return;
+        if(cb.checked) selectedMsgIds.add(cb.dataset.msgId);
+        else selectedMsgIds.delete(cb.dataset.msgId);
+        updateMultiSelectToolbar();
+    });
+
+    function updateMultiSelectToolbar(){
+        const count = selectedMsgIds.size;
+        if(count > 0){
+            $('multiSelectCount').textContent = count + ' selected';
+            $('multiSelectToolbar')?.classList.add('active');
+            document.querySelectorAll('.msg-select-cb').forEach(cb=>cb.style.display = 'inline-block');
+        } else {
+            $('multiSelectToolbar')?.classList.remove('active');
+            document.querySelectorAll('.msg-select-cb').forEach(cb=>cb.style.display = 'none');
+        }
+    }
+
+    $('multiCancelBtn')?.addEventListener('click',()=>{
+        selectedMsgIds.clear();
+        document.querySelectorAll('.msg-select-cb').forEach(cb=>cb.checked=false);
+        updateMultiSelectToolbar();
+    });
+
+    $('multiDeleteBtn')?.addEventListener('click',async ()=>{
+        if(!selectedMsgIds.size || !confirm('Delete selected messages?')) return;
+        for(const id of selectedMsgIds){
+            await fetch('/messages/message/' + encodeURIComponent(id) + '/delete',{method:'POST'});
+        }
+        selectedMsgIds.clear();
+        openThread(currentThreadId,currentThreadName,currentThreadType);
+    });
+
+    $('multiForwardBtn')?.addEventListener('click',()=>{
+        if(!selectedMsgIds.size) return;
+        forwardMsgIds = [...selectedMsgIds];
+        $('forwardSubmitBtn').dataset.mode = 'forward';
+        open('forwardModal');
+    });
+
+    $('multiPinBtn')?.addEventListener('click',async ()=>{
+        if(!selectedMsgIds.size) return;
+        for(const id of selectedMsgIds){
+            await fetch('/messages/api/messages/' + encodeURIComponent(id) + '/pin',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({pinned:true})
+            });
+        }
+        selectedMsgIds.clear();
+        alert('Messages pinned');
+        updateMultiSelectToolbar();
+    });
+
+    $('multiStarBtn')?.addEventListener('click',async ()=>{
+        for(const id of selectedMsgIds){
+            await fetch('/messages/api/messages/' + encodeURIComponent(id) + '/star',{
+                method:'POST',
+                credentials:'same-origin'
+            });
+        }
+        selectedMsgIds.clear();
+        alert('Messages starred');
+        updateMultiSelectToolbar();
+    });
+
+    // Forward Modal
+    $('forwardSearch')?.addEventListener('input', function(){
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.forward-contact').forEach(c=>{
+            const name = (c.dataset.name || c.querySelector('.forward-contact-name')?.textContent || '').toLowerCase();
+            c.style.display = !q || name.includes(q) ? 'flex' : 'none';
+        });
+    });
+
+    $('forwardSubmitBtn')?.addEventListener('click', async ()=>{
+        const targetInput = $('forwardSearch').value.trim();
+        if(!targetInput && !forwardMsgIds.length){
+            alert('Search for a contact or select one');
+            return;
+        }
+        const target = targetInput || currentThreadName;
+        for(const id of forwardMsgIds){
+            await fetch('/messages/api/messages/forward',{
+                method:'POST',
+                credentials:'same-origin',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({message_ids:[id], to_thread_ids:[target]})
+            });
+        }
+        forwardMsgIds = [];
+        close('forwardModal');
+        selectedMsgIds.clear();
+        updateMultiSelectToolbar();
+        alert('Message forwarded!');
+    });
+
+    // Forward messages on right-click context menu
+    window.initForward = function(){
+        // Prompt alternative - use modal
+        if(!selectedMsgIds.size && window.selectedMsgId){
+            forwardMsgIds = [window.selectedMsgId];
+            open('forwardModal');
+        }
+    };
+
+    // Shared Media Drawer
+    $('sharedMediaBtn')?.addEventListener('click',()=>{
+        $('sharedDrawer')?.classList.toggle('active');
+    });
+
+    $('sharedDrawerClose')?.addEventListener('click',()=>{
+        $('sharedDrawer')?.classList.remove('active');
+    });
+
+    document.querySelectorAll('[data-shared-tab]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            document.querySelectorAll('[data-shared-tab]').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.sharedTab;
+            const labels = {media:'No shared media yet',docs:'No shared documents yet',links:'No shared links yet'};
+            $('sharedContent').innerHTML = `<div class="shared-empty"><i class="fas fa-${tab==='media'?'image':tab==='docs'?'file':'link'}" style="font-size:32px;opacity:.3;margin-bottom:12px;display:block"></i>${labels[tab]}</div>`;
+        });
+    });
+
+    // Reply Preview
+    function showReplyPreview(sender, text){
+        $('replyPreviewSender').textContent = 'Reply to ' + sender;
+        $('replyPreviewText').textContent = text;
+        $('replyPreview')?.classList.add('active');
+    }
+
+    function hideReplyPreview(){
+        $('replyPreview')?.classList.remove('active');
+    }
+
+    $('replyPreviewClose')?.addEventListener('click', hideReplyPreview);
+    window.showReplyPreview = showReplyPreview;
+    window.hideReplyPreview = hideReplyPreview;
+
+    // Voice Speed Control
+    document.querySelectorAll('.voice-speed-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            document.querySelectorAll('.voice-speed-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    function cleanUser(){return ($('chatUsername')?.value || '').trim().replace(/^@/,'');}
+
+    $('startChat')?.addEventListener('click',()=>{
+        const u = cleanUser();
+        if(!u){$('chatUsername').focus();return;}
+        close('newChatModal');
+        const id = 'user-' + u.toLowerCase();
+        openThread(id,'@' + u,'direct');
+    });
+
+    async function startCall(type,target){
+        target = target || currentThreadName || cleanUser() || 'CHAIN User';
+        const res = await fetch('/messages/calls/start',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({target,call_type:type})
+        });
+        const json = await res.json();
+        $('callName').textContent = type.toUpperCase() + ' call with ' + target;
+        $('callStatus').textContent = 'Ringing...';
+        open('callScreen');
+        startRing();
+        const tb = $('callScreenTimeoutBar');
+        const fill = $('callScreenTimeoutFill');
+        if(tb && fill){
+            tb.style.display = '';
+            fill.style.animation = 'none';
+            void fill.offsetHeight;
+            fill.style.animation = 'timeoutShrink 30s linear forwards';
+            setTimeout(()=>{ tb.style.display = 'none'; }, 30000);
+        }
+    }
+
+    function startQuickCall(type) {
+        if (!currentThreadId) { alert('Open a chat first.'); return; }
+        if (window.wStartCall) {
+            // Try to get other member's ID from path or data
+            const otherId = document.querySelector('.thread-card.active')?.dataset.id || currentThreadId;
+            fetch('/messages/api/thread/' + encodeURIComponent(currentThreadId))
+                .then(r => r.json())
+                .then(data => {
+                    const msgs = data.messages || [];
+                    for (const m of msgs) {
+                        if (m.sender_profile_id && m.sender_profile_id !== myProfileId) {
+                            wStartCall(m.sender_profile_id, currentThreadId, type);
+                            return;
+                        }
+                    }
+                    // Fallback: use REST API
+                    startCallLegacy(type, currentThreadId);
+                })
+                .catch(() => startCallLegacy(type, currentThreadId));
+        } else {
+            startCallLegacy(type, currentThreadId);
+        }
+    }
+
+    function startCallLegacy(type, target) {
+        startCall(type, target);
+    }
+
+    $('quickAudio')?.addEventListener('click',()=>startQuickCall('audio'));
+    $('quickVideo')?.addEventListener('click',()=>startQuickCall('video'));
+    $('startAudio')?.addEventListener('click',()=>{close('newChatModal');startCall('audio', cleanUser());});
+    $('startVideo')?.addEventListener('click',()=>{close('newChatModal');startCall('video', cleanUser());});
+
+    $('endCallBtn')?.addEventListener('click',()=>{
+        stopRing();
+        $('callStatus').textContent = 'Call ended';
+        setTimeout(()=>close('callScreen'),600);
+    });
+
+    $('muteBtn')?.addEventListener('click',()=>alert('Microphone muted/unmuted'));
+    $('speakerBtn')?.addEventListener('click',()=>alert('Speaker mode changed'));
+
+    function renderPremiumCallCard(l){
+        const statusIcon = l.status === 'ended' ? 'fa-check-circle' : l.status === 'missed' ? 'fa-times-circle' : l.status === 'rejected' ? 'fa-ban' : l.status === 'failed' ? 'fa-exclamation-triangle' : 'fa-clock';
+        const statusColor = l.status === 'ended' ? '#22c55e' : l.status === 'missed' ? '#ef4444' : l.status === 'rejected' ? '#f59e0b' : l.status === 'failed' ? '#ef4444' : '#9ca3af';
+        const dirIcon = l.direction === 'incoming' ? 'fa-arrow-down' : 'fa-arrow-up';
+        const dur = l.duration_seconds ? Math.floor(l.duration_seconds/60)+'m '+(l.duration_seconds%60)+'s' : '';
+        const date = l.created_at ? new Date(l.created_at).toLocaleString() : '';
+        return `<div class="call-log-card phase41" data-call-id="${escapeHtml(l.call_id||'')}" data-other-id="${escapeHtml(l.other_profile_id||'')}">
+            <div class="clc-avatar"><i class="fas fa-user"></i></div>
+            <div class="clc-body">
+                <div class="clc-line1">
+                    <strong>${escapeHtml(l.other_display_name||l.other_username||'Unknown')}</strong>
+                    <span class="clc-status" style="color:${statusColor}"><i class="fas ${statusIcon}"></i> ${l.status}</span>
+                </div>
+                <div class="clc-line2">
+                    <i class="fas ${dirIcon}" style="color:${statusColor}"></i>
+                    ${l.call_type} call ${dur ? '· '+dur : ''}
+                    <span class="clc-date">${date}</span>
+                </div>
+            </div>
+            <div class="clc-actions">
+                <button class="clc-btn clc-callback" data-profile-id="${escapeHtml(l.other_profile_id||'')}" onclick="wRedial(this)" title="Call back"><i class="fas fa-phone"></i></button>
+            </div>
+        </div>`;
+    }
+
+    async function loadCalls(){
+        open('callsModal');
+        const box = $('callLogs');
+        box.innerHTML = '<p>Loading calls...</p>';
+
+        // Load Phase 41 call logs (premium)
+        try {
+            const lRes = await fetch('/calls/api/logs');
+            const lData = await lRes.json();
+            const logs = lData.logs || [];
+            if(logs.length){
+                box.innerHTML = logs.map(renderPremiumCallCard).join('');
+                // Update missed call badge
+                const mcRes = await fetch('/calls/api/missed-count');
+                const mcData = await mcRes.json();
+                const badge = $('#sidebar-missed-call-badge');
+                if(badge){
+                    const cnt = mcData.count || 0;
+                    badge.textContent = cnt > 99 ? '99+' : cnt;
+                    badge.style.display = cnt > 0 ? 'flex' : 'none';
+                }
+                return;
+            }
+        } catch(e) {}
+
+        // Legacy calls fallback
+        let legacyCalls = [];
+        try {
+            const res = await fetch('/messages/calls/logs');
+            const json = await res.json();
+            legacyCalls = json.calls || [];
+        } catch(e) {}
+
+        if(!legacyCalls.length){
+            box.innerHTML = '<p style="color:#aaa">No calls yet. Start an audio or video call.</p>';
+            return;
+        }
+        box.innerHTML = legacyCalls.map(c=>`
+            <div class="call-log-card">
+                <div>
+                    <strong>${c.call_type === 'video' ? '🎥' : '📞'} ${escapeHtml(c.target)}</strong>
+                    <div style="color:#aaa;font-size:12px">${c.direction} • ${c.status} • ${c.duration_seconds || 0}s</div>
+                    <div style="color:#777;font-size:11px">${c.created_at || ''}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    $('drawerCalls')?.addEventListener('click',()=>{close('drawer');loadCalls();});
+    document.querySelector('[data-tab="calls"]')?.addEventListener('click',loadCalls);
+
+    $('callLogs')?.addEventListener('click',async e=>{
+        const redial = e.target.closest('.redial');
+        const del = e.target.closest('.delete-call');
+        if(redial){close('callsModal');startCall(redial.dataset.type, redial.dataset.target);}
+        if(del){await fetch('/messages/calls/' + del.dataset.id + '/delete',{method:'POST'});loadCalls();}
+    });
+
+    $('openDrawer')?.addEventListener('click',()=>open('drawer'));
+    $('openNewChat')?.addEventListener('click',()=>open('newChatModal'));
+    $('openNewChatMain')?.addEventListener('click',()=>open('newChatModal'));
+    $('openNewChatEmpty')?.addEventListener('click',()=>open('newChatModal'));
+    $('openGroup')?.addEventListener('click',()=>open('groupModal'));
+    $('openGroupMain')?.addEventListener('click',()=>open('groupModal'));
+
+    document.querySelectorAll('[data-close]').forEach(el=>el.addEventListener('click',()=>close(el.dataset.close)));
+
+    $('createGroupBtn')?.addEventListener('click', async ()=>{
+        const name = $('groupName').value.trim();
+        if(!name){$('groupName').focus();return;}
+        const payload = {
+            name,
+            members:$('groupMembers').value.trim(),
+            allow_type:$('allowType').checked,
+            allow_reply:$('allowReply').checked,
+            allow_comments:$('allowComments').checked,
+            allow_invite:$('allowInvite').checked,
+            access_type:$('groupAccessType').value,
+            join_fee:$('groupJoinFee').value,
+            premium_only:$('premiumOnly').checked,
+            approve_members:$('approveMembers').checked,
+            public:$('groupAccessType').value === 'public'
+        };
+        const res = await fetch('/messages/api/group/create',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if(json.ok){
+            close('groupModal');
+            const g = json.group;
+            addThread(g.id,g.name,'group','Group created • public • searchable');
+            openThread(g.id,g.name,'group');
+        }
+    });
+
+    function addThread(id,name,type,preview){
+        const card = document.createElement('div');
+        card.className = 'thread-card';
+        card.dataset.id = id;
+        card.dataset.name = name;
+        card.dataset.type = type;
+        card.dataset.search = `${name} ${type} ${preview}`.toLowerCase();
+        card.innerHTML = `
+            <div class="thread-avatar">
+                <i class="fas fa-${type === 'group' ? 'users' : 'user'}"></i>
+                <span class="thread-online-dot online"></span>
+            </div>
+            <div class="thread-body">
+                <div class="thread-line"><span class="thread-name">${escapeHtml(name)}</span><span class="thread-time">Now</span></div>
+                <div class="thread-preview">${escapeHtml(preview)}</div>
+                <div class="thread-meta"><span class="thread-pill">${type === 'group' ? 'Group' : 'Direct'}</span></div>
+            </div>`;
+        card.addEventListener('click',()=>openThread(id,name,type));
+        $('threadList').prepend(card);
+    }
+
+    $('shareChat')?.addEventListener('click',async()=>{
+        const data = {title:'CHAIN Chat',text:'Join me on CHAIN: ' + (currentThreadName || 'Messages'),url:location.href};
+        if(navigator.share){await navigator.share(data).catch(()=>{});}
+        else{await navigator.clipboard.writeText(location.href);alert('Link copied');}
+    });
+
+    $('blockUserBtn')?.addEventListener('click', async ()=>{
+        if(!currentThreadId) return;
+        const name = currentThreadName || 'this user';
+        if(!confirm('Block ' + name + '? They will not be able to message or call you.')) return;
+        const res = await fetch('/messages/api/block', {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username: name.replace(/^@/,'')})
+        });
+        const data = await res.json().catch(()=>({}));
+        alert(data.message || 'User blocked');
+    });
+
+    $('deleteThread')?.addEventListener('click',async()=>{
+        if(!currentThreadId) return;
+        if(currentThreadType === 'group'){
+            await fetch('/messages/groups/' + currentThreadId + '/delete',{method:'POST'});
+        }
+        document.querySelector(`.thread-card[data-id="${currentThreadId}"]`)?.remove();
+        currentThreadId = null;
+        $('chatTitle').textContent = 'CHAIN Chat';
+        $('chatSub').textContent = 'Select chat or start new conversation';
+        $('messagesArea').innerHTML = '<div class="chat-empty"><div><div class="empty-phone"><i class="fas fa-comment-dots"></i></div><h3>Your Messages</h3><p>Select another conversation.</p></div></div>';
+    });
+
+    $('chatSearch')?.addEventListener('input',function(){
+        const q = this.value.toLowerCase().trim();
+        let total = 0;
+        document.querySelectorAll('.thread-card').forEach(card=>{
+            const show = !q || (card.dataset.search || card.innerText.toLowerCase()).includes(q);
+            card.style.display = show ? 'flex':'none';
+            if(show) total++;
+        });
+        $('noResults').style.display = q && total === 0 ? 'block':'none';
+    });
+
+    document.querySelectorAll('[data-tab]').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+            document.querySelectorAll('[data-tab]').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            if(tab === 'calls'){loadCalls();return;}
+            document.querySelectorAll('.thread-card').forEach(card=>{
+                const type = card.dataset.type || 'direct';
+                card.style.display = tab === 'all' || (tab === 'groups' && type === 'group') || tab === 'unread' ? 'flex':'none';
+            });
+        });
+    });
+
+    const params = new URLSearchParams(location.search);
+    const openId = params.get('open');
+    const openName = params.get('name');
+    if(openId){openThread(openId,openName || openId,openId.startsWith('group-')?'group':'direct');}
+
+    let typingTimeout = null;
+    let recordTimer = null;
+    let recordSeconds = 0;
+    let isRecording = false;
+    let selectedAttachKind = "file";
+
+    function showTyping(){
+        if(!currentThreadId) return;
+        const line = $('typingLine');
+        if(line){
+            line.style.display = 'block';
+            line.textContent = 'You are typing...';
+        }
+        fetch('/messages/typing/' + encodeURIComponent(currentThreadId), {method:'POST'}).catch(()=>{});
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(()=>{
+            if(line) line.style.display = 'none';
+        }, 1200);
+    }
+
+    $('messageInput')?.addEventListener('input', showTyping);
+
+    $('attachBtn')?.addEventListener('click',()=>{
+        $('attachMenu')?.classList.toggle('active');
+    });
+
+    function openAttachMenu(){
+        if(!currentThreadId){
+            alert('Open a chat first.');
+            return;
+        }
+        if(!document.querySelector('.attach-menu')){
+            const menu = document.createElement('div');
+            menu.className = 'attach-menu active';
+            menu.innerHTML = `
+                <button class="attach-item photo" data-kind="photo"><i class="fas fa-image"></i>Photo</button>
+                <button class="attach-item" data-kind="video"><i class="fas fa-video"></i>Video</button>
+                <button class="attach-item document" data-kind="document"><i class="fas fa-file"></i>Document</button>
+                <button class="attach-item" data-kind="contact"><i class="fas fa-address-book"></i>Contact</button>
+                <button class="attach-item gif" data-kind="location"><i class="fas fa-map-marker-alt"></i>Location</button>
+                <button class="attach-item" data-kind="advert"><i class="fas fa-bullhorn"></i>Advert</button>
+            `;
+            document.querySelector('.composer')?.appendChild(menu);
+            menu.querySelectorAll('.attach-item').forEach(btn=>{
+                btn.addEventListener('click',()=>{
+                    selectedAttachKind = btn.dataset.kind;
+                    menu.remove();
+                    if(selectedAttachKind === 'location'){
+                        $('messageInput').value = '📍 Shared location';
+                        $('sendBtn').click();
+                    } else if(selectedAttachKind === 'contact'){
+                        $('messageInput').value = '👤 Shared contact card';
+                        $('sendBtn').click();
+                    } else if(selectedAttachKind === 'advert'){
+                        $('messageInput').value = '📢 Advert: ';
+                        $('messageInput').focus();
+                    } else {
+                        $('hiddenFile').click();
+                    }
+                });
+            });
+        } else {
+            document.querySelector('.attach-menu')?.remove();
+        }
+    }
+
+    $('hiddenFile')?.addEventListener('change', ()=>{
+        const file = $('hiddenFile').files && $('hiddenFile').files[0];
+        if(!file) return;
+        pendingAttachment = file;
+        const body = $('inboxAttachmentPreviewBody');
+        const url = URL.createObjectURL(file);
+        body.innerHTML = renderAttachment({media_url:url, media_type:file.type}) + `<span class="attachment-name">${escapeHtml(file.name)}</span>`;
+        $('inboxAttachmentPreview').hidden = false;
+        updateSendState();
+    });
+
+    $('inboxAttachmentRemove')?.addEventListener('click',()=>{
+        pendingAttachment = null;
+        $('hiddenFile').value = '';
+        $('inboxAttachmentPreview').hidden = true;
+        updateSendState();
+    });
+
+    function startVoiceHold(){
+        if(!currentThreadId){
+            alert('Open a chat first.');
+            return;
+        }
+        if(isRecording) return;
+        isRecording = true;
+        recordSeconds = 0;
+        $('voiceBtn')?.classList.add('recording');
+        $('voiceBtn').innerHTML = '<i class="fas fa-stop"></i>';
+        $('voicePreview')?.classList.remove('active');
+        recordTimer = setInterval(()=>{
+            recordSeconds++;
+            if($('voicePreviewTime')) $('voicePreviewTime').textContent = recordSeconds + 's';
+        }, 1000);
+    }
+
+    function stopVoiceHold(){
+        if(!isRecording) return;
+        isRecording = false;
+        clearInterval(recordTimer);
+        $('voiceBtn')?.classList.remove('recording');
+        $('voiceBtn').innerHTML = '<i class="fas fa-microphone"></i>';
+        if(recordSeconds < 1) recordSeconds = 1;
+        $('voicePreviewTime').textContent = recordSeconds + 's';
+        $('voicePreview')?.classList.add('active');
+    }
+
+    const voiceBtn = $('voiceBtn');
+    voiceBtn?.addEventListener('mousedown', startVoiceHold);
+    voiceBtn?.addEventListener('mouseup', stopVoiceHold);
+    voiceBtn?.addEventListener('mouseleave', stopVoiceHold);
+    voiceBtn?.addEventListener('touchstart', e=>{e.preventDefault();startVoiceHold();});
+    voiceBtn?.addEventListener('touchend', e=>{e.preventDefault();stopVoiceHold();});
+
+    $('deleteVoicePreview')?.addEventListener('click',()=>{
+        recordSeconds = 0;
+        $('voicePreview')?.classList.remove('active');
+    });
+
+    $('sendVoicePreview')?.addEventListener('click', async ()=>{
+        if(!currentThreadId || recordSeconds < 1) return;
+        const form = new FormData();
+        form.append('seconds', String(recordSeconds));
+        form.append('playback_speed', document.querySelector('.voice-speed-btn.active')?.dataset.speed || '1');
+        await fetch('/messages/api/thread/' + encodeURIComponent(currentThreadId) + '/voice-note', {
+            method:'POST',
+            body:form
+        });
+        $('voicePreview')?.classList.remove('active');
+        recordSeconds = 0;
+        openThread(currentThreadId,currentThreadName,currentThreadType);
+    });
+
+    async function checkGroupEmpty(){
+        const groupsTab = document.querySelector('[data-tab="groups"]');
+        groupsTab?.addEventListener('click',async()=>{
+            const visibleGroups = Array.from(document.querySelectorAll('.thread-card')).filter(c => c.dataset.type === 'group');
+            if(visibleGroups.length === 0 && !document.getElementById('groupEmptyCard')){
+                $('threadList').insertAdjacentHTML('afterbegin', `
+                    <div class="group-empty-card" id="groupEmptyCard">
+                        <h3>No groups yet</h3>
+                        <p>Create a public, private, paid or premium group.</p>
+                        <button class="premium-btn primary" onclick="document.getElementById('groupModal').classList.add('active')">Create Group</button>
+                    </div>
+                `);
+            }
+        });
+    }
+    checkGroupEmpty();
+
+    function updateThreadBadge(threadId, count){
+        const card = document.querySelector(`.thread-card[data-id="${threadId}"]`);
+        if(!card) return;
+        let badge = card.querySelector('.thread-unread-badge');
+        if(count > 0){
+            if(!badge){
+                badge = document.createElement('span');
+                badge.className = 'thread-unread-badge';
+                badge.style.cssText = 'margin-left:6px;background:#ff0050;color:white;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:950;flex-shrink:0;';
+                card.querySelector('.thread-line')?.appendChild(badge);
+            }
+            badge.textContent = count > 99 ? '99+' : count;
+        } else if(badge){
+            badge.remove();
+        }
+    }
+
+    async function loadUnreadCount(){
+        try{
+            const res = await fetch('/messages/api/unread-count');
+            const json = await res.json();
+            let badge = document.getElementById('messageUnreadBadge');
+            if(!badge){
+                badge = document.createElement('span');
+                badge.id = 'messageUnreadBadge';
+                badge.style.cssText = 'margin-left:6px;background:#ff0050;color:white;border-radius:999px;padding:3px 7px;font-size:11px;font-weight:950;';
+                document.querySelector('.chain-msg-brand h1')?.appendChild(badge);
+            }
+            const total = json.unread || 0;
+            badge.textContent = total > 0 ? total : '';
+            // Per-thread badges
+            if(json.threads && json.threads.length){
+                json.threads.forEach(t => updateThreadBadge(t.id, t.unread_count || 0));
+            }
+        }catch(e){}
+    }
+
+    fetch('/messages/api/online',{method:'POST'}).catch(()=>{});
+    loadUnreadCount();
+    setInterval(loadUnreadCount, 30000);
+
+    // Socket.io real-time connection
+    const socket = (typeof io !== 'undefined')
+        ? io({ transports: ['websocket', 'polling'], upgrade: true, reconnection: true })
+        : { on(){}, emit(){}, connected:false };
+    socket.on('connect', () => {
+        socket.emit('join_thread', { thread_id: 'lobby' });
+    });
+
+    socket.on('presence_update', (data) => {
+        const card = document.querySelector(`.thread-card[data-id="${data.thread_id}"]`);
+        if(card){
+            const dot = card.querySelector('.thread-online-dot');
+            if(dot){
+                dot.className = 'thread-online-dot ' + (data.is_online ? 'online' : 'offline');
+            }
+            const pill = card.querySelector('.thread-pill.live');
+            if(pill) pill.remove();
+            if(data.is_online){
+                const meta = card.querySelector('.thread-meta');
+                if(meta && !meta.querySelector('.thread-pill.live')){
+                    const live = document.createElement('span');
+                    live.className = 'thread-pill live';
+                    live.textContent = 'Online';
+                    meta.appendChild(live);
+                }
+            }
+        }
+        if(currentThreadId && data.thread_id === currentThreadId){
+            updatePresence(data.is_online, data.last_seen);
+        }
+    });
+
+    socket.on('user_typing', (data) => {
+        const line = $('typingLine');
+        if(line && data.thread_id === currentThreadId && data.profile_id !== window.myProfileId) {
+            if(data.typing){
+                line.style.display = 'block';
+                line.textContent = (data.display_name || data.username || 'Someone') + ' is typing...';
+            } else {
+                line.style.display = 'none';
+            }
+        }
+    });
+
+    socket.on('message:new', (data) => {
+        if(data.thread_id && data.thread_id !== currentThreadId){
+            updateThreadBadge(data.thread_id, 1);
+        }
+        if(data.thread_id === currentThreadId){
+            socket.emit('message:seen', { thread_id: currentThreadId });
+        }
+    });
+
+    // Online/offline status & last seen
+    function updatePresence(isOnline, lastSeen){
+        const dot = $('chatOnlineDot');
+        if(dot){
+            dot.className = 'chat-online-dot ' + (isOnline ? 'online' : 'offline');
+        }
+        const lastSeenEl = $('chatLastSeen');
+        if(lastSeen && !isOnline){
+            lastSeenEl.style.display = 'block';
+            lastSeenEl.textContent = 'Last seen ' + lastSeen;
+        } else {
+            lastSeenEl.style.display = 'none';
+        }
+        const sub = $('chatSub');
+        if(sub && isOnline) sub.textContent = 'Online';
+    }
+
+    async function checkPresence(){
+        if(!currentThreadId) return;
+        try {
+            const res = await fetch('/messages/api/thread/' + encodeURIComponent(currentThreadId) + '/presence');
+            const data = await res.json();
+            updatePresence(data.online, data.last_seen);
+        } catch(e){}
+    }
+
+    setInterval(checkPresence, 15000);
+})();
 </script>
+<script src="{{ url_for('static', filename='js/group_calls.js') }}"></script>
 {% endblock %}

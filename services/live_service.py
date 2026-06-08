@@ -20,6 +20,14 @@ from services.storage_service import upload_live_cover, upload_live_music
 from services.supabase_safe import safe_count, safe_insert, safe_select, safe_update
 
 
+def _invalidate_homepage_cache():
+    try:
+        from services.homepage_cache_service import invalidate_homepage_cache
+        invalidate_homepage_cache()
+    except Exception:
+        pass
+
+
 def _notify_followers_live_started(room):
     host_id = room.get("profile_id") or room.get("host_profile_id")
     room_id = room.get("id")
@@ -312,12 +320,14 @@ def create_live_room(form, files=None):
                     room = get_room(room_id)
                     if room:
                         _notify_followers_live_started(room)
+                    _invalidate_homepage_cache()
                     return room
 
                 recent_rooms = get_live_rooms(limit=10)
                 for room in recent_rooms:
                     if room.get("title") == payload["title"] and room.get("host_name") == payload["host_name"]:
                         _notify_followers_live_started(room)
+                        _invalidate_homepage_cache()
                         return room
 
         return None
@@ -711,5 +721,6 @@ def end_live(room_id):
         ended_at = _utcnow_iso()
         if safe_update("chain_live_rooms", {"status": "ended", "ended_at": ended_at}, eq={"id": room_id}) is None:
             safe_update("chain_live_rooms", {"is_live": False, "ended_at": ended_at}, eq={"id": room_id})
+        _invalidate_homepage_cache()
     except Exception as error:
         print(f"[live_service] end_live failed: {error}")

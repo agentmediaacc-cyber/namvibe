@@ -1,0 +1,45 @@
+import os
+import sys
+import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+os.environ.setdefault("FLASK_TESTING", "1")
+os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
+
+from services import call_feature_service as calls
+
+
+def assert_true(value, message):
+    if not value:
+        raise AssertionError(message)
+
+
+def main():
+    caller = str(uuid.uuid4())
+    receiver = str(uuid.uuid4())
+    conversation = str(uuid.uuid4())
+
+    audio = calls.start_call(caller, receiver, "audio", conversation)
+    assert_true(audio["ok"], "audio call not created")
+    call_id = audio["call"]["id"]
+    assert_true(calls.start_call(caller, receiver, "video", conversation).get("status") == "busy", "busy protection failed")
+    assert_true(calls.answer_call(call_id, receiver)["ok"], "answer failed")
+    ended = calls.end_call(call_id, caller)
+    assert_true(ended["ok"], "end failed")
+    assert_true((ended["call"] or {}).get("duration_seconds") is not None, "duration missing")
+
+    video = calls.start_call(caller, receiver, "video", conversation)
+    assert_true(video["ok"], "video call not created")
+    missed = calls.end_call(video["call"]["id"], caller, status="missed")
+    assert_true(missed["ok"], "missed call failed")
+    assert_true(calls.recent_calls(caller), "recent calls empty")
+
+    print("phase29 calls e2e: ok")
+
+
+if __name__ == "__main__":
+    main()

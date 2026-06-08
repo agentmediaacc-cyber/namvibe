@@ -555,3 +555,17 @@ def admin_observability():
     avg_latency = fast_query("SELECT request_path, AVG(latency_ms) as avg_ms, COUNT(*) as count FROM chain_performance_logs GROUP BY request_path ORDER BY avg_ms DESC LIMIT 20")
     
     return render_template("admin/observability.html", **context, slow_queries=slow_queries, avg_latency=avg_latency)
+
+
+@admin_bp.route("/performance")
+@require_admin
+def admin_performance():
+    from services.homepage_cache_service import cache_status
+    from services.query_optimizer import get_performance_summary
+    context = _dashboard_context("performance")
+    return render_template(
+        "admin/performance.html",
+        **context,
+        cache_status=cache_status(),
+        summary=get_performance_summary(),
+    )

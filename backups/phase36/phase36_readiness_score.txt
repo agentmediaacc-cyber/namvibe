@@ -1,0 +1,12 @@
+89
+Architecture:100
+Messaging:100
+Calls:100
+Groups:100
+Live:100
+Push:75
+Wallet:100
+Creator:100
+Security:100
+Performance:100
+Infrastructure:0

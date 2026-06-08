@@ -1,0 +1,59 @@
+*{box-sizing:border-box}
+body{margin:0;background:#05050c;color:#fff;font-family:Inter,Arial,sans-serif}
+a{text-decoration:none;color:inherit}
+.studio-page,.live-home{max-width:1180px;margin:auto;padding:22px}
+.studio-hero{padding:34px;border-radius:34px;background:radial-gradient(circle at top left,rgba(255,47,125,.38),transparent 45%),linear-gradient(135deg,#15152c,#080812);border:1px solid rgba(255,255,255,.12);margin-bottom:22px}
+.studio-hero p{color:#ff9fc1;font-weight:1000;letter-spacing:.16em}
+.studio-hero h1{font-size:50px;margin:8px 0}
+.studio-hero span{color:#ddd}
+.studio-hero a,.empty-live a{display:inline-block;margin-top:15px;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#ff2f7d,#7c3aed);font-weight:1000}
+.device-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+.preview-card,.live-form,.empty-live{padding:22px;border-radius:30px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.12)}
+.preview-card video{width:100%;min-height:420px;background:#000;border-radius:24px;object-fit:cover}
+.device-actions,.two{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+button,.go-live{border:0;color:#fff;padding:14px 18px;border-radius:999px;background:linear-gradient(135deg,#ff2f7d,#7c3aed);font-weight:1000}
+.live-form{display:grid;gap:14px}
+label{display:grid;gap:8px;font-weight:900}
+input,textarea,select{width:100%;padding:14px;border-radius:16px;border:1px solid rgba(255,255,255,.12);background:#101024;color:#fff}
+textarea{min-height:105px}
+.check{display:flex;align-items:center}.check input{width:auto}
+.room-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.room-card{padding:24px;border-radius:30px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.12)}
+.room-logo{font-size:52px;animation:roll 4s linear infinite}
+.room-card span{display:inline-block;margin:8px 8px 0 0;padding:9px 12px;border-radius:999px;background:rgba(255,255,255,.1)}
+.empty-live{text-align:center}.empty-live.center{max-width:720px;margin:80px auto}
+.live-room{display:grid;grid-template-columns:1fr 380px;height:100vh;overflow:hidden}
+.watch-area{position:relative;background:#000;overflow:hidden}
+.live-topbar{position:absolute;top:14px;left:14px;right:14px;z-index:5;display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px;border-radius:20px;background:rgba(0,0,0,.55);backdrop-filter:blur(12px)}
+.live-topbar a,.live-topbar button,.host-panel a{padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.12);font-weight:900}
+.stage{height:68vh;display:grid;place-items:center}
+.stage iframe{width:100%;height:100%;border:0}
+.chain-screen{text-align:center}
+.dice-logo{font-size:110px;animation:dice 3s ease-in-out infinite}
+.chain-screen h1{font-size:64px;margin:0;letter-spacing:.16em}
+.music-player{width:calc(100% - 28px);margin:14px}
+.host-panel{margin:14px;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px;border-radius:24px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.12)}
+.gift-rail{display:flex;gap:8px;overflow:auto;padding:0 14px 14px}
+.gift-rail button{white-space:nowrap;background:rgba(255,255,255,.12)}
+.live-sidebar{height:100vh;overflow:auto;background:#0d0d1d;border-left:1px solid rgba(255,255,255,.12);padding:16px}
+.live-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.live-stats b,.viewer-row,.comment,.gift-feed p{padding:12px;border-radius:16px;background:rgba(255,255,255,.08)}
+.viewer-list,.comment-feed,.gift-feed{display:grid;gap:8px}
+.viewer-row{display:flex;justify-content:space-between}
+.viewer-row a{color:#ff9fc1;font-weight:900}
+.comment p{margin:0 0 8px}
+.comment form input{padding:10px}
+.comment-form{position:sticky;bottom:0;display:grid;grid-template-columns:1fr auto;gap:8px;background:#0d0d1d;padding-top:10px}
+.watermark-track{position:absolute;inset:0;pointer-events:none;z-index:3;opacity:.18;display:flex;align-items:center;gap:80px;font-size:42px;font-weight:1000;animation:moveMark 8s linear infinite;white-space:nowrap}
+.hide-comments .live-sidebar{display:none}
+.hide-comments .live-room{grid-template-columns:1fr}
+@keyframes moveMark{from{transform:translateX(-60%)}to{transform:translateX(40%)}}
+@keyframes dice{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(1.15)}100%{transform:rotate(360deg) scale(1)}}
+@keyframes roll{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@media(max-width:980px){
+  .device-grid,.room-grid{grid-template-columns:1fr}
+  .studio-hero h1{font-size:34px}
+  .live-room{grid-template-columns:1fr;height:auto;overflow:auto}
+  .live-sidebar{height:auto;border-left:0}
+  .stage{height:60vh}
+}

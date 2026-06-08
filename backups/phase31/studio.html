@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Live Studio | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .studio-shell {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 30px 20px 120px;
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 30px;
+    }
+    
+    .live-preview-box {
+        background: #000;
+        border-radius: 18px;
+        position: relative;
+        aspect-ratio: 16/9;
+        overflow: hidden;
+        box-shadow: var(--chain-shadow-lg);
+    }
+    
+    .live-state-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        z-index: 20;
+    }
+    
+    .live-badge {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: var(--chain-error);
+        color: white;
+        padding: 5px 12px;
+        border-radius: 6px;
+        font-weight: 800;
+        font-size: 12px;
+        display: none;
+    }
+    
+    .live-metrics {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .metric-pill {
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(10px);
+        padding: 5px 12px;
+        border-radius: 999px;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .studio-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 15px;
+        z-index: 30;
+    }
+    
+    .control-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .control-btn.active {
+        background: var(--chain-primary);
+        border-color: var(--chain-primary);
+    }
+    
+    .setup-card {
+        background: var(--chain-bg-panel-strong);
+        border: 1px solid var(--chain-border);
+        border-radius: 18px;
+        padding: 25px;
+        box-shadow: var(--chain-shadow-md);
+        backdrop-filter: blur(20px);
+    }
+    
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--chain-muted); }
+    .form-group input, .form-group select {
+        width: 100%;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid var(--chain-border);
+        background: var(--chain-bg-soft);
+        outline: none;
+    }
+    
+    .audience-selector {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    
+    .audience-option {
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid var(--chain-border);
+        text-align: center;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 700;
+        transition: all 0.2s;
+    }
+    
+    .audience-option.is-active {
+        background: var(--chain-primary);
+        color: white;
+        border-color: var(--chain-primary);
+    }
+
+    @media (max-width: 900px) {
+        .studio-shell { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="studio-shell">
+    <div class="studio-main">
+        <div class="live-preview-box">
+            <video id="studio-video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover;"></video>
+            
+            <div class="live-badge" id="live-indicator">LIVE</div>
+            
+            <div class="live-metrics" id="live-metrics" style="display: none;">
+                <div class="metric-pill"><i class="fas fa-eye"></i> <span id="viewer-count">0</span></div>
+                <div class="metric-pill"><i class="fas fa-heart"></i> <span id="like-count">0</span></div>
+                <div class="metric-pill"><i class="fas fa-gift"></i> <span id="gift-count">0</span></div>
+            </div>
+            
+            <div class="live-state-overlay" id="state-overlay">
+                <i class="fas fa-video-slash" id="state-icon" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
+                <h2 id="state-text">Ready to go live?</h2>
+                <p id="state-subtext">Set up your stream on the right</p>
+            </div>
+            
+            <div class="studio-controls">
+                <div class="control-btn active" onclick="toggleMic(this)"><i class="fas fa-microphone"></i></div>
+                <div class="control-btn active" onclick="toggleCam(this)"><i class="fas fa-video"></i></div>
+                <div class="control-btn"><i class="fas fa-magic"></i></div>
+                <div class="control-btn"><i class="fas fa-cog"></i></div>
+            </div>
+        </div>
+        
+        <div id="live-chat" style="margin-top: 20px; background: var(--chain-bg-panel); border-radius: 18px; height: 300px; display: flex; flex-direction: column; border: 1px solid var(--chain-border); display: none;">
+            <div style="padding: 15px; border-bottom: 1px solid var(--chain-border); font-weight: 800;">Live Chat</div>
+            <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: 15px;"></div>
+        </div>
+    </div>
+
+    <aside class="studio-sidebar">
+        <form id="live-setup-form" class="setup-card">
+            <h2 style="margin: 0 0 20px;">Stream Setup</h2>
+            
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" name="title" placeholder="My awesome live stream!" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Category</label>
+                <select name="category">
+                    <option value="Music">Music</option>
+                    <option value="Gaming">Gaming</option>
+                    <option value="Chat">Just Chatting</option>
+                    <option value="Education">Education</option>
+                    <option value="Dating">Dating</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Audience</label>
+                <div class="audience-selector">
+                    <div class="audience-option is-active" data-value="public">Public</div>
+                    <div class="audience-option" data-value="followers">Followers</div>
+                    <div class="audience-option" data-value="private">Private</div>
+                </div>
+                <input type="hidden" name="audience" id="audience-input" value="public">
+            </div>
+            
+            <div class="form-group">
+                <label>Thumbnail</label>
+                <input type="file" name="thumbnail" accept="image/*">
+            </div>
+            
+            <button type="submit" class="primary" id="start-live-btn" style="width: 100%; padding: 15px; border-radius: 12px; margin-top: 10px;">
+                START LIVE
+            </button>
+        </form>
+    </aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const setupForm = document.getElementById('live-setup-form');
+    const startBtn = document.getElementById('start-live-btn');
+    const stateOverlay = document.getElementById('state-overlay');
+    const stateText = document.getElementById('state-text');
+    const stateSubtext = document.getElementById('state-subtext');
+    
+    let localStream;
+
+    async function initCamera() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('studio-video').srcObject = localStream;
+            stateOverlay.style.display = 'none';
+        } catch (e) {
+            stateText.innerText = "Camera Error";
+            stateSubtext.innerText = "Please allow camera access to go live.";
+            console.error(e);
+        }
+    }
+
+    initCamera();
+
+    setupForm.addEventListener('submit', (e) => {
+        startBtn.disabled = true;
+        startBtn.innerText = "Starting Live...";
+    });
+
+    function toggleMic(btn) {
+        const enabled = btn.classList.toggle('active');
+        localStream.getAudioTracks().forEach(t => t.enabled = enabled);
+        btn.innerHTML = enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    }
+
+    function toggleCam(btn) {
+        const enabled = btn.classList.toggle('active');
+        localStream.getVideoTracks().forEach(t => t.enabled = enabled);
+        btn.innerHTML = enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+    }
+
+    document.querySelectorAll('.audience-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('.audience-option').forEach(o => o.classList.remove('is-active'));
+            opt.classList.add('is-active');
+            document.getElementById('audience-input').value = opt.dataset.value;
+        });
+    });
+</script>
+{% endblock %}
+

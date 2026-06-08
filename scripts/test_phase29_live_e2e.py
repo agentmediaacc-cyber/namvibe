@@ -1,0 +1,49 @@
+import os
+import sys
+import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+def _ensure_project_python():
+    try:
+        import dotenv  # noqa: F401
+    except ModuleNotFoundError:
+        venv_python = ROOT / "venv" / "bin" / "python3"
+        if venv_python.exists() and Path(sys.executable).resolve() != venv_python.resolve():
+            os.execv(str(venv_python), [str(venv_python), *sys.argv])
+        raise
+
+_ensure_project_python()
+
+os.environ.setdefault("FLASK_TESTING", "1")
+os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
+
+from services import live_feature_service as live
+
+
+def assert_true(value, message):
+    if not value:
+        raise AssertionError(message)
+
+
+def main():
+    host = str(uuid.uuid4())
+    viewer = str(uuid.uuid4())
+    started = live.start_live(host, "Phase29 Live", host_name="Host")
+    assert_true(started["ok"], "start live failed")
+    room_id = started["room"]["id"]
+    assert_true(any(room["id"] == room_id for room in live.list_live_rooms()), "live room missing from list")
+    joined = live.join_live(room_id, viewer, "Viewer")
+    assert_true(joined["viewer_count"] >= 1, "viewer count not incremented")
+    assert_true(live.comment_live(room_id, viewer, "hello live")["ok"], "comment failed")
+    assert_true(live.set_comments(room_id, False)["allow_comments"] is False, "comment toggle failed")
+    assert_true(live.end_live(room_id, host)["ok"], "end live failed")
+
+    print("phase29 live e2e: ok")
+
+
+if __name__ == "__main__":
+    main()

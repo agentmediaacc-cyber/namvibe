@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 from services.neon_service import fast_query
 
-system_api_bp = Blueprint("system_api", __name__, url_prefix="/api/v1/system")
+system_api_bp = Blueprint("system_api", __name__, url_prefix="/system")
 
 @system_api_bp.route("/version/<platform>")
 def get_version(platform):

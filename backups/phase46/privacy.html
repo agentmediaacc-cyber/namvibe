@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Privacy | CHAIN Security{% endblock %}
+
+{% block extra_css %}
+<style>
+.privacy-shell{max-width:960px;margin:0 auto;padding:20px}
+.privacy-hero{background:linear-gradient(135deg,#111827,#334155);color:#fff;border-radius:30px;padding:28px;margin-bottom:18px}
+.privacy-hero h1{margin:0 0 8px;font-size:34px;font-weight:950}
+.privacy-hero p{margin:0;color:#dbeafe}
+.security-nav{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.security-nav a{padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:800;font-size:14px;background:#f1f5f9;color:#0f172a}
+.security-nav a.active{background:#111827;color:#fff}
+.privacy-card{background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:28px;padding:22px;margin-bottom:14px}
+.privacy-card .card-title{font-size:20px;font-weight:900;margin-bottom:18px;color:#0f172a}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0;border-top:1px solid rgba(15,23,42,.07)}
+.setting-row:first-of-type{border-top:0}
+.setting-text strong{display:block;color:#0f172a;font-size:15px}
+.setting-text span{display:block;color:#64748b;font-size:13px;margin-top:3px}
+.switch input{display:none}
+.slider{width:58px;height:32px;border-radius:999px;background:#cbd5e1;display:block;position:relative;cursor:pointer;transition:.2s}
+.slider:before{content:"";width:26px;height:26px;background:#fff;border-radius:50%;position:absolute;left:3px;top:3px;transition:.2s;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.switch input:checked + .slider{background:#111827}
+.switch input:checked + .slider:before{transform:translateX(26px)}
+.save-bar{position:sticky;bottom:14px;margin-top:18px;display:flex;justify-content:flex-end}
+.save-btn{border:0;border-radius:999px;padding:14px 20px;font-weight:950;cursor:pointer;background:#111827;color:white;text-decoration:none}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="privacy-shell">
+  <div class="privacy-hero">
+    <h1>Privacy</h1>
+    <p>Control your privacy settings across CHAIN.</p>
+  </div>
+
+  <nav class="security-nav">
+    <a href="/security/devices"><i class="fas fa-mobile-alt"></i> Devices</a>
+    <a href="/security/privacy" class="active"><i class="fas fa-user-shield"></i> Privacy</a>
+    <a href="/security/events"><i class="fas fa-history"></i> Security Events</a>
+  </nav>
+
+  <form id="privacyForm">
+    <div class="privacy-card">
+      <div class="card-title">Online & Presence</div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Show online status</strong>
+          <span>Let people see when you are active.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="show_online_status" {% if privacy.show_online_status != false %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Show last seen</strong>
+          <span>Let people see when you were last active.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="show_last_seen" {% if privacy.show_last_seen != false %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Show read receipts</strong>
+          <span>Let people know you have read their messages.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="show_read_receipts" {% if privacy.show_read_receipts != false %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Show typing indicator</strong>
+          <span>Let people see when you are typing.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="show_typing_indicator" {% if privacy.show_typing_indicator != false %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Show profile photo</strong>
+          <span>Let people see your profile picture.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="show_profile_photo" {% if privacy.show_profile_photo != false %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="privacy-card">
+      <div class="card-title">Communication</div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Allow calls</strong>
+          <span>Let people call you on CHAIN.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="allow_calls" {% if privacy.allow_calls != false %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Allow group invites</strong>
+          <span>Let people add you to groups.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" name="allow_group_invites" {% if privacy.allow_group_invites != false %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="save-bar">
+      <button class="save-btn" type="submit"><i class="fas fa-save"></i> Save Privacy Settings</button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.getElementById('privacyForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const data = {};
+  this.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    data[cb.name] = cb.checked;
+  });
+  const resp = await fetch('/privacy/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+  const result = await resp.json();
+  if (result.ok) {
+    const btn = this.querySelector('.save-btn');
+    btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+    setTimeout(() => btn.innerHTML = '<i class="fas fa-save"></i> Save Privacy Settings', 2000);
+  }
+});
+</script>
+{% endblock %}

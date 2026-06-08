@@ -2,6 +2,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for,
 from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile
 from services.status_service import create_status, list_active_statuses, get_status, delete_status, record_view, list_viewers
+from services.content_service import get_session_profile_id, session_profile_stub
 
 status_bp = Blueprint("status", __name__, url_prefix="/status")
 
@@ -19,34 +20,29 @@ def stories_redirect():
 @status_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def create():
-    profile = get_current_profile()
-    if not profile and session.get("profile_id"):
-        profile = {
-            "id": session.get("profile_id"),
-            "username": session.get("username"),
-            "full_name": session.get("full_name") or session.get("username") or "CHAIN user",
-        }
-    if not profile or not profile.get("id"):
-        from api_routes.profile_routes import _session_profile_stub
-        profile = _session_profile_stub()
-        if request.method == "POST":
-            flash("Profile setup is finishing. Please try again in a moment.", "warning")
-            return render_template("status/create.html", profile=profile, setup_warning=True)
-        return render_template("status/create.html", profile=profile, setup_warning=True)
-
     if request.method == "POST":
+        profile_id = get_session_profile_id()
+        profile = session_profile_stub() if profile_id else None
+        if not profile_id:
+            return redirect(url_for("auth.login", next=request.path))
         caption = request.form.get("caption")
         media_file = request.files.get("media")
         visibility = request.form.get("visibility") or "public"
         media_type = request.form.get("media_type", "image")
         
-        status = create_status(profile["id"], caption, media_file, visibility=visibility, media_type=media_type)
+        status = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
         if status:
             flash("Status posted successfully!", "success")
             return redirect(url_for("status.index"))
         
         flash("Could not post status.", "error")
-        
+
+    profile = get_current_profile() or (session_profile_stub() if get_session_profile_id() else None)
+    if not profile or not profile.get("id"):
+        from api_routes.profile_routes import _session_profile_stub
+        profile = _session_profile_stub()
+        return render_template("status/create.html", profile=profile, setup_warning=True)
+
     return render_template("status/create.html", profile=profile)
 
 @status_bp.route("/<status_id>")
@@ -81,8 +77,8 @@ def delete(status_id):
 @status_bp.route("/api/status/create", methods=["POST"])
 @login_required
 def api_create():
-    profile = get_current_profile()
-    if not profile:
+    profile_id = get_session_profile_id()
+    if not profile_id:
         return jsonify({"error": "Unauthorized"}), 401
     
     caption = request.form.get("caption")
@@ -90,7 +86,7 @@ def api_create():
     visibility = request.form.get("visibility", "public")
     media_type = request.form.get("media_type", "image")
     
-    status = create_status(profile["id"], caption, media_file, visibility=visibility, media_type=media_type)
+    status = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
     if status:
         return jsonify({"success": True, "status_id": status["id"]}), 201
     return jsonify({"error": "Failed to create"}), 400

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Devices | CHAIN Security{% endblock %}
+
+{% block extra_css %}
+<style>
+.security-shell{max-width:960px;margin:0 auto;padding:20px}
+.security-hero{background:linear-gradient(135deg,#111827,#334155);color:#fff;border-radius:30px;padding:28px;margin-bottom:18px}
+.security-hero h1{margin:0 0 8px;font-size:34px;font-weight:950}
+.security-hero p{margin:0;color:#dbeafe}
+.security-nav{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.security-nav a{padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:800;font-size:14px;background:#f1f5f9;color:#0f172a}
+.security-nav a.active{background:#111827;color:#fff}
+.device-card{background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:28px;padding:22px;margin-bottom:14px}
+.device-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.device-info{flex:1}
+.device-info strong{display:block;font-size:16px;color:#0f172a}
+.device-info span{font-size:13px;color:#64748b}
+.device-badge{font-size:11px;padding:4px 10px;border-radius:999px;font-weight:900}
+.device-badge.current{background:#dbeafe;color:#1e40af}
+.device-badge.trusted{background:#d1fae5;color:#065f46}
+.device-badge.revoked{background:#fee2e2;color:#991b1b}
+.device-actions{display:flex;gap:8px;margin-top:12px}
+.btn-sm{border:0;border-radius:999px;padding:8px 16px;font-weight:800;font-size:12px;cursor:pointer;text-decoration:none}
+.btn-danger{background:#fee2e2;color:#991b1b}
+.btn-success{background:#d1fae5;color:#065f46}
+.btn-outline{background:transparent;border:1px solid #cbd5e1;color:#0f172a}
+.empty-state{text-align:center;padding:60px 20px;color:#64748b}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="security-shell">
+  <div class="security-hero">
+    <h1>Devices</h1>
+    <p>Manage devices and sessions connected to your account.</p>
+  </div>
+
+  <nav class="security-nav">
+    <a href="/security/devices" class="active"><i class="fas fa-mobile-alt"></i> Devices</a>
+    <a href="/security/privacy"><i class="fas fa-user-shield"></i> Privacy</a>
+    <a href="/security/events"><i class="fas fa-history"></i> Security Events</a>
+  </nav>
+
+  {% if devices %}
+    {% for d in devices %}
+    <div class="device-card">
+      <div class="device-header">
+        <div class="device-info">
+          <strong>{{ d.device_name or d.device_type or 'Unknown Device' }}</strong>
+          <span>{{ d.browser or '' }}{% if d.os %} &middot; {{ d.os }}{% endif %}</span>
+          <span style="display:block;margin-top:4px;font-size:12px;color:#94a3b8">
+            Last seen: {{ d.last_seen[:10] if d.last_seen else 'N/A' }}
+            {% if d.trusted %}&middot; <span style="color:#065f46">Trusted</span>{% endif %}
+          </span>
+        </div>
+        <div>
+          {% if loop.first %}
+          <span class="device-badge current">Current</span>
+          {% endif %}
+          {% if d.trusted %}
+          <span class="device-badge trusted">Trusted</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="device-actions">
+        {% if not loop.first %}
+        <form method="POST" action="/security/api/device/{{ d.id }}/revoke" style="display:inline">
+          <button class="btn-sm btn-danger" type="submit">Revoke</button>
+        </form>
+        {% endif %}
+        {% if d.trusted %}
+        <form method="POST" action="/security/api/device/{{ d.id }}/untrust" style="display:inline">
+          <button class="btn-sm btn-outline" type="submit">Untrust</button>
+        </form>
+        {% else %}
+        <form method="POST" action="/security/api/device/{{ d.id }}/trust" style="display:inline">
+          <button class="btn-sm btn-success" type="submit">Trust</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="device-card" style="text-align:center">
+      <form method="POST" action="/security/api/logout-all-other-devices">
+        <input type="hidden" name="current_device_id" value="{{ devices[0].id if devices else '' }}">
+        <button class="btn-sm btn-danger" type="submit" style="padding:12px 24px;font-size:14px">
+          <i class="fas fa-sign-out-alt"></i> Log Out All Other Devices
+        </button>
+      </form>
+      <p style="font-size:12px;color:#94a3b8;margin:8px 0 0">This will revoke all sessions except this one.</p>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <i class="fas fa-mobile-alt" style="font-size:48px;margin-bottom:16px;opacity:.4"></i>
+      <p>No device sessions found.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

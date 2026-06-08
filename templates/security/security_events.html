@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Security Events | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+.events-shell{max-width:960px;margin:0 auto;padding:20px}
+.events-hero{background:linear-gradient(135deg,#111827,#334155);color:#fff;border-radius:30px;padding:28px;margin-bottom:18px}
+.events-hero h1{margin:0 0 8px;font-size:34px;font-weight:950}
+.events-hero p{margin:0;color:#dbeafe}
+.security-nav{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.security-nav a{padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:800;font-size:14px;background:#f1f5f9;color:#0f172a}
+.security-nav a.active{background:#111827;color:#fff}
+.event-card{background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:28px;padding:22px;margin-bottom:14px;display:flex;align-items:center;gap:16px}
+.event-icon{width:44px;height:44px;border-radius:16px;display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.event-icon.login{background:#dbeafe;color:#1e40af}
+.event-icon.logout{background:#f1f5f9;color:#64748b}
+.event-icon.device_revoked{background:#fee2e2;color:#991b1b}
+.event-icon.password_changed{background:#fef3c7;color:#92400e}
+.event-icon.new_device{background:#d1fae5;color:#065f46}
+.event-icon.suspicious_login{background:#fce7f3;color:#9d174d}
+.event-info{flex:1}
+.event-info strong{display:block;font-size:15px;color:#0f172a;text-transform:capitalize}
+.event-info span{font-size:13px;color:#64748b}
+.event-time{font-size:12px;color:#94a3b8;white-space:nowrap}
+.empty-state{text-align:center;padding:60px 20px;color:#64748b}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="events-shell">
+  <div class="events-hero">
+    <h1>Security Events</h1>
+    <p>Recent security activity on your account.</p>
+  </div>
+
+  <nav class="security-nav">
+    <a href="/security/devices"><i class="fas fa-mobile-alt"></i> Devices</a>
+    <a href="/security/privacy"><i class="fas fa-user-shield"></i> Privacy</a>
+    <a href="/security/events" class="active"><i class="fas fa-history"></i> Security Events</a>
+  </nav>
+
+  {% if events %}
+    {% for evt in events %}
+    <div class="event-card">
+      <div class="event-icon {{ evt.event_type }}">
+        {% if evt.event_type == 'login' %}<i class="fas fa-sign-in-alt"></i>
+        {% elif evt.event_type == 'logout' %}<i class="fas fa-sign-out-alt"></i>
+        {% elif evt.event_type == 'device_revoked' %}<i class="fas fa-ban"></i>
+        {% elif evt.event_type == 'password_changed' %}<i class="fas fa-key"></i>
+        {% elif evt.event_type == 'new_device' %}<i class="fas fa-mobile-alt"></i>
+        {% elif evt.event_type == 'suspicious_login' %}<i class="fas fa-exclamation-triangle"></i>
+        {% else %}<i class="fas fa-shield-alt"></i>{% endif %}
+      </div>
+      <div class="event-info">
+        <strong>{{ evt.event_type.replace('_', ' ') }}</strong>
+        {% if evt.metadata and evt.metadata.device_name %}
+        <span>Device: {{ evt.metadata.device_name }}</span>
+        {% endif %}
+      </div>
+      <div class="event-time">{{ evt.created_at[:10] if evt.created_at else '' }} {{ evt.created_at[11:19] if evt.created_at else '' }}</div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <i class="fas fa-shield-alt" style="font-size:48px;margin-bottom:16px;opacity:.4"></i>
+      <p>No security events yet.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

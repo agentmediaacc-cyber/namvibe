@@ -1,0 +1,985 @@
+import os
+import time
+from datetime import datetime, timezone
+from functools import wraps
+
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify
+from werkzeug.utils import secure_filename
+
+from services.auth_service import refresh_chain_session, set_current_user_password
+from services.auth_service import best_effort_age_dob_update
+from services.session_service import (
+    is_logged_in, 
+    get_current_auth_user, 
+    refresh_supabase_session_if_needed,
+    clear_auth_session,
+    K_USER_ID, K_PROFILE_WARNING, K_AGE_CHECK_REQUIRED, K_PENDING_DATE_OF_BIRTH
+)
+from services.notification_service import get_my_notifications
+from services.profile_service import (
+    block_profile,
+    bootstrap_profile_for_current_user,
+    create_or_update_profile,
+    favorite_profile,
+    follow_profile,
+    get_current_profile,
+    get_profile_bundle,
+    get_profile_by_id,
+    get_profile_by_username,
+    get_profile_content,
+    get_profile_settings,
+    get_profile_stats,
+    is_adult_profile,
+    is_profile_complete,
+    like_profile,
+    record_profile_view,
+    report_profile,
+    update_profile,
+    update_profile_setup,
+    upload_profile_avatar,
+    upload_profile_cover,
+    verify_profile_age,
+    _age_from_dob,
+    normalize_dob,
+)
+from services.profile_dashboard_service import build_profile_dashboard
+from services.storage_service import upload_avatar, upload_cover, upload_verification_file
+from services.logging_service import log_error, log_warning
+
+profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
+
+UPLOAD_MAP = {
+    "avatar": "static/uploads/profile/avatars",
+    "cover": "static/uploads/profile/covers",
+    "verification": "static/uploads/profile/verifications",
+}
+
+
+def _is_production_env():
+    if os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_logged_in():
+            if session.get("refresh_token"):
+                refresh_supabase_session_if_needed()
+        if not is_logged_in():
+            if request.path.startswith('/api/'):
+                return jsonify({"error": "Unauthorized", "message": "Authentication required"}), 401
+            return redirect(url_for("auth.login", next=request.path))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+def save_upload(file, folder):
+    if not file or not file.filename:
+        return None
+    os.makedirs(folder, exist_ok=True)
+    filename = secure_filename(file.filename)
+    filename = f"{int(time.time())}_{filename}"
+    path = os.path.join(folder, filename)
+    file.save(path)
+    return "/" + path
+
+
+def _profile_form_defaults():
+    return {
+        "email": session.get("email"),
+        "full_name": session.get("full_name", ""),
+        "username": session.get("email", "").split("@")[0] if session.get("email") else "",
+        "premium_tier": "free",
+        "profile_type": "member",
+    }
+
+
+def _redirect_back(username=None):
+    return redirect(request.referrer or (url_for("profile.public_profile", username=username) if username else url_for("profile.my_profile")))
+
+
+def _session_profile_stub():
+    email = session.get("auth_email") or ""
+    username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
+    full_name = session.get("full_name") or username.replace("_", " ").title()
+    return {
+        "id": session.get("profile_id"),
+        "auth_user_id": session.get("auth_user_id"),
+        "email": email,
+        "username": username,
+        "full_name": full_name,
+        "display_name": full_name,
+        "avatar_url": None,
+        "date_of_birth": session.get(K_PENDING_DATE_OF_BIRTH),
+        "profile_completed": False,
+        "profile_type": "member",
+    }
+
+
+def _profile_fallback_context():
+    viewer = _session_profile_stub()
+    return {
+        "unread_count": 0,
+        "viewer": viewer,
+        "profile": viewer,
+        "setup_warning": True,
+        "profile_fallback": True,
+        "current_year": datetime.now(timezone.utc).year,
+        "stats": {},
+        "content": {"posts": [], "reels": [], "rooms": [], "stories": []},
+        "activity": [],
+        "wallet": {},
+        "creator_tools": {},
+        "actions": [],
+        "presence": {"status": "offline"},
+        "is_following": False,
+        "is_page_liked": False,
+        "public_stats": {"posts": 0, "followers": 0, "reels": 0, "likes": 0},
+        "completion": {"percentage": 0, "missing_fields": []},
+        "level": {"title": "New Member", "score": 0, "next_target": 10, "progress_pct": 0},
+        "permissions": {"can_message": True, "can_call": True, "can_contact_email": bool(viewer.get("email"))},
+        "contact": {"message": True, "call": True, "email": bool(viewer.get("email")), "whatsapp": False},
+        "creator": {},
+        "marketplace": {"items": [], "featured_products": []},
+        "dating": {},
+        "portfolio": {"skills": []},
+        "ai": {},
+        "live": {"go_live_url": "/live/studio"},
+        "calls": {},
+        "reputation": {},
+        "achievements": [],
+        "theme_options": [],
+        "pinned": {"posts": [], "reels": [], "products": []},
+    }
+
+
+def _apply_profile_session(profile, fallback_email=None):
+    if not profile:
+        return
+    profile_id = profile.get("id")
+    auth_user_id = profile.get("auth_user_id") or session.get("auth_user_id") or session.get("user_id")
+    email = profile.get("email") or fallback_email or session.get("auth_email") or session.get("email")
+    if profile_id:
+        session["profile_id"] = profile_id
+    if auth_user_id:
+        session["user_id"] = auth_user_id
+        session["auth_user_id"] = auth_user_id
+    if email:
+        session["email"] = email
+    if profile.get("username"):
+        session["username"] = profile.get("username")
+    session.modified = True
+
+
+def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0, setup_warning=False, bundle=None):
+    try:
+        bundle = bundle or get_profile_bundle(profile_id=profile["id"], viewer=viewer)
+    except Exception as error:
+        log_warning("profile_bundle_route_failed", profile_id=profile.get("id"), error=str(error))
+        bundle = None
+    if not bundle:
+        log_warning("profile_bundle_missing", profile_id=profile.get("id"), username=profile.get("username"))
+        fallback = _profile_fallback_context()
+        fallback["profile"] = profile
+        fallback["viewer"] = viewer or profile
+        try:
+            from services.profile_service import get_profile_content, get_profile_stats
+            fallback["content"] = get_profile_content(profile.get("id"))
+            fallback["stats"] = get_profile_stats(profile.get("id"))
+        except Exception:
+            pass
+        return render_template("profile/index.html", **fallback), status_code
+    try:
+        dashboard = build_profile_dashboard(profile=profile, viewer=viewer, bundle=bundle)
+    except Exception as error:
+        log_warning("profile_dashboard_build_failed", profile_id=profile.get("id"), error=str(error))
+        dashboard = {}
+    render_bundle = dict(bundle)
+    render_profile = dashboard.get("profile") or render_bundle.pop("profile", profile)
+    render_bundle.pop("profile", None)
+    context = {
+        "unread_count": unread_count,
+        "viewer": viewer,
+        "profile": render_profile,
+        "setup_warning": setup_warning,
+    }
+    context.update(render_bundle)
+    context.update(dashboard)
+    context["profile"] = render_profile
+    context["viewer"] = viewer
+    return render_template("profile/index.html", **context), status_code
+
+
+def _resolve_profile_route(username=None, user_id=None):
+    viewer = get_current_profile() if is_logged_in() else None
+    profile = None
+    if username:
+        cleaned_username = username[1:] if username.startswith("@") else username
+        profile = get_profile_by_username(cleaned_username)
+    elif user_id:
+        profile = get_profile_by_id(user_id)
+
+    if not profile:
+        log_warning("public_profile_missing", username=username, user_id=user_id)
+        return render_template("profile/not_found.html"), 404
+
+    if viewer and viewer.get("id") != profile.get("id"):
+        record_profile_view(profile.get("id"), viewer.get("id"))
+
+    return _render_profile_index(profile, viewer=viewer)
+
+
+
+
+@profile_bp.route("/")
+@login_required
+def my_profile():
+    try:
+        if not _is_production_env() and (session.get("profile_id") or session.get("auth_user_id")):
+            session["age_verified"] = True
+            session["age_check_required"] = False
+            session.modified = True
+
+        # Trust session age check if explicitly False
+        if session.get(K_AGE_CHECK_REQUIRED) is True:
+            return redirect(url_for("profile.age_check"))
+
+        viewer = get_current_profile()
+        if not viewer:
+            session[K_PROFILE_WARNING] = True
+            log_warning(
+                "profile_missing_for_session",
+                auth_user_id=session.get("auth_user_id") or session.get("user_id"),
+                profile_id=session.get("profile_id"),
+                email=session.get("auth_email") or session.get("email"),
+            )
+            return redirect(url_for("profile.create_profile"))
+
+        if viewer.get("profile_fallback"):
+            context = _profile_fallback_context()
+            context["profile"] = viewer
+            context["viewer"] = viewer
+            return render_template("profile/index.html", **context)
+
+        session.pop(K_PROFILE_WARNING, None)
+
+        ok, result = verify_profile_age(viewer)
+        if not ok:
+            # Final fallback: if session says we already passed, trust it
+            if session.get(K_AGE_CHECK_REQUIRED) is False:
+                ok = True
+                result = None
+
+            if not ok:
+                if result == "REDIRECT_AGE_CHECK":
+                    session[K_AGE_CHECK_REQUIRED] = True
+                    return redirect(url_for("profile.age_check"))
+                log_warning("profile_age_verification_failed", profile_id=viewer.get("id"), detail=result)
+                return render_template("auth/profile_error.html", error_detail=result), 200
+
+        if not is_profile_complete(viewer):
+            return redirect(url_for("profile.onboarding"))
+
+        try:
+            bundle = get_profile_bundle(profile_id=viewer["id"], viewer=viewer)
+        except Exception as error:
+            log_warning("profile_bundle_current_failed", profile_id=viewer.get("id"), error=str(error))
+            bundle = None
+        if not bundle:
+            session[K_PROFILE_WARNING] = True
+            log_warning("profile_bundle_missing_for_current_user", profile_id=viewer.get("id"))
+            context = _profile_fallback_context()
+            context["profile"] = viewer
+            context["viewer"] = viewer
+            try:
+                context["content"] = get_profile_content(viewer.get("id"))
+                context["stats"] = get_profile_stats(viewer.get("id"))
+            except Exception:
+                pass
+            return render_template("profile/index.html", **context)
+
+        try:
+            _, _, unread_count = get_my_notifications()
+        except Exception as error:
+            log_warning("profile_notifications_failed", profile_id=viewer.get("id"), error=str(error))
+            unread_count = 0
+        setup_warning = session.get(K_PROFILE_WARNING)
+        return _render_profile_index(
+            viewer,
+            viewer=viewer,
+            unread_count=unread_count,
+            setup_warning=setup_warning,
+            bundle=bundle,
+        )
+    except Exception as error:
+        log_error("profile_route_failed", route="/profile/", error=str(error))
+        return render_template("auth/profile_error.html", error_detail="Profile could not be loaded right now."), 500
+
+
+@profile_bp.route("/age-check", methods=["GET", "POST"])
+@login_required
+def age_check():
+    viewer = _session_profile_stub()
+
+    error = None
+    if request.method == "POST":
+        raw_dob = request.form.get("date_of_birth")
+        dob = normalize_dob(raw_dob)
+        age = _age_from_dob(dob)
+
+        if age is None:
+            error = "Please enter a valid date of birth (DD/MM/YYYY or YYYY-MM-DD)."
+        elif age < 18:
+            # Explicitly block if underage
+            return render_template("auth/profile_error.html", error_detail="CHAIN is only available to users 18 and older."), 200
+        else:
+            session["age_verified"] = True
+            session[K_PENDING_DATE_OF_BIRTH] = dob
+            session["date_of_birth"] = dob
+            session[K_AGE_CHECK_REQUIRED] = False
+            session["age_check_required"] = False
+
+            # Ensure session active
+            if viewer.get("id"):
+                session["profile_id"] = viewer.get("id")
+            if viewer.get("auth_user_id"):
+                session["auth_user_id"] = viewer.get("auth_user_id")
+                session["user_id"] = viewer.get("auth_user_id")
+
+            saved = best_effort_age_dob_update(viewer.get("id"), viewer.get("auth_user_id"), dob)
+            if saved:
+                session.pop(K_PROFILE_WARNING, None)
+                flash("Age verified. Welcome back!", "success")
+            else:
+                session[K_PROFILE_WARNING] = True
+                flash("Age verified. Profile setup is finishing.", "warning")
+
+            session.modified = True
+            return redirect(url_for("profile.my_profile"))
+    return render_template("profile/age_check.html", error=error, viewer=viewer, current_year=datetime.now(timezone.utc).year)
+
+
+@profile_bp.route("/retry-bootstrap", methods=["GET", "POST"])
+@login_required
+def retry_bootstrap():
+    ok, result = bootstrap_profile_for_current_user()
+    if ok:
+        session.pop(K_PROFILE_WARNING, None)
+        flash("Profile sync successful.", "success")
+        return redirect(url_for("profile.my_profile"))
+    
+    return render_template("auth/profile_error.html", error_detail=f"Profile sync failed: {result}")
+
+
+@profile_bp.route("/create", methods=["GET", "POST"])
+@login_required
+def create_profile():
+    return redirect(url_for("profile.onboarding"))
+
+
+@profile_bp.route("/setup", methods=["GET", "POST"])
+@login_required
+def setup_profile():
+    return redirect(url_for("profile.onboarding"))
+
+
+@profile_bp.route("/edit", methods=["GET", "POST"])
+@login_required
+def edit_profile():
+    viewer = get_current_profile()
+    if not viewer:
+        return redirect(url_for("profile.onboarding"))
+    
+    ok, result = verify_profile_age(viewer)
+    if not ok:
+        if result == "REDIRECT_AGE_CHECK":
+            return redirect(url_for("profile.age_check"))
+        return render_template("auth/profile_error.html", error_detail=result), 200
+        
+    if not is_profile_complete(viewer):
+        return redirect(url_for("profile.onboarding"))
+    setup_mode = request.args.get("setup") == "1"
+
+    if request.method == "POST":
+        data = dict(request.form)
+        
+        # Avatar Upload
+        avatar_file = request.files.get("avatar")
+        if avatar_file and avatar_file.filename:
+            res, err = upload_avatar(viewer["id"], avatar_file)
+            if res:
+                data["avatar_url"] = res["public_url"]
+                data["avatar_upload_id"] = res["upload_id"]
+            else:
+                flash(f"Avatar upload failed: {err}", "error")
+
+        # Cover Upload
+        cover_file = request.files.get("cover")
+        if cover_file and cover_file.filename:
+            res, err = upload_cover(viewer["id"], cover_file)
+            if res:
+                data["cover_url"] = res["public_url"]
+                data["cover_upload_id"] = res["upload_id"]
+            else:
+                flash(f"Cover upload failed: {err}", "error")
+
+        ok, result = update_profile_setup(viewer["id"], data) if setup_mode else update_profile(viewer["auth_user_id"], data)
+        if ok:
+            return redirect(url_for("profile.my_profile"))
+        return render_template("profile/edit.html", error=result, profile=viewer, form=request.form)
+
+    progress = viewer.get("profile_completion", 0)
+    return render_template("profile/edit.html", profile=viewer, form=viewer, setup_mode=setup_mode, progress=progress)
+
+
+@profile_bp.route("/@<username>")
+@profile_bp.route("/id/<user_id>")
+def view_profile(username=None, user_id=None):
+    try:
+        return _resolve_profile_route(username=username, user_id=user_id)
+    except Exception as error:
+        log_error("view_profile_failed", username=username, user_id=user_id, error=str(error))
+        return render_template("profile/not_found.html"), 404
+
+
+@profile_bp.route("", methods=["GET"])
+def my_profile_no_slash():
+    return redirect(url_for("profile.my_profile"), code=308)
+
+
+@profile_bp.route("/<username>")
+def public_profile(username):
+    try:
+        return _resolve_profile_route(username=username)
+    except Exception as error:
+        log_error("public_profile_failed", username=username, error=str(error))
+        return render_template("profile/not_found.html"), 404
+
+
+@profile_bp.route("/api/current", methods=["GET"])
+def api_current_profile():
+    try:
+        if not is_logged_in():
+            return jsonify({"error": "Authentication required"}), 401
+        profile = get_current_profile()
+        if not profile:
+            log_warning(
+                "api_current_profile_missing",
+                auth_user_id=session.get("auth_user_id") or session.get("user_id"),
+                profile_id=session.get("profile_id"),
+                email=session.get("auth_email") or session.get("email"),
+            )
+            return jsonify({"error": "Profile not found"}), 404
+        return jsonify(profile), 200
+    except Exception as error:
+        log_error("api_current_profile_failed", error=str(error))
+        return jsonify({"error": "Profile lookup failed"}), 500
+
+
+@profile_bp.route("/avatar", methods=["POST"])
+@login_required
+def avatar_upload():
+    viewer = get_current_profile()
+    file_obj = request.files.get("avatar")
+    try:
+        ok, result = upload_profile_avatar(viewer["auth_user_id"], file_obj) if viewer and file_obj else (False, "No avatar file provided.")
+    except Exception as error:
+        log_warning("profile_avatar_upload_failed", profile_id=(viewer or {}).get("id"), error=str(error))
+        ok, result = False, "Avatar upload failed. Please try again."
+    if request.accept_mimetypes.best == "application/json" or request.is_json:
+        return ({"status": "ok", "avatar_url": (result or {}).get("avatar_url")} if ok else {"error": result}), (200 if ok else 400)
+    if ok:
+        flash("Profile picture updated.", "success")
+    else:
+        flash(result, "error")
+    return redirect(url_for("profile.edit_profile"))
+
+
+@profile_bp.route("/cover", methods=["POST"])
+@login_required
+def cover_upload():
+    viewer = get_current_profile()
+    file_obj = request.files.get("cover")
+    try:
+        ok, result = upload_profile_cover(viewer["auth_user_id"], file_obj) if viewer and file_obj else (False, "No cover file provided.")
+    except Exception as error:
+        log_warning("profile_cover_upload_failed", profile_id=(viewer or {}).get("id"), error=str(error))
+        ok, result = False, "Cover upload failed. Please try again."
+    if request.accept_mimetypes.best == "application/json" or request.is_json:
+        return ({"status": "ok", "cover_url": (result or {}).get("cover_url")} if ok else {"error": result}), (200 if ok else 400)
+    if ok:
+        flash("Cover photo updated.", "success")
+    else:
+        flash(result, "error")
+    return redirect(url_for("profile.edit_profile"))
+
+
+@profile_bp.route("/@<username>/follow", methods=["POST"])
+@login_required
+def follow(username):
+    try:
+        follow_profile(username)
+    except Exception as error:
+        log_warning("profile_follow_failed", username=username, error=str(error))
+    return _redirect_back(username)
+
+
+@profile_bp.route("/follow/<profile_id>", methods=["POST"])
+@login_required
+def follow_by_id(profile_id):
+    try:
+        target = get_profile_bundle(profile_id=profile_id, viewer=get_current_profile())
+        ok = bool(target and follow_profile(target["profile"]["username"]))
+    except Exception as error:
+        log_warning("profile_follow_by_id_failed", profile_id=profile_id, error=str(error))
+        ok = False
+    return {"status": "ok" if ok else "setup", "profile_id": profile_id}, (200 if ok else 202)
+
+
+@profile_bp.route("/@<username>/like", methods=["POST"])
+@login_required
+def like(username):
+    like_profile(username)
+    return _redirect_back(username)
+
+
+@profile_bp.route("/@<username>/favorite", methods=["POST"])
+@login_required
+def favorite(username):
+    favorite_profile(username)
+    return _redirect_back(username)
+
+
+@profile_bp.route("/@<username>/report", methods=["POST"])
+@login_required
+def report(username):
+    report_profile(username, reason=request.form.get("reason"))
+    return _redirect_back(username)
+
+
+@profile_bp.route("/report/<profile_id>", methods=["POST"])
+@login_required
+def report_by_id(profile_id):
+    target = get_profile_bundle(profile_id=profile_id, viewer=get_current_profile())
+    ok = bool(target and report_profile(target["profile"]["username"], reason=request.form.get("reason")))
+    return {"status": "ok" if ok else "setup", "profile_id": profile_id}, (200 if ok else 202)
+
+
+@profile_bp.route("/@<username>/block", methods=["POST"])
+@login_required
+def block(username):
+    block_profile(username)
+    return _redirect_back(username)
+
+
+@profile_bp.route("/block/<profile_id>", methods=["POST"])
+@login_required
+def block_by_id(profile_id):
+    target = get_profile_bundle(profile_id=profile_id, viewer=get_current_profile())
+    ok = bool(target and block_profile(target["profile"]["username"]))
+    return {"status": "ok" if ok else "setup", "profile_id": profile_id}, (200 if ok else 202)
+
+
+@profile_bp.route("/@<username>/premium")
+def premium(username):
+    viewer = get_current_profile()
+    bundle = get_profile_bundle(username=username, viewer=viewer)
+    if not bundle:
+        return render_template("profile/not_found.html", username=username), 404
+    return _render_profile_index(bundle["profile"], viewer=viewer, bundle=bundle)
+
+
+@profile_bp.route("/@<username>/creator-tools")
+@login_required
+def creator_tools(username):
+    viewer = get_current_profile()
+    bundle = get_profile_bundle(username=username, viewer=viewer)
+    if not bundle:
+        return render_template("profile/not_found.html", username=username), 404
+    return render_template("profile/creator_tools.html", viewer=viewer, **bundle)
+
+
+@profile_bp.route("/settings")
+@login_required
+def settings():
+    profile = get_current_profile()
+    profile_settings = get_profile_settings(profile["id"])
+    return render_template("profile/settings.html", profile=profile, profile_settings=profile_settings["settings"], account_security=profile_settings["security"])
+
+
+@profile_bp.route("/onboarding", methods=["GET", "POST"])
+@login_required
+def onboarding():
+    profile = get_current_profile()
+    if not profile:
+        ok, result = bootstrap_profile_for_current_user()
+        if not ok:
+            session[K_PROFILE_WARNING] = True
+            return render_template(
+                "profile/onboarding.html",
+                profile=_session_profile_stub(),
+                form=_session_profile_stub(),
+                error="Finishing your profile setup...",
+                progress=0,
+                setup_mode=True,
+            ), 200
+        profile = result if isinstance(result, dict) else None
+        if not profile:
+            profile = get_current_profile()
+        if not profile:
+            profile = _session_profile_stub()
+
+    adult_state = is_adult_profile(profile)
+    if adult_state is False:
+        return render_template("auth/profile_error.html", error_detail="CHAIN is only available to users 18 and older."), 200
+
+    if request.method == "POST":
+        if not profile or not profile.get("id"):
+            log_warning("onboarding_profile_unavailable_after_bootstrap")
+            return render_template(
+                "profile/onboarding.html",
+                profile=_session_profile_stub(),
+                form=request.form,
+                error="We could not finish linking your profile yet. Please try again.",
+                progress=0,
+                setup_mode=True,
+            ), 200
+        data = dict(request.form)
+        partial_step = data.get("partial_step")
+        
+        # Avatar Upload
+        avatar_file = request.files.get("avatar") or request.files.get("camera_avatar")
+        if avatar_file and avatar_file.filename:
+            res, err = upload_avatar(profile["id"], avatar_file)
+            if res:
+                data["avatar_url"] = res["public_url"]
+                data["avatar_upload_id"] = res["upload_id"]
+
+        # Cover Upload
+        cover_file = request.files.get("cover")
+        if cover_file and cover_file.filename:
+            res, err = upload_cover(profile["id"], cover_file)
+            if res:
+                data["cover_url"] = res["public_url"]
+                data["cover_upload_id"] = res["upload_id"]
+
+        # Map 'interests' and 'languages' from comma-separated strings to lists if needed
+        if "interests" in data and isinstance(data["interests"], str):
+            data["interests"] = [i.strip() for i in data["interests"].split(",") if i.strip()]
+        if "languages" in data and isinstance(data["languages"], str):
+            data["languages"] = [l.strip() for l in data["languages"].split(",") if l.strip()]
+
+        ok, result = update_profile_setup(profile["id"], data, current_profile=profile)
+        
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json or partial_step:
+            if ok and isinstance(result, dict):
+                _apply_profile_session(result, fallback_email=data.get("email"))
+            return jsonify({"status": "ok" if ok else "error", "message": "Profile updated" if ok else result})
+
+        if ok:
+            completed_profile = result if isinstance(result, dict) else profile
+            _apply_profile_session(completed_profile, fallback_email=data.get("email"))
+            flash("Profile updated.", "success")
+            return redirect(url_for("profile.my_profile"))
+
+        log_error("onboarding_profile_write_failed", error=result, profile_id=profile.get("id"), auth_user_id=profile.get("auth_user_id"))
+            
+        return render_template(
+            "profile/onboarding.html",
+            profile=profile,
+            form=request.form,
+            error=result or "Profile could not be saved yet. Please check the highlighted fields and try again.",
+            progress=profile.get("profile_completion", 0),
+            setup_mode=True,
+        )
+
+    return render_template("profile/onboarding.html", profile=profile, form=profile, progress=profile.get("profile_completion", 0), setup_mode=True)
+
+
+@profile_bp.route("/verification", methods=["GET", "POST"])
+@login_required
+def verification():
+    profile = get_current_profile()
+    if request.method == "POST":
+        data = {}
+        
+        # Selfie Upload
+        selfie_file = request.files.get("selfie")
+        if selfie_file and selfie_file.filename:
+            res, err = upload_verification_file(profile["id"], selfie_file, upload_type='verification_selfie')
+            if res:
+                data["selfie_url"] = res["public_url"] or res["file_path"]
+                data["selfie_upload_id"] = res["upload_id"]
+            else:
+                flash(f"Selfie upload failed: {err}", "error")
+                return redirect(url_for("profile.verification"))
+
+        # ID Document Upload
+        id_file = request.files.get("id_document")
+        if id_file and id_file.filename:
+            res, err = upload_verification_file(profile["id"], id_file, upload_type='verification_id')
+            if res:
+                data["id_document_url"] = res["public_url"] or res["file_path"]
+                data["id_document_upload_id"] = res["upload_id"]
+            else:
+                flash(f"ID document upload failed: {err}", "error")
+                return redirect(url_for("profile.verification"))
+
+        if not data.get("selfie_upload_id") or not data.get("id_document_upload_id"):
+            flash("Both selfie and ID document are required.", "error")
+            return redirect(url_for("profile.verification"))
+
+        # Save verification request
+        from services.supabase_safe import safe_insert, safe_select, safe_update
+        existing = safe_select("chain_user_verifications", filters={"profile_id": profile["id"]}, limit=1, order_by=None)
+        
+        payload = {
+            "profile_id": profile["id"],
+            "verification_status": "pending",
+            "selfie_url": data.get("selfie_url"),
+            "selfie_upload_id": data.get("selfie_upload_id"),
+            "id_document_url": data.get("id_document_url"),
+            "id_document_upload_id": data.get("id_document_upload_id"),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        if existing:
+            safe_update("chain_user_verifications", payload, eq={"id": existing[0]["id"]})
+        else:
+            payload["created_at"] = datetime.now(timezone.utc).isoformat()
+            safe_insert("chain_user_verifications", payload)
+            
+        flash("Verification request submitted successfully.", "success")
+        return redirect(url_for("profile.my_profile"))
+
+    from services.supabase_safe import safe_select
+    verification_request = (safe_select("chain_user_verifications", filters={"profile_id": profile["id"]}, limit=1, order_by=None) or [None])[0]
+    return render_template("profile/verification.html", profile=profile, verification=verification_request)
+
+
+@profile_bp.route("/settings", methods=["POST"])
+@login_required
+def update_settings():
+    profile = get_current_profile()
+    settings = get_profile_settings(profile["id"])
+    from services.supabase_safe import safe_insert, safe_update
+
+    payload = {
+        "allow_messages": request.form.get("allow_messages") == "on",
+        "allow_video_calls": request.form.get("allow_video_calls") == "on",
+        "show_online_status": request.form.get("show_online_status") == "on",
+        "profile_visibility": request.form.get("profile_visibility", "public"),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if settings["settings"].get("id"):
+        safe_update("chain_user_settings", payload, eq={"id": settings["settings"]["id"]})
+    else:
+        safe_insert("chain_user_settings", {"profile_id": profile["id"], **payload})
+    flash("Settings updated.", "success")
+    return redirect(url_for("profile.settings"))
+
+
+@profile_bp.route("/security")
+@login_required
+def security():
+    profile = get_current_profile()
+    profile_settings = get_profile_settings(profile["id"])
+    return render_template("profile/security.html", profile=profile, account_security=profile_settings["security"])
+
+
+@profile_bp.route("/security/set-password", methods=["POST"])
+@login_required
+def set_password():
+    password = request.form.get("password", "")
+    confirm_password = request.form.get("confirm_password", "")
+    if len(password) < 8:
+        flash("Password must be at least 8 characters.", "error")
+        return redirect(url_for("profile.security"))
+    if password != confirm_password:
+        flash("Passwords do not match.", "error")
+        return redirect(url_for("profile.security"))
+    ok, result = set_current_user_password(password)
+    flash(result, "success" if ok else "error")
+    return redirect(url_for("profile.security"))
+
+
+@profile_bp.route("/activity")
+@login_required
+def activity():
+    viewer = get_current_profile()
+    bundle = get_profile_bundle(profile_id=viewer["id"], viewer=viewer)
+    return render_template("profile/index.html", viewer=viewer, **bundle)
+
+
+@profile_bp.route("/live")
+@login_required
+def my_live():
+    return redirect(url_for("live.live_channels"))
+
+
+@profile_bp.route("/posts")
+@login_required
+def my_posts():
+    return redirect(url_for("profile.my_profile"))
+
+
+@profile_bp.route("/wallet")
+@login_required
+def my_wallet():
+    return redirect(url_for("wallet.index"))
+
+
+@profile_bp.route("/notifications")
+@login_required
+def my_notifications():
+    return redirect(url_for("notification_engine.index"))
+
+
+@profile_bp.route("/creator/ai-assist", methods=["POST"])
+@login_required
+def ai_assist():
+    from services.creator_ai_service import get_caption_suggestions, generate_trending_hashtags
+    data = request.json or {}
+    c_type = data.get("type", "reel")
+    topic = data.get("topic", "lifestyle")
+    
+    captions = get_caption_suggestions(c_type, topic)
+    hashtags = generate_trending_hashtags(topic)
+    
+    return jsonify({
+        "captions": captions,
+        "hashtags": hashtags
+    })
+
+@profile_bp.route("/privacy", methods=["GET"])
+@login_required
+def privacy_settings():
+    profile = get_current_profile()
+    return render_template("profile/privacy.html", profile=profile)
+
+
+@profile_bp.route("/page/like/<page_id>", methods=["POST"])
+@login_required
+def like_page(page_id):
+    profile = get_current_profile()
+    from services.supabase_safe import safe_insert
+    ok = safe_insert("chain_page_likes", {"profile_id": profile["id"], "page_id": page_id})
+    return jsonify({"status": "ok" if ok else "error"})
+
+
+@profile_bp.route("/page/unlike/<page_id>", methods=["POST"])
+@login_required
+def unlike_page(page_id):
+    profile = get_current_profile()
+    from services.supabase_safe import write_query
+    sql = "DELETE FROM chain_page_likes WHERE profile_id = %s AND page_id = %s"
+    ok = write_query(sql, (profile["id"], page_id))
+    return jsonify({"status": "ok" if ok else "error"})
+
+
+@profile_bp.route("/unblock/<target_id>", methods=["POST"])
+@login_required
+def unblock(target_id):
+    profile = get_current_profile()
+    from services.supabase_safe import safe_update
+    # Soft delete block record
+    safe_update("chain_blocks", {"deleted_at": datetime.now(timezone.utc).isoformat()}, eq={"blocker_profile_id": profile["id"], "blocked_profile_id": target_id})
+    return jsonify({"status": "ok"})
+
+
+@profile_bp.route("/convert-to-page", methods=["POST"])
+@login_required
+def convert_to_page():
+    profile = get_current_profile()
+    from services.supabase_safe import safe_update
+    ok = safe_update("chain_profiles", {"is_page": True}, eq={"id": profile["id"]})
+    return jsonify({"status": "ok" if ok else "error"})
+
+
+@profile_bp.route("/settings/privacy", methods=["POST"])
+@login_required
+def update_privacy():
+    profile = get_current_profile()
+    visibility = request.form.get("visibility", "public")
+    allow_audio = request.form.get("allow_audio") == "on"
+    allow_video = request.form.get("allow_video") == "on"
+    
+    from services.supabase_safe import safe_update
+    payload = {
+        "profile_visibility": visibility,
+        "allow_audio_calls": allow_audio,
+        "allow_video_calls": allow_video,
+        "allow_group_calls": request.form.get("allow_group_calls") == "on",
+        "allow_conference_calls": request.form.get("allow_conference_calls") == "on",
+        "allow_add_to_call": request.form.get("allow_add_to_call") == "on",
+        "allow_unknown_callers": request.form.get("allow_unknown_callers") == "on",
+        "call_quality_audio": request.form.get("call_quality_audio", "auto"),
+        "call_quality_video": request.form.get("call_quality_video", "auto"),
+        "call_ringtone": request.form.get("call_ringtone", "chain_classic"),
+        "call_vibration": request.form.get("call_vibration") == "on",
+        "auto_answer_headset": request.form.get("auto_answer_headset") == "on",
+        "speaker_default": request.form.get("speaker_default") == "on",
+        "noise_suppression": request.form.get("noise_suppression") == "on",
+        "echo_cancellation": request.form.get("echo_cancellation") == "on",
+        "hd_video": request.form.get("hd_video") == "on",
+        "save_call_history": request.form.get("save_call_history") == "on"
+    }
+    ok = safe_update("chain_profiles", payload, eq={"id": profile["id"]})
+    flash("Privacy settings updated.", "success")
+    return redirect(url_for("profile.my_profile"))
+
+@profile_bp.route("/<user_id>/follow", methods=["POST"])
+@login_required
+def toggle_follow(user_id):
+    """
+    Production-grade follow/unfollow toggle.
+    Returns JSON for AJAX frontend.
+    """
+    from services.neon_service import write_query, fast_query
+    
+    viewer = get_current_profile()
+    if not viewer:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    target_id = user_id
+    if user_id.startswith("@"):
+        t_rows = fast_query("SELECT id FROM chain_profiles WHERE username = %s LIMIT 1", [user_id[1:]])
+        if not t_rows: return jsonify({"error": "User not found"}), 404
+        target_id = t_rows[0]["id"]
+        
+    if viewer["id"] == target_id:
+        return jsonify({"error": "Cannot follow yourself"}), 400
+        
+    # Toggle Logic
+    existing = fast_query(
+        "SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s",
+        [viewer["id"], target_id]
+    )
+    
+    if existing:
+        write_query(
+            "DELETE FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s",
+            [viewer["id"], target_id]
+        )
+        following = False
+    else:
+        write_query(
+            "INSERT INTO chain_follows (follower_profile_id, following_profile_id, created_at) VALUES (%s, %s, NOW())",
+            [viewer["id"], target_id]
+        )
+        following = True
+        
+    # Recount for response
+    counts = fast_query(
+        "SELECT COUNT(*) as count FROM chain_follows WHERE following_profile_id = %s",
+        [target_id]
+    )[0]
+    
+    return jsonify({
+        "status": "success",
+        "following": following,
+        "followers_count": counts["count"]
+    })

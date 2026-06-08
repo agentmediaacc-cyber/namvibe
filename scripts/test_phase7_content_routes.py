@@ -3,8 +3,11 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
-os.environ.setdefault("CHAIN_DISABLE_DB_PING", "1")
+os.environ["CHAIN_FAST_LOCAL"] = "1"
+os.environ["CHAIN_DISABLE_DB_PING"] = "1"
+os.environ["FLASK_TESTING"] = "1"
+os.environ["FLASK_ENV"] = "development"
+os.environ["ENV"] = "development"
 os.environ["DATABASE_URL"] = ""
 
 from app import app
@@ -46,6 +49,9 @@ def run():
     app.config["TESTING"] = True
     client = app.test_client()
     _login(client)
+    with client.session_transaction() as session:
+        assert session.get("profile_id") == PROFILE_ID
+    print("phase7 fake session content regression")
 
     response = client.post(
         "/posts/create",

@@ -1,0 +1,106 @@
+from flask import Blueprint, jsonify, render_template, request
+
+from services.job_queue_service import (
+    cancel_job,
+    enqueue_job,
+    get_job,
+    get_queue_stats,
+    retry_job,
+)
+from services.redis_hardening_service import get_redis_health
+from services.scheduler_service import disable_task, enable_task, get_scheduler_status
+from services.worker_service import get_all_worker_statuses
+
+system_bp = Blueprint("system", __name__)
+
+
+def _health_payload():
+    queue = get_queue_stats()
+    scheduler = get_scheduler_status()
+    workers = get_all_worker_statuses()
+    redis = get_redis_health()
+    components = {
+        "app": {"ok": True, "status": "ok"},
+        "database": {"ok": True, "status": "fallback" if queue.get("db_fallback") else "configured"},
+        "redis": redis,
+        "job_queue": {"ok": True, **queue.get("stats", {})},
+        "scheduler": {"ok": True, "tasks": len(scheduler.get("tasks", []))},
+        "workers": {"ok": True, "online": len([w for w in workers if w.get("status") == "online"])},
+        "socketio": {"ok": True, "status": "registered"},
+        "storage": {"ok": True, "status": "not_checked"},
+        "notification_queue": {"ok": True, "status": "queue_ready"},
+    }
+    return {"ok": all(bool(c.get("ok", True)) for c in components.values()), "components": components}
+
+
+@system_bp.route("/system/health")
+def system_health_page():
+    return render_template("admin/system_health.html")
+
+
+@system_bp.route("/system/queue")
+def queue_dashboard_page():
+    return render_template("admin/queue_dashboard.html")
+
+
+@system_bp.route("/system/workers")
+def workers_page():
+    return render_template("admin/workers.html")
+
+
+@system_bp.route("/system/scheduled-tasks")
+def scheduled_tasks_page():
+    return render_template("admin/scheduled_tasks.html")
+
+
+@system_bp.route("/system/api/health")
+def api_health():
+    return jsonify(_health_payload()), 200
+
+
+@system_bp.route("/system/api/queue/stats")
+def api_queue_stats():
+    return jsonify(get_queue_stats()), 200
+
+
+@system_bp.route("/system/api/workers")
+def api_workers():
+    return jsonify({"ok": True, "workers": get_all_worker_statuses()}), 200
+
+
+@system_bp.route("/system/api/scheduled-tasks")
+def api_scheduled_tasks():
+    return jsonify(get_scheduler_status()), 200
+
+
+@system_bp.route("/system/api/scheduled-tasks/<task_name>/enable", methods=["POST"])
+def api_enable_task(task_name):
+    return jsonify(enable_task(task_name)), 200
+
+
+@system_bp.route("/system/api/scheduled-tasks/<task_name>/disable", methods=["POST"])
+def api_disable_task(task_name):
+    return jsonify(disable_task(task_name)), 200
+
+
+@system_bp.route("/system/api/jobs/enqueue-test", methods=["POST"])
+def api_enqueue_test():
+    data = request.get_json(silent=True) or {}
+    result = enqueue_job(data.get("job_type") or "security_event_digest", data.get("payload") or {"source": "api-test"})
+    return jsonify(result), 200
+
+
+@system_bp.route("/system/api/jobs/<job_id>")
+def api_get_job(job_id):
+    job = get_job(job_id)
+    return jsonify({"ok": bool(job), "job": job}), 200 if job else 404
+
+
+@system_bp.route("/system/api/jobs/<job_id>/retry", methods=["POST"])
+def api_retry_job(job_id):
+    return jsonify(retry_job(job_id)), 200
+
+
+@system_bp.route("/system/api/jobs/<job_id>/cancel", methods=["POST"])
+def api_cancel_job(job_id):
+    return jsonify(cancel_job(job_id)), 200

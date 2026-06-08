@@ -1,0 +1,23 @@
+from flask import Blueprint, render_template, g
+from api_routes.profile_routes import login_required
+from services.profile_service import get_current_profile
+from services.creator_analytics_engine import get_creator_stats
+from services.creator_feature_service import creator_dashboard, request_verification
+
+creator_bp = Blueprint('creator', __name__, url_prefix='/creator')
+
+@creator_bp.route('/dashboard')
+@login_required
+def dashboard():
+    profile = get_current_profile()
+    stats = {**creator_dashboard(profile["id"]), **get_creator_stats(profile['id'])}
+    return render_template('creator/dashboard.html', stats=stats, profile=profile)
+
+
+@creator_bp.route('/verification/request', methods=['POST'])
+@login_required
+def verification_request():
+    profile = get_current_profile()
+    result = request_verification(profile["id"])
+    from flask import jsonify
+    return jsonify({"success": bool(result.get("ok")), **result}), 200

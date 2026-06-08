@@ -1,117 +1,757 @@
 {% extends "base.html" %}
+{% block extra_css %}
+<style>
+:root {
+  --cd-bg: #0b0b0f;
+  --cd-surface: rgba(255,255,255,0.04);
+  --cd-surface-hover: rgba(255,255,255,0.08);
+  --cd-border: rgba(255,255,255,0.08);
+  --cd-border-active: rgba(255,255,255,0.18);
+  --cd-text: #f0f0f5;
+  --cd-muted: #8b8b9e;
+  --cd-gold: #f7b733;
+  --cd-pink: #ff0050;
+  --cd-cyan: #00f2ea;
+  --cd-green: #12b886;
+  --cd-blue: #1e88e5;
+  --cd-radius: 16px;
+}
+body { background: var(--cd-bg); color: var(--cd-text); }
+.cd-wrap {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+.cd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.cd-header h1 {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  background: linear-gradient(135deg, var(--cd-gold), var(--cd-pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.cd-period-group {
+  display: flex;
+  gap: 6px;
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: 999px;
+  padding: 4px;
+}
+.cd-period-group button {
+  border: 0;
+  background: transparent;
+  color: var(--cd-muted);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cd-period-group button.active,
+.cd-period-group button:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--cd-text);
+}
+.cd-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px;
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
+  margin-bottom: 28px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cd-tabs::-webkit-scrollbar { display: none; }
+.cd-tab {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cd-muted);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cd-tab:hover { color: var(--cd-text); background: var(--cd-surface-hover); }
+.cd-tab.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(255,0,80,0.25), rgba(0,242,234,0.15));
+  box-shadow: 0 0 20px rgba(255,0,80,0.08);
+}
+.cd-panel { display: none; }
+.cd-panel.active { display: block; }
+.cd-grid { display: grid; gap: 16px; }
+.cd-grid-4 { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.cd-grid-3 { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.cd-grid-2 { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+.cd-card {
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  border-radius: var(--cd-radius);
+  padding: 20px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.cd-card:hover { border-color: var(--cd-border-active); transform: translateY(-2px); }
+.cd-card-accent {
+  position: relative;
+  overflow: hidden;
+}
+.cd-card-accent::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: var(--cd-radius) var(--cd-radius) 0 0;
+}
+.cd-card-gold::before { background: linear-gradient(90deg, var(--cd-gold), #ff8c00); }
+.cd-card-pink::before { background: linear-gradient(90deg, var(--cd-pink), #ff4080); }
+.cd-card-cyan::before { background: linear-gradient(90deg, var(--cd-cyan), #00bcd4); }
+.cd-card-green::before { background: linear-gradient(90deg, var(--cd-green), #00e676); }
+.cd-card-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--cd-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cd-card-value {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.cd-card-value small {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cd-muted);
+  margin-left: 4px;
+}
+.cd-card-sub {
+  font-size: 12px;
+  color: var(--cd-muted);
+  margin-top: 6px;
+}
+.cd-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--cd-muted);
+}
+.cd-empty i {
+  font-size: 40px;
+  margin-bottom: 16px;
+  opacity: 0.25;
+  display: block;
+}
+.cd-empty p {
+  font-size: 15px;
+  max-width: 320px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+.cd-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  margin-top: 10px;
+  overflow: hidden;
+}
+.cd-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cd-gold), var(--cd-pink));
+  transition: width 0.4s ease;
+}
+.cd-list { list-style: none; padding: 0; margin: 0; }
+.cd-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cd-border);
+}
+.cd-list li:last-child { border-bottom: 0; }
+.cd-list-left { display: flex; align-items: center; gap: 12px; }
+.cd-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--cd-surface);
+  border: 1px solid var(--cd-border);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  color: var(--cd-muted);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.cd-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.cd-badge-gold { background: rgba(247,183,51,0.15); color: var(--cd-gold); }
+.cd-badge-green { background: rgba(18,184,134,0.15); color: var(--cd-green); }
+.cd-badge-pink { background: rgba(255,0,80,0.15); color: var(--cd-pink); }
+.cd-badge-cyan { background: rgba(0,242,234,0.15); color: var(--cd-cyan); }
+.cd-badge-blue { background: rgba(30,136,229,0.15); color: var(--cd-blue); }
+.cd-badge-neutral { background: var(--cd-surface-hover); color: var(--cd-muted); }
+.cd-input {
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--cd-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--cd-text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.cd-input:focus { border-color: var(--cd-pink); }
+.cd-input-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.cd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.cd-btn-primary {
+  background: linear-gradient(135deg, var(--cd-pink), rgba(255,0,80,0.7));
+  color: #fff;
+}
+.cd-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,0,80,0.25); }
+.cd-btn-outline {
+  background: transparent;
+  border: 1px solid var(--cd-border);
+  color: var(--cd-text);
+}
+.cd-btn-outline:hover { border-color: var(--cd-border-active); background: var(--cd-surface-hover); }
+.cd-btn-gold {
+  background: linear-gradient(135deg, var(--cd-gold), #ff8c00);
+  color: #0b0b0f;
+}
+.cd-btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(247,183,51,0.25); }
+.cd-form-row { display: grid; gap: 12px; }
+.cd-form-row label { font-size: 13px; font-weight: 700; color: var(--cd-muted); }
+.cd-status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.cd-status-dot.verified { background: var(--cd-green); }
+.cd-status-dot.pending { background: var(--cd-gold); }
+.cd-status-dot.none { background: var(--cd-muted); }
+.cd-section-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cd-coin-icon { color: var(--cd-gold); }
+.cd-stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--cd-border);
+  font-size: 14px;
+}
+.cd-stat-row:last-child { border-bottom: 0; }
+.cd-stat-row span:first-child { color: var(--cd-muted); }
+.cd-stat-row span:last-child { font-weight: 700; }
+</style>
+{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Creator Dashboard</h2>
-        <div class="btn-group">
-            <button class="btn btn-outline-primary btn-sm active">Last 7 Days</button>
-            <button class="btn btn-outline-primary btn-sm">Last 30 Days</button>
-        </div>
+<div class="cd-wrap">
+  <div class="cd-header">
+    <h1><i class="fas fa-rocket me-2"></i>Creator Dashboard</h1>
+    <div class="cd-period-group">
+      <button class="active" data-period="7">7 Days</button>
+      <button data-period="30">30 Days</button>
+      <button data-period="90">90 Days</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="cd-tabs" role="tablist">
+    <button class="cd-tab active" data-tab="tab-overview"><i class="fas fa-home"></i>Overview</button>
+    <button class="cd-tab" data-tab="tab-earnings"><i class="fas fa-coins"></i>Earnings</button>
+    <button class="cd-tab" data-tab="tab-gifts"><i class="fas fa-gift"></i>Gifts</button>
+    <button class="cd-tab" data-tab="tab-live"><i class="fas fa-video"></i>Live Earnings</button>
+    <button class="cd-tab" data-tab="tab-subs"><i class="fas fa-users"></i>Subscriptions</button>
+    <button class="cd-tab" data-tab="tab-posts"><i class="fas fa-file-alt"></i>Paid Posts</button>
+    <button class="cd-tab" data-tab="tab-premium"><i class="fas fa-lock"></i>Premium Content</button>
+    <button class="cd-tab" data-tab="tab-payouts"><i class="fas fa-wallet"></i>Payouts</button>
+    <button class="cd-tab" data-tab="tab-sponsors"><i class="fas fa-handshake"></i>Sponsorships</button>
+    <button class="cd-tab" data-tab="tab-fans"><i class="fas fa-crown"></i>Top Fans</button>
+    <button class="cd-tab" data-tab="tab-badges"><i class="fas fa-certificate"></i>Badges</button>
+    <button class="cd-tab" data-tab="tab-verify"><i class="fas fa-check-circle"></i>Verification</button>
+  </div>
+
+  <!-- Tab: Overview -->
+  <div id="tab-overview" class="cd-panel active">
+    <div class="cd-grid cd-grid-4">
+      <div class="cd-card cd-card-accent cd-card-gold">
+        <div class="cd-card-label"><i class="fas fa-coins cd-coin-icon"></i>Total Earnings</div>
+        <div class="cd-card-value">{{ stats.earnings.total|default(0)|int }} <small>coins</small></div>
+        <div class="cd-card-sub"><i class="fas fa-arrow-up" style="color:var(--cd-green)"></i> Lifetime revenue</div>
+      </div>
+      <div class="cd-card cd-card-accent cd-card-pink">
+        <div class="cd-card-label"><i class="fas fa-broadcast-tower" style="color:var(--cd-pink)"></i>Live Earnings</div>
+        <div class="cd-card-value">{{ stats.total_live_earnings|default(stats.live_earnings.total|default(0))|int }} <small>coins</small></div>
+        <div class="cd-card-sub">{{ stats.followers_count|default(0) }} followers</div>
+      </div>
+      <div class="cd-card cd-card-accent cd-card-cyan">
+        <div class="cd-card-label"><i class="fas fa-clock" style="color:var(--cd-cyan)"></i>Pending Withdrawal</div>
+        <div class="cd-card-value">{{ stats.pending_withdrawal|default(0)|int }} <small>NAD</small></div>
+        <div class="cd-card-sub">Est. delivery: 2-3 business days</div>
+      </div>
+      <div class="cd-card cd-card-accent cd-card-green">
+        <div class="cd-card-label"><i class="fas fa-star" style="color:var(--cd-green)"></i>Creator Level</div>
+        <div class="cd-card-value">{% set level = stats.creator_level|default(1) %}{% if level is number %}Level {{ level }}{% else %}{{ level }}{% endif %}</div>
+        <div class="cd-progress"><div class="cd-progress-bar" style="width: {% if level is number and level < 10 %}{{ level * 10 }}{% else %}45{% endif %}%;"></div></div>
+        <div class="cd-card-sub">{{ stats.total_reel_views|default(0) }} total reel views</div>
+      </div>
     </div>
 
-    <div class="row g-4">
-        <!-- Stats Cards -->
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-primary text-white h-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Gift Earnings</h6>
-                    <h3 class="card-title mb-0">{{ stats.total_gift_earnings or 0 }} <small class="fs-6">coins</small></h3>
-                    <small class="d-block mt-2">↑ 12% from last week</small>
-                </div>
-            </div>
+    <div class="cd-grid cd-grid-2" style="margin-top:20px">
+      <div class="cd-card">
+        <div class="cd-card-label"><i class="fas fa-chart-line" style="color:var(--cd-cyan)"></i>Earnings Overview</div>
+        <div style="height:200px;display:grid;place-items:center;text-align:center;color:var(--cd-muted)">
+          <div>
+            <i class="fas fa-chart-area fa-3x mb-3" style="opacity:0.15;display:block;margin-bottom:12px"></i>
+            <p style="max-width:300px;line-height:1.5">{{ stats.earnings.total|default(0)|int }} coins earned across all streams.</p>
+          </div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-success text-white h-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Live Earnings</h6>
-                    <h3 class="card-title mb-0">{{ stats.total_live_earnings or 0 }} <small class="fs-6">coins</small></h3>
-                    <small class="d-block mt-2">5 active rooms this week</small>
-                </div>
-            </div>
+      </div>
+      <div class="cd-card">
+        <div class="cd-card-label"><i class="fas fa-trophy" style="color:var(--cd-gold)"></i>Quick Stats</div>
+        <div>
+          <div class="cd-stat-row"><span>Engagement Rate</span><span>{{ stats.engagement_rate|default(0) }}%</span></div>
+          <div class="cd-stat-row"><span>Active Subscribers</span><span>{{ stats.subscriptions.active_count|default(0) }}</span></div>
+          <div class="cd-stat-row"><span>Total Reel Views</span><span>{{ stats.total_reel_views|default(0) }}</span></div>
+          <div class="cd-stat-row"><span>Total Reel Likes</span><span>{{ stats.total_reel_likes|default(0) }}</span></div>
+          <div class="cd-stat-row"><span>Followers</span><span>{{ stats.followers_count|default(0) }}</span></div>
         </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-info text-white h-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Pending Withdrawal</h6>
-                    <h3 class="card-title mb-0">{{ stats.pending_withdrawal or 0 }} <small class="fs-6">NAD</small></h3>
-                    <small class="d-block mt-2">Est. delivery: 2-3 days</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm border-0 bg-warning text-white h-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 opacity-75">Creator Level</h6>
-                    <h3 class="card-title mb-0">Level {{ stats.creator_level or 1 }}</h3>
-                    <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.2);">
-                        <div class="progress-bar bg-white" style="width: 65%;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Top Supporters -->
-        <div class="col-md-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Top Supporters</h5>
-                    <i class="fas fa-crown text-warning"></i>
-                </div>
-                <div class="card-body p-0">
-                    <ul class="list-group list-group-flush">
-                        {% for supporter in stats.top_supporters or [{'username': 'Fan123', 'amount': 500}, {'username': 'SuperGiver', 'amount': 350}, {'username': 'BigChain', 'amount': 200}] %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center p-3">
-                            <div class="d-flex align-items-center">
-                                <div class="avatar-sm rounded-circle bg-light mr-3 d-grid place-items-center" style="width: 32px; height: 32px;"><i class="fas fa-user text-muted"></i></div>
-                                <span>{{ supporter.username }}</span>
-                            </div>
-                            <span class="badge badge-pill badge-light">{{ supporter.amount }} coins</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Placeholder -->
-        <div class="col-md-8">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Earnings Overview</h5>
-                    <select class="form-select form-select-sm border-0 bg-light" style="width: auto;">
-                        <option>Coins</option>
-                        <option>NAD</option>
-                    </select>
-                </div>
-                <div class="card-body" style="height: 300px; display: grid; place-items: center;">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-chart-area fa-3x mb-3" style="opacity: 0.2;"></i>
-                        <p>Earnings visualization placeholder</p>
-                        <div class="d-flex gap-2 justify-content-center">
-                            <div style="width: 10px; height: 40px; background: var(--chain-primary); border-radius: 5px;"></div>
-                            <div style="width: 10px; height: 60px; background: var(--chain-primary); border-radius: 5px; opacity: 0.6;"></div>
-                            <div style="width: 10px; height: 30px; background: var(--chain-primary); border-radius: 5px;"></div>
-                            <div style="width: 10px; height: 80px; background: var(--chain-primary); border-radius: 5px; opacity: 0.8;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Verification CTA -->
-        {% if not profile.is_verified %}
-        <div class="col-md-12">
-            <div class="card border-primary bg-light">
-                <div class="card-body d-flex justify-content-between align-items-center p-4">
-                    <div>
-                        <h5 class="text-primary mb-1"><i class="fas fa-check-circle mr-2"></i> Get Verified</h5>
-                        <p class="mb-0 text-muted">Verified creators earn 15% more and get featured in the discovery feed.</p>
-                    </div>
-                    <a href="/verification/" class="btn btn-primary px-4">Apply Now</a>
-                </div>
-            </div>
-        </div>
-        {% endif %}
+      </div>
     </div>
+  </div>
+
+  <!-- Tab: Earnings -->
+  <div id="tab-earnings" class="cd-panel">
+    <div class="cd-grid cd-grid-3">
+      <div class="cd-card cd-card-accent cd-card-gold">
+        <div class="cd-card-label"><i class="fas fa-coins cd-coin-icon"></i>Total Earnings</div>
+        <div class="cd-card-value">{{ stats.earnings.total|default(0)|int }} <small>coins</small></div>
+        <div class="cd-card-sub">All-time earnings</div>
+      </div>
+      <div class="cd-card cd-card-accent cd-card-pink">
+        <div class="cd-card-label"><i class="fas fa-gift" style="color:var(--cd-pink)"></i>Gift Earnings</div>
+        <div class="cd-card-value">{{ stats.gifts.total|default(0)|int }} <small>coins</small></div>
+        <div class="cd-card-sub">{{ stats.total_gift_earnings|default(0)|int }} coins from gifts</div>
+      </div>
+      <div class="cd-card cd-card-accent cd-card-cyan">
+        <div class="cd-card-label"><i class="fas fa-video" style="color:var(--cd-cyan)"></i>Live Earnings</div>
+        <div class="cd-card-value">{{ stats.total_live_earnings|default(stats.live_earnings.total|default(0))|int }} <small>coins</small></div>
+        <div class="cd-card-sub">From live streams</div>
+      </div>
+    </div>
+    {% if stats.earnings.total|default(0) == 0 %}
+    <div class="cd-card" style="margin-top:20px">
+      <div class="cd-empty">
+        <i class="fas fa-coins"></i>
+        <p>Earnings will appear here when you receive gifts, subscriptions, or paid post purchases.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Tab: Gifts -->
+  <div id="tab-gifts" class="cd-panel">
+    <div class="cd-card" style="margin-bottom:16px">
+      <div class="cd-card-label"><i class="fas fa-gift" style="color:var(--cd-pink)"></i>Gift History</div>
+    </div>
+    {% set supporters = stats.top_supporters|default([]) %}
+    {% if supporters %}
+    <div class="cd-card">
+      <ul class="cd-list">
+        {% for s in supporters %}
+        <li>
+          <div class="cd-list-left">
+            <div class="cd-avatar"><i class="fas fa-user"></i></div>
+            <div>
+              <div style="font-weight:700">{{ s.supporter_username or s.username or 'Supporter' }}</div>
+              <div style="font-size:12px;color:var(--cd-muted)">{{ s.total_amount|int }} coins total</div>
+            </div>
+          </div>
+          <span class="cd-badge cd-badge-gold"><i class="fas fa-gift"></i> {{ s.total_amount|int }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% else %}
+    <div class="cd-card">
+      <div class="cd-empty">
+        <i class="fas fa-gift"></i>
+        <p>No gifts received yet.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Tab: Live Earnings -->
+  <div id="tab-live" class="cd-panel">
+    <div class="cd-card cd-card-accent cd-card-pink" style="margin-bottom:16px">
+      <div class="cd-card-label"><i class="fas fa-broadcast-tower" style="color:var(--cd-pink)"></i>Live Earnings</div>
+      <div class="cd-card-value">{{ stats.total_live_earnings|default(stats.live_earnings.total|default(0))|int }} <small>coins</small></div>
+      <div class="cd-card-sub">Total earned from live streaming</div>
+    </div>
+    {% if stats.total_live_earnings|default(stats.live_earnings.total|default(0)) == 0 %}
+    <div class="cd-card">
+      <div class="cd-empty">
+        <i class="fas fa-video"></i>
+        <p>Go live to start earning from your streams.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Tab: Subscriptions -->
+  <div id="tab-subs" class="cd-panel">
+    <div class="cd-grid cd-grid-2">
+      <div class="cd-card">
+        <div class="cd-card-label"><i class="fas fa-users" style="color:var(--cd-cyan)"></i>Active Subscribers</div>
+        <div class="cd-card-value" style="font-size:36px">{{ stats.subscriptions.active_count|default(0) }}</div>
+      </div>
+      <div class="cd-card">
+        <div class="cd-section-title"><i class="fas fa-cog"></i>Manage Subscription Tier</div>
+        <div class="cd-form-row">
+          <label>Tier Name</label>
+          <input class="cd-input" id="creator-sub-tier" value="standard" placeholder="e.g. premium, vip">
+        </div>
+        <div class="cd-form-row" style="margin-top:12px">
+          <label>Price (coins)</label>
+          <input class="cd-input" id="creator-sub-price" value="25" placeholder="0" type="number">
+        </div>
+        <button class="cd-btn cd-btn-primary" style="margin-top:14px" type="button" onclick="creatorPost('/creator/subscriptions', {tier: document.getElementById('creator-sub-tier').value, price_coins: parseInt(document.getElementById('creator-sub-price').value) || 0})">
+          <i class="fas fa-save"></i> Save Subscription
+        </button>
+      </div>
+    </div>
+    {% if stats.subscriptions.active_count|default(0) == 0 %}
+    <div class="cd-card" style="margin-top:16px">
+      <div class="cd-empty">
+        <i class="fas fa-users"></i>
+        <p>Set up your subscription tier to start earning recurring revenue.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Tab: Paid Posts -->
+  <div id="tab-posts" class="cd-panel">
+    <div class="cd-card">
+      <div class="cd-section-title"><i class="fas fa-file-alt" style="color:var(--cd-gold)"></i>Create Paid Post</div>
+      <div class="cd-form-row">
+        <label>Post Title</label>
+        <input class="cd-input" id="creator-paid-title" value="Paid post" placeholder="Enter post title">
+      </div>
+      <div class="cd-form-row" style="margin-top:12px">
+        <label>Price (coins)</label>
+        <input class="cd-input" id="creator-paid-price" value="25" placeholder="0" type="number">
+      </div>
+      <button class="cd-btn cd-btn-gold" style="margin-top:14px" type="button" onclick="creatorPost('/creator/paid-posts', {title: document.getElementById('creator-paid-title').value, price_coins: parseInt(document.getElementById('creator-paid-price').value) || 0})">
+        <i class="fas fa-plus-circle"></i> Create Paid Post
+      </button>
+    </div>
+    <div class="cd-card" style="margin-top:16px">
+      <div class="cd-empty">
+        <i class="fas fa-file-alt"></i>
+        <p>Create paid posts to monetize your exclusive content.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Premium Content -->
+  <div id="tab-premium" class="cd-panel">
+    <div class="cd-card">
+      <div class="cd-section-title"><i class="fas fa-lock" style="color:var(--cd-pink)"></i>Lock Premium Content</div>
+      <div class="cd-form-row">
+        <label>Content Type</label>
+        <input class="cd-input" id="creator-premium-type" value="post" placeholder="e.g. post, video, gallery">
+      </div>
+      <div class="cd-form-row" style="margin-top:12px">
+        <label>Lock Type</label>
+        <select class="cd-input" id="creator-premium-lock">
+          <option value="subscription">Subscription</option>
+          <option value="one_time">One Time Purchase</option>
+          <option value="tip">Tip to Unlock</option>
+        </select>
+      </div>
+      <button class="cd-btn cd-btn-primary" style="margin-top:14px" type="button" onclick="creatorPost('/creator/premium-content', {content_type: document.getElementById('creator-premium-type').value, lock_type: document.getElementById('creator-premium-lock').value})">
+        <i class="fas fa-lock"></i> Save Lock
+      </button>
+    </div>
+    <div class="cd-card" style="margin-top:16px">
+      <div class="cd-empty">
+        <i class="fas fa-lock"></i>
+        <p>Lock your best content behind a premium tier.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Payouts -->
+  <div id="tab-payouts" class="cd-panel">
+    <div class="cd-grid cd-grid-2">
+      <div class="cd-card">
+        <div class="cd-section-title"><i class="fas fa-hand-holding-usd" style="color:var(--cd-green)"></i>Request Payout</div>
+        <div class="cd-form-row">
+          <label>Amount (coins)</label>
+          <input class="cd-input" id="creator-payout-amount" value="0" placeholder="0" type="number">
+        </div>
+        <div class="cd-form-row" style="margin-top:12px">
+          <label>Payout Method</label>
+          <select class="cd-input" id="creator-payout-method">
+            <option value="manual_review">Manual Review</option>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="paypal">PayPal</option>
+          </select>
+        </div>
+        <button class="cd-btn cd-btn-green" style="margin-top:14px;background:linear-gradient(135deg,var(--cd-green),#00e676);color:#0b0b0f" type="button" onclick="creatorPost('/creator/payouts', {amount_coins: parseInt(document.getElementById('creator-payout-amount').value) || 0, payout_method: document.getElementById('creator-payout-method').value})">
+          <i class="fas fa-paper-plane"></i> Request Payout
+        </button>
+      </div>
+      <div class="cd-card">
+        <div class="cd-card-label"><i class="fas fa-clock" style="color:var(--cd-cyan)"></i>Pending Balance</div>
+        <div class="cd-card-value">{{ stats.pending_withdrawal|default(0)|int }} <small>NAD</small></div>
+        <div class="cd-card-sub">Available for withdrawal</div>
+      </div>
+    </div>
+    <div class="cd-card" style="margin-top:16px">
+      <div class="cd-empty">
+        <i class="fas fa-wallet"></i>
+        <p>No payouts yet. Request your first payout when you have earnings.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Sponsorships -->
+  <div id="tab-sponsors" class="cd-panel">
+    <div class="cd-card">
+      <div class="cd-section-title"><i class="fas fa-handshake" style="color:var(--cd-gold)"></i>Sponsorship Deals</div>
+      <div class="cd-form-row">
+        <label>Sponsor Name</label>
+        <input class="cd-input" id="creator-sponsor-name" value="Sponsor" placeholder="Brand name">
+      </div>
+      <div class="cd-form-row" style="margin-top:12px">
+        <label>Amount (coins)</label>
+        <input class="cd-input" id="creator-sponsor-amount" value="0" placeholder="0" type="number">
+      </div>
+      <button class="cd-btn cd-btn-gold" style="margin-top:14px" type="button" onclick="creatorPost('/creator/sponsorships', {sponsor_name: document.getElementById('creator-sponsor-name').value, amount_coins: parseInt(document.getElementById('creator-sponsor-amount').value) || 0})">
+        <i class="fas fa-plus-circle"></i> Add Sponsorship
+      </button>
+    </div>
+    <div class="cd-card" style="margin-top:16px">
+      <div class="cd-empty">
+        <i class="fas fa-handshake"></i>
+        <p>No sponsorships yet. Build your audience to attract sponsors.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Top Fans -->
+  <div id="tab-fans" class="cd-panel">
+    {% set supporters = stats.top_supporters|default([]) %}
+    {% if supporters %}
+    <div class="cd-card">
+      <div class="cd-card-label"><i class="fas fa-crown" style="color:var(--cd-gold)"></i>Top Supporters</div>
+      <ul class="cd-list">
+        {% for s in supporters %}
+        <li>
+          <div class="cd-list-left">
+            <div class="cd-avatar" style="background:{% if loop.index == 1 %}linear-gradient(135deg,var(--cd-gold),#ff8c00){% elif loop.index == 2 %}linear-gradient(135deg,var(--cd-cyan),#00bcd4){% elif loop.index == 3 %}linear-gradient(135deg,var(--cd-pink),#ff4080){% else %}var(--cd-surface){% endif %}">
+              <i class="fas fa-user" style="color:{% if loop.index <= 3 %}#fff{% else %}var(--cd-muted){% endif %}"></i>
+            </div>
+            <div>
+              <div style="font-weight:700">{{ s.supporter_username or s.username or 'Fan #' ~ loop.index }}</div>
+              <div style="font-size:12px;color:var(--cd-muted)">{{ s.total_amount|int }} coins contributed</div>
+            </div>
+          </div>
+          <span class="cd-badge {% if loop.index == 1 %}cd-badge-gold{% elif loop.index == 2 %}cd-badge-cyan{% elif loop.index == 3 %}cd-badge-pink{% else %}cd-badge-neutral{% endif %}">
+            {% if loop.index == 1 %}<i class="fas fa-crown"></i>{% elif loop.index == 2 %}<i class="fas fa-medal"></i>{% elif loop.index == 3 %}<i class="fas fa-medal"></i>{% endif %}
+            #{{ loop.index }}
+          </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% else %}
+    <div class="cd-card">
+      <div class="cd-empty">
+        <i class="fas fa-crown"></i>
+        <p>Your top fans will appear here. No supporters yet.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Tab: Badges -->
+  <div id="tab-badges" class="cd-panel">
+    <div class="cd-card">
+      <div class="cd-section-title"><i class="fas fa-certificate" style="color:var(--cd-gold)"></i>Creator Badges</div>
+      <div class="cd-form-row">
+        <label>Badge Key</label>
+        <input class="cd-input" id="creator-badge-key" value="creator" placeholder="e.g. creator, verified, partner">
+      </div>
+      <div class="cd-form-row" style="margin-top:12px">
+        <label>Label</label>
+        <input class="cd-input" id="creator-badge-label" value="Creator" placeholder="Display label">
+      </div>
+      <button class="cd-btn cd-btn-primary" style="margin-top:14px" type="button" onclick="creatorPost('/creator/badges', {badge_key: document.getElementById('creator-badge-key').value, label: document.getElementById('creator-badge-label').value})">
+        <i class="fas fa-award"></i> Record Badge
+      </button>
+    </div>
+    <div class="cd-card" style="margin-top:16px">
+      <div class="cd-empty">
+        <i class="fas fa-certificate"></i>
+        <p>Earn badges by reaching milestones.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Verification -->
+  <div id="tab-verify" class="cd-panel">
+    <div class="cd-grid cd-grid-2">
+      <div class="cd-card cd-card-accent {% if profile.is_verified %}cd-card-green{% else %}cd-card-pink{% endif %}">
+        <div class="cd-card-label"><i class="fas fa-check-circle" style="color:{% if profile.is_verified %}var(--cd-green){% else %}var(--cd-pink){% endif %}"></i>Verification Status</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
+          <span class="cd-status-dot {% if profile.is_verified %}verified{% else %}none{% endif %}"></span>
+          <span style="font-size:18px;font-weight:800">{% if profile.is_verified %}Verified Creator{% else %}Not Verified{% endif %}</span>
+        </div>
+        <div class="cd-card-sub" style="margin-top:8px">
+          {% if profile.is_verified %}
+          <i class="fas fa-check-circle" style="color:var(--cd-green)"></i> Your account is verified. You earn 15% more and get featured in discovery.
+          {% else %}
+          Verified creators earn 15% more and get featured in the discovery feed.
+          {% endif %}
+        </div>
+      </div>
+      <div class="cd-card">
+        <div class="cd-section-title"><i class="fas fa-shield-alt" style="color:var(--cd-cyan)"></i>Verification Benefits</div>
+        <ul class="cd-list">
+          <li><i class="fas fa-check-circle" style="color:var(--cd-green);width:20px"></i> Blue checkmark on your profile</li>
+          <li><i class="fas fa-chart-line" style="color:var(--cd-green);width:20px"></i> 15% higher earnings</li>
+          <li><i class="fas fa-compass" style="color:var(--cd-green);width:20px"></i> Featured in discovery feed</li>
+          <li><i class="fas fa-star" style="color:var(--cd-green);width:20px"></i> Priority support</li>
+          <li><i class="fas fa-shield" style="color:var(--cd-green);width:20px"></i> Enhanced brand safety</li>
+        </ul>
+      </div>
+    </div>
+    {% if not profile.is_verified %}
+    <div class="cd-card" style="margin-top:16px;background:rgba(255,0,80,0.06);border-color:rgba(255,0,80,0.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+        <div>
+          <h5 style="margin:0 0 4px;font-weight:800"><i class="fas fa-check-circle" style="color:var(--cd-pink)"></i> Get Verified</h5>
+          <p style="margin:0;color:var(--cd-muted);font-size:14px">Verified creators earn 15% more and get featured in the discovery feed.</p>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="cd-btn cd-btn-primary" onclick="creatorPost('/creator/verification/request', {})"><i class="fas fa-paper-plane"></i> Apply Now</button>
+          <a href="/verification/" class="cd-btn cd-btn-outline">Learn More</a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Action Status -->
+  <div id="creator-action-status" class="cd-card" style="margin-top:20px;display:none">
+    <div style="display:flex;align-items:center;gap:10px">
+      <i class="fas fa-spinner fa-pulse" id="creator-status-spinner" style="display:none"></i>
+      <span id="creator-status-text"></span>
+    </div>
+  </div>
 </div>
+
+<script>
+document.querySelectorAll('.cd-tabs [data-tab]').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.cd-tab').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.cd-panel').forEach(function(p){ p.classList.remove('active'); });
+    btn.classList.add('active');
+    var target = document.getElementById(btn.getAttribute('data-tab'));
+    if(target) target.classList.add('active');
+  });
+});
+
+document.querySelectorAll('.cd-period-group button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.cd-period-group button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  });
+});
+
+var actionStatusTimeout = null;
+async function creatorPost(url, payload) {
+  var status = document.getElementById('creator-action-status');
+  var text = document.getElementById('creator-status-text');
+  var spinner = document.getElementById('creator-status-spinner');
+  status.style.display = 'block';
+  spinner.style.display = 'inline-block';
+  text.textContent = ' Saving...';
+  if (actionStatusTimeout) clearTimeout(actionStatusTimeout);
+  try {
+    var res = await fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload || {})
+    });
+    var data = await res.json().catch(function(){ return {}; });
+    spinner.style.display = 'none';
+    text.textContent = res.ok && data.success !== false ? ' Saved.' : ' ' + (data.error || 'Could not save.');
+  } catch(e) {
+    spinner.style.display = 'none';
+    text.textContent = ' Network error. Please try again.';
+  }
+  actionStatusTimeout = setTimeout(function(){
+    status.style.display = 'none';
+  }, 4000);
+}
+</script>
 {% endblock %}

@@ -83,9 +83,9 @@
         <section class="profile-card contact-card">
             <div class="panel-head compact-head"><div><p>CONTACT</p><h2>Reach Out</h2></div></div>
             <div class="contact-grid">
-                <a href="/calls/recent" class="contact-action"><i class="fas fa-phone-volume"></i><span>Audio</span></a>
-                <a href="/calls/recent" class="contact-action"><i class="fas fa-video"></i><span>Video</span></a>
-                <a href="/messages/" class="contact-action"><i class="fas fa-comment"></i><span>Message</span></a>
+                <a href="/calls/start/{{ profile.id }}/audio" class="contact-action"><i class="fas fa-phone-volume"></i><span>Audio</span></a>
+                <a href="/calls/start/{{ profile.id }}/video" class="contact-action"><i class="fas fa-video"></i><span>Video</span></a>
+                <a href="/messages/start/{{ profile.id }}" class="contact-action"><i class="fas fa-comment"></i><span>Message</span></a>
                 {% if own_profile or (contact_data.email and permissions_data.can_contact_email) %}
                 <a href="mailto:{{ profile.email }}" class="contact-action"><i class="fas fa-envelope"></i><span>Email</span></a>
                 {% else %}
@@ -395,6 +395,6 @@
 {% if own_profile %}
 <a href="/profile/edit" class="floating-profile-action"><i class="fas fa-pen"></i><span>Edit</span></a>
 {% else %}
-<a href="/messages/" class="floating-profile-action"><i class="fas fa-comment"></i><span>Message</span></a>
+<a href="/messages/start/{{ profile.id }}" class="floating-profile-action"><i class="fas fa-comment"></i><span>Message</span></a>
 {% endif %}
 {% endblock %}

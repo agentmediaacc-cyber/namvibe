@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Chain | Premium Live Social{% endblock %}</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#F4F7FB">
+    <link rel="apple-touch-icon" href="/static/img/icon-192.png">
+    
+    <!-- SEO & Social Sharing -->
+    <meta name="description" content="CHAIN | Meet. Stream. Earn. Connect. The premium social engine for creators.">
+    <meta property="og:title" content="CHAIN Premium Social">
+    <meta property="og:description" content="Join the next generation of premium creators and live streamers.">
+    <meta property="og:image" content="/static/img/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    
+    <link rel="stylesheet" href="/static/css/chain_theme.css">
+    <link rel="stylesheet" href="/static/css/platform_premium.css">
+    <link rel="stylesheet" href="/static/css/chain_wallpapers.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Skeleton Loading */
+        /* Rotating Logo */
+        .action-cluster {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .chain-shell--social {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(255, 0, 80, 0.20), transparent 32%),
+                radial-gradient(circle at top right, rgba(0, 242, 234, 0.16), transparent 30%),
+                #050505;
+            color: #fff;
+        }
+        .chain-shell--social .main-container {
+            width: 100%;
+            margin-left: 0;
+            max-width: none;
+        }
+        .chain-shell--social .top-header {
+            position: sticky;
+            top: 0;
+            z-index: 900;
+            display: grid;
+            grid-template-columns: 48px auto minmax(220px, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            min-height: 72px;
+            padding: 12px clamp(14px, 3vw, 28px);
+            border-bottom: 1px solid rgba(255,255,255,.10);
+            background: rgba(5,5,5,.82);
+            backdrop-filter: blur(22px);
+        }
+        .social-menu-btn,
+        .social-icon-btn {
+            width: 44px;
+            height: 44px;
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            background: rgba(255,255,255,.08);
+            color: #fff;
+            cursor: pointer;
+        }
+        .social-top-brand,
+        .social-drawer__brand {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 950;
+            letter-spacing: 0;
+        }
+        .chain-shell--social .search-bar {
+            max-width: 720px;
+            width: 100%;
+            justify-self: center;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(255,255,255,.08);
+            border-radius: 999px;
+        }
+        .chain-shell--social .search-bar input {
+            color: #fff;
+        }
+        .chain-shell--social .header-actions {
+            justify-content: flex-end;
+        }
+        .chain-shell--social .content-body {
+            padding: 0;
+        }
+        .social-drawer-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1100;
+            background: rgba(0,0,0,.62);
+            opacity: 0;
+            transition: opacity .18s ease;
+        }
+        .social-drawer-backdrop.is-open {
+            opacity: 1;
+        }
+        .social-drawer {
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 1200;
+            width: min(340px, 88vw);
+            transform: translateX(-102%);
+            transition: transform .2s ease;
+            border-right: 1px solid rgba(255,255,255,.12);
+            background: rgba(7,7,7,.96);
+            backdrop-filter: blur(24px);
+            padding: 16px;
+        }
+        .social-drawer.is-open {
+            transform: translateX(0);
+        }
+        .social-drawer__head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .social-drawer__nav {
+            display: grid;
+            gap: 8px;
+        }
+        .social-drawer__nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 48px;
+            padding: 0 14px;
+            border-radius: 16px;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 850;
+            background: rgba(255,255,255,.07);
+        }
+        .social-drawer__nav a:hover {
+            background: linear-gradient(135deg, rgba(255,0,80,.35), rgba(0,242,234,.25));
+        }
+        .chain-shell--social .mobile-nav {
+            border-top: 1px solid rgba(255,255,255,.10);
+            background: rgba(5,5,5,.86);
+            backdrop-filter: blur(20px);
+        }
+        @media (max-width: 760px) {
+            .chain-shell--social .top-header {
+                grid-template-columns: 44px auto 44px 44px;
+                gap: 8px;
+            }
+            .chain-shell--social .search-bar {
+                display: none;
+            }
+            .chain-shell--social .header-actions .chain-pill,
+            .chain-shell--social .header-actions .theme-switcher {
+                display: none;
+            }
+            .chain-shell--social .header-actions {
+                display: contents;
+            }
+            .chain-shell--social .notif-badge,
+            .chain-shell--social .user-profile,
+            .chain-shell--social .primary {
+                justify-self: end;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}" data-authenticated="{{ 'true' if g_current else 'false' }}">
+    {% set is_admin_surface = request.path.startswith('/admin') or request.path.startswith('/developer') %}
+    <!-- Sidebar -->
+    <div class="chain-shell{% if not is_admin_surface %} chain-shell--social{% endif %}">
+    {% if is_admin_surface %}
+    <aside class="sidebar">
+        <a href="/" class="sidebar-brand">
+            <span class="rotating-logo">CHAIN</span>
+            <b>CHAIN</b>
+        </a>
+        
+        <nav class="sidebar-nav">
+            <a href="/" class="sidebar-link active"><i class="fas fa-home"></i> Home</a>
+            <a href="/discover/" class="sidebar-link"><i class="fas fa-compass"></i> Discover</a>
+            <a href="/live/" class="sidebar-link"><i class="fas fa-video"></i> Live</a>
+            <a href="/reels/" class="sidebar-link"><i class="fas fa-film"></i> Reels</a>
+            <a href="/status/" class="sidebar-link"><i class="fas fa-circle-notch"></i> Stories</a>
+            
+            {% if g_current %}
+            <a href="/messages/" class="sidebar-link"><i class="fas fa-comment"></i> Messages</a>
+            <a href="/wallet/" class="sidebar-link"><i class="fas fa-wallet"></i> Wallet</a>
+            <a href="/dating/discover" class="sidebar-link"><i class="fas fa-heart"></i> Dating</a>
+            <a href="/notifications/" class="sidebar-link"><i class="fas fa-bell"></i> Notifications</a>
+            <a href="/safety/" class="sidebar-link"><i class="fas fa-shield-alt"></i> Safety Center</a>
+            <a href="/profile/" class="sidebar-link"><i class="fas fa-user-circle"></i> Profile</a>
+            <a href="/profile/settings" class="sidebar-link"><i class="fas fa-cog"></i> Settings</a>
+            <hr style="border: none; border-top: 1px solid var(--chain-border); margin: 15px 0;">
+            <a href="/auth/logout" class="sidebar-link"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            {% else %}
+            <hr style="border: none; border-top: 1px solid var(--chain-border); margin: 15px 0;">
+            <a href="/auth/login" class="sidebar-link"><i class="fas fa-sign-in-alt"></i> Login</a>
+            <a href="/auth/register" class="sidebar-link"><i class="fas fa-user-plus"></i> Register</a>
+            {% endif %}
+        </nav>
+    </aside>
+    {% else %}
+    <div class="social-drawer-backdrop" data-social-drawer-close hidden></div>
+    <aside id="social-drawer" class="social-drawer" aria-hidden="true">
+        <div class="social-drawer__head">
+            <a href="/" class="social-drawer__brand">CHAIN</a>
+            <button type="button" class="social-icon-btn" data-social-drawer-close aria-label="Close menu"><i class="fas fa-times"></i></button>
+        </div>
+        <nav class="social-drawer__nav">
+            <a href="/"><i class="fas fa-home"></i>Home</a>
+            <a href="/discover/"><i class="fas fa-compass"></i>Discover</a>
+            <a href="/live/"><i class="fas fa-video"></i>Live</a>
+            <a href="/reels/"><i class="fas fa-film"></i>Reels</a>
+            <a href="/status/"><i class="fas fa-circle-notch"></i>Stories</a>
+            <a href="/messages/"><i class="fas fa-comment"></i>Messages</a>
+            <a href="/calls/recent"><i class="fas fa-phone"></i>Calls</a>
+            <a href="/dating/discover"><i class="fas fa-heart"></i>Dating</a>
+            <a href="/wallet/"><i class="fas fa-wallet"></i>Wallet</a>
+            <a href="/profile/"><i class="fas fa-user-circle"></i>Profile</a>
+            {% if g_current %}
+            <a href="/auth/logout"><i class="fas fa-sign-out-alt"></i>Sign Out</a>
+            {% else %}
+            <a href="/auth/login"><i class="fas fa-sign-in-alt"></i>Login</a>
+            <a href="/auth/register"><i class="fas fa-user-plus"></i>Register</a>
+            {% endif %}
+        </nav>
+    </aside>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <header class="top-header">
+            {% if not is_admin_surface %}
+            <button type="button" class="social-menu-btn" data-social-drawer-open aria-label="Open menu" aria-expanded="false" aria-controls="social-drawer">
+                <i class="fas fa-bars"></i>
+            </button>
+            <a href="/" class="social-top-brand" aria-label="CHAIN home">CHAIN</a>
+            {% endif %}
+            <form class="search-bar" id="chain-search-form" action="/search" method="get" autocomplete="off">
+                <i class="fas fa-search" style="color: var(--chain-muted);"></i>
+                <input id="chain-search-input" type="text" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search creators, live rooms, hashtags, towns…">
+            </form>
+
+            <div class="header-actions">
+                <div class="theme-switcher" data-theme-switcher>
+                    <button type="button" class="theme-switcher__btn" data-theme-toggle aria-label="Theme mode">
+                        <i class="fas fa-circle-half-stroke"></i>
+                    </button>
+                    <div class="theme-switcher__menu" data-theme-menu hidden>
+                        <button type="button" data-theme-option="light">Light Mode</button>
+                        <button type="button" data-theme-option="dark">Dark Mode</button>
+                        <button type="button" data-theme-option="system">System Mode</button>
+                    </div>
+                </div>
+                {% if g_current %}
+                <a href="/wallet/" class="chain-pill">
+                    <i class="fas fa-coins"></i> <span>{{ g_wallet_balance or '0' }}</span>
+                </a>
+                <a href="/notifications/" class="notif-badge" style="text-decoration: none;">
+                    <i class="fas fa-bell"></i>
+                    <span class="notif-count" {% if not g_unread_count %}style="display: none;"{% endif %}>{{ g_unread_count or 0 }}</span>
+                </a>
+                <a href="/profile/" class="user-profile" style="width: 40px; height: 40px; border-radius: 50%; background: var(--chain-bg-panel); border: 1px solid var(--chain-border); display: grid; place-items: center; overflow: hidden; text-decoration: none; color: var(--chain-text);">
+                    {% if g_current.avatar_url %}
+                    <img src="{{ g_current.avatar_url }}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                    <i class="fas fa-user"></i>
+                    {% endif %}
+                </a>
+                {% else %}
+                <a href="/auth/login" class="primary" style="min-height: 40px; padding: 0 20px;">Login</a>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div id="error-retry-banner" style="display: none; background: #ff3b30; color: white; padding: 10px 20px; text-align: center; position: sticky; top: 80px; z-index: 100;">
+                <i class="fas fa-exclamation-circle mr-2"></i> Connection lost. <a href="#" onclick="location.reload()" style="color: white; text-decoration: underline; font-weight: bold;">Retry</a>
+            </div>
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    </div>
+
+    <!-- Mobile Nav -->
+    <nav class="mobile-nav">
+        <a href="/" class="mobile-link active">
+            <i class="fas fa-home"></i>
+        </a>
+        <a href="/discover/" class="mobile-link">
+            <i class="fas fa-compass"></i>
+        </a>
+        <a href="/live/studio" class="mobile-link center-btn">
+            <i class="fas fa-plus"></i>
+        </a>
+        <a href="/messages/" class="mobile-link">
+            <i class="fas fa-comment"></i>
+        </a>
+        <a href="/profile/" class="mobile-link">
+            <i class="fas fa-user"></i>
+        </a>
+    </nav>
+    <a href="/posts/create" class="app-floating-create" aria-label="Create post">
+        <i class="fas fa-plus"></i>
+    </a>
+
+    <script src="/static/js/main.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/js/sw.js')
+                    .then(reg => console.log('SW Registered'))
+                    .catch(err => console.log('SW Failed', err));
+            });
+        }
+    </script>
+    <script>
+        (function(){
+            const drawer = document.getElementById("social-drawer");
+            const backdrop = document.querySelector("[data-social-drawer-close].social-drawer-backdrop");
+            const openBtn = document.querySelector("[data-social-drawer-open]");
+            const closeBtns = document.querySelectorAll("[data-social-drawer-close]");
+            if (!drawer || !openBtn) return;
+
+            function setOpen(open){
+                drawer.classList.toggle("is-open", open);
+                drawer.setAttribute("aria-hidden", open ? "false" : "true");
+                openBtn.setAttribute("aria-expanded", open ? "true" : "false");
+                if (backdrop) {
+                    backdrop.hidden = !open;
+                    backdrop.classList.toggle("is-open", open);
+                }
+                document.body.classList.toggle("social-drawer-open", open);
+            }
+
+            openBtn.addEventListener("click", function(){ setOpen(true); });
+            closeBtns.forEach(function(btn){ btn.addEventListener("click", function(){ setOpen(false); }); });
+            document.addEventListener("keydown", function(event){
+                if (event.key === "Escape") setOpen(false);
+            });
+        })();
+    </script>
+    {% block extra_js %}{% endblock %}
+
+<script id="CHAIN_CALL_SOUND_PATCH">
+(function(){
+  let ringCtx = null;
+  let ringTimer = null;
+
+  function beep(freq, duration, volume){
+    try {
+      ringCtx = ringCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ringCtx.createOscillator();
+      const gain = ringCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.value = volume || 0.08;
+      osc.connect(gain);
+      gain.connect(ringCtx.destination);
+      osc.start();
+      setTimeout(() => { try { osc.stop(); } catch(e){} }, duration || 250);
+    } catch(e) {}
+  }
+
+  window.chainStartOutgoingRing = function(){
+    window.chainStopRing();
+    ringTimer = setInterval(() => {
+      beep(420, 180, 0.07);
+      setTimeout(() => beep(520, 180, 0.06), 260);
+    }, 1300);
+  };
+
+  window.chainStartIncomingRing = function(){
+    window.chainStopRing();
+    ringTimer = setInterval(() => {
+      beep(880, 220, 0.09);
+      setTimeout(() => beep(660, 220, 0.09), 300);
+      setTimeout(() => beep(880, 220, 0.09), 600);
+    }, 1500);
+  };
+
+  window.chainStopRing = function(){
+    if (ringTimer) clearInterval(ringTimer);
+    ringTimer = null;
+  };
+
+  document.addEventListener("click", function(){
+    try {
+      ringCtx = ringCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (ringCtx.state === "suspended") ringCtx.resume();
+    } catch(e) {}
+  }, {once:false});
+
+  window.addEventListener("beforeunload", window.chainStopRing);
+})();
+</script>
+
+
+
+
+
+
+
+
+<script id="CHAIN_REAL_RINGTONE_ENGINE">
+(function(){
+  let ctx = null, timer = null, unlocked = false;
+
+  function getCtx(){
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  async function unlock(){
+    try {
+      const c = getCtx();
+      if (c.state === "suspended") await c.resume();
+      unlocked = true;
+      localStorage.setItem("chain_sound_enabled", "1");
+      const btn = document.getElementById("chainSoundUnlockBtn");
+      if (btn) btn.style.display = "none";
+      beep(700,120,.08);
+      setTimeout(()=>beep(900,120,.08),160);
+    } catch(e){ console.warn("sound unlock failed", e); }
+  }
+
+  function beep(freq,dur,vol){
+    try{
+      const c = getCtx();
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.value = vol || .08;
+      o.connect(g); g.connect(c.destination);
+      o.start();
+      setTimeout(()=>{try{o.stop()}catch(e){}}, dur || 180);
+    }catch(e){}
+  }
+
+  window.chainStopRing = function(){
+    if(timer) clearInterval(timer);
+    timer = null;
+  };
+
+  window.chainStartOutgoingRing = async function(){
+    await unlock();
+    window.chainStopRing();
+    beep(420,180,.08); setTimeout(()=>beep(520,180,.07),260);
+    timer = setInterval(()=>{ beep(420,180,.08); setTimeout(()=>beep(520,180,.07),260); }, 1300);
+  };
+
+  window.chainStartIncomingRing = async function(){
+    await unlock();
+    window.chainStopRing();
+    beep(880,220,.11); setTimeout(()=>beep(660,220,.11),280); setTimeout(()=>beep(880,220,.11),560);
+    timer = setInterval(()=>{ beep(880,220,.11); setTimeout(()=>beep(660,220,.11),280); setTimeout(()=>beep(880,220,.11),560); }, 1500);
+  };
+
+  window.chainTestRing = function(){ window.chainStartIncomingRing(); setTimeout(window.chainStopRing, 3500); };
+
+  function addUnlockButton(){
+    if (document.getElementById("chainSoundUnlockBtn")) return;
+    const btn = document.createElement("button");
+    btn.id = "chainSoundUnlockBtn";
+    btn.type = "button";
+    btn.innerHTML = "🔊 Enable call sound";
+    btn.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:99999;border:0;border-radius:999px;padding:12px 16px;background:#111;color:#fff;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.25)";
+    btn.onclick = unlock;
+    document.body.appendChild(btn);
+    if(localStorage.getItem("chain_sound_enabled")==="1"){
+      btn.innerHTML = "🔊 Test call sound";
+      btn.onclick = window.chainTestRing;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", addUnlockButton);
+  document.addEventListener("click", function(){ if(localStorage.getItem("chain_sound_enabled")==="1") unlock(); }, {once:true});
+  window.addEventListener("beforeunload", window.chainStopRing);
+})();
+</script>
+
+<script id="CHAIN_INCOMING_CALL_LISTENER_V2">
+(function(){
+  function attach(){
+    if (!window.io || window.chainIncomingCallListenerAttached) return;
+    window.chainIncomingCallListenerAttached = true;
+    const s = window.socket || io({transports:["polling"], upgrade:false});
+    window.socket = s;
+
+    s.on("call:incoming", function(data){
+      if(window.chainStartIncomingRing) window.chainStartIncomingRing();
+      const callId = data.call_id || data.id;
+      setTimeout(function(){
+        if(confirm("Incoming " + (data.call_type || "call") + ". Answer now?")){
+          if(window.chainStopRing) window.chainStopRing();
+          location.href = "/calls/" + callId + "/view";
+        }
+      }, 500);
+    });
+
+    ["call:answered","call:rejected","call:ended","call:missed","call:no-answer"].forEach(ev=>{
+      s.on(ev, function(){ if(window.chainStopRing) window.chainStopRing(); });
+    });
+  }
+  document.addEventListener("DOMContentLoaded", attach);
+  setTimeout(attach, 1200);
+})();
+</script>
+
+</body>
+</html>

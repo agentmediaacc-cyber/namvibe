@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Login | CHAIN{% endblock %}
+{% block body_class %}chain-wallpaper-auth{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_auth.css">
+{% endblock %}
+
+{% block content %}
+<section class="chain-auth-shell chain-auth-shell--login">
+    <div class="chain-auth-layout">
+        <aside class="chain-auth-brand-panel">
+            <div class="chain-auth-brand-mark" aria-hidden="true">C</div>
+            <h2>One account for the full social experience.</h2>
+            <p>Jump back into live rooms, stories, reels, chats, creator tools and verified communities.</p>
+            <div class="chain-auth-benefits">
+                <span>Live rooms</span>
+                <span>Stories</span>
+                <span>Reels</span>
+                <span>Safe chat</span>
+                <span>Creator wallet</span>
+                <span>Verified profiles</span>
+            </div>
+        </aside>
+
+        <div class="chain-auth-card chain-auth-card--login">
+            <div class="chain-auth-head">
+                <h1>Log In to CHAIN</h1>
+                <p>Welcome back. Continue to your profile, chats, live rooms and creator tools.</p>
+            </div>
+
+            {% if oauth_error %}
+            <div class="chain-auth-alert chain-auth-alert--error">
+                {{ oauth_error }}
+                <div style="margin-top: 5px;">
+                    <a href="/auth/oauth-diagnostics" style="font-size: 12px; color: inherit; text-decoration: underline;">Troubleshoot social login</a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if success_message or request.args.get('message') or message %}
+            <div class="chain-auth-alert chain-auth-alert--success">
+                {{ success_message or request.args.get('message') or message }}
+            </div>
+            {% endif %}
+
+            {% if error %}
+            <div class="chain-auth-alert chain-auth-alert--error">
+                {% if error is mapping %}
+                    <p>{{ error.message }}</p>
+                    {% if error.actions %}
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <a href="/auth/forgot-password{% if error.email %}?email={{ error.email }}{% endif %}" class="chain-auth-link--strong" style="font-size: 13px;">Reset password</a>
+                        {% if error.email %}
+                        <form action="/auth/resend-confirmation" method="POST" style="display: inline;">
+                            <input type="hidden" name="email" value="{{ error.email }}">
+                            <button type="submit" style="background: none; border: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; font-weight: 800; font-size: 13px;">Resend confirmation</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% else %}
+                    {{ error }}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="chain-auth-panel">
+                <div class="chain-auth-oauth-grid chain-auth-oauth-grid--stacked">
+                    <a href="/auth/google?mode=login" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Google...">
+                        <strong>Continue with Google</strong>
+                    </a>
+                    <a href="/auth/facebook?mode=login" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Facebook...">
+                        <strong>Continue with Facebook</strong>
+                    </a>
+                </div>
+
+                <div class="chain-auth-divider"><span>or</span></div>
+
+                <form class="auth-submit-form chain-auth-form" method="POST">
+                    <label>
+                        <span>Email or Username</span>
+                        <input type="text" name="login_id" placeholder="Enter your email or username" required>
+                    </label>
+                    <label>
+                        <span>Password</span>
+                        <input type="password" name="password" placeholder="••••••••" required>
+                    </label>
+                    <button type="submit" class="primary auth-submit-btn">
+                        <span class="btn-label">Log In</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <div class="chain-auth-trust-row">Private chats • Verified profiles • Creator tools</div>
+            </div>
+
+            <div class="chain-auth-actions chain-auth-actions--stack">
+                <a href="/auth/forgot-password" class="chain-auth-link">Forgot password?</a>
+                <a href="/auth/register" class="chain-auth-link chain-auth-link--strong">Create account</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('.auth-submit-form');
+    const submitBtn = document.querySelector('.auth-submit-btn');
+    const triggers = document.querySelectorAll('.oauth-trigger');
+    form?.addEventListener('submit', () => {
+        if (!submitBtn) return;
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading');
+    });
+    triggers.forEach(link => {
+        link.addEventListener('click', () => {
+            link.classList.add('loading');
+            link.setAttribute('aria-disabled', 'true');
+            link.style.pointerEvents = 'none';
+        });
+    });
+});
+</script>
+{% endblock %}

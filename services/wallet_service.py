@@ -1,202 +1,316 @@
+import os
+import json
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from services.profile_service import get_current_profile
-from services.notification_service import create_notification
-from services.supabase_safe import safe_insert, safe_select, safe_update
-
-
-def _utcnow_iso():
-    return datetime.now(timezone.utc).isoformat()
+from services.neon_service import fast_query, write_query, get_pool_status
+from services.logging_service import log_info, log_warning, log_error, log_wallet_event
 
 
-def _normalize_wallet(wallet, transactions=None):
-    wallet = dict(wallet or {})
-    transactions = transactions or []
-    derived_balance = sum(int(tx.get("coins") or 0) for tx in transactions)
-
-    if wallet.get("coin_balance") is None:
-        wallet["coin_balance"] = derived_balance
-    wallet.setdefault("gift_earnings", 0)
-    wallet.setdefault("pending_withdrawal", 0)
-    wallet.setdefault("total_spent", sum(abs(int(tx.get("coins") or 0)) for tx in transactions if int(tx.get("coins") or 0) < 0))
-    wallet.setdefault("total_received", sum(int(tx.get("coins") or 0) for tx in transactions if int(tx.get("coins") or 0) > 0))
-    wallet["transaction_count"] = len(transactions)
-    wallet["gifts_received_count"] = len([tx for tx in transactions if tx.get("transaction_type") == "gift_received"])
-    wallet["topup_count"] = len([tx for tx in transactions if tx.get("transaction_type") == "topup"])
-    return wallet
+def _db_available():
+    if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    status = get_pool_status()
+    return bool(status.get("pool_ready") or status.get("recent_success") or status.get("configured"))
 
 
-def _load_wallet_transactions(profile_id, limit=20):
-    return safe_select(
-        "chain_wallet_transactions",
-        filters={"profile_id": profile_id},
-        limit=limit,
-    )
+def _utcnow():
+    return datetime.now(timezone.utc)
 
 
-def ensure_wallet(profile_id):
-    try:
-        wallets = safe_select("chain_wallets", filters={"profile_id": profile_id}, limit=1)
-        transactions = _load_wallet_transactions(profile_id)
-        if wallets:
-            return _normalize_wallet(wallets[0], transactions)
+def _wallet_dict(row):
+    return {
+        "id": str(row["id"]),
+        "profile_id": str(row["profile_id"]),
+        "balance_cents": int(row["balance_cents"]),
+        "pending_balance_cents": int(row["pending_balance_cents"]),
+        "lifetime_earned_cents": int(row["lifetime_earned_cents"]),
+        "lifetime_spent_cents": int(row["lifetime_spent_cents"]),
+        "currency": row.get("currency", "NAD"),
+        "status": row.get("status", "active"),
+        "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+        "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
+    }
 
-        created = safe_insert(
-            "chain_wallets",
-            {
-                "profile_id": profile_id,
-                "coin_balance": 0,
-                "gift_earnings": 0,
-                "pending_withdrawal": 0,
-                "total_spent": 0,
-                "total_received": 0,
-                "updated_at": _utcnow_iso(),
-            },
-        )
-        if created is not None:
-            refreshed = safe_select("chain_wallets", filters={"profile_id": profile_id}, limit=1)
-            if refreshed:
-                return _normalize_wallet(refreshed[0], transactions)
 
-        return _normalize_wallet({"profile_id": profile_id}, transactions)
-    except Exception as error:
-        print(f"[wallet_service] ensure_wallet failed: {error}")
+def get_or_create_wallet(profile_id):
+    if not profile_id:
         return None
-
-
-def get_wallet_home():
+    if not _db_available():
+        return _fake_wallet(profile_id)
+    existing = fast_query(
+        "SELECT * FROM chain_wallets WHERE profile_id = %s LIMIT 1",
+        (profile_id,), default=[]
+    )
+    if existing:
+        return _wallet_dict(existing[0])
     try:
-        current = get_current_profile()
-        if not current:
-            return None, None, [], []
-
-        wallet = ensure_wallet(current["id"])
-        transactions = _load_wallet_transactions(current["id"], limit=20)
-        wallet = _normalize_wallet(wallet, transactions) if wallet else _normalize_wallet({}, transactions)
-        gifts = safe_select("chain_gift_catalog", filters={"is_active": True}, limit=30, order_by="coin_price", desc=False)
-
-        return current, wallet, gifts, transactions
-    except Exception as error:
-        print(f"[wallet_service] get_wallet_home failed: {error}")
-        return None, None, [], []
-
-
-def top_up_wallet(coins):
-    try:
-        current = get_current_profile()
-        if not current:
-            return False
-
-        coins = int(coins or 0)
-        if coins <= 0:
-            return False
-
-        wallet = ensure_wallet(current["id"])
-        new_balance = (wallet.get("coin_balance") or 0) + coins
-
-        safe_update(
-            "chain_wallets",
-            {"coin_balance": new_balance, "updated_at": _utcnow_iso()},
-            eq={"profile_id": current["id"]},
+        rows = write_query(
+            "INSERT INTO chain_wallets (id, profile_id) VALUES (%s, %s) RETURNING *",
+            (str(uuid4()), profile_id), timeout_ms=3000
         )
+        if rows:
+            return _wallet_dict(rows[0])
+    except Exception as e:
+        log_warning("wallet_create_failed", profile_id=profile_id, error=str(e))
+    existing = fast_query(
+        "SELECT * FROM chain_wallets WHERE profile_id = %s LIMIT 1",
+        (profile_id,), default=[]
+    )
+    if existing:
+        return _wallet_dict(existing[0])
+    return None
 
-        safe_insert("chain_wallet_transactions", {
-            "profile_id": current["id"],
-            "transaction_type": "topup",
-            "coins": coins,
-            "description": f"Added {coins} coins to wallet",
-        })
+
+def _fake_wallet(profile_id):
+    return {
+        "id": str(uuid4()),
+        "profile_id": profile_id,
+        "balance_cents": 0,
+        "pending_balance_cents": 0,
+        "lifetime_earned_cents": 0,
+        "lifetime_spent_cents": 0,
+        "currency": "NAD",
+        "status": "active",
+        "created_at": _utcnow().isoformat(),
+        "updated_at": _utcnow().isoformat(),
+    }
+
+
+def get_wallet(profile_id):
+    if not profile_id:
+        return None
+    if not _db_available():
+        return _fake_wallet(profile_id)
+    rows = fast_query(
+        "SELECT * FROM chain_wallets WHERE profile_id = %s LIMIT 1",
+        (profile_id,), default=[]
+    )
+    return _wallet_dict(rows[0]) if rows else None
+
+
+def lock_wallet(profile_id):
+    if not _db_available():
         return True
-    except Exception as error:
-        print(f"[wallet_service] top_up_wallet failed: {error}")
+    try:
+        write_query(
+            "UPDATE chain_wallets SET status = 'locked', updated_at = now() WHERE profile_id = %s",
+            (profile_id,)
+        )
+        return True
+    except Exception as e:
+        log_warning("wallet_lock_failed", profile_id=profile_id, error=str(e))
         return False
 
 
-def send_gift_to_username(username, gift_id):
+def unlock_wallet(profile_id):
+    if not _db_available():
+        return True
     try:
-        sender = get_current_profile()
-        receiver = (safe_select("chain_profiles", filters={"username": username}, limit=1) or [None])[0]
-
-        if not sender or not receiver:
-            return False, "Profiles not found"
-
-        gift = (safe_select("chain_gift_catalog", filters={"id": gift_id}, limit=1, order_by=None) or [None])[0]
-        if not gift:
-            return False, "Gift not found"
-
-        price = int(gift["coin_price"])
-        sender_wallet = ensure_wallet(sender["id"])
-        if (sender_wallet.get("coin_balance") or 0) < price:
-            return False, "Insufficient balance"
-
-        safe_update(
-            "chain_wallets",
-            {
-                "coin_balance": sender_wallet["coin_balance"] - price,
-                "total_spent": (sender_wallet.get("total_spent") or 0) + price,
-                "updated_at": _utcnow_iso(),
-            },
-            eq={"profile_id": sender["id"]},
+        write_query(
+            "UPDATE chain_wallets SET status = 'active', updated_at = now() WHERE profile_id = %s",
+            (profile_id,)
         )
-
-        receiver_wallet = ensure_wallet(receiver["id"])
-        safe_update(
-            "chain_wallets",
-            {
-                "gift_earnings": (receiver_wallet.get("gift_earnings") or 0) + price,
-                "total_received": (receiver_wallet.get("total_received") or 0) + price,
-                "updated_at": _utcnow_iso(),
-            },
-            eq={"profile_id": receiver["id"]},
-        )
-
-        safe_insert("chain_wallet_transactions", [
-            {
-                "profile_id": sender["id"],
-                "transaction_type": "gift_sent",
-                "coins": -price,
-                "description": f"Sent {gift['emoji']} to {receiver['full_name']}",
-                "related_profile_id": receiver["id"],
-            },
-            {
-                "profile_id": receiver["id"],
-                "transaction_type": "gift_received",
-                "coins": price,
-                "description": f"Received {gift['emoji']} from {sender['full_name']}",
-                "related_profile_id": sender["id"],
-            }
-        ])
-
-        safe_insert("chain_gift_events", {
-            "sender_profile_id": sender["id"],
-            "receiver_profile_id": receiver["id"],
-            "gift_id": gift["id"],
-            "gift_name": gift["name"],
-            "emoji": gift["emoji"],
-            "coins": price,
-        })
-
-        create_notification(
-            receiver["id"],
-            "Gift Received!",
-            f"{sender['full_name']} sent you a {gift['emoji']}!",
-            "gift",
-            "/wallet/"
-        )
-
-        return True, "Gift sent!"
-    except Exception as error:
-        print(f"[wallet_service] send_gift_to_username failed: {error}")
-        return False, str(error)
+        return True
+    except Exception as e:
+        log_warning("wallet_unlock_failed", profile_id=profile_id, error=str(e))
+        return False
 
 
-def get_gift_page(username):
+def credit_wallet(profile_id, amount_cents, description="", transaction_type="credit", reference_type=None, reference_id=None, counterparty_profile_id=None, metadata=None):
+    if amount_cents <= 0:
+        return {"ok": False, "error": "amount_must_be_positive"}
+    wallet = get_or_create_wallet(profile_id)
+    if not wallet:
+        return {"ok": False, "error": "wallet_not_found"}
+    if wallet.get("status") == "locked":
+        return {"ok": False, "error": "wallet_locked"}
+    tx_id = str(uuid4())
+    if not _db_available():
+        return {"ok": True, "balance_cents": amount_cents, "pending_balance_cents": 0, "transaction_id": tx_id}
     try:
-        current = get_current_profile()
-        receiver = (safe_select("chain_profiles", filters={"username": username}, limit=1) or [None])[0]
-        wallet = ensure_wallet(current["id"]) if current else None
-        gifts = safe_select("chain_gift_catalog", filters={"is_active": True}, limit=30, order_by="coin_price", desc=False)
-        return current, receiver, wallet, gifts
-    except Exception as error:
-        print(f"[wallet_service] get_gift_page failed: {error}")
-        return None, None, None, []
+        direction = "in"
+        if not metadata:
+            metadata = {}
+        metadata["description"] = description
+        write_query(
+            """UPDATE chain_wallets SET
+                balance_cents = balance_cents + %s,
+                lifetime_earned_cents = lifetime_earned_cents + %s,
+                updated_at = now()
+               WHERE profile_id = %s""",
+            (amount_cents, amount_cents, profile_id)
+        )
+        create_wallet_transaction(
+            wallet_id=wallet["id"],
+            profile_id=profile_id,
+            counterparty_profile_id=counterparty_profile_id,
+            transaction_type=transaction_type,
+            direction=direction,
+            amount_cents=amount_cents,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            description=description,
+            metadata=metadata,
+            tx_id=tx_id,
+        )
+        updated = get_wallet(profile_id)
+        log_wallet_event("wallet_credited", profile_id=profile_id, amount_cents=amount_cents, transaction_type=transaction_type)
+        return {"ok": True, "balance_cents": updated["balance_cents"] if updated else wallet["balance_cents"] + amount_cents, "transaction_id": tx_id}
+    except Exception as e:
+        log_error("wallet_credit_failed", profile_id=profile_id, amount_cents=amount_cents, error=str(e))
+        return {"ok": False, "error": f"credit_failed: {e}"}
+
+
+def debit_wallet(profile_id, amount_cents, description="", transaction_type="debit", reference_type=None, reference_id=None, counterparty_profile_id=None, metadata=None):
+    if amount_cents <= 0:
+        return {"ok": False, "error": "amount_must_be_positive"}
+    wallet = get_or_create_wallet(profile_id)
+    if not wallet:
+        return {"ok": False, "error": "wallet_not_found"}
+    if wallet.get("status") == "locked":
+        return {"ok": False, "error": "wallet_locked"}
+    if wallet["balance_cents"] < amount_cents:
+        return {"ok": False, "error": "insufficient_balance"}
+    tx_id = str(uuid4())
+    if not _db_available():
+        return {"ok": True, "balance_cents": 0, "pending_balance_cents": 0, "transaction_id": tx_id}
+    try:
+        direction = "out"
+        if not metadata:
+            metadata = {}
+        metadata["description"] = description
+        write_query(
+            """UPDATE chain_wallets SET
+                balance_cents = balance_cents - %s,
+                lifetime_spent_cents = lifetime_spent_cents + %s,
+                updated_at = now()
+               WHERE profile_id = %s AND balance_cents >= %s""",
+            (amount_cents, amount_cents, profile_id, amount_cents)
+        )
+        create_wallet_transaction(
+            wallet_id=wallet["id"],
+            profile_id=profile_id,
+            counterparty_profile_id=counterparty_profile_id,
+            transaction_type=transaction_type,
+            direction=direction,
+            amount_cents=amount_cents,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            description=description,
+            metadata=metadata,
+            tx_id=tx_id,
+        )
+        updated = get_wallet(profile_id)
+        log_wallet_event("wallet_debited", profile_id=profile_id, amount_cents=amount_cents, transaction_type=transaction_type)
+        return {"ok": True, "balance_cents": updated["balance_cents"] if updated else wallet["balance_cents"] - amount_cents, "transaction_id": tx_id}
+    except Exception as e:
+        log_error("wallet_debit_failed", profile_id=profile_id, amount_cents=amount_cents, error=str(e))
+        return {"ok": False, "error": f"debit_failed: {e}"}
+
+
+def transfer_between_wallets(from_profile_id, to_profile_id, amount_cents, description="", reference_type=None, reference_id=None):
+    if from_profile_id == to_profile_id:
+        return {"ok": False, "error": "self_transfer_not_allowed"}
+    if amount_cents <= 0:
+        return {"ok": False, "error": "amount_must_be_positive"}
+    debit = debit_wallet(from_profile_id, amount_cents, description=f"Transfer: {description}", transaction_type="transfer_out", reference_type=reference_type, reference_id=reference_id, counterparty_profile_id=to_profile_id)
+    if not debit.get("ok"):
+        return debit
+    credit = credit_wallet(to_profile_id, amount_cents, description=f"Transfer: {description}", transaction_type="transfer_in", reference_type=reference_type, reference_id=reference_id, counterparty_profile_id=from_profile_id)
+    if not credit.get("ok"):
+        credit_wallet(from_profile_id, amount_cents, description=f"Reversal: {description}", transaction_type="reversal", reference_type=reference_type, reference_id=reference_id)
+        return {"ok": False, "error": "transfer_reversed"}
+    return {"ok": True, "transaction_id": debit.get("transaction_id")}
+
+
+def create_wallet_transaction(wallet_id, profile_id, amount_cents, transaction_type="unknown", direction="in", counterparty_profile_id=None, currency="NAD", status="completed", reference_type=None, reference_id=None, description="", metadata=None, tx_id=None):
+    if not tx_id:
+        tx_id = str(uuid4())
+    if not metadata:
+        metadata = {}
+    if not _db_available():
+        return tx_id
+    try:
+        write_query(
+            """INSERT INTO chain_wallet_transactions
+               (id, wallet_id, profile_id, counterparty_profile_id, transaction_type, direction, amount_cents, currency, status, reference_type, reference_id, description, metadata)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            (tx_id, wallet_id, profile_id, counterparty_profile_id, transaction_type, direction, amount_cents, currency, status, reference_type, reference_id, description, json.dumps(metadata))
+        )
+        return tx_id
+    except Exception as e:
+        log_error("wallet_tx_create_failed", error=str(e), profile_id=profile_id)
+        return tx_id
+
+
+def get_wallet_transactions(profile_id, limit=50, offset=0, transaction_type=None):
+    if not _db_available():
+        return []
+    params = [profile_id]
+    where = "profile_id = %s"
+    if transaction_type:
+        where += " AND transaction_type = %s"
+        params.append(transaction_type)
+    rows = fast_query(
+        f"SELECT * FROM chain_wallet_transactions WHERE {where} ORDER BY created_at DESC LIMIT %s OFFSET %s",
+        tuple(params + [limit, offset]), default=[]
+    )
+    result = []
+    for r in rows:
+        row = dict(r)
+        row["id"] = str(row["id"])
+        row["wallet_id"] = str(row["wallet_id"])
+        row["profile_id"] = str(row["profile_id"])
+        if row.get("counterparty_profile_id"):
+            row["counterparty_profile_id"] = str(row["counterparty_profile_id"])
+        if row.get("reference_id"):
+            row["reference_id"] = str(row["reference_id"])
+        row["amount_cents"] = int(row["amount_cents"])
+        if row.get("created_at"):
+            row["created_at"] = row["created_at"].isoformat()
+        result.append(row)
+    return result
+
+
+def get_wallet_summary(profile_id):
+    wallet = get_wallet(profile_id)
+    if not wallet:
+        return None
+    if not _db_available():
+        return {"wallet": wallet, "recent_transactions": [], "total_transactions": 0}
+    rows = fast_query(
+        "SELECT COUNT(*) AS cnt FROM chain_wallet_transactions WHERE profile_id = %s",
+        (profile_id,), default=[{"cnt": 0}]
+    )
+    total_tx = int(rows[0]["cnt"]) if rows else 0
+    recent = get_wallet_transactions(profile_id, limit=10)
+    return {
+        "wallet": wallet,
+        "recent_transactions": recent,
+        "total_transactions": total_tx,
+    }
+
+
+# ---------- backward-compat wrappers for existing importers ----------
+
+def ensure_wallet(profile_id):
+    w = get_or_create_wallet(profile_id)
+    if w:
+        return {"profile_id": w["profile_id"], "coin_balance": w["balance_cents"], "gift_earnings": 0}
+    return {"profile_id": profile_id, "coin_balance": 0, "gift_earnings": 0}
+
+
+def get_wallet_home(profile_id):
+    return get_wallet_summary(profile_id)
+
+
+def top_up_wallet(profile_id, amount_cents):
+    return credit_wallet(profile_id, amount_cents, description="Top-up", transaction_type="top_up")
+
+
+def get_wallet_data(profile_id):
+    w = get_wallet(profile_id)
+    if not w:
+        w = get_or_create_wallet(profile_id)
+    return w

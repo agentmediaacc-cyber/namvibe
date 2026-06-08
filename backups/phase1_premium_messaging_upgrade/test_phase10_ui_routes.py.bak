@@ -1,0 +1,90 @@
+import unittest
+from pathlib import Path
+from app import create_app
+
+class TestPhase10UIRoutes(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app()
+        self.app.config['TESTING'] = True
+        self.client = self.app.test_client()
+
+    def test_ui_routes_exist(self):
+        # We can't easily test logged-in routes without a real session,
+        # but we can check if the routes are registered.
+        routes = [rule.rule for rule in self.app.url_map.iter_rules()]
+        
+        expected_prefixes = [
+            '/messages',
+            '/calls',
+            '/status',
+            '/safety',
+            '/admin/moderation',
+            '/notifications',
+            '/wallet',
+            '/dating'
+        ]
+        
+        for prefix in expected_prefixes:
+            found = any(r.startswith(prefix) for r in routes)
+            self.assertTrue(found, f"Route prefix {prefix} not found in app")
+            print(f"Checked route: {prefix} - OK")
+
+    def test_safety_routes(self):
+        routes = [rule.rule for rule in self.app.url_map.iter_rules()]
+        self.assertIn('/safety/', routes)
+        self.assertIn('/safety/blocked', routes)
+        self.assertIn('/safety/reports', routes)
+        self.assertIn('/safety/privacy', routes)
+        print("Safety routes - OK")
+
+    def test_admin_moderation_route(self):
+        routes = [rule.rule for rule in self.app.url_map.iter_rules()]
+        self.assertIn('/admin/moderation', routes)
+        print("Admin moderation route - OK")
+
+    def test_premium_messaging_ui_affordances(self):
+        thread_html = Path("templates/messages/thread.html").read_text()
+        index_html = Path("templates/messages/index.html").read_text()
+        combined = thread_html + index_html
+        required = [
+            ("optimistic send", "addOptimisticMessage"),
+            ("sending state", "Sending"),
+            ("sent state", "Sent"),
+            ("delivered state", "Delivered"),
+            ("seen state", "Seen"),
+            ("failed retry", "retry-send"),
+            ("emoji categories", "data-emoji-tab=\"Smileys\""),
+            ("attachment preview", "attachment-preview"),
+            ("voice preview", "voice-note-preview"),
+            ("typing event", "typing:start"),
+            ("seen receipt", "message:seen"),
+            ("reaction event", "reaction:new"),
+            ("delete event", "message:deleted"),
+            ("fallback polling", "pollMessages"),
+        ]
+        for label, needle in required:
+            self.assertIn(needle, combined, f"Missing messaging UI feature: {label}")
+        print("Premium messaging UI affordances - OK")
+
+    def test_premium_messaging_api_routes_registered(self):
+        routes = {rule.rule for rule in self.app.url_map.iter_rules()}
+        expected = {
+            "/messages/",
+            "/messages/<thread_id>",
+            "/messages/start/<profile_id>",
+            "/messages/api/messages/send",
+            "/messages/api/thread/<thread_id>",
+            "/messages/api/thread/<thread_id>/send",
+            "/messages/api/thread/<thread_id>/voice-note",
+            "/messages/api/thread/<thread_id>/seen",
+            "/messages/api/message/<message_id>/react",
+            "/messages/api/message/<message_id>/unreact",
+            "/messages/api/message/<message_id>/delete-everyone",
+            "/api/mobile/v1/messages",
+        }
+        missing = [route for route in expected if route not in routes]
+        self.assertFalse(missing, f"Missing messaging routes: {missing}")
+        print("Premium messaging API routes - OK")
+
+if __name__ == '__main__':
+    unittest.main()

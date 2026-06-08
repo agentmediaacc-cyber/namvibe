@@ -1,0 +1,574 @@
+#!/usr/bin/env bash
+set -e
+
+echo "=== CHAIN PHASE 15: CALL SETTINGS UPGRADE ==="
+
+mkdir -p backups/phase15
+cp templates/profile/settings.html backups/phase15/profile_settings.html.bak 2>/dev/null || true
+cp api_routes/profile_routes.py backups/phase15/profile_routes.py.bak 2>/dev/null || true
+
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("api_routes/profile_routes.py")
+text = p.read_text()
+
+# Add safe call setting defaults into settings page context if not already present.
+if "call_quality_video" not in text:
+    marker = '"allow_video_calls": allow_video'
+    if marker in text:
+        text = text.replace(
+            marker,
+            '''"allow_video_calls": allow_video,
+        "allow_group_calls": request.form.get("allow_group_calls") == "on",
+        "allow_conference_calls": request.form.get("allow_conference_calls") == "on",
+        "allow_add_to_call": request.form.get("allow_add_to_call") == "on",
+        "allow_unknown_callers": request.form.get("allow_unknown_callers") == "on",
+        "call_quality_audio": request.form.get("call_quality_audio", "auto"),
+        "call_quality_video": request.form.get("call_quality_video", "auto"),
+        "call_ringtone": request.form.get("call_ringtone", "chain_classic"),
+        "call_vibration": request.form.get("call_vibration") == "on",
+        "auto_answer_headset": request.form.get("auto_answer_headset") == "on",
+        "speaker_default": request.form.get("speaker_default") == "on",
+        "noise_suppression": request.form.get("noise_suppression") == "on",
+        "echo_cancellation": request.form.get("echo_cancellation") == "on",
+        "hd_video": request.form.get("hd_video") == "on",
+        "save_call_history": request.form.get("save_call_history") == "on"'''
+        )
+
+p.write_text(text)
+print("Patched profile_routes.py safely")
+PY
+
+cat > templates/profile/settings.html <<'HTML'
+{% extends "base.html" %}
+{% block title %}Settings | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+.settings-shell{
+    max-width:1120px;
+    margin:0 auto;
+    padding:20px;
+}
+.settings-hero{
+    background:linear-gradient(135deg,#111827,#334155);
+    color:#fff;
+    border-radius:30px;
+    padding:28px;
+    box-shadow:0 20px 60px rgba(15,23,42,.18);
+    margin-bottom:18px;
+}
+.settings-hero h1{
+    margin:0 0 8px;
+    font-size:34px;
+    font-weight:950;
+}
+.settings-hero p{
+    margin:0;
+    color:#dbeafe;
+}
+.settings-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+}
+.settings-card{
+    background:rgba(255,255,255,.94);
+    border:1px solid rgba(15,23,42,.08);
+    border-radius:28px;
+    padding:22px;
+    box-shadow:0 18px 45px rgba(15,23,42,.08);
+}
+.settings-card.full{
+    grid-column:1/-1;
+}
+.card-title{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:18px;
+}
+.card-title i{
+    width:44px;
+    height:44px;
+    border-radius:16px;
+    display:grid;
+    place-items:center;
+    background:#f1f5f9;
+    color:#111827;
+}
+.card-title h2{
+    margin:0;
+    font-size:22px;
+    color:#0f172a;
+}
+.setting-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    padding:14px 0;
+    border-top:1px solid rgba(15,23,42,.07);
+}
+.setting-row:first-of-type{
+    border-top:0;
+}
+.setting-text strong{
+    display:block;
+    color:#0f172a;
+    font-size:15px;
+}
+.setting-text span{
+    display:block;
+    color:#64748b;
+    font-size:13px;
+    margin-top:3px;
+}
+.switch input{
+    display:none;
+}
+.slider{
+    width:58px;
+    height:32px;
+    border-radius:999px;
+    background:#cbd5e1;
+    display:block;
+    position:relative;
+    cursor:pointer;
+    transition:.2s;
+}
+.slider:before{
+    content:"";
+    width:26px;
+    height:26px;
+    background:#fff;
+    border-radius:50%;
+    position:absolute;
+    left:3px;
+    top:3px;
+    transition:.2s;
+    box-shadow:0 3px 10px rgba(0,0,0,.18);
+}
+.switch input:checked + .slider{
+    background:#111827;
+}
+.switch input:checked + .slider:before{
+    transform:translateX(26px);
+}
+.select-control{
+    width:220px;
+    max-width:100%;
+    border:1px solid #cbd5e1;
+    border-radius:16px;
+    padding:12px 14px;
+    background:#f8fafc;
+    font-weight:800;
+    color:#0f172a;
+}
+.save-bar{
+    position:sticky;
+    bottom:14px;
+    margin-top:18px;
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+}
+.save-btn,.cancel-btn{
+    border:0;
+    border-radius:999px;
+    padding:14px 20px;
+    font-weight:950;
+    cursor:pointer;
+    text-decoration:none;
+}
+.save-btn{
+    background:#111827;
+    color:white;
+}
+.cancel-btn{
+    background:#e2e8f0;
+    color:#0f172a;
+}
+.call-preview{
+    background:#020617;
+    border-radius:28px;
+    padding:22px;
+    color:white;
+    min-height:270px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+}
+.preview-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+.preview-pill{
+    background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:999px;
+    padding:8px 12px;
+    font-size:12px;
+    font-weight:900;
+}
+.preview-avatar{
+    width:90px;
+    height:90px;
+    border-radius:32px;
+    background:linear-gradient(135deg,#38bdf8,#818cf8);
+    display:grid;
+    place-items:center;
+    margin:24px auto 14px;
+    font-size:38px;
+}
+.preview-name{
+    text-align:center;
+}
+.preview-name h3{
+    margin:0;
+    font-size:24px;
+}
+.preview-name p{
+    margin:6px 0 0;
+    color:#cbd5e1;
+}
+.preview-controls{
+    display:flex;
+    justify-content:center;
+    gap:13px;
+    margin-top:20px;
+}
+.preview-control{
+    width:52px;
+    height:52px;
+    border-radius:50%;
+    display:grid;
+    place-items:center;
+    background:rgba(255,255,255,.12);
+}
+.preview-control.end{
+    background:#ef4444;
+}
+@media(max-width:850px){
+    .settings-grid{
+        grid-template-columns:1fr;
+    }
+    .setting-row{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+    .select-control{
+        width:100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-shell">
+    <div class="settings-hero">
+        <h1>Settings</h1>
+        <p>Control your CHAIN profile, privacy, messages, audio calls, video calls and conference calls.</p>
+    </div>
+
+    <form method="POST">
+        <div class="settings-grid">
+
+            <section class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-user-shield"></i>
+                    <h2>Profile Privacy</h2>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Show online status</strong>
+                        <span>Let people see when you are active.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="show_online_status" {% if profile_settings.show_online_status != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Allow messages</strong>
+                        <span>People can send you private messages.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="allow_messages" {% if profile_settings.allow_messages != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-phone-volume"></i>
+                    <h2>Call Access</h2>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Allow audio calls</strong>
+                        <span>Friends and allowed contacts can call you with voice.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="allow_audio_calls" {% if profile_settings.allow_audio_calls != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Allow video calls</strong>
+                        <span>Enable camera calls on CHAIN.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="allow_video_calls" {% if profile_settings.allow_video_calls != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Allow group calls</strong>
+                        <span>Let friends invite you to group calls.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="allow_group_calls" {% if profile_settings.allow_group_calls != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Allow conference calls</strong>
+                        <span>Enable larger meeting-style calls.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="allow_conference_calls" {% if profile_settings.allow_conference_calls != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-users"></i>
+                    <h2>Who Can Add You</h2>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Add me to calls</strong>
+                        <span>Allow others to add you while a call is active.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="allow_add_to_call" {% if profile_settings.allow_add_to_call != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Unknown callers</strong>
+                        <span>Allow calls from people who are not friends.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="allow_unknown_callers" {% if profile_settings.allow_unknown_callers == true %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Save call history</strong>
+                        <span>Keep incoming, outgoing, missed and rejected calls in your call log.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="save_call_history" {% if profile_settings.save_call_history != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-sliders-h"></i>
+                    <h2>Audio & Video Quality</h2>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Audio quality</strong>
+                        <span>Auto saves data when network is weak.</span>
+                    </div>
+                    <select class="select-control" name="call_quality_audio">
+                        <option value="auto" {% if profile_settings.call_quality_audio == 'auto' %}selected{% endif %}>Auto</option>
+                        <option value="low" {% if profile_settings.call_quality_audio == 'low' %}selected{% endif %}>Low data</option>
+                        <option value="standard" {% if profile_settings.call_quality_audio == 'standard' %}selected{% endif %}>Standard</option>
+                        <option value="high" {% if profile_settings.call_quality_audio == 'high' %}selected{% endif %}>High quality</option>
+                    </select>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Video quality</strong>
+                        <span>Choose best quality for calls and conference calls.</span>
+                    </div>
+                    <select class="select-control" name="call_quality_video">
+                        <option value="auto" {% if profile_settings.call_quality_video == 'auto' %}selected{% endif %}>Auto</option>
+                        <option value="360p" {% if profile_settings.call_quality_video == '360p' %}selected{% endif %}>360p data saver</option>
+                        <option value="720p" {% if profile_settings.call_quality_video == '720p' %}selected{% endif %}>720p HD</option>
+                        <option value="1080p" {% if profile_settings.call_quality_video == '1080p' %}selected{% endif %}>1080p Full HD</option>
+                    </select>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>HD video</strong>
+                        <span>Use sharper video when network is strong.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="hd_video" {% if profile_settings.hd_video != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Noise suppression</strong>
+                        <span>Reduce background noise during calls.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="noise_suppression" {% if profile_settings.noise_suppression != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Echo cancellation</strong>
+                        <span>Reduce speaker and microphone echo.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="echo_cancellation" {% if profile_settings.echo_cancellation != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-bell"></i>
+                    <h2>Ringing & Device</h2>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Call ringtone</strong>
+                        <span>Choose your incoming call tone.</span>
+                    </div>
+                    <select class="select-control" name="call_ringtone">
+                        <option value="chain_classic" {% if profile_settings.call_ringtone == 'chain_classic' %}selected{% endif %}>CHAIN Classic</option>
+                        <option value="soft_ring" {% if profile_settings.call_ringtone == 'soft_ring' %}selected{% endif %}>Soft Ring</option>
+                        <option value="premium_beep" {% if profile_settings.call_ringtone == 'premium_beep' %}selected{% endif %}>Premium Beep</option>
+                        <option value="silent" {% if profile_settings.call_ringtone == 'silent' %}selected{% endif %}>Silent</option>
+                    </select>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Vibration</strong>
+                        <span>Vibrate device when receiving calls where supported.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="call_vibration" {% if profile_settings.call_vibration != false %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Speaker by default</strong>
+                        <span>Start calls on loudspeaker when possible.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="speaker_default" {% if profile_settings.speaker_default == true %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-row">
+                    <div class="setting-text">
+                        <strong>Auto-answer headset</strong>
+                        <span>Answer faster when headset is connected.</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="auto_answer_headset" {% if profile_settings.auto_answer_headset == true %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </section>
+
+            <section class="settings-card">
+                <div class="card-title">
+                    <i class="fas fa-mobile-alt"></i>
+                    <h2>Call Preview</h2>
+                </div>
+
+                <div class="call-preview">
+                    <div class="preview-top">
+                        <span class="preview-pill">Incoming video call</span>
+                        <span class="preview-pill">HD Auto</span>
+                    </div>
+                    <div>
+                        <div class="preview-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="preview-name">
+                            <h3>CHAIN Contact</h3>
+                            <p>Ringing...</p>
+                        </div>
+                        <div class="preview-controls">
+                            <div class="preview-control"><i class="fas fa-microphone"></i></div>
+                            <div class="preview-control"><i class="fas fa-video"></i></div>
+                            <div class="preview-control"><i class="fas fa-user-plus"></i></div>
+                            <div class="preview-control end"><i class="fas fa-phone-slash"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="save-bar">
+            <a href="/profile/" class="cancel-btn">Cancel</a>
+            <button class="save-btn" type="submit">
+                <i class="fas fa-save"></i> Save Settings
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+HTML
+
+python3 -m py_compile app.py services/*.py api_routes/*.py
+
+echo ""
+echo "=== CHECK SETTINGS ROUTES ==="
+PYTHONPATH=. python3 - <<'PY'
+from app import app
+for r in sorted(app.url_map.iter_rules(), key=lambda x: str(x)):
+    rule = str(r)
+    if "settings" in rule or "privacy" in rule:
+        print(rule, "=>", r.endpoint, sorted(r.methods))
+PY
+
+echo ""
+echo "✅ Call settings UI added."
+echo "Open: http://127.0.0.1:5000/profile/settings"

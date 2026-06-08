@@ -3,7 +3,7 @@ import uuid
 from services.neon_service import fast_query, write_query
 from services.storage_service import upload_status_media
 from services.socketio_service import emit_to_profile
-from services.content_service import local_content
+from services.content_service import invalidate_content_caches, local_content, local_fallback_allowed
 
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -29,7 +29,7 @@ def create_status(profile_id, caption, media_file=None, visibility="public", med
     """
     try:
         write_query(sql, (status_id, profile_id, caption, media_url, media_type, storage_bucket, storage_path, visibility, expires_at))
-        return {
+        record = {
             "id": status_id,
             "profile_id": profile_id,
             "caption": caption,
@@ -38,8 +38,24 @@ def create_status(profile_id, caption, media_file=None, visibility="public", med
             "visibility": visibility,
             "expires_at": expires_at
         }
+        invalidate_content_caches()
+        return record
     except Exception as e:
         print(f"[status_service] Error creating status: {e}")
+        if local_fallback_allowed():
+            record = {
+                "id": status_id,
+                "profile_id": profile_id,
+                "caption": caption,
+                "media_url": media_url,
+                "media_type": media_type,
+                "visibility": visibility,
+                "expires_at": expires_at,
+                "created_at": _utcnow_iso(),
+            }
+            local_content()["stories"].insert(0, record)
+            invalidate_content_caches()
+            return record
         return None
 
 def record_view(status_id, viewer_profile_id):
@@ -138,6 +154,7 @@ def delete_status(status_id, profile_id):
     write_query(sql, (status_id, profile_id))
     # Also handle local content removal if it was a local story
     local_content()["stories"][:] = [story for story in local_content()["stories"] if not (story.get("id") == status_id and story.get("profile_id") == profile_id)]
+    invalidate_content_caches()
     return True
 
 def expire_old_statuses():

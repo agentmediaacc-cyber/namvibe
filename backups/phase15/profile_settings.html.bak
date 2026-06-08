@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Profile Settings | Chain Premium{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/profile_premium.css">
+{% endblock %}
+
+{% block content %}
+<section class="profile-form-shell">
+    <div class="glass-panel form-panel">
+        <div class="panel-head">
+            <div>
+                <p>PREFERENCES</p>
+                <h2>Privacy and account settings</h2>
+            </div>
+            <a class="profile-empty-btn" href="/profile/security">Security</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="form-error" {% if category == 'success' %}style="background: rgba(0,212,255,.12); border-color: rgba(0,212,255,.28); color: #93c5fd;"{% endif %}>{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/profile/settings" class="profile-form-grid">
+            <label class="checkbox full">
+                <input type="checkbox" name="allow_messages" {% if profile_settings.allow_messages != false %}checked{% endif %}>
+                <span>Allow direct messages</span>
+            </label>
+            <label class="checkbox full">
+                <input type="checkbox" name="allow_video_calls" {% if profile_settings.allow_video_calls != false %}checked{% endif %}>
+                <span>Allow video calls</span>
+            </label>
+            <label class="checkbox full">
+                <input type="checkbox" name="show_online_status" {% if profile_settings.show_online_status != false %}checked{% endif %}>
+                <span>Show online status</span>
+            </label>
+            <label class="full">
+                <span>Profile visibility</span>
+                <select name="profile_visibility">
+                    <option value="public" {% if (profile_settings.profile_visibility or 'public') == 'public' %}selected{% endif %}>Public</option>
+                    <option value="private" {% if profile_settings.profile_visibility == 'private' %}selected{% endif %}>Private</option>
+                    <option value="premium" {% if profile_settings.profile_visibility == 'premium' %}selected{% endif %}>Premium</option>
+                </select>
+            </label>
+            <div class="full action-cluster">
+                <button class="profile-empty-btn" type="submit">Save Settings</button>
+                <a class="profile-empty-btn" href="/profile/edit">Edit Profile</a>
+                <a class="profile-empty-btn" href="/profile/security">Open Security</a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

@@ -59,11 +59,34 @@ def utcnow():
 
 
 def is_production_env():
+    if os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
     return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
 
 
 def local_fallback_allowed():
     return not is_production_env()
+
+
+def get_session_profile_id():
+    from flask import session
+    return session.get("profile_id") or session.get("user_id") or session.get("auth_user_id")
+
+
+def session_profile_stub():
+    from flask import session
+    profile_id = get_session_profile_id()
+    username = session.get("username") or (session.get("auth_email") or "chainuser").split("@")[0]
+    full_name = session.get("full_name") or username.replace("_", " ").title()
+    return {
+        "id": profile_id,
+        "auth_user_id": session.get("auth_user_id"),
+        "email": session.get("auth_email") or session.get("email"),
+        "username": username,
+        "full_name": full_name,
+        "display_name": full_name,
+        "avatar_url": session.get("avatar_url"),
+    }
 
 
 def _persistence_mode():
@@ -700,6 +723,13 @@ def upload_folder_status():
 
 def invalidate_content_caches():
     delete_cache(cache_key("chain_homepage_v3", "public"))
+    delete_cache(cache_key("chain_homepage_full_v1", "public_local_cache"))
+    delete_cache(cache_key("homepage", "full", "public"))
+    try:
+        from services.homepage_cache_service import invalidate_homepage_cache
+        invalidate_homepage_cache()
+    except Exception:
+        pass
 
 
 def local_content():

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-system-shell">
+  <section class="admin-system-hero">
+    <h1>Launch Readiness</h1>
+    <p>Final go-live score, blockers, warnings, backup status, and deployment checklist.</p>
+  </section>
+  <section class="admin-system-grid">
+    <article class="admin-system-panel">
+      <h2 id="launch-score">Launch Score</h2>
+      <pre id="launch-json">Loading...</pre>
+    </article>
+    <article class="admin-system-panel">
+      <h2>Checklist</h2>
+      <ul>
+        <li>Infrastructure</li><li>Database</li><li>Redis</li><li>Workers</li><li>Scheduler</li>
+        <li>Backups</li><li>SSL</li><li>Monitoring</li><li>Alerts</li><li>Wallet review</li><li>Safety review</li>
+      </ul>
+    </article>
+  </section>
+</main>
+<script>
+fetch('/production/api/launch-readiness').then(r => r.json()).then(data => {
+  document.getElementById('launch-score').textContent = `Launch readiness: ${data.launch_score}/100`;
+  document.getElementById('launch-json').textContent = JSON.stringify(data, null, 2);
+});
+</script>
+{% endblock %}

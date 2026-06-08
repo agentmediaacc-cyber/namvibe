@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHAIN | Dating Profile</title>
+    <link rel="stylesheet" href="/static/css/chain_theme.css">
+    <link rel="stylesheet" href="/static/css/platform_premium.css">
+    <link rel="stylesheet" href="/static/css/chain_auth.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: var(--chain-bg);
+            color: var(--chain-text);
+            font-family: var(--chain-font-sans);
+            margin: 0;
+            min-height: 100vh;
+        }
+        .dating-profile-shell {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px 16px calc(100px + env(safe-area-inset-bottom));
+        }
+        .dating-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .dating-profile-header a {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: var(--chain-card);
+            border: 1px solid var(--chain-border);
+            color: var(--chain-text);
+            text-decoration: none;
+        }
+        .dating-profile-cover {
+            position: relative;
+            height: 280px;
+            border-radius: 24px;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 20% 30%, rgba(255,0,80,0.3), transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(0,242,234,0.2), transparent 35%),
+                var(--chain-card-2);
+            margin-bottom: -60px;
+        }
+        .dating-profile-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .dating-profile-avatar {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 4px solid var(--chain-card);
+            margin: 0 auto;
+            overflow: hidden;
+            background: var(--chain-card-2);
+            display: grid;
+            place-items: center;
+            font-size: 48px;
+            color: var(--chain-muted);
+            z-index: 2;
+        }
+        .dating-profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .dating-profile-info {
+            text-align: center;
+            padding: 16px 0;
+        }
+        .dating-profile-info h1 {
+            margin: 8px 0 4px;
+            font-size: 28px;
+            font-weight: 800;
+        }
+        .dating-profile-info .age-location {
+            color: var(--chain-muted);
+            font-size: 16px;
+            margin: 0;
+        }
+        .dating-profile-info .bio {
+            max-width: 500px;
+            margin: 12px auto;
+            line-height: 1.6;
+            color: var(--chain-text);
+        }
+        .dating-profile-actions {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            padding: 16px 0 24px;
+        }
+        .dating-action-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            display: grid;
+            place-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .dating-action-btn:hover {
+            transform: scale(1.1);
+        }
+        .dating-action-btn.nope {
+            background: var(--chain-error);
+            color: #fff;
+        }
+        .dating-action-btn.super {
+            background: var(--chain-cyan);
+            color: #000;
+        }
+        .dating-action-btn.like {
+            background: var(--chain-gradient);
+            color: #fff;
+        }
+        .dating-profile-section {
+            padding: 20px;
+            border-radius: 20px;
+            background: var(--chain-card);
+            border: 1px solid var(--chain-border);
+            margin-bottom: 16px;
+        }
+        .dating-profile-section h2 {
+            margin: 0 0 12px;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--chain-text);
+        }
+        .dating-interests {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .dating-interest-chip {
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: var(--chain-card-2);
+            border: 1px solid var(--chain-border);
+            color: var(--chain-text);
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .dating-empty-state {
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 20px;
+            background: var(--chain-card);
+            border: 1px dashed var(--chain-border);
+        }
+        .dating-empty-state i {
+            font-size: 48px;
+            color: var(--chain-muted);
+            margin-bottom: 16px;
+        }
+        .dating-empty-state h2 {
+            color: var(--chain-text);
+        }
+        .dating-empty-state p {
+            color: var(--chain-muted);
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: var(--chain-card);
+            border: 1px solid var(--chain-border);
+            color: var(--chain-text);
+            text-decoration: none;
+            font-weight: 700;
+            margin-top: 16px;
+        }
+        @media (max-width: 560px) {
+            .dating-profile-cover {
+                height: 200px;
+            }
+            .dating-profile-avatar {
+                width: 90px;
+                height: 90px;
+                font-size: 36px;
+            }
+            .dating-profile-info h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dating-profile-shell">
+        <div class="dating-profile-header">
+            <a href="/dating/discover"><i class="fas fa-arrow-left"></i></a>
+            <span style="font-weight:800;font-size:18px;">Profile</span>
+        </div>
+
+        <div class="dating-profile-cover">
+            {% if profile and profile.get('cover_url') %}
+            <img src="{{ profile['cover_url'] }}" alt="Cover">
+            {% endif %}
+        </div>
+
+        <div class="dating-profile-avatar">
+            {% if profile and profile.get('avatar_url') %}
+            <img src="{{ profile['avatar_url'] }}" alt="{{ profile.get('display_name', 'Profile') }}">
+            {% else %}
+            <i class="fas fa-user"></i>
+            {% endif %}
+        </div>
+
+        <div class="dating-profile-info">
+            {% set display_name = profile.get('display_name') or profile.get('full_name') or profile.get('username') if profile else 'User' %}
+            {% set age = profile.get('age') if profile else '' %}
+            {% set location = profile.get('town') or profile.get('city') or profile.get('location') if profile else 'Unknown' %}
+            <h1>{{ display_name }}</h1>
+            <p class="age-location">{{ age }}{{ ', ' if age and location else '' }}{{ location }}</p>
+            <p class="bio">{{ profile.get('bio') or 'No bio yet.' if profile else 'Profile not available.' }}</p>
+        </div>
+
+        <div class="dating-profile-actions">
+            <button class="dating-action-btn nope" onclick="alert('Passed')" title="Pass"><i class="fas fa-times"></i></button>
+            <button class="dating-action-btn super" onclick="alert('Super like!')" title="Super Like"><i class="fas fa-star"></i></button>
+            <button class="dating-action-btn like" onclick="alert('Liked! Match pending')" title="Like"><i class="fas fa-heart"></i></button>
+        </div>
+
+        <div class="dating-profile-section">
+            <h2><i class="fas fa-tag" style="color:var(--chain-cyan);margin-right:8px;"></i>Interests</h2>
+            {% if profile and profile.get('interests') %}
+            {% set interests = profile['interests'] if profile['interests'] is string else (profile['interests'] | join(', ') if profile['interests'] is iterable else '') %}
+            {% set interest_list = interests.split(',') if interests else [] %}
+            <div class="dating-interests">
+                {% for interest in interest_list %}
+                <span class="dating-interest-chip">{{ interest.strip() }}</span>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:var(--chain-muted);">No interests listed yet.</p>
+            {% endif %}
+        </div>
+
+        <div style="text-align:center;">
+            <a href="/dating/discover" class="back-link"><i class="fas fa-arrow-left"></i> Back to Discover</a>
+        </div>
+    </div>
+</body>
+</html>

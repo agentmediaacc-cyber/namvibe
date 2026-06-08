@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-system-shell">
+  <section class="admin-system-hero">
+    <h1>Monitoring Dashboard</h1>
+    <p>System, queue, wallet, message, call, safety, and alert metrics.</p>
+  </section>
+  <section class="admin-system-panel">
+    <pre id="monitoring-json">Loading...</pre>
+  </section>
+</main>
+<script>
+fetch('/production/api/monitoring').then(r => r.json()).then(data => {
+  document.getElementById('monitoring-json').textContent = JSON.stringify(data, null, 2);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-system-shell">
+  <section class="admin-system-hero">
+    <h1>System Alerts</h1>
+    <p>Active and historical operational alerts.</p>
+  </section>
+  <section class="admin-system-panel">
+    <table>
+      <thead><tr><th>Component</th><th>Severity</th><th>Title</th><th>Resolved</th><th>Action</th></tr></thead>
+      <tbody id="alerts-body"></tbody>
+    </table>
+  </section>
+</main>
+<script>
+function resolveAlert(id){ fetch(`/production/api/alerts/${id}/resolve`, {method:'POST'}).then(loadAlerts); }
+function loadAlerts(){
+  fetch('/production/api/alerts').then(r => r.json()).then(data => {
+    const alerts = data.history || [];
+    document.getElementById('alerts-body').innerHTML = alerts.map(a =>
+      `<tr><td>${a.component}</td><td>${a.severity}</td><td>${a.title}</td><td>${a.resolved}</td><td>${a.resolved ? '' : `<button onclick="resolveAlert('${a.id}')">Resolve</button>`}</td></tr>`
+    ).join('') || '<tr><td colspan="5">No alerts</td></tr>';
+  });
+}
+loadAlerts();
+</script>
+{% endblock %}

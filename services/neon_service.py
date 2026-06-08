@@ -25,7 +25,10 @@ CHAIN_STATIC_COLUMNS = {
         "location", "region",  "country_origin", "current_location",
         "is_verified", "verified", "is_online", "is_creator", "creator_category",
         "dating_mode_enabled", "is_premium", "wallet_balance", "profile_completed",
-        "deleted_at", "created_at", "updated_at", "bio"
+        "deleted_at", "created_at", "updated_at", "bio",
+        "privacy_accepted_at", "privacy_accepted", "privacy_version", "terms_version",
+        "who_can_message", "who_can_call", "who_can_see_status",
+        "message_only_after_match", "tour_seen"
     },
     "chain_posts": {
         "id", "profile_id", "body", "caption", "content", "post_type", "link_url",
@@ -312,6 +315,8 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
     finally:
         release_connection(conn)
 
+_run = _run_query
+
 def fast_query(sql_text: str, params: Any = None, timeout_ms: int = 2000, default: Any = None):
     """Route-safe query helper with strict timeout protection."""
     if not _NEON_BREAKER.allow():
@@ -322,7 +327,7 @@ def fast_query(sql_text: str, params: Any = None, timeout_ms: int = 2000, defaul
         if sql_text.strip().upper() == "SELECT 1":
             return [{"?column?": 1}] if default is None else default
 
-    future = _DB_EXECUTOR.submit(_run_query, sql_text, params, "all", timeout_ms)
+    future = _DB_EXECUTOR.submit(_run, sql_text, params, "all", timeout_ms)
     try:
         results = future.result(timeout=timeout_ms / 1000.0)
         return results if results is not None else (default if default is not None else [])
@@ -428,6 +433,12 @@ def get_pool_status():
     }
 
 def get_table_columns(table_name: str, timeout_ms=5000):
+    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
+        static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
+        if static_cols:
+            log_info("schema_cache_static_hit", table=table_name, kind="columns")
+            return set(static_cols)
+
     cached = _TABLE_COLUMNS_CACHE.get(table_name)
     if cached is not None:
         log_info("schema_cache_hit", table=table_name, kind="columns")
@@ -474,6 +485,14 @@ def is_circuit_open():
 def table_exists(table_name: str, timeout_ms=2000):
     """Checks if a table exists using a faster pg_class query."""
     now = time.time()
+    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1" and table_name in CHAIN_STATIC_COLUMNS:
+        _TABLE_EXISTS_CACHE[table_name] = {
+            "exists": True,
+            "expires_at": now + _TABLE_EXISTS_CACHE_TTL,
+        }
+        log_info("schema_cache_static_hit", table=table_name, kind="table_exists")
+        return True
+
     if table_name in _TABLE_EXISTS_CACHE:
         entry = _TABLE_EXISTS_CACHE[table_name]
         if now < entry["expires_at"]:

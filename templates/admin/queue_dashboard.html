@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-system-shell">
+  <section class="admin-system-hero">
+    <h1>Queue Dashboard</h1>
+    <p>Queued, running, failed, completed, and cancelled background jobs.</p>
+  </section>
+  <section class="admin-system-panel">
+    <button type="button" onclick="enqueueTest()">Enqueue Test Job</button>
+    <pre id="queue-stats">Loading...</pre>
+  </section>
+</main>
+<script>
+function refreshQueue() {
+  fetch('/system/api/queue/stats').then(r => r.json()).then(data => {
+    document.getElementById('queue-stats').textContent = JSON.stringify(data, null, 2);
+  });
+}
+function enqueueTest() {
+  fetch('/system/api/jobs/enqueue-test', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({})}).then(refreshQueue);
+}
+refreshQueue();
+</script>
+{% endblock %}

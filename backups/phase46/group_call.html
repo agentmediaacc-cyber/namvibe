@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Group Call | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+.group-call-overlay{
+    position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0f;z-index:9999;
+    display:none;flex-direction:column;color:#fff;font-family:system-ui,-apple-system,sans-serif;
+}
+.group-call-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 24px;background:rgba(255,255,255,.04);backdrop-filter:blur(12px);
+}
+.group-call-header .room-info{display:flex;align-items:center;gap:12px;}
+.group-call-header .room-name{font-weight:800;font-size:18px;}
+.group-call-header .participant-badge{background:rgba(255,255,255,.1);border-radius:999px;padding:4px 12px;font-size:13px;}
+.group-call-grid{
+    flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:12px;padding:16px;overflow-y:auto;align-content:center;
+}
+.group-call-video{
+    position:relative;background:#1a1a2e;border-radius:20px;overflow:hidden;
+    aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;
+}
+.group-call-video video{
+    width:100%;height:100%;object-fit:cover;border-radius:20px;
+}
+.group-call-video .participant-label{
+    position:absolute;bottom:10px;left:12px;background:rgba(0,0,0,.6);
+    padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;
+}
+.group-call-video .participant-badge-host{
+    position:absolute;top:10px;right:12px;background:#f59e0b;color:#000;
+    padding:2px 8px;border-radius:999px;font-size:10px;font-weight:900;
+}
+.group-call-video .participant-status-icons{
+    position:absolute;top:10px;left:12px;display:flex;gap:6px;
+}
+.group-call-video .status-icon{
+    width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.5);
+    display:grid;place-items:center;font-size:12px;
+}
+.group-call-controls{
+    display:flex;align-items:center;justify-content:center;gap:18px;
+    padding:18px 24px;background:rgba(255,255,255,.04);backdrop-filter:blur(12px);
+}
+.gc-btn{
+    width:54px;height:54px;border-radius:50%;border:0;font-size:20px;
+    cursor:pointer;display:grid;place-items:center;transition:.15s;
+    background:rgba(255,255,255,.1);color:#fff;
+}
+.gc-btn:hover{background:rgba(255,255,255,.2);}
+.gc-btn.danger{background:#ef4444;color:#fff;}
+.gc-btn.danger:hover{background:#dc2626;}
+.gc-btn.success{background:#22c55e;color:#fff;}
+.gc-btn.warning{background:#f59e0b;color:#000;}
+.gc-btn.active{background:#3b82f6;color:#fff;}
+@media(max-width:600px){
+    .group-call-grid{grid-template-columns:1fr;padding:8px;}
+    .gc-btn{width:46px;height:46px;font-size:16px;}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="group-call-container" class="group-call-overlay">
+    <div class="group-call-header">
+        <div class="room-info">
+            <span class="room-name" id="gc-room-name">Group Call</span>
+            <span class="participant-badge" id="gc-participant-count">0 participants</span>
+            <span class="participant-badge" id="gc-call-timer" style="font-family:monospace">00:00</span>
+        </div>
+        <div>
+            <button class="gc-btn" onclick="CHAIN_GROUP_CALL.raiseHand()" title="Raise Hand"><i class="fas fa-hand-paper"></i></button>
+            <button class="gc-btn" onclick="CHAIN_GROUP_CALL.lowerHand()" title="Lower Hand"><i class="fas fa-hand-peace"></i></button>
+        </div>
+    </div>
+
+    <div id="group-call-grid" class="group-call-grid">
+        <div id="gcv-local" class="group-call-video">
+            <div class="participant-label">You</div>
+        </div>
+    </div>
+
+    <div class="group-call-controls">
+        <button id="gc-mic-btn" class="gc-btn" onclick="CHAIN_GROUP_CALL.toggleMute()" title="Toggle Mic">
+            <i class="fas fa-microphone"></i>
+        </button>
+        <button id="gc-cam-btn" class="gc-btn" onclick="CHAIN_GROUP_CALL.toggleVideo()" title="Toggle Camera">
+            <i class="fas fa-video"></i>
+        </button>
+        <button id="gc-screen-btn" class="gc-btn" onclick="CHAIN_GROUP_CALL.toggleScreenShare()" title="Share Screen">
+            <i class="fas fa-share-alt"></i>
+        </button>
+        <button class="gc-btn danger" onclick="CHAIN_GROUP_CALL.leave()" title="Leave Call">
+            <i class="fas fa-phone-slash"></i>
+        </button>
+        <button class="gc-btn danger" onclick="if(confirm('End call for everyone?'))CHAIN_GROUP_CALL.end()" title="End Call" id="gc-end-btn" style="display:none">
+            <i class="fas fa-stop-circle"></i>
+        </button>
+    </div>
+</div>
+
+<script src="/static/js/push_notifications.js"></script>
+<script src="/static/js/notification_badge.js"></script>
+<script src="/static/js/group_calls.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    // Show end-call button only for host
+    setInterval(function(){
+        var state = CHAIN_GROUP_CALL.getState();
+        var endBtn = document.getElementById('gc-end-btn');
+        if(endBtn) endBtn.style.display = state.isHost ? 'grid' : 'none';
+    }, 1000);
+});
+</script>
+{% endblock %}

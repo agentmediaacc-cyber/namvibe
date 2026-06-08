@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-shell">
+  <section class="admin-hero">
+    <p class="eyebrow">Phase 51</p>
+    <h1>Performance</h1>
+    <p>Homepage query budgets, cache backend, and recent slow SQL.</p>
+  </section>
+
+  <section class="admin-grid">
+    <article class="admin-card">
+      <h2>Cache</h2>
+      <p><strong>Backend:</strong> {{ cache_status.backend }}</p>
+      <p><strong>TTL:</strong> {{ cache_status.ttl_seconds }}s</p>
+      <p><strong>Redis:</strong> {{ "connected" if cache_status.redis_connected else "memory fallback" }}</p>
+    </article>
+
+    <article class="admin-card">
+      <h2>Budgets</h2>
+      {% for name, budget in summary.budgets.items() %}
+        <p><strong>{{ name }}</strong>: {{ budget }}ms</p>
+      {% endfor %}
+    </article>
+  </section>
+
+  <section class="admin-card">
+    <h2>Query Summary</h2>
+    <table class="admin-table">
+      <thead>
+        <tr><th>Label</th><th>Count</th><th>Avg</th><th>Max</th><th>Slow</th></tr>
+      </thead>
+      <tbody>
+        {% for label, row in summary.by_label.items() %}
+          <tr>
+            <td>{{ label }}</td>
+            <td>{{ row.count }}</td>
+            <td>{{ row.avg_ms }}ms</td>
+            <td>{{ row.max_ms }}ms</td>
+            <td>{{ row.slow }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">No profiled queries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="admin-card">
+    <h2>Recent Queries</h2>
+    <table class="admin-table">
+      <thead>
+        <tr><th>Label</th><th>Latency</th><th>Rows</th><th>Query</th></tr>
+      </thead>
+      <tbody>
+        {% for row in summary.recent_queries %}
+          <tr>
+            <td>{{ row.label }}</td>
+            <td>{{ row.latency_ms }}ms</td>
+            <td>{{ row.rows_returned }}</td>
+            <td><code>{{ row.query }}</code></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">No query samples recorded.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</main>
+{% endblock %}

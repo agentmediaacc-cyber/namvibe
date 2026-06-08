@@ -1,316 +1,837 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>{{ room.title }} | Chain Live</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #04040d; color: #fff; font-family: "Segoe UI", sans-serif; }
-    .live-shell { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 100vh; }
-    .stage-wrap { position: relative; background: radial-gradient(circle at top, rgba(124,58,237,.3), transparent 45%), linear-gradient(180deg, #090916, #020208); }
-    .stage { min-height: 100vh; display: flex; align-items: stretch; justify-content: center; position: relative; }
-    .stage iframe { width: 100%; min-height: 100vh; border: 0; }
-    .stage-fallback { width: 100%; min-height: 100vh; display: grid; place-items: center; padding: 48px; text-align: center; background: radial-gradient(circle at center, rgba(255,47,125,.18), transparent 35%), linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.01)); }
-    .stage-fallback h1 { margin: 16px 0 10px; font-size: clamp(2rem, 4vw, 3.4rem); }
-    .stage-fallback p { margin: 0; max-width: 560px; color: #c8c9dd; line-height: 1.6; }
-    .chain-disc { width: 148px; height: 148px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; letter-spacing: .14em; background: conic-gradient(#ff2f7d, #7c3aed, #00d4ff, #ff2f7d); color: #fff; box-shadow: 0 0 60px rgba(124,58,237,.4); }
-    .overlay { position: absolute; inset: 0; pointer-events: none; }
-    .topbar { position: absolute; top: 24px; left: 24px; right: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; pointer-events: none; }
-    .pill { display: inline-flex; gap: 10px; align-items: center; padding: 12px 16px; border-radius: 999px; background: rgba(6,6,18,.72); border: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(18px); pointer-events: auto; }
-    .pill strong { font-size: 14px; }
-    .pill small { display: block; color: #9ea0b9; font-size: 11px; }
-    .live-badge { background: #ff2f7d; color: #fff; font-size: 12px; font-weight: 900; letter-spacing: .08em; }
-    .actions { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; pointer-events: auto; }
-    .action-btn { width: 54px; height: 54px; border-radius: 50%; border: 1px solid rgba(255,255,255,.16); background: rgba(8,8,22,.8); color: #fff; cursor: pointer; }
-    .action-btn.exit { background: #ef4444; border-color: #ef4444; }
-    .side { background: #0b0b16; border-left: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; min-height: 100vh; }
-    .side-head { padding: 24px; border-bottom: 1px solid rgba(255,255,255,.06); }
-    .side-head h2 { margin: 0 0 6px; font-size: 24px; }
-    .side-head p { margin: 0; color: #9ea0b9; font-size: 13px; }
-    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 18px 24px; }
-    .metric { padding: 14px; border-radius: 18px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.06); text-align: center; }
-    .metric b { display: block; font-size: 20px; }
-    .metric span { display: block; margin-top: 6px; color: #9ea0b9; font-size: 11px; }
-    .panel { padding: 0 24px 18px; }
-    .panel h3 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #9ea0b9; }
-    .panel-scroll { max-height: 160px; overflow-y: auto; display: grid; gap: 10px; }
-    .item { padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.05); }
-    .item b { display: block; margin-bottom: 4px; }
-    .item small { color: #9ea0b9; }
-    .chat-stream { flex: 1; padding: 0 24px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .msg { padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.05); font-size: 14px; }
-    .msg b { color: #ff8db9; margin-right: 6px; }
-    .empty-line { padding: 16px; border-radius: 16px; border: 1px dashed rgba(255,255,255,.12); color: #9ea0b9; text-align: center; }
-    .gift-grid { padding: 0 24px 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    .gift-grid form { margin: 0; }
-    .gift-btn { width: 100%; min-height: 78px; border: 0; border-radius: 18px; background: rgba(255,255,255,.06); color: #fff; cursor: pointer; font-weight: 700; display: grid; place-items: center; gap: 4px; }
-    .gift-btn span { display: block; font-size: 22px; }
-    .gift-btn small { color: #8ad8ff; }
-    .chat-form { padding: 18px 24px 24px; border-top: 1px solid rgba(255,255,255,.06); display: flex; gap: 10px; }
-    .chat-form input { flex: 1; border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: rgba(255,255,255,.05); color: #fff; padding: 14px 16px; outline: none; }
-    .chat-form button { border: 0; border-radius: 14px; background: linear-gradient(135deg, #ff2f7d, #7c3aed); color: #fff; padding: 0 18px; font-weight: 800; cursor: pointer; }
-    @media (max-width: 1080px) {
-        .live-shell { grid-template-columns: 1fr; }
-        .side { min-height: auto; }
-        .stage, .stage iframe, .stage-fallback { min-height: 62vh; }
-    }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #04040d;
+  color: #fff;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+
+/* ─── Layout ─── */
+.live-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  min-height: 100vh;
+}
+
+/* ─── Stage ─── */
+.stage-wrap {
+  position: relative;
+  background:
+    radial-gradient(circle at top, rgba(124,58,237,.3), transparent 45%),
+    linear-gradient(180deg, #090916, #020208);
+}
+.stage {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  position: relative;
+}
+.stage iframe {
+  width: 100%;
+  min-height: 100vh;
+  border: 0;
+}
+.stage-fallback {
+  width: 100%;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 48px;
+  text-align: center;
+  background:
+    radial-gradient(circle at center, rgba(255,47,125,.18), transparent 35%),
+    linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.01));
+}
+.chain-disc {
+  width: 148px;
+  height: 148px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  letter-spacing: .14em;
+  background: conic-gradient(#ff2f7d, #7c3aed, #00d4ff, #ff2f7d);
+  color: #fff;
+  box-shadow: 0 0 60px rgba(124,58,237,.4);
+  animation: discSpin 6s linear infinite;
+}
+@keyframes discSpin { to { transform: rotate(360deg); } }
+.stage-fallback h1 {
+  margin: 16px 0 10px;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+}
+.stage-fallback p {
+  margin: 0;
+  max-width: 560px;
+  color: #c8c9dd;
+  line-height: 1.6;
+}
+
+/* ─── Top Bar Overlay ─── */
+.topbar {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  pointer-events: none;
+  z-index: 10;
+}
+.pill {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: rgba(6,6,18,.72);
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(18px);
+  pointer-events: auto;
+}
+.pill strong { font-size: 14px; }
+.pill small { display: block; color: #9ea0b9; font-size: 11px; }
+.live-badge-pill {
+  background: #ff2f7d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.live-badge-pill .live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  animation: badgePulse 1.4s ease-in-out infinite;
+}
+@keyframes badgePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .3; transform: scale(.7); }
+}
+
+/* ─── Actions ─── */
+.actions {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+  z-index: 10;
+}
+.action-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(8,8,22,.8);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  transition: all .2s;
+}
+.action-btn:hover {
+  background: rgba(255,255,255,.15);
+  transform: scale(1.08);
+}
+.action-btn.exit {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+.action-btn.exit:hover {
+  background: #dc2626;
+}
+.action-btn .badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  font-size: 9px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+}
+
+/* ─── Sidebar ─── */
+.side {
+  background: #0b0b16;
+  border-left: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.side-head {
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.side-head h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+}
+.side-head p {
+  margin: 0;
+  color: #9ea0b9;
+  font-size: 13px;
+}
+
+/* ─── Metrics ─── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 18px 24px;
+}
+.metric {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.06);
+  text-align: center;
+  transition: background .2s;
+}
+.metric b { display: block; font-size: 20px; }
+.metric span { display: block; margin-top: 4px; color: #9ea0b9; font-size: 11px; font-weight: 700; }
+
+/* ─── Panels ─── */
+.panel {
+  padding: 0 24px 18px;
+}
+.panel h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #9ea0b9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel h3 .badge-count {
+  font-size: 10px;
+  background: rgba(255,255,255,.1);
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.panel-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.1) transparent;
+}
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 999px; }
+.item {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.05);
+}
+.item b { display: block; margin-bottom: 2px; font-size: 13px; }
+.item small { color: #9ea0b9; font-size: 11px; }
+.empty-line {
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255,255,255,.12);
+  color: #9ea0b9;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* ─── Leaderboard ─── */
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.05);
+}
+.leaderboard-rank {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 900;
+  background: rgba(255,255,255,.1);
+  color: #9ea0b9;
+  flex-shrink: 0;
+}
+.leaderboard-rank.gold { background: #f59e0b; color: #fff; }
+.leaderboard-rank.silver { background: #9ca3af; color: #fff; }
+.leaderboard-rank.bronze { background: #b45309; color: #fff; }
+.leaderboard-info { flex: 1; min-width: 0; }
+.leaderboard-info strong { display: block; font-size: 13px; }
+.leaderboard-info small { color: #9ea0b9; font-size: 11px; }
+.leaderboard-amount {
+  font-size: 13px;
+  font-weight: 800;
+  color: #ff2f7d;
+}
+
+/* ─── Chat ─── */
+.chat-stream {
+  flex: 1;
+  padding: 0 24px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.msg {
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.05);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.msg b { color: #ff8db9; margin-right: 6px; }
+
+/* ─── Gifts ─── */
+.gift-grid {
+  padding: 0 24px 18px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.gift-grid form { margin: 0; }
+.gift-btn {
+  width: 100%;
+  min-height: 72px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  transition: all .2s;
+  font-family: inherit;
+}
+.gift-btn:hover {
+  background: rgba(255,255,255,.12);
+  transform: translateY(-2px);
+}
+.gift-btn span { display: block; font-size: 20px; }
+.gift-btn small { color: #8ad8ff; font-size: 10px; }
+
+/* ─── Chat Form ─── */
+.chat-form {
+  padding: 14px 24px 20px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  display: flex;
+  gap: 8px;
+}
+.chat-form input {
+  flex: 1;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.05);
+  color: #fff;
+  padding: 12px 16px;
+  outline: none;
+  font-size: 13px;
+  font-family: inherit;
+}
+.chat-form input::placeholder { color: #6b6b8a; }
+.chat-form input:focus {
+  border-color: rgba(255,47,125,.4);
+  box-shadow: 0 0 0 3px rgba(255,47,125,.12);
+}
+.chat-form button {
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ff2f7d, #7c3aed);
+  color: #fff;
+  padding: 0 20px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+}
+.chat-form button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255,47,125,.3);
+}
+
+/* ─── Phase30 Tools ─── */
+.tools-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.tool-btn {
+  padding: 12px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  transition: all .2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+}
+.tool-btn i { font-size: 16px; }
+.tool-btn:hover {
+  background: rgba(255,255,255,.12);
+  transform: translateY(-2px);
+}
+.rtmp-notice {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(245,158,11,.1);
+  border: 1px solid rgba(245,158,11,.2);
+  font-size: 11px;
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+/* ─── Reactions ─── */
+#reaction-container {
+  position: fixed;
+  bottom: 120px;
+  left: 50%;
+  pointer-events: none;
+  z-index: 1000;
+}
+.floating-reaction {
+  position: absolute;
+  bottom: 0;
+  font-size: 28px;
+  animation: floatUp 2s ease-out forwards;
+  opacity: 1;
+}
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-320px) scale(1.5); opacity: 0; }
+}
+
+/* ─── Mobile ─── */
+@media (max-width: 1080px) {
+  .live-shell { grid-template-columns: 1fr; }
+  .side { min-height: auto; max-height: none; overflow: visible; }
+  .stage, .stage iframe, .stage-fallback { min-height: 62vh; }
+  .actions { bottom: 16px; gap: 8px; }
+  .action-btn { width: 44px; height: 44px; font-size: 15px; }
+}
+@media (max-width: 600px) {
+  .topbar { top: 12px; left: 12px; right: 12px; }
+  .pill { padding: 8px 12px; font-size: 12px; }
+  .gift-grid { grid-template-columns: repeat(3, 1fr); }
+  .tools-grid { grid-template-columns: 1fr; }
+  .side-head h2 { font-size: 18px; }
+}
 </style>
 </head>
 <body>
-    <div class="live-shell">
-        <section class="stage-wrap">
-            <div class="stage">
-                {% if room.youtube_embed_url %}
-                <iframe src="{{ room.youtube_embed_url }}?autoplay=1&mute=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                {% else %}
-                <div class="stage-fallback">
-                    <div>
-                        <div class="chain-disc">CHAIN</div>
-                        <h1>{{ room.title }}</h1>
-                        <p>{{ room.welcome_message or "This live room is connected and ready. Add a YouTube source or MP3 layer from the studio when you want media playback." }}</p>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
+  <div class="live-shell">
+    <!-- Stage -->
+    <section class="stage-wrap">
+      <div class="stage">
+        {% if room.youtube_embed_url %}
+        <iframe src="{{ room.youtube_embed_url }}?autoplay=1&mute=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        {% else %}
+        <div class="stage-fallback">
+          <div>
+            <div class="chain-disc">CHAIN</div>
+            <h1>{{ room.title }}</h1>
+            <p>{{ room.welcome_message or "This live room is connected and ready. Add a YouTube source or MP3 layer from the studio when you want media playback." }}</p>
+          </div>
+        </div>
+        {% endif %}
+      </div>
 
-            <div class="overlay">
-                <div class="topbar">
-                    <div class="pill">
-                        <div>
-                            <strong>{{ room.host_name }}</strong>
-                            <small>{{ room.access_type|title }} room{% if room.category %} • {{ room.category }}{% endif %}</small>
-                        </div>
-                    </div>
-                    <div class="pill live-badge">LIVE</div>
-                </div>
+      <!-- Overlays -->
+      <div class="topbar">
+        <div class="pill">
+          <div>
+            <strong>{{ room.host_name }}</strong>
+            <small>{{ room.access_type|title }} room{% if room.category %} &bull; {{ room.category }}{% endif %}</small>
+          </div>
+        </div>
+        <div class="pill live-badge-pill">
+          <span class="live-dot"></span>
+          LIVE
+        </div>
+      </div>
 
-                <div class="actions">
-                    <button class="action-btn" title="Refresh activity" onclick="fetchActivity()"><i class="fas fa-rotate"></i></button>
-                    <button class="action-btn" title="React" onclick="sendReaction('heart')"><i class="fas fa-heart" style="color:#ff2f7d;"></i></button>
-                    <button class="action-btn" title="Request co-host" onclick="requestCohost()"><i class="fas fa-user-plus"></i></button>
-                    <button class="action-btn" title="Share" onclick="navigator.share ? navigator.share({ title: {{ room.title|tojson }}, url: window.location.href }) : null"><i class="fas fa-share-nodes"></i></button>
-                    <button class="action-btn exit" title="Exit" onclick="window.location.href='/'"><i class="fas fa-xmark"></i></button>
-                </div>
-            </div>
-        </section>
+      <div class="actions">
+        <button class="action-btn" title="Refresh activity" onclick="fetchActivity()"><i class="fas fa-rotate"></i></button>
+        <button class="action-btn" title="Like" onclick="sendReaction('heart')"><i class="fas fa-heart" style="color:#ff2f7d;"></i></button>
+        <button class="action-btn" title="Request co-host" onclick="requestCohost()"><i class="fas fa-user-plus"></i></button>
+        <button class="action-btn" title="Share" onclick="navigator.share ? navigator.share({ title: {{ room.title|tojson }}, url: window.location.href }) : null"><i class="fas fa-share-nodes"></i></button>
+        <button class="action-btn exit" title="Exit" onclick="window.location.href='/'"><i class="fas fa-xmark"></i></button>
+      </div>
+    </section>
 
-        <div id="reaction-container" style="position:fixed; bottom:100px; left:50%; pointer-events:none; z-index:1000;"></div>
+    <!-- Floating Reactions Container -->
+    <div id="reaction-container"></div>
 
-        <aside class="side">
-            <div class="side-head">
-                <h2>{{ room.title }}</h2>
-                <p>{{ room.welcome_message or "Live chat, gifts, viewers, and co-host requests are all loaded from Supabase." }}</p>
-            </div>
+    <!-- Sidebar -->
+    <aside class="side">
+      <div class="side-head">
+        <h2>{{ room.title }}</h2>
+        <p>{{ room.welcome_message or "Live chat, gifts, viewers, and co-host requests are all loaded from Supabase." }}</p>
+      </div>
 
-            <div class="metrics">
-                <div class="metric">
-                    <b id="viewerCount">{{ room.viewer_count or 0 }}</b>
-                    <span>Viewers</span>
-                </div>
-                <div class="metric">
-                    <b id="giftTotal">{{ room.gift_total or 0 }}</b>
-                    <span>Gift Total</span>
-                </div>
-                <div class="metric">
-                    <b>{{ room.access_type|title }}</b>
-                    <span>Access</span>
-                </div>
-            </div>
+      <!-- Metrics -->
+      <div class="metrics">
+        <div class="metric">
+          <b id="viewerCount">{{ room.viewer_count or 0 }}</b>
+          <span>Viewers</span>
+        </div>
+        <div class="metric">
+          <b id="giftTotal">{{ room.gift_total or 0 }}</b>
+          <span>Gift Total</span>
+        </div>
+        <div class="metric">
+          <b>{{ room.access_type|title }}</b>
+          <span>Access</span>
+        </div>
+      </div>
 
-            <div class="panel">
-                <h3>Viewers</h3>
-                <div class="panel-scroll" id="viewerList">
-                    {% for viewer in activity.viewers %}
-                    <div class="item"><b>{{ viewer.display_name }}</b><small>Joined this room</small></div>
-                    {% else %}
-                    <div class="empty-line">No viewers tracked yet.</div>
-                    {% endfor %}
-                </div>
-            </div>
+      <!-- Viewers -->
+      <div class="panel">
+        <h3>
+          Viewers
+          <span class="badge-count" id="viewerBadge">{{ activity.viewers|length }}</span>
+        </h3>
+        <div class="panel-scroll" id="viewerList">
+          {% for viewer in activity.viewers %}
+          <div class="item"><b>{{ viewer.display_name }}</b><small>Joined this room</small></div>
+          {% else %}
+          <div class="empty-line">No viewers tracked yet.</div>
+          {% endfor %}
+        </div>
+      </div>
 
-            <div class="panel">
-                <h3>Live Activity</h3>
-                <div class="panel-scroll" id="giftFeed">
-                    {% for gift in activity.gifts %}
-                    <div class="item"><b>{{ gift.gift_icon }} {{ gift.gift_name }}</b><small>{{ gift.display_name }} sent {{ gift.amount }}</small></div>
-                    {% else %}
-                    <div class="empty-line">No gifts recorded yet.</div>
-                    {% endfor %}
-                </div>
-            </div>
+      <!-- Live Activity / Gifts -->
+      <div class="panel">
+        <h3>
+          Live Activity
+          <span class="badge-count" id="giftBadge">{{ activity.gifts|length }}</span>
+        </h3>
+        <div class="panel-scroll" id="giftFeed">
+          {% for gift in activity.gifts %}
+          <div class="item"><b>{{ gift.gift_icon }} {{ gift.gift_name }}</b><small>{{ gift.display_name }} sent {{ gift.amount }}</small></div>
+          {% else %}
+          <div class="empty-line">No gifts recorded yet.</div>
+          {% endfor %}
+        </div>
+      </div>
 
-            <div class="panel">
-                <h3>Co-host Requests</h3>
-                <div class="panel-scroll" id="cohostList">
-                    {% for request in activity.cohost_requests %}
-                    <div class="item"><b>{{ request.display_name }}</b><small>{{ request.status|title }}</small></div>
-                    {% else %}
-                    <div class="empty-line">No co-host requests.</div>
-                    {% endfor %}
-                </div>
-            </div>
+      <!-- Leaderboard (Top Gifters) -->
+      <div class="panel">
+        <h3>Leaderboard</h3>
+        <div class="panel-scroll" id="leaderboardList" style="max-height:200px;">
+          <div class="empty-line">Loading leaderboard...</div>
+        </div>
+      </div>
 
-            <div class="panel">
-                <h3>Chat</h3>
-            </div>
-            <div class="chat-stream" id="chatMessages">
-                {% for msg in activity.comments %}
-                <div class="msg"><b>{{ msg.display_name }}</b>{{ msg.body }}</div>
-                {% else %}
-                <div class="empty-line">No comments yet. Start the room conversation.</div>
-                {% endfor %}
-            </div>
+      <!-- Co-host Requests -->
+      <div class="panel">
+        <h3>
+          Co-host Requests
+          <span class="badge-count" id="cohostBadge">{{ activity.cohost_requests|length }}</span>
+        </h3>
+        <div class="panel-scroll" id="cohostList">
+          {% for request in activity.cohost_requests %}
+          <div class="item"><b>{{ request.display_name }}</b><small>{{ request.status|title }}</small></div>
+          {% else %}
+          <div class="empty-line">No co-host requests.</div>
+          {% endfor %}
+        </div>
+      </div>
 
-            <div class="panel">
-                <h3>Send Gift</h3>
-            </div>
-            <div class="gift-grid">
-                {% for gift in gift_catalog %}
-                <form method="POST" action="/live/room/{{ room.id }}/gift">
-                    <input type="hidden" name="gift_icon" value="{{ gift.emoji }}">
-                    <input type="hidden" name="gift_name" value="{{ gift.name }}">
-                    <input type="hidden" name="amount" value="{{ gift.coin_price }}">
-                    <button class="gift-btn" type="submit">
-                        <span>{{ gift.emoji }}</span>
-                        {{ gift.name }}
-                        <small>{{ gift.coin_price }} coins</small>
-                    </button>
-                </form>
-                {% else %}
-                <div class="empty-line" style="grid-column: 1 / -1;">Gift catalog is empty.</div>
-                {% endfor %}
-            </div>
+      <!-- Live Tools -->
+      <div class="panel">
+        <h3>Live Tools</h3>
+        <div class="tools-grid">
+          <button class="tool-btn" type="button" onclick="phase30Live('/live/api/live/{{ room.id }}/guest-request', {note: 'guest request'})">
+            <i class="fas fa-user-plus"></i>
+            Request Guest Slot
+          </button>
+          <button class="tool-btn" type="button" onclick="phase30Live('/live/api/live/{{ room.id }}/poll', {question: 'What should happen next?', options: ['A','B']})">
+            <i class="fas fa-poll"></i>
+            Create Poll
+          </button>
+          <button class="tool-btn" type="button" onclick="phase30Live('/live/api/live/{{ room.id }}/battle', {})">
+            <i class="fas fa-swords"></i>
+            Invite Battle
+          </button>
+          <button class="tool-btn" type="button" onclick="phase30Live('/live/api/live/{{ room.id }}/clip', {title: 'Live clip', duration_seconds: 15})">
+            <i class="fas fa-scissors"></i>
+            Create Clip
+          </button>
+          <button class="tool-btn" type="button" onclick="phase30Live('/live/api/live/{{ room.id }}/shopping', {title: 'Live item', price_coins: 0})">
+            <i class="fas fa-shopping-bag"></i>
+            Add Shopping Item
+          </button>
+          <button class="tool-btn" type="button" onclick="phase30Live('/live/api/live/{{ room.id }}/stream-settings', {webrtc_enabled: true, rtmp_enabled: false})">
+            <i class="fas fa-cog"></i>
+            Stream Settings
+          </button>
+          <div class="rtmp-notice">
+            <i class="fas fa-info-circle"></i>
+            RTMP requires a configured streaming server. WebRTC hooks are enabled where supported.
+          </div>
+        </div>
+      </div>
 
-            <form class="chat-form" method="POST" action="/live/room/{{ room.id }}/comment">
-                <input type="text" name="body" placeholder="Type a message..." required>
-                <button type="submit">Send</button>
-            </form>
-        </aside>
-    </div>
+      <!-- Chat Header -->
+      <div class="panel" style="padding-bottom:0;">
+        <h3>
+          Chat
+          <span class="badge-count" id="chatBadge">{{ activity.comments|length }}</span>
+        </h3>
+      </div>
+      <div class="chat-stream" id="chatMessages">
+        {% for msg in activity.comments %}
+        <div class="msg"><b>{{ msg.display_name }}</b>{{ msg.body }}</div>
+        {% else %}
+        <div class="empty-line">No comments yet. Start the room conversation.</div>
+        {% endfor %}
+      </div>
 
-    <script>
-        const roomId = "{{ room.id }}";
-        const hasProfile = {{ "true" if g_current else "false" }};
+      <!-- Gifts -->
+      <div class="panel" style="padding-bottom:0;">
+        <h3>Send Gift</h3>
+      </div>
+      <div class="gift-grid">
+        {% for gift in gift_catalog %}
+        <form method="POST" action="/live/room/{{ room.id }}/gift">
+          <input type="hidden" name="gift_icon" value="{{ gift.emoji }}">
+          <input type="hidden" name="gift_name" value="{{ gift.name }}">
+          <input type="hidden" name="amount" value="{{ gift.coin_price }}">
+          <button class="gift-btn" type="submit">
+            <span>{{ gift.emoji }}</span>
+            {{ gift.name }}
+            <small>{{ gift.coin_price }} coins</small>
+          </button>
+        </form>
+        {% else %}
+        <div class="empty-line" style="grid-column:1/-1;">Gift catalog is empty.</div>
+        {% endfor %}
+      </div>
 
-        function renderList(targetId, items, emptyHtml) {
-            const target = document.getElementById(targetId);
-            if (!target) {
-                return;
-            }
-            if (!items.length) {
-                target.innerHTML = emptyHtml;
-                return;
-            }
-            if (targetId === 'chatMessages') {
-                target.innerHTML = items.map(item => `<div class="msg"><b>${item.display_name}</b>${item.body}</div>`).join('');
-                target.scrollTop = target.scrollHeight;
-                return;
-            }
-            if (targetId === 'giftFeed') {
-                target.innerHTML = items.map(item => `<div class="item"><b>${item.gift_icon} ${item.gift_name}</b><small>${item.display_name} sent ${item.amount}</small></div>`).join('');
-                return;
-            }
-            if (targetId === 'viewerList') {
-                target.innerHTML = items.map(item => `<div class="item"><b>${item.display_name}</b><small>Joined this room</small></div>`).join('');
-                return;
-            }
-            if (targetId === 'cohostList') {
-                target.innerHTML = items.map(item => `<div class="item"><b>${item.display_name}</b><small>${item.status}</small></div>`).join('');
-            }
+      <!-- Chat Input -->
+      <form class="chat-form" method="POST" action="/live/room/{{ room.id }}/comment">
+        <input type="text" name="body" placeholder="Type a message..." required>
+        <button type="submit">Send</button>
+      </form>
+    </aside>
+  </div>
+
+  <script>
+    const roomId = "{{ room.id }}";
+    const hasProfile = {{ "true" if g_current else "false" }};
+
+    // ─── Render Lists ───
+    function renderList(targetId, items, emptyHtml) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      if (!items || !items.length) {
+        target.innerHTML = emptyHtml;
+        return;
+      }
+      switch (targetId) {
+        case 'chatMessages':
+          target.innerHTML = items.map(item => `<div class="msg"><b>${item.display_name}</b>${item.body}</div>`).join('');
+          target.scrollTop = target.scrollHeight;
+          break;
+        case 'giftFeed':
+          target.innerHTML = items.map(item => `<div class="item"><b>${item.gift_icon} ${item.gift_name}</b><small>${item.display_name} sent ${item.amount}</small></div>`).join('');
+          break;
+        case 'viewerList':
+          target.innerHTML = items.map(item => `<div class="item"><b>${item.display_name}</b><small>Joined this room</small></div>`).join('');
+          break;
+        case 'cohostList':
+          target.innerHTML = items.map(item => `<div class="item"><b>${item.display_name}</b><small>${item.status}</small></div>`).join('');
+          break;
+      }
+    }
+
+    // ─── Leaderboard ───
+    function renderLeaderboard(items) {
+      const target = document.getElementById('leaderboardList');
+      if (!target) return;
+      if (!items || !items.length) {
+        target.innerHTML = '<div class="empty-line">No top gifters yet.</div>';
+        return;
+      }
+      const sorted = [...items].sort((a, b) => (b.amount || 0) - (a.amount || 0)).slice(0, 10);
+      const rankClasses = ['gold', 'silver', 'bronze'];
+      target.innerHTML = sorted.map((item, i) => `
+        <div class="leaderboard-item">
+          <div class="leaderboard-rank ${rankClasses[i] || ''}">${i + 1}</div>
+          <div class="leaderboard-info">
+            <strong>${item.display_name || 'Anonymous'}</strong>
+            <small>${item.gift_name || 'gifts'}</small>
+          </div>
+          <div class="leaderboard-amount">${item.amount || 0}</div>
+        </div>
+      `).join('');
+    }
+
+    // ─── Fetch Activity ───
+    async function fetchActivity() {
+      try {
+        const response = await fetch(`/live/room/${roomId}/activity`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+
+        renderList('chatMessages', data.comments || [], '<div class="empty-line">No comments yet. Start the room conversation.</div>');
+        renderList('giftFeed', data.gifts || [], '<div class="empty-line">No gifts recorded yet.</div>');
+        renderList('viewerList', data.viewers || [], '<div class="empty-line">No viewers tracked yet.</div>');
+        renderList('cohostList', data.cohost_requests || [], '<div class="empty-line">No co-host requests.</div>');
+
+        // Leaderboard from gift data
+        renderLeaderboard(data.gifts || []);
+
+        // Badge counts
+        const viewerBadge = document.getElementById('viewerBadge');
+        if (viewerBadge) viewerBadge.textContent = (data.viewers || []).length;
+
+        const giftBadge = document.getElementById('giftBadge');
+        if (giftBadge) giftBadge.textContent = (data.gifts || []).length;
+
+        const cohostBadge = document.getElementById('cohostBadge');
+        if (cohostBadge) cohostBadge.textContent = (data.cohost_requests || []).length;
+
+        const chatBadge = document.getElementById('chatBadge');
+        if (chatBadge) chatBadge.textContent = (data.comments || []).length;
+
+        const viewerCount = document.getElementById('viewerCount');
+        if (viewerCount) viewerCount.textContent = (data.viewers || []).length;
+
+        const giftTotal = document.getElementById('giftTotal');
+        if (giftTotal) {
+          const total = (data.gifts || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+          giftTotal.textContent = total;
         }
+      } catch (error) {
+        // silent
+      } finally {
+        setTimeout(fetchActivity, 3000);
+      }
+    }
 
-        async function fetchActivity() {
-            try {
-                const response = await fetch(`/live/room/${roomId}/activity`, { cache: 'no-store' });
-                if (!response.ok) {
-                    return;
-                }
-                const data = await response.json();
-                renderList('chatMessages', data.comments || [], '<div class="empty-line">No comments yet. Start the room conversation.</div>');
-                renderList('giftFeed', data.gifts || [], '<div class="empty-line">No gifts recorded yet.</div>');
-                renderList('viewerList', data.viewers || [], '<div class="empty-line">No viewers tracked yet.</div>');
-                renderList('cohostList', data.cohost_requests || [], '<div class="empty-line">No co-host requests.</div>');
-
-                const viewerCount = document.getElementById('viewerCount');
-                if (viewerCount) {
-                    viewerCount.textContent = (data.viewers || []).length;
-                }
-
-                const giftTotal = document.getElementById('giftTotal');
-                if (giftTotal) {
-                    const total = (data.gifts || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
-                    giftTotal.textContent = total;
-                }
-            } catch (error) {
-            } finally {
-                setTimeout(fetchActivity, 3000);
-            }
-        }
-
-        async function requestCohost() {
-            let displayName = '';
-            if (!hasProfile) {
-                displayName = window.prompt('Enter your display name for the co-host request:') || '';
-                if (!displayName.trim()) {
-                    return;
-                }
-            }
-
-            try {
-                await fetch(`/live/room/${roomId}/request-cohost`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `display_name=${encodeURIComponent(displayName)}`
-                });
-                fetchActivity();
-            } catch (error) {
-            }
-        }
-
-        async function sendReaction(type) {
-            try {
-                const response = await fetch(`/api/social/live_room/${roomId}/like`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reaction_type: type })
-                });
-                if (response.redirected) {
-                    window.location.href = response.url;
-                    return;
-                }
-                if (!response.ok) {
-                    return;
-                }
-                createFloatingReaction(type);
-            } catch (err) {}
-        }
-
-        function createFloatingReaction(type) {
-            const container = document.getElementById('reaction-container');
-            const el = document.createElement('div');
-            el.className = 'floating-reaction';
-            el.innerHTML = type === 'heart' ? '❤️' : '👍';
-            el.style.left = (Math.random() * 60 - 30) + 'px';
-            container.appendChild(el);
-            setTimeout(() => el.remove(), 2000);
-        }
-
+    // ─── Co-host Request ───
+    async function requestCohost() {
+      let displayName = '';
+      if (!hasProfile) {
+        displayName = window.prompt('Enter your display name for the co-host request:') || '';
+        if (!displayName.trim()) return;
+      }
+      try {
+        await fetch(`/live/room/${roomId}/request-cohost`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `display_name=${encodeURIComponent(displayName)}`
+        });
         fetchActivity();
-    </script>
-    <style>
-        .floating-reaction {
-            position: absolute;
-            bottom: 0;
-            font-size: 24px;
-            animation: floatUp 2s ease-out forwards;
-            opacity: 1;
+      } catch (error) {}
+    }
+
+    // ─── Reaction ───
+    async function sendReaction(type) {
+      try {
+        const response = await fetch(`/api/social/live_room/${roomId}/like`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reaction_type: type })
+        });
+        if (response.redirected) {
+          window.location.href = response.url;
+          return;
         }
-        @keyframes floatUp {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-300px) scale(1.5); opacity: 0; }
+        if (!response.ok) return;
+        createFloatingReaction(type);
+      } catch (err) {}
+    }
+
+    // ─── Phase30 Live Tools ───
+    async function phase30Live(url, payload) {
+      const status = document.querySelector('.rtmp-notice');
+      if (status) status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload || {})
+        });
+        const data = await response.json().catch(() => ({}));
+        if (status) {
+          const ok = response.ok && data.success !== false;
+          status.innerHTML = ok
+            ? '<i class="fas fa-check-circle" style="color:#22c55e;"></i> Saved successfully.'
+            : '<i class="fas fa-exclamation-circle" style="color:#ef4444;"></i> ' + (data.error || 'Could not save.');
         }
-    </style>
+      } catch (e) {
+        if (status) status.innerHTML = '<i class="fas fa-exclamation-circle" style="color:#ef4444;"></i> Network error.';
+      }
+    }
+
+    // ─── Floating Reactions ───
+    function createFloatingReaction(type) {
+      const container = document.getElementById('reaction-container');
+      const el = document.createElement('div');
+      el.className = 'floating-reaction';
+      el.innerHTML = type === 'heart' ? '❤️' : '👍';
+      el.style.left = (Math.random() * 60 - 30) + 'px';
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 2000);
+    }
+
+    // ─── Initial Fetch ───
+    fetchActivity();
+  </script>
 </body>
 </html>

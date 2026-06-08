@@ -87,7 +87,7 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
     """
     threads = request_memoize(
         build_request_key("message_threads", profile_id, include_archived, folder, limit, offset),
-        lambda: fast_query(sql, tuple(params), timeout_ms=2000, default=[]),
+        lambda: fast_query(sql, tuple(params), timeout_ms=800, default=[]),
     )
     
     # Process threads to handle group vs direct labels
@@ -326,6 +326,8 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
                 action_url=f"/messages/{thread_id}",
             )
             cache_delete(f"unread_count_{recipient_id}")
+            cache_delete(f"unread_count_msg:{recipient_id}")
+            cache_delete(f"chain:unread_count_msg:{recipient_id}")
             emit_to_profile(recipient_id, "message:notify", {"thread_id": thread_id, "optimistic_id": client_message_id})
 
         result = {
@@ -374,6 +376,9 @@ def mark_thread_seen(thread_id, profile_id):
         (thread_id, profile_id),
     )
     emit_to_thread(thread_id, "message:seen", {"profile_id": profile_id, "thread_id": thread_id, "read_at": _utcnow_iso()})
+    cache_delete(f"unread_count_{profile_id}")
+    cache_delete(f"unread_count_msg:{profile_id}")
+    cache_delete(f"chain:unread_count_msg:{profile_id}")
     return True
 
 
@@ -396,7 +401,9 @@ def set_typing(thread_id, profile_id, is_typing=True):
         cache_set(key, {"profile_id": profile_id, "thread_id": thread_id, "expires_at": _utcnow_iso()}, ttl=_TYPING_TTL_SECONDS)
     else:
         cache_delete(key)
-    emit_to_thread(thread_id, "typing:update", {"profile_id": profile_id, "typing": bool(is_typing)})
+    payload = {"profile_id": profile_id, "thread_id": thread_id, "typing": bool(is_typing)}
+    emit_to_thread(thread_id, "typing:update", payload)
+    emit_to_thread(thread_id, "typing:start" if is_typing else "typing:stop", payload)
     return True
 
 
@@ -472,12 +479,16 @@ def add_reaction(message_id, profile_id, reaction_type):
     t_sql = "SELECT thread_id FROM chain_messages WHERE id = %s"
     rows = fast_query(t_sql, (message_id,))
     if rows:
-        emit_to_thread(rows[0]['thread_id'], "message:reaction", {
+        payload = {
             "message_id": message_id,
+            "thread_id": rows[0]['thread_id'],
             "profile_id": profile_id,
             "reaction_type": reaction_type,
+            "reaction": reaction_type,
             "action": "added"
-        })
+        }
+        emit_to_thread(rows[0]['thread_id'], "message:reaction", payload)
+        emit_to_thread(rows[0]['thread_id'], "reaction:new", payload)
     return True
 
 def remove_reaction(message_id, profile_id, reaction_type):
@@ -486,12 +497,16 @@ def remove_reaction(message_id, profile_id, reaction_type):
     t_sql = "SELECT thread_id FROM chain_messages WHERE id = %s"
     rows = fast_query(t_sql, (message_id,))
     if rows:
-        emit_to_thread(rows[0]['thread_id'], "message:reaction", {
+        payload = {
             "message_id": message_id,
+            "thread_id": rows[0]['thread_id'],
             "profile_id": profile_id,
             "reaction_type": reaction_type,
+            "reaction": reaction_type,
             "action": "removed"
-        })
+        }
+        emit_to_thread(rows[0]['thread_id'], "message:reaction", payload)
+        emit_to_thread(rows[0]['thread_id'], "reaction:new", {**payload, "removed": True})
     return True
 
 def delete_message(message_id, profile_id, for_everyone=False):
@@ -505,10 +520,17 @@ def delete_message(message_id, profile_id, for_everyone=False):
         if msg['sender_profile_id'] != profile_id:
             return False
         write_query("UPDATE chain_messages SET deleted_at = now() WHERE id = %s", (message_id,))
-        emit_to_thread(msg['thread_id'], "message:delete", {"message_id": message_id, "for_everyone": True})
+        payload = {"message_id": message_id, "thread_id": msg['thread_id'], "for_everyone": True}
+        emit_to_thread(msg['thread_id'], "message:delete", payload)
+        emit_to_thread(msg['thread_id'], "message:deleted", payload)
     else:
         write_query("INSERT INTO chain_message_deletions (message_id, profile_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (message_id, profile_id))
-        emit_to_profile(profile_id, "message:delete", {"message_id": message_id, "for_everyone": False})
+        payload = {"message_id": message_id, "thread_id": msg['thread_id'], "for_everyone": False}
+        emit_to_profile(profile_id, "message:delete", payload)
+        emit_to_profile(profile_id, "message:deleted", payload)
+    cache_delete(f"unread_count_{profile_id}")
+    cache_delete(f"unread_count_msg:{profile_id}")
+    cache_delete(f"chain:unread_count_msg:{profile_id}")
     
     return True
 

@@ -112,9 +112,9 @@
             <a href="/profile/privacy" class="premium-btn glass"><i class="fas fa-user-shield"></i>Privacy</a>
             {% else %}
             <button class="premium-btn primary" type="button" id="follow-btn" data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas fa-user-plus"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
-            <a href="/messages/" class="premium-btn secondary"><i class="fas fa-comment"></i>Message</a>
-            <a href="/calls/recent" class="premium-btn glass"><i class="fas fa-phone-volume"></i>Audio Call</a>
-            <a href="/calls/recent" class="premium-btn glass"><i class="fas fa-video"></i>Video Call</a>
+            <a href="/messages/start/{{ profile.id }}" class="premium-btn secondary"><i class="fas fa-comment"></i>Message</a>
+            <a href="/calls/start/{{ profile.id }}/audio" class="premium-btn glass"><i class="fas fa-phone-volume"></i>Audio Call</a>
+            <a href="/calls/start/{{ profile.id }}/video" class="premium-btn glass"><i class="fas fa-video"></i>Video Call</a>
             <a href="/wallet/" class="premium-btn glass"><i class="fas fa-gift"></i>Send Gift</a>
             <a href="/matching/" class="premium-btn glass"><i class="fas fa-user-plus"></i>Add Friend</a>
             <button class="premium-btn glass" type="button" disabled title="Coming soon"><i class="fas fa-gem"></i>Subscribe</button>

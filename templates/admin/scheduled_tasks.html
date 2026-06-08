@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-system-shell">
+  <section class="admin-system-hero">
+    <h1>Scheduled Tasks</h1>
+    <p>Interval jobs converted into background queue work.</p>
+  </section>
+  <section class="admin-system-panel">
+    <table>
+      <thead><tr><th>Task</th><th>Job type</th><th>Interval</th><th>Enabled</th><th>Next run</th><th>Actions</th></tr></thead>
+      <tbody id="tasks-body"></tbody>
+    </table>
+  </section>
+</main>
+<script>
+function toggleTask(name, action) {
+  fetch(`/system/api/scheduled-tasks/${name}/${action}`, {method: 'POST'}).then(loadTasks);
+}
+function loadTasks() {
+  fetch('/system/api/scheduled-tasks').then(r => r.json()).then(data => {
+    document.getElementById('tasks-body').innerHTML = (data.tasks || []).map(t =>
+      `<tr><td>${t.task_name}</td><td>${t.job_type}</td><td>${t.interval_seconds}s</td><td>${t.enabled}</td><td>${t.next_run_at || ''}</td><td><button onclick="toggleTask('${t.task_name}','enable')">Enable</button><button onclick="toggleTask('${t.task_name}','disable')">Disable</button></td></tr>`
+    ).join('');
+  });
+}
+loadTasks();
+</script>
+{% endblock %}

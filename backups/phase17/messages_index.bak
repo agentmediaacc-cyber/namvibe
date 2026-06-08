@@ -1,0 +1,730 @@
+{% extends "base.html" %}
+{% block title %}Messages | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+body.chain-message-mode header,
+body.chain-message-mode nav,
+body.chain-message-mode aside:not(.chain-msg-sidebar),
+body.chain-message-mode .sidebar,
+body.chain-message-mode .topbar,
+body.chain-message-mode .navbar,
+body.chain-message-mode .app-sidebar,
+body.chain-message-mode .main-sidebar,
+body.chain-message-mode .desktop-nav,
+body.chain-message-mode .mobile-bottom-nav,
+body.chain-message-mode .search-global,
+body.chain-message-mode .page-title,
+body.chain-message-mode .breadcrumb{
+    display:none!important;
+}
+body.chain-message-mode{
+    background:#050505!important;
+    overflow:hidden;
+}
+body.chain-message-mode main,
+body.chain-message-mode .content,
+body.chain-message-mode .container{
+    max-width:none!important;
+    width:100%!important;
+    padding:0!important;
+    margin:0!important;
+}
+.chain-msg-app{
+    height:100vh;
+    width:100%;
+    display:grid;
+    grid-template-columns:390px 1fr;
+    background:
+      radial-gradient(circle at top left,rgba(255,0,110,.22),transparent 32%),
+      radial-gradient(circle at top right,rgba(0,242,234,.18),transparent 30%),
+      #050505;
+    color:white;
+}
+.chain-msg-sidebar{
+    border-right:1px solid rgba(255,255,255,.1);
+    background:rgba(10,10,10,.88);
+    backdrop-filter:blur(22px);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+}
+.chain-msg-top{
+    padding:14px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+.chain-msg-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+.chain-msg-brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.hamburger{
+    width:44px;
+    height:44px;
+    border:0;
+    border-radius:15px;
+    background:rgba(255,255,255,.1);
+    color:white;
+    font-size:18px;
+    cursor:pointer;
+}
+.chain-msg-logo{
+    width:42px;
+    height:42px;
+    border-radius:15px;
+    display:grid;
+    place-items:center;
+    font-weight:950;
+    background:linear-gradient(135deg,#ff0050,#00f2ea);
+}
+.chain-msg-brand h1{
+    margin:0;
+    font-size:22px;
+    line-height:1;
+}
+.chain-msg-brand span{
+    font-size:12px;
+    color:#bdbdbd;
+}
+.icon-btn{
+    width:42px;
+    height:42px;
+    border:0;
+    border-radius:15px;
+    background:rgba(255,255,255,.1);
+    color:white;
+    cursor:pointer;
+}
+.msg-search{
+    margin-top:14px;
+    position:relative;
+}
+.msg-search i{
+    position:absolute;
+    left:15px;
+    top:50%;
+    transform:translateY(-50%);
+    color:#aaa;
+}
+.msg-search input{
+    width:100%;
+    border:1px solid rgba(255,255,255,.1);
+    background:rgba(255,255,255,.08);
+    color:white;
+    border-radius:18px;
+    padding:14px 14px 14px 42px;
+    outline:none;
+    font-weight:800;
+}
+.msg-tabs{
+    display:flex;
+    gap:8px;
+    overflow:auto;
+    padding-top:13px;
+}
+.msg-tabs a{
+    color:#cfcfcf;
+    text-decoration:none;
+    padding:9px 13px;
+    background:rgba(255,255,255,.08);
+    border-radius:999px;
+    font-size:13px;
+    font-weight:900;
+    white-space:nowrap;
+}
+.msg-tabs a.active{
+    color:#050505;
+    background:linear-gradient(135deg,#00f2ea,#ff0050);
+}
+.thread-list{
+    overflow:auto;
+    flex:1;
+    padding:8px;
+}
+.thread-card{
+    display:flex;
+    gap:12px;
+    padding:13px;
+    border-radius:22px;
+    color:white;
+    text-decoration:none;
+    transition:.18s ease;
+    border:1px solid transparent;
+}
+.thread-card:hover,.thread-card.active{
+    background:rgba(255,255,255,.09);
+    border-color:rgba(255,255,255,.12);
+}
+.thread-avatar{
+    width:54px;
+    height:54px;
+    border-radius:20px;
+    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    flex-shrink:0;
+}
+.thread-avatar img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+.thread-body{min-width:0;flex:1;}
+.thread-line{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+}
+.thread-name{
+    font-weight:950;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+}
+.thread-time{
+    color:#9ca3af;
+    font-size:12px;
+    white-space:nowrap;
+}
+.thread-preview{
+    margin-top:5px;
+    color:#bdbdbd;
+    font-size:14px;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+}
+.thread-meta{
+    margin-top:7px;
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+}
+.thread-pill{
+    font-size:10px;
+    font-weight:950;
+    padding:4px 7px;
+    border-radius:999px;
+    background:rgba(255,255,255,.1);
+    color:#ddd;
+}
+.thread-pill.live{
+    background:#ff0050;
+    color:white;
+}
+.unread-dot{
+    min-width:22px;
+    height:22px;
+    padding:0 6px;
+    border-radius:999px;
+    background:#ff0050;
+    color:white;
+    display:grid;
+    place-items:center;
+    font-size:12px;
+    font-weight:950;
+}
+.chain-chat-panel{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+    background:
+      linear-gradient(rgba(5,5,5,.7),rgba(5,5,5,.92)),
+      radial-gradient(circle at center,rgba(255,0,80,.12),transparent 40%);
+}
+.chat-header{
+    height:76px;
+    padding:12px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid rgba(255,255,255,.1);
+    background:rgba(5,5,5,.7);
+    backdrop-filter:blur(18px);
+}
+.chat-user{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-width:0;
+}
+.chat-user-avatar{
+    width:50px;
+    height:50px;
+    border-radius:18px;
+    background:linear-gradient(135deg,#00f2ea,#ff0050);
+    display:grid;
+    place-items:center;
+}
+.chat-user h2{
+    margin:0;
+    font-size:19px;
+}
+.chat-user p{
+    margin:3px 0 0;
+    color:#aaa;
+    font-size:12px;
+}
+.chat-actions{
+    display:flex;
+    gap:9px;
+}
+.action-circle{
+    width:43px;
+    height:43px;
+    border:0;
+    border-radius:50%;
+    background:rgba(255,255,255,.1);
+    color:white;
+    cursor:pointer;
+}
+.action-circle.call{background:rgba(0,242,234,.18);}
+.action-circle.video{background:rgba(255,0,80,.2);}
+.chat-empty{
+    flex:1;
+    display:grid;
+    place-items:center;
+    text-align:center;
+    padding:25px;
+}
+.empty-phone{
+    width:120px;
+    height:120px;
+    border-radius:38px;
+    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    display:grid;
+    place-items:center;
+    font-size:48px;
+    margin:0 auto 22px;
+    box-shadow:0 20px 80px rgba(255,0,80,.25);
+}
+.chat-empty h3{
+    font-size:34px;
+    margin:0 0 8px;
+}
+.chat-empty p{
+    margin:0 auto 20px;
+    color:#bdbdbd;
+    max-width:520px;
+}
+.empty-actions{
+    display:flex;
+    gap:10px;
+    justify-content:center;
+    flex-wrap:wrap;
+}
+.premium-btn{
+    border:0;
+    border-radius:999px;
+    padding:13px 17px;
+    color:white;
+    background:rgba(255,255,255,.12);
+    font-weight:950;
+    cursor:pointer;
+}
+.premium-btn.primary{
+    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    color:#050505;
+}
+.messages-area{
+    flex:1;
+    overflow:auto;
+    padding:22px;
+}
+.bubble{
+    max-width:68%;
+    padding:13px 15px;
+    border-radius:22px;
+    margin:8px 0;
+    background:rgba(255,255,255,.11);
+}
+.bubble.me{
+    margin-left:auto;
+    background:linear-gradient(135deg,#ff0050,#9333ea);
+}
+.composer{
+    padding:14px;
+    display:flex;
+    gap:10px;
+    border-top:1px solid rgba(255,255,255,.1);
+}
+.composer input{
+    flex:1;
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:999px;
+    padding:14px 16px;
+    background:rgba(255,255,255,.08);
+    color:white;
+    outline:none;
+}
+.drawer,.modal{
+    position:fixed;
+    inset:0;
+    display:none;
+    z-index:2000;
+}
+.drawer.active,.modal.active{display:block;}
+.drawer-bg,.modal-bg{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,.58);
+}
+.drawer-card{
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:310px;
+    background:#090909;
+    border-right:1px solid rgba(255,255,255,.1);
+    padding:18px;
+}
+.drawer-card h3{margin:0 0 16px;}
+.drawer-link{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    color:white;
+    text-decoration:none;
+    padding:13px;
+    border-radius:16px;
+    background:rgba(255,255,255,.06);
+    margin-bottom:8px;
+    font-weight:900;
+}
+.modal-card{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:min(560px,92vw);
+    background:#0a0a0a;
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:28px;
+    padding:20px;
+    color:white;
+}
+.modal-card h3{margin:0 0 14px;}
+.field{
+    width:100%;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);
+    color:white;
+    border-radius:16px;
+    padding:14px;
+    margin-bottom:10px;
+    outline:none;
+}
+.check-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    padding:11px 0;
+    border-top:1px solid rgba(255,255,255,.08);
+}
+.modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:9px;
+    margin-top:12px;
+}
+.close-btn{
+    background:rgba(255,255,255,.12);
+}
+.create-btn{
+    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    color:#050505;
+}
+.no-results{
+    display:none;
+    padding:25px;
+    text-align:center;
+    color:#aaa;
+    font-weight:900;
+}
+@media(max-width:850px){
+    .chain-msg-app{
+        grid-template-columns:1fr;
+    }
+    .chain-msg-sidebar{
+        height:100vh;
+    }
+    .chain-chat-panel{
+        display:none;
+    }
+    body.chat-open .chain-msg-sidebar{
+        display:none;
+    }
+    body.chat-open .chain-chat-panel{
+        display:flex;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chain-msg-app">
+    <aside class="chain-msg-sidebar">
+        <div class="chain-msg-top">
+            <div class="chain-msg-head">
+                <div class="chain-msg-brand">
+                    <button class="hamburger" id="openDrawer" type="button"><i class="fas fa-bars"></i></button>
+                    <div class="chain-msg-logo">C</div>
+                    <div>
+                        <h1>Messages</h1>
+                        <span>Chat • Calls • Groups</span>
+                    </div>
+                </div>
+                <button class="icon-btn" id="openNewChat" type="button"><i class="fas fa-plus"></i></button>
+            </div>
+
+            <div class="msg-search">
+                <i class="fas fa-search"></i>
+                <input id="chatSearch" placeholder="Search chats, groups, calls...">
+            </div>
+
+            <div class="msg-tabs">
+                <a class="active" href="/messages/">All</a>
+                <a href="/messages/?folder=unread">Unread</a>
+                <a href="/messages/?folder=groups">Groups</a>
+                <a href="/calls/recent">Calls</a>
+            </div>
+        </div>
+
+        <div class="thread-list" id="threadList">
+            {% if threads %}
+                {% for t in threads %}
+                <a class="thread-card"
+                   href="/messages/{{ t.id }}"
+                   data-search="{{ (t.display_name ~ ' ' ~ (t.last_message or '') ~ ' ' ~ (t.thread_type or ''))|lower }}">
+                    <div class="thread-avatar">
+                        {% if t.display_avatar %}
+                            <img src="{{ t.display_avatar }}" alt="">
+                        {% else %}
+                            <i class="fas fa-{{ 'users' if t.thread_type == 'group' else 'user' }}"></i>
+                        {% endif %}
+                    </div>
+                    <div class="thread-body">
+                        <div class="thread-line">
+                            <span class="thread-name">{{ t.display_name or 'Conversation' }}</span>
+                            <span class="thread-time">{{ t.last_message_at|datetime if t.last_message_at else '' }}</span>
+                        </div>
+                        <div class="thread-preview">{{ t.last_message or 'Start the conversation' }}</div>
+                        <div class="thread-meta">
+                            <span class="thread-pill">{{ 'Group' if t.thread_type == 'group' else 'Direct' }}</span>
+                            <span class="thread-pill">Primary</span>
+                            {% if t.unread_count and t.unread_count > 0 %}
+                                <span class="unread-dot">{{ t.unread_count }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="thread-card">
+                    <div class="thread-avatar"><i class="fas fa-comments"></i></div>
+                    <div class="thread-body">
+                        <div class="thread-line">
+                            <span class="thread-name">No chats yet</span>
+                        </div>
+                        <div class="thread-preview">Start a chat, create a group, or call someone.</div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="no-results" id="noResults">No chat found.</div>
+    </aside>
+
+    <main class="chain-chat-panel">
+        <div class="chat-header">
+            <div class="chat-user">
+                <div class="chat-user-avatar"><i class="fas fa-user"></i></div>
+                <div>
+                    <h2>CHAIN Chat</h2>
+                    <p>Select chat or start new conversation</p>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <button class="action-circle call" id="quickAudio" title="Audio call"><i class="fas fa-phone"></i></button>
+                <button class="action-circle video" id="quickVideo" title="Video call"><i class="fas fa-video"></i></button>
+                <button class="action-circle" id="openGroup" title="Create group"><i class="fas fa-users"></i></button>
+                <button class="action-circle" id="shareChat" title="Share"><i class="fas fa-share"></i></button>
+            </div>
+        </div>
+
+        <section class="chat-empty">
+            <div>
+                <div class="empty-phone"><i class="fas fa-comment-dots"></i></div>
+                <h3>Your Messages</h3>
+                <p>Start private chats, audio calls, video calls, group chats and conference rooms. Hosts can decide if members may type, reply, comment or only watch.</p>
+                <div class="empty-actions">
+                    <button class="premium-btn primary" id="openNewChatMain">Start Chat</button>
+                    <button class="premium-btn" id="openGroupMain">Create Group</button>
+                    <button class="premium-btn" id="openCallMain">Start Call</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div class="drawer" id="drawer">
+    <div class="drawer-bg" data-close="drawer"></div>
+    <div class="drawer-card">
+        <h3>CHAIN Menu</h3>
+        <a class="drawer-link" href="/messages/"><i class="fas fa-comment"></i> Messages</a>
+        <a class="drawer-link" href="/calls/recent"><i class="fas fa-phone"></i> Call Logs</a>
+        <a class="drawer-link" href="/profile/settings"><i class="fas fa-sliders-h"></i> Call Settings</a>
+        <a class="drawer-link" href="/profile/"><i class="fas fa-user"></i> Profile</a>
+        <a class="drawer-link" href="/"><i class="fas fa-home"></i> Home</a>
+    </div>
+</div>
+
+<div class="modal" id="newChatModal">
+    <div class="modal-bg" data-close="newChatModal"></div>
+    <div class="modal-card">
+        <h3>Start Chat or Call</h3>
+        <input class="field" id="chatUsername" placeholder="Username, e.g. desertking_na">
+        <div class="modal-actions">
+            <button class="premium-btn close-btn" data-close="newChatModal" type="button">Cancel</button>
+            <button class="premium-btn" id="startAudio" type="button"><i class="fas fa-phone"></i> Audio</button>
+            <button class="premium-btn" id="startVideo" type="button"><i class="fas fa-video"></i> Video</button>
+            <button class="premium-btn create-btn" id="startChat" type="button">Chat</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="groupModal">
+    <div class="modal-bg" data-close="groupModal"></div>
+    <div class="modal-card">
+        <h3>Create Group / Room</h3>
+        <input class="field" id="groupName" placeholder="Group name">
+        <input class="field" id="groupMembers" placeholder="Members usernames separated by comma">
+        <div class="check-row">
+            <span>Allow members to type messages</span>
+            <input type="checkbox" id="allowType" checked>
+        </div>
+        <div class="check-row">
+            <span>Allow members to reply</span>
+            <input type="checkbox" id="allowReply" checked>
+        </div>
+        <div class="check-row">
+            <span>Allow comments during host session</span>
+            <input type="checkbox" id="allowComments" checked>
+        </div>
+        <div class="check-row">
+            <span>Allow members to add others</span>
+            <input type="checkbox" id="allowInvite">
+        </div>
+        <div class="modal-actions">
+            <button class="premium-btn close-btn" data-close="groupModal" type="button">Cancel</button>
+            <button class="premium-btn create-btn" id="createGroupBtn" type="button">Create Group</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+    document.body.classList.add('chain-message-mode');
+
+    const $ = id => document.getElementById(id);
+    const open = id => $(id)?.classList.add('active');
+    const close = id => $(id)?.classList.remove('active');
+
+    $('openDrawer')?.addEventListener('click',()=>open('drawer'));
+    $('openNewChat')?.addEventListener('click',()=>open('newChatModal'));
+    $('openNewChatMain')?.addEventListener('click',()=>open('newChatModal'));
+    $('openGroup')?.addEventListener('click',()=>open('groupModal'));
+    $('openGroupMain')?.addEventListener('click',()=>open('groupModal'));
+    $('openCallMain')?.addEventListener('click',()=>open('newChatModal'));
+
+    document.querySelectorAll('[data-close]').forEach(el=>{
+        el.addEventListener('click',()=>close(el.dataset.close));
+    });
+
+    function cleanUser(){
+        return ($('chatUsername')?.value || '').trim().replace(/^@/,'');
+    }
+
+    $('startChat')?.addEventListener('click',()=>{
+        const u = cleanUser();
+        if(!u){ $('chatUsername').focus(); return; }
+        location.href = '/messages/@' + encodeURIComponent(u);
+    });
+
+    $('startAudio')?.addEventListener('click',()=>{
+        const u = cleanUser();
+        if(!u){ $('chatUsername').focus(); return; }
+        location.href = '/calls/audio/' + encodeURIComponent(u);
+    });
+
+    $('startVideo')?.addEventListener('click',()=>{
+        const u = cleanUser();
+        if(!u){ $('chatUsername').focus(); return; }
+        location.href = '/calls/video/' + encodeURIComponent(u);
+    });
+
+    $('quickAudio')?.addEventListener('click',()=>open('newChatModal'));
+    $('quickVideo')?.addEventListener('click',()=>open('newChatModal'));
+
+    $('shareChat')?.addEventListener('click',async()=>{
+        const data = {title:'CHAIN Messages',text:'Chat with me on CHAIN',url:location.href};
+        if(navigator.share){ await navigator.share(data).catch(()=>{}); }
+        else { await navigator.clipboard.writeText(location.href); alert('Link copied'); }
+    });
+
+    $('createGroupBtn')?.addEventListener('click', async ()=>{
+        const name = $('groupName').value.trim();
+        const members = $('groupMembers').value.trim();
+        if(!name){ $('groupName').focus(); return; }
+
+        const payload = {
+            name,
+            members,
+            allow_type: $('allowType').checked,
+            allow_reply: $('allowReply').checked,
+            allow_comments: $('allowComments').checked,
+            allow_invite: $('allowInvite').checked
+        };
+
+        try{
+            const res = await fetch('/messages/groups/create', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify(payload)
+            });
+            const json = await res.json();
+            if(json.ok && json.url){ location.href = json.url; return; }
+        }catch(e){}
+
+        const fallback = new URLSearchParams(payload).toString();
+        location.href = '/messages/?group_created=1&' + fallback;
+    });
+
+    const search = $('chatSearch');
+    const cards = Array.from(document.querySelectorAll('.thread-card'));
+    const noResults = $('noResults');
+
+    search?.addEventListener('input',function(){
+        const q = this.value.toLowerCase().trim();
+        let total = 0;
+        cards.forEach(card=>{
+            const show = !q || (card.dataset.search || card.innerText.toLowerCase()).includes(q);
+            card.style.display = show ? 'flex' : 'none';
+            if(show) total++;
+        });
+        if(noResults) noResults.style.display = q && total === 0 ? 'block':'none';
+    });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+def _ensure_project_python():
+    try:
+        import flask  # noqa: F401
+    except ModuleNotFoundError:
+        venv_python = ROOT / "venv" / "bin" / "python3"
+        if venv_python.exists() and Path(sys.executable).resolve() != venv_python.resolve():
+            os.execv(str(venv_python), [str(venv_python), *sys.argv])
+        raise
+
+
+_ensure_project_python()
+
+os.environ.setdefault("FLASK_TESTING", "1")
+os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
+os.environ.setdefault("CHAIN_DISABLE_DB_PING", "1")
+os.environ.setdefault("CHAIN_DISABLE_PREWARM", "1")
+
+from app import app
+from scripts.audit_chain_routes import audit
+
+
+def assert_true(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
+def main():
+    result = audit()
+    assert_true(not result["duplicates"], f"duplicate routes found: {result['duplicates']}")
+    assert_true(not result["missing_templates"], f"missing templates found: {result['missing_templates']}")
+    assert_true("profile" in app.blueprints, "profile blueprint missing")
+    assert_true("messages" in app.blueprints, "messages blueprint missing")
+    assert_true("calls_v2" in app.blueprints, "calls blueprint missing")
+    assert_true("live" in app.blueprints, "live blueprint missing")
+
+    required_routes = {"/", "/messages/", "/profile/", "/calls/recent", "/live/", "/reels/", "/status/", "/dating/discover", "/wallet/", "/auth/register", "/auth/login"}
+    actual_routes = {rule.rule for rule in app.url_map.iter_rules()}
+    missing = sorted(route for route in required_routes if route not in actual_routes)
+    assert_true(not missing, f"required routes missing: {missing}")
+    print("phase27 stability: ok")
+
+
+if __name__ == "__main__":
+    main()

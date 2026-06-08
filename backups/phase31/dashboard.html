@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Creator Dashboard</h2>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary btn-sm active">Last 7 Days</button>
+            <button class="btn btn-outline-primary btn-sm">Last 30 Days</button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Stats Cards -->
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-primary text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 opacity-75">Gift Earnings</h6>
+                    <h3 class="card-title mb-0">{{ stats.total_gift_earnings or 0 }} <small class="fs-6">coins</small></h3>
+                    <small class="d-block mt-2">↑ 12% from last week</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-success text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 opacity-75">Live Earnings</h6>
+                    <h3 class="card-title mb-0">{{ stats.total_live_earnings or 0 }} <small class="fs-6">coins</small></h3>
+                    <small class="d-block mt-2">5 active rooms this week</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-info text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 opacity-75">Pending Withdrawal</h6>
+                    <h3 class="card-title mb-0">{{ stats.pending_withdrawal or 0 }} <small class="fs-6">NAD</small></h3>
+                    <small class="d-block mt-2">Est. delivery: 2-3 days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-warning text-white h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 opacity-75">Creator Level</h6>
+                    <h3 class="card-title mb-0">Level {{ stats.creator_level or 1 }}</h3>
+                    <div class="progress mt-2" style="height: 4px; background: rgba(255,255,255,0.2);">
+                        <div class="progress-bar bg-white" style="width: 65%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Supporters -->
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Top Supporters</h5>
+                    <i class="fas fa-crown text-warning"></i>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for supporter in stats.top_supporters or [] %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm rounded-circle bg-light mr-3 d-grid place-items-center" style="width: 32px; height: 32px;"><i class="fas fa-user text-muted"></i></div>
+                                <span>{{ supporter.username }}</span>
+                            </div>
+                            <span class="badge badge-pill badge-light">{{ supporter.amount }} coins</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item p-3 text-muted">No supporter records yet.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Placeholder -->
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Earnings Overview</h5>
+                    <select class="form-select form-select-sm border-0 bg-light" style="width: auto;">
+                        <option>Coins</option>
+                        <option>NAD</option>
+                    </select>
+                </div>
+                <div class="card-body" style="height: 300px; display: grid; place-items: center;">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-chart-area fa-3x mb-3" style="opacity: 0.2;"></i>
+                        <p>{{ stats.earnings.total or stats.total_gift_earnings or 0 }} coins recorded across creator earnings.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <div class="nav nav-tabs card-header-tabs" role="tablist">
+                        {% for tab in ['Overview','Earnings','Gifts','Live Earnings','Subscriptions','Paid Posts','Premium Content','Payouts','Sponsorships','Top Fans','Badges','Verification'] %}
+                        <button class="nav-link {% if loop.first %}active{% endif %}" data-toggle="tab" data-target="#creator-tab-{{ loop.index }}" type="button">{{ tab }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Subscription tier</label>
+                            <input class="form-control" id="creator-sub-tier" value="standard">
+                            <button class="btn btn-primary mt-2" type="button" onclick="creatorPost('/creator/subscriptions', {tier: document.getElementById('creator-sub-tier').value})">Save Subscription</button>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Paid post title</label>
+                            <input class="form-control" id="creator-paid-title" value="Paid post">
+                            <button class="btn btn-primary mt-2" type="button" onclick="creatorPost('/creator/paid-posts', {title: document.getElementById('creator-paid-title').value, price_coins: 25})">Save Paid Post</button>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Premium content type</label>
+                            <input class="form-control" id="creator-premium-type" value="post">
+                            <button class="btn btn-primary mt-2" type="button" onclick="creatorPost('/creator/premium-content', {content_type: document.getElementById('creator-premium-type').value, lock_type: 'subscription'})">Save Lock</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-primary w-100" type="button" onclick="creatorPost('/creator/payouts', {amount_coins: 0, payout_method: 'manual_review'})">Request Payout Review</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-primary w-100" type="button" onclick="creatorPost('/creator/revenue-reports', {period_key: 'current'})">Record Revenue Report</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-primary w-100" type="button" onclick="creatorPost('/creator/badges', {badge_key: 'creator', label: 'Creator'})">Record Badge</button>
+                        </div>
+                    </div>
+                    <div id="creator-action-status" class="text-muted mt-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verification CTA -->
+        {% if not profile.is_verified %}
+        <div class="col-md-12">
+            <div class="card border-primary bg-light">
+                <div class="card-body d-flex justify-content-between align-items-center p-4">
+                    <div>
+                        <h5 class="text-primary mb-1"><i class="fas fa-check-circle mr-2"></i> Get Verified</h5>
+                        <p class="mb-0 text-muted">Verified creators earn 15% more and get featured in the discovery feed.</p>
+                    </div>
+                    <a href="/verification/" class="btn btn-primary px-4">Apply Now</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+async function creatorPost(url, payload) {
+    const status = document.getElementById('creator-action-status');
+    status.textContent = 'Saving...';
+    const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload || {})
+    });
+    const data = await res.json().catch(() => ({}));
+    status.textContent = res.ok && data.success !== false ? 'Saved.' : (data.error || 'Could not save.');
+}
+</script>
+{% endblock %}

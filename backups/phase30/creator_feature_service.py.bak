@@ -1,0 +1,58 @@
+import os
+import uuid
+
+from services.neon_service import fast_query, get_pool_status, write_query
+
+_VERIFICATIONS = {}
+
+
+def _uuid(value=None):
+    if value:
+        try:
+            return str(uuid.UUID(str(value)))
+        except (TypeError, ValueError):
+            pass
+    return str(uuid.uuid4())
+
+
+def _db_available():
+    if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    status = get_pool_status()
+    return bool(status.get("pool_ready") or status.get("recent_success") or status.get("configured"))
+
+
+def creator_dashboard(profile_id):
+    profile_id = _uuid(profile_id)
+    if _db_available():
+        earnings = fast_query("SELECT COALESCE(SUM(amount), 0) AS total FROM chain_creator_earnings WHERE creator_profile_id = %s", (profile_id,), timeout_ms=600, default=[])
+        supporters = fast_query("SELECT * FROM chain_creator_supporters WHERE creator_profile_id = %s ORDER BY total_amount DESC LIMIT 10", (profile_id,), timeout_ms=600, default=[])
+        subscriptions = fast_query("SELECT COUNT(*) AS count FROM chain_creator_subscriptions WHERE creator_profile_id = %s AND status = 'active'", (profile_id,), timeout_ms=600, default=[])
+    else:
+        earnings, supporters, subscriptions = [], [], []
+    total = float((earnings[0].get("total") if earnings else 0) or 0)
+    sub_count = int((subscriptions[0].get("count") if subscriptions else 0) or 0)
+    return {
+        "earnings": {"total": total, "currency": "coins"},
+        "gifts": {"total": total},
+        "live_earnings": {"total": total},
+        "subscriptions": {"active_count": sub_count},
+        "top_supporters": supporters,
+        "creator_level": "Starter" if total < 1000 else "Rising Creator",
+    }
+
+
+def request_verification(profile_id, request_type="creator", note=None):
+    profile_id = _uuid(profile_id)
+    request_id = str(uuid.uuid4())
+    payload = {"id": request_id, "profile_id": profile_id, "request_type": request_type, "status": "pending", "note": note}
+    try:
+        rows = write_query(
+            "INSERT INTO chain_verification_requests (id, profile_id, request_type, status, note) VALUES (%s, %s, %s, 'pending', %s) RETURNING *",
+            (request_id, profile_id, request_type, note),
+            timeout_ms=900,
+        ) if _db_available() else []
+        payload = rows[0] if rows else payload
+    except Exception:
+        _VERIFICATIONS[request_id] = payload
+    return {"ok": True, "request": payload}

@@ -1,0 +1,62 @@
+from flask import Blueprint, flash, redirect, render_template, request, url_for, jsonify
+from api_routes.profile_routes import login_required
+from services.profile_service import get_current_profile
+from services.wallet_engine import get_wallet_summary, list_transactions, send_gift, request_payout
+from services.rate_limit_service import limiter, user_or_ip_key
+from flask import session
+
+wallet_bp = Blueprint("wallet", __name__, url_prefix="/wallet")
+
+@wallet_bp.route("/")
+@login_required
+def index():
+    profile = get_current_profile()
+    if not profile or not profile.get("id") or profile.get("profile_fallback"):
+        email = session.get("auth_email") or ""
+        username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
+        if not profile:
+            profile = {
+                "id": None,
+                "auth_user_id": session.get("auth_user_id"),
+                "email": email,
+                "username": username,
+                "full_name": session.get("full_name") or username.replace("_", " ").title(),
+            }
+        wallet = {"coin_balance": 0}
+        transactions = []
+        return render_template("wallet/index.html", wallet=wallet, transactions=transactions, profile=profile, setup_warning=True)
+    wallet = get_wallet_summary(profile['id'])
+    transactions = list_transactions(profile['id'])
+    return render_template("wallet/index.html", wallet=wallet, transactions=transactions, profile=profile)
+
+@wallet_bp.route("/api/wallet/gift", methods=["POST"])
+@login_required
+@limiter.limit("30/minute", key_func=user_or_ip_key)
+def api_gift():
+    profile = get_current_profile()
+    recipient_id = request.form.get("recipient_id") or request.form.get("receiver_profile_id")
+    amount = request.form.get("amount", request.form.get("coin_value", 0))
+    gift_type = request.form.get("gift_type", "coins")
+    entity_type = request.form.get("entity_type")
+    entity_id = request.form.get("entity_id")
+    idempotency_key = request.form.get("idempotency_key")
+
+    ok, result = send_gift(profile['id'], recipient_id, gift_type, amount, entity_type, entity_id, idempotency_key=idempotency_key)
+    if ok:
+        payload = {"success": True}
+        if isinstance(result, dict):
+            payload.update({"gift_id": result.get("gift_id"), "idempotent": bool(result.get("idempotent"))})
+        return jsonify(payload), 200
+    return jsonify({"success": False, "error": result}), 400
+
+@wallet_bp.route("/api/wallet/payout-request", methods=["POST"])
+@login_required
+def api_payout_request():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Profile setup incomplete"}), 400
+    amount = request.form.get("amount")
+    ok, error = request_payout(profile['id'], amount)
+    if ok:
+        return jsonify({"success": True}), 200
+    return jsonify({"error": error}), 400

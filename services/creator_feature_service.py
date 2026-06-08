@@ -1,0 +1,267 @@
+import os
+import uuid
+import json
+
+from services.neon_service import fast_query, get_pool_status, write_query
+
+_VERIFICATIONS = {}
+_SUBSCRIPTIONS = {}
+_PAID_POSTS = {}
+_PREMIUM_CONTENT = {}
+_PAYOUTS = {}
+_GIFT_CONVERSIONS = {}
+_REVENUE_REPORTS = {}
+_SPONSORSHIPS = {}
+_CREATOR_BADGES = {}
+_SUPPORTER_BADGES = {}
+_TOP_FANS = {}
+_RANKINGS = {}
+
+
+def _uuid(value=None):
+    if value:
+        try:
+            return str(uuid.UUID(str(value)))
+        except (TypeError, ValueError):
+            pass
+    return str(uuid.uuid4())
+
+
+def _db_available():
+    if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    status = get_pool_status()
+    return bool(status.get("pool_ready") or status.get("recent_success") or status.get("configured"))
+
+
+def creator_dashboard(profile_id):
+    profile_id = _uuid(profile_id)
+    if _db_available():
+        earnings = fast_query("SELECT COALESCE(SUM(amount), 0) AS total FROM chain_creator_earnings WHERE creator_profile_id = %s", (profile_id,), timeout_ms=600, default=[])
+        supporters = fast_query("SELECT * FROM chain_creator_supporters WHERE creator_profile_id = %s ORDER BY total_amount DESC LIMIT 10", (profile_id,), timeout_ms=600, default=[])
+        subscriptions = fast_query("SELECT COUNT(*) AS count FROM chain_creator_subscriptions WHERE creator_profile_id = %s AND status = 'active'", (profile_id,), timeout_ms=600, default=[])
+    else:
+        earnings, supporters, subscriptions = [], [], []
+    total = float((earnings[0].get("total") if earnings else 0) or 0)
+    sub_count = int((subscriptions[0].get("count") if subscriptions else 0) or 0)
+    return {
+        "earnings": {"total": total, "currency": "coins"},
+        "gifts": {"total": total},
+        "live_earnings": {"total": total},
+        "subscriptions": {"active_count": sub_count},
+        "top_supporters": supporters,
+        "creator_level": "Starter" if total < 1000 else "Rising Creator",
+    }
+
+
+def request_verification(profile_id, request_type="creator", note=None):
+    profile_id = _uuid(profile_id)
+    request_id = str(uuid.uuid4())
+    payload = {"id": request_id, "profile_id": profile_id, "request_type": request_type, "status": "pending", "note": note}
+    try:
+        rows = write_query(
+            "INSERT INTO chain_verification_requests (id, profile_id, request_type, status, note) VALUES (%s, %s, %s, 'pending', %s) RETURNING *",
+            (request_id, profile_id, request_type, note),
+            timeout_ms=900,
+        ) if _db_available() else []
+        payload = rows[0] if rows else payload
+    except Exception:
+        _VERIFICATIONS[request_id] = payload
+    return {"ok": True, "request": payload}
+
+
+def create_subscription(creator_profile_id, subscriber_profile_id, tier="standard", price_coins=0, status="active"):
+    return _insert_creator_record(
+        "chain_creator_subscriptions",
+        _SUBSCRIPTIONS,
+        creator_profile_id,
+        {"subscriber_profile_id": _uuid(subscriber_profile_id), "tier": tier, "price_coins": float(price_coins or 0), "status": status},
+        "subscription",
+    )
+
+
+def create_paid_post(creator_profile_id, title, price_coins=0, post_id=None, status="active"):
+    return _insert_creator_record(
+        "chain_creator_paid_posts",
+        _PAID_POSTS,
+        creator_profile_id,
+        {"post_id": _uuid(post_id) if post_id else None, "title": title, "price_coins": float(price_coins or 0), "status": status},
+        "paid_post",
+    )
+
+
+def create_premium_content(creator_profile_id, content_type="post", content_id=None, lock_type="subscription", price_coins=0):
+    return _insert_creator_record(
+        "chain_creator_premium_content",
+        _PREMIUM_CONTENT,
+        creator_profile_id,
+        {"content_id": _uuid(content_id) if content_id else None, "content_type": content_type, "lock_type": lock_type, "price_coins": float(price_coins or 0), "status": "active"},
+        "premium_content",
+    )
+
+
+def request_payout(creator_profile_id, amount_coins, payout_method=None, **metadata):
+    return _insert_creator_record(
+        "chain_creator_payouts",
+        _PAYOUTS,
+        creator_profile_id,
+        {"amount_coins": float(amount_coins or 0), "payout_method": payout_method, "status": "pending", "metadata": metadata},
+        "payout",
+    )
+
+
+def record_gift_conversion(creator_profile_id, supporter_profile_id=None, gift_id=None, coins=0, conversion_rate=1):
+    return _insert_creator_record(
+        "chain_creator_gift_conversions",
+        _GIFT_CONVERSIONS,
+        creator_profile_id,
+        {"supporter_profile_id": _uuid(supporter_profile_id) if supporter_profile_id else None, "gift_id": _uuid(gift_id) if gift_id else None, "coins": float(coins or 0), "conversion_rate": float(conversion_rate or 1), "status": "recorded"},
+        "gift_conversion",
+    )
+
+
+def create_revenue_report(creator_profile_id, period_key, gross_coins=0, net_coins=0, **payload):
+    return _insert_creator_record(
+        "chain_creator_revenue_reports",
+        _REVENUE_REPORTS,
+        creator_profile_id,
+        {"period_key": period_key, "gross_coins": float(gross_coins or 0), "net_coins": float(net_coins or 0), "payload": payload},
+        "revenue_report",
+    )
+
+
+def create_sponsorship(creator_profile_id, sponsor_name, amount_coins=0, status="prospect", **metadata):
+    return _insert_creator_record(
+        "chain_creator_sponsorships",
+        _SPONSORSHIPS,
+        creator_profile_id,
+        {"sponsor_name": sponsor_name, "amount_coins": float(amount_coins or 0), "status": status, "metadata": metadata},
+        "sponsorship",
+    )
+
+
+def award_creator_badge(creator_profile_id, badge_key, label=None, **metadata):
+    return _insert_creator_record(
+        "chain_creator_badges",
+        _CREATOR_BADGES,
+        creator_profile_id,
+        {"badge_key": badge_key, "label": label, "metadata": metadata},
+        "creator_badge",
+    )
+
+
+def award_supporter_badge(creator_profile_id, supporter_profile_id, badge_key, label=None, **metadata):
+    return _insert_creator_record(
+        "chain_supporter_badges",
+        _SUPPORTER_BADGES,
+        creator_profile_id,
+        {"supporter_profile_id": _uuid(supporter_profile_id), "badge_key": badge_key, "label": label, "metadata": metadata},
+        "supporter_badge",
+    )
+
+
+def upsert_top_fan(creator_profile_id, fan_profile_id, score=0, rank=None):
+    return _insert_creator_record(
+        "chain_top_fans",
+        _TOP_FANS,
+        creator_profile_id,
+        {"fan_profile_id": _uuid(fan_profile_id), "score": float(score or 0), "rank": rank},
+        "top_fan",
+    )
+
+
+def upsert_creator_ranking(creator_profile_id, category="overall", score=0, rank=None):
+    return _insert_creator_record(
+        "chain_creator_rankings",
+        _RANKINGS,
+        creator_profile_id,
+        {"category": category, "score": float(score or 0), "rank": rank},
+        "ranking",
+    )
+
+
+def get_subscriptions(creator_profile_id, limit=20):
+    creator_profile_id = _uuid(creator_profile_id)
+    try:
+        if not _db_available():
+            raise RuntimeError("db_unavailable")
+        rows = fast_query(
+            "SELECT * FROM chain_creator_subscriptions WHERE creator_profile_id = %s ORDER BY created_at DESC LIMIT %s",
+            (creator_profile_id, limit), timeout_ms=800, default=[],
+        )
+        return rows or []
+    except Exception:
+        return []
+
+def get_paid_posts(creator_profile_id, limit=20):
+    creator_profile_id = _uuid(creator_profile_id)
+    try:
+        if not _db_available():
+            raise RuntimeError("db_unavailable")
+        rows = fast_query(
+            "SELECT * FROM chain_creator_paid_posts WHERE creator_profile_id = %s ORDER BY created_at DESC LIMIT %s",
+            (creator_profile_id, limit), timeout_ms=800, default=[],
+        )
+        return rows or []
+    except Exception:
+        return []
+
+def get_premium_content(creator_profile_id, limit=20):
+    creator_profile_id = _uuid(creator_profile_id)
+    try:
+        if not _db_available():
+            raise RuntimeError("db_unavailable")
+        rows = fast_query(
+            "SELECT * FROM chain_creator_premium_content WHERE creator_profile_id = %s ORDER BY created_at DESC LIMIT %s",
+            (creator_profile_id, limit), timeout_ms=800, default=[],
+        )
+        return rows or []
+    except Exception:
+        return []
+
+def get_sponsorships(creator_profile_id, limit=20):
+    creator_profile_id = _uuid(creator_profile_id)
+    try:
+        if not _db_available():
+            raise RuntimeError("db_unavailable")
+        rows = fast_query(
+            "SELECT * FROM chain_creator_sponsorships WHERE creator_profile_id = %s ORDER BY created_at DESC LIMIT %s",
+            (creator_profile_id, limit), timeout_ms=800, default=[],
+        )
+        return rows or []
+    except Exception:
+        return []
+
+def get_creator_badges(creator_profile_id, limit=20):
+    creator_profile_id = _uuid(creator_profile_id)
+    try:
+        if not _db_available():
+            raise RuntimeError("db_unavailable")
+        rows = fast_query(
+            "SELECT * FROM chain_creator_badges WHERE creator_profile_id = %s ORDER BY created_at DESC LIMIT %s",
+            (creator_profile_id, limit), timeout_ms=800, default=[],
+        )
+        return rows or []
+    except Exception:
+        return []
+
+
+def _insert_creator_record(table, store, creator_profile_id, data, key):
+    creator_profile_id = _uuid(creator_profile_id)
+    record = {"id": str(uuid.uuid4()), "creator_profile_id": creator_profile_id, **data}
+    try:
+        columns = ["id", "creator_profile_id", *data.keys()]
+        placeholders = []
+        params = []
+        for column in columns:
+            value = record[column]
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value)
+                placeholders.append("%s::jsonb")
+            else:
+                placeholders.append("%s")
+            params.append(value)
+        write_query(f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join(placeholders)})", tuple(params), timeout_ms=900) if _db_available() else []
+    except Exception:
+        store[record["id"]] = record
+    return {"ok": True, key: record}

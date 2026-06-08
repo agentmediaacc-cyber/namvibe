@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Wallet Dashboard — CHAIN{% endblock %}
+{% block content %}
+<div class="wallet-container">
+    <div class="wallet-header">
+        <h1>Wallet</h1>
+        <div class="balance-card">
+            <div class="balance-label">Available Balance</div>
+            <div class="balance-amount">N$ {{ "%.2f"|format((wallet.balance_cents or 0) / 100) }}</div>
+            <div class="balance-detail">
+                <span>Pending: N$ {{ "%.2f"|format((wallet.pending_balance_cents or 0) / 100) }}</span>
+                <span>Lifetime earned: N$ {{ "%.2f"|format((wallet.lifetime_earned_cents or 0) / 100) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="wallet-actions">
+        <a href="/wallet/transactions" class="action-btn">Transactions</a>
+        <a href="/wallet/payouts" class="action-btn">Payouts</a>
+        <a href="/safety/trust" class="action-btn">Trust Summary</a>
+        <a href="/safety/creator-verification" class="action-btn">Creator Verification</a>
+        {% if profile and profile.get("id") %}
+        <a href="/wallet/creator/{{ profile.id }}/earnings" class="action-btn">Earnings Dashboard</a>
+        {% endif %}
+    </div>
+
+    {% if transactions %}
+    <div class="recent-section">
+        <h2>Recent Transactions</h2>
+        <div class="tx-list">
+            {% for tx in transactions[:10] %}
+            <div class="tx-item {{ 'tx-in' if tx.get('direction') == 'in' else 'tx-out' }}">
+                <div class="tx-icon">{{ '↑' if tx.get('direction') == 'in' else '↓' }}</div>
+                <div class="tx-info">
+                    <div class="tx-type">{{ tx.get('transaction_type') or tx.get('tx_type', 'unknown') }}</div>
+                    <div class="tx-desc">{{ tx.get('description', '') }}</div>
+                    <div class="tx-date">{{ tx.get('created_at', '')[:10] if tx.get('created_at') else '' }}</div>
+                </div>
+                <div class="tx-amount">
+                    {{ '+' if tx.get('direction') == 'in' else '-' }}N$ {{ "%.2f"|format((tx.get('amount_cents') or tx.get('amount', 0)) / 100) }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.wallet-container { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+.wallet-header { margin-bottom: 24px; }
+.wallet-header h1 { font-size: 28px; margin-bottom: 16px; }
+.balance-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px; padding: 24px; color: #fff;
+}
+.balance-label { font-size: 14px; opacity: 0.9; margin-bottom: 4px; }
+.balance-amount { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+.balance-detail { display: flex; gap: 16px; font-size: 13px; opacity: 0.85; }
+.wallet-actions { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.action-btn {
+    padding: 10px 20px; border-radius: 10px; background: #1a1a2e; color: #e0e0e0;
+    text-decoration: none; font-weight: 500; font-size: 14px; transition: background 0.2s;
+}
+.action-btn:hover { background: #2a2a4e; }
+.recent-section h2 { font-size: 18px; margin-bottom: 12px; }
+.tx-list { display: flex; flex-direction: column; gap: 8px; }
+.tx-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: #1a1a2e; border-radius: 12px;
+}
+.tx-icon { font-size: 18px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.tx-in .tx-icon { background: rgba(0,200,83,0.15); color: #00c853; }
+.tx-out .tx-icon { background: rgba(255,82,82,0.15); color: #ff5252; }
+.tx-info { flex: 1; }
+.tx-type { font-weight: 600; font-size: 14px; text-transform: capitalize; }
+.tx-desc { font-size: 12px; color: #888; }
+.tx-date { font-size: 11px; color: #666; margin-top: 2px; }
+.tx-amount { font-weight: 700; font-size: 15px; }
+.tx-in .tx-amount { color: #00c853; }
+.tx-out .tx-amount { color: #ff5252; }
+</style>
+{% endblock %}

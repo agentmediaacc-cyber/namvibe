@@ -1,90 +1,206 @@
+import importlib
 import inspect
+import os
+import pkgutil
 import re
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = ROOT / "templates"
+SCAN_PACKAGES = ("api_routes", "api_v1", "routes", "services")
+
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app import app
+
+def _ensure_project_python():
+    try:
+        import flask  # noqa: F401
+    except ModuleNotFoundError:
+        venv_python = ROOT / "venv" / "bin" / "python3"
+        if venv_python.exists() and Path(sys.executable).resolve() != venv_python.resolve():
+            os.execv(str(venv_python), [str(venv_python), *sys.argv])
+        raise
+
+
+_ensure_project_python()
+
+
+def _import_app():
+    from app import app
+
+    return app
 
 
 def unwrap(func):
     return inspect.unwrap(func)
 
 
+def source_for(func):
+    try:
+        return inspect.getsource(unwrap(func))
+    except (OSError, TypeError):
+        return ""
+
+
 def template_refs(func):
-    try:
-        source = inspect.getsource(unwrap(func))
-    except OSError:
-        return []
-    return re.findall(r'render_template\(\s*["\']([^"\']+)["\']', source)
+    return re.findall(r'render_template\(\s*["\']([^"\']+)["\']', source_for(func))
 
 
-def uses_feature_page(func):
-    try:
-        source = inspect.getsource(unwrap(func))
-    except OSError:
-        return False
-    return "feature_page.html" in source
+def endpoint_refs_from_templates():
+    refs = defaultdict(set)
+    for template in TEMPLATE_ROOT.rglob("*.html"):
+        text = template.read_text(encoding="utf-8", errors="ignore")
+        for endpoint in re.findall(r"url_for\(\s*['\"]([^'\"]+)['\"]", text):
+            refs[endpoint].add(str(template.relative_to(ROOT)))
+    return refs
 
 
-def main():
-    seen = {}
-    missing_templates = []
+def endpoint_refs_from_python():
+    refs = defaultdict(set)
+    for folder in ("api_routes", "api_v1", "routes"):
+        for path in (ROOT / folder).glob("*.py"):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for endpoint in re.findall(r"url_for\(\s*['\"]([^'\"]+)['\"]", text):
+                refs[endpoint].add(str(path.relative_to(ROOT)))
+    return refs
+
+
+def import_failures():
+    failures = []
+    for package_name in SCAN_PACKAGES:
+        try:
+            package = importlib.import_module(package_name)
+        except Exception as error:
+            failures.append((package_name, f"{error.__class__.__name__}: {error}"))
+            continue
+
+        for module_info in pkgutil.iter_modules(package.__path__, package.__name__ + "."):
+            try:
+                importlib.import_module(module_info.name)
+            except Exception as error:
+                failures.append((module_info.name, f"{error.__class__.__name__}: {error}"))
+    return failures
+
+
+def route_status(app, route_prefix):
+    matches = []
+    for rule in app.url_map.iter_rules():
+        if rule.rule.startswith(route_prefix):
+            methods = sorted(method for method in rule.methods if method not in {"HEAD", "OPTIONS"})
+            matches.append((rule.rule, ",".join(methods), rule.endpoint))
+    return sorted(matches)
+
+
+def audit():
+    app = _import_app()
+    route_seen = {}
     duplicates = []
-    placeholders = []
+    missing_templates = []
+    endpoint_refs = endpoint_refs_from_templates()
+    for endpoint, files in endpoint_refs_from_python().items():
+        endpoint_refs[endpoint].update(files)
 
-    print("CHAIN route audit")
-    print("=" * 72)
+    endpoints = set(app.view_functions)
 
     for rule in sorted(app.url_map.iter_rules(), key=lambda item: (item.rule, item.endpoint)):
         if rule.endpoint == "static":
             continue
-
-        methods = sorted(method for method in rule.methods if method not in {"HEAD", "OPTIONS"})
-        signature = (rule.rule, tuple(methods))
-        if signature in seen:
-            duplicates.append((rule, seen[signature]))
+        methods = tuple(sorted(method for method in rule.methods if method not in {"HEAD", "OPTIONS"}))
+        signature = (rule.rule, methods)
+        if signature in route_seen:
+            duplicates.append({
+                "rule": rule.rule,
+                "methods": methods,
+                "first_endpoint": route_seen[signature],
+                "second_endpoint": rule.endpoint,
+            })
         else:
-            seen[signature] = rule.endpoint
+            route_seen[signature] = rule.endpoint
 
         func = app.view_functions.get(rule.endpoint)
-        print(f"{','.join(methods):10} {rule.rule:35} -> {rule.endpoint}")
+        if not func:
+            continue
+        for template_name in template_refs(func):
+            if not (TEMPLATE_ROOT / template_name).exists():
+                missing_templates.append({"endpoint": rule.endpoint, "template": template_name})
 
-        if func:
-            for template_name in template_refs(func):
-                if not (TEMPLATE_ROOT / template_name).exists():
-                    missing_templates.append((rule.endpoint, template_name))
-            if uses_feature_page(func):
-                placeholders.append((rule.endpoint, rule.rule))
+    broken_url_for = []
+    for endpoint, files in sorted(endpoint_refs.items()):
+        if endpoint not in endpoints and endpoint != "static":
+            broken_url_for.append({"endpoint": endpoint, "files": sorted(files)})
 
-    print("\nFlags")
+    statuses = {
+        "profile": route_status(app, "/profile"),
+        "message": route_status(app, "/messages"),
+        "call": route_status(app, "/calls"),
+        "live": route_status(app, "/live"),
+    }
+
+    return {
+        "duplicates": duplicates,
+        "missing_templates": missing_templates,
+        "broken_imports": import_failures(),
+        "broken_url_for": broken_url_for,
+        "statuses": statuses,
+        "route_count": len([rule for rule in app.url_map.iter_rules() if rule.endpoint != "static"]),
+    }
+
+
+def print_report(result):
+    print("CHAIN route audit")
+    print("=" * 72)
+    print(f"Total routes: {result['route_count']}")
+
+    print("\nDuplicate routes")
     print("-" * 72)
-
-    if duplicates:
-        print("Duplicate routes:")
-        for rule, original_endpoint in duplicates:
-            print(f"  {rule.rule} {sorted(rule.methods)} duplicates {original_endpoint} with endpoint {rule.endpoint}")
+    if result["duplicates"]:
+        for item in result["duplicates"]:
+            print(f"{','.join(item['methods']):10} {item['rule']} -> {item['first_endpoint']} / {item['second_endpoint']}")
     else:
-        print("Duplicate routes: none")
+        print("none")
 
-    if missing_templates:
-        print("Missing templates:")
-        for endpoint, template_name in missing_templates:
-            print(f"  {endpoint} -> {template_name}")
+    print("\nMissing templates")
+    print("-" * 72)
+    if result["missing_templates"]:
+        for item in result["missing_templates"]:
+            print(f"{item['endpoint']} -> {item['template']}")
     else:
-        print("Missing templates: none")
+        print("none")
 
-    if placeholders:
-        print("Routes likely returning dashboard/feature_page.html:")
-        for endpoint, route in placeholders:
-            print(f"  {endpoint} -> {route}")
+    print("\nBroken imports")
+    print("-" * 72)
+    if result["broken_imports"]:
+        for module_name, error in result["broken_imports"]:
+            print(f"{module_name}: {error}")
     else:
-        print("Routes likely returning dashboard/feature_page.html: none")
+        print("none")
+
+    print("\nBroken url_for calls")
+    print("-" * 72)
+    if result["broken_url_for"]:
+        for item in result["broken_url_for"]:
+            print(f"{item['endpoint']} -> {', '.join(item['files'])}")
+    else:
+        print("none")
+
+    print("\nProfile/message/call/live route status")
+    print("-" * 72)
+    for group, rows in result["statuses"].items():
+        print(f"{group}: {len(rows)} route(s)")
+        for rule, methods, endpoint in rows[:20]:
+            print(f"  {methods:10} {rule:36} -> {endpoint}")
+        if len(rows) > 20:
+            print(f"  ... {len(rows) - 20} more")
+
+
+def main():
+    result = audit()
+    print_report(result)
+    return 1 if result["duplicates"] or result["missing_templates"] or result["broken_imports"] or result["broken_url_for"] else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

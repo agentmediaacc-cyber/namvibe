@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="chain-page safety-page">
+  <section class="chain-panel">
+    <h1>Report</h1>
+    <form method="post" action="/safety/api/report">
+      <input name="reported_profile_id" placeholder="Profile ID">
+      <input name="content_type" placeholder="Content type">
+      <input name="content_id" placeholder="Content ID">
+      <select name="reason"><option value="spam">Spam</option><option value="scam">Scam</option><option value="abuse">Abuse</option></select>
+      <textarea name="details" placeholder="Details"></textarea>
+      <button type="submit">Submit report</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

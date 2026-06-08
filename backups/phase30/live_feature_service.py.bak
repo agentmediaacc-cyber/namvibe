@@ -1,0 +1,125 @@
+import os
+import uuid
+from datetime import datetime, timezone
+
+from services.neon_service import fast_query, get_pool_status, write_query
+from services.socketio_service import emit_to_live_room
+
+_ROOMS = {}
+_VIEWERS = {}
+_COMMENTS = {}
+
+
+def _now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _uuid(value=None):
+    if value:
+        try:
+            return str(uuid.UUID(str(value)))
+        except (TypeError, ValueError):
+            pass
+    return str(uuid.uuid4())
+
+
+def _db_available():
+    if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return False
+    status = get_pool_status()
+    return bool(status.get("pool_ready") or status.get("recent_success") or status.get("configured"))
+
+
+def _write(sql, params=(), timeout_ms=900):
+    if not _db_available():
+        raise RuntimeError("db_unavailable")
+    return write_query(sql, params, timeout_ms=timeout_ms)
+
+
+def start_live(profile_id, title, host_name=None, allow_comments=True, allow_gifts=True):
+    profile_id = _uuid(profile_id)
+    room_id = str(uuid.uuid4())
+    room = {
+        "id": room_id,
+        "profile_id": profile_id,
+        "host_profile_id": profile_id,
+        "title": (title or "Live on CHAIN").strip(),
+        "host_name": host_name or "Creator",
+        "status": "live",
+        "is_live": True,
+        "viewer_count": 0,
+        "allow_comments": bool(allow_comments),
+        "allow_gifts": bool(allow_gifts),
+        "created_at": _now(),
+    }
+    try:
+        rows = _write(
+            "INSERT INTO chain_live_rooms (id, profile_id, host_profile_id, title, host_name, status, is_live, viewer_count, allow_comments, allow_gifts) VALUES (%s, %s, %s, %s, %s, 'live', TRUE, 0, %s, %s) RETURNING *",
+            (room_id, profile_id, profile_id, room["title"], room["host_name"], room["allow_comments"], room["allow_gifts"]),
+        )
+        room = rows[0] if rows else room
+    except Exception:
+        _ROOMS[room_id] = room
+    emit_to_live_room(room_id, "live:started", room)
+    return {"ok": True, "room": room}
+
+
+def list_live_rooms(limit=20):
+    if _db_available():
+        rows = fast_query("SELECT * FROM chain_live_rooms WHERE status = 'live' OR is_live = TRUE ORDER BY created_at DESC LIMIT %s", (int(limit),), timeout_ms=700, default=[])
+        if rows:
+            return rows
+    return [room for room in _ROOMS.values() if room.get("status") == "live"][:int(limit)]
+
+
+def join_live(room_id, profile_id=None, display_name=None):
+    room_id = _uuid(room_id)
+    profile_id = _uuid(profile_id) if profile_id else None
+    try:
+        _write("INSERT INTO chain_live_viewers (room_id, profile_id, display_name, joined_at) VALUES (%s, %s, %s, now())", (room_id, profile_id, display_name))
+        rows = fast_query("SELECT COUNT(*) AS count FROM chain_live_viewers WHERE room_id = %s AND left_at IS NULL", (room_id,), timeout_ms=500, default=[])
+        count = int(rows[0]["count"]) if rows else 1
+        _write("UPDATE chain_live_rooms SET viewer_count = %s WHERE id = %s", (count, room_id), timeout_ms=500)
+    except Exception:
+        _VIEWERS.setdefault(room_id, set()).add(profile_id or display_name or str(uuid.uuid4()))
+        count = len(_VIEWERS[room_id])
+        if room_id in _ROOMS:
+            _ROOMS[room_id]["viewer_count"] = count
+    emit_to_live_room(room_id, "live:viewers", {"room_id": room_id, "count": count})
+    return {"ok": True, "viewer_count": count}
+
+
+def comment_live(room_id, profile_id, body, display_name=None):
+    room_id = _uuid(room_id)
+    profile_id = _uuid(profile_id) if profile_id else None
+    comment = {"id": str(uuid.uuid4()), "room_id": room_id, "profile_id": profile_id, "display_name": display_name, "body": body or "", "created_at": _now()}
+    try:
+        rows = _write("INSERT INTO chain_live_comments (room_id, profile_id, display_name, body) VALUES (%s, %s, %s, %s) RETURNING *", (room_id, profile_id, display_name, body))
+        comment = rows[0] if rows else comment
+    except Exception:
+        _COMMENTS.setdefault(room_id, []).append(comment)
+    emit_to_live_room(room_id, "live:comment", comment)
+    return {"ok": True, "comment": comment}
+
+
+def end_live(room_id, host_profile_id=None):
+    room_id = _uuid(room_id)
+    try:
+        _write("UPDATE chain_live_rooms SET status = 'ended', is_live = FALSE, ended_at = now() WHERE id = %s", (room_id,))
+    except Exception:
+        if room_id in _ROOMS:
+            _ROOMS[room_id]["status"] = "ended"
+            _ROOMS[room_id]["is_live"] = False
+            _ROOMS[room_id]["ended_at"] = _now()
+    emit_to_live_room(room_id, "live:ended", {"room_id": room_id})
+    return {"ok": True}
+
+
+def set_comments(room_id, allow_comments):
+    room_id = _uuid(room_id)
+    try:
+        _write("UPDATE chain_live_rooms SET allow_comments = %s WHERE id = %s", (bool(allow_comments), room_id))
+    except Exception:
+        if room_id in _ROOMS:
+            _ROOMS[room_id]["allow_comments"] = bool(allow_comments)
+    return {"ok": True, "allow_comments": bool(allow_comments)}

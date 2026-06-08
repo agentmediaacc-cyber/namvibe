@@ -1,0 +1,83 @@
+<div id="dev-diag-bar" style="position:fixed;bottom:0;left:0;right:0;z-index:99999;font-family:monospace;font-size:11px;background:#111;color:#0f0;padding:4px 8px;display:flex;gap:12px;align-items:center;border-top:1px solid #333;">
+  <span id="diag-socket" title="Socket.IO">🟡 socket</span>
+  <span id="diag-profile" title="Profile ID">👤 ---</span>
+  <span id="diag-thread" title="Thread ID">💬 ---</span>
+  <span id="diag-call" title="Call ID">📞 ---</span>
+  <span id="diag-fetch" title="Last fetch status">🌐 OK</span>
+  <span id="diag-errors" title="JS errors">⚠️ 0</span>
+</div>
+<script>
+(function() {
+  if (window.__devDiagLoaded) return;
+  window.__devDiagLoaded = true;
+  var errCount = 0;
+  var bar = document.getElementById('dev-diag-bar');
+
+  window.addEventListener('error', function(e) {
+    errCount++;
+    var el = document.getElementById('diag-errors');
+    if (el) el.textContent = '⚠️ ' + errCount;
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/dev/phase37/frontend-error', JSON.stringify({
+        message: e.message,
+        filename: e.filename,
+        lineno: e.lineno,
+        colno: e.colno,
+        url: location.href
+      }));
+    }
+  });
+
+  var origFetch = window.fetch;
+  window.fetch = function() {
+    return origFetch.apply(this, arguments).then(function(resp) {
+      var el = document.getElementById('diag-fetch');
+      if (el) el.textContent = resp.ok ? '🌐 ' + resp.status : '🔴 ' + resp.status;
+      if (!resp.ok && navigator.sendBeacon) {
+        navigator.sendBeacon('/dev/phase37/frontend-error', JSON.stringify({
+          type: 'fetch_failure',
+          url: resp.url,
+          status: resp.status,
+          statusText: resp.statusText
+        }));
+      }
+      return resp;
+    }).catch(function(err) {
+      var el = document.getElementById('diag-fetch');
+      if (el) el.textContent = '🔴 ERR';
+      return Promise.reject(err);
+    });
+  };
+
+  if (typeof io !== 'undefined') {
+    var sock = io();
+    sock.on('connect', function() { setSocket('🟢'); });
+    sock.on('disconnect', function() { setSocket('🔴'); });
+    sock.on('connect_error', function() { setSocket('🟡'); });
+    function setSocket(c) {
+      var el = document.getElementById('diag-socket');
+      if (el) el.textContent = c + ' socket';
+    }
+  }
+
+  function updateProfile() {
+    fetch('/dev/phase37/profile').then(function(r) { return r.json(); }).then(function(d) {
+      var el = document.getElementById('diag-profile');
+      if (el && d.username) el.textContent = '👤 ' + d.username.slice(0,12);
+    }).catch(function(){});
+  }
+  updateProfile();
+  setInterval(updateProfile, 10000);
+
+  var pathMatch = location.pathname.match(/\/messages\/([@\w-]+)/);
+  if (pathMatch) {
+    var el = document.getElementById('diag-thread');
+    if (el) el.textContent = '💬 ' + pathMatch[1].slice(0,16);
+  }
+  var callMatch = location.pathname.match(/\/calls\/([\w-]+)/);
+  if (callMatch) {
+    var el = document.getElementById('diag-call');
+    if (el) el.textContent = '📞 ' + callMatch[1].slice(0,8)+'…';
+  }
+})();
+</script>

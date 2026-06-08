@@ -3,7 +3,7 @@ from services.neon_service import fast_query, write_query
 from services.media_storage_service import upload_media_file
 from services.media_pipeline import extract_video_duration_placeholder, queue_reel_processing, validate_upload
 from services.request_cache import build_request_key, request_memoize
-from services.content_service import create_reel_record, local_content
+from services.content_service import create_reel_record, invalidate_content_caches, local_content
 
 def list_reels(limit=20):
     """Lists published reels."""
@@ -112,7 +112,9 @@ def share_reel(reel_id, profile_id=None):
 def delete_reel(reel_id, profile_id):
     """Soft deletes a reel if owned by profile_id."""
     sql = "UPDATE chain_reels SET deleted_at = now() WHERE id = %s AND profile_id = %s"
-    return write_query(sql, (reel_id, profile_id))
+    result = write_query(sql, (reel_id, profile_id))
+    invalidate_content_caches()
+    return result
 
 
 def extract_ffmpeg_metadata_placeholder(file_obj):

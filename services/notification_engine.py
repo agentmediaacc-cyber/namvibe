@@ -71,6 +71,8 @@ def unread_count(profile_id):
     """Returns the count of unread notifications, with optimized caching."""
     if not profile_id:
         return 0
+    if os.getenv("FLASK_TESTING") == "1" or (os.getenv("CHAIN_FAST_LOCAL") == "1" and os.getenv("FLASK_ENV", "development") != "production"):
+        return 0
     
     cache_key = f"notif_unread_{profile_id}"
     

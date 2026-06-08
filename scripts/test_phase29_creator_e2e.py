@@ -1,0 +1,60 @@
+import os
+import sys
+import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+def _ensure_project_python():
+    try:
+        import flask  # noqa: F401
+    except ModuleNotFoundError:
+        venv_python = ROOT / "venv" / "bin" / "python3"
+        if venv_python.exists() and Path(sys.executable).resolve() != venv_python.resolve():
+            os.execv(str(venv_python), [str(venv_python), *sys.argv])
+        raise
+
+_ensure_project_python()
+
+os.environ.setdefault("FLASK_TESTING", "1")
+os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
+
+from app import app
+from services.creator_feature_service import creator_dashboard, request_verification
+
+
+def assert_true(value, message):
+    if not value:
+        raise AssertionError(message)
+
+
+def login(client, profile_id):
+    with client.session_transaction() as session:
+        session["auth_user_id"] = str(uuid.uuid4())
+        session["profile_id"] = profile_id
+        session["auth_email"] = "phase29@example.com"
+        session["username"] = "phase29creator"
+        session["full_name"] = "Phase 29 Creator"
+        session["profile_warning"] = True
+
+
+def main():
+    profile_id = str(uuid.uuid4())
+    stats = creator_dashboard(profile_id)
+    assert_true("earnings" in stats, "earnings default missing")
+    assert_true("gifts" in stats, "gifts default missing")
+    assert_true(request_verification(profile_id)["ok"], "verification request failed")
+
+    app.config["TESTING"] = True
+    client = app.test_client()
+    login(client, profile_id)
+    response = client.get("/creator/dashboard")
+    assert_true(response.status_code in {200, 302}, f"creator dashboard returned {response.status_code}")
+
+    print("phase29 creator e2e: ok")
+
+
+if __name__ == "__main__":
+    main()

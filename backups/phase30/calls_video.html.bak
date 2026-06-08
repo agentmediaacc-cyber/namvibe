@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}{{ call.call_type|title }} Call | CHAIN{% endblock %}
+
+{% block extra_css %}
+<style>
+    .call-shell {
+        max-width: 1000px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+    .call-stage {
+        background: #000;
+        border-radius: 18px;
+        aspect-ratio: 16/9;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--chain-shadow-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #localVideo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: {% if call.call_type == 'video' %}block{% else %}none{% endif %};
+    }
+    .call-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-align: center;
+        background: rgba(0,0,0,0.4);
+    }
+    .call-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        margin-bottom: 20px;
+        border: 4px solid var(--chain-primary);
+        object-fit: cover;
+    }
+    .call-controls {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 30px;
+    }
+    .control-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        background: var(--chain-bg-panel-strong);
+        color: var(--chain-text);
+        box-shadow: var(--chain-shadow-md);
+    }
+    .control-btn.active {
+        background: var(--chain-primary);
+        color: white;
+    }
+    .control-btn.danger {
+        background: var(--chain-error);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="call-shell" data-call-type="{{ call.call_type }}">
+    <div class="call-stage">
+        <video id="localVideo" autoplay playsinline muted></video>
+        
+        <div class="call-overlay">
+            {% if call.receiver_profile_id == profile.id %}
+                {% set target = call.caller_profile_id %}
+            {% else %}
+                {% set target = call.receiver_profile_id %}
+            {% endif %}
+            
+            <div id="call-info">
+                <i class="fas fa-{{ 'phone' if call.call_type == 'audio' else 'video' }}" style="font-size: 48px; margin-bottom: 20px; opacity: 0.5;"></i>
+                <h2>{{ call.call_type|title }} Call</h2>
+                <p id="call-status">Ringing...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="call-controls">
+        <button id="micToggle" class="control-btn active" title="Mute Mic"><i class="fas fa-microphone"></i></button>
+        {% if call.call_type == 'video' %}
+        <button id="cameraToggle" class="control-btn active" title="Hide Camera"><i class="fas fa-video"></i></button>
+        {% endif %}
+        <form action="/calls/{{ call.id }}/end" method="POST" style="margin: 0;">
+            <button type="submit" id="endCall" class="control-btn danger" title="End Call"><i class="fas fa-phone-slash"></i></button>
+        </form>
+    </div>
+</section>
+
+<script>
+    if (window.chainStartOutgoingRing) window.chainStartOutgoingRing();
+    const callType = "{{ call.call_type }}";
+    const localVideo = document.getElementById('localVideo');
+    let localStream;
+
+    async function initCall() {
+        try {
+            const constraints = {
+                audio: true,
+                video: callType === 'video'
+            };
+            localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (callType === 'video') {
+                localVideo.srcObject = localStream;
+            }
+        } catch (e) {
+            console.error("Media access denied:", e);
+        }
+    }
+
+    initCall();
+
+    document.getElementById('micToggle').addEventListener('click', function() {
+        const enabled = this.classList.toggle('active');
+        localStream.getAudioTracks().forEach(t => t.enabled = enabled);
+        this.innerHTML = enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+    });
+
+    const camToggle = document.getElementById('cameraToggle');
+    if (camToggle) {
+        camToggle.addEventListener('click', function() {
+            const enabled = this.classList.toggle('active');
+            localStream.getVideoTracks().forEach(t => t.enabled = enabled);
+            this.innerHTML = enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+            localVideo.style.display = enabled ? 'block' : 'none';
+        });
+    }
+window.addEventListener('beforeunload', function(){ if(window.chainStopRing) window.chainStopRing(); });
+</script>
+{% endblock %}
+
+<script id="CHAIN_CALL_SCREEN_RING_PATCH">
+(function(){
+  const role = "{{ role or '' }}";
+  const status = "{{ call.call_status or 'ringing' }}";
+
+  function startCorrectTone(){
+    if (status !== "ringing") return;
+
+    if (role === "caller") {
+      if (window.chainStartOutgoingRing) window.chainStartOutgoingRing();
+    } else {
+      if (window.chainStartIncomingRing) window.chainStartIncomingRing();
+    }
+  }
+
+  startCorrectTone();
+
+  document.addEventListener("click", function(){
+    startCorrectTone();
+  }, { once: true });
+
+  const stopEvents = ["call:answered", "call:rejected", "call:ended", "call:no-answer", "call:missed"];
+  if (window.socket) {
+    stopEvents.forEach(function(ev){
+      window.socket.on(ev, function(){
+        if (window.chainStopRing) window.chainStopRing();
+      });
+    });
+  }
+
+  window.addEventListener("beforeunload", function(){
+    if (window.chainStopRing) window.chainStopRing();
+  });
+})();
+</script>
+
+<script id="CHAIN_FORCE_CALL_RING_START">
+(function(){
+  const role = "{{ role or '' }}";
+  const status = "{{ call.call_status or 'ringing' }}";
+
+  function startRing(){
+    if(status !== "ringing") return;
+    if(role === "caller"){
+      if(window.chainStartOutgoingRing) window.chainStartOutgoingRing();
+    } else {
+      if(window.chainStartIncomingRing) window.chainStartIncomingRing();
+    }
+  }
+
+  setTimeout(startRing, 500);
+  document.addEventListener("click", startRing, {once:true});
+})();
+</script>

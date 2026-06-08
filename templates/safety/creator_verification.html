@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="chain-page safety-page">
+  <section class="chain-panel">
+    <h1>Creator Verification</h1>
+    <form method="post" action="/safety/api/creator-verification/request">
+      <input name="display_name" placeholder="Creator name">
+      <textarea name="creator_context" placeholder="Creator context"></textarea>
+      <button type="submit">Request verification</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

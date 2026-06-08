@@ -4,74 +4,576 @@
 
 {% block content %}
 <main class="px-page platform-fade-up">
-  <section class="px-hero" style="padding:24px; background:radial-gradient(circle at 82% 8%, rgba(215,38,56,.16), transparent 30%), linear-gradient(135deg,#fff,#eef3f8);">
-    <div class="px-section-head" style="margin:0;">
+
+  <!-- Stats Bar -->
+  <section class="live-stats-bar">
+    <div class="stat-item">
+      <i class="fas fa-eye"></i>
       <div>
-        <p>CHAIN LIVE</p>
-        <h1>Premium rooms happening now.</h1>
-        <span class="px-muted">Watch creators, learn, date, play, build, and earn in real time.</span>
+        <strong id="totalViewers">{{ rooms|sum(attribute='viewer_count') if rooms else 0 }}</strong>
+        <span>Live Viewers</span>
       </div>
-      <a class="px-btn" href="/live/studio"><i class="fas fa-video"></i>Start Live</a>
+    </div>
+    <div class="stat-item">
+      <i class="fas fa-gift"></i>
+      <div>
+        <strong>{{ rooms|sum(attribute='total_gift_coins') if rooms else 0 }}</strong>
+        <span>Total Gifts</span>
+      </div>
+    </div>
+    <div class="stat-item">
+      <i class="fas fa-user-circle"></i>
+      <div>
+        <strong>{{ rooms|length if rooms else 0 }}</strong>
+        <span>Active Hosts</span>
+      </div>
     </div>
   </section>
 
-  <section style="display:flex; gap:10px; overflow-x:auto; padding:18px 0 4px;">
+  <!-- Hero Section -->
+  <section class="live-hero">
+    <div class="live-hero-content">
+      <div class="live-hero-text">
+        <span class="live-kicker">CHAIN LIVE</span>
+        <h1>Premium rooms<br>happening now.</h1>
+        <p class="px-muted">Watch creators, learn, date, play, build, and earn in real time.</p>
+      </div>
+      <a class="live-start-btn" href="/live/studio">
+        <i class="fas fa-video"></i>
+        Start Live
+      </a>
+    </div>
+    <div class="live-hero-glow"></div>
+  </section>
+
+  <!-- Category Filters -->
+  <section class="category-rail">
     {% for cat in ['Gaming','Music','Education','Business','Lifestyle','Dating'] %}
-    <a href="/live/" class="px-tab {% if loop.first %}is-active{% endif %}">{{ cat }}</a>
+    <a href="/live/?category={{ cat }}" class="cat-tab {% if loop.first %}is-active{% endif %}">{{ cat }}</a>
     {% endfor %}
   </section>
 
+  <!-- Section Header -->
   <section class="px-section-head">
-    <div><p>Trending live</p><h2>Live Rooms</h2></div>
-    <span class="px-chip">{{ rooms|length if rooms else 0 }} active</span>
+    <div>
+      <p class="px-kicker">Trending live</p>
+      <h2>Live Rooms</h2>
+    </div>
+    <span class="live-count-badge">
+      <span class="live-dot"></span>
+      {{ rooms|length if rooms else 0 }} active
+    </span>
   </section>
 
+  <!-- Live Rooms Grid -->
   {% if rooms %}
   <section class="live-grid-premium">
     {% for r in rooms %}
     <a class="live-room-card" href="/live/room/{{ r.id }}">
       <div class="live-room-media">
-        {% if r.cover_url %}<img src="{{ r.cover_url }}" alt="{{ r.title }}" style="width:100%;height:100%;object-fit:cover;">{% else %}<i class="fas fa-video"></i>{% endif %}
-        <span class="live-badge">LIVE</span>
-        <span class="viewer-pill">{{ r.viewer_count or 0 }} viewers</span>
+        {% if r.cover_url %}
+        <img src="{{ r.cover_url }}" alt="{{ r.title }}">
+        {% else %}
+        <div class="live-room-media-fallback">
+          <i class="fas fa-video"></i>
+        </div>
+        {% endif %}
+        <span class="live-badge pulse">LIVE</span>
+        <span class="viewer-pill"><i class="fas fa-eye"></i> {{ r.viewer_count or 0 }}</span>
+        {% if r.category %}
+        <span class="cat-pill">{{ r.category }}</span>
+        {% endif %}
       </div>
       <div class="live-room-body">
         <div class="creator-row">
-          <span class="avatar-dot">C</span>
-          <div>
-            <h3 style="margin:0;">{{ r.title }}</h3>
-            <p class="px-muted" style="margin:4px 0 0;">{{ r.welcome_message or 'Join the room' }}</p>
+          <div class="host-avatar">
+            {% if r.host_avatar %}
+            <img src="{{ r.host_avatar }}" alt="{{ r.host_name or 'Host' }}">
+            {% else %}
+            <span>{{ (r.host_name or 'C')[0] }}</span>
+            {% endif %}
+          </div>
+          <div class="creator-info">
+            <h3>{{ r.title }}</h3>
+            <p class="host-name">{{ r.host_name or 'Anonymous Host' }}</p>
           </div>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+        <div class="room-meta">
           <span class="px-chip">{{ r.access_type|title }}</span>
-          <span class="px-chip">{{ r.total_gift_coins or 0 }} coins</span>
+          <span class="px-chip gift-chip"><i class="fas fa-coins"></i> {{ r.total_gift_coins or 0 }}</span>
         </div>
       </div>
     </a>
     {% endfor %}
   </section>
   {% else %}
-  <section class="premium-empty">
-    <i class="fas fa-video"></i>
-    <h2>No live rooms now</h2>
-    <p class="px-muted">Start the first real CHAIN live room.</p>
-    <a href="/live/studio" class="px-btn">Go Live</a>
+  <!-- Empty State -->
+  <section class="empty-state">
+    <div class="empty-state-bg"></div>
+    <div class="empty-state-content">
+      <div class="empty-icon-ring">
+        <i class="fas fa-video"></i>
+      </div>
+      <h2>No live rooms right now</h2>
+      <p class="px-muted">Be the first to go live and start earning. Your audience is waiting.</p>
+      <a href="/live/studio" class="empty-cta">
+        <i class="fas fa-video"></i>
+        Go Live Now
+      </a>
+    </div>
   </section>
   {% endif %}
 
-  <section class="px-section-head">
-    <div><p>Featured creators</p><h2>Hosts to watch</h2></div>
+  <!-- Featured Hosts -->
+  <section class="px-section-head" style="margin-top: 40px;">
+    <div>
+      <p class="px-kicker">Featured creators</p>
+      <h2>Hosts to watch</h2>
+    </div>
+    <a href="/discover/live" class="px-btn px-btn--ghost">View All</a>
   </section>
-  <section class="discover-grid">
-    {% for label in ['Creator Studio','Music Host','Business Mentor','Dating Live'] %}
-    <a href="/discover/live" class="discover-card" style="padding:16px;">
-      <span class="avatar-dot" style="width:64px;height:64px;">{{ label[0] }}</span>
-      <h3>{{ label }}</h3>
-      <p class="px-muted">Premium live creator</p>
-      <span class="px-btn" style="width:100%;">View Live</span>
+  <section class="hosts-rail">
+    {% if rooms %}
+    {% for r in rooms[:4] %}
+    <a href="/live/room/{{ r.id }}" class="host-card">
+      <div class="host-card-avatar">
+        {% if r.host_avatar %}
+        <img src="{{ r.host_avatar }}" alt="{{ r.host_name or 'Host' }}">
+        {% else %}
+        <span>{{ (r.host_name or 'C')[0] }}</span>
+        {% endif %}
+        <span class="host-online"></span>
+      </div>
+      <h4>{{ r.host_name or 'Live Host' }}</h4>
+      <p class="px-muted">{{ r.category or 'Live Creator' }}</p>
     </a>
     {% endfor %}
+    {% else %}
+    {% for label in ['Creator Studio','Music Host','Business Mentor','Dating Live'] %}
+    <a href="/discover/live" class="host-card">
+      <div class="host-card-avatar">
+        <span>{{ label[0] }}</span>
+        <span class="host-online"></span>
+      </div>
+      <h4>{{ label }}</h4>
+      <p class="px-muted">Premium live creator</p>
+    </a>
+    {% endfor %}
+    {% endif %}
   </section>
 </main>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ─── Stats Bar ─── */
+.live-stats-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.stat-item {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-radius: 18px;
+  background: var(--px-card);
+  border: 1px solid var(--px-border);
+  box-shadow: var(--px-shadow);
+}
+.stat-item i {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--px-soft);
+  color: var(--px-blue);
+  font-size: 18px;
+}
+.stat-item strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.2;
+}
+.stat-item span {
+  font-size: 12px;
+  color: var(--px-muted);
+  font-weight: 700;
+}
+
+/* ─── Hero ─── */
+.live-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 40px 36px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 82% 8%, rgba(215,38,56,.16), transparent 30%),
+    linear-gradient(135deg, #fff, #eef3f8);
+  border: 1px solid var(--px-border);
+  box-shadow: var(--px-shadow);
+}
+html[data-chain-theme="dark"] .live-hero {
+  background:
+    radial-gradient(circle at 82% 8%, rgba(215,38,56,.25), transparent 30%),
+    linear-gradient(135deg, var(--px-card), var(--px-soft));
+}
+.live-hero-glow {
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(215,38,56,.08), transparent 70%);
+  pointer-events: none;
+}
+.live-hero-content {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+.live-hero-text .live-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--px-gold);
+}
+.live-hero-text h1 {
+  margin: 8px 0 6px;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--px-text);
+}
+.live-hero-text p {
+  margin: 0;
+  max-width: 400px;
+}
+.live-start-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: var(--px-primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  box-shadow: 0 12px 28px rgba(11,27,51,.18);
+  transition: transform .2s, box-shadow .2s;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.live-start-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(11,27,51,.24);
+}
+
+/* ─── Category Rail ─── */
+.category-rail {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 18px 0 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.category-rail::-webkit-scrollbar {
+  display: none;
+}
+.cat-tab {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--px-soft);
+  border: 1px solid var(--px-border);
+  color: var(--px-text);
+  font-weight: 800;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: all .2s;
+}
+.cat-tab:hover {
+  transform: translateY(-2px);
+}
+.cat-tab.is-active {
+  background: var(--px-primary);
+  color: #fff;
+  border-color: var(--px-primary);
+}
+
+/* ─── Live Count Badge ─── */
+.live-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--px-soft);
+  border: 1px solid var(--px-border);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--px-text);
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--px-danger);
+  animation: livePulse 1.5s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(.85); }
+}
+
+/* ─── Room Cards Polish ─── */
+.live-room-media .cat-pill {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(11,27,51,.72);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  backdrop-filter: blur(6px);
+}
+.live-room-media .live-badge.pulse {
+  animation: livePulse 2s ease-in-out infinite;
+}
+.host-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--px-soft);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: var(--px-primary);
+}
+.host-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.creator-info h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.creator-info .host-name {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--px-muted);
+  font-weight: 600;
+}
+.room-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.room-meta .px-chip {
+  font-size: 11px;
+  min-height: 30px;
+}
+.gift-chip i {
+  color: var(--px-gold);
+  margin-right: 4px;
+}
+
+/* ─── Empty State ─── */
+.empty-state {
+  position: relative;
+  overflow: hidden;
+  padding: 60px 30px;
+  border-radius: 24px;
+  text-align: center;
+  background: linear-gradient(135deg, var(--px-card), var(--px-soft));
+  border: 1px dashed var(--px-border);
+  box-shadow: var(--px-shadow);
+}
+.empty-state-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(30,136,229,.06), transparent 40%),
+    radial-gradient(circle at 80% 20%, rgba(215,38,56,.06), transparent 40%);
+  animation: emptyGlow 4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes emptyGlow {
+  0% { opacity: .6; }
+  100% { opacity: 1; }
+}
+.empty-state-content {
+  position: relative;
+  z-index: 1;
+}
+.empty-icon-ring {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 18px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  background: var(--px-soft);
+  color: var(--px-blue);
+  font-size: 28px;
+}
+.empty-state h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  color: var(--px-text);
+}
+.empty-state p {
+  max-width: 400px;
+  margin: 0 auto 20px;
+}
+.empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 32px;
+  border-radius: 999px;
+  background: var(--px-primary);
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform .2s, box-shadow .2s;
+}
+.empty-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(11,27,51,.18);
+}
+
+/* ─── Featured Hosts ─── */
+.hosts-rail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.host-card {
+  padding: 20px 16px;
+  border-radius: 20px;
+  background: var(--px-card);
+  border: 1px solid var(--px-border);
+  box-shadow: var(--px-shadow);
+  text-align: center;
+  text-decoration: none;
+  transition: transform .2s, box-shadow .2s;
+}
+.host-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--px-shadow-lg);
+}
+.host-card-avatar {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--px-soft);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 20px;
+  color: var(--px-primary);
+  overflow: hidden;
+}
+.host-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.host-online {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--px-success);
+  border: 3px solid var(--px-card);
+}
+.host-card h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--px-text);
+}
+.host-card p {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* ─── Mobile ─── */
+@media (max-width: 1100px) {
+  .hosts-rail {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .live-hero-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .live-start-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .live-stats-bar {
+    flex-direction: column;
+  }
+  .stat-item {
+    min-width: 0;
+  }
+  .hosts-rail {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function() {
+    // Fetch live stats periodically
+    async function fetchLiveStats() {
+      try {
+        const res = await fetch('/live/api/stats');
+        if (res.ok) {
+          const data = await res.json();
+          const viewersEl = document.getElementById('totalViewers');
+          if (viewersEl && data.total_viewers !== undefined) {
+            viewersEl.textContent = data.total_viewers;
+          }
+        }
+      } catch (e) {}
+    }
+    // Only poll if rooms exist
+    {% if rooms %}
+    fetchLiveStats();
+    setInterval(fetchLiveStats, 15000);
+    {% endif %}
+  })();
+</script>
 {% endblock %}

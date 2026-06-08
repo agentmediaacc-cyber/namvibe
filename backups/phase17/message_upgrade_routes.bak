@@ -1,0 +1,36 @@
+from flask import Blueprint, jsonify, request, session, redirect, url_for
+from uuid import uuid4
+from datetime import datetime
+
+message_upgrade_bp = Blueprint("message_upgrade", __name__, url_prefix="/messages")
+
+@message_upgrade_bp.route("/@<username>")
+def open_username_chat(username):
+    return redirect(f"/messages/?open=@{username}")
+
+@message_upgrade_bp.route("/groups/create", methods=["POST"])
+def create_group_chat():
+    data = request.get_json(silent=True) or request.form.to_dict()
+    name = (data.get("name") or "New CHAIN Group").strip()
+    members = data.get("members") or ""
+    group_id = str(uuid4())
+
+    session.setdefault("chain_demo_groups", [])
+    session["chain_demo_groups"].append({
+        "id": group_id,
+        "name": name,
+        "members": members,
+        "allow_type": bool(data.get("allow_type", True)),
+        "allow_reply": bool(data.get("allow_reply", True)),
+        "allow_comments": bool(data.get("allow_comments", True)),
+        "allow_invite": bool(data.get("allow_invite", False)),
+        "created_at": datetime.utcnow().isoformat()
+    })
+    session.modified = True
+
+    return jsonify({
+        "ok": True,
+        "group_id": group_id,
+        "url": f"/messages/?group={group_id}",
+        "message": "Group created"
+    })

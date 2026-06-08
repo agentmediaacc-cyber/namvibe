@@ -1,19 +1,19 @@
 :root {
-  --chain-home-bg: #F4F7FB;
-  --chain-home-deep: #0B1B33;
-  --chain-home-card: #FFFFFF;
-  --chain-home-card-solid: #FFFFFF;
-  --chain-home-soft: #EEF3F8;
-  --chain-home-gold: #F7B733;
-  --chain-home-blue: #1E88E5;
-  --chain-home-red: #D72638;
+  --chain-home-bg: var(--chain-bg);
+  --chain-home-deep: var(--chain-text);
+  --chain-home-card: var(--chain-card);
+  --chain-home-card-solid: var(--chain-card);
+  --chain-home-soft: var(--chain-card-2);
+  --chain-home-gold: var(--chain-gold);
+  --chain-home-blue: var(--chain-cyan);
+  --chain-home-red: var(--chain-pink);
   --chain-home-green: #12B886;
-  --chain-home-text: #0F172A;
-  --chain-home-muted: #475569;
-  --chain-home-border: #D9E2EC;
+  --chain-home-text: var(--chain-text);
+  --chain-home-muted: var(--chain-muted);
+  --chain-home-border: var(--chain-border);
   --chain-home-gold-border: rgba(247, 183, 51, 0.38);
-  --chain-home-shadow: 0 12px 32px rgba(11, 27, 51, 0.08);
-  --chain-home-shadow-lg: 0 22px 60px rgba(11, 27, 51, 0.14);
+  --chain-home-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  --chain-home-shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.4);
 }
 
 .chain-home-page .sidebar,

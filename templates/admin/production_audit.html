@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="admin-system-shell">
+  <section class="admin-system-hero">
+    <h1>Production Audit</h1>
+    <p>Launch readiness findings across infrastructure, security, wallet, safety, and operations.</p>
+  </section>
+  <section class="admin-system-panel">
+    <h2 id="audit-score">Score</h2>
+    <pre id="audit-json">Loading...</pre>
+  </section>
+</main>
+<script>
+fetch('/production/api/audit').then(r => r.json()).then(data => {
+  document.getElementById('audit-score').textContent = `Launch audit score: ${data.score}/100`;
+  document.getElementById('audit-json').textContent = JSON.stringify(data, null, 2);
+});
+</script>
+{% endblock %}

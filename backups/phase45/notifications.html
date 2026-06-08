@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Notification Settings — CHAIN{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto p-4">
+  <h1 class="text-2xl font-bold mb-6">Notification Settings</h1>
+
+  {% if vapid_configured %}
+  <div class="mb-6 p-4 rounded-xl" style="background:var(--surface-card, #1e1e2e);">
+    <div class="flex items-center justify-between mb-2">
+      <div>
+        <h3 class="font-semibold">Browser Push Notifications</h3>
+        <p class="text-sm" style="color:var(--text-secondary, #9ca3af);">Receive alerts even when CHAIN is closed.</p>
+      </div>
+      <div>
+        <button id="pushSubscribeBtn" class="premium-btn primary px-4 py-2 rounded-lg text-sm font-medium">
+          <i class="fas fa-bell mr-1"></i> <span id="pushBtnText">Enable</span>
+        </button>
+      </div>
+    </div>
+    <div id="pushStatus" class="text-sm mt-2" style="color:var(--text-secondary, #9ca3af);"></div>
+    <div id="pushUnsupported" class="text-sm mt-2 hidden" style="color:#f59e0b;">
+      <i class="fas fa-exclamation-triangle mr-1"></i> Push notifications are not supported by this browser.
+    </div>
+  </div>
+  {% else %}
+  <div class="mb-6 p-4 rounded-xl" style="background:var(--surface-card, #1e1e2e);">
+    <div class="flex items-center gap-3">
+      <i class="fas fa-info-circle" style="color:#6b7280;"></i>
+      <div>
+        <p class="text-sm font-medium">Push notifications require VAPID keys in production.</p>
+        <p class="text-xs" style="color:var(--text-secondary, #9ca3af);">Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables to enable.</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="rounded-xl overflow-hidden" style="background:var(--surface-card, #1e1e2e);">
+    <div class="p-4 border-b" style="border-color:var(--border-color, #2d2d3d);">
+      <h3 class="font-semibold">Notification Categories</h3>
+      <p class="text-xs" style="color:var(--text-secondary, #9ca3af);">Choose which events trigger notifications.</p>
+    </div>
+    <div class="divide-y" style="border-color:var(--border-color, #2d2d3d);">
+      {% for key, label in [
+        ('messages', 'Messages'),
+        ('calls', 'Calls'),
+        ('live', 'Live'),
+        ('groups', 'Groups'),
+        ('wallet', 'Wallet'),
+        ('safety', 'Safety'),
+        ('creator_updates', 'Creator Updates')
+      ] %}
+      <div class="flex items-center justify-between p-4">
+        <div>
+          <p class="font-medium">{{ label }}</p>
+          <p class="text-xs" style="color:var(--text-secondary, #9ca3af);">
+            {% if key == 'messages' %}New message alerts
+            {% elif key == 'calls' %}Incoming and missed call alerts
+            {% elif key == 'live' %}When followed users go live
+            {% elif key == 'groups' %}Group invites and join requests
+            {% elif key == 'wallet' %}Payment and coin balance updates
+            {% elif key == 'safety' %}Security and privacy alerts
+            {% elif key == 'creator_updates' %}Gifts, subscriptions, and earnings{% endif %}
+          </p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" class="notif-pref-toggle sr-only peer" data-pref="{{ key }}"
+                 {% if preferences and preferences.get(key, true) %}checked{% endif %}>
+          <div class="w-9 h-5 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"
+               style="background:var(--bg-secondary, #374151);"></div>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/push_notifications.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const toggles = document.querySelectorAll('.notif-pref-toggle');
+  toggles.forEach(function(toggle) {
+    toggle.addEventListener('change', function() {
+      const key = this.dataset.pref;
+      const value = this.checked;
+      fetch('/push/preferences', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        body: JSON.stringify({[key]: value})
+      }).catch(function(){});
+    });
+  });
+});
+</script>
+{% endblock %}

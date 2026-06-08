@@ -11,11 +11,17 @@ def dashboard():
     profile = get_current_profile()
     # In a real app, check for is_admin flag
     # For now, let's just allow access
-    
+
+    def count_or_zero(sql):
+        rows = fast_query(sql, default=[])
+        if not rows:
+            return 0
+        return rows[0].get("count", 0)
+
     stats = {
-        "spam_reports": fast_query("SELECT COUNT(*) FROM chain_spam_reports")[0]['count'],
-        "fake_accounts": fast_query("SELECT COUNT(*) FROM chain_profiles WHERE is_fake = TRUE")[0]['count'],
-        "banned_users": fast_query("SELECT COUNT(*) FROM chain_profiles WHERE deleted_at IS NOT NULL")[0]['count']
+        "spam_reports": count_or_zero("SELECT COUNT(*) FROM chain_spam_reports"),
+        "fake_accounts": count_or_zero("SELECT COUNT(*) FROM chain_profiles WHERE is_fake = TRUE"),
+        "banned_users": count_or_zero("SELECT COUNT(*) FROM chain_profiles WHERE deleted_at IS NOT NULL")
     }
     
     reports = fast_query("""
@@ -25,7 +31,7 @@ def dashboard():
         JOIN chain_profiles target ON r.target_profile_id = target.id
         ORDER BY r.created_at DESC
         LIMIT 20
-    """)
+    """, default=[])
     
     return render_template("admin/safety.html", stats=stats, reports=reports, profile=profile)
 
