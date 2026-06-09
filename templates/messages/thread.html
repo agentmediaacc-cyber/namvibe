@@ -350,13 +350,24 @@
             </div>
         </div>
         
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 8px; position: relative;">
             {% if thread.thread_type != 'group' %}
-            <button class="composer-btn" onclick="initiateCall('audio')" title="Audio Call"><i class="fas fa-phone"></i></button>
-            <button class="composer-btn" onclick="initiateCall('video')" title="Video Call"><i class="fas fa-video"></i></button>
+            <button class="composer-btn" onclick="initiateCall('audio')" title="Audio Call" aria-label="Audio Call"><i class="fas fa-phone"></i></button>
+            <button class="composer-btn" onclick="initiateCall('video')" title="Video Call" aria-label="Video Call"><i class="fas fa-video"></i></button>
             {% endif %}
-            <button class="composer-btn" onclick="CHAIN_GROUP_CALL.create({threadId:'{{ thread.id }}',callType:'audio'})" title="Start Group Call"><i class="fas fa-users"></i></button>
-            <button class="composer-btn" onclick="toggleChatInfo()"><i class="fas fa-info-circle"></i></button>
+            <button class="composer-btn" onclick="CHAIN_GROUP_CALL.create({threadId:'{{ thread.id }}',callType:'audio'})" title="Start Group Call" aria-label="Group Call"><i class="fas fa-users"></i></button>
+            <button class="composer-btn" data-action="theme" onclick="toggleThemeMenu()" title="Theme" aria-label="Chat theme"><i class="fas fa-palette"></i></button>
+            <button class="composer-btn" onclick="toggleChatInfo()" title="Info" aria-label="Chat info"><i class="fas fa-info-circle"></i></button>
+            <!-- Theme Menu -->
+            <div id="theme-menu" class="theme-menu">
+                <button type="button" class="tm-item" data-theme="dark"><span class="tm-swatch" style="background:#0d0d1d;"></span> Dark<span class="tm-check"><i class="fas fa-check"></i></span></button>
+                <button type="button" class="tm-item" data-theme="light"><span class="tm-swatch" style="background:#fff;border-color:#ccc;"></span> Light<span class="tm-check"><i class="fas fa-check"></i></span></button>
+                <button type="button" class="tm-item" data-theme="namibia"><span class="tm-swatch" style="background:linear-gradient(135deg,#ffcc00,#ff8800);"></span> Namibia Gold<span class="tm-check"><i class="fas fa-check"></i></span></button>
+                <button type="button" class="tm-item" data-theme="ocean"><span class="tm-swatch" style="background:linear-gradient(135deg,#00b4d8,#0077b6);"></span> Ocean Blue<span class="tm-check"><i class="fas fa-check"></i></span></button>
+                <button type="button" class="tm-item" data-theme="emerald"><span class="tm-swatch" style="background:linear-gradient(135deg,#059669,#10b981);"></span> Emerald Green<span class="tm-check"><i class="fas fa-check"></i></span></button>
+                <button type="button" class="tm-item" data-theme="purple"><span class="tm-swatch" style="background:linear-gradient(135deg,#7c3aed,#a855f7);"></span> Purple Night<span class="tm-check"><i class="fas fa-check"></i></span></button>
+                <button type="button" class="tm-item" data-theme="minimal"><span class="tm-swatch" style="background:#111;border-color:#333;"></span> Minimal<span class="tm-check"><i class="fas fa-check"></i></span></button>
+            </div>
         </div>
     </header>
 
@@ -463,6 +474,9 @@
         <i class="fas fa-times" onclick="cancelReply()" style="cursor: pointer;"></i>
     </div>
 
+    <!-- Smart Reply Chips -->
+    <div id="smart-reply-bar" class="smart-reply-bar" role="toolbar" aria-label="Smart replies"></div>
+
     <!-- Selection Toolbar -->
     <div class="multi-bar" id="multi-bar">
         <span class="mb-count" id="multi-count">0 selected</span>
@@ -483,21 +497,33 @@
         <input type="hidden" id="parent_message_id" name="parent_message_id" value="">
 
         <div class="composer-actions">
-            <button type="button" class="composer-btn" onclick="toggleMediaPanel()" title="Attach"><i class="fas fa-plus"></i></button>
-            <button type="button" class="composer-btn" data-action="emoji" title="Emoji"><i class="far fa-face-smile"></i></button>
+            <button type="button" class="composer-btn" onclick="toggleMediaPanel()" title="Attach" aria-label="Attach"><i class="fas fa-plus"></i></button>
+            <button type="button" class="composer-btn" data-action="emoji" title="Emoji" aria-label="Emoji picker"><i class="far fa-face-smile"></i></button>
+            <button type="button" class="composer-btn" data-action="ai" title="AI Assistant" aria-label="AI Assistant"><i class="fas fa-wand-magic-sparkles"></i></button>
         </div>
 
         <input type="file" id="file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden>
 
         <div class="composer-input-wrap">
-            <textarea id="msg-input" class="composer-textarea" placeholder="Message..." rows="1" data-draft-input="{{ thread.id }}"></textarea>
+            <textarea id="msg-input" class="composer-textarea" placeholder="Message..." rows="1" data-draft-input="{{ thread.id }}" aria-label="Message input"></textarea>
         </div>
 
         <div class="composer-actions">
-            <button type="button" class="composer-btn composer-mic" id="mic-btn" data-voice-record data-thread-id="{{ thread.id }}" title="Voice message"><i class="fas fa-microphone"></i></button>
-            <button type="submit" class="composer-send" id="send-btn" disabled title="Send"><i class="fas fa-paper-plane"></i></button>
+            <button type="button" class="composer-btn composer-mic" id="mic-btn" data-voice-record data-thread-id="{{ thread.id }}" title="Voice message" aria-label="Voice message"><i class="fas fa-microphone"></i></button>
+            <button type="submit" class="composer-send" id="send-btn" disabled title="Send" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
         </div>
     </form>
+
+    <!-- Location Preview -->
+    <div id="location-preview" class="location-preview" hidden>
+        <div class="lp-map"><i class="fas fa-map-marker-alt"></i></div>
+        <div class="lp-info">
+            <div style="font-size:13px;font-weight:600;">My Location</div>
+            <div class="lp-coords">Loading...</div>
+        </div>
+        <button type="button" id="location-send" class="lp-send" aria-label="Send location"><i class="fas fa-paper-plane"></i></button>
+        <button type="button" id="location-cancel" class="lp-cancel" aria-label="Cancel location"><i class="fas fa-times"></i></button>
+    </div>
 
     <!-- Voice Recording Overlay -->
     <div class="voice-overlay" id="voice-overlay">
@@ -515,6 +541,9 @@
         </div>
     </div>
 
+    <!-- Voice Slide Cancel Zone -->
+    <div class="vo-slide-cancel-zone" id="voice-cancel-zone"><span><i class="fas fa-chevron-up"></i> Slide to cancel</span></div>
+
     <div class="attachment-preview" id="attachment-preview" hidden>
         <div class="attachment-preview-body" id="attachment-preview-body"></div>
         <button type="button" class="attachment-remove" id="attachment-remove"><i class="fas fa-times"></i></button>
@@ -528,20 +557,62 @@
     </div>
 
     <!-- Message Context Menu -->
-    <div id="msg-context-menu" class="dropdown-menu shadow-lg" style="display: none; position: fixed; z-index: 1000; min-width: 180px; border-radius: 12px;">
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="copyMessage()"><i class="far fa-copy mr-3 text-muted"></i> Copy</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initReply()"><i class="fas fa-reply mr-3 text-muted"></i> Reply</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initForward()"><i class="fas fa-share mr-3 text-muted"></i> Forward</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initPin()"><i class="fas fa-thumbtack mr-3 text-muted"></i> Pin Message</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="saveDraftNow()"><i class="fas fa-pen mr-3 text-muted"></i> Save Draft</a>
+    <div id="msg-context-menu" class="dropdown-menu shadow-lg" style="display: none; position: fixed; z-index: 1000; min-width: 200px; border-radius: 12px;">
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="copyMessage()" style="gap:8px;"><i class="far fa-copy mr-3 text-muted" style="width:18px;"></i> Copy</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initReply()" style="gap:8px;"><i class="fas fa-reply mr-3 text-muted" style="width:18px;"></i> Reply</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initForward()" style="gap:8px;"><i class="fas fa-share mr-3 text-muted" style="width:18px;"></i> Forward</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initPin()" style="gap:8px;"><i class="fas fa-thumbtack mr-3 text-muted" style="width:18px;"></i> Pin Message</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="saveDraftNow()" style="gap:8px;"><i class="fas fa-pen mr-3 text-muted" style="width:18px;"></i> Save Draft</a>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initEdit()"><i class="fas fa-pen mr-3 text-muted"></i> Edit</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="showReactionPicker(event, selectedMsgId)"><i class="far fa-face-smile mr-3 text-muted"></i> React</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initEdit()" style="gap:8px;"><i class="fas fa-pen mr-3 text-muted" style="width:18px;"></i> Edit</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="showReactionPicker(event, selectedMsgId)" style="gap:8px;"><i class="far fa-face-smile mr-3 text-muted" style="width:18px;"></i> React</a>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteMe()"><i class="far fa-trash-can mr-3"></i> Delete for me</a>
-        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteEveryone()"><i class="fas fa-user-slash mr-3"></i> Delete for everyone</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="shareAsStory()" style="gap:8px;"><i class="fas fa-story mr-3 text-muted" style="width:18px;"></i> Share as Story</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="shareAsPost()" style="gap:8px;"><i class="fas fa-newspaper mr-3 text-muted" style="width:18px;"></i> Share as Post</a>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="blockUser()"><i class="fas fa-ban mr-3"></i> Block User</a>
+        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="showMessageInfo()" style="gap:8px;"><i class="fas fa-info-circle mr-3 text-muted" style="width:18px;"></i> Message Info</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteMe()" style="gap:8px;"><i class="far fa-trash-can mr-3" style="width:18px;"></i> Delete for me</a>
+        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteEveryone()" style="gap:8px;"><i class="fas fa-user-slash mr-3" style="width:18px;"></i> Delete for everyone</a>
+        <div class="dropdown-divider"></div>
+        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="blockUser()" style="gap:8px;"><i class="fas fa-ban mr-3" style="width:18px;"></i> Block User</a>
+    </div>
+
+    <!-- Message Info Modal -->
+    <div id="message-info-modal" class="modal-overlay" onclick="if(event.target===this)closeMessageInfo()">
+        <div class="modal-box">
+            <div class="mb-header">
+                <h5><i class="fas fa-info-circle" style="color:var(--chat-primary);"></i> Message Info</h5>
+                <button type="button" onclick="closeMessageInfo()" aria-label="Close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="mb-body" id="message-info-body">
+                <div class="mb-row"><span class="mb-label">Status</span><span class="mb-value" id="mi-status">—</span></div>
+                <div class="mb-row"><span class="mb-label">Sent</span><span class="mb-value" id="mi-sent">—</span></div>
+                <div class="mb-row"><span class="mb-label">Delivered</span><span class="mb-value" id="mi-delivered">—</span></div>
+                <div class="mb-row"><span class="mb-label">Seen</span><span class="mb-value" id="mi-seen">—</span></div>
+                <div class="mb-row"><span class="mb-label">From</span><span class="mb-value" id="mi-sender">—</span></div>
+                <div class="mb-row"><span class="mb-label">Type</span><span class="mb-value" id="mi-type">text</span></div>
+                <div class="mb-row"><span class="mb-label">Message ID</span><span class="mb-value copyable" id="mi-id" onclick="copyMessageId()">—</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Assistant Panel -->
+    <div id="ai-panel" class="ai-panel">
+      <div class="ai-header">
+        <h6><i class="fas fa-wand-magic-sparkles" style="color:var(--chat-primary);"></i> AI Assistant</h6>
+        <button type="button" onclick="toggleAIPanel()" aria-label="Close AI panel"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="ai-body">
+        <button type="button" class="ai-btn" data-ai-mode="friendly"><span class="ai-icon" style="background:linear-gradient(135deg,#f97316,#ef4444);"><i class="fas fa-face-smile"></i></span><span class="ai-label">Make Friendly</span><span class="ai-badge">Warm tone</span></button>
+        <button type="button" class="ai-btn" data-ai-mode="professional"><span class="ai-icon" style="background:linear-gradient(135deg,#3b82f6,#6366f1);"><i class="fas fa-briefcase"></i></span><span class="ai-label">Make Professional</span><span class="ai-badge">Formal</span></button>
+        <button type="button" class="ai-btn" data-ai-mode="shorter"><span class="ai-icon" style="background:linear-gradient(135deg,#8b5cf6,#a855f7);"><i class="fas fa-compress"></i></span><span class="ai-label">Make Shorter</span><span class="ai-badge">Concise</span></button>
+        <button type="button" class="ai-btn" data-ai-mode="grammar"><span class="ai-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a);"><i class="fas fa-spell-check"></i></span><span class="ai-label">Fix Grammar</span><span class="ai-badge">Correct</span></button>
+        <div class="ai-divider"></div>
+        <button type="button" class="ai-btn" data-ai-mode="translate"><span class="ai-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2);"><i class="fas fa-language"></i></span><span class="ai-label">Translate to English</span></button>
+        <button type="button" class="ai-btn" data-ai-mode="suggest"><span class="ai-icon" style="background:linear-gradient(135deg,#ec4899,#d946ef);"><i class="fas fa-wand-magic-sparkles"></i></span><span class="ai-label">Suggest Reply</span></button>
+        <button type="button" class="ai-btn" data-ai-mode="template"><span class="ai-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);"><i class="fas fa-rectangle-ad"></i></span><span class="ai-label">Quick Reply Templates</span></button>
+      </div>
     </div>
 
     <!-- Emoji Picker Panel -->
@@ -1490,12 +1561,96 @@
         }
     }
 
+    // ---- Share as Story / Post ----
+    function shareAsStory() {
+        if (!selectedMsgText && !selectedMsgId) return;
+        const text = selectedMsgText || 'Message';
+        const url = window.location.origin + '/stories/create?text=' + encodeURIComponent(text);
+        fetch(url, {method:'HEAD', credentials:'same-origin'}).then(r => {
+            if (r.ok) window.location.href = url;
+            else fallbackShare(text);
+        }).catch(() => fallbackShare(text));
+        document.getElementById('msg-context-menu').style.display = 'none';
+    }
+
+    function shareAsPost() {
+        if (!selectedMsgText && !selectedMsgId) return;
+        const text = selectedMsgText || 'Message';
+        const url = window.location.origin + '/feed/create?text=' + encodeURIComponent(text);
+        fetch(url, {method:'HEAD', credentials:'same-origin'}).then(r => {
+            if (r.ok) window.location.href = url;
+            else fallbackShare(text);
+        }).catch(() => fallbackShare(text));
+        document.getElementById('msg-context-menu').style.display = 'none';
+    }
+
+    function fallbackShare(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Message copied — share it anywhere!');
+        }).catch(() => {
+            prompt('Copy this message:', text);
+        });
+    }
+
+    // ---- Message Info ----
+    async function showMessageInfo() {
+        if (!selectedMsgId) return;
+        const modal = document.getElementById('message-info-modal');
+        const body = document.getElementById('message-info-body');
+        if (!modal || !body) return;
+        modal.classList.add('show');
+        document.getElementById('msg-context-menu').style.display = 'none';
+
+        document.getElementById('mi-status').textContent = 'Loading...';
+        document.getElementById('mi-sent').textContent = '—';
+        document.getElementById('mi-delivered').textContent = '—';
+        document.getElementById('mi-seen').textContent = '—';
+        document.getElementById('mi-sender').textContent = '—';
+        document.getElementById('mi-type').textContent = 'text';
+        document.getElementById('mi-id').textContent = selectedMsgId;
+
+        try {
+            const resp = await fetch('/messages/api/messages/' + selectedMsgId + '/info', {credentials:'same-origin'});
+            const data = await resp.json().catch(() => ({}));
+            if (data.ok && data.message) {
+                const m = data.message;
+                document.getElementById('mi-status').textContent = m.delivery_status || 'sent';
+                document.getElementById('mi-sent').textContent = m.created_at ? new Date(m.created_at).toLocaleString() : '—';
+                document.getElementById('mi-delivered').textContent = m.delivered_at ? new Date(m.delivered_at).toLocaleString() : '—';
+                document.getElementById('mi-seen').textContent = m.seen_at ? new Date(m.seen_at).toLocaleString() : '—';
+                document.getElementById('mi-sender').textContent = m.sender_username || m.sender_profile_id || '—';
+                document.getElementById('mi-type').textContent = m.message_type || 'text';
+                document.getElementById('mi-id').textContent = selectedMsgId;
+            }
+        } catch(e) {
+            document.getElementById('mi-status').textContent = 'sent';
+        }
+    }
+
+    function closeMessageInfo() {
+        document.getElementById('message-info-modal').classList.remove('show');
+    }
+
+    function copyMessageId() {
+        const el = document.getElementById('mi-id');
+        if (el && el.textContent) {
+            navigator.clipboard.writeText(el.textContent);
+            el.textContent = 'Copied!';
+            setTimeout(() => { el.textContent = selectedMsgId; }, 2000);
+        }
+    }
+
     // ---- Expose globals ----
     window.handleMsgClick = handleMsgClick;
     window.toggleSelection = toggleSelection;
     window.clearSelection = clearSelection;
     window.multiAction = multiAction;
     window.callHistoryAction = callHistoryAction;
+    window.shareAsStory = shareAsStory;
+    window.shareAsPost = shareAsPost;
+    window.showMessageInfo = showMessageInfo;
+    window.closeMessageInfo = closeMessageInfo;
+    window.copyMessageId = copyMessageId;
 </script>
 <a class="safety-report-user" href="/safety/report">Report User</a>
 <button class="safety-report-message" type="button" data-safety-action="report-message">Report Message</button>

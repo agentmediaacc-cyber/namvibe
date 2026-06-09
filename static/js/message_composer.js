@@ -60,6 +60,7 @@
     bindEvents();
     restoreDraft();
     updateSendButton();
+    initSmartFeatures();
   }
 
   /* ---- Auto-grow ---- */
@@ -457,6 +458,521 @@
     cancelReply();
   }
 
+  /* ============================================================
+     Smart Composer Features: AI, Smart Replies, Location, Media,
+     Voice Upgrades, Reply/Edit/Quote, Shortcuts, Themes, A11y
+     ============================================================ */
+
+  /* ---- AI Assistant ---- */
+  C.aiTransforms = {
+    friendly: { icon: 'fa-face-smile', label: 'Make Friendly', hint: 'Warm, casual tone' },
+    professional: { icon: 'fa-briefcase', label: 'Make Professional', hint: 'Formal business tone' },
+    shorter: { icon: 'fa-compress', label: 'Make Shorter', hint: 'Concise version' },
+    grammar: { icon: 'fa-spell-check', label: 'Fix Grammar', hint: 'Correct spelling & grammar' },
+    translate: { icon: 'fa-language', label: 'Translate', hint: 'Translate to English' },
+    suggest: { icon: 'fa-wand-magic-sparkles', label: 'Suggest Reply', hint: 'AI suggests a response' },
+    template: { icon: 'fa-rectangle-ad', label: 'Quick Reply Templates', hint: 'Common replies' },
+  };
+
+  function toggleAIPanel() {
+    var panel = document.getElementById('ai-panel');
+    if (!panel) return;
+    var shown = panel.classList.contains('show');
+    panel.classList.toggle('show', !shown);
+    if (C.emojiPanel) C.emojiPanel.style.display = 'none';
+    if (C.stickerPanel) C.stickerPanel.style.display = 'none';
+    if (C.gifPanel) C.gifPanel.style.display = 'none';
+    if (C.attachPanel) C.attachPanel.style.display = 'none';
+    var themeMenu = document.getElementById('theme-menu');
+    if (themeMenu) themeMenu.classList.remove('show');
+  }
+
+  function applyAITransform(mode) {
+    var input = C.input;
+    var text = input.value.trim();
+    var panel = document.getElementById('ai-panel');
+    if (panel) panel.classList.remove('show');
+
+    if (mode === 'template') {
+      showSmartReplies(['Okay, sounds good!', 'I will check and get back to you.', 'Thank you!', 'Please send details.', 'On it!', 'Got it, thanks!', 'Let me confirm.', 'Will do!']);
+      return;
+    }
+
+    if (!text) {
+      if (mode === 'suggest') {
+        showSmartReplies(['Sure, what do you need?', 'Let me look into that.', 'I am here to help!', 'Can you clarify?']);
+        return;
+      }
+      return;
+    }
+
+    var transformed = transformText(text, mode);
+    if (transformed && transformed !== text) {
+      input.value = transformed;
+      autoGrow();
+      updateSendButton();
+      showSuggestionChip(transformed);
+    }
+  }
+
+  function transformText(text, mode) {
+    var transforms = {
+      friendly: function (t) {
+        var lower = t.toLowerCase();
+        if (lower.startsWith('please') || lower.includes('thanks') || lower.includes('thank you')) return t;
+        return 'Hey! ' + t.charAt(0).toUpperCase() + t.slice(1) + ' 😊';
+      },
+      professional: function (t) {
+        if (t.length > 1) return 'Dear team, ' + t.charAt(0).toLowerCase() + t.slice(1).replace(/[.!]+$/, '') + '. Best regards.';
+        return t;
+      },
+      shorter: function (t) {
+        if (t.length > 50) return t.slice(0, 47) + '...';
+        return t;
+      },
+      grammar: function (t) {
+        return t.replace(/\bi\b/g, 'I').replace(/ u /g, ' you ').replace(/r u/g, 'are you').replace(/pls/g, 'please').replace(/thx/g, 'thanks').replace(/im /g, "I'm ").replace(/dont/g, "don't").replace(/cant/g, "can't").replace(/wont/g, "won't").replace(/didnt/g, "didn't");
+      },
+      translate: function (t) {
+        return t;
+      },
+    };
+    return (transforms[mode] || function (t) { return t; })(text);
+  }
+
+  function showSuggestionChip(transformed) {
+    var existing = document.querySelector('.ai-suggestion-chip');
+    if (existing) existing.remove();
+    var chip = document.createElement('div');
+    chip.className = 'ai-suggestion-chip';
+    chip.innerHTML = '<span>Use suggestion</span>';
+    chip.onclick = function () { chip.remove(); };
+    var preview = document.getElementById('ai-panel');
+    if (preview) {
+      var body = preview.querySelector('.ai-body');
+      if (body) body.appendChild(chip);
+    }
+  }
+
+  /* ---- Smart Reply Chips ---- */
+  function showSmartReplies(replies) {
+    var bar = document.getElementById('smart-reply-bar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    (replies || ['Okay', 'Thank you', 'I will check', 'Please send details']).forEach(function (r) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'smart-reply-chip';
+      chip.textContent = r;
+      chip.onclick = function () { insertSmartReply(r); };
+      bar.appendChild(chip);
+    });
+    bar.classList.add('show');
+    C._smartReplyTimer = setTimeout(function () {
+      bar.classList.remove('show');
+    }, 15000);
+    if (C._smartReplyTimer) clearTimeout(C._smartReplyTimer);
+    C._smartReplyTimer = setTimeout(function () {
+      bar.classList.remove('show');
+    }, 15000);
+  }
+
+  function hideSmartReplies() {
+    var bar = document.getElementById('smart-reply-bar');
+    if (bar) bar.classList.remove('show');
+    if (C._smartReplyTimer) { clearTimeout(C._smartReplyTimer); C._smartReplyTimer = null; }
+  }
+
+  function insertSmartReply(text) {
+    C.input.value = text;
+    autoGrow();
+    updateSendButton();
+    hideSmartReplies();
+    C.input.focus();
+  }
+
+  /* ---- Location Sharing ---- */
+  function shareLocation() {
+    if (!navigator.geolocation) {
+      C.input.value = '📍 My location: https://maps.google.com/?q=0,0 (Location unavailable)';
+      autoGrow(); updateSendButton();
+      return;
+    }
+    var preview = document.getElementById('location-preview');
+    if (preview) preview.hidden = false;
+
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        C._pendingLocation = { lat: lat, lng: lng };
+        updateLocationPreview(lat, lng);
+      },
+      function () {
+        C._pendingLocation = { lat: 0, lng: 0 };
+        if (preview) preview.hidden = true;
+        C.input.value = '📍 My location: https://maps.google.com/?q=0,0';
+        autoGrow(); updateSendButton();
+      }
+    );
+  }
+
+  function updateLocationPreview(lat, lng) {
+    var preview = document.getElementById('location-preview');
+    if (!preview) return;
+    preview.hidden = false;
+    var coords = preview.querySelector('.lp-coords');
+    if (coords) coords.textContent = lat.toFixed(4) + ', ' + lng.toFixed(4);
+    var mapEl = preview.querySelector('.lp-map i');
+    if (mapEl) mapEl.className = 'fas fa-map-marker-alt';
+  }
+
+  function sendLocation() {
+    var loc = C._pendingLocation;
+    if (!loc) return;
+    var body = '📍 My location: https://maps.google.com/?q=' + loc.lat + ',' + loc.lng;
+    C.input.value = body;
+    autoGrow();
+    updateSendButton();
+    C._pendingLocation = null;
+    var preview = document.getElementById('location-preview');
+    if (preview) preview.hidden = true;
+  }
+
+  function cancelLocation() {
+    C._pendingLocation = null;
+    var preview = document.getElementById('location-preview');
+    if (preview) preview.hidden = true;
+  }
+
+  /* ---- Media: File size warning, camera ---- */
+  function uploadFileWithCheck(file) {
+    if (!file) return;
+    var maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('File too large. Max 50 MB.');
+      return;
+    }
+    uploadFile(file);
+  }
+
+  function captureCamera() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*;capture=camera';
+    input.onchange = function () {
+      if (input.files && input.files[0]) uploadFileWithCheck(input.files[0]);
+    };
+    input.click();
+  }
+
+  /* ---- Voice: Slide cancel zone detection ---- */
+  C._voiceStartY = 0;
+  C._voiceSlideCancel = false;
+
+  function onVoiceTouchStart(e) {
+    C._voiceStartY = e.touches ? e.touches[0].clientY : e.clientY;
+    C._voiceSlideCancel = false;
+    startRecording();
+  }
+
+  function onVoiceTouchMove(e) {
+    if (!C.isRecording) return;
+    var y = e.touches ? e.touches[0].clientY : e.clientY;
+    var diff = y - C._voiceStartY;
+    if (diff > 60) {
+      C._voiceSlideCancel = true;
+      var zone = document.querySelector('.vo-slide-cancel-zone');
+      if (zone) zone.classList.add('active');
+    }
+  }
+
+  function onVoiceTouchEnd(e) {
+    var zone = document.querySelector('.vo-slide-cancel-zone');
+    if (zone) zone.classList.remove('active');
+    if (C._voiceSlideCancel) {
+      cancelRecording();
+      C._voiceSlideCancel = false;
+    } else if (C.isRecording) {
+      stopAndSendVoice();
+    }
+  }
+
+  /* ---- Reply/Edit/Quote preview in composer ---- */
+  function initReplyFromComposer(msgId, msgText, author) {
+    var preview = document.getElementById('reply-preview');
+    var textEl = document.getElementById('reply-text');
+    var parentId = document.getElementById('parent_message_id');
+    if (preview && textEl && parentId) {
+      preview.style.display = 'flex';
+      textEl.innerHTML = '<strong>' + (author || '') + '</strong> ' + (msgText || '');
+      parentId.value = msgId;
+      C._replyMode = msgId;
+    }
+    C.input.focus();
+  }
+
+  function cancelReplyFromComposer() {
+    var preview = document.getElementById('reply-preview');
+    var parentId = document.getElementById('parent_message_id');
+    if (preview) preview.style.display = 'none';
+    if (parentId) parentId.value = '';
+    C._replyMode = null;
+  }
+
+  function initEditFromComposer(msgId, msgText) {
+    C.input.value = msgText || '';
+    autoGrow();
+    updateSendButton();
+    C._editMode = msgId;
+    C._originalText = msgText || '';
+    var editPreview = document.getElementById('edit-preview');
+    if (editPreview) editPreview.classList.add('show');
+    C.input.focus();
+  }
+
+  function cancelEditFromComposer() {
+    C._editMode = null;
+    C._originalText = null;
+    var editPreview = document.getElementById('edit-preview');
+    if (editPreview) editPreview.classList.remove('show');
+    var currentText = C.input.value;
+    if (currentText === '') {
+      C.input.value = C._originalText || '';
+      autoGrow();
+    }
+  }
+
+  /* ---- Keyboard Shortcuts ---- */
+  function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function (e) {
+      var tag = (e.target || {}).tagName || '';
+      var isInput = tag === 'INPUT' || tag === 'TEXTAREA';
+
+      if (e.key === 'Escape') {
+        var panel = document.getElementById('ai-panel');
+        if (panel && panel.classList.contains('show')) {
+          panel.classList.remove('show'); e.preventDefault(); return;
+        }
+        var themeMenu = document.getElementById('theme-menu');
+        if (themeMenu && themeMenu.classList.contains('show')) {
+          themeMenu.classList.remove('show'); e.preventDefault(); return;
+        }
+        if (C.emojiPanel && C.emojiPanel.style.display === 'block') {
+          C.emojiPanel.style.display = 'none'; e.preventDefault(); return;
+        }
+        if (C._editMode) { cancelEditFromComposer(); e.preventDefault(); return; }
+        if (C._replyMode) { cancelReplyFromComposer(); e.preventDefault(); return; }
+        hideSmartReplies();
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.shiftKey && (e.key === 'e' || e.key === 'E')) {
+          e.preventDefault();
+          toggleEmojiPanel();
+          return;
+        }
+        if (e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+          e.preventDefault();
+          var fileInput = document.getElementById('file-input');
+          if (fileInput) fileInput.click();
+          return;
+        }
+        if ((e.key === 'k' || e.key === 'K')) {
+          if (!isInput) {
+            e.preventDefault();
+            C.input.focus();
+            return;
+          }
+        }
+      }
+    });
+  }
+
+  /* ---- Theme Management ---- */
+  function applyTheme(theme) {
+    var themes = {
+      light: { '--chat-bg': '#ffffff', '--chat-surface': '#f5f5f5', '--chat-panel': 'rgba(0,0,0,0.05)', '--chat-border': 'rgba(0,0,0,0.1)', '--chat-text': '#1a1a1a', '--chat-muted': '#666', '--chat-bubble-mine': 'linear-gradient(135deg,#ff2f7d,#7c3aed)', '--chat-bubble-theirs': 'rgba(0,0,0,0.06)' },
+      dark: { '--chat-bg': '#070711', '--chat-surface': '#0d0d1d', '--chat-panel': 'rgba(255,255,255,0.06)', '--chat-border': 'rgba(255,255,255,0.10)', '--chat-text': '#fff', '--chat-muted': '#9ca3af', '--chat-bubble-mine': 'linear-gradient(135deg,#ff2f7d,#7c3aed)', '--chat-bubble-theirs': 'rgba(255,255,255,0.10)' },
+      namibia: { '--chat-bg': '#0a0a0f', '--chat-surface': '#12121f', '--chat-panel': 'rgba(255,200,50,0.08)', '--chat-border': 'rgba(255,200,50,0.15)', '--chat-text': '#fff', '--chat-muted': '#b8943a', '--chat-bubble-mine': 'linear-gradient(135deg,#ffcc00,#ff8800)', '--chat-bubble-theirs': 'rgba(255,200,50,0.10)' },
+      ocean: { '--chat-bg': '#0a1628', '--chat-surface': '#0f1f3a', '--chat-panel': 'rgba(100,200,255,0.08)', '--chat-border': 'rgba(100,200,255,0.15)', '--chat-text': '#fff', '--chat-muted': '#7eb8da', '--chat-bubble-mine': 'linear-gradient(135deg,#00b4d8,#0077b6)', '--chat-bubble-theirs': 'rgba(100,200,255,0.10)' },
+      emerald: { '--chat-bg': '#0a1a0f', '--chat-surface': '#0f2415', '--chat-panel': 'rgba(50,255,150,0.08)', '--chat-border': 'rgba(50,255,150,0.15)', '--chat-text': '#fff', '--chat-muted': '#6ee7b7', '--chat-bubble-mine': 'linear-gradient(135deg,#059669,#10b981)', '--chat-bubble-theirs': 'rgba(50,255,150,0.10)' },
+      purple: { '--chat-bg': '#0f0a1a', '--chat-surface': '#1a0f2e', '--chat-panel': 'rgba(200,100,255,0.08)', '--chat-border': 'rgba(200,100,255,0.15)', '--chat-text': '#fff', '--chat-muted': '#c084fc', '--chat-bubble-mine': 'linear-gradient(135deg,#7c3aed,#a855f7)', '--chat-bubble-theirs': 'rgba(200,100,255,0.10)' },
+      minimal: { '--chat-bg': '#000', '--chat-surface': '#111', '--chat-panel': 'rgba(255,255,255,0.04)', '--chat-border': 'rgba(255,255,255,0.06)', '--chat-text': '#eee', '--chat-muted': '#555', '--chat-bubble-mine': '#333', '--chat-bubble-theirs': '#1a1a1a' },
+    };
+    var vars = themes[theme] || themes.dark;
+    var root = document.documentElement;
+    Object.keys(vars).forEach(function (key) {
+      root.style.setProperty(key, vars[key]);
+    });
+    try { localStorage.setItem('chain_chat_theme', theme); } catch (e) {}
+    document.querySelectorAll('#theme-menu .tm-item').forEach(function (item) {
+      item.classList.toggle('active', item.dataset.theme === theme);
+    });
+  }
+
+  function loadSavedTheme() {
+    try {
+      var saved = localStorage.getItem('chain_chat_theme');
+      if (saved) applyTheme(saved);
+    } catch (e) {}
+  }
+
+  function toggleThemeMenu() {
+    var menu = document.getElementById('theme-menu');
+    if (!menu) return;
+    menu.classList.toggle('show');
+    if (C.emojiPanel) C.emojiPanel.style.display = 'none';
+    if (C.stickerPanel) C.stickerPanel.style.display = 'none';
+    if (C.gifPanel) C.gifPanel.style.display = 'none';
+    if (C.attachPanel) C.attachPanel.style.display = 'none';
+    var aiPanel = document.getElementById('ai-panel');
+    if (aiPanel) aiPanel.classList.remove('show');
+  }
+
+  /* ---- Accessibility: aria-labels & focus ---- */
+  function applyAriaLabels() {
+    document.querySelectorAll('.composer-btn, .composer-send, .composer-mic').forEach(function (btn) {
+      if (!btn.getAttribute('aria-label')) {
+        var title = btn.getAttribute('title') || btn.className;
+        btn.setAttribute('aria-label', title || 'Button');
+      }
+    });
+    if (C.input) C.input.setAttribute('aria-label', 'Message input');
+    if (C.sendBtn) C.sendBtn.setAttribute('aria-label', 'Send message');
+  }
+
+  /* ---- Init new features ---- */
+  function initSmartFeatures() {
+    loadSavedTheme();
+    setupKeyboardShortcuts();
+    applyAriaLabels();
+
+    /* AI panel toggle */
+    document.querySelectorAll('[data-action="ai"]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) { e.stopPropagation(); toggleAIPanel(); });
+    });
+
+    /* AI transform buttons (delegated) */
+    var aiBody = document.getElementById('ai-panel');
+    if (aiBody) {
+      aiBody.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-ai-mode]');
+        if (btn) applyAITransform(btn.dataset.aiMode);
+      });
+    }
+
+    /* Location buttons */
+    var locSend = document.getElementById('location-send');
+    if (locSend) locSend.addEventListener('click', sendLocation);
+    var locCancel = document.getElementById('location-cancel');
+    if (locCancel) locCancel.addEventListener('click', cancelLocation);
+
+    /* File input change (with size check) */
+    if (C.fileInput) {
+      var origChange = C.fileInput._listeners;
+      C.fileInput.addEventListener('change', function () {
+        if (C.fileInput.files && C.fileInput.files[0]) uploadFileWithCheck(C.fileInput.files[0]);
+      });
+    }
+
+    /* Mic with slide-to-cancel */
+    if (C.micBtn) {
+      C.micBtn.addEventListener('touchstart', onVoiceTouchStart, { passive: true });
+      C.micBtn.addEventListener('touchmove', onVoiceTouchMove, { passive: true });
+      C.micBtn.addEventListener('touchend', onVoiceTouchEnd, { passive: true });
+      C.micBtn.addEventListener('mousedown', function () {
+        C._voiceStartY = 0;
+        C._voiceSlideCancel = false;
+        startRecording();
+      });
+      C.micBtn.addEventListener('mousemove', function (e) {
+        if (!C.isRecording) return;
+        var diff = e.clientY - (C._voiceStartY || e.clientY);
+        if (diff > 60 && !C._voiceSlideCancel) {
+          C._voiceSlideCancel = true;
+          var zone = document.querySelector('.vo-slide-cancel-zone');
+          if (zone) zone.classList.add('active');
+        }
+      });
+      C.micBtn.addEventListener('mouseup', function () {
+        var zone = document.querySelector('.vo-slide-cancel-zone');
+        if (zone) zone.classList.remove('active');
+        if (C._voiceSlideCancel) { cancelRecording(); C._voiceSlideCancel = false; }
+        else if (C.isRecording) stopAndSendVoice();
+      });
+      C.micBtn.addEventListener('mouseleave', function () {
+        if (C.isRecording && !C._voiceSlideCancel) stopAndSendVoice();
+        var zone = document.querySelector('.vo-slide-cancel-zone');
+        if (zone) zone.classList.remove('active');
+      });
+    }
+
+    /* Voice lock button — hold mode */
+    var voiceLock = document.querySelector('#voice-overlay [data-voice-control="lock"]');
+    if (voiceLock) {
+      voiceLock.addEventListener('click', function () {
+        voiceLock.classList.toggle('locked');
+        if (voiceLock.classList.contains('locked')) {
+          C._voiceLocked = true;
+        } else {
+          C._voiceLocked = false;
+        }
+      });
+    }
+
+    /* Waveform animation during recording */
+    var waveformContainer = document.getElementById('recording-waveform');
+    if (waveformContainer && !waveformContainer.querySelector('span')) {
+      for (var i = 0; i < 16; i++) {
+        var bar = document.createElement('span');
+        waveformContainer.appendChild(bar);
+      }
+    }
+
+    /* Theme menu items (delegated) */
+    var themeMenu = document.getElementById('theme-menu');
+    if (themeMenu) {
+      themeMenu.addEventListener('click', function (e) {
+        var item = e.target.closest('[data-theme]');
+        if (item) {
+          applyTheme(item.dataset.theme);
+          themeMenu.classList.remove('show');
+        }
+      });
+    }
+
+    /* Click outside to close panels */
+    document.addEventListener('click', function (e) {
+      var aiPanel = document.getElementById('ai-panel');
+      if (aiPanel && aiPanel.classList.contains('show') && !aiPanel.contains(e.target) && !e.target.closest('[data-action="ai"]')) {
+        aiPanel.classList.remove('show');
+      }
+      var themeMenu = document.getElementById('theme-menu');
+      if (themeMenu && themeMenu.classList.contains('show') && !themeMenu.contains(e.target) && !e.target.closest('[data-action="theme"]')) {
+        themeMenu.classList.remove('show');
+      }
+    });
+
+    /* Expose new globals */
+    window.toggleAIPanel = toggleAIPanel;
+    window.applyAITransform = applyAITransform;
+    window.showSmartReplies = showSmartReplies;
+    window.hideSmartReplies = hideSmartReplies;
+    window.insertSmartReply = insertSmartReply;
+    window.shareLocation = shareLocation;
+    window.sendLocation = sendLocation;
+    window.cancelLocation = cancelLocation;
+    window.captureCamera = captureCamera;
+    window.initReplyFromComposer = initReplyFromComposer;
+    window.cancelReplyFromComposer = cancelReplyFromComposer;
+    window.initEditFromComposer = initEditFromComposer;
+    window.cancelEditFromComposer = cancelEditFromComposer;
+    window.applyTheme = applyTheme;
+    window.toggleThemeMenu = toggleThemeMenu;
+  }
+
   /* ---- Exposed Globals ---- */
   window.uploadFile = uploadFile;
   window.hideAttachmentPreview = hideAttachmentPreview;
@@ -475,6 +991,7 @@
     clearDraft: clearDraft,
     updateSendButton: updateSendButton,
     emitTypingStop: emitTypingStop,
+    hideSmartReplies: hideSmartReplies,
   };
 
   if (document.readyState === 'loading') {

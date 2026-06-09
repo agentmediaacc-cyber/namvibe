@@ -135,12 +135,15 @@ def send_message(thread_id, sender_profile_id, body, message_type="text",
             pass
 
     if client_message_id:
-        existing = fast_query(
-            "SELECT id FROM chain_messages WHERE sender_profile_id = %s AND client_message_id = %s LIMIT 1",
-            (sender_profile_id, client_message_id), default=[]
-        )
-        if existing:
-            return {"ok": True, "id": str(existing[0]["id"]), "duplicate": True, "delivery_status": "sent"}
+        try:
+            existing = fast_query(
+                "SELECT id FROM chain_messages WHERE sender_profile_id = %s AND client_message_id = %s LIMIT 1",
+                (sender_profile_id, client_message_id), default=[]
+            )
+            if existing:
+                return {"ok": True, "id": str(existing[0]["id"]), "duplicate": True, "delivery_status": "sent"}
+        except Exception:
+            pass
 
     message_id = str(uuid4())
 

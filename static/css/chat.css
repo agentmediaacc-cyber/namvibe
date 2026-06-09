@@ -519,3 +519,229 @@
 @keyframes waveAnim { 0%,100%{height:4px} 50%{height:20px} }
 @keyframes timeoutShrink { from { width: 100%; } to { width: 0%; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+@keyframes chipPop { 0%{transform:scale(0.8);opacity:0} 100%{transform:scale(1);opacity:1} }
+
+/* ---- PHASE 52: AI ASSISTANT PANEL ---- */
+.ai-panel {
+  display:none; position:absolute; bottom:100%; left:0; right:0;
+  background:var(--chat-surface); border-top:1px solid var(--chat-border);
+  border-radius:16px 16px 0 0; z-index:60; flex-direction:column;
+  max-height:320px; box-shadow:0 -4px 20px rgba(0,0,0,0.3);
+  animation:slideUp 0.2s ease;
+}
+.ai-panel.show { display:flex; }
+.ai-panel .ai-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px; border-bottom:1px solid var(--chat-border); flex-shrink:0;
+}
+.ai-panel .ai-header h6 { margin:0; font-size:14px; font-weight:700; }
+.ai-panel .ai-header button {
+  border:none; background:transparent; color:var(--chat-muted);
+  cursor:pointer; font-size:16px; padding:4px;
+}
+.ai-panel .ai-body { flex:1; overflow-y:auto; padding:8px; }
+.ai-panel .ai-btn {
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:10px 12px; border:none; background:transparent; color:var(--chat-text);
+  cursor:pointer; border-radius:10px; font-size:13px; text-align:left;
+  transition:background 0.15s;
+}
+.ai-panel .ai-btn:hover { background:var(--chat-panel); }
+.ai-panel .ai-btn .ai-icon {
+  width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
+  font-size:14px; flex-shrink:0;
+}
+.ai-panel .ai-btn .ai-label { flex:1; }
+.ai-panel .ai-btn .ai-badge {
+  font-size:10px; color:var(--chat-muted); background:var(--chat-panel);
+  padding:2px 8px; border-radius:999px;
+}
+.ai-panel .ai-divider { height:1px; background:var(--chat-border); margin:4px 0; }
+
+/* ---- PHASE 52: SMART REPLY CHIPS ---- */
+.smart-reply-bar {
+  display:none; padding:6px 12px; gap:6px; overflow-x:auto;
+  background:var(--chat-surface); border-top:1px solid var(--chat-border);
+  flex-shrink:0; -webkit-overflow-scrolling:touch;
+}
+.smart-reply-bar.show { display:flex; }
+.smart-reply-bar::-webkit-scrollbar { display:none; }
+.smart-reply-chip {
+  flex-shrink:0; padding:6px 14px; border-radius:999px; border:1px solid var(--chat-border);
+  background:var(--chat-panel); color:var(--chat-text); cursor:pointer;
+  font-size:13px; white-space:nowrap; transition:all 0.15s;
+  animation:chipPop 0.25s ease both; min-height:36px;
+}
+.smart-reply-chip:nth-child(1) { animation-delay:0s; }
+.smart-reply-chip:nth-child(2) { animation-delay:0.05s; }
+.smart-reply-chip:nth-child(3) { animation-delay:0.1s; }
+.smart-reply-chip:nth-child(4) { animation-delay:0.15s; }
+.smart-reply-chip:hover { background:var(--chat-primary-grad); color:#fff; border-color:var(--chat-primary); }
+.smart-reply-chip:active { transform:scale(0.95); }
+
+/* ---- PHASE 52: LOCATION CARD ---- */
+.location-card {
+  display:flex; flex-direction:column; gap:6px; padding:10px;
+  background:var(--chat-panel); border-radius:12px; border:1px solid var(--chat-border);
+  cursor:pointer; min-width:200px; transition:all 0.15s;
+}
+.location-card:hover { border-color:var(--chat-primary); }
+.location-card .lc-map {
+  width:100%; height:100px; border-radius:8px; background:linear-gradient(135deg,#667eea,#764ba2);
+  display:grid; place-items:center; color:#fff; font-size:24px;
+}
+.location-card .lc-address { font-size:12px; color:var(--chat-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.location-preview {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-top:1px solid var(--chat-border); background:var(--chat-surface);
+}
+.location-preview[hidden] { display:none; }
+.location-preview .lp-map {
+  width:60px; height:60px; border-radius:10px; flex-shrink:0;
+  background:linear-gradient(135deg,#667eea,#764ba2); display:grid; place-items:center; color:#fff; font-size:20px;
+}
+.location-preview .lp-info { flex:1; min-width:0; }
+.location-preview .lp-info .lp-coords { font-size:12px; color:var(--chat-muted); }
+.location-preview .lp-send {
+  border:none; border-radius:50%; width:36px; height:36px;
+  background:var(--chat-primary-grad); color:#fff; cursor:pointer; display:grid; place-items:center;
+}
+.location-preview .lp-cancel {
+  border:none; border-radius:50%; width:36px; height:36px;
+  background:var(--chat-panel); color:var(--chat-muted); cursor:pointer; display:grid; place-items:center;
+}
+
+/* ---- PHASE 52: MESSAGE INFO MODAL ---- */
+.modal-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+  z-index:5000; align-items:center; justify-content:center; padding:20px;
+}
+.modal-overlay.show { display:flex; }
+.modal-box {
+  background:var(--chat-surface); border-radius:16px; max-width:360px;
+  width:100%; border:1px solid var(--chat-border); overflow:hidden;
+  animation:slideUp 0.2s ease;
+}
+.modal-box .mb-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:1px solid var(--chat-border);
+}
+.modal-box .mb-header h5 { margin:0; font-size:15px; font-weight:700; }
+.modal-box .mb-header button {
+  border:none; background:transparent; color:var(--chat-muted);
+  cursor:pointer; font-size:16px;
+}
+.modal-box .mb-body { padding:16px; }
+.modal-box .mb-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; font-size:13px; border-bottom:1px solid var(--chat-border);
+}
+.modal-box .mb-row:last-child { border-bottom:none; }
+.modal-box .mb-row .mb-label { color:var(--chat-muted); }
+.modal-box .mb-row .mb-value { color:var(--chat-text); font-weight:600; text-align:right; word-break:break-all; }
+.modal-box .mb-row .mb-value.copyable {
+  cursor:pointer; color:var(--chat-primary); font-size:11px;
+  max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.modal-box .mb-row .mb-value.copyable:hover { text-decoration:underline; }
+
+/* ---- PHASE 52: CHAT THEMES ---- */
+.theme-menu {
+  display:none; position:absolute; bottom:100%; right:0;
+  background:var(--chat-surface); border:1px solid var(--chat-border);
+  border-radius:16px; padding:8px; z-index:60; min-width:200px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3); animation:slideUp 0.2s ease;
+}
+.theme-menu.show { display:block; }
+.theme-menu .tm-item {
+  display:flex; align-items:center; gap:8px; padding:8px 10px;
+  border:none; background:transparent; color:var(--chat-text); cursor:pointer;
+  border-radius:10px; width:100%; font-size:13px; transition:background 0.15s;
+}
+.theme-menu .tm-item:hover { background:var(--chat-panel); }
+.theme-menu .tm-item .tm-swatch {
+  width:24px; height:24px; border-radius:50%; flex-shrink:0;
+  border:1px solid var(--chat-border);
+}
+.theme-menu .tm-item .tm-check {
+  margin-left:auto; color:var(--chat-primary); display:none;
+}
+.theme-menu .tm-item.active .tm-check { display:inline; }
+.theme-menu .tm-divider { height:1px; background:var(--chat-border); margin:4px 0; }
+
+/* ---- PHASE 52: ACCESSIBILITY ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:0.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.01ms !important;
+  }
+}
+.outline-visible :focus {
+  outline:2px solid var(--chat-primary) !important;
+  outline-offset:2px !important;
+}
+
+/* ---- PHASE 52: DRAFT INDICATOR REFINEMENT ---- */
+.draft-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:10px; color:var(--chat-muted); padding:2px 6px;
+}
+
+/* ---- PHASE 52: REPLY/EDIT PREVIEW IN COMPOSER ---- */
+.composer-reply-preview {
+  display:none; align-items:center; gap:8px;
+  padding:8px 14px; background:var(--chat-panel);
+  border-top:1px solid var(--chat-border); flex-shrink:0;
+}
+.composer-reply-preview.show { display:flex; }
+.composer-reply-preview .crp-bar {
+  width:3px; height:32px; border-radius:2px; background:var(--chat-primary); flex-shrink:0;
+}
+.composer-reply-preview .crp-body { flex:1; min-width:0; }
+.composer-reply-preview .crp-body .crp-label { font-size:11px; color:var(--chat-primary); font-weight:700; }
+.composer-reply-preview .crp-body .crp-text { font-size:12px; color:var(--chat-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.composer-reply-preview .crp-cancel {
+  border:none; background:transparent; color:var(--chat-muted);
+  cursor:pointer; font-size:14px; width:32px; height:32px;
+  display:grid; place-items:center; border-radius:50%;
+}
+.composer-reply-preview .crp-cancel:hover { background:var(--chat-panel); color:var(--chat-text); }
+
+/* ---- PHASE 52: VOICE SLIDE CANCEL ZONE ---- */
+.vo-slide-cancel-zone {
+  position:absolute; bottom:0; left:0; right:0; height:80px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(239,68,68,0.15); border-top:2px solid #ef4444;
+  opacity:0; transition:opacity 0.2s; pointer-events:none;
+}
+.vo-slide-cancel-zone.active { opacity:1; pointer-events:auto; }
+.vo-slide-cancel-zone span { color:#ef4444; font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px; }
+
+/* ---- PHASE 52: KEYBOARD SHORTCUT HINT ---- */
+.kbd-hint {
+  position:absolute; bottom:calc(100% + 4px); right:0;
+  background:var(--chat-surface); border:1px solid var(--chat-border);
+  border-radius:10px; padding:8px 12px; font-size:11px; color:var(--chat-muted);
+  white-space:nowrap; z-index:50; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+}
+.kbd-hint.show { display:block; }
+.kbd-hint kbd {
+  display:inline-block; padding:1px 5px; font-size:10px; font-family:inherit;
+  background:var(--chat-panel); border-radius:4px; border:1px solid var(--chat-border);
+  margin:0 2px;
+}
+
+/* ---- PHASE 52: WAVEFORM ANIMATION ---- */
+.waveform-bar {
+  display:flex; align-items:center; gap:2px; height:40px;
+}
+.waveform-bar span {
+  width:3px; border-radius:2px; background:var(--chat-primary);
+  animation:waveAnim 0.6s ease infinite alternate;
+}
+.waveform-bar span:nth-child(2n) { animation-delay:0.1s; height:30px; }
+.waveform-bar span:nth-child(3n) { animation-delay:0.2s; height:16px; }
+.waveform-bar span:nth-child(5n) { animation-delay:0.3s; height:36px; }
+.waveform-bar span:nth-child(7n) { animation-delay:0.15s; height:22px; }

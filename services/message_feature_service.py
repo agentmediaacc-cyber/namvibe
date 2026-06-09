@@ -633,6 +633,32 @@ def search_messages(profile_id, query):
     return [m for messages in _MESSAGES.values() for m in messages if pattern.search(m.get("body") or "")]
 
 
+def get_message_info(message_id, profile_id):
+    message_id = _uuid(message_id)
+    profile_id = _uuid(profile_id)
+    try:
+        rows = _safe_query(
+            f"SELECT {_MESSAGE_COLUMNS} FROM chain_messages WHERE id = %s LIMIT 1",
+            (message_id,), default=[]
+        )
+        if rows:
+            m = rows[0]
+            sender_username = None
+            try:
+                sr = _safe_query("SELECT username FROM chain_profiles WHERE id = %s", (m.get("sender_profile_id"),), default=[])
+                if sr:
+                    sender_username = sr[0].get("username")
+            except Exception:
+                pass
+            return {"ok": True, "message": {**m, "sender_username": sender_username}}
+    except Exception:
+        for messages in _MESSAGES.values():
+            for message in messages:
+                if message.get("id") == message_id:
+                    return {"ok": True, "message": message}
+    return {"ok": False, "error": "not_found"}
+
+
 def message_thread_id(message_id):
     message_id = str(message_id)
     rows = _safe_query("SELECT thread_id FROM chain_messages WHERE id = %s LIMIT 1", (message_id,), default=[])

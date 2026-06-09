@@ -152,42 +152,7 @@ def api_send():
     return jsonify(result or {"error": "Failed to send message"}), 400
 
 
-@message_bp.route("/api/thread/<thread_id>", methods=["GET"])
-@login_required
-def api_thread_alias(thread_id):
-    return api_thread(thread_id)
 
-
-@message_bp.route("/api/thread/<thread_id>/send", methods=["POST"])
-@login_required
-@limiter.limit("60/minute", key_func=user_or_ip_key)
-def api_send_thread_alias(thread_id):
-    profile = get_current_profile()
-    profile_id = (profile or {}).get("id") or session.get("profile_id")
-    if not profile_id:
-        return jsonify({"ok": False, "success": False, "error": "Profile setup incomplete"}), 400
-    data = request.get_json(silent=True) or {}
-    body = request.form.get("body") or data.get("body") or ""
-    media_file = request.files.get("media") or request.files.get("file") or request.files.get("attachment")
-    if media_file:
-        from services.messaging_engine import send_message
-        result = send_message(
-            thread_id,
-            profile_id,
-            body,
-            media_file,
-            client_message_id=request.form.get("client_message_id") or data.get("client_message_id"),
-            parent_message_id=request.form.get("parent_message_id") or data.get("parent_message_id"),
-        )
-        return jsonify({"ok": bool(result.get("success")), "success": bool(result.get("success")), **result}), 200 if result.get("success") else 400
-    result = phase29_messages.send_text_message(
-        thread_id,
-        profile_id,
-        body,
-        client_event_id=data.get("client_message_id") or data.get("client_event_id"),
-        parent_message_id=data.get("parent_message_id"),
-    )
-    return jsonify({"success": bool(result.get("ok")), **result}), 200 if result.get("ok") else 400
 
 @message_bp.route("/api/stickers")
 @login_required
@@ -222,33 +187,7 @@ def api_reaction(message_id):
     return jsonify({"success": True}), 200
 
 
-@message_bp.route("/api/message/<message_id>/react", methods=["POST"])
-@login_required
-def api_react_alias(message_id):
-    profile = get_current_profile()
-    profile_id = (profile or {}).get("id") or session.get("profile_id")
-    data = request.get_json(silent=True) or {}
-    reaction_type = data.get("reaction") or data.get("reaction_type") or request.form.get("reaction")
-    if not profile_id or not reaction_type:
-        return jsonify({"ok": False, "success": False, "error": "Missing data"}), 400
-    result = phase29_messages.add_reaction(message_id, profile_id, reaction_type)
-    return jsonify({"ok": bool(result.get("ok", True)), "success": bool(result.get("ok", True)), **(result or {})}), 200
 
-
-@message_bp.route("/api/message/<message_id>/unreact", methods=["POST"])
-@login_required
-def api_unreact_alias(message_id):
-    profile = get_current_profile()
-    profile_id = (profile or {}).get("id") or session.get("profile_id")
-    data = request.get_json(silent=True) or {}
-    reaction_type = data.get("reaction") or data.get("reaction_type") or request.form.get("reaction") or ""
-    if not profile_id:
-        return jsonify({"ok": False, "success": False, "error": "Unauthorized"}), 401
-    try:
-        remove_reaction(message_id, profile_id, reaction_type)
-    except Exception:
-        pass
-    return jsonify({"ok": True, "success": True}), 200
 
 @message_bp.route("/api/messages/<message_id>/delete", methods=["POST"])
 @login_required
@@ -264,15 +203,25 @@ def api_delete_msg(message_id):
     return jsonify({"success": bool(result.get("ok")), **result}), 200
 
 
-@message_bp.route("/api/message/<message_id>/delete-everyone", methods=["POST"])
+@message_bp.route("/api/messages/<message_id>/delete-for-me", methods=["POST"])
 @login_required
-def api_delete_everyone_alias(message_id):
+def api_delete_for_me(message_id):
+    profile_id = session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "success": False, "error": "Unauthorized"}), 401
+    result = phase29_messages.delete_message(message_id, profile_id, for_everyone=False)
+    return jsonify({"ok": bool(result.get("ok")), "success": bool(result.get("ok")), **result}), 200 if result.get("ok") else 400
+
+
+@message_bp.route("/api/messages/<message_id>/info", methods=["GET"])
+@login_required
+def api_message_info(message_id):
     profile = get_current_profile()
     profile_id = (profile or {}).get("id") or session.get("profile_id")
     if not profile_id:
-        return jsonify({"ok": False, "success": False, "error": "Unauthorized"}), 401
-    result = phase29_messages.delete_message(message_id, profile_id, for_everyone=True)
-    return jsonify({"ok": bool(result.get("ok")), "success": bool(result.get("ok")), **result}), 200 if result.get("ok") else 400
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    result = phase29_messages.get_message_info(message_id, profile_id)
+    return jsonify(result), 200
 
 
 @message_bp.route("/api/messages/<message_id>/edit", methods=["POST"])
@@ -285,12 +234,6 @@ def api_edit_msg(message_id):
         return jsonify({"error": "Unauthorized"}), 401
     result = phase29_messages.edit_message(message_id, profile["id"], body)
     return jsonify({"success": bool(result.get("ok")), **result}), 200 if result.get("ok") else 400
-
-
-@message_bp.route("/api/message/<message_id>/edit", methods=["POST"])
-@login_required
-def api_edit_msg_alias(message_id):
-    return api_edit_msg(message_id)
 
 
 @message_bp.route("/api/messages/<message_id>/star", methods=["POST"])
@@ -497,37 +440,7 @@ def api_seen(thread_id):
     return jsonify({"success": True}), 200
 
 
-@message_bp.route("/api/thread/<thread_id>/seen", methods=["POST"])
-@login_required
-def api_seen_alias(thread_id):
-    profile = get_current_profile()
-    profile_id = (profile or {}).get("id") or session.get("profile_id")
-    if not profile_id:
-        return jsonify({"ok": False, "success": False}), 400
-    result = phase29_messages.mark_seen(thread_id, profile_id)
-    return jsonify({"ok": bool(result.get("ok", True)), "success": True, **(result or {})}), 200
 
-
-@message_bp.route("/api/thread/<thread_id>/voice-note", methods=["POST"])
-@login_required
-def api_voice_note_alias(thread_id):
-    profile = get_current_profile()
-    profile_id = (profile or {}).get("id") or session.get("profile_id")
-    if not profile_id:
-        return jsonify({"ok": False, "success": False, "error": "Unauthorized"}), 401
-    seconds = request.form.get("seconds") or (request.get_json(silent=True) or {}).get("seconds") or "0"
-    media_file = request.files.get("media") or request.files.get("file") or request.files.get("audio")
-    if media_file:
-        from services.messaging_engine import send_message
-        result = send_message(thread_id, profile_id, "", media_file, client_message_id=request.form.get("client_message_id"))
-        return jsonify({"ok": bool(result.get("success")), "success": bool(result.get("success")), **result}), 200 if result.get("success") else 400
-    result = phase29_messages.send_text_message(
-        thread_id,
-        profile_id,
-        f"Voice note - {seconds}s",
-        message_type="voice_note",
-    )
-    return jsonify({"ok": bool(result.get("ok")), "success": bool(result.get("ok")), **result}), 200 if result.get("ok") else 400
 
 
 @message_bp.route("/api/messages/<thread_id>/delivered", methods=["POST"])
