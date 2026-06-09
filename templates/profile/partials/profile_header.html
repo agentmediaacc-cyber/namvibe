@@ -1,126 +1,193 @@
 {% set own_profile = viewer and profile and viewer.id == profile.id %}
+{% set stats_data = stats or {} %}
+{% set content_data = content or {} %}
+{% set wallet_data = wallet or {} %}
+{% set creator_data = creator or {} %}
+{% set marketplace_data = marketplace or {} %}
+{% set dating_data = dating or {} %}
+{% set completion_data = completion or {'percentage': 0, 'missing_fields': []} %}
+{% set level_data = level or {'title': 'New Member', 'score': 0} %}
+{% set pinned_data = pinned or {'posts': [], 'reels': [], 'products': []} %}
 {% set profile_location = profile.current_location or profile.location or profile.town or profile.region or profile.country_origin or 'Namibia' %}
-{% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
 {% set display_name = profile.display_name or profile.full_name or profile.username or 'CHAIN Member' %}
-{% set profile_rank = profile.rank or (level.title if level is defined else 'New Member') %}
+{% set profile_rank = profile.rank or level_data.title or 'New Member' %}
+{% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
+{% set last_seen = presence.last_seen|datetime if presence and presence.last_seen else (profile.last_login_at|datetime if profile.last_login_at else 'recently') %}
 {% set public_url = '/profile/@' ~ (profile.username or '') %}
+{% set score_total = profile.chain_score or level_data.score or 0 %}
+{% set posts_count = stats_data.posts or stats_data.posts_count or public_stats.posts or 0 %}
+{% set reels_count = stats_data.reels or stats_data.reels_count or public_stats.reels or 0 %}
+{% set followers_count = stats_data.followers or stats_data.followers_count or public_stats.followers or profile.followers_count or 0 %}
+{% set following_count = stats_data.following or stats_data.following_count or profile.following_count or 0 %}
+{% set likes_count = stats_data.likes or stats_data.likes_count or public_stats.likes or profile.total_likes or 0 %}
+{% set views_count = stats_data.views or stats_data.views_count or profile.profile_views or 0 %}
 
 <div class="profile-mini-header" data-mini-profile>
     <div class="mini-avatar">{{ (display_name or 'C')[0]|upper }}</div>
     <div>
         <strong>{{ display_name }}</strong>
-        <span>@{{ profile.username }}</span>
+        <span>@{{ profile.username or 'chain' }}</span>
     </div>
     {% if own_profile %}
-    <a href="/profile/edit" class="mini-action"><i class="fas fa-pen"></i></a>
+    <a href="/profile/edit" class="mini-action" aria-label="Edit profile"><i class="fas fa-pen"></i></a>
     {% else %}
-    <a href="/messages/" class="mini-action"><i class="fas fa-comment"></i></a>
+    <a href="/messages/start/{{ profile.id }}" class="mini-action" aria-label="Message"><i class="fas fa-comment"></i></a>
     {% endif %}
 </div>
 
-<section class="premium-hero">
-    <div class="premium-cover">
+<section class="profile-hero" data-profile-hero>
+    <div class="profile-cover">
         {% if profile.cover_url %}
-        <img src="{{ profile.cover_url }}" alt="{{ display_name }}" class="cover-img">
+        <img src="{{ profile.cover_url }}" alt="{{ display_name }} cover">
         {% else %}
-        <div class="premium-cover-fallback"></div>
+        <div class="profile-cover-fallback"></div>
         {% endif %}
-        <div class="premium-cover-overlay"></div>
+        <div class="profile-cover-shade"></div>
         {% if own_profile %}
-        <button class="edit-cover-btn" type="button" data-file-trigger="cover-input"><i class="fas fa-camera"></i><span>Edit Cover</span></button>
+        <button class="profile-cover-edit" type="button" data-file-trigger="cover-input"><i class="fas fa-camera"></i><span>Edit cover</span></button>
         <form id="cover-form" action="/profile/cover" method="POST" enctype="multipart/form-data" hidden>
             <input type="file" id="cover-input" name="cover" accept="image/*" data-auto-submit>
         </form>
         {% endif %}
     </div>
 
-    <div class="premium-hero-content">
-        <div class="premium-avatar-wrap">
-            <div class="premium-avatar-ring {% if presence and presence.status == 'online' %}is-online{% endif %}">
-                <div class="premium-avatar">
-                    {% if profile.avatar_url %}
-                    <img src="{{ profile.avatar_url }}" alt="{{ display_name }}">
-                    {% else %}
-                    <div class="avatar-placeholder">{{ (display_name or 'C')[0]|upper }}</div>
-                    {% endif %}
-                </div>
+    <div class="profile-hero-body">
+        <div class="profile-avatar-wrap">
+            <div class="profile-avatar {% if presence and presence.status == 'online' %}is-online{% endif %}">
+                {% if profile.avatar_url %}
+                <img src="{{ profile.avatar_url }}" alt="{{ display_name }}">
+                {% else %}
+                <span>{{ (display_name or 'C')[0]|upper }}</span>
+                {% endif %}
             </div>
             {% if own_profile %}
-            <button class="edit-avatar-btn" type="button" data-file-trigger="avatar-input-header" aria-label="Edit avatar"><i class="fas fa-plus"></i></button>
+            <button class="profile-avatar-edit" type="button" data-file-trigger="avatar-input-header" aria-label="Edit avatar"><i class="fas fa-plus"></i></button>
             <form id="avatar-form-header" action="/profile/avatar" method="POST" enctype="multipart/form-data" hidden>
                 <input type="file" id="avatar-input-header" name="avatar" accept="image/*" data-auto-submit>
             </form>
             {% endif %}
         </div>
 
-        <div class="premium-identity-block">
-            <div class="name-badge-row">
-                <h1 class="display-name">{{ display_name }}</h1>
-                {% if profile.is_verified %}
-                <span class="verified-status verified-status--ok"><i class="fas fa-shield-check"></i>Verified</span>
-                {% else %}
-                <span class="verified-status verified-status--pending"><i class="fas fa-shield-halved"></i>Not Verified</span>
+        <div class="profile-identity">
+            <div class="profile-name-row">
+                <h1>{{ display_name }}</h1>
+                {% if profile.is_verified or profile.verified %}
+                <span class="profile-badge verified"><i class="fas fa-circle-check"></i>Verified</span>
                 {% endif %}
-                <span class="level-badge"><i class="fas fa-ranking-star"></i>{{ profile_rank }}</span>
+                <span class="profile-badge rank"><i class="fas fa-ranking-star"></i>{{ profile_rank }}</span>
             </div>
-            <p class="username">@{{ profile.username }}</p>
-            <p class="bio">{{ profile.bio or 'Building a premium CHAIN presence across social, creator, marketplace, and community.' }}</p>
-
-            <div class="meta-row">
-                <span class="meta-item"><i class="fas fa-location-dot"></i>{{ profile_location }}</span>
-                <span class="meta-item"><i class="fas fa-calendar-alt"></i>{{ member_since }}</span>
+            <p class="profile-handle">@{{ profile.username or 'chain' }}</p>
+            <p class="profile-bio">{{ profile.bio or 'Building a CHAIN identity across social, creator, wallet, marketplace, dating, and community.' }}</p>
+            <div class="profile-meta">
+                <span><i class="fas fa-location-dot"></i>{{ profile_location }}</span>
+                <span><i class="fas fa-calendar-alt"></i>{{ member_since }}</span>
                 {% if presence and presence.status == 'online' %}
-                <span class="meta-item status-online"><i class="fas fa-circle"></i>Live now</span>
+                <span class="online"><i class="fas fa-circle"></i>Online now</span>
                 {% else %}
-                <span class="meta-item"><i class="far fa-clock"></i>Last active {{ last_active_human or 'recently' }}</span>
+                <span><i class="far fa-clock"></i>Last active {{ last_seen }}</span>
                 {% endif %}
             </div>
-
-            <div class="profile-url-row">
+            <div class="profile-link-copy">
                 <span><i class="fas fa-link"></i>{{ public_url }}</span>
                 <button type="button" data-copy-profile="{{ public_url }}"><i class="fas fa-copy"></i>Copy</button>
             </div>
-
-            {% if own_profile and (not profile.is_verified or not profile.email_verified) %}
-            <article class="verify-unlock-card">
-                <div>
-                    <p>VERIFY YOUR ACCOUNT</p>
-                    <h2>Unlock your trust layer</h2>
-                    <ul>
-                        <li>Trust badge</li>
-                        <li>Wallet withdrawals</li>
-                        <li>Creator monetization</li>
-                        <li>Marketplace selling</li>
-                        <li>Dating trust</li>
-                    </ul>
-                </div>
-                {% if profile.email %}
-                <form action="/auth/resend-confirmation" method="POST">
-                    <input type="hidden" name="email" value="{{ profile.email }}">
-                    <button type="submit"><i class="fas fa-envelope"></i>Resend confirmation</button>
-                </form>
-                {% endif %}
-            </article>
-            {% endif %}
         </div>
 
-        <div class="premium-actions">
+        <div class="profile-main-actions">
             {% if own_profile %}
-            <a href="/profile/edit" class="premium-btn secondary"><i class="fas fa-pen-to-square"></i>Edit Profile</a>
-            <a href="/wallet/" class="premium-btn glass"><i class="fas fa-wallet"></i>Wallet</a>
-            <a href="/profile/security" class="premium-btn glass"><i class="fas fa-shield-halved"></i>Security</a>
-            <a href="/profile/privacy" class="premium-btn glass"><i class="fas fa-user-shield"></i>Privacy</a>
+            <a href="/profile/edit" class="profile-btn primary"><i class="fas fa-pen-to-square"></i>Edit Profile</a>
             {% else %}
-            <button class="premium-btn primary" type="button" id="follow-btn" data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas fa-user-plus"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
-            <a href="/messages/start/{{ profile.id }}" class="premium-btn secondary"><i class="fas fa-comment"></i>Message</a>
-            <a href="/calls/start/{{ profile.id }}/audio" class="premium-btn glass"><i class="fas fa-phone-volume"></i>Audio Call</a>
-            <a href="/calls/start/{{ profile.id }}/video" class="premium-btn glass"><i class="fas fa-video"></i>Video Call</a>
-            <a href="/wallet/" class="premium-btn glass"><i class="fas fa-gift"></i>Send Gift</a>
-            <a href="/matching/" class="premium-btn glass"><i class="fas fa-user-plus"></i>Add Friend</a>
-            <button class="premium-btn glass" type="button" disabled title="Coming soon"><i class="fas fa-gem"></i>Subscribe</button>
-            <a href="/marketplace/" class="premium-btn glass"><i class="fas fa-calendar-check"></i>Book / Hire</a>
+            <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
             {% endif %}
-            <button class="premium-btn glass" type="button" data-share-profile><i class="fas fa-share-alt"></i>Share Profile</button>
+            <a href="/messages/start/{{ profile.id }}" class="profile-btn"><i class="fas fa-comment"></i>Message</a>
+            <a href="/calls/start/{{ profile.id }}/audio" class="profile-btn"><i class="fas fa-phone-volume"></i>Audio</a>
+            <a href="/calls/start/{{ profile.id }}/video" class="profile-btn"><i class="fas fa-video"></i>Video</a>
+            <button type="button" class="profile-btn" data-share-profile><i class="fas fa-share-alt"></i>Share</button>
+            <button type="button" class="profile-btn" aria-label="More profile actions"><i class="fas fa-ellipsis"></i>More</button>
         </div>
+    </div>
+</section>
+
+<section class="profile-stats" aria-label="Profile stats">
+    <div><strong>{{ posts_count }}</strong><span>Posts</span></div>
+    <div><strong>{{ reels_count }}</strong><span>Reels</span></div>
+    <div><strong>{{ followers_count }}</strong><span>Followers</span></div>
+    <div><strong>{{ following_count }}</strong><span>Following</span></div>
+    <div><strong>{{ likes_count }}</strong><span>Likes</span></div>
+    <div><strong>{{ views_count }}</strong><span>Views</span></div>
+    <div><strong>{{ score_total }}</strong><span>CHAIN Score</span></div>
+</section>
+
+<div class="profile-top-grid">
+    <section class="profile-card completion-card">
+        <div class="profile-card-head">
+            <div><span>Profile completion</span><h2>{{ completion_data.percentage or 0 }}% complete</h2></div>
+            {% if own_profile %}<a href="/profile/edit">Improve profile</a>{% endif %}
+        </div>
+        <div class="profile-progress"><span style="width: {{ completion_data.percentage or 0 }}%"></span></div>
+        <div class="chip-row">
+            {% for field in completion_data.missing_fields[:5] %}
+            <span>{{ field }}</span>
+            {% else %}
+            <span>Profile basics complete</span>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="profile-card trust-banner {{ 'is-verified' if profile.is_verified or profile.verified else 'needs-verification' }}">
+        <i class="fas fa-shield-halved"></i>
+        <div>
+            {% if profile.is_verified or profile.verified %}
+            <span>Trusted CHAIN identity</span>
+            <h2>Verified profile</h2>
+            {% else %}
+            <span>Verification recommended</span>
+            <h2>Verify your account</h2>
+            <p>Unlock trust badge, wallet withdrawals, creator monetization, marketplace selling, and dating trust.</p>
+            {% endif %}
+        </div>
+        {% if own_profile and not (profile.is_verified or profile.verified) %}
+            {% if profile.email %}
+            <form action="/auth/resend-confirmation" method="POST">
+                <input type="hidden" name="email" value="{{ profile.email }}">
+                <button type="submit">Resend confirmation</button>
+            </form>
+            {% else %}
+            <a href="/profile/edit">Verify email</a>
+            {% endif %}
+        {% endif %}
+    </section>
+</div>
+
+<section class="profile-highlight-row" aria-label="Profile highlights">
+    {% for label, icon in [('Work', 'fa-briefcase'), ('Family', 'fa-users'), ('Travel', 'fa-plane'), ('Business', 'fa-store'), ('Live', 'fa-video'), ('Add Highlight', 'fa-plus')] %}
+    <button type="button" class="profile-highlight">
+        <span><i class="fas {{ icon }}"></i></span>
+        <strong>{{ label }}</strong>
+    </button>
+    {% endfor %}
+</section>
+
+<section class="profile-featured profile-section">
+    <div class="profile-section-head">
+        <span>Featured</span>
+        <h2>Pinned on CHAIN</h2>
+    </div>
+    <div class="profile-featured-grid">
+        <article class="profile-card featured-card">
+            <i class="fas fa-thumbtack"></i>
+            <h3>Pinned Post</h3>
+            {% if pinned_data.posts %}<p>{{ pinned_data.posts[0].caption or pinned_data.posts[0].body or 'Featured post' }}</p>{% elif own_profile %}<a href="/posts/create">Pin your first post</a>{% else %}<p>No pinned post yet.</p>{% endif %}
+        </article>
+        <article class="profile-card featured-card">
+            <i class="fas fa-film"></i>
+            <h3>Pinned Reel</h3>
+            {% if pinned_data.reels %}<p>{{ pinned_data.reels[0].caption or 'Featured reel' }}</p>{% elif own_profile %}<a href="/reels/upload">Upload reel</a>{% else %}<p>No pinned reel yet.</p>{% endif %}
+        </article>
+        <article class="profile-card featured-card">
+            <i class="fas fa-bag-shopping"></i>
+            <h3>Pinned Product</h3>
+            {% if pinned_data.products %}<p>{{ pinned_data.products[0].title or 'Featured product' }}</p>{% elif own_profile %}<a href="/marketplace/create">Add product</a>{% else %}<p>No pinned product yet.</p>{% endif %}
+        </article>
     </div>
 </section>

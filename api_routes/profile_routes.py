@@ -105,7 +105,7 @@ def _session_profile_stub():
     email = session.get("auth_email") or ""
     username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
     full_name = session.get("full_name") or username.replace("_", " ").title()
-    return {
+    return _with_profile_defaults({
         "id": session.get("profile_id"),
         "auth_user_id": session.get("auth_user_id"),
         "email": email,
@@ -116,7 +116,52 @@ def _session_profile_stub():
         "date_of_birth": session.get(K_PENDING_DATE_OF_BIRTH),
         "profile_completed": False,
         "profile_type": "member",
-    }
+    })
+
+
+def _safe_number(value, default=0):
+    try:
+        if value in (None, ""):
+            return default
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _with_profile_defaults(profile):
+    profile = dict(profile or {})
+    username = profile.get("username") or "chainuser"
+    display_name = profile.get("display_name") or profile.get("full_name") or username.replace("_", " ").title()
+    created_at = profile.get("created_at") or datetime.now(timezone.utc).isoformat()
+    profile.setdefault("id", profile.get("auth_user_id") or session.get("profile_id") or session.get("auth_user_id") or "local-profile")
+    profile.setdefault("auth_user_id", profile.get("id"))
+    profile["username"] = username
+    profile["display_name"] = display_name
+    profile["full_name"] = profile.get("full_name") or display_name
+    profile["bio"] = profile.get("bio") or ""
+    profile["avatar_url"] = profile.get("avatar_url") or profile.get("profile_photo")
+    profile["cover_url"] = profile.get("cover_url")
+    profile["location"] = profile.get("location") or profile.get("current_location") or profile.get("town") or profile.get("region") or profile.get("country_origin") or "Namibia"
+    profile["current_location"] = profile.get("current_location") or profile["location"]
+    profile["website"] = profile.get("website") or profile.get("portfolio_url") or ""
+    profile["is_verified"] = bool(profile.get("is_verified") or profile.get("verified") or profile.get("email_verified"))
+    profile["verified"] = bool(profile.get("verified") or profile["is_verified"])
+    profile["email_verified"] = bool(profile.get("email_verified") or profile["is_verified"])
+    profile["rank"] = profile.get("rank") or "New Member"
+    profile["created_at"] = created_at
+    profile["last_login_at"] = profile.get("last_login_at") or profile.get("last_active") or profile.get("updated_at") or created_at
+    profile["followers_count"] = _safe_number(profile.get("followers_count"))
+    profile["following_count"] = _safe_number(profile.get("following_count"))
+    profile["posts_count"] = _safe_number(profile.get("posts_count"))
+    profile["reels_count"] = _safe_number(profile.get("reels_count"))
+    profile["total_likes"] = _safe_number(profile.get("total_likes"))
+    profile["profile_views"] = _safe_number(profile.get("profile_views"))
+    profile["wallet_balance"] = float(profile.get("wallet_balance") or 0)
+    profile["chain_score"] = _safe_number(profile.get("chain_score"))
+    profile["trust_score"] = _safe_number(profile.get("trust_score"))
+    profile["dating_mode_enabled"] = bool(profile.get("dating_mode_enabled"))
+    profile["skills"] = profile.get("skills") or []
+    return profile
 
 
 def _profile_fallback_context():
@@ -151,7 +196,7 @@ def _profile_fallback_context():
         "calls": {},
         "reputation": {},
         "achievements": [],
-        "theme_options": [],
+        "theme_options": ["Namibia Gold", "Ocean Blue", "Emerald Green", "Royal Purple", "Dark Premium"],
         "pinned": {"posts": [], "reels": [], "products": []},
     }
 
@@ -183,8 +228,8 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
     if not bundle:
         log_warning("profile_bundle_missing", profile_id=profile.get("id"), username=profile.get("username"))
         fallback = _profile_fallback_context()
-        fallback["profile"] = profile
-        fallback["viewer"] = viewer or profile
+        fallback["profile"] = _with_profile_defaults(profile)
+        fallback["viewer"] = _with_profile_defaults(viewer or profile)
         try:
             from services.profile_service import get_profile_content, get_profile_stats
             fallback["content"] = get_profile_content(profile.get("id"))
@@ -198,7 +243,7 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         log_warning("profile_dashboard_build_failed", profile_id=profile.get("id"), error=str(error))
         dashboard = {}
     render_bundle = dict(bundle)
-    render_profile = dashboard.get("profile") or render_bundle.pop("profile", profile)
+    render_profile = _with_profile_defaults(dashboard.get("profile") or render_bundle.pop("profile", profile))
     render_bundle.pop("profile", None)
     context = {
         "unread_count": unread_count,
@@ -209,7 +254,7 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
     context.update(render_bundle)
     context.update(dashboard)
     context["profile"] = render_profile
-    context["viewer"] = viewer
+    context["viewer"] = _with_profile_defaults(viewer) if viewer else None
     return render_template("profile/index.html", **context), status_code
 
 
