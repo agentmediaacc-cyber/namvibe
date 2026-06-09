@@ -153,61 +153,105 @@
     .status-tick.read { color: #4fc3f7; } /* Blue Ticks */
 
     .chat-composer {
-        padding: 12px 16px;
+        padding: 8px 12px;
+        padding-bottom: calc(8px + var(--safe-bottom, 0px));
         background: var(--chain-bg-panel-strong);
         border-top: 1px solid var(--chain-border);
         display: flex;
-        align-items: center;
-        gap: 12px;
+        align-items: flex-end;
+        gap: 8px;
+        flex-shrink: 0;
     }
     
-    .composer-main {
-        flex: 1;
-        background: var(--chain-bg-soft);
-        border-radius: 24px;
+    .composer-actions {
         display: flex;
+        gap: 4px;
         align-items: center;
-        padding: 4px 12px;
+        flex-shrink: 0;
+    }
+    
+    .composer-input-wrap {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        background: var(--chain-bg-soft);
+        border-radius: 20px;
+        padding: 2px 4px;
+        min-height: 40px;
         border: 1px solid var(--chain-border);
     }
     
-    .composer-input {
+    .composer-textarea {
         flex: 1;
-        background: transparent;
         border: none;
-        padding: 8px;
-        font-size: 15px;
+        background: transparent;
+        padding: 8px 8px;
+        font-size: 16px;
         color: var(--chain-text);
         outline: none;
-        max-height: 100px;
-        overflow-y: auto;
+        resize: none;
+        max-height: calc(1.4em * 5 + 16px);
+        line-height: 1.4;
+        font-family: inherit;
     }
+    .composer-textarea::placeholder { color: var(--chain-muted); }
     
     .composer-btn {
-        width: 36px;
-        height: 36px;
-        display: grid;
-        place-items: center;
-        color: var(--chain-muted);
-        cursor: pointer;
-        font-size: 18px;
-        transition: color 0.2s;
-    }
-    
-    .composer-btn:hover { color: var(--chain-primary); }
-    
-    .send-btn {
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: var(--chain-primary);
-        color: white;
         border: none;
+        background: transparent;
+        color: var(--chain-muted);
+        cursor: pointer;
         display: grid;
         place-items: center;
-        cursor: pointer;
-        box-shadow: 0 4px 10px rgba(0, 194, 168, 0.3);
+        font-size: 18px;
+        flex-shrink: 0;
+        transition: all 0.15s;
+        min-width: 44px;
+        min-height: 44px;
     }
+    .composer-btn:hover { color: var(--chain-primary); background: var(--chain-bg-soft); }
+    
+    .composer-send {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: var(--chain-primary);
+        color: white;
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        transition: transform 0.15s;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .composer-send:active { transform: scale(0.9); }
+    .composer-send:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .composer-mic {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--chain-muted);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .composer-mic.recording { background: #ff3b30; color: #fff; animation: micPulse 1.2s infinite; }
     
     .rich-media-grid {
         display: grid;
@@ -236,33 +280,14 @@
         font-size: 20px;
     }
 
-    /* Voice Note UI */
-    .voice-recorder-overlay {
-        position: absolute;
-        bottom: 0; left: 0; right: 0;
-        height: 60px;
-        background: var(--chain-bg-panel-strong);
-        display: none;
-        align-items: center;
-        padding: 0 20px;
-        justify-content: space-between;
-        z-index: 200;
-        border-top: 1px solid var(--chain-border);
-    }
+    /* Voice recording — handled by chat.css .voice-overlay classes */
     
-    .recording-dot {
-        width: 10px; height: 10px;
-        background: #ff3b30;
-        border-radius: 50%;
-        animation: pulse 1s infinite;
+    @media(max-width:480px) {
+        .composer-textarea { font-size: 16px !important; }
+        .chat-composer { padding: 6px 8px; padding-bottom: calc(6px + var(--safe-bottom, 0px)); gap: 4px; }
+        .composer-btn, .composer-send, .composer-mic { min-width: 44px; min-height: 44px; }
     }
-    
-    @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.3; }
-        100% { opacity: 1; }
-    }
-    
+
     .call-overlay {
         position: fixed;
         inset: 0;
@@ -449,40 +474,44 @@
         <button onclick="clearSelection()" title="Cancel"><i class="fas fa-times"></i></button>
     </div>
 
+    <div id="draft-indicator" style="display:none; padding:2px 16px; font-size:10px; color:var(--chain-muted); background:var(--chain-bg-panel-strong); border-top:1px solid var(--chain-border); text-align:center;">
+        <i class="fas fa-pen"></i> Draft saved
+    </div>
+
     <form class="chat-composer" id="chat-form">
         <input type="hidden" id="thread_id" name="thread_id" value="{{ thread.id }}">
         <input type="hidden" id="parent_message_id" name="parent_message_id" value="">
-        
-        <button type="button" class="composer-btn" onclick="toggleMediaPanel()"><i class="fas fa-plus"></i></button>
-        <button type="button" class="composer-btn" onclick="toggleEmojiPanel()"><i class="far fa-face-smile"></i></button>
-        
-        <input type="file" id="file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden>
-        
-        <div class="composer-main">
-            <textarea id="msg-input" class="composer-input" data-draft-input="{{ thread.id }}" placeholder="Message..." rows="1"></textarea>
-            <button type="button" class="composer-btn"><i class="fas fa-camera"></i></button>
+
+        <div class="composer-actions">
+            <button type="button" class="composer-btn" onclick="toggleMediaPanel()" title="Attach"><i class="fas fa-plus"></i></button>
+            <button type="button" class="composer-btn" data-action="emoji" title="Emoji"><i class="far fa-face-smile"></i></button>
         </div>
-        
-        <button type="submit" class="send-btn" id="send-btn">
-            <i class="fas fa-paper-plane"></i>
-        </button>
-        <button type="button" class="send-btn" id="mic-btn" data-voice-record data-thread-id="{{ thread.id }}" style="background: var(--chain-bg-soft); color: var(--chain-muted); box-shadow: none;">
-            <i class="fas fa-microphone"></i>
-        </button>
+
+        <input type="file" id="file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden>
+
+        <div class="composer-input-wrap">
+            <textarea id="msg-input" class="composer-textarea" placeholder="Message..." rows="1" data-draft-input="{{ thread.id }}"></textarea>
+        </div>
+
+        <div class="composer-actions">
+            <button type="button" class="composer-btn composer-mic" id="mic-btn" data-voice-record data-thread-id="{{ thread.id }}" title="Voice message"><i class="fas fa-microphone"></i></button>
+            <button type="submit" class="composer-send" id="send-btn" disabled title="Send"><i class="fas fa-paper-plane"></i></button>
+        </div>
     </form>
 
     <!-- Voice Recording Overlay -->
-    <div class="voice-recorder-overlay" id="voice-overlay">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <div class="recording-dot"></div>
-            <span id="recording-timer">00:00</span>
+    <div class="voice-overlay" id="voice-overlay">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="vo-dot"></div>
+            <span class="vo-timer" id="recording-timer">00:00</span>
         </div>
-        <div id="recording-waveform" style="flex: 1; margin: 0 20px; height: 20px; background: rgba(0,0,0,0.05); border-radius: 10px;"></div>
-        <div style="display: flex; gap: 20px; align-items: center;">
-            <span style="color: var(--chain-muted); font-size: 13px;">Slide to cancel <i class="fas fa-chevron-left"></i></span>
-            <button type="button" data-voice-control="lock" class="composer-btn" title="Lock recording"><i class="fas fa-lock"></i></button>
-            <button type="button" data-voice-control="pause" class="composer-btn" title="Pause recording"><i class="fas fa-pause"></i></button>
-            <button type="button" data-voice-control="resume" class="composer-btn" title="Resume recording"><i class="fas fa-play"></i></button>
+        <div class="vo-wave" id="recording-waveform"></div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span class="vo-slide-cancel"><i class="fas fa-chevron-left"></i> Cancel</span>
+            <button type="button" data-voice-control="lock" class="vo-lock" title="Lock"><i class="fas fa-lock"></i></button>
+            <button type="button" data-voice-control="pause" class="vo-pause" title="Pause"><i class="fas fa-pause"></i></button>
+            <button type="button" data-voice-control="resume" class="vo-pause" title="Resume" style="display:none;"><i class="fas fa-play"></i></button>
+            <button type="button" data-voice-control="cancel" class="vo-lock" title="Cancel"><i class="fas fa-times"></i></button>
         </div>
     </div>
 
@@ -567,10 +596,6 @@
             {% endfor %}
         </div>
     </div>
-            <span onclick="cancelRecording()" style="color: var(--chain-muted); cursor: pointer;">Cancel</span>
-            <div class="send-btn" onclick="stopAndSendVoice()"><i class="fas fa-paper-plane"></i></div>
-        </div>
-    </div>
 </div>
 
 <!-- Call Overlay (Phase 41 Premium) -->
@@ -647,6 +672,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 <script src="{{ url_for('static', filename='js/webrtc_calls.js') }}"></script>
 <script src="{{ url_for('static', filename='js/group_calls.js') }}"></script>
+<script src="{{ url_for('static', filename='js/message_composer.js') }}"></script>
 <script>
     const threadId = "{{ thread.id }}";
     const myId = "{{ profile.id }}";
@@ -665,7 +691,6 @@
     window.currentTargetProfileId = currentTargetProfileId;
     window.currentThreadId = threadId;
     let pollTimer = null;
-    let pendingAttachment = null;
     
     function timeAgo(dateStr) {
         if (!dateStr) return '';
@@ -953,62 +978,7 @@
         }
     });
 
-    // ---- Typing emission + auto-grow + draft ----
-    const DRAFT_KEY = 'chain_draft_' + threadId;
-    let draftTimer = null;
-
-    function autoGrowInput() {
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-    }
-
-    function saveDraft() {
-        try {
-            const text = input.value.trim();
-            if (text) {
-                localStorage.setItem(DRAFT_KEY, text);
-            } else {
-                localStorage.removeItem(DRAFT_KEY);
-            }
-        } catch(e) {}
-    }
-
-    function restoreDraft() {
-        try {
-            const saved = localStorage.getItem(DRAFT_KEY);
-            if (saved) {
-                input.value = saved;
-                if (sendBtn) sendBtn.disabled = false;
-                autoGrowInput();
-            }
-        } catch(e) {}
-    }
-
-    function clearDraft() {
-        try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
-    }
-
-    input.addEventListener('input', () => {
-        autoGrowInput();
-        if (sendBtn) sendBtn.disabled = input.value.trim().length === 0 && !pendingAttachment;
-        clearTimeout(typingTimeout);
-        clearTimeout(draftTimer);
-        if (input.value.trim().length > 0) {
-            socket.emit('typing:start', { thread_id: threadId });
-        } else {
-            socket.emit('typing:stop', { thread_id: threadId });
-        }
-        typingTimeout = setTimeout(() => {
-            socket.emit('typing:stop', { thread_id: threadId });
-        }, TYPING_TIMEOUT_MS);
-        draftTimer = setTimeout(saveDraft, 500);
-    });
-
-    // Restore draft on page load
-    restoreDraft();
-    if (sendBtn) sendBtn.disabled = true;
-
-    // Enter sends, Shift+Enter newline (moved to combined handler below)
+    // ---- Composer logic now handled by message_composer.js ----
     async function pollMessages() {
         try {
             const res = await fetch('/messages/api/messages/' + encodeURIComponent(threadId), {credentials:'same-origin'});
@@ -1067,89 +1037,7 @@
         }
     }
 
-    form.onsubmit = async (e) => {
-        e.preventDefault();
-        const body = input.value.trim();
-        const file = pendingAttachment;
-        if (!body && !file) return;
-        input.value = '';
-        input.style.height = 'auto';
-        pendingAttachment = null;
-        if (fileInput) fileInput.value = '';
-        hideAttachmentPreview();
-        if (sendBtn) sendBtn.disabled = true;
-        clearDraft();
-        await sendMessage(body, file);
-        cancelReply();
-    };
-
-    function toggleEmojiPanel() {
-        const panel = document.getElementById('emoji-panel');
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        document.getElementById('sticker-panel').style.display = 'none';
-        document.getElementById('gif-panel').style.display = 'none';
-        renderEmojiGrid(activeEmojiCategory);
-    }
-
-    function insertEmoji(emoji) {
-        input.value += emoji;
-        input.focus();
-        if (sendBtn) sendBtn.disabled = false;
-    }
-
-    const emojiCategories = {
-        Smileys: ['😀','😃','😄','😁','😆','😂','🤣','😊','😍','🥰','😘','😎','🤩','🥳','😮','😭','😅','🙂','😉','😌','🤔','😴','🤯','🥹'],
-        Hearts: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💕','💞','💓','💗','💖','💘','💝','💟','❣️','❤️‍🔥','❤️‍🩹'],
-        Hands: ['👋','🤚','✋','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','👍','👎','✊','👊','👏','🙌','🫶','🙏','🤝'],
-        Fire: ['🔥','💥','⚡','✨','🌟','⭐','💫','🚀','🏆','💯','🎉','🎊','🔴','🟠','🟡','🟢','🔵','🟣'],
-        Food: ['🍎','🍌','🍇','🍓','🍒','🥭','🍍','🥑','🍔','🍟','🍕','🌮','🍗','🍖','🍩','🍪','🍰','☕','🍺','🥂'],
-        Flags: ['🇳🇦','🇿🇦','🇧🇼','🇿🇲','🇿🇼','🇦🇴','🇺🇸','🇬🇧','🇪🇺','🇨🇦','🇧🇷','🇮🇳','🇨🇳','🇯🇵','🇦🇺','🏁','🚩','🏳️']
-    };
-    let activeEmojiCategory = 'Smileys';
-
-    function renderEmojiGrid(category) {
-        activeEmojiCategory = category || activeEmojiCategory;
-        const grid = document.getElementById('emoji-grid');
-        if (!grid) return;
-        grid.innerHTML = (emojiCategories[activeEmojiCategory] || []).map(emoji => `<button type="button" class="emoji-item" data-emoji="${emoji}">${emoji}</button>`).join('');
-        document.querySelectorAll('[data-emoji-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.emojiTab === activeEmojiCategory));
-    }
-
-    document.querySelectorAll('[data-emoji-tab]').forEach(btn => {
-        btn.addEventListener('click', () => renderEmojiGrid(btn.dataset.emojiTab));
-    });
-    document.getElementById('emoji-grid')?.addEventListener('click', event => {
-        const btn = event.target.closest('[data-emoji]');
-        if (btn) insertEmoji(btn.dataset.emoji);
-    });
-    renderEmojiGrid('Smileys');
-
-    function hideAttachmentPreview() {
-        const preview = document.getElementById('attachment-preview');
-        const body = document.getElementById('attachment-preview-body');
-        if (preview) preview.hidden = true;
-        if (body) body.innerHTML = '';
-    }
-
-    function uploadFile(file) {
-        if (!file) return;
-        pendingAttachment = file;
-        const preview = document.getElementById('attachment-preview');
-        const body = document.getElementById('attachment-preview-body');
-        if (!preview || !body) return;
-        const url = URL.createObjectURL(file);
-        body.innerHTML = renderMediaTag(url, file.type) + `<span class="attachment-name">${escapeHtml(file.name)}</span>`;
-        preview.hidden = false;
-        if (sendBtn) sendBtn.disabled = false;
-    }
-    window.uploadFile = uploadFile;
-    fileInput?.addEventListener('change', () => uploadFile(fileInput.files && fileInput.files[0]));
-    document.getElementById('attachment-remove')?.addEventListener('click', () => {
-        pendingAttachment = null;
-        if (fileInput) fileInput.value = '';
-        hideAttachmentPreview();
-        if (sendBtn) sendBtn.disabled = input.value.trim().length === 0;
-    });
+    // ---- Emoji / Attach / Voice now handled by message_composer.js ----
 
     function toggleStickers() {
         const panel = document.getElementById('sticker-panel');
@@ -1300,97 +1188,6 @@
             initReply();
         }
     }
-
-    // Voice Recording Logic
-    let mediaRecorder;
-    let audioChunks = [];
-    let recordTimer;
-    let startTime;
-
-    const micBtn = document.getElementById('mic-btn');
-    const voiceOverlay = document.getElementById('voice-overlay');
-    const timerDisplay = document.getElementById('recording-timer');
-
-    micBtn.onmousedown = startRecording;
-    micBtn.onmouseup = stopAndSendVoice;
-    micBtn.ontouchstart = (e) => { e.preventDefault(); startRecording(); };
-    micBtn.ontouchend = (e) => { e.preventDefault(); stopAndSendVoice(); };
-
-    async function startRecording() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert('Voice recording not supported in this browser');
-            return;
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-        mediaRecorder.onstop = uploadVoiceNote;
-
-        mediaRecorder.start();
-        startTime = Date.now();
-        voiceOverlay.style.display = 'flex';
-        
-        recordTimer = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            const m = Math.floor(elapsed / 60);
-            const s = elapsed % 60;
-            timerDisplay.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }, 1000);
-    }
-
-    function stopAndSendVoice() {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            clearInterval(recordTimer);
-            voiceOverlay.style.display = 'none';
-        }
-    }
-
-    function cancelRecording() {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-            mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            clearInterval(recordTimer);
-            audioChunks = [];
-            voiceOverlay.style.display = 'none';
-        }
-    }
-
-    let pendingVoiceFile = null;
-
-    async function uploadVoiceNote() {
-        if (audioChunks.length === 0) return;
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        pendingVoiceFile = new File([audioBlob], 'voice-note.webm', { type: 'audio/webm' });
-        const preview = document.getElementById('voice-note-preview');
-        const audio = document.getElementById('voice-note-audio');
-        if (audio) audio.src = URL.createObjectURL(audioBlob);
-        if (preview) preview.hidden = false;
-    }
-
-    document.getElementById('voice-preview-send')?.addEventListener('click', async () => {
-        if (!pendingVoiceFile) return;
-        await sendMessage('', pendingVoiceFile);
-        pendingVoiceFile = null;
-        document.getElementById('voice-note-preview').hidden = true;
-    });
-
-    document.getElementById('voice-preview-delete')?.addEventListener('click', () => {
-        pendingVoiceFile = null;
-        audioChunks = [];
-        document.getElementById('voice-note-preview').hidden = true;
-    });
-
-    document.getElementById('voice-preview-rerecord')?.addEventListener('click', () => {
-        pendingVoiceFile = null;
-        audioChunks = [];
-        document.getElementById('voice-note-preview').hidden = true;
-        startRecording();
-    });
 
     function blockUser() {
         const username = "{{ thread.other_member.username if thread.other_member else '' }}";
