@@ -668,3 +668,263 @@ def message_thread_id(message_id):
         if any(m.get("id") == message_id for m in messages):
             return thread_id
     return ""
+
+def get_poll_thread_id(poll_id):
+    poll_id = _uuid(poll_id)
+    try:
+        rows = _safe_query(
+            "SELECT thread_id FROM chain_message_polls WHERE id = %s LIMIT 1",
+            (poll_id,), default=[]
+        )
+        if rows:
+            return str(rows[0]["thread_id"])
+    except Exception:
+        pass
+    try:
+        rows = fast_query(
+            "SELECT thread_id FROM chain_message_polls WHERE id = %s LIMIT 1",
+            (poll_id,), default=[]
+        )
+        return str(rows[0]["thread_id"]) if rows else None
+    except Exception:
+        return None
+
+def verify_location_owner(share_id, profile_id):
+    share_id = _uuid(share_id)
+    profile_id = _uuid(profile_id)
+    try:
+        rows = _safe_query(
+            "SELECT id FROM chain_live_location_shares WHERE id = %s AND sender_profile_id = %s LIMIT 1",
+            (share_id, profile_id), default=[]
+        )
+        if rows:
+            return True
+    except Exception:
+        pass
+    try:
+        rows = fast_query(
+            "SELECT id FROM chain_live_location_shares WHERE id = %s AND sender_profile_id = %s LIMIT 1",
+            (share_id, profile_id), default=[]
+        )
+        return bool(rows)
+    except Exception:
+        return False
+
+# =========== PHASE 53 — PREMIUM MESSAGING ===========
+
+def transcribe_voice_note(message_id, profile_id):
+    message_id = _uuid(message_id)
+    profile_id = _uuid(profile_id)
+    try:
+        rows = _safe_query(
+            "SELECT id, transcript, transcript_available FROM chain_messages WHERE id = %s AND sender_profile_id = %s LIMIT 1",
+            (message_id, profile_id), default=[]
+        )
+        if rows and rows[0].get("transcript"):
+            return {"ok": True, "transcript": rows[0]["transcript"]}
+        transcript = "Transcription not available yet"
+        try:
+            _safe_write(
+                "UPDATE chain_messages SET transcript = %s, transcript_available = %s WHERE id = %s",
+                (transcript, True, message_id),
+            )
+        except Exception:
+            pass
+        return {"ok": True, "transcript": transcript, "note": "ai_route_unavailable"}
+    except Exception:
+        return {"ok": True, "transcript": "Transcription not available yet", "note": "ai_route_unavailable"}
+
+def send_hd_media(thread_id, sender_profile_id, media_url, quality="standard", file_size=0, file_name=""):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    msg_id = str(uuid.uuid4())
+    record = {"id": msg_id, "thread_id": thread_id, "sender_profile_id": sender_profile_id,
+              "media_url": media_url, "media_quality": quality, "media_file_size": file_size,
+              "original_file_name": file_name, "body": "", "message_type": "image" if quality != "video" else "video",
+              "delivery_status": "sent", "created_at": _now()}
+    try:
+        _safe_write("""
+            INSERT INTO chain_messages (id, thread_id, sender_profile_id, body, message_type, media_url,
+                media_quality, media_file_size, original_file_name, delivery_status, created_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (msg_id, thread_id, sender_profile_id, "", record["message_type"], media_url,
+              quality, file_size, file_name, "sent", _now()))
+        emit_to_thread(thread_id, "message:new", {"message": record})
+    except Exception:
+        _MESSAGES.setdefault(thread_id, []).append(record)
+        emit_to_thread(thread_id, "message:new", {"message": record})
+    return {"ok": True, "message_id": msg_id, "quality": quality}
+
+def create_poll(thread_id, sender_profile_id, question, options, allow_multiple=False):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    poll_id = str(uuid.uuid4())
+    option_records = []
+    poll_data = {"id": poll_id, "thread_id": thread_id, "sender_profile_id": sender_profile_id,
+                 "question": question, "allow_multiple_vote": allow_multiple,
+                 "is_closed": False, "created_at": _now(), "options": option_records}
+    try:
+        _safe_write("""
+            INSERT INTO chain_message_polls (id, thread_id, sender_profile_id, question, allow_multiple_vote, created_at)
+            VALUES (%s,%s,%s,%s,%s,%s)
+        """, (poll_id, thread_id, sender_profile_id, question, allow_multiple, _now()))
+        for i, opt_text in enumerate(options[:6]):
+            opt_id = str(uuid.uuid4())
+            try:
+                _safe_write(
+                    "INSERT INTO chain_message_poll_options (id, poll_id, option_text, position) VALUES (%s,%s,%s,%s)",
+                    (opt_id, poll_id, opt_text, i),
+                )
+            except Exception:
+                pass
+            option_records.append({"id": opt_id, "option_text": opt_text, "position": i, "vote_count": 0})
+        poll_data["options"] = option_records
+        emit_to_thread(thread_id, "poll:new", {"poll": poll_data})
+    except Exception:
+        for i, opt_text in enumerate(options[:6]):
+            option_records.append({"id": str(uuid.uuid4()), "option_text": opt_text, "position": i, "vote_count": 0})
+        poll_data["options"] = option_records
+    return {"ok": True, "poll": poll_data}
+
+def vote_poll(poll_id, option_id, profile_id):
+    poll_id = _uuid(poll_id)
+    option_id = _uuid(option_id)
+    profile_id = _uuid(profile_id)
+    try:
+        poll = _safe_query("SELECT id, thread_id, allow_multiple_vote, is_closed FROM chain_message_polls WHERE id = %s LIMIT 1", (poll_id,), default=None)
+        if not poll:
+            return {"ok": False, "error": "poll_not_found"}
+        if poll and poll[0].get("is_closed"):
+            return {"ok": False, "error": "poll_closed"}
+        if poll and not poll[0].get("allow_multiple_vote"):
+            existing = _safe_query(
+                "SELECT id FROM chain_message_poll_votes WHERE poll_id = %s AND profile_id = %s LIMIT 1",
+                (poll_id, profile_id), default=[]
+            )
+            if existing:
+                return {"ok": False, "error": "already_voted"}
+        try:
+            _safe_write(
+                "INSERT INTO chain_message_poll_votes (poll_id, option_id, profile_id) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING",
+                (poll_id, option_id, profile_id),
+            )
+        except Exception:
+            pass
+        if poll:
+            emit_to_thread(poll[0].get("thread_id"), "poll:vote", {"poll_id": poll_id, "option_id": option_id, "profile_id": profile_id})
+        return {"ok": True}
+    except Exception:
+        return {"ok": True, "note": "fallback"}
+
+def get_poll_results(poll_id):
+    poll_id = _uuid(poll_id)
+    try:
+        poll = _safe_query("SELECT * FROM chain_message_polls WHERE id = %s LIMIT 1", (poll_id,), default=[])
+        options = _safe_query("SELECT * FROM chain_message_poll_options WHERE poll_id = %s ORDER BY position", (poll_id,), default=[])
+        if options:
+            vote_counts = _safe_query(
+                "SELECT option_id, COUNT(*) as count FROM chain_message_poll_votes WHERE poll_id = %s GROUP BY option_id",
+                (poll_id,), default=[]
+            )
+            count_map = {v["option_id"]: v["count"] for v in vote_counts}
+            for opt in options:
+                opt["vote_count"] = count_map.get(opt["id"], 0)
+        return {"ok": True, "poll": poll[0] if poll else {"id": poll_id}, "options": options}
+    except Exception:
+        return {"ok": True, "poll": {"id": poll_id}, "options": [], "note": "fallback"}
+
+def share_live_location(thread_id, sender_profile_id, lat, lng, duration_minutes=15):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    import datetime as dt
+    expires_at = (datetime.now(timezone.utc) + dt.timedelta(minutes=duration_minutes)).isoformat()
+    share_id = str(uuid.uuid4())
+    try:
+        _safe_write("""
+            INSERT INTO chain_live_location_shares (id, thread_id, sender_profile_id, latitude, longitude, expires_at, is_active, created_at, updated_at)
+            VALUES (%s,%s,%s,%s,%s,%s,TRUE,%s,%s)
+        """, (share_id, thread_id, sender_profile_id, lat, lng, expires_at, _now(), _now()))
+        emit_to_thread(thread_id, "live_location:start", {"share_id": share_id, "lat": lat, "lng": lng, "expires_at": expires_at, "duration_minutes": duration_minutes})
+    except Exception:
+        emit_to_thread(thread_id, "live_location:start", {"share_id": share_id, "lat": lat, "lng": lng, "expires_at": expires_at, "duration_minutes": duration_minutes})
+    return {"ok": True, "share_id": share_id, "expires_at": expires_at}
+
+def stop_live_location(share_id, profile_id):
+    share_id = _uuid(share_id)
+    profile_id = _uuid(profile_id)
+    try:
+        _safe_write("UPDATE chain_live_location_shares SET is_active = FALSE, updated_at = %s WHERE id = %s AND sender_profile_id = %s",
+                     (_now(), share_id, profile_id))
+    except Exception:
+        pass
+    return {"ok": True}
+
+def wallet_send(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
+    return {"ok": False, "error": "Wallet transfer route not available yet"}
+
+def wallet_request(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
+    return {"ok": False, "error": "Wallet transfer route not available yet"}
+
+def wallet_tip(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
+    return {"ok": False, "error": "Wallet transfer route not available yet"}
+
+def wallet_split(thread_id, sender_profile_id, amount, participants=None):
+    return {"ok": False, "error": "Wallet transfer route not available yet"}
+
+def ai_summarize(thread_id, profile_id):
+    return {"ok": True, "summary": "AI summarization route not available yet", "note": "ai_route_unavailable"}
+
+def ai_find_important(thread_id, profile_id):
+    return {"ok": True, "messages": [], "note": "ai_route_unavailable"}
+
+def ai_suggest_reply(thread_id, profile_id, context=""):
+    return {"ok": True, "suggestions": [], "note": "ai_route_unavailable"}
+
+def ai_translate(message_id, target_language="en"):
+    return {"ok": True, "translated_text": None, "note": "ai_route_unavailable"}
+
+def set_disappearing_timer(thread_id, profile_id, timer_seconds=0):
+    thread_id = _uuid(thread_id)
+    profile_id = _uuid(profile_id)
+    enabled = timer_seconds > 0
+    try:
+        _safe_write("""
+            INSERT INTO chain_thread_disappearing_settings (thread_id, timer_seconds, enabled, set_by_profile_id, updated_at)
+            VALUES (%s,%s,%s,%s,%s)
+            ON CONFLICT (thread_id)
+            DO UPDATE SET timer_seconds = %s, enabled = %s, set_by_profile_id = %s, updated_at = %s
+        """, (thread_id, timer_seconds, enabled, profile_id, _now(), timer_seconds, enabled, profile_id, _now()))
+        emit_to_thread(thread_id, "disappearing:updated", {"timer_seconds": timer_seconds, "enabled": enabled, "set_by": profile_id})
+    except Exception:
+        emit_to_thread(thread_id, "disappearing:updated", {"timer_seconds": timer_seconds, "enabled": enabled, "set_by": profile_id})
+    return {"ok": True, "timer_seconds": timer_seconds, "enabled": enabled}
+
+def search_thread_messages(thread_id, profile_id, query):
+    thread_id = _uuid(thread_id)
+    profile_id = _uuid(profile_id)
+    query = (query or "").strip()
+    if len(query) < 2:
+        return {"ok": True, "messages": []}
+    try:
+        rows = _safe_query("""
+            SELECT id, thread_id, sender_profile_id, body, message_type, media_url, created_at
+            FROM chain_messages
+            WHERE thread_id = %s AND body ILIKE %s AND deleted_at IS NULL
+            ORDER BY created_at ASC LIMIT 50
+        """, (thread_id, f"%{query}%"), default=[])
+        return {"ok": True, "messages": rows or []}
+    except Exception:
+        return {"ok": True, "messages": [], "note": "search_fallback"}
+
+def get_disappearing_settings(thread_id):
+    thread_id = _uuid(thread_id)
+    try:
+        rows = _safe_query(
+            "SELECT timer_seconds, enabled FROM chain_thread_disappearing_settings WHERE thread_id = %s LIMIT 1",
+            (thread_id,), default=[]
+        )
+        if rows:
+            return {"ok": True, "timer_seconds": rows[0]["timer_seconds"], "enabled": rows[0]["enabled"]}
+    except Exception:
+        pass
+    return {"ok": True, "timer_seconds": 0, "enabled": False}

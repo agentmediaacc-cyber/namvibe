@@ -60,6 +60,7 @@ from services.webrtc_call_service import (
 
 import time
 from functools import wraps
+from services.thread_security_service import can_access_thread
 
 _SOCKET_RATE_LIMITS = {}
 _SOCKET_RATE_LIMIT_TTL = 60
@@ -1959,4 +1960,124 @@ def handle_safety_verification_updated(data):
 @socketio.on("trust:score-updated")
 def handle_trust_score_updated(data):
     emit_to_profile(_get_profile_id(), "trust:score-updated", data or {})
+    return {"ok": True}
+
+
+# =========== PHASE 53 — PREMIUM MESSAGING ===========
+
+@socketio.on("transcribe:voice")
+def handle_transcribe_voice(data):
+    profile_id = _get_profile_id()
+    if _socket_rate_limit(f"transcribe:{profile_id}", max_per_minute=10):
+        return {"error": "rate_limited"}
+    message_id = data.get("message_id")
+    if not message_id:
+        return {"error": "message_id required"}
+    from services import message_feature_service as mfs
+    result = mfs.transcribe_voice_note(message_id, profile_id)
+    emit_to_profile(profile_id, "transcribe:result", result)
+    return {"ok": True}
+
+@socketio.on("live_location:update")
+def handle_live_location_update(data):
+    profile_id = _get_profile_id()
+    share_id = data.get("share_id")
+    thread_id = data.get("thread_id")
+    lat = data.get("latitude")
+    lng = data.get("longitude")
+    if not share_id or not thread_id or lat is None or lng is None:
+        return {"error": "missing_fields"}
+    if _ignore_duplicate_event("live_location", data, f"{share_id}:{lat}:{lng}"):
+        return {"duplicate": True}
+    if not can_access_thread(profile_id, thread_id):
+        return {"error": "forbidden"}
+    emit_to_thread(thread_id, "live_location:update", {
+        "share_id": share_id, "latitude": lat, "longitude": lng,
+        "profile_id": profile_id, "timestamp": _utcnow_iso()
+    })
+    return {"ok": True}
+
+@socketio.on("live_location:stop")
+def handle_live_location_stop(data):
+    profile_id = _get_profile_id()
+    share_id = data.get("share_id")
+    thread_id = data.get("thread_id")
+    if not share_id or not thread_id:
+        return {"error": "missing_fields"}
+    if _ignore_duplicate_event("live_location_stop", data, share_id):
+        return {"duplicate": True}
+    if not can_access_thread(profile_id, thread_id):
+        return {"error": "forbidden"}
+    emit_to_thread(thread_id, "live_location:stopped", {
+        "share_id": share_id, "profile_id": profile_id
+    })
+    return {"ok": True}
+
+@socketio.on("poll:vote")
+def handle_poll_vote(data):
+    profile_id = _get_profile_id()
+    if _socket_rate_limit(f"poll_vote:{profile_id}", max_per_minute=20):
+        return {"error": "rate_limited"}
+    poll_id = data.get("poll_id")
+    option_id = data.get("option_id")
+    if not poll_id or not option_id:
+        return {"error": "poll_id and option_id required"}
+    from services import message_feature_service as mfs
+    thread_id = mfs.get_poll_thread_id(poll_id)
+    if not thread_id or not can_access_thread(profile_id, thread_id):
+        return {"error": "forbidden"}
+    result = mfs.vote_poll(poll_id, option_id, profile_id)
+    if result.get("ok"):
+        poll = mfs.get_poll_results(poll_id)
+        thread_id = poll.get("poll", {}).get("thread_id")
+        if poll.get("ok") and thread_id:
+            emit_to_thread(thread_id, "poll:updated", poll)
+    return {"ok": True}
+
+@socketio.on("disappearing:set")
+def handle_disappearing_set(data):
+    profile_id = _get_profile_id()
+    thread_id = data.get("thread_id")
+    timer_seconds = data.get("timer_seconds", 0)
+    if not thread_id:
+        return {"error": "thread_id required"}
+    if not can_access_thread(profile_id, thread_id):
+        return {"error": "forbidden"}
+    from services import message_feature_service as mfs
+    result = mfs.set_disappearing_timer(thread_id, profile_id, timer_seconds)
+    emit_to_thread(thread_id, "disappearing:updated", {
+        "timer_seconds": timer_seconds, "enabled": timer_seconds > 0,
+        "set_by": profile_id
+    })
+    return {"ok": True}
+
+@socketio.on("chat:ai-summarize")
+def handle_ai_summarize(data):
+    profile_id = _get_profile_id()
+    if _socket_rate_limit(f"ai_summarize:{profile_id}", max_per_minute=5):
+        return {"error": "rate_limited"}
+    thread_id = data.get("thread_id")
+    if not thread_id:
+        return {"error": "thread_id required"}
+    if not can_access_thread(profile_id, thread_id):
+        return {"error": "forbidden"}
+    from services import message_feature_service as mfs
+    result = mfs.ai_summarize(thread_id, profile_id)
+    emit_to_profile(profile_id, "chat:summary", result)
+    return {"ok": True}
+
+@socketio.on("chat:ai-suggest")
+def handle_ai_suggest(data):
+    profile_id = _get_profile_id()
+    if _socket_rate_limit(f"ai_suggest:{profile_id}", max_per_minute=10):
+        return {"error": "rate_limited"}
+    thread_id = data.get("thread_id")
+    context = data.get("context", "")
+    if not thread_id:
+        return {"error": "thread_id required"}
+    if not can_access_thread(profile_id, thread_id):
+        return {"error": "forbidden"}
+    from services import message_feature_service as mfs
+    result = mfs.ai_suggest_reply(thread_id, profile_id, context)
+    emit_to_profile(profile_id, "chat:suggestions", result)
     return {"ok": True}

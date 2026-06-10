@@ -392,13 +392,12 @@
                         {% elif msg.gif_url %}
                             <img src="{{ msg.gif_url }}" style="width: 200px; border-radius: 8px;">
                         {% elif msg.location_lat %}
-                            <div class="msg-location" onclick="window.open('https://maps.google.com/?q={{ msg.location_lat }},{{ msg.location_lng }}')">
-                                <div style="width: 200px; height: 100px; background: #eee; display: grid; place-items: center; border-radius: 8px; color: #666;">
-                                    <i class="fas fa-map-marker-alt fa-2x"></i>
-                                    <span>View Location</span>
-                                </div>
+                            <div class="map-link-card" onclick="window.open('https://maps.google.com/?q={{ msg.location_lat }},{{ msg.location_lng }}')">
+                                <i class="fas fa-map-marker-alt" style="font-size:20px;color:#34c759;"></i>
+                                <a href="https://maps.google.com/?q={{ msg.location_lat }},{{ msg.location_lng }}" target="_blank">View on Map</a>
                             </div>
                         {% elif msg.media_url %}
+                            <div style="position:relative;">
                             {% if 'video' in (msg.media_type or '') %}
                             <video src="{{ msg.media_url }}" class="msg-media" controls></video>
                             {% elif 'audio' in (msg.media_type or '') %}
@@ -406,6 +405,10 @@
                             {% else %}
                             <img src="{{ msg.media_url }}" class="msg-media" loading="lazy">
                             {% endif %}
+                            {% if msg.media_quality and msg.media_quality != 'standard' %}
+                            <span class="hd-badge" style="position:absolute;top:4px;right:4px;">{{ msg.media_quality }}</span>
+                            {% endif %}
+                            </div>
                         {% endif %}
                         
                         {% if msg.body %}
@@ -431,6 +434,20 @@
                             {% endfor %}
                         </div>
                         {% endif %}
+
+                        {% if 'voice_note' in (msg.message_type or '') and msg.sender_profile_id == profile.id %}
+                        <button class="transcribe-btn" onclick="transcribeVoice('{{ msg.id }}')"><i class="fas fa-language"></i> Transcribe</button>
+                        <div id="transcript-{{ msg.id }}" class="transcript-text" style="display:none;"></div>
+                        {% endif %}
+
+                        {% if msg.transcript %}
+                        <div id="transcript-{{ msg.id }}" class="transcript-text">{{ msg.transcript }}</div>
+                        {% endif %}
+
+                        {% if msg.ai_suggested_reply %}
+                        <div style="font-size:10px;color:var(--chain-muted);padding:4px 0;font-style:italic;">AI: {{ msg.ai_suggested_reply }}</div>
+                        {% endif %}
+
                         <div class="msg-actions">
                             <button class="msg-action" onclick="showReactionPicker(event, '{{ msg.id }}')" title="React"><i class="far fa-face-smile"></i></button>
                             <button class="msg-action" onclick="initReplyFromMsg('{{ msg.id }}')" title="Reply"><i class="fas fa-reply"></i></button>
@@ -441,26 +458,138 @@
         {% endfor %}
     </div>
 
-    <!-- Media Selectors -->
-    <div id="media-panel" style="display: none; border-top: 1px solid var(--chain-border);">
-        <div class="rich-media-grid">
-            <div class="media-selector-item" onclick="document.getElementById('file-input').click()">
-                <div class="media-icon-circle" style="background: #7c3aed;"><i class="fas fa-image"></i></div>
-                <span>Gallery</span>
-            </div>
-            <div class="media-selector-item" onclick="toggleStickers()">
-                <div class="media-icon-circle" style="background: #ff2f7d;"><i class="fas fa-sticky-note"></i></div>
-                <span>Stickers</span>
-            </div>
-            <div class="media-selector-item" onclick="toggleGIFs()">
-                <div class="media-icon-circle" style="background: #ff9800;"><i class="fas fa-video"></i></div>
-                <span>GIF</span>
-            </div>
-            <div class="media-selector-item" onclick="shareLocation()">
-                <div class="media-icon-circle" style="background: #34c759;"><i class="fas fa-map-marker-alt"></i></div>
-                <span>Location</span>
-            </div>
+    <!-- Phase 53: Plus Menu (replaces old media panel) -->
+    <div id="plus-menu" class="plus-menu" style="display:none;">
+        <div class="plus-menu-grid">
+            <button type="button" class="plus-menu-item" onclick="document.getElementById('file-input').click();togglePlusMenu()">
+                <div class="pm-icon" style="background:#7c3aed;"><i class="fas fa-image"></i></div>
+                <span class="pm-label">Media</span>
+            </button>
+            <button type="button" class="plus-menu-item" onclick="openCamera();togglePlusMenu()">
+                <div class="pm-icon" style="background:#ef4444;"><i class="fas fa-camera"></i></div>
+                <span class="pm-label">Camera</span>
+            </button>
+            <button type="button" class="plus-menu-item" onclick="shareLocation();togglePlusMenu()">
+                <div class="pm-icon" style="background:#34c759;"><i class="fas fa-map-marker-alt"></i></div>
+                <span class="pm-label">Location</span>
+            </button>
+            <button type="button" class="plus-menu-item" onclick="showPollCreator();togglePlusMenu()">
+                <div class="pm-icon" style="background:#f59e0b;"><i class="fas fa-chart-bar"></i></div>
+                <span class="pm-label">Poll</span>
+            </button>
+            <button type="button" class="plus-menu-item" onclick="showSchedulePicker();togglePlusMenu()">
+                <div class="pm-icon" style="background:#6366f1;"><i class="fas fa-clock"></i></div>
+                <span class="pm-label">Schedule</span>
+            </button>
+            <button type="button" class="plus-menu-item" onclick="showWalletActions();togglePlusMenu()">
+                <div class="pm-icon" style="background:#22c55e;"><i class="fas fa-wallet"></i></div>
+                <span class="pm-label">Wallet</span>
+            </button>
+            <button type="button" class="plus-menu-item" onclick="showAITools();togglePlusMenu()">
+                <div class="pm-icon" style="background:#ec4899;"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <span class="pm-label">AI Tools</span>
+            </button>
+            <button type="button" class="plus-menu-item" onclick="toggleThemeMenu ? toggleThemeMenu() : alert('Theme selector coming soon')">
+                <div class="pm-icon" style="background:#8b5cf6;"><i class="fas fa-palette"></i></div>
+                <span class="pm-label">Theme</span>
+            </button>
         </div>
+    </div>
+
+    <!-- Phase 53: Poll Creation UI -->
+    <div id="poll-creator" class="plus-menu" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h6 style="margin:0;font-size:14px;">Create Poll</h6>
+            <i class="fas fa-times" onclick="hidePollCreator()" style="cursor:pointer;color:var(--chain-muted);"></i>
+        </div>
+        <input type="text" id="poll-question" placeholder="Ask a question..." style="width:100%;padding:10px;border:1px solid var(--chain-border);border-radius:10px;background:var(--chain-bg-soft);color:var(--chain-text);font-size:13px;margin-bottom:8px;">
+        <div id="poll-options-list"></div>
+        <button type="button" onclick="addPollOption()" style="font-size:12px;padding:6px 12px;border:1px dashed var(--chain-border);border-radius:8px;background:none;color:var(--chain-muted);cursor:pointer;width:100%;margin-bottom:8px;">+ Add option</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--chain-muted);margin-bottom:8px;">
+            <input type="checkbox" id="poll-allow-multiple"> Allow single vote
+        </label>
+        <button type="button" onclick="sendPoll()" style="width:100%;padding:10px;border:none;border-radius:10px;background:var(--chat-primary);color:#fff;cursor:pointer;font-size:13px;">Send Poll</button>
+    </div>
+
+    <!-- Phase 53: Schedule Picker -->
+    <div id="schedule-picker" class="schedule-picker" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h6 style="margin:0;font-size:14px;">Schedule Message</h6>
+            <i class="fas fa-times" onclick="hideSchedulePicker()" style="cursor:pointer;color:var(--chain-muted);"></i>
+        </div>
+        <button type="button" class="schedule-btn" onclick="scheduleMessage('later_today')"><i class="far fa-clock" style="color:#6366f1;"></i> Later today</button>
+        <button type="button" class="schedule-btn" onclick="scheduleMessage('tomorrow')"><i class="far fa-calendar" style="color:#f59e0b;"></i> Tomorrow</button>
+        <div class="schedule-custom">
+            <input type="datetime-local" id="custom-schedule-time">
+            <button type="button" onclick="scheduleMessage('custom')">Set</button>
+        </div>
+    </div>
+
+    <!-- Phase 53: Disappearing Timer Menu -->
+    <div id="d-timer-menu" class="d-timer-menu" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:0 4px;">
+            <span style="font-size:12px;color:var(--chain-muted);">Disappearing messages</span>
+            <i class="fas fa-times" onclick="hideDTimerMenu()" style="cursor:pointer;font-size:12px;color:var(--chain-muted);"></i>
+        </div>
+        <button type="button" class="d-timer-btn" data-seconds="0" onclick="setDisappearingTimer(0)"><i class="fas fa-ban" style="color:var(--chain-muted);"></i> Off</button>
+        <button type="button" class="d-timer-btn" data-seconds="86400" onclick="setDisappearingTimer(86400)"><i class="far fa-clock" style="color:#f59e0b;"></i> 24 hours <span class="d-timer-badge">1d</span></button>
+        <button type="button" class="d-timer-btn" data-seconds="604800" onclick="setDisappearingTimer(604800)"><i class="far fa-calendar" style="color:#f97316;"></i> 7 days <span class="d-timer-badge">7d</span></button>
+        <button type="button" class="d-timer-btn" data-seconds="2592000" onclick="setDisappearingTimer(2592000)"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> 30 days <span class="d-timer-badge">30d</span></button>
+    </div>
+
+    <!-- Phase 53: Thread Search Bar -->
+    <div id="thread-search-bar" class="thread-search-bar" style="display:none;">
+        <input type="text" id="thread-search-input" placeholder="Search thread..." oninput="debounceSearch()">
+        <button type="button" onclick="searchPrev()" title="Previous"><i class="fas fa-chevron-up"></i></button>
+        <button type="button" onclick="searchNext()" title="Next"><i class="fas fa-chevron-down"></i></button>
+        <span id="search-count" style="font-size:11px;color:var(--chain-muted);min-width:40px;"></span>
+        <button type="button" onclick="closeSearch()" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Phase 53: Wallet Actions UI -->
+    <div id="wallet-actions" class="plus-menu" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <h6 style="margin:0;font-size:14px;">Wallet</h6>
+            <i class="fas fa-times" onclick="hideWalletActions()" style="cursor:pointer;color:var(--chain-muted);"></i>
+        </div>
+        <div class="wallet-action-grid">
+            <div class="wallet-action" onclick="walletTransfer('send')"><div class="wa-icon">💰</div><div class="wa-label">Send Money</div></div>
+            <div class="wallet-action" onclick="walletTransfer('request')"><div class="wa-icon">🙏</div><div class="wa-label">Request Money</div></div>
+            <div class="wallet-action" onclick="walletTransfer('tip')"><div class="wa-icon">⭐</div><div class="wa-label">Tip User</div></div>
+            <div class="wallet-action" onclick="walletTransfer('split')"><div class="wa-icon">🧾</div><div class="wa-label">Split Bill</div></div>
+        </div>
+        <div id="wallet-response" class="wallet-disabled"></div>
+    </div>
+
+    <!-- Phase 53: AI Tools UI -->
+    <div id="ai-tools-panel" class="plus-menu" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <h6 style="margin:0;font-size:14px;">AI Chat Tools</h6>
+            <i class="fas fa-times" onclick="hideAITools()" style="cursor:pointer;color:var(--chain-muted);"></i>
+        </div>
+        <div class="ai-tools-grid">
+            <div class="ai-tool-btn" onclick="aiAction('summarize')"><div class="at-icon">📝</div>Summarize Chat</div>
+            <div class="ai-tool-btn" onclick="aiAction('find-important')"><div class="at-icon">🔍</div>Find Important</div>
+            <div class="ai-tool-btn" onclick="aiAction('suggest-reply')"><div class="at-icon">💬</div>Suggest Reply</div>
+            <div class="ai-tool-btn" onclick="aiAction('translate')"><div class="at-icon">🌐</div>Translate</div>
+        </div>
+        <div style="font-size:11px;color:var(--chain-muted);margin-top:4px;">Auto-reply templates</div>
+        <div class="auto-reply-grid">
+            <button class="auto-reply-btn" onclick="useAutoReply('I am driving')">🚗 I am driving</button>
+            <button class="auto-reply-btn" onclick="useAutoReply('I am in class')">📚 I am in class</button>
+            <button class="auto-reply-btn" onclick="useAutoReply('I will reply later')">⏰ I will reply later</button>
+            <button class="auto-reply-btn" onclick="useAutoReply('Please call me')">📞 Please call me</button>
+        </div>
+        <div id="ai-tools-response" style="font-size:11px;color:var(--chain-muted);padding:8px 0;text-align:center;"></div>
+    </div>
+
+    <!-- Phase 53: HD Media Selector (shown before file send) -->
+    <div id="hd-selector" class="hd-selector" style="display:none;">
+        <span class="file-size-badge" id="file-size-badge"></span>
+        <button type="button" class="hd-opt active" data-quality="standard" onclick="selectHDQuality('standard')">Standard</button>
+        <button type="button" class="hd-opt" data-quality="hd" onclick="selectHDQuality('hd')">HD</button>
+        <button type="button" class="hd-opt" data-quality="original" onclick="selectHDQuality('original')">Original</button>
+        <button type="button" class="hd-opt" onclick="cancelHD();toggleMediaPanel()" style="color:var(--chain-muted);">Cancel</button>
     </div>
 
     <!-- Typing Indicator -->
@@ -497,7 +626,7 @@
         <input type="hidden" id="parent_message_id" name="parent_message_id" value="">
 
         <div class="composer-actions">
-            <button type="button" class="composer-btn" onclick="toggleMediaPanel()" title="Attach" aria-label="Attach"><i class="fas fa-plus"></i></button>
+            <button type="button" class="composer-btn" onclick="togglePlusMenu()" title="More" aria-label="More options"><i class="fas fa-plus"></i></button>
             <button type="button" class="composer-btn" data-action="emoji" title="Emoji" aria-label="Emoji picker"><i class="far fa-face-smile"></i></button>
             <button type="button" class="composer-btn" data-action="ai" title="AI Assistant" aria-label="AI Assistant"><i class="fas fa-wand-magic-sparkles"></i></button>
         </div>
@@ -510,6 +639,7 @@
 
         <div class="composer-actions">
             <button type="button" class="composer-btn composer-mic" id="mic-btn" data-voice-record data-thread-id="{{ thread.id }}" title="Voice message" aria-label="Voice message"><i class="fas fa-microphone"></i></button>
+            <button type="button" class="composer-btn" id="d-timer-btn" onclick="showDTimerMenu()" title="Disappearing messages" aria-label="Disappearing messages"><i class="fas fa-hourglass-half"></i></button>
             <button type="submit" class="composer-send" id="send-btn" disabled title="Send" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
         </div>
     </form>
@@ -1067,6 +1197,409 @@
         if (pollTimer) {
             clearInterval(pollTimer);
             pollTimer = null;
+        }
+    });
+
+    // =========== PHASE 53 — PREMIUM MESSAGING ===========
+
+    // --- Plus Menu ---
+    let _plusMenuOpen = false;
+    function togglePlusMenu() {
+        const menu = document.getElementById('plus-menu');
+        const panels = ['poll-creator','schedule-picker','wallet-actions','ai-tools-panel','emoji-panel','sticker-panel','gif-panel'];
+        panels.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el !== menu) el.style.display = 'none';
+        });
+        _plusMenuOpen = menu.style.display !== 'block';
+        menu.style.display = _plusMenuOpen ? 'block' : 'none';
+    }
+    document.addEventListener('click', (e) => {
+        if (_plusMenuOpen && !e.target.closest('#plus-menu') && !e.target.closest('.composer-btn[onclick*="togglePlusMenu"]')) {
+            document.getElementById('plus-menu').style.display = 'none';
+            _plusMenuOpen = false;
+        }
+    });
+
+    // --- Poll ---
+    let pollOptCount = 0;
+    function showPollCreator() {
+        const p = document.getElementById('poll-creator');
+        p.style.display = 'block';
+        if (pollOptCount === 0) { addPollOption(); addPollOption(); }
+    }
+    function hidePollCreator() { document.getElementById('poll-creator').style.display = 'none'; }
+    function addPollOption() {
+        if (pollOptCount >= 6) return;
+        pollOptCount++;
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+        div.innerHTML = `<input type="text" class="poll-opt-input" placeholder="Option ${pollOptCount}..." style="flex:1;padding:8px;border:1px solid var(--chain-border);border-radius:8px;background:var(--chain-bg-soft);color:var(--chain-text);font-size:13px;"><i class="fas fa-times" style="cursor:pointer;color:var(--chain-muted);font-size:12px;" onclick="this.parentElement.remove();pollOptCount--;"></i>`;
+        document.getElementById('poll-options-list').appendChild(div);
+    }
+    function sendPoll() {
+        const question = document.getElementById('poll-question').value.trim();
+        const opts = [...document.querySelectorAll('.poll-opt-input')].map(i => i.value.trim()).filter(Boolean);
+        if (!question || opts.length < 2) { alert('Question and at least 2 options required'); return; }
+        fetch('/messages/api/poll/create', {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({thread_id:threadId, question, options:opts, allow_multiple:!document.getElementById('poll-allow-multiple').checked})
+        }).then(r=>r.json()).then(d=>{
+            if(d.ok) {
+                hidePollCreator();
+                document.getElementById('poll-question').value = '';
+                document.getElementById('poll-options-list').innerHTML = '';
+                pollOptCount = 0;
+                if (d.poll) appendPollMessage(d.poll);
+            } else alert(d.error || 'Failed to create poll');
+        }).catch(()=>alert('Failed to create poll'));
+    }
+    function appendPollMessage(poll) {
+        const div = document.createElement('div'); div.className = 'msg-group';
+        div.innerHTML = `<div class="msg-bubble-container msg-mine-container"><div class="msg-bubble msg-mine"><div class="poll-card"><div class="poll-question">${poll.question}</div>${(poll.options||[]).map(o=>`<div class="poll-option" data-opt-id="${o.id}" onclick="votePoll('${poll.id}','${o.id}')"><span class="poll-option-text">${o.option_text}</span></div>`).join('')}<div class="poll-footer"><span>${(poll.options||[]).length} options</span></div></div></div></div>`;
+        document.getElementById('message-list').appendChild(div);
+        document.getElementById('message-list').scrollTop = document.getElementById('message-list').scrollHeight;
+    }
+    function votePoll(pollId, optionId) {
+        fetch('/messages/api/poll/'+pollId+'/vote', {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({option_id:optionId})
+        }).then(r=>r.json()).then(d=>{
+            if(d.ok) { fetchPollResults(pollId); }
+        }).catch(()=>{});
+    }
+    function fetchPollResults(pollId) {
+        fetch('/messages/api/poll/'+pollId+'/results', {credentials:'same-origin'})
+        .then(r=>r.json()).then(d=>{
+            if(d.ok && d.options) {
+                const total = d.options.reduce((s,o)=>s+(o.vote_count||0),0);
+                document.querySelectorAll(`.poll-option[data-opt-id]`).forEach(el => {
+                    const opt = d.options.find(o=>o.id===el.dataset.optId);
+                    if(opt) {
+                        const pct = total > 0 ? Math.round((opt.vote_count||0)/total*100) : 0;
+                        el.innerHTML = `<span class="poll-option-bar" style="width:${pct}%"></span><span class="poll-option-text">${opt.option_text}</span><span class="poll-option-pct">${pct}%</span><span class="poll-option-count">${opt.vote_count||0} votes</span>`;
+                        el.classList.add('voted');
+                    }
+                });
+            }
+        }).catch(()=>{});
+    }
+
+    // --- Schedule Message ---
+    function showSchedulePicker() { document.getElementById('schedule-picker').style.display = 'block'; }
+    function hideSchedulePicker() { document.getElementById('schedule-picker').style.display = 'none'; }
+    function scheduleMessage(when) {
+        let scheduledFor;
+        const now = new Date();
+        if (when === 'later_today') {
+            scheduledFor = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0);
+        } else if (when === 'tomorrow') {
+            scheduledFor = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0);
+        } else {
+            scheduledFor = new Date(document.getElementById('custom-schedule-time').value);
+        }
+        if (!scheduledFor || scheduledFor <= now) { alert('Please pick a future time'); return; }
+        const body = document.getElementById('msg-input').value.trim();
+        if (!body) { alert('Type a message first'); return; }
+        fetch('/messages/api/threads/'+threadId+'/schedule', {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({body, scheduled_for: scheduledFor.toISOString()})
+        }).then(r=>r.json()).then(d=>{
+            if(d.ok || d.success) {
+                document.getElementById('msg-input').value = '';
+                document.getElementById('send-btn').disabled = true;
+                hideSchedulePicker();
+                alert('Message scheduled!');
+            } else alert(d.error || 'Failed to schedule');
+        }).catch(()=>alert('Failed to schedule'));
+    }
+
+    // --- Disappearing Messages ---
+    function showDTimerMenu() { document.getElementById('d-timer-menu').style.display = 'block'; }
+    function hideDTimerMenu() { document.getElementById('d-timer-menu').style.display = 'none'; }
+    function setDisappearingTimer(seconds) {
+        fetch('/messages/api/thread/'+threadId+'/disappearing', {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({timer_seconds: seconds})
+        }).then(r=>r.json()).then(d=>{
+            if(d.ok) {
+                hideDTimerMenu();
+                const btn = document.getElementById('d-timer-btn');
+                if (seconds > 0) {
+                    const labels = {86400:'24h',604800:'7d',2592000:'30d'};
+                    btn.innerHTML = '<i class="fas fa-hourglass-half" style="color:#f59e0b;"></i>';
+                    btn.title = 'Disappearing: ' + (labels[seconds]||seconds+'s');
+                } else {
+                    btn.innerHTML = '<i class="fas fa-hourglass-half"></i>';
+                    btn.title = 'Disappearing messages';
+                }
+            }
+        }).catch(()=>{});
+    }
+
+    // --- Thread Search ---
+    let _searchResults = [];
+    let _searchIdx = -1;
+    let _searchQuery = '';
+    function toggleSearch() {
+        const bar = document.getElementById('thread-search-bar');
+        bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+        if (bar.style.display === 'flex') document.getElementById('thread-search-input').focus();
+    }
+    function closeSearch() {
+        document.getElementById('thread-search-bar').style.display = 'none';
+        clearHighlights();
+    }
+    function clearHighlights() {
+        document.querySelectorAll('.search-highlight').forEach(el => {
+            const parent = el.parentNode;
+            parent.replaceChild(document.createTextNode(el.textContent), el);
+            parent.normalize();
+        });
+        document.querySelectorAll('.thread-search-result').forEach(el => el.remove());
+        document.getElementById('search-count').textContent = '';
+    }
+    function debounceSearch() {
+        clearTimeout(window._searchTimer);
+        window._searchTimer = setTimeout(doSearch, 300);
+    }
+    function doSearch() {
+        const q = document.getElementById('thread-search-input').value.trim();
+        if (q.length < 2) { clearHighlights(); return; }
+        _searchQuery = q;
+        // Local search first
+        const messages = document.querySelectorAll('.msg-text');
+        _searchResults = [];
+        clearHighlights();
+        messages.forEach(el => {
+            const text = el.textContent;
+            const idx = text.toLowerCase().indexOf(q.toLowerCase());
+            if (idx >= 0) {
+                const group = el.closest('.msg-group');
+                if (group) _searchResults.push(group.id);
+                // Highlight
+                const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                el.innerHTML = text.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+        });
+        // Try backend search too
+        fetch('/messages/api/thread/'+threadId+'/search?q='+encodeURIComponent(q), {credentials:'same-origin'})
+        .then(r=>r.json()).then(d=>{}).catch(()=>{});
+        _searchIdx = _searchResults.length > 0 ? 0 : -1;
+        updateSearchNav();
+    }
+    function searchNext() {
+        if (_searchResults.length === 0) return;
+        _searchIdx = (_searchIdx + 1) % _searchResults.length;
+        scrollToSearchResult();
+    }
+    function searchPrev() {
+        if (_searchResults.length === 0) return;
+        _searchIdx = (_searchIdx - 1 + _searchResults.length) % _searchResults.length;
+        scrollToSearchResult();
+    }
+    function scrollToSearchResult() {
+        const id = _searchResults[_searchIdx];
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({behavior:'smooth', block:'center'});
+            el.style.background = 'rgba(124,58,237,0.1)';
+            setTimeout(() => el.style.background = '', 1500);
+        }
+        updateSearchNav();
+    }
+    function updateSearchNav() {
+        const count = document.getElementById('search-count');
+        count.textContent = _searchResults.length > 0 ? `${_searchIdx+1}/${_searchResults.length}` : '0/0';
+    }
+
+    // --- HD Media ---
+    let _selectedHDQuality = 'standard';
+    function selectHDQuality(q) {
+        _selectedHDQuality = q;
+        document.querySelectorAll('.hd-opt[data-quality]').forEach(el => el.classList.toggle('active', el.dataset.quality === q));
+    }
+    function cancelHD() { document.getElementById('hd-selector').style.display = 'none'; }
+
+    // --- Voice Transcription ---
+    function transcribeVoice(msgId) {
+        const el = document.getElementById('transcript-'+msgId);
+        if (el && el.style.display !== 'none' && el.textContent) {
+            el.style.display = 'none';
+            return;
+        }
+        fetch('/messages/api/messages/'+msgId+'/transcribe', {
+            method:'POST', credentials:'same-origin'
+        }).then(r=>r.json()).then(d=>{
+            if (d.transcript) {
+                el.textContent = d.transcript;
+                el.style.display = 'block';
+                if (d.note) el.textContent += ' ('+d.note.replace(/_/g,' ')+')';
+            } else {
+                el.textContent = 'Transcription not available yet';
+                el.style.display = 'block';
+            }
+        }).catch(()=>{
+            if (el) { el.textContent = 'Transcription not available yet'; el.style.display = 'block'; }
+        });
+    }
+
+    // --- Wallet ---
+    let _walletTransferType = '';
+    function showWalletActions() { document.getElementById('wallet-actions').style.display = 'block'; }
+    function hideWalletActions() { document.getElementById('wallet-actions').style.display = 'none'; }
+    function walletTransfer(type) {
+        _walletTransferType = type;
+        const labels = {send:'Send Money',request:'Request Money',tip:'Tip User',split:'Split Bill'};
+        const amount = prompt(labels[type]+':\nEnter amount (CHAIN coins):');
+        if (!amount || isNaN(amount) || Number(amount) <= 0) return;
+        const note = prompt('Optional note:') || '';
+        const endpoint = '/messages/api/wallet/' + type;
+        fetch(endpoint, {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+                thread_id: threadId,
+                amount: Number(amount),
+                note: note,
+                recipient_profile_id: currentTargetProfileId || ''
+            })
+        }).then(r=>r.json()).then(d=>{
+            const el = document.getElementById('wallet-response');
+            if (d.ok === false && d.error) {
+                el.textContent = d.error;
+            } else {
+                el.textContent = 'Request sent!';
+            }
+            setTimeout(() => { if (el) el.textContent = ''; }, 5000);
+        }).catch(()=>{
+            document.getElementById('wallet-response').textContent = 'Wallet transfer route not available yet.';
+        });
+    }
+
+    // --- AI Tools ---
+    function showAITools() { document.getElementById('ai-tools-panel').style.display = 'block'; }
+    function hideAITools() { document.getElementById('ai-tools-panel').style.display = 'none'; }
+    function aiAction(mode) {
+        const respEl = document.getElementById('ai-tools-response');
+        const endpoints = {
+            summarize: '/messages/api/chat/ai/summarize',
+            'find-important': '/messages/api/chat/ai/find-important',
+            'suggest-reply': '/messages/api/chat/ai/suggest-reply',
+            translate: '/messages/api/chat/ai/translate'
+        };
+        const endpoint = endpoints[mode];
+        if (!endpoint) return;
+        respEl.textContent = 'Processing...';
+        fetch(endpoint, {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({thread_id: threadId, context: document.getElementById('msg-input').value})
+        }).then(r=>r.json()).then(d=>{
+            if (mode === 'summarize' && d.summary) {
+                if (confirm('AI Summary:\n\n' + d.summary + '\n\nSend to chat?')) {
+                    sendMessage(d.summary, null, null);
+                }
+                respEl.textContent = '';
+            } else if (mode === 'suggest-reply' && d.suggestions && d.suggestions.length > 0) {
+                const reply = d.suggestions[0];
+                if (confirm('Suggested reply:\n\n' + reply + '\n\nSend?')) {
+                    sendMessage(reply, null, null);
+                }
+                respEl.textContent = '';
+            } else if (mode === 'translate') {
+                if (d.translated_text && confirm('Translation:\n\n' + d.translated_text + '\n\nSend?')) {
+                    sendMessage(d.translated_text, null, null);
+                }
+                respEl.textContent = '';
+            } else {
+                respEl.textContent = d.note ? d.note.replace(/_/g,' ') : (d.summary || 'Done');
+                setTimeout(() => { if (respEl) respEl.textContent = ''; }, 4000);
+            }
+        }).catch(() => {
+            respEl.textContent = 'AI route not available yet.';
+            setTimeout(() => { if (respEl) respEl.textContent = ''; }, 4000);
+        });
+    }
+    function useAutoReply(template) {
+        if (confirm('Send: "' + template + '"\n\nUse this auto-reply?')) {
+            sendMessage(template, null, null);
+        }
+    }
+
+    // --- Open Camera ---
+    function openCamera() {
+        const input = document.getElementById('file-input');
+        input.accept = 'image/*';
+        input.capture = 'environment';
+        input.click();
+        input.accept = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt';
+    }
+
+    // --- Socket Event Handlers for Phase 53 ---
+    socket.on('poll:new', (data) => {
+        if (data.poll && data.poll.thread_id === threadId) {
+            appendPollMessage(data.poll);
+        }
+    });
+    socket.on('poll:updated', (data) => {
+        if (data.poll && data.options) {
+            fetchPollResults(data.poll.id);
+        }
+    });
+    socket.on('live_location:start', (data) => {
+        if (data.thread_id === threadId || !data.thread_id) {
+            const link = document.createElement('div');
+            link.className = 'live-location-card';
+            link.innerHTML = `<div class="ll-icon"><i class="fas fa-location-dot"></i></div><div class="ll-info"><div>Live Location</div><div class="ll-sub">${data.duration_minutes || 15} min</div></div><a href="https://maps.google.com/?q=${data.lat},${data.lng}" target="_blank" class="ll-stop" style="text-decoration:none;">View</a>`;
+            document.getElementById('message-list').appendChild(link);
+        }
+    });
+    socket.on('live_location:update', (data) => {
+        // Update map link if present
+    });
+    socket.on('live_location:stopped', (data) => {
+        // Location sharing ended
+    });
+    socket.on('disappearing:updated', (data) => {
+        if (data.timer_seconds > 0) {
+            const labels = {86400:'24h',604800:'7d',2592000:'30d'};
+            document.getElementById('d-timer-btn').innerHTML = '<i class="fas fa-hourglass-half" style="color:#f59e0b;"></i>';
+            document.getElementById('d-timer-btn').title = 'Disappearing: ' + (labels[data.timer_seconds] || data.timer_seconds + 's');
+        } else {
+            document.getElementById('d-timer-btn').innerHTML = '<i class="fas fa-hourglass-half"></i>';
+            document.getElementById('d-timer-btn').title = 'Disappearing messages';
+        }
+    });
+    socket.on('transcribe:result', (data) => {
+        if (data.message_id) {
+            const el = document.getElementById('transcript-'+data.message_id);
+            if (el) { el.textContent = data.transcript || 'Transcription not available yet'; el.style.display = 'block'; }
+        }
+    });
+    socket.on('chat:suggestions', (data) => {
+        if (data.suggestions && data.suggestions.length > 0) {
+            const reply = data.suggestions[0];
+            if (confirm('Suggested reply:\n\n' + reply + '\n\nSend?')) {
+                sendMessage(reply, null, null);
+            }
+        }
+    });
+    socket.on('chat:summary', (data) => {
+        if (data.summary && confirm('AI Summary:\n\n' + data.summary + '\n\nSend to chat?')) {
+            sendMessage(data.summary, null, null);
+        }
+    });
+
+    // --- Keyboard shortcut for search ---
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f' && document.activeElement?.closest('.chat-container')) {
+            e.preventDefault();
+            toggleSearch();
         }
     });
 
