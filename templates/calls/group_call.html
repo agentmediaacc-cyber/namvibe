@@ -60,6 +60,12 @@
     .group-call-grid{grid-template-columns:1fr;padding:8px;}
     .gc-btn{width:46px;height:46px;font-size:16px;}
 }
+.group-call-overlay.phase54-call-pip-active{
+    top:auto;left:auto;right:16px;bottom:16px;width:220px;height:300px;border-radius:16px;overflow:hidden;
+    box-shadow:0 14px 40px rgba(0,0,0,.45);
+}
+.group-call-overlay.phase54-call-pip-active .group-call-header,
+.group-call-overlay.phase54-call-pip-active .group-call-controls{padding:8px;}
 </style>
 {% endblock %}
 
@@ -71,8 +77,10 @@
             <span class="participant-badge" id="gc-e2ee-badge">🔒 End-to-End Encrypted</span>
             <span class="participant-badge" id="gc-participant-count">{{ (participants|length) if participants else 0 }} participants</span>
             <span class="participant-badge" id="gc-call-timer" style="font-family:monospace">00:00</span>
+            <span class="participant-badge" id="gc-network-quality" data-phase54-call="network-quality">Good</span>
         </div>
         <div>
+            <button class="gc-btn" onclick="document.getElementById('group-call-container').classList.toggle('phase54-call-pip-active')" title="Picture-in-picture" data-phase54-call="picture-in-picture"><i class="fas fa-down-left-and-up-right-to-center"></i></button>
             <button class="gc-btn" onclick="CHAIN_GROUP_CALL.raiseHand()" title="Raise Hand"><i class="fas fa-hand-paper"></i></button>
             <button class="gc-btn" onclick="CHAIN_GROUP_CALL.lowerHand()" title="Lower Hand"><i class="fas fa-hand-peace"></i></button>
         </div>
@@ -102,6 +110,10 @@
             <i class="fas fa-stop-circle"></i>
         </button>
         {% endif %}
+    </div>
+    <div id="gc-reconnect-overlay" data-phase54-call="reconnect-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.72);align-items:center;justify-content:center;flex-direction:column;z-index:20;">
+        <i class="fas fa-sync-alt fa-spin" style="font-size:34px;margin-bottom:10px;"></i>
+        <span>Reconnecting</span>
     </div>
 </div>
 

@@ -922,6 +922,11 @@ def handle_webrtc_call_start(data):
     call_type = (data or {}).get("call_type", "audio")
     if not target_id:
         return {"ok": False, "error": "target_required"}
+    from services.relationship_gate_service import can_call as _gate_can_call
+    gate = _gate_can_call(profile_id, target_id)
+    if not gate.get("ok"):
+        emit("call:blocked", {"reason": gate.get("status", "blocked"), "message": gate.get("error", "Calling unavailable")})
+        return {"ok": False, "error": gate.get("error", "Calling unavailable")}
     from services.webrtc_call_service import create_call
     result = create_call(profile_id, target_id, thread_id=thread_id, call_type=call_type)
     if result.get("ok"):
@@ -1638,6 +1643,28 @@ def handle_group_call_end(data):
     emit("group-call:ended", {"call_id": call_id, "ended_by": profile_id}, room=room)
     return {"ok": True}
 
+
+# ---------- PHASE 60: Notification Center Socket Events ----------
+
+@socketio.on("notification:join")
+def handle_notification_join(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"ok": False}
+    room_name = profile_room(profile_id)
+    join_room(room_name)
+    _track_joined_room(profile_id, room_name)
+    return {"ok": True, "room": room_name}
+
+@socketio.on("notification:leave")
+def handle_notification_leave(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"ok": False}
+    room_name = profile_room(profile_id)
+    leave_room(room_name)
+    _track_left_room(profile_id, room_name)
+    return {"ok": True, "room": room_name}
 
 # ---------- PHASE 45: Push Notification Socket Events ----------
 

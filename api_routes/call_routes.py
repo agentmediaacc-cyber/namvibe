@@ -59,6 +59,12 @@ def init_call():
     receiver_id = request.form.get("receiver_id")
     call_type = request.form.get("call_type", "video")
     
+    from services.relationship_gate_service import can_call as _gate_call
+    gate = _gate_call(profile["id"], receiver_id)
+    if not gate.get("ok"):
+        flash(gate.get("error", "Cannot start call"), "error")
+        return redirect(request.referrer or url_for("messages.inbox"))
+    
     result = phase29_calls.start_call(profile["id"], receiver_id, call_type=call_type, conversation_id=conversation_id)
     if result.get("ok"):
         return render_template("calls/video.html", call=result["call"], profile=profile, role='caller')

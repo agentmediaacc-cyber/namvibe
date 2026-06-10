@@ -41,6 +41,7 @@ from api_routes.admin_safety_routes import admin_safety_bp
 from api_routes.system_routes import system_bp
 from api_routes.production_routes import production_bp
 from api_routes.feed_routes import feed_bp
+from api_routes.homepage_api import homepage_api_bp
 from api_routes.verification_routes import verification_bp
 from api_routes.mobile_api_routes import mobile_api_bp
 from api_routes.engagement_routes import engagement_bp
@@ -55,6 +56,9 @@ from api_routes.privacy_routes import privacy_api_bp
 from api_routes.group_call_routes import group_call_bp
 from api_routes.push_notification_routes import push_notifications_api_bp
 from api_routes.encryption_routes import encryption_bp
+from api_routes.notification_center_routes import notification_center_bp
+from api_routes.ai_routes import ai_bp
+from api_routes.performance_routes import performance_bp
 from api_routes.dev_diagnostics_routes import dev_bp as dev_diagnostics_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
@@ -343,6 +347,7 @@ def create_app():
     app.register_blueprint(metrics_bp)
     app.register_blueprint(post_bp)
     app.register_blueprint(media_bp)
+    app.register_blueprint(homepage_api_bp)
     app.register_blueprint(creator_bp)
     app.register_blueprint(push_bp)
     app.register_blueprint(security_bp)
@@ -350,6 +355,9 @@ def create_app():
     app.register_blueprint(group_call_bp)
     app.register_blueprint(push_notifications_api_bp)
     app.register_blueprint(encryption_bp)
+    app.register_blueprint(notification_center_bp)
+    app.register_blueprint(ai_bp)
+    app.register_blueprint(performance_bp)
 
     try:
         from services.content_service import ensure_content_schema

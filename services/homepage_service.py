@@ -1091,6 +1091,30 @@ def get_homepage_data():
     public_data["announcements"] = _fetch_announcements()
     public_data["nearby_users"] = _fetch_nearby_users(current)
     wallet = _wallet_snapshot(current)
+
+    # Phase 58 — Premium feed combining
+    _own = public_data.get("own_recent_posts", [])
+    _trend = public_data.get("trending_posts", [])
+    _spon = public_data.get("sponsored_posts", [])
+    _ann  = public_data.get("announcements", [])
+    _seen_ids = {p.get("id") for p in _own if p.get("id")}
+    feed_for_you = list(_own)
+    for src in (_spon, _ann, _trend):
+        for p in (src if isinstance(src, list) else []):
+            if p.get("id") and p["id"] not in _seen_ids:
+                feed_for_you.append(p)
+                _seen_ids.add(p["id"])
+    public_data["feed_for_you"] = feed_for_you[:20]
+    public_data["feed_following"] = (_own + [p for p in _trend if p.get("id") not in _seen_ids])[:20]
+    public_data["feed_public"] = [p for p in _trend if p.get("visibility", "public") == "public" or not p.get("visibility")][:20]
+    public_data["feed_trending"] = sorted(_trend, key=lambda p: -(p.get("likes_count") or 0))[:20]
+    _sort_live = sorted(public_data.get("live_rooms", []), key=lambda r: -(r.get("viewer_count") or 0))
+    public_data["feed_live"] = _sort_live[:8]
+    public_data["feed_reels"] = public_data.get("reels", [])[:8]
+    public_data["feed_nearby"] = public_data.get("nearby_users", [])[:10]
+    public_data["trending_profiles"] = public_data.get("recommended_profiles", [])[:5]
+    public_data["following_count"] = (current or {}).get("following_count", 0)
+
     result = {
         "current": current,
         **public_data,
@@ -1108,3 +1132,319 @@ def get_homepage_data():
     _log_section_timing("get_homepage_data", page_started)
     restore_timing_origin()
     return result
+
+
+# ================================================================
+# Phase 59 — get_feed_tab() — Tab-filtered feed with pagination
+# ================================================================
+
+def get_feed_tab(profile_id=None, tab="for_you", page=1, limit=20):
+    """
+    Return (items_list, has_more) for a given feed tab.
+    - for_you:     public + followed posts + sponsored + announcements
+    - following:   posts from profiles current user follows
+    - public:      public posts only
+    - nearby:      public posts with location / nearby users
+    - live:        live rooms
+    - reels:       reels content
+    - trending:    posts sorted by engagement
+    """
+    offset = max(0, (page - 1) * limit)
+    tabs = {
+        "for_you": _feed_for_you,
+        "following": _feed_following,
+        "public": _feed_public_posts,
+        "nearby": _feed_nearby,
+        "live": _feed_live,
+        "reels": _feed_reels,
+        "trending": _feed_trending,
+    }
+    fetcher = tabs.get(tab, _feed_for_you)
+    try:
+        items = fetcher(profile_id=profile_id, limit=limit, offset=offset)
+        has_more = len(items) >= limit
+        return items[:limit], has_more
+    except Exception:
+        return [], False
+
+
+def _normalize_items(rows, default_type="post"):
+    """Normalize raw rows to feed item dicts with type tag."""
+    result = []
+    for r in (rows or []):
+        if not r or not r.get("id"):
+            continue
+        item_type = r.get("_type") or r.get("type") or default_type
+        normalized = {
+            "id": str(r["id"]),
+            "type": item_type,
+            "profile_id": str(r.get("profile_id") or r.get("creator_id") or ""),
+            "display_name": r.get("display_name") or r.get("creator_name") or "",
+            "username": r.get("username") or "",
+            "avatar_url": r.get("avatar_url") or r.get("creator_avatar") or "",
+            "verified": bool(r.get("is_verified") or r.get("verified") or False),
+            "text": r.get("caption") or r.get("excerpt") or r.get("body") or r.get("title") or "",
+            "media_url": r.get("media_url") or r.get("thumbnail_url") or r.get("cover_url") or "",
+            "video_url": r.get("video_url") or "",
+            "likes_count": r.get("likes_count") or 0,
+            "comments_count": r.get("comments_count") or 0,
+            "view_count": r.get("view_count") or r.get("viewer_count") or 0,
+            "created_label": r.get("created_label") or _format_relative(r.get("created_at")),
+            "location": r.get("town_tag") or r.get("location") or "",
+            "visibility": r.get("visibility") or "public",
+            "sponsored": bool(r.get("sponsored") or False),
+        }
+        if item_type == "live" and r.get("watch_url"):
+            normalized["watch_url"] = r.get("watch_url")
+        if item_type == "live" and r.get("category"):
+            normalized["category"] = r.get("category")
+        result.append(normalized)
+    return result
+
+
+def _profile_map_for_ids(profile_ids):
+    """Load profiles for a list of profile IDs and return {id: profile_dict}."""
+    if not profile_ids:
+        return {}
+    unique = list(set(str(pid) for pid in profile_ids if pid))
+    if not unique:
+        return {}
+    try:
+        placeholders = ",".join(f"'{uid}'" for uid in unique)
+        rows = fast_query(
+            f"SELECT id, username, display_name, full_name, avatar_url, is_verified, verified "
+            f"FROM chain_profiles WHERE id IN ({placeholders})",
+            timeout_ms=500, default=[]
+        )
+        return {str(r["id"]): r for r in rows if r.get("id")}
+    except Exception:
+        return {}
+
+
+def _feed_for_you(profile_id=None, limit=20, offset=0):
+    items = []
+    seen = set()
+    cols = _post_select() or ["id", "profile_id", "caption", "media_url", "likes_count", "comments_count", "created_at", "visibility", "video_url"]
+    if not cols:
+        return items
+    try:
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND (visibility IS NULL OR visibility = 'public') ORDER BY created_at DESC LIMIT {limit + offset}"
+        rows = fast_query(query, timeout_ms=800, default=[])
+        for r in rows:
+            if r.get("id") and r["id"] not in seen:
+                items.append(r)
+                seen.add(r["id"])
+    except Exception:
+        pass
+    try:
+        spon = _fetch_sponsored_posts()
+        for r in spon:
+            if r.get("id") and r["id"] not in seen:
+                r["sponsored"] = True
+                items.append(r)
+                seen.add(r["id"])
+    except Exception:
+        pass
+    pids = []
+    for r in items:
+        pids.append(r.get("profile_id"))
+    pmap = _profile_map_for_ids(pids)
+    result = []
+    for r in items[offset:]:
+        pid = r.get("profile_id")
+        p = pmap.get(str(pid)) if pid else None
+        if p:
+            r["display_name"] = p.get("display_name") or p.get("full_name") or ""
+            r["username"] = p.get("username") or ""
+            r["avatar_url"] = p.get("avatar_url") or ""
+            r["is_verified"] = p.get("is_verified") or p.get("verified") or False
+        result.append(r)
+    return _normalize_items(result)
+
+
+def _feed_following(profile_id=None, limit=20, offset=0):
+    if not profile_id:
+        return []
+    try:
+        following = fast_query(
+            "SELECT following_id FROM chain_follows WHERE follower_id = %s LIMIT 200",
+            (profile_id,), timeout_ms=300, default=[]
+        )
+        fids = [str(r["following_id"]) for r in following if r.get("following_id")]
+    except Exception:
+        fids = []
+    if not fids:
+        return []
+    cols = _post_select() or ["id", "profile_id", "caption", "media_url", "likes_count", "comments_count", "created_at", "visibility", "video_url"]
+    try:
+        placeholders = ",".join(f"'{fid}'" for fid in fids[:50])
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND profile_id IN ({placeholders}) ORDER BY created_at DESC LIMIT {limit + offset}"
+        rows = fast_query(query, timeout_ms=500, default=[])
+    except Exception:
+        rows = []
+    pids = [r.get("profile_id") for r in rows]
+    pmap = _profile_map_for_ids(pids)
+    result = []
+    for r in rows[offset:]:
+        pid = r.get("profile_id")
+        p = pmap.get(str(pid)) if pid else None
+        if p:
+            r["display_name"] = p.get("display_name") or p.get("full_name") or ""
+            r["username"] = p.get("username") or ""
+            r["avatar_url"] = p.get("avatar_url") or ""
+            r["is_verified"] = p.get("is_verified") or p.get("verified") or False
+        result.append(r)
+    return _normalize_items(result)
+
+
+def _feed_public_posts(profile_id=None, limit=20, offset=0):
+    cols = _post_select() or ["id", "profile_id", "caption", "media_url", "likes_count", "comments_count", "created_at", "visibility", "video_url"]
+    if not cols:
+        return []
+    try:
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND (visibility IS NULL OR visibility = 'public') ORDER BY created_at DESC LIMIT {limit + offset}"
+        rows = fast_query(query, timeout_ms=500, default=[])
+    except Exception:
+        rows = []
+    pids = [r.get("profile_id") for r in rows]
+    pmap = _profile_map_for_ids(pids)
+    result = []
+    for r in rows[offset:]:
+        pid = r.get("profile_id")
+        p = pmap.get(str(pid)) if pid else None
+        if p:
+            r["display_name"] = p.get("display_name") or p.get("full_name") or ""
+            r["username"] = p.get("username") or ""
+            r["avatar_url"] = p.get("avatar_url") or ""
+            r["is_verified"] = p.get("is_verified") or p.get("verified") or False
+        result.append(r)
+    return _normalize_items(result)
+
+
+def _feed_trending(profile_id=None, limit=20, offset=0):
+    cols = _post_select() or ["id", "profile_id", "caption", "media_url", "likes_count", "comments_count", "created_at", "visibility", "video_url"]
+    if not cols:
+        return []
+    try:
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY (COALESCE(likes_count,0) + COALESCE(comments_count,0)) DESC LIMIT {limit + offset}"
+        rows = fast_query(query, timeout_ms=500, default=[])
+    except Exception:
+        rows = []
+    pids = [r.get("profile_id") for r in rows]
+    pmap = _profile_map_for_ids(pids)
+    result = []
+    for r in rows[offset:]:
+        pid = r.get("profile_id")
+        p = pmap.get(str(pid)) if pid else None
+        if p:
+            r["display_name"] = p.get("display_name") or p.get("full_name") or ""
+            r["username"] = p.get("username") or ""
+            r["avatar_url"] = p.get("avatar_url") or ""
+            r["is_verified"] = p.get("is_verified") or p.get("verified") or False
+        result.append(r)
+    return _normalize_items(result)
+
+
+def _feed_nearby(profile_id=None, limit=20, offset=0):
+    try:
+        rows = fast_query(
+            "SELECT id, display_name, full_name, username, avatar_url, is_verified, verified, location, bio "
+            "FROM chain_profiles WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT " + str(limit + offset),
+            timeout_ms=500, default=[]
+        )
+    except Exception:
+        rows = []
+    result = []
+    for r in rows[offset:]:
+        result.append({
+            "id": str(r["id"]),
+            "type": "suggested_user",
+            "profile_id": str(r["id"]),
+            "display_name": r.get("display_name") or r.get("full_name") or "User",
+            "username": r.get("username") or "",
+            "avatar_url": r.get("avatar_url") or "",
+            "verified": bool(r.get("is_verified") or r.get("verified") or False),
+            "text": r.get("bio") or r.get("location") or "",
+            "location": r.get("location") or "",
+            "likes_count": 0,
+            "comments_count": 0,
+            "view_count": 0,
+            "created_label": "",
+            "visibility": "public",
+            "sponsored": False,
+        })
+    return result
+
+
+def _feed_live(profile_id=None, limit=20, offset=0):
+    try:
+        cols = ["id", "profile_id", "host_id", "creator_id", "title", "cover_url", "viewer_count", "category", "created_at"]
+        rows = fast_query(
+            f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE deleted_at IS NULL AND status = 'live' ORDER BY viewer_count DESC LIMIT {limit + offset}",
+            timeout_ms=500, default=[]
+        )
+    except Exception:
+        rows = []
+    pids = []
+    for r in rows:
+        pids.append(r.get("profile_id") or r.get("host_id") or r.get("creator_id"))
+    pmap = _profile_map_for_ids(pids)
+    result = []
+    for r in rows[offset:]:
+        pid = r.get("profile_id") or r.get("host_id") or r.get("creator_id")
+        p = pmap.get(str(pid)) if pid else None
+        title = r.get("title") or ""
+        result.append({
+            "id": str(r["id"]),
+            "type": "live",
+            "profile_id": str(pid) if pid else "",
+            "display_name": (p.get("display_name") or p.get("full_name") or "Live") if p else "Live",
+            "username": p.get("username") if p else "",
+            "avatar_url": p.get("avatar_url") if p else "",
+            "verified": bool(p.get("is_verified") or p.get("verified")) if p else False,
+            "text": title,
+            "media_url": r.get("cover_url") or "",
+            "view_count": r.get("viewer_count") or 0,
+            "created_label": "",
+            "location": r.get("category") or "",
+            "visibility": "public",
+            "sponsored": False,
+            "watch_url": f"/live/{r['id']}",
+            "category": r.get("category") or "",
+        })
+    return result, len(result) >= limit
+
+
+def _feed_reels(profile_id=None, limit=20, offset=0):
+    from services.content_service import _reel_columns
+    try:
+        cols = ["id", "profile_id", "caption", "video_url", "thumbnail_url", "media_url", "likes_count", "comments_count", "view_count", "created_at"]
+        query = f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT {limit + offset}"
+        rows = fast_query(query, timeout_ms=500, default=[])
+    except Exception:
+        rows = []
+    pids = [r.get("profile_id") for r in rows]
+    pmap = _profile_map_for_ids(pids)
+    result = []
+    for r in rows[offset:]:
+        pid = r.get("profile_id")
+        p = pmap.get(str(pid)) if pid else None
+        result.append({
+            "id": str(r["id"]),
+            "type": "reel",
+            "profile_id": str(pid) if pid else "",
+            "display_name": (p.get("display_name") or p.get("full_name") or "Creator") if p else "Creator",
+            "username": p.get("username") if p else "",
+            "avatar_url": p.get("avatar_url") if p else "",
+            "verified": bool(p.get("is_verified") or p.get("verified")) if p else False,
+            "text": r.get("caption") or "",
+            "media_url": r.get("thumbnail_url") or r.get("media_url") or "",
+            "video_url": r.get("video_url") or "",
+            "likes_count": r.get("likes_count") or 0,
+            "comments_count": r.get("comments_count") or 0,
+            "view_count": r.get("view_count") or 0,
+            "created_label": _format_relative(r.get("created_at")),
+            "visibility": "public",
+            "sponsored": False,
+        })
+    return result, len(result) >= limit

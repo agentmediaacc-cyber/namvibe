@@ -271,6 +271,20 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 .forward-contact-info{flex:1;min-width:0}
 .forward-contact-name{font-weight:950;font-size:14px}
 .forward-contact-preview{color:#aaa;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.friend-card{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:rgba(255,255,255,.06);margin-bottom:6px;cursor:default;transition:.18s ease;border:1px solid transparent}
+.friend-card:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.12)}
+.friend-card-avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#ff0050,#00f2ea);display:grid;place-items:center;overflow:hidden;flex-shrink:0;position:relative}
+.friend-card-avatar img{width:100%;height:100%;object-fit:cover}
+.friend-online-dot{position:absolute;bottom:1px;right:1px;width:12px;height:12px;border-radius:50%;border:2px solid #0a0a0a;z-index:1}
+.friend-online-dot.online{background:#34c759}
+.friend-card-info{flex:1;min-width:0}
+.friend-card-name{font-weight:950;font-size:14px;display:flex;align-items:center;gap:4px}
+.friend-card-username{color:#aaa;font-size:12px}
+.friend-card-actions{display:flex;gap:6px;flex-shrink:0}
+.friend-card-btn{width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:white;cursor:pointer;font-size:14px;display:grid;place-items:center;transition:.18s ease}
+.friend-card-btn:hover{background:rgba(255,255,255,.2)}
+.friend-card-btn.msg:hover{background:rgba(0,242,234,.3);color:#00f2ea}
+.friend-card-btn.call:hover{background:rgba(255,0,80,.3);color:#ff0050}
 
 /* Shared Media Drawer */
 .shared-drawer{
@@ -666,14 +680,19 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 <!-- New Chat Modal -->
 <div class="modal" id="newChatModal">
     <div class="modal-bg" data-close="newChatModal"></div>
-    <div class="modal-card">
-        <h3>Start Chat or Call</h3>
-        <input class="field" id="chatUsername" placeholder="Username or group name">
+    <div class="modal-card" style="max-width:480px;">
+        <h3>New Message</h3>
+        <div style="position:relative;margin-bottom:12px;">
+            <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#aaa;z-index:1;"></i>
+            <input class="field" id="friendSearch" placeholder="Search friends..." style="padding-left:40px;">
+        </div>
+        <div id="friendList" style="max-height:350px;overflow:auto;margin-bottom:10px;">
+            <div class="shared-empty" style="padding:20px;text-align:center;color:#aaa;">
+                <i class="fas fa-spinner fa-spin"></i> Loading friends...
+            </div>
+        </div>
         <div class="modal-actions">
             <button class="premium-btn" data-close="newChatModal">Cancel</button>
-            <button class="premium-btn" id="startAudio"><i class="fas fa-phone"></i> Audio</button>
-            <button class="premium-btn" id="startVideo"><i class="fas fa-video"></i> Video</button>
-            <button class="premium-btn primary" id="startChat">Chat</button>
         </div>
     </div>
 </div>
@@ -1310,18 +1329,118 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         });
     });
 
-    function cleanUser(){return ($('chatUsername')?.value || '').trim().replace(/^@/,'');}
+    /* ---- Friend Picker ---- */
+    async function loadFriendList() {
+        const list = $('friendList');
+        if (!list) return;
+        list.innerHTML = '<div class="shared-empty" style="padding:20px;text-align:center;color:#aaa;"><i class="fas fa-spinner fa-spin"></i> Loading friends...</div>';
+        try {
+            const res = await fetch('/messages/api/friends');
+            const json = await res.json();
+            if (!json.ok || !json.friends || json.friends.length === 0) {
+                list.innerHTML = '<div class="shared-empty" style="padding:20px;text-align:center;color:#aaa;"><i class="fas fa-user-friends"></i><br>No friends yet. Follow someone to start chatting.</div>';
+                return;
+            }
+            renderFriendList(json.friends);
+        } catch (e) {
+            list.innerHTML = '<div class="shared-empty" style="padding:20px;text-align:center;color:#aaa;">Failed to load friends.</div>';
+        }
+    }
 
-    $('startChat')?.addEventListener('click',()=>{
-        const u = cleanUser();
-        if(!u){$('chatUsername').focus();return;}
-        close('newChatModal');
-        const id = 'user-' + u.toLowerCase();
-        openThread(id,'@' + u,'direct');
+    function renderFriendList(friends) {
+        const list = $('friendList');
+        if (!list) return;
+        list.innerHTML = friends.map(function(f) {
+            var avatar = f.avatar_url
+                ? '<img src="' + escapeHtml(f.avatar_url) + '" alt="">'
+                : '<i class="fas fa-user"></i>';
+            var online = f.online_status === 'online' ? 'online' : '';
+            var verified = f.is_verified ? '<i class="fas fa-check-circle" style="color:#00f2ea;font-size:12px;margin-left:3px;"></i>' : '';
+            return '<div class="friend-card" data-id="' + escapeHtml(f.id) + '" data-username="' + escapeHtml(f.username) + '" data-name="' + escapeHtml(f.full_name || f.username) + '">' +
+                '<div class="friend-card-avatar"><div class="friend-online-dot ' + online + '"></div>' + avatar + '</div>' +
+                '<div class="friend-card-info">' +
+                    '<div class="friend-card-name">' + escapeHtml(f.full_name || f.username) + ' ' + verified + '</div>' +
+                    '<div class="friend-card-username">@' + escapeHtml(f.username) + '</div>' +
+                '</div>' +
+                '<div class="friend-card-actions">' +
+                    '<button class="friend-card-btn msg" title="Message"><i class="fas fa-comment"></i></button>' +
+                    '<button class="friend-card-btn call" title="Audio Call"><i class="fas fa-phone"></i></button>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        list.querySelectorAll('.friend-card').forEach(function(card) {
+            var pid = card.dataset.id;
+            var name = card.dataset.name;
+            var username = card.dataset.username;
+            card.querySelector('.friend-card-btn.msg').addEventListener('click', function(e) {
+                e.stopPropagation();
+                close('newChatModal');
+                startFriendThread(pid, name, username);
+            });
+            card.querySelector('.friend-card-btn.call').addEventListener('click', function(e) {
+                e.stopPropagation();
+                close('newChatModal');
+                if (window.wStartCall && pid) {
+                    wStartCall(pid, null, 'audio');
+                } else {
+                    startCallLegacy('audio', name);
+                }
+            });
+        });
+    }
+
+    async function startFriendThread(pid, name, username) {
+        try {
+            var res = await fetch('/messages/api/thread/' + encodeURIComponent(pid));
+            var data = await res.json();
+            if (data.id) {
+                window.location.href = '/messages/' + data.id;
+            } else {
+                var createRes = await fetch('/messages/api/threads/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({profile_id: pid})
+                });
+                var createData = await createRes.json();
+                if (createData.thread_id) {
+                    window.location.href = '/messages/' + createData.thread_id;
+                } else if (createData.thread) {
+                    window.location.href = '/messages/' + createData.thread;
+                } else {
+                    window.location.href = '/messages/thread/' + encodeURIComponent(pid);
+                }
+            }
+        } catch (e) {
+            window.location.href = '/messages/thread/' + encodeURIComponent(pid);
+        }
+    }
+
+    $('friendSearch')?.addEventListener('input', function() {
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('.friend-card').forEach(function(card) {
+            var name = (card.dataset.name || '').toLowerCase();
+            var uname = (card.dataset.username || '').toLowerCase();
+            card.style.display = (!q || name.includes(q) || uname.includes(q)) ? '' : 'none';
+        });
+    });
+
+    // Hook into new chat modal opening
+    var _origNewChatOpen = $('openNewChat')?.click;
+    $('openNewChat')?.addEventListener('click', function() {
+        open('newChatModal');
+        loadFriendList();
+    });
+    $('openNewChatMain')?.addEventListener('click', function() {
+        open('newChatModal');
+        loadFriendList();
+    });
+    $('openNewChatEmpty')?.addEventListener('click', function() {
+        open('newChatModal');
+        loadFriendList();
     });
 
     async function startCall(type,target){
-        target = target || currentThreadName || cleanUser() || 'CHAIN User';
         const res = await fetch('/messages/calls/start',{
             method:'POST',
             headers:{'Content-Type':'application/json'},

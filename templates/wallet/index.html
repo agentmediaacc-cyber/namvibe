@@ -1,72 +1,314 @@
 {% extends "base.html" %}
 
-{% block title %}Wallet | CHAIN{% endblock %}
+{% block title %}Wallet | CHAIN Premium{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/wallet_premium.css">
+{% endblock %}
 
 {% block content %}
-<main class="wallet-premium platform-fade-up">
-    {% if setup_warning %}
-    <div class="px-card" style="padding:14px;margin-bottom:16px;">Finishing your profile setup. Your wallet will appear here soon.</div>
-    {% endif %}
+<main class="wp-dashboard">
 
-    <section class="px-hero wallet-panel" style="margin-bottom:16px;background:radial-gradient(circle at 85% 12%, rgba(247,183,51,.28), transparent 30%), linear-gradient(135deg,#fff,#eef3f8);">
-        <div class="px-section-head" style="margin:0;">
-            <div>
-                <p>Creator Wallet</p>
-                <h1>{{ wallet.coin_balance or 0 }} coins</h1>
-                <span class="px-muted">Balance, earnings, withdrawable funds and creator growth in one premium dashboard.</span>
-            </div>
-            <a href="{{ url_for('wallet.api_payout_request') }}" class="px-btn" onclick="event.preventDefault(); payoutRequest();">Withdraw</a>
+  <!-- Tab Bar -->
+  <div class="wp-tabs" id="wpTabs">
+    <button class="wp-tab is-active" data-tab="overview"><i class="fas fa-wallet"></i> Overview</button>
+    <button class="wp-tab" data-tab="transactions"><i class="fas fa-exchange-alt"></i> Transactions</button>
+    <button class="wp-tab" data-tab="earnings"><i class="fas fa-chart-line"></i> Earnings</button>
+    <button class="wp-tab" data-tab="payouts"><i class="fas fa-bank"></i> Payouts</button>
+    <button class="wp-tab" data-tab="send"><i class="fas fa-paper-plane"></i> Send</button>
+    <button class="wp-tab" data-tab="deposit"><i class="fas fa-plus-circle"></i> Deposit</button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="wp-panels">
+
+    <!-- Overview -->
+    <section class="wp-panel is-active" id="panel-overview">
+      <div class="wp-header"><h2>Wallet Overview</h2></div>
+
+      <div class="wp-balance-grid">
+        <div class="wp-balance-card wp-balance-primary">
+          <span class="wp-balance-label">Available Balance</span>
+          <strong class="wp-balance-amount">{{ summary.available or 0 }}</strong>
+          <small>coins</small>
         </div>
+        <div class="wp-balance-card">
+          <span class="wp-balance-label">Pending</span>
+          <strong class="wp-balance-amount">{{ summary.pending or 0 }}</strong>
+          <small>coins</small>
+        </div>
+        <div class="wp-balance-card">
+          <span class="wp-balance-label">Withdrawable</span>
+          <strong class="wp-balance-amount">{{ summary.withdrawable or 0 }}</strong>
+          <small>coins</small>
+        </div>
+        <div class="wp-balance-card">
+          <span class="wp-balance-label">Lifetime Earned</span>
+          <strong class="wp-balance-amount">{{ summary.total_earned or 0 }}</strong>
+          <small>coins</small>
+        </div>
+        <div class="wp-balance-card">
+          <span class="wp-balance-label">Lifetime Spent</span>
+          <strong class="wp-balance-amount">{{ summary.total_spent or 0 }}</strong>
+          <small>coins</small>
+        </div>
+      </div>
+
+      <div class="wp-quick-actions">
+        <button class="wp-btn wp-btn-primary" id="wpQuickDeposit"><i class="fas fa-plus-circle"></i> Deposit</button>
+        <button class="wp-btn" id="wpQuickSend"><i class="fas fa-paper-plane"></i> Send Tip</button>
+        <button class="wp-btn" id="wpQuickPayout"><i class="fas fa-bank"></i> Withdraw</button>
+      </div>
+
+      <div class="wp-earnings-pie-wrap">
+        <div class="wp-section-head"><h3>Earnings Breakdown</h3></div>
+        <div class="wp-pie-chart" id="wpPieChart">
+          <div class="wp-pie-segment wp-pie-tips" style="--pct:{{ (breakdown.tips / (breakdown.tips + breakdown.gifts + breakdown.subscriptions + breakdown.marketplace + 1)) * 100 }}%"></div>
+          <div class="wp-pie-segment wp-pie-gifts" style="--pct:{{ (breakdown.gifts / (breakdown.tips + breakdown.gifts + breakdown.subscriptions + breakdown.marketplace + 1)) * 100 }}%"></div>
+          <div class="wp-pie-segment wp-pie-subs" style="--pct:{{ (breakdown.subscriptions / (breakdown.tips + breakdown.gifts + breakdown.subscriptions + breakdown.marketplace + 1)) * 100 }}%"></div>
+          <div class="wp-pie-segment wp-pie-market" style="--pct:{{ (breakdown.marketplace / (breakdown.tips + breakdown.gifts + breakdown.subscriptions + breakdown.marketplace + 1)) * 100 }}%"></div>
+        </div>
+        <div class="wp-pie-legend">
+          <span><i class="fas fa-circle" style="color:var(--wp-tips)"></i> Tips: {{ breakdown.tips }}</span>
+          <span><i class="fas fa-circle" style="color:var(--wp-gifts)"></i> Gifts: {{ breakdown.gifts }}</span>
+          <span><i class="fas fa-circle" style="color:var(--wp-subs)"></i> Subscriptions: {{ breakdown.subscriptions }}</span>
+          <span><i class="fas fa-circle" style="color:var(--wp-market)"></i> Marketplace: {{ breakdown.marketplace }}</span>
+        </div>
+      </div>
     </section>
 
-    <section class="wallet-stat-grid" style="margin-bottom:16px;">
-        <article class="wallet-stat"><span>Balance</span><strong>{{ wallet.coin_balance or 0 }}</strong><small class="px-muted">coins</small></article>
-        <article class="wallet-stat"><span>Pending earnings</span><strong>{{ wallet.pending_withdrawal or 0 }}</strong><small class="px-muted">coins</small></article>
-        <article class="wallet-stat"><span>Withdrawable</span><strong>{{ wallet.available_balance or wallet.coin_balance or 0 }}</strong><small class="px-muted">coins</small></article>
-    </section>
-
-    <section class="wallet-grid">
-        <article class="wallet-panel">
-            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Revenue chart</p><h2>Creator growth</h2></div><span class="px-chip">Rank #{{ wallet.creator_rank or '—' }}</span></div>
-            <div class="wallet-chart">
-                <span style="height:35%"></span><span style="height:58%"></span><span style="height:44%"></span><span style="height:76%"></span><span style="height:68%"></span><span style="height:90%"></span>
-            </div>
-            <div class="wallet-chart" style="height:110px;margin-top:12px;">
-                <span style="height:45%"></span><span style="height:52%"></span><span style="height:66%"></span><span style="height:62%"></span><span style="height:74%"></span>
-            </div>
-        </article>
-
-        <article class="wallet-panel">
-            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Recent</p><h2>Transactions</h2></div><a class="px-chip" href="/wallet/topup">Top up</a></div>
-            {% if transactions %}
-            <div style="display:grid;gap:10px;">
-                {% for tx in transactions %}
-                <div class="px-card" style="padding:12px;display:flex;justify-content:space-between;gap:12px;">
-                    <div><strong>{{ tx.description or tx.tx_type|replace('_', ' ')|title }}</strong><p class="px-muted" style="margin:4px 0 0;">{{ tx.created_at }}</p></div>
-                    <div style="text-align:right;"><strong style="color:{% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}var(--px-success){% else %}var(--px-danger){% endif %};">{% if tx.tx_type in ['gift_received', 'earning', 'topup'] %}+{% else %}-{% endif %}{{ tx.amount }}</strong><p class="px-muted" style="margin:4px 0 0;">{{ tx.status }}</p></div>
-                </div>
-                {% endfor %}
-            </div>
+    <!-- Transactions -->
+    <section class="wp-panel" id="panel-transactions">
+      <div class="wp-header"><h2>Transactions</h2></div>
+      <div class="wp-filter-bar">
+        <select class="wp-filter-select" id="wpTxTypeFilter">
+          <option value="">All Types</option>
+          <option value="tip">Tips</option>
+          <option value="gift">Gifts</option>
+          <option value="subscription">Subscriptions</option>
+          <option value="marketplace">Marketplace</option>
+          <option value="deposit">Deposits</option>
+          <option value="withdrawal">Withdrawals</option>
+          <option value="refund">Refunds</option>
+        </select>
+      </div>
+      <div class="wp-table-wrap">
+        <table class="wp-table" id="wpTxTable">
+          <thead><tr><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="wpTxBody">
+            {% for tx in transactions %}
+            <tr>
+              <td>{{ tx.transaction_type|replace('_', ' ')|title if tx.transaction_type else tx.tx_type|replace('_', ' ')|title }}</td>
+              <td class="{% if tx.amount_cents and tx.amount_cents > 0 %}wp-tx-positive{% elif tx.amount_cents and tx.amount_cents < 0 %}wp-tx-negative{% endif %}">
+                {% if tx.amount_cents and tx.amount_cents > 0 %}+{% endif %}{{ tx.amount_cents or tx.amount or 0 }}
+              </td>
+              <td>{{ tx.status or 'completed' }}</td>
+              <td>{{ tx.created_at[:10] if tx.created_at else '' }}</td>
+            </tr>
             {% else %}
-            <div class="premium-empty"><i class="fas fa-history"></i><h3>No transactions yet</h3><p>Your top-ups, gifts, earnings and payouts will appear here.</p><a class="px-btn" href="/wallet/topup">Top Up Coins</a></div>
-            {% endif %}
-        </article>
+            <tr><td colspan="4" class="wp-empty"><i class="fas fa-history"></i><p>No transactions yet.</p></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </section>
-</main>
 
-<script>
-function payoutRequest() {
-    fetch("{{ url_for('wallet.api_payout_request') }}", {method: 'POST'})
-    .then(r => r.json())
-    .then(data => {
-        if (data.error === 'setup_required') {
-            alert('setup_required: Please add a payout method first.');
-        } else if (data.success) {
-            alert('Payout request submitted!');
-        } else {
-            alert('Error: ' + data.error);
-        }
-    });
-}
-</script>
+    <!-- Earnings -->
+    <section class="wp-panel" id="panel-earnings">
+      <div class="wp-header"><h2>Earnings Breakdown</h2></div>
+      <div class="wp-breakdown-grid">
+        <div class="wp-breakdown-card">
+          <i class="fas fa-hand-holding-heart wp-bd-icon" style="color:var(--wp-tips)"></i>
+          <div><strong>{{ breakdown.tips }}</strong><span>Tips</span></div>
+        </div>
+        <div class="wp-breakdown-card">
+          <i class="fas fa-gift wp-bd-icon" style="color:var(--wp-gifts)"></i>
+          <div><strong>{{ breakdown.gifts }}</strong><span>Gifts</span></div>
+        </div>
+        <div class="wp-breakdown-card">
+          <i class="fas fa-star wp-bd-icon" style="color:var(--wp-subs)"></i>
+          <div><strong>{{ breakdown.subscriptions }}</strong><span>Subscriptions</span></div>
+        </div>
+        <div class="wp-breakdown-card">
+          <i class="fas fa-store wp-bd-icon" style="color:var(--wp-market)"></i>
+          <div><strong>{{ breakdown.marketplace }}</strong><span>Marketplace</span></div>
+        </div>
+        <div class="wp-breakdown-card">
+          <i class="fas fa-coins wp-bd-icon" style="color:var(--wp-other)"></i>
+          <div><strong>{{ breakdown.other }}</strong><span>Other</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Payouts -->
+    <section class="wp-panel" id="panel-payouts">
+      <div class="wp-header">
+        <h2>Payout Methods</h2>
+        <button class="wp-btn wp-btn-primary" id="wpAddPayoutBtn"><i class="fas fa-plus"></i> Add Method</button>
+      </div>
+      <div class="wp-payout-grid" id="wpPayoutGrid">
+        {% for pm in payout_methods %}
+        <div class="wp-payout-card" data-id="{{ pm.id }}">
+          <div class="wp-payout-icon">
+            {% if pm.provider == 'bank' %}<i class="fas fa-university"></i>
+            {% elif pm.provider == 'mobile_wallet' %}<i class="fas fa-mobile-alt"></i>
+            {% elif pm.provider == 'paypal' %}<i class="fab fa-paypal"></i>
+            {% else %}<i class="fas fa-hand-holding-usd"></i>{% endif %}
+          </div>
+          <div class="wp-payout-info">
+            <strong>{{ pm.account_name }}</strong>
+            <span>{{ pm.masked_account }}</span>
+            <small>{{ pm.provider|replace('_', ' ')|title }}</small>
+          </div>
+          <div class="wp-payout-actions">
+            {% if pm.is_default %}<span class="wp-chip wp-chip-default">Default</span>{% endif %}
+            <button class="wp-btn wp-btn-sm wp-btn-danger wp-delete-payout" data-id="{{ pm.id }}"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        {% else %}
+        <div class="wp-empty"><i class="fas fa-wallet"></i><p>No payout methods. Add one to withdraw your earnings.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Send -->
+    <section class="wp-panel" id="panel-send">
+      <div class="wp-header"><h2>Send Coins</h2></div>
+      <div class="wp-send-grid">
+        <div class="wp-send-card" id="wpSendTipCard">
+          <i class="fas fa-hand-holding-heart"></i>
+          <h3>Send a Tip</h3>
+          <p>Show appreciation with a tip.</p>
+          <button class="wp-btn wp-btn-primary" id="wpSendTipBtn">Send Tip</button>
+        </div>
+        <div class="wp-send-card" id="wpSendGiftCard">
+          <i class="fas fa-gift"></i>
+          <h3>Send a Gift</h3>
+          <p>Send a premium gift.</p>
+          <button class="wp-btn wp-btn-primary" id="wpSendGiftBtn">Send Gift</button>
+        </div>
+        <div class="wp-send-card" id="wpSubscribeCard">
+          <i class="fas fa-star"></i>
+          <h3>Subscribe</h3>
+          <p>Subscribe to a creator.</p>
+          <button class="wp-btn wp-btn-primary" id="wpSubscribeBtn">Subscribe</button>
+        </div>
+        <div class="wp-send-card" id="wpPurchaseCard">
+          <i class="fas fa-shopping-cart"></i>
+          <h3>Purchase</h3>
+          <p>Buy from the marketplace.</p>
+          <button class="wp-btn wp-btn-primary" id="wpPurchaseBtn">Purchase</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deposit -->
+    <section class="wp-panel" id="panel-deposit">
+      <div class="wp-header"><h2>Deposit Coins</h2></div>
+      <div class="wp-deposit-card">
+        <i class="fas fa-coins"></i>
+        <h3>Add funds to your wallet</h3>
+        <div class="wp-deposit-input-row">
+          <input class="wp-input" id="wpDepositAmount" type="number" placeholder="Amount in coins" min="1" value="100">
+          <button class="wp-btn wp-btn-primary" id="wpDepositBtn">Deposit</button>
+        </div>
+        <p class="wp-muted">Test mode: coins added instantly (no real payment).</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ── Modals ── -->
+
+  <!-- Tip Modal -->
+  <div class="wp-modal-overlay" id="wpTipModal">
+    <div class="wp-modal">
+      <div class="wp-modal-head"><h3>Send a Tip</h3><button class="wp-modal-close">&times;</button></div>
+      <div class="wp-modal-body">
+        <input class="wp-input" id="wpTipReceiver" placeholder="Recipient Profile ID">
+        <input class="wp-input" id="wpTipAmount" type="number" placeholder="Amount (coins)" min="1" value="50">
+        <input class="wp-input" id="wpTipMessage" placeholder="Message (optional)">
+      </div>
+      <div class="wp-modal-foot"><button class="wp-btn wp-btn-primary" id="wpTipSend">Send Tip</button><button class="wp-btn wp-btn-ghost wp-modal-close">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Gift Modal -->
+  <div class="wp-modal-overlay" id="wpGiftModal">
+    <div class="wp-modal">
+      <div class="wp-modal-head"><h3>Send a Gift</h3><button class="wp-modal-close">&times;</button></div>
+      <div class="wp-modal-body">
+        <input class="wp-input" id="wpGiftReceiver" placeholder="Recipient Profile ID">
+        <div class="wp-gift-picker" id="wpGiftPicker">
+          <div class="wp-loading"><div class="wp-skeleton" style="height:60px;"></div></div>
+        </div>
+      </div>
+      <div class="wp-modal-foot"><button class="wp-btn wp-btn-primary" id="wpGiftSend">Send Gift</button><button class="wp-btn wp-btn-ghost wp-modal-close">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Subscribe Modal -->
+  <div class="wp-modal-overlay" id="wpSubscribeModal">
+    <div class="wp-modal">
+      <div class="wp-modal-head"><h3>Subscribe to Creator</h3><button class="wp-modal-close">&times;</button></div>
+      <div class="wp-modal-body">
+        <input class="wp-input" id="wpSubCreator" placeholder="Creator Profile ID">
+        <select class="wp-input" id="wpSubTier">
+          <option value="basic">Basic</option>
+          <option value="premium">Premium</option>
+          <option value="vip">VIP</option>
+        </select>
+        <input class="wp-input" id="wpSubPrice" type="number" placeholder="Price (coins)" min="1" value="99">
+      </div>
+      <div class="wp-modal-foot"><button class="wp-btn wp-btn-primary" id="wpSubSend">Subscribe</button><button class="wp-btn wp-btn-ghost wp-modal-close">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Purchase Modal -->
+  <div class="wp-modal-overlay" id="wpPurchaseModal">
+    <div class="wp-modal">
+      <div class="wp-modal-head"><h3>Marketplace Purchase</h3><button class="wp-modal-close">&times;</button></div>
+      <div class="wp-modal-body">
+        <input class="wp-input" id="wpPurchaseSeller" placeholder="Seller Profile ID">
+        <input class="wp-input" id="wpPurchaseAmount" type="number" placeholder="Price (coins)" min="1" value="199">
+        <input class="wp-input" id="wpPurchaseItem" placeholder="Item ID (optional)">
+        <select class="wp-input" id="wpPurchaseType"><option value="product">Product</option><option value="digital">Digital</option><option value="service">Service</option></select>
+      </div>
+      <div class="wp-modal-foot"><button class="wp-btn wp-btn-primary" id="wpPurchaseBuy">Purchase</button><button class="wp-btn wp-btn-ghost wp-modal-close">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Add Payout Method Modal -->
+  <div class="wp-modal-overlay" id="wpAddPayoutModal">
+    <div class="wp-modal">
+      <div class="wp-modal-head"><h3>Add Payout Method</h3><button class="wp-modal-close">&times;</button></div>
+      <div class="wp-modal-body">
+        <select class="wp-input" id="wpPayoutProvider">
+          <option value="bank">Bank</option>
+          <option value="mobile_wallet">Mobile Wallet</option>
+          <option value="paypal">PayPal</option>
+          <option value="manual">Manual</option>
+        </select>
+        <input class="wp-input" id="wpPayoutAccountName" placeholder="Account Name">
+        <input class="wp-input" id="wpPayoutMasked" placeholder="Account Info (masked, e.g. ****1234)">
+        <label class="wp-checkbox"><input type="checkbox" id="wpPayoutDefault"> Set as default</label>
+      </div>
+      <div class="wp-modal-foot"><button class="wp-btn wp-btn-primary" id="wpPayoutSave">Add Method</button><button class="wp-btn wp-btn-ghost wp-modal-close">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Confirm Delete Payout Modal -->
+  <div class="wp-modal-overlay" id="wpDeletePayoutModal">
+    <div class="wp-modal">
+      <div class="wp-modal-head"><h3>Delete Payout Method</h3><button class="wp-modal-close">&times;</button></div>
+      <div class="wp-modal-body"><p>Are you sure you want to delete this payout method?</p></div>
+      <div class="wp-modal-foot"><button class="wp-btn wp-btn-danger" id="wpDeletePayoutConfirm">Delete</button><button class="wp-btn wp-btn-ghost wp-modal-close">Cancel</button></div>
+    </div>
+  </div>
+
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/wallet_premium.js"></script>
 {% endblock %}

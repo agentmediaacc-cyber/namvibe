@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications | CHAIN{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/notifications_center.css">
+{% endblock %}
+
+{% block content %}
+<main class="notif-center platform-fade-up">
+  <div class="notif-center-header">
+    <div>
+      <p class="notif-center-subtitle">Stay in the loop</p>
+      <h1 class="notif-center-title">Notifications</h1>
+    </div>
+    <div class="notif-center-actions">
+      <button class="notif-btn notif-btn-icon" id="notifCenterSettings" title="Notification Settings">
+        <i class="fas fa-cog"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="notif-center-tabs" id="notifCenterTabs">
+    {% for tab in tabs %}
+    <button class="notif-tab{% if loop.first %} active{% endif %}" data-tab="{{ tab.key }}">
+      <i class="fas {{ tab.icon }}"></i>
+      <span>{{ tab.label }}</span>
+      {% if tab.key == 'unread' %}
+      <span class="notif-tab-badge hidden" id="unreadTabBadge">0</span>
+      {% endif %}
+    </button>
+    {% endfor %}
+  </div>
+
+  <div class="notif-center-toolbar" id="notifCenterToolbar">
+    <button class="notif-btn notif-btn-ghost" id="markAllReadBtn">
+      <i class="fas fa-check-double"></i> Mark all read
+    </button>
+    <button class="notif-btn notif-btn-ghost hidden" id="bulkDeleteBtn">
+      <i class="fas fa-trash"></i> Delete selected
+    </button>
+    <span class="notif-center-count" id="notifCountLabel"></span>
+  </div>
+
+  <div class="notif-center-list" id="notifCenterList">
+    <div class="notif-skeleton-list" id="notifSkeleton">
+      <div class="notif-skeleton-item"><div class="notif-skeleton-avatar"></div><div class="notif-skeleton-lines"><div class="notif-skeleton-line w-60"></div><div class="notif-skeleton-line w-40"></div></div></div>
+      <div class="notif-skeleton-item"><div class="notif-skeleton-avatar"></div><div class="notif-skeleton-lines"><div class="notif-skeleton-line w-70"></div><div class="notif-skeleton-line w-30"></div></div></div>
+      <div class="notif-skeleton-item"><div class="notif-skeleton-avatar"></div><div class="notif-skeleton-lines"><div class="notif-skeleton-line w-50"></div><div class="notif-skeleton-line w-45"></div></div></div>
+      <div class="notif-skeleton-item"><div class="notif-skeleton-avatar"></div><div class="notif-skeleton-lines"><div class="notif-skeleton-line w-65"></div><div class="notif-skeleton-line w-35"></div></div></div>
+    </div>
+  </div>
+
+  <div class="notif-center-sentinel" id="notifSentinel"></div>
+
+  <div class="notif-empty-state hidden" id="notifEmptyState">
+    <i class="fas fa-bell-slash notif-empty-icon"></i>
+    <h3>All caught up!</h3>
+    <p class="notif-empty-text">No notifications in this category.</p>
+  </div>
+
+  <div class="notif-toast-container" id="notifToastContainer"></div>
+</main>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/static/js/notifications_center.js"></script>
+{% endblock %}

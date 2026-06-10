@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import re
@@ -61,6 +62,21 @@ AUTH_PROFILE_COLUMNS = {
 _DEV_REGISTRATION_CREDENTIALS = {}
 
 
+def _load_test_credentials():
+    global _DEV_REGISTRATION_CREDENTIALS
+    try:
+        _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        creds_path = os.path.join(_base, "secrets", "test_credentials.json")
+        if os.path.isfile(creds_path):
+            with open(creds_path) as f:
+                creds = json.load(f)
+            for key, val in creds.items():
+                if isinstance(val, dict) and val.get("username"):
+                    _DEV_REGISTRATION_CREDENTIALS[str(key).lower()] = val
+    except Exception:
+        pass
+
+
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
 
@@ -68,7 +84,12 @@ def _utcnow_iso():
 def _is_production_env():
     if os.getenv("CHAIN_FAST_LOCAL") == "1":
         return False
-    return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
+    if os.getenv("FLASK_ENV") != "production":
+        return False
+    return os.getenv("ENV") == "production"
+
+
+_load_test_credentials()
 
 
 def _registration_result(ok=False, dev_fallback=False, profile=None, auth_user_id=None, redirect_to=None, error=None):
@@ -117,6 +138,11 @@ def _remember_dev_registration_credential(email, username, password, auth_user_i
 def _get_dev_registration_credential(login_id, profile=None):
     if _is_production_env():
         return None
+    # Reload from disk if in-memory store is empty (server started before seed)
+    loaded_now = False
+    if not _DEV_REGISTRATION_CREDENTIALS:
+        _load_test_credentials()
+        loaded_now = True
     candidates = {str(login_id or "").lower()}
     if profile:
         candidates.update(
@@ -1048,6 +1074,31 @@ def register_chain_user(email, password, username, full_name, extra=None):
         return _registration_result(error="Registration failed. Please try again.")
 
 
+def _dev_credential_profile(credential):
+    """Reconstruct a minimal profile dict from a dev credential.
+    Handles both 'profile' key format and legacy field-only format."""
+    if not credential:
+        return None
+    profile = credential.get("profile")
+    if profile and profile.get("id") and profile.get("auth_user_id"):
+        return profile
+    pid = credential.get("profile_id")
+    auth_uid = credential.get("auth_user_id")
+    email = credential.get("email")
+    username = credential.get("username")
+    full_name = credential.get("full_name")
+    if pid and auth_uid:
+        return {
+            "id": str(pid),
+            "auth_user_id": str(auth_uid),
+            "email": email or "",
+            "username": username or "",
+            "full_name": full_name or username or "",
+            "display_name": full_name or username or "",
+        }
+    return None
+
+
 def login_chain_user(email, password=None, remember=False):
     if isinstance(email, dict):
         payload = email
@@ -1060,19 +1111,25 @@ def login_chain_user(email, password=None, remember=False):
     if not login_id or not password:
         return False, "Enter your email or username and password."
 
+    _is_dev = os.getenv("CHAIN_FAST_LOCAL") == "1" or os.getenv("FLASK_ENV") != "production"
+
     resolved_email = login_id
     login_profile = _find_login_profile(login_id)
     dev_credential = _get_dev_registration_credential(login_id, profile=login_profile)
-    if not login_profile and dev_credential and dev_credential.get("profile"):
-        login_profile = dev_credential.get("profile")
+    if not login_profile and dev_credential and _dev_credential_profile(dev_credential):
+        login_profile = _dev_credential_profile(dev_credential)
     if "@" not in login_id:
         username = normalize_username(login_id)
         if not login_profile:
-            # If Neon is down and they use username, we can't resolve it easily
-            if is_circuit_open():
+            dev_profile = _dev_credential_profile(dev_credential) if dev_credential else None
+            if dev_profile and dev_profile.get("email"):
+                resolved_email = clean_email(dev_profile.get("email"))
+            elif is_circuit_open():
                 return False, "Username login is temporarily unavailable. Please use your email."
-            return False, "Account not found."
-        resolved_email = clean_email(login_profile.get("email"))
+            else:
+                return False, "Account not found."
+        else:
+            resolved_email = clean_email(login_profile.get("email"))
         if not resolved_email:
             return False, "Account not found."
 
@@ -1114,13 +1171,14 @@ def login_chain_user(email, password=None, remember=False):
         err_msg = str(error).lower()
         if "invalid login credentials" in err_msg:
             if dev_credential and check_password_hash(dev_credential.get("password_hash", ""), password):
-                profile = login_profile or _find_login_profile(resolved_email) or dev_credential.get("profile")
+                profile = login_profile or _find_login_profile(resolved_email) or _dev_credential_profile(dev_credential)
                 if profile and profile.get("auth_user_id"):
                     _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
                     return True, "/profile/"
-            return False, "Invalid password." if login_profile else "Account not found."
+            _final_err = "Invalid password." if login_profile else "Account not found."
+            return False, _final_err
         if "email not confirmed" in err_msg:
-            profile = login_profile or _find_login_profile(resolved_email) or (dev_credential or {}).get("profile")
+            profile = login_profile or _find_login_profile(resolved_email) or _dev_credential_profile(dev_credential)
             if profile and profile.get("auth_user_id"):
                 _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
                 return True, "/profile/"
@@ -1128,7 +1186,7 @@ def login_chain_user(email, password=None, remember=False):
         print(f"[auth_service] login_chain_user failed: {error}")
         if dev_credential:
             if check_password_hash(dev_credential.get("password_hash", ""), password):
-                profile = login_profile or _find_login_profile(resolved_email) or dev_credential.get("profile")
+                profile = login_profile or _find_login_profile(resolved_email) or _dev_credential_profile(dev_credential)
                 if profile and profile.get("auth_user_id"):
                     _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
                     return True, "/profile/"

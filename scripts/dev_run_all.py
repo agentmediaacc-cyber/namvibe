@@ -12,16 +12,22 @@ env.update({
     "PYTHONPATH": ".",
     "FLASK_ENV": "production",
     "ENV": "production",
+    "CHAIN_FAST_LOCAL": "1",
     "CHAIN_DISABLE_PERFORMANCE_LOGS": "1",
     "CHAIN_DISABLE_IP_REPUTATION": "1",
 })
 
+_disable_scheduler = os.environ.get("CHAIN_DISABLE_SCHEDULER") == "1"
+_disable_workers = os.environ.get("CHAIN_DISABLE_WORKERS") == "1"
+
 commands = [
     ("app", [sys.executable, "app.py"]),
-    ("scheduler", [sys.executable, "scripts/run_scheduler.py", "--interval", "10"]),
-    ("worker", [sys.executable, "scripts/run_worker.py", "--worker-name", "worker-1", "--worker-type", "default", "--interval", "2", "--queues", "default,notifications,safety,wallet"]),
-    ("call-worker", [sys.executable, "scripts/run_worker.py", "--worker-name", "call-worker-1", "--worker-type", "calls", "--interval", "2", "--queues", "default,notifications"]),
 ]
+if not _disable_scheduler:
+    commands.append(("scheduler", [sys.executable, "scripts/run_scheduler.py", "--interval", "10"]))
+if not _disable_workers:
+    commands.append(("worker", [sys.executable, "scripts/run_worker.py", "--worker-name", "worker-1", "--worker-type", "default", "--interval", "2", "--queues", "default,notifications,safety,wallet"]))
+    commands.append(("call-worker", [sys.executable, "scripts/run_worker.py", "--worker-name", "call-worker-1", "--worker-type", "calls", "--interval", "2", "--queues", "default,notifications"]))
 
 processes = []
 

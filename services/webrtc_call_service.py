@@ -14,6 +14,14 @@ CALL_STATES = frozenset({
     "reconnecting", "ended", "failed", "missed", "busy"
 })
 
+MISSED_CALL_REASONS = frozenset({
+    "not_answered",
+    "busy",
+    "offline",
+    "cancelled",
+    "failed",
+})
+
 
 _CALL_RATE_LIMIT = {}
 _CALL_RATE_LIMIT_TTL = 60
@@ -41,6 +49,15 @@ def check_duplicate_call(caller_profile_id, receiver_profile_id):
         return True
     _CALL_RATE_LIMIT[key] = {"ts": now}
     return False
+
+
+def _check_relationship_gate(caller_id, receiver_id):
+    try:
+        from services.relationship_gate_service import can_call
+        return can_call(caller_id, receiver_id)
+    except Exception:
+        pass
+    return {"ok": True}
 
 
 def _check_blocked(caller_id, receiver_id):
@@ -89,6 +106,15 @@ def _uuid(value=None):
 
 def _now():
     return datetime.now(timezone.utc)
+
+
+def normalize_missed_call_reason(reason):
+    value = (reason or "not_answered").strip().lower().replace("-", "_")
+    if value in {"timeout", "no_answer", "no_answered"}:
+        value = "not_answered"
+    if value not in MISSED_CALL_REASONS:
+        value = "failed"
+    return value
 
 
 def _call_dict(row):
@@ -148,6 +174,10 @@ def create_call(caller_profile_id, receiver_profile_id, thread_id=None, call_typ
 
     if caller_profile_id == receiver_profile_id:
         return {"ok": False, "error": "self_call_not_allowed", "status": "failed"}
+
+    gate = _check_relationship_gate(caller_profile_id, receiver_profile_id)
+    if not gate.get("ok"):
+        return {"ok": False, "error": gate.get("error", "cannot_call"), "status": gate.get("status", "failed")}
 
     if check_duplicate_call(caller_profile_id, receiver_profile_id):
         return {"ok": False, "error": "duplicate_call", "status": "failed"}
@@ -323,7 +353,7 @@ def mark_call_busy(call_id):
     call_id = _uuid(call_id)
     try:
         write_query(
-            "UPDATE chain_calls SET status = 'busy', ended_at = now(), end_reason = 'busy', updated_at = now() WHERE id = %s",
+            "UPDATE chain_calls SET status = 'busy', ended_at = now(), end_reason = 'busy', missed_reason = 'busy', updated_at = now() WHERE id = %s",
             (call_id,),
         )
     except Exception:
@@ -339,7 +369,7 @@ def mark_call_timeout(call_id):
 
     try:
         write_query(
-            "UPDATE chain_calls SET status = 'missed', ended_at = now(), end_reason = 'timeout', updated_at = now() WHERE id = %s",
+            "UPDATE chain_calls SET status = 'missed', ended_at = now(), end_reason = 'timeout', missed_reason = 'not_answered', updated_at = now() WHERE id = %s",
             (call_id,),
         )
         write_query(
@@ -504,7 +534,7 @@ def check_call_timeouts():
             call_id = str(call_row["id"])
             try:
                 write_query(
-                    "UPDATE chain_calls SET status = 'missed', ended_at = now(), end_reason = 'timeout', updated_at = now() WHERE id = %s",
+                    "UPDATE chain_calls SET status = 'missed', ended_at = now(), end_reason = 'timeout', missed_reason = 'not_answered', updated_at = now() WHERE id = %s",
                     (call_id,),
                 )
                 write_query(
@@ -584,10 +614,11 @@ def mark_call_reconnecting(call_id, profile_id):
 def mark_call_failed(call_id, profile_id, reason="network_error"):
     call_id = _uuid(call_id)
     profile_id = _uuid(profile_id)
+    missed_reason = normalize_missed_call_reason("failed" if reason == "network_error" else reason)
     try:
         write_query(
-            "UPDATE chain_calls SET status = 'failed', ended_at = now(), end_reason = %s, updated_at = now() WHERE id = %s",
-            (reason, call_id),
+            "UPDATE chain_calls SET status = 'failed', ended_at = now(), end_reason = %s, missed_reason = %s, updated_at = now() WHERE id = %s",
+            (reason, missed_reason, call_id),
         )
         write_query(
             """UPDATE chain_call_participants SET status = 'failed', connection_status = 'failed', left_at = now()

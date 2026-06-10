@@ -209,22 +209,51 @@
   }
 
   /* ---- Voice Recording ---- */
+
+  function detectAudioMime() {
+    var types = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/mpeg',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+    ];
+    for (var i = 0; i < types.length; i++) {
+      if (MediaRecorder.isTypeSupported(types[i])) {
+        return types[i];
+      }
+    }
+    return '';
+  }
+
   async function startRecording() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return;
     }
     try {
       var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      C.mediaRecorder = new MediaRecorder(stream);
+      var mimeType = detectAudioMime();
+      var options = {};
+      if (mimeType) {
+        options.mimeType = mimeType;
+      }
+      if (!MediaRecorder.isTypeSupported) {
+        C.mediaRecorder = new MediaRecorder(stream);
+      } else {
+        C.mediaRecorder = new MediaRecorder(stream, options);
+      }
       C.audioChunks = [];
       C.isRecording = true;
 
       C.mediaRecorder.ondataavailable = function (e) {
-        C.audioChunks.push(e.data);
+        if (e.data.size > 0) {
+          C.audioChunks.push(e.data);
+        }
       };
-      C.mediaRecorder.onstop = uploadVoiceNote;
+      C.mediaRecorder.onstop = handleVoiceStop;
 
-      C.mediaRecorder.start();
+      C.mediaRecorder.start(250);
       C.startTime = Date.now();
       if (C.voiceOverlay) C.voiceOverlay.style.display = 'flex';
       if (C.micBtn) C.micBtn.classList.add('recording');
@@ -244,36 +273,50 @@
     }
   }
 
+  function handleVoiceStop() {
+    var tracks = [];
+    if (C.mediaRecorder) {
+      try { tracks = C.mediaRecorder.stream ? C.mediaRecorder.stream.getTracks() : []; } catch (ex) {}
+    }
+    tracks.forEach(function (t) { try { t.stop(); } catch (ex) {} });
+    clearInterval(C.recordTimer);
+    if (C.voiceOverlay) C.voiceOverlay.style.display = 'none';
+    if (C.micBtn) C.micBtn.classList.remove('recording');
+    if (C.form) C.form.style.display = '';
+    C.isRecording = false;
+    uploadVoiceNote();
+    C.mediaRecorder = null;
+  }
+
   function stopAndSendVoice() {
     if (C.mediaRecorder && C.mediaRecorder.state === 'recording') {
       C.mediaRecorder.stop();
-      C.mediaRecorder.stream.getTracks().forEach(function (t) { t.stop(); });
-      clearInterval(C.recordTimer);
-      if (C.voiceOverlay) C.voiceOverlay.style.display = 'none';
-      if (C.micBtn) C.micBtn.classList.remove('recording');
-      if (C.form) C.form.style.display = '';
-      C.isRecording = false;
     }
   }
 
   function cancelRecording() {
     if (C.mediaRecorder && C.mediaRecorder.state === 'recording') {
-      C.mediaRecorder.stop();
-      C.mediaRecorder.stream.getTracks().forEach(function (t) { t.stop(); });
-      clearInterval(C.recordTimer);
       C.audioChunks = [];
-      if (C.voiceOverlay) C.voiceOverlay.style.display = 'none';
-      if (C.micBtn) C.micBtn.classList.remove('recording');
-      if (C.form) C.form.style.display = '';
+      C.mediaRecorder.stop();
+    } else {
+      C.audioChunks = [];
       C.isRecording = false;
     }
   }
 
   function uploadVoiceNote() {
-    if (C.audioChunks.length === 0) return;
-    var audioBlob = new Blob(C.audioChunks, { type: 'audio/webm' });
-    C.pendingVoiceFile = new File([audioBlob], 'voice-note.webm', { type: 'audio/webm' });
-    if (C.voiceAudio) C.voiceAudio.src = URL.createObjectURL(audioBlob);
+    if (!C.audioChunks || C.audioChunks.length === 0) return;
+    var mime = detectAudioMime() || 'audio/webm';
+    var ext = 'webm';
+    if (mime.indexOf('mp4') !== -1) ext = 'mp4';
+    else if (mime.indexOf('mpeg') !== -1) ext = 'mp3';
+    else if (mime.indexOf('ogg') !== -1) ext = 'ogg';
+    var audioBlob = new Blob(C.audioChunks, { type: mime });
+    C.pendingVoiceFile = new File([audioBlob], 'voice-note.' + ext, { type: mime });
+    if (C.voiceAudio) {
+      C.voiceAudio.src = URL.createObjectURL(audioBlob);
+      C.voiceAudio.load();
+    }
     if (C.voicePreview) C.voicePreview.hidden = false;
   }
 

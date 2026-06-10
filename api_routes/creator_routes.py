@@ -17,8 +17,17 @@ from services.creator_feature_service import (
     upsert_top_fan,
     upsert_creator_ranking,
 )
+from services.creator_service import (
+    get_creator_dashboard_data,
+    get_creator_analytics,
+    get_creator_earnings_breakdown,
+    support_creator,
+    get_creator_profile_upgrade,
+    upgrade_creator_level,
+)
 
 creator_bp = Blueprint('creator', __name__, url_prefix='/creator')
+
 
 @creator_bp.route('/dashboard')
 @login_required
@@ -26,6 +35,63 @@ def dashboard():
     profile = get_current_profile()
     stats = {**creator_dashboard(profile["id"]), **get_creator_stats(profile['id'])}
     return render_template('creator/dashboard.html', stats=stats, profile=profile)
+
+
+@creator_bp.route('/api/dashboard')
+@login_required
+def api_dashboard():
+    profile = get_current_profile()
+    data = get_creator_dashboard_data(profile["id"])
+    return jsonify({"ok": True, "data": data})
+
+
+@creator_bp.route('/api/analytics')
+@login_required
+def api_analytics():
+    profile = get_current_profile()
+    days = request.args.get("days", 30, type=int)
+    data = get_creator_analytics(profile["id"], days=days)
+    return jsonify({"ok": True, "data": data})
+
+
+@creator_bp.route('/api/earnings')
+@login_required
+def api_earnings():
+    profile = get_current_profile()
+    breakdown = get_creator_earnings_breakdown(profile["id"])
+    return jsonify({"ok": True, "data": breakdown})
+
+
+@creator_bp.route('/api/support', methods=['POST'])
+@login_required
+def api_support():
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or {}
+    target_id = data.get("target_profile_id")
+    action = data.get("action", "follow")
+    if not target_id:
+        return jsonify({"ok": False, "error": "target_profile_id_required"}), 400
+    result = support_creator(profile["id"], target_id, action, **data)
+    return jsonify(result), (200 if result.get("ok") else 400)
+
+
+@creator_bp.route('/api/profile/<profile_id>')
+@login_required
+def api_creator_profile(profile_id):
+    profile = get_current_profile()
+    target = profile_id if profile_id != "me" else profile["id"]
+    data = get_creator_profile_upgrade(target)
+    return jsonify({"ok": True, "data": data})
+
+
+@creator_bp.route('/api/upgrade-level', methods=['POST'])
+@login_required
+def api_upgrade_level():
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or {}
+    target_level = data.get("target_level")
+    result = upgrade_creator_level(profile["id"], target_level)
+    return jsonify(result), (200 if result.get("ok") else 400)
 
 
 @creator_bp.route('/verification/request', methods=['POST'])

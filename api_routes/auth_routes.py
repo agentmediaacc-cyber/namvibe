@@ -169,16 +169,28 @@ def login():
         oauth_error = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
 
     if request.method == "POST":
-        ok, result = login_chain_user(request.form.get("login_id"), request.form.get("password"))
+        raw_login_id = (
+            request.form.get("login_id")
+            or request.form.get("username")
+            or request.form.get("email")
+            or request.form.get("identifier")
+            or request.form.get("login")
+            or ""
+        )
+        raw_password = (
+            request.form.get("password")
+            or request.form.get("user_password")
+            or ""
+        )
+        ok, result = login_chain_user(raw_login_id, raw_password)
         if ok:
             return redirect(_post_login_redirect(result))
         
-        # Enhanced login error message
         if "invalid" in result.lower() or "not confirmed" in result.lower() or "incorrect" in result.lower():
             error = {
                 "message": result,
                 "actions": True,
-                "email": request.form.get("login_id") if "@" in (request.form.get("login_id") or "") else None
+                "email": raw_login_id if "@" in (raw_login_id or "") else None
             }
         else:
             error = result

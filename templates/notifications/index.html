@@ -2,131 +2,86 @@
 
 {% block title %}Notifications | CHAIN{% endblock %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/notifications_premium.css">
+{% endblock %}
+
 {% block content %}
-<main class="notifications-container platform-fade-up">
-    <div class="px-section-head">
-        <div>
-            <p>Activity</p>
-            <h1>Notifications</h1>
-            {% if setup_warning %}
-            <span class="px-muted">Finishing your profile setup. Notifications will appear here soon.</span>
-            {% endif %}
-        </div>
-        <div style="display: flex; gap: 10px;">
-            <button class="px-btn secondary small" onclick="toggleNotifSettings()"><i class="fas fa-cog"></i></button>
-            {% if notifications %}
-            <button id="mark-all-read" class="px-btn px-btn--gold">Mark all as read</button>
-            {% endif %}
-        </div>
+<main class="notif-premium">
+  <div class="notif-premium-header">
+    <div class="notif-premium-header-left">
+      <p class="notif-premium-eyebrow">Notification Center</p>
+      <h1 class="notif-premium-title">Activity</h1>
     </div>
+    <div class="notif-premium-header-right">
+      <button class="notif-btn notif-btn-cog" id="prefsBtn" title="Preferences">
+        <i class="fas fa-sliders-h"></i>
+      </button>
+    </div>
+  </div>
 
-    <!-- Filters -->
-    <div class="notif-filters mb-4" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;">
-        <button class="px-chip active" onclick="filterNotifs('all')">All</button>
-        <button class="px-chip" onclick="filterNotifs('mentions')">Mentions</button>
-        <button class="px-chip" onclick="filterNotifs('messages')">Messages</button>
-        <button class="px-chip" onclick="filterNotifs('calls')">Calls</button>
-        <button class="px-chip" onclick="filterNotifs('wallet')">Wallet</button>
-        <button class="px-chip" onclick="filterNotifs('live')">Live</button>
-    </div>
+  <div class="notif-premium-tabs" id="notifTabs">
+    {% for tab in tabs %}
+    <button class="notif-premium-tab{% if loop.first %} is-active{% endif %}" data-tab="{{ tab.key }}">
+      <span>{{ tab.label }}</span>
+      {% if tab.key == 'unread' %}
+      <span class="notif-premium-badge hidden" id="unreadBadge">0</span>
+      {% endif %}
+    </button>
+    {% endfor %}
+  </div>
 
-    <!-- Settings Modal (simplified) -->
-    <div id="notif-settings" style="display: none; background: var(--chain-bg-panel); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--chain-border);">
-        <h5 class="mb-3">Notification Settings</h5>
-        <div class="custom-control custom-switch mb-2">
-          <input type="checkbox" class="custom-control-input" id="soundToggle" checked>
-          <label class="custom-control-label" for="soundToggle">Notification Sounds</label>
-        </div>
-        <div class="custom-control custom-switch mb-2">
-          <input type="checkbox" class="custom-control-input" id="emailToggle" checked>
-          <label class="custom-control-label" for="emailToggle">Email Summaries</label>
-        </div>
-        <div class="mt-3">
-            <small class="text-muted">Push notifications are managed by your browser/device settings.</small>
-        </div>
-    </div>
+  <div class="notif-premium-toolbar" id="notifToolbar">
+    <button class="n-btn n-btn-ghost" id="markAllReadBtn">
+      <i class="fas fa-check-double"></i> Mark all read
+    </button>
+    <button class="n-btn n-btn-ghost hidden" id="bulkDeleteBtn">
+      <i class="fas fa-trash-alt"></i> Delete selected
+    </button>
+    <span class="notif-premium-count" id="notifCount"></span>
+  </div>
 
-    <div class="notif-groups">
-        {% if notifications %}
-            {% for group in ['Today', 'Yesterday', 'Earlier'] %}
-            <section>
-                <h3 class="notification-group-title">{{ group }}</h3>
-                {% for notification in notifications %}
-                    {% if (group == 'Today' and loop.index <= 3) or (group == 'Yesterday' and loop.index > 3 and loop.index <= 6) or (group == 'Earlier' and loop.index > 6) %}
-                    <article class="notification-item notification-card {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}">
-                        <div class="notification-row">
-                            <div class="notification-actor">
-                                {% if notification.actor_avatar %}
-                                <img src="{{ notification.actor_avatar }}" alt="{{ notification.actor_username }}">
-                                {% else %}
-                                <div class="avatar-placeholder">{{ notification.actor_username[0]|upper if notification.actor_username else 'S' }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="notification-body">
-                                <p><strong>{{ notification.actor_username or 'System' }}</strong> {{ notification.body }}</p>
-                                <small>{{ notification.created_at }}</small>
-                            </div>
-                            <span class="px-chip">
-                                {% set body = (notification.body or '')|lower %}
-                                {% if 'follow' in body %}<i class="fas fa-user-plus"></i>Follow{% elif 'like' in body %}<i class="fas fa-heart"></i>Like{% elif 'comment' in body %}<i class="fas fa-comment"></i>Comment{% elif 'live' in body %}<i class="fas fa-video"></i>Live{% else %}<i class="fas fa-bell"></i>Update{% endif %}
-                            </span>
-                            {% if not notification.is_read %}<div class="unread-indicator"></div>{% endif %}
-                        </div>
-                    </article>
-                    {% endif %}
-                {% endfor %}
-            </section>
-            {% endfor %}
-        {% else %}
-        <section class="premium-empty">
-            <i class="fas fa-bell-slash"></i>
-            <h3>No notifications yet</h3>
-            <p class="px-muted">We'll let you know when follows, likes, comments, live rooms and wallet events happen.</p>
-            <a href="/discover/" class="px-btn">Explore CHAIN</a>
-        </section>
-        {% endif %}
+  <div class="notif-premium-list" id="notifList">
+    <div class="notif-premium-skeleton" id="notifSkeleton">
+      <div class="n-skele"><div class="n-skele-avatar"></div><div class="n-skele-lines"><div class="n-skele-line w-55"></div><div class="n-skele-line w-35"></div></div></div>
+      <div class="n-skele"><div class="n-skele-avatar"></div><div class="n-skele-lines"><div class="n-skele-line w-65"></div><div class="n-skele-line w-40"></div></div></div>
+      <div class="n-skele"><div class="n-skele-avatar"></div><div class="n-skele-lines"><div class="n-skele-line w-45"></div><div class="n-skele-line w-30"></div></div></div>
     </div>
+  </div>
+
+  <div class="notif-premium-sentinel" id="notifSentinel"></div>
+
+  <div class="notif-premium-empty hidden" id="notifEmpty">
+    <div class="notif-empty-icon"><i class="fas fa-bell-slash"></i></div>
+    <h3>All caught up</h3>
+    <p>No notifications in this category.</p>
+  </div>
+
+  <div class="notif-premium-toasts" id="notifToasts"></div>
 </main>
 
-<script>
-document.getElementById('mark-all-read')?.addEventListener('click', async () => {
-    const res = await fetch('/api/notifications/read-all', { method: 'POST' });
-    if (res.ok) window.location.reload();
-});
+<div class="notif-premium-overlay hidden" id="prefsOverlay">
+  <div class="notif-premium-drawer" id="prefsDrawer">
+    <div class="notif-premium-drawer-header">
+      <h3>Preferences</h3>
+      <button class="n-btn n-btn-close" id="prefsClose"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="notif-premium-drawer-body">
+      <div class="n-prefs-group">
+        <h4>Delivery</h4>
+        <div class="n-prefs-row"><span>In-App</span><button class="n-toggle active" data-pref="in_app_enabled"></button></div>
+        <div class="n-prefs-row"><span>Push</span><button class="n-toggle active" data-pref="push_enabled"></button></div>
+        <div class="n-prefs-row"><span>Email</span><button class="n-toggle" data-pref="email_enabled"></button></div>
+        <div class="n-prefs-row"><span>SMS <em>Soon</em></span><button class="n-toggle" data-pref="sms_enabled"></button></div>
+      </div>
+      <div class="n-prefs-group">
+        <h4>Muted Types</h4>
+        <div id="mutedTypesList"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-document.querySelectorAll('.notification-item.unread').forEach(item => {
-    item.addEventListener('click', async () => {
-        const id = item.dataset.id;
-        await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
-        item.classList.remove('unread');
-        item.querySelector('.unread-indicator')?.remove();
-    });
-});
-
-function toggleNotifSettings() {
-    const el = document.getElementById('notif-settings');
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
-}
-
-function filterNotifs(category) {
-    // Update active chip
-    document.querySelectorAll('.notif-filters .px-chip').forEach(c => c.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // Filter items
-    const items = document.querySelectorAll('.notification-item');
-    items.forEach(item => {
-        if (category === 'all') {
-            item.style.display = 'block';
-        } else {
-            const body = item.querySelector('.notification-body p').innerText.toLowerCase();
-            if (body.includes(category.slice(0, -1)) || (category === 'live' && body.includes('live'))) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
-            }
-        }
-    });
-}
-</script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/static/js/notifications_premium.js"></script>
 {% endblock %}

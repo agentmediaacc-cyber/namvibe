@@ -1,39 +1,89 @@
 {% extends "base.html" %}
-
 {% block title %}Marketplace | CHAIN{% endblock %}
-{% block body_class %}chain-wallpaper-marketplace{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="/static/css/chain_portal.css">{% endblock %}
-
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="/static/css/marketplace_premium.css">
+{% endblock %}
 {% block content %}
-<section class="chain-portal-shell">
-    <div class="chain-portal-header--split">
-        <div>
-            <p class="chain-portal-kicker">Marketplace</p>
-            <h1>Approved music, videos and art.</h1>
-            <p class="chain-portal-copy">Discover featured creator drops, premium media, and collectible releases.</p>
-        </div>
-        <a href="/marketplace/create" class="primary">Create listing</a>
+<div class="mp-wrap">
+  <div class="mp-header">
+    <div class="mp-header-left">
+      <p class="mp-kicker">Marketplace</p>
+      <h1 class="mp-title">Discover & Shop</h1>
     </div>
+    <div class="mp-header-right">
+      <a href="/marketplace/create" class="mp-btn mp-btn-primary"><i class="fas fa-plus"></i> Create</a>
+      <a href="/marketplace/dashboard" class="mp-btn mp-btn-outline"><i class="fas fa-chart-bar"></i> Dashboard</a>
+    </div>
+  </div>
 
-    <div class="chain-portal-grid chain-portal-grid--3">
-        {% for item in items %}
-        <a href="/marketplace/item/{{ item.id }}" class="chain-data-card chain-marketplace-card chain-clickable-card">
-            <div class="chain-marketplace-thumb {% if item.is_premium_locked %}chain-marketplace-thumb--blur{% endif %}"></div>
-            <div class="chain-badge-row" style="margin-bottom:10px;">
-                {% if item.is_featured %}<span class="chain-pill">Featured</span>{% endif %}
-                <span class="chain-price-pill">{{ item.price_coins or 0 }} coins</span>
-            </div>
-            <strong style="display:block; font-size:20px; margin-bottom:8px;">{{ item.title }}</strong>
-            <div class="chain-help" style="margin-bottom:10px;">{{ item.item_type|replace('_', ' ')|title }}</div>
-            {% if item.is_premium_locked %}
-            <span class="chain-pill">Premium locked preview</span>
-            {% endif %}
-        </a>
-        {% else %}
-        <a href="/marketplace/create" class="chain-empty-state chain-clickable-card" style="grid-column:1/-1;">
-            Premium drops will appear here soon. Open your first listing and send it for approval.
-        </a>
-        {% endfor %}
+  <div class="mp-search-bar">
+    <i class="fas fa-search mp-search-icon"></i>
+    <input class="mp-search-input" id="mpSearch" type="text" placeholder="Search products, services, shops..." autocomplete="off">
+    <button class="mp-btn mp-btn-gold" id="mpSearchBtn"><i class="fas fa-arrow-right"></i></button>
+  </div>
+
+  <div class="mp-tabs" id="mpTabs">
+    <button class="mp-tab is-active" data-tab="products"><i class="fas fa-box"></i> Products</button>
+    <button class="mp-tab" data-tab="services"><i class="fas fa-concierge-bell"></i> Services</button>
+    <button class="mp-tab" data-tab="shops"><i class="fas fa-store"></i> Shops</button>
+    <button class="mp-tab" data-tab="nearby"><i class="fas fa-map-marker-alt"></i> Nearby</button>
+    <button class="mp-tab" data-tab="trending"><i class="fas fa-fire"></i> Trending</button>
+    <button class="mp-tab" data-tab="digital"><i class="fas fa-download"></i> Digital</button>
+    <button class="mp-tab" data-tab="vehicles"><i class="fas fa-car"></i> Vehicles</button>
+    <button class="mp-tab" data-tab="property"><i class="fas fa-home"></i> Property</button>
+    <button class="mp-tab" data-tab="jobs"><i class="fas fa-briefcase"></i> Jobs</button>
+  </div>
+
+  <div id="mpPanel-products" class="mp-panel is-active">
+    <div class="mp-grid mp-grid-products" id="mpProductsGrid">
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
     </div>
-</section>
+  </div>
+
+  <div id="mpPanel-services" class="mp-panel">
+    <div class="mp-grid mp-grid-services" id="mpServicesGrid">
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
+    </div>
+  </div>
+
+  <div id="mpPanel-shops" class="mp-panel">
+    <div class="mp-grid mp-grid-shops" id="mpShopsGrid">
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
+    </div>
+  </div>
+
+  <div id="mpPanel-nearby" class="mp-panel">
+    <div class="mp-empty"><i class="fas fa-map-marker-alt"></i><p>Nearby listings will appear based on your location.</p></div>
+  </div>
+  <div id="mpPanel-trending" class="mp-panel">
+    <div class="mp-grid mp-grid-products" id="mpTrendingGrid">
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
+      <div class="mp-skeleton mp-skeleton-card"></div>
+    </div>
+  </div>
+  <div id="mpPanel-digital" class="mp-panel">
+    <div id="mpDigitalGrid" class="mp-grid mp-grid-products"></div>
+  </div>
+  <div id="mpPanel-vehicles" class="mp-panel">
+    <div class="mp-empty"><i class="fas fa-car"></i><p>Vehicle listings coming soon.</p></div>
+  </div>
+  <div id="mpPanel-property" class="mp-panel">
+    <div class="mp-empty"><i class="fas fa-home"></i><p>Property listings coming soon.</p></div>
+  </div>
+  <div id="mpPanel-jobs" class="mp-panel">
+    <div class="mp-empty"><i class="fas fa-briefcase"></i><p>Job listings coming soon.</p></div>
+  </div>
+
+  <div id="mpSentinel" class="mp-sentinel"></div>
+</div>
+
+<script src="/static/js/marketplace_premium.js"></script>
 {% endblock %}

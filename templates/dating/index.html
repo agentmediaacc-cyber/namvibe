@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Dating | CHAIN{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="/static/css/dating_premium.css">
+{% endblock %}
+{% block content %}
+<div class="dt-wrap">
+  <div class="dt-header">
+    <div class="dt-header-left">
+      <p class="dt-kicker">Dating</p>
+      <h1 class="dt-title">Discover Matches</h1>
+    </div>
+    <div class="dt-header-right">
+      <button class="dt-btn dt-btn-ghost" id="dtModeToggle"><i class="fas fa-toggle-on"></i> <span id="dtModeLabel">On</span></button>
+    </div>
+  </div>
+
+  <div class="dt-tabs" id="dtTabs">
+    <button class="dt-tab is-active" data-tab="discover"><i class="fas fa-compass"></i> Discover</button>
+    <button class="dt-tab" data-tab="matches"><i class="fas fa-heart"></i> Matches <span class="dt-badge-sm" id="dtMatchCount">0</span></button>
+    <button class="dt-tab" data-tab="likes-you"><i class="fas fa-star"></i> Likes You</button>
+    <button class="dt-tab" data-tab="messages"><i class="fas fa-comment-dots"></i> Messages</button>
+    <button class="dt-tab" data-tab="verified"><i class="fas fa-check-circle"></i> Verified</button>
+    <button class="dt-tab" data-tab="nearby"><i class="fas fa-map-marker-alt"></i> Nearby</button>
+    <button class="dt-tab" data-tab="safety"><i class="fas fa-shield-alt"></i> Safety</button>
+  </div>
+
+  <div id="dtPanel-discover" class="dt-panel is-active">
+    <div class="dt-stack-shell">
+      <div class="dt-card-stack" id="dtCardStack">
+        <div class="dt-skeleton dt-skeleton-card"></div>
+        <div class="dt-skeleton dt-skeleton-card"></div>
+      </div>
+      <div class="dt-empty" id="dtDiscoverEmpty" style="display:none;">
+        <i class="fas fa-heart-broken"></i>
+        <h3>No more profiles</h3>
+        <p>Check back later or adjust your preferences.</p>
+      </div>
+    </div>
+    <div class="dt-actions" id="dtActions">
+      <button class="dt-circle dt-circle-nope" id="dtBtnPass"><i class="fas fa-times"></i></button>
+      <button class="dt-circle dt-circle-super" id="dtBtnSuper"><i class="fas fa-star"></i></button>
+      <button class="dt-circle dt-circle-like" id="dtBtnLike"><i class="fas fa-heart"></i></button>
+    </div>
+  </div>
+
+  <div id="dtPanel-matches" class="dt-panel">
+    <div class="dt-grid dt-grid-matches" id="dtMatchesGrid">
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+    </div>
+    <div class="dt-empty" id="dtMatchesEmpty" style="display:none;">
+      <i class="fas fa-heart-broken"></i>
+      <h3>No matches yet</h3>
+      <p>Keep swiping to find your match!</p>
+    </div>
+  </div>
+
+  <div id="dtPanel-likes-you" class="dt-panel">
+    <div class="dt-grid dt-grid-likes" id="dtLikesGrid">
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+    </div>
+    <div class="dt-empty" id="dtLikesEmpty" style="display:none;">
+      <i class="fas fa-star"></i>
+      <h3>No one has liked you yet</h3>
+      <p>Your profile will appear as you swipe.</p>
+    </div>
+  </div>
+
+  <div id="dtPanel-messages" class="dt-panel">
+    <div class="dt-empty">
+      <i class="fas fa-comment-dots"></i>
+      <h3>Match Messages</h3>
+      <p>Chat with your matches here after you connect.</p>
+      <a href="/messages/" class="dt-btn dt-btn-primary">Go to Messages</a>
+    </div>
+  </div>
+
+  <div id="dtPanel-verified" class="dt-panel">
+    <div class="dt-section-card">
+      <h2><i class="fas fa-check-circle" style="color:var(--dt-cyan);"></i> Verified Users</h2>
+      <p>Browse profiles with verified badges for a safer experience.</p>
+      <div class="dt-grid dt-grid-verified" id="dtVerifiedGrid">
+        <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dtPanel-nearby" class="dt-panel">
+    <div class="dt-section-card">
+      <h2><i class="fas fa-map-marker-alt" style="color:var(--dt-green);"></i> Nearby</h2>
+      <p>Discover profiles near your location.</p>
+      <div class="dt-grid dt-grid-nearby" id="dtNearbyGrid">
+        <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dtPanel-safety" class="dt-panel">
+    <div class="dt-section-card">
+      <h2><i class="fas fa-shield-alt" style="color:var(--dt-gold);"></i> Safety Center</h2>
+      <p class="dt-muted">Your safety matters. Control who sees you and report concerns.</p>
+    </div>
+    <div class="dt-section-card">
+      <h3>Dating Mode</h3>
+      <label class="dt-toggle">
+        <input type="checkbox" id="dtSafetyMode" checked>
+        <span class="dt-toggle-slider"></span>
+        <span class="dt-toggle-label">Visible on Dating</span>
+      </label>
+    </div>
+    <div class="dt-section-card">
+      <h3>Restrict Visibility</h3>
+      <label class="dt-toggle">
+        <input type="checkbox" id="dtHideContacts">
+        <span class="dt-toggle-slider"></span>
+        <span class="dt-toggle-label">Hide from Contacts</span>
+      </label>
+      <label class="dt-toggle" style="margin-top:10px;">
+        <input type="checkbox" id="dtVerifiedOnly">
+        <span class="dt-toggle-slider"></span>
+        <span class="dt-toggle-label">Visible to Verified Only</span>
+      </label>
+    </div>
+    <div class="dt-section-card">
+      <h3>Report a User</h3>
+      <div class="dt-form-row">
+        <input class="dt-input" id="dtReportTarget" placeholder="Profile ID to report" autocomplete="off">
+        <select class="dt-input" id="dtReportReason">
+          <option value="">Select reason...</option>
+          <option value="fake_profile">Fake Profile</option>
+          <option value="harassment">Harassment</option>
+          <option value="inappropriate">Inappropriate Content</option>
+          <option value="spam">Spam</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea class="dt-input" id="dtReportDetails" placeholder="Details (optional)" rows="3"></textarea>
+        <button class="dt-btn dt-btn-danger" id="dtReportBtn"><i class="fas fa-flag"></i> Report</button>
+      </div>
+    </div>
+    <div class="dt-section-card">
+      <h3>Block a User</h3>
+      <div class="dt-form-row" style="display:flex;gap:10px;">
+        <input class="dt-input" id="dtBlockTarget" placeholder="Profile ID to block" autocomplete="off" style="flex:1;">
+        <button class="dt-btn dt-btn-danger" id="dtBlockBtn"><i class="fas fa-ban"></i> Block</button>
+      </div>
+    </div>
+    <div class="dt-section-card">
+      <h3>Your Trust Score</h3>
+      <div class="dt-trust-bar">
+        <div class="dt-trust-fill" id="dtTrustFill" style="width:50%;"></div>
+      </div>
+      <p class="dt-muted" id="dtTrustLabel">Score: 50</p>
+    </div>
+    <div class="dt-section-card">
+      <h3>Safety Badge</h3>
+      <p id="dtSafetyBadgeStatus">Not earned yet. <button class="dt-btn dt-btn-sm" id="dtRequestVerification">Request Verification</button></p>
+    </div>
+  </div>
+</div>
+
+<div class="dt-match-overlay" id="dtMatchOverlay" style="display:none;">
+  <div class="dt-match-modal">
+    <i class="fas fa-heart dt-match-icon"></i>
+    <h2>It's a Match!</h2>
+    <p id="dtMatchName">You and someone special liked each other.</p>
+    <div class="dt-match-actions">
+      <button class="dt-btn dt-btn-primary" id="dtMatchChat">Send a Message</button>
+      <button class="dt-btn dt-btn-ghost" id="dtMatchKeepSwiping">Keep Swiping</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/js/dating_premium.js"></script>
+{% endblock %}

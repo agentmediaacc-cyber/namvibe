@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}AI Command Center | CHAIN Premium{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/ai_premium.css">
+{% endblock %}
+
+{% block content %}
+<main class="ai-dashboard">
+
+  <!-- Tab Bar -->
+  <div class="ai-tabs" id="aiTabs">
+    <button class="ai-tab is-active" data-tab="chat"><i class="fas fa-comment-dots"></i> AI Chat</button>
+    <button class="ai-tab" data-tab="creator"><i class="fas fa-star"></i> Creator</button>
+    <button class="ai-tab" data-tab="marketplace"><i class="fas fa-store"></i> Marketplace</button>
+    <button class="ai-tab" data-tab="dating"><i class="fas fa-shield-heart"></i> Dating Safety</button>
+    <button class="ai-tab" data-tab="moderation"><i class="fas fa-gavel"></i> Moderation</button>
+    <button class="ai-tab" data-tab="messages"><i class="fas fa-envelope"></i> Messages</button>
+    <button class="ai-tab" data-tab="captions"><i class="fas fa-closed-captioning"></i> Captions</button>
+    <button class="ai-tab" data-tab="profile"><i class="fas fa-user-edit"></i> Profile</button>
+    <button class="ai-tab" data-tab="search"><i class="fas fa-search"></i> AI Search</button>
+    <button class="ai-tab" data-tab="history"><i class="fas fa-history"></i> History</button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="ai-panels">
+
+    <!-- Chat -->
+    <section class="ai-panel is-active" id="panel-chat">
+      <div class="ai-header"><h2>AI Chat Assistant</h2><span class="ai-badge ai-badge-mock">Offline Mode</span></div>
+      <p class="ai-muted">Ask me anything about using CHAIN. All responses are suggestions — review before acting.</p>
+      <div class="ai-chat-box" id="aiChatBox">
+        <div class="ai-msg ai-msg-assistant">
+          <div class="ai-msg-avatar"><i class="fas fa-robot"></i></div>
+          <div class="ai-msg-content">
+            <p>Hello! I'm your CHAIN AI assistant. I can help you with tips, features, and best practices. How can I help you today?</p>
+            <span class="ai-msg-label">AI Suggestion</span>
+          </div>
+        </div>
+      </div>
+      <div class="ai-input-row">
+        <select class="ai-input ai-input-sm" id="aiChatType">
+          <option value="general">General</option>
+          <option value="creator">Creator</option>
+          <option value="marketplace">Marketplace</option>
+          <option value="dating_safety">Dating Safety</option>
+          <option value="moderation">Moderation</option>
+        </select>
+        <input class="ai-input" id="aiChatInput" placeholder="Ask the AI assistant..." maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiChatSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </section>
+
+    <!-- Creator -->
+    <section class="ai-panel" id="panel-creator">
+      <div class="ai-header"><h2>AI Creator Assistant</h2></div>
+      <p class="ai-muted">Get personalized tips to grow your audience, improve content, and boost engagement.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiCreatorBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-star"></i></div><div class="ai-msg-content"><p>Ask me anything about growing your creator presence on CHAIN.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiCreatorInput" placeholder="e.g. How can I grow my followers?" maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiCreatorSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </section>
+
+    <!-- Marketplace -->
+    <section class="ai-panel" id="panel-marketplace">
+      <div class="ai-header"><h2>AI Marketplace Assistant</h2></div>
+      <p class="ai-muted">Get tips on selling, pricing, product photos, and growing your shop.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiMarketplaceBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-store"></i></div><div class="ai-msg-content"><p>Ask me about improving your shop and product listings.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiMarketplaceInput" placeholder="e.g. How to write better product descriptions?" maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiMarketplaceSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </section>
+
+    <!-- Dating Safety -->
+    <section class="ai-panel" id="panel-dating">
+      <div class="ai-header"><h2>AI Dating Safety Assistant</h2></div>
+      <p class="ai-muted">Get safety tips and best practices for dating on CHAIN.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiDatingBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-shield-heart"></i></div><div class="ai-msg-content"><p>Ask me about staying safe while dating on CHAIN.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiDatingInput" placeholder="e.g. How do I report a suspicious profile?" maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiDatingSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </section>
+
+    <!-- Moderation -->
+    <section class="ai-panel" id="panel-moderation">
+      <div class="ai-header"><h2>AI Moderation Assistant</h2></div>
+      <p class="ai-muted">Get guidance on content moderation decisions and community guidelines.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiModerationBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-gavel"></i></div><div class="ai-msg-content"><p>Ask me about moderation best practices and policy guidance.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiModerationInput" placeholder="e.g. How should I handle harassment reports?" maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiModerationSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </section>
+
+    <!-- Message Suggestions -->
+    <section class="ai-panel" id="panel-messages">
+      <div class="ai-header"><h2>AI Message Suggestions</h2></div>
+      <p class="ai-muted">Get suggestions for your conversations. Review before sending.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiMessagesBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-envelope"></i></div><div class="ai-msg-content"><p>Describe the conversation context and I'll suggest a message.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiMessagesInput" placeholder="e.g. I'm chatting with a fellow photographer..." maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiMessagesSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+      <div class="ai-alert"><i class="fas fa-exclamation-triangle"></i> These are suggestions only. Never send sensitive personal information.</div>
+    </section>
+
+    <!-- Captions -->
+    <section class="ai-panel" id="panel-captions">
+      <div class="ai-header"><h2>AI Caption Generator</h2></div>
+      <p class="ai-muted">Generate captions for your posts and reels. Describe what you're posting.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiCaptionsBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-closed-captioning"></i></div><div class="ai-msg-content"><p>Tell me about your post and I'll suggest captions.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiCaptionsInput" placeholder="e.g. A photo of my art studio with natural lighting" maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiCaptionsSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+      <div class="ai-suggestion-list" id="aiCaptionsList"></div>
+    </section>
+
+    <!-- Profile Suggestions -->
+    <section class="ai-panel" id="panel-profile">
+      <div class="ai-header"><h2>AI Profile Improvement</h2></div>
+      <p class="ai-muted">Get suggestions to make your profile stand out.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiProfileBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-user-edit"></i></div><div class="ai-msg-content"><p>I'll analyze your profile and suggest improvements.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <button class="ai-btn ai-btn-primary" id="aiProfileGetBtn"><i class="fas fa-sync"></i> Get Profile Suggestions</button>
+      <div class="ai-suggestion-list" id="aiProfileList"></div>
+    </section>
+
+    <!-- AI Search -->
+    <section class="ai-panel" id="panel-search">
+      <div class="ai-header"><h2>AI Search Assistant</h2></div>
+      <p class="ai-muted">Get smart search suggestions and tips for finding content on CHAIN.</p>
+      <div class="ai-chat-box ai-chat-box-sm" id="aiSearchBox">
+        <div class="ai-msg ai-msg-assistant"><div class="ai-msg-avatar"><i class="fas fa-search"></i></div><div class="ai-msg-content"><p>Tell me what you're looking for and I'll suggest search strategies.</p><span class="ai-msg-label">AI Suggestion</span></div></div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="aiSearchInput" placeholder="e.g. I want to find local photographers" maxlength="2000">
+        <button class="ai-btn ai-btn-primary" id="aiSearchSend"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section class="ai-panel" id="panel-history">
+      <div class="ai-header"><h2>AI Suggestion History</h2></div>
+      <p class="ai-muted">Your recent AI suggestions and feedback.</p>
+      <div class="ai-filter-bar">
+        <select class="ai-filter-select" id="aiHistoryFilter">
+          <option value="">All Types</option>
+          <option value="general">General</option>
+          <option value="creator">Creator</option>
+          <option value="marketplace">Marketplace</option>
+          <option value="dating_safety">Dating Safety</option>
+          <option value="moderation">Moderation</option>
+          <option value="messages">Messages</option>
+          <option value="captions">Captions</option>
+          <option value="profile_suggestions">Profile</option>
+          <option value="search">Search</option>
+        </select>
+      </div>
+      <div class="ai-suggestion-list" id="aiHistoryList">
+        <div class="ai-empty"><i class="fas fa-history"></i><p>No suggestions yet. Start chatting with AI to see your history.</p></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Feedback Toast -->
+  <div class="ai-toast" id="aiToast"></div>
+
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/ai_premium.js"></script>
+{% endblock %}

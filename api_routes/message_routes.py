@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 import os
 from flask import Blueprint, flash, redirect, render_template, request, url_for, session, jsonify
@@ -10,12 +11,14 @@ from services.messaging_engine import (
     pin_thread, archive_thread, mute_thread, search_messages,
     move_thread, get_stickers
 )
-from services.neon_service import write_query
+from services.neon_service import fast_query, write_query
 from services.rate_limit_service import limiter, user_or_ip_key
 from services.supabase_safe import safe_insert
 from services import message_feature_service as phase29_messages
 from services.thread_security_service import can_access_thread
 from services import group_feature_service as phase29_groups
+from services.relationship_gate_service import can_message, can_call, is_mutual_follow, relationship_status
+from services.socketio_service import emit_to_profile
 
 message_bp = Blueprint("messages", __name__, url_prefix="/messages")
 
@@ -122,6 +125,16 @@ def api_send():
         return jsonify({"error": "Message cannot be empty"}), 400
     if not thread_id:
         return jsonify({"error": "Thread is required"}), 400
+
+    from services.neon_service import fast_query as _mq
+    other_member = _mq(
+        "SELECT profile_id FROM chain_thread_members WHERE thread_id = %s AND profile_id != %s LIMIT 1",
+        (thread_id, profile_id), default=[]
+    )
+    if other_member:
+        gate = relationship_status(profile_id, other_member[0]["profile_id"])
+        if not gate.get("can_message"):
+            return jsonify({"error": gate.get("error", "Cannot send message")}), 403
 
     if media_file:
         from services.messaging_engine import send_message
@@ -1078,3 +1091,220 @@ def api_socket_diagnostics():
         "timestamp": datetime.utcnow().isoformat(),
     }
     return jsonify({"ok": True, "diagnostics": diag}), 200
+
+
+@message_bp.route("/api/relationship/<profile_id>")
+@login_required
+def api_relationship_status(profile_id):
+    current = get_current_profile()
+    current_id = (current or {}).get("id") or session.get("profile_id")
+    if not current_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    rs = relationship_status(current_id, profile_id)
+    return jsonify({"ok": True, "status": rs}), 200
+
+
+@message_bp.route("/api/thread/<profile_id>")
+@login_required
+def api_get_or_create_thread(profile_id):
+    current = get_current_profile()
+    current_id = (current or {}).get("id") or session.get("profile_id")
+    if not current_id:
+        return jsonify({"error": "unauthorized"}), 401
+    if current_id == profile_id:
+        return jsonify({"error": "Cannot start thread with yourself"}), 400
+    gate = relationship_status(current_id, profile_id)
+    if not gate.get("can_message"):
+        return jsonify({"error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403
+    thread_id = get_or_create_direct_thread(current_id, profile_id)
+    if thread_id:
+        return jsonify({"id": thread_id}), 200
+    return jsonify({"error": "Could not create thread"}), 500
+
+
+@message_bp.route("/api/threads/start", methods=["POST"])
+@login_required
+def api_start_thread():
+    current = get_current_profile()
+    current_id = (current or {}).get("id") or session.get("profile_id")
+    if not current_id:
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    target_profile_id = data.get("profile_id") or data.get("target_id")
+    if not target_profile_id:
+        return jsonify({"error": "profile_id required"}), 400
+    if current_id == target_profile_id:
+        return jsonify({"error": "Cannot start thread with yourself"}), 400
+    gate = relationship_status(current_id, target_profile_id)
+    if not gate.get("can_message"):
+        return jsonify({"error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403
+    if gate.get("needs_request"):
+        req_resp = fast_query(
+            """SELECT id, status FROM chain_message_requests WHERE from_profile_id = %s AND to_profile_id = %s LIMIT 1""",
+            (current_id, target_profile_id), default=[]
+        )
+        if not req_resp or req_resp[0].get("status") != "pending":
+            return jsonify({"ok": False, "needs_request": True, "message": "Send a message request first"}), 403
+    thread_id = get_or_create_direct_thread(current_id, target_profile_id)
+    if thread_id:
+        return jsonify({"thread_id": thread_id}), 200
+    return jsonify({"error": "Could not create thread"}), 500
+
+
+@message_bp.route("/api/friends")
+@login_required
+def api_friends():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    friends = fast_query(
+        """
+        SELECT p.id, p.username, p.full_name, p.avatar_url,
+               p.is_verified, p.bio, p.is_online
+        FROM chain_follows f1
+        JOIN chain_follows f2
+            ON f1.follower_profile_id = f2.following_profile_id
+           AND f1.following_profile_id = f2.follower_profile_id
+        JOIN chain_profiles p ON f1.following_profile_id = p.id
+        WHERE f1.follower_profile_id = %s
+        ORDER BY p.is_online DESC, p.full_name ASC
+        """,
+        (profile_id,), default=[]
+    )
+    return jsonify({"ok": True, "friends": friends}), 200
+
+
+@message_bp.route("/api/message-request/send", methods=["POST"])
+@login_required
+def api_send_message_request():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    to_profile_id = data.get("to_profile_id")
+    message_body = (data.get("body") or "").strip()
+    if not to_profile_id:
+        return jsonify({"ok": False, "error": "recipient_required"}), 400
+    if profile_id == to_profile_id:
+        return jsonify({"ok": False, "error": "Cannot send request to yourself"}), 400
+
+    gate = can_message(profile_id, to_profile_id)
+    if not gate.get("ok"):
+        return jsonify({"ok": False, "error": gate.get("error", "Cannot message")}), 403
+
+    existing = fast_query(
+        "SELECT id, status FROM chain_message_requests WHERE from_profile_id = %s AND to_profile_id = %s LIMIT 1",
+        (profile_id, to_profile_id), default=[]
+    )
+    if existing:
+        existing_status = existing[0]["status"]
+        if existing_status == "pending":
+            return jsonify({"ok": False, "error": "Request already pending"}), 409
+        if existing_status == "accepted":
+            return jsonify({"ok": True, "message": "Already connected"}), 200
+        write_query(
+            "UPDATE chain_message_requests SET status = 'pending', updated_at = now() WHERE id = %s",
+            (existing[0]["id"],)
+        )
+        request_id = existing[0]["id"]
+    else:
+        request_id = str(uuid.uuid4())
+        write_query(
+            "INSERT INTO chain_message_requests (id, from_profile_id, to_profile_id, status, message_body, created_at, updated_at) VALUES (%s, %s, %s, 'pending', %s, now(), now())",
+            (request_id, profile_id, to_profile_id, message_body)
+        )
+
+    try:
+        sender = fast_query(
+            "SELECT username, full_name FROM chain_profiles WHERE id = %s LIMIT 1",
+            (profile_id,), default=[]
+        )
+        sender_name = sender[0].get("full_name") or sender[0].get("username") if sender else "Someone"
+        emit_to_profile(to_profile_id, "message_request:new", {
+            "request_id": request_id,
+            "from_profile_id": profile_id,
+            "from_name": sender_name,
+        })
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "request_id": request_id}), 200
+
+
+@message_bp.route("/api/message-requests/inbox")
+@login_required
+def api_message_request_inbox():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    requests = fast_query(
+        """
+        SELECT mr.id, mr.from_profile_id, mr.status, mr.message_body, mr.created_at,
+               p.username, p.full_name, p.avatar_url, p.online_status, p.is_verified
+        FROM chain_message_requests mr
+        JOIN chain_profiles p ON mr.from_profile_id = p.id
+        WHERE mr.to_profile_id = %s AND mr.status = 'pending'
+        ORDER BY mr.created_at DESC
+        """,
+        (profile_id,), default=[]
+    )
+    return jsonify({"ok": True, "requests": requests}), 200
+
+
+@message_bp.route("/api/message-requests/<request_id>/accept", methods=["POST"])
+@login_required
+def api_accept_message_request(request_id):
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    req = fast_query(
+        "SELECT * FROM chain_message_requests WHERE id = %s AND to_profile_id = %s LIMIT 1",
+        (request_id, profile_id), default=[]
+    )
+    if not req:
+        return jsonify({"ok": False, "error": "Request not found"}), 404
+    if req[0]["status"] != "pending":
+        return jsonify({"ok": False, "error": "Request already processed"}), 400
+
+    from_profile_id = req[0]["from_profile_id"]
+    thread_id = str(uuid.uuid4())
+    try:
+        write_query(
+            "INSERT INTO chain_message_threads (id, created_by_profile_id, thread_type, folder_type, created_at, updated_at) VALUES (%s, %s, 'direct', 'primary', now(), now())",
+            (thread_id, profile_id),
+        )
+        write_query(
+            "INSERT INTO chain_thread_members (thread_id, profile_id) VALUES (%s, %s), (%s, %s)",
+            (thread_id, profile_id, thread_id, from_profile_id),
+        )
+        write_query(
+            "UPDATE chain_message_requests SET status = 'accepted', thread_id = %s, updated_at = now() WHERE id = %s",
+            (thread_id, request_id),
+        )
+        return jsonify({"ok": True, "thread_id": thread_id}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@message_bp.route("/api/message-requests/<request_id>/decline", methods=["POST"])
+@login_required
+def api_decline_message_request(request_id):
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    req = fast_query(
+        "SELECT id FROM chain_message_requests WHERE id = %s AND to_profile_id = %s LIMIT 1",
+        (request_id, profile_id), default=[]
+    )
+    if not req:
+        return jsonify({"ok": False, "error": "Request not found"}), 404
+    write_query(
+        "UPDATE chain_message_requests SET status = 'declined', updated_at = now() WHERE id = %s",
+        (request_id,)
+    )
+    return jsonify({"ok": True}), 200

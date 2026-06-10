@@ -5,6 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/chain_home.css">
+<link rel="stylesheet" href="/static/css/homepage_premium.css">
 {% endblock %}
 
 {% block content %}
@@ -49,6 +50,9 @@
     </div>
     {%- endmacro %}
 
+    <!-- ============================================================
+         HEADER
+    ============================================================ -->
     <header class="chain-home__app-header">
         <div class="chain-home__header-left">
             <button type="button" class="chain-home__menu-btn" data-drawer-toggle aria-label="Open menu" aria-expanded="false" aria-controls="chain-home-drawer">
@@ -59,18 +63,15 @@
                 <strong>Home</strong>
             </a>
         </div>
-
         <form class="chain-home__top-search" action="/search" method="get" autocomplete="off">
             <i class="fas fa-search" aria-hidden="true"></i>
-            <input type="text" name="q" placeholder="Search creators, live rooms, hashtags, towns…" aria-label="Search creators, live rooms, hashtags, towns">
+            <input type="text" name="q" placeholder="Search creators, live rooms, hashtags, towns..." aria-label="Search">
         </form>
-
         <div class="chain-home__header-actions">
             <a href="/search" class="chain-home__icon-btn chain-home__icon-btn--mobile" aria-label="Search"><i class="fas fa-search"></i></a>
             <a href="{{ drawer_notifications }}" class="chain-home__icon-btn" aria-label="Notifications"><i class="fas fa-bell"></i></a>
             <a href="{{ drawer_messages }}" class="chain-home__icon-btn" aria-label="Messages"><i class="fas fa-comment"></i></a>
             <a href="{{ drawer_wallet }}" class="chain-home__icon-btn" aria-label="Wallet"><i class="fas fa-coins"></i></a>
-            <a href="{{ composer_fallback }}" class="chain-home__create-btn"><i class="fas fa-plus"></i><span>Create</span></a>
             {% if is_logged_in %}
             <a href="/profile/" class="chain-home__profile-btn" aria-label="Open profile">
                 {% if current.avatar_url %}
@@ -85,6 +86,9 @@
         </div>
     </header>
 
+    <!-- ============================================================
+         DRAWER
+    ============================================================ -->
     <div class="chain-home__drawer-backdrop" data-drawer-close hidden></div>
     <aside id="chain-home-drawer" class="chain-home__drawer" aria-hidden="true">
         <div class="chain-home__drawer-head">
@@ -114,643 +118,515 @@
         </nav>
     </aside>
 
-    <div class="chain-home__desktop-layout">
-        <aside class="chain-home__desktop-sidebar chain-home__desktop-sidebar--left">
-            <a href="{{ home_route }}" class="chain-home__side-profile chain-card">
-                <span class="chain-home__logo-mark">CHAIN</span>
-                <div>
-                    <strong>CHAIN</strong>
-                    <p>Premium social</p>
-                </div>
-            </a>
-            <nav class="chain-home__desktop-nav chain-card">
-                <a href="{{ home_route }}" class="is-active"><i class="fas fa-home"></i><span>Home</span></a>
-                <a href="{{ discover_route }}"><i class="fas fa-compass"></i><span>Discover</span></a>
-                <a href="{{ live_route }}"><i class="fas fa-video"></i><span>Live</span></a>
-                <a href="{{ reel_route }}"><i class="fas fa-film"></i><span>Reels</span></a>
-                <a href="/status/"><i class="fas fa-circle-notch"></i><span>Stories</span></a>
-                <a href="{{ drawer_messages }}"><i class="fas fa-comment"></i><span>Messages</span></a>
-                <a href="{{ drawer_wallet }}"><i class="fas fa-wallet"></i><span>Wallet</span></a>
-                <a href="{{ dating_route }}"><i class="fas fa-heart"></i><span>Dating</span></a>
-                <a href="{{ drawer_notifications }}"><i class="fas fa-bell"></i><span>Notifications</span></a>
-                <a href="{{ drawer_profile }}"><i class="fas fa-user-circle"></i><span>Profile</span></a>
-                <a href="{{ drawer_settings }}"><i class="fas fa-cog"></i><span>Settings</span></a>
-                {% if is_logged_in %}
-                <a href="/auth/logout"><i class="fas fa-sign-out-alt"></i><span>Sign Out</span></a>
-                {% else %}
-                <a href="{{ login_route }}"><i class="fas fa-sign-in-alt"></i><span>Login</span></a>
-                {% endif %}
-            </nav>
-        </aside>
+    <!-- ============================================================
+         MOBILE TOPBAR
+    ============================================================ -->
+    <div class="home-topbar">
+        <input type="text" class="home-topbar-search" placeholder="Search CHAIN..." aria-label="Search">
+    </div>
 
-        <main class="chain-home__feed">
-            <section class="chain-home__section chain-home__section--tight chain-home__stories-section">
-                <div class="chain-home__section-head chain-home__section-head--compact">
-                    <div>
-                        <p class="chain-home__kicker">Stories</p>
-                        <h2>Today on CHAIN</h2>
-                        <p class="chain-home__section-subtitle">Quick updates from creators and people nearby.</p>
-                    </div>
-                    <a href="/status/" class="chain-home__section-link">View stories</a>
-                </div>
-                <div class="chain-home__story-row">
+    <!-- ============================================================
+         HOME SHELL — 3-COLUMN LAYOUT
+    ============================================================ -->
+    <div class="home-shell">
+        <div class="home-layout">
+
+            <!-- LEFT RAIL — NAV -->
+            <aside class="home-left-rail">
+                <nav class="home-nav">
+                    <div class="home-nav-section-label">Main</div>
+                    <a href="{{ home_route }}" class="home-nav-item is-active"><i class="fas fa-home"></i><span>Home</span></a>
+                    <a href="{{ discover_route }}" class="home-nav-item"><i class="fas fa-compass"></i><span>Discover</span></a>
+                    <a href="{{ live_route }}" class="home-nav-item"><i class="fas fa-video"></i><span>Live</span></a>
+                    <a href="{{ reel_route }}" class="home-nav-item"><i class="fas fa-film"></i><span>Reels</span></a>
+                    <a href="/status/" class="home-nav-item"><i class="fas fa-circle-notch"></i><span>Stories</span></a>
+                    <div class="home-nav-section-label">Social</div>
+                    <a href="{{ drawer_messages }}" class="home-nav-item"><i class="fas fa-comment"></i><span>Messages</span></a>
+                    <a href="{{ drawer_notifications }}" class="home-nav-item"><i class="fas fa-bell"></i><span>Notifications</span></a>
+                    <a href="{{ drawer_wallet }}" class="home-nav-item"><i class="fas fa-wallet"></i><span>Wallet</span></a>
+                    <a href="{{ drawer_profile }}" class="home-nav-item"><i class="fas fa-user-circle"></i><span>Profile</span></a>
+                    <div class="home-nav-section-label">More</div>
+                    <a href="{{ drawer_settings }}" class="home-nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
                     {% if is_logged_in %}
-                    <a href="/status/create" class="chain-home__story-card chain-home__story-card--create">
-                        <span class="chain-home__story-ring">
-                            {% if current.avatar_url %}
-                            <img src="{{ current.avatar_url }}" alt="Your Story">
+                    <a href="/auth/logout" class="home-nav-item"><i class="fas fa-sign-out-alt"></i><span>Sign Out</span></a>
+                    {% else %}
+                    <a href="{{ login_route }}" class="home-nav-item"><i class="fas fa-sign-in-alt"></i><span>Login</span></a>
+                    <a href="{{ register_route }}" class="home-nav-item"><i class="fas fa-user-plus"></i><span>Register</span></a>
+                    {% endif %}
+                </nav>
+            </aside>
+
+            <!-- CENTER FEED -->
+            <main class="home-feed">
+
+                <!-- Feed Tabs -->
+                <div class="feed-tabs">
+                    <button class="feed-tab is-active" data-tab="for_you">For You</button>
+                    <button class="feed-tab" data-tab="following">Following</button>
+                    <button class="feed-tab" data-tab="public">Public</button>
+                    <button class="feed-tab" data-tab="nearby">Nearby</button>
+                    <button class="feed-tab" data-tab="live">Live</button>
+                    <button class="feed-tab" data-tab="reels">Reels</button>
+                    <button class="feed-tab" data-tab="trending">Trending</button>
+                </div>
+
+                <!-- Composer Card -->
+                <div class="composer-card">
+                    <div class="composer-card-top">
+                        <div class="composer-avatar">
+                            {% if is_logged_in and current.avatar_url %}
+                            <img src="{{ current.avatar_url }}" alt="Your avatar">
                             {% else %}
-                            <span>{{ (current.full_name or current.username or 'Y')[:1] }}</span>
+                            <span>{{ (current.full_name or current.username or 'C')[:1] if is_logged_in else 'C' }}</span>
                             {% endif %}
-                            <i class="fas fa-plus chain-home__story-status"></i>
-                        </span>
-                        <strong>Your Story</strong>
+                        </div>
+                        <div class="composer-placeholder" onclick="location.href='{{ composer_fallback }}'">
+                            Start a post, reel, story or live room...
+                        </div>
+                    </div>
+                    <div class="composer-actions">
+                        <a href="{{ composer_fallback }}" class="composer-action-chip{% if not post_available %} is-disabled{% endif %}"><i class="fas fa-pen"></i>Post</a>
+                        <a href="{{ reel_create }}" class="composer-action-chip{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-film"></i>Reel</a>
+                        <a href="{{ story_create }}" class="composer-action-chip{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-plus"></i>Story</a>
+                        <a href="{{ live_create }}" class="composer-action-chip{% if not live_available %} is-disabled{% endif %}"><i class="fas fa-video"></i>Live</a>
+                    </div>
+                </div>
+
+                <!-- Story Strip -->
+                <div class="story-strip">
+                    {% if is_logged_in %}
+                    <a href="/status/create" class="story-card">
+                        <div class="story-ring">
+                            <div class="story-ring-inner">
+                                {% if current.avatar_url %}
+                                <img src="{{ current.avatar_url }}" alt="Your Story">
+                                {% else %}
+                                <span>{{ (current.full_name or current.username or 'Y')[:1] }}</span>
+                                {% endif %}
+                            </div>
+                            <span class="story-create-icon"><i class="fas fa-plus"></i></span>
+                        </div>
+                        <span class="story-card-name">Your Story</span>
                     </a>
                     {% endif %}
 
                     {% for story in stories %}
-                    <a href="/status/{{ story.id }}" class="chain-home__story-card">
-                        <span class="chain-home__story-ring">
-                            {% if story.avatar_url %}
-                            <img src="{{ story.avatar_url }}" alt="{{ story.display_name }}">
-                            {% else %}
-                            <span>{{ (story.display_name or '?')[:1] }}</span>
-                            {% endif %}
-                            <i class="chain-home__story-status{% if story.is_online %} is-online{% endif %}"></i>
-                        </span>
-                        {% if story.display_name %}<strong>{{ story.display_name }}</strong>{% endif %}
-                        <small>{{ story.created_label }}</small>
+                    <a href="/status/{{ story.id }}" class="story-card">
+                        <div class="story-ring">
+                            <div class="story-ring-inner">
+                                {% if story.avatar_url %}
+                                <img src="{{ story.avatar_url }}" alt="{{ story.display_name }}">
+                                {% else %}
+                                <span>{{ (story.display_name or '?')[:1] }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="story-card-name">{{ story.display_name or 'Story' }}</span>
                     </a>
                     {% endfor %}
 
                     {% if not stories %}
-                    {{ empty_state('fa-circle-play', 'No stories yet', 'Share the first moment or check back when new stories go live.', story_create if story_available else none, 'Create story' if story_available else none, True) }}
+                    {% if story_available %}
+                    <a href="{{ story_create }}" class="story-card">
+                        <div class="story-ring">
+                            <div class="story-ring-inner"><span>C</span></div>
+                            <span class="story-create-icon"><i class="fas fa-plus"></i></span>
+                        </div>
+                        <span class="story-card-name">Create</span>
+                    </a>
+                    {% endif %}
                     {% endif %}
                 </div>
-            </section>
 
-            <section class="chain-home__hero-composer chain-card">
-                <div class="chain-home__hero-copy">
-                    <div>
-                        <p class="chain-home__kicker">Welcome Back</p>
-                        <h1>Connect &bull; Create &bull; Earn</h1>
-                        <p>Build your audience, share moments, go live, and earn from your community.</p>
-                    </div>
-                    <div class="chain-home__hero-icons" aria-hidden="true">
-                        <span><i class="fas fa-camera"></i></span>
-                        <span><i class="fas fa-bolt"></i></span>
-                        <span><i class="fas fa-chart-line"></i></span>
-                    </div>
-                </div>
-                <div class="chain-home__composer-top">
-                    <span class="chain-home__avatar chain-home__avatar--composer">
-                        {% if is_logged_in and current.avatar_url %}
-                        <img src="{{ current.avatar_url }}" alt="Your avatar">
+                <!-- Reels / Live Strip -->
+                {% if reels or live_rooms %}
+                <div class="reels-strip">
+                    {% for reel in reels[:5] %}
+                    <a href="{{ reel_route }}" class="reel-thumb">
+                        {% if reel.video_url or reel.media_url %}
+                        <video src="{{ reel.video_url or reel.media_url }}" muted playsinline preload="metadata"></video>
                         {% else %}
-                        <span>{{ (current.full_name or current.username or 'C')[:1] if is_logged_in else 'C' }}</span>
+                        <div class="reel-play-icon"><i class="fas fa-play"></i></div>
                         {% endif %}
-                    </span>
-                    <a href="{{ composer_fallback }}" class="chain-home__composer-input">Start a post, reel, story or live room</a>
+                    </a>
+                    {% endfor %}
+                    {% for room in live_rooms[:3] %}
+                    <a href="{{ room.watch_url }}" class="reel-thumb">
+                        <span class="live-badge">LIVE</span>
+                        {% if room.cover_url %}
+                        <img src="{{ room.cover_url }}" alt="{{ room.title }}">
+                        {% else %}
+                        <div class="reel-play-icon"><i class="fas fa-video"></i></div>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
                 </div>
-                <div class="chain-home__composer-actions">
-                    <a href="{{ composer_fallback }}" class="chain-home__action-chip{% if not post_available %} is-disabled{% endif %}" {% if not post_available %}aria-disabled="true"{% endif %}><i class="fas fa-pen"></i>Create Post</a>
-                    <a href="{{ reel_create }}" class="chain-home__action-chip{% if not reel_available %} is-disabled{% endif %}" {% if not reel_available %}aria-disabled="true"{% endif %}><i class="fas fa-film"></i>Create Reel</a>
-                    <a href="{{ story_create }}" class="chain-home__action-chip{% if not story_available %} is-disabled{% endif %}" {% if not story_available %}aria-disabled="true"{% endif %}><i class="fas fa-circle-plus"></i>Create Story</a>
-                    <a href="{{ live_create }}" class="chain-home__action-chip{% if not live_available %} is-disabled{% endif %}" {% if not live_available %}aria-disabled="true"{% endif %}><i class="fas fa-video"></i>Go Live</a>
-                </div>
-                <div class="chain-home__hero-stats">
-                    <div><strong>{{ hero_profile_count or stats.profiles or 0 }}</strong><span>Members</span></div>
-                    <div><strong>{{ stats.reels or reels|length or 0 }}</strong><span>Creators</span></div>
-                    <div><strong>{{ hero_live_count or stats.live_rooms or 0 }}</strong><span>Live Rooms</span></div>
-                </div>
-                {% if latest_own_post_text %}
-                <p class="chain-home__section-subtitle">{{ latest_own_post_text|hashtag_links|safe }}</p>
                 {% endif %}
-            </section>
 
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Trending Posts</p>
-                        <h2>Trending Posts</h2>
-                        <p class="chain-home__section-subtitle">Posts gaining attention across CHAIN.</p>
-                    </div>
-                    <a href="{{ composer_fallback }}" class="chain-home__section-link">Create post</a>
+                <!-- Dynamic Feed Items (JS-rendered) -->
+                <div class="feed-items">
                 </div>
-                <div class="chain-home__stack">
-                    {% for post in own_recent_posts %}
-                    <article id="post-{{ post.id }}" class="chain-home__post-card chain-card">
-                        <div class="chain-home__post-head">
-                            <a href="{{ post.profile_url }}" class="chain-home__person-link">
-                                <span class="chain-home__avatar">
-                                    {% if post.avatar_url %}
-                                    <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
-                                    {% elif post.display_name %}
-                                    {{ post.display_name[:1] }}
-                                    {% endif %}
-                                </span>
-                                <div>
-                                    <div class="chain-home__name-line">
-                                        {% if post.display_name %}<strong>{{ post.display_name }}</strong>{% endif %}
-                                    </div>
-                                    <small>@{{ post.username or 'chain' }} &bull; {{ post.created_label }}</small>
-                                </div>
-                            </a>
-                        </div>
-                        <p>{{ post.excerpt|hashtag_links|safe }}</p>
-                        {% if post.media_url %}
-                        <div class="chain-home__post-media">
-                            {% if post.video_url or post.post_type == 'video' %}
-                            <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
-                            {% else %}
-                            <img src="{{ post.media_url }}" alt="{{ post.display_name }} post">
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </article>
-                    {% endfor %}
-                    {% for post in trending_posts %}
-                    {% if post.id not in own_recent_posts|map(attribute='id')|list %}
-                    <article id="post-{{ post.id }}" class="chain-home__post-card chain-card">
-                        <div class="chain-home__post-head">
-                            <a href="{{ post.profile_url }}" class="chain-home__person-link">
-                                <span class="chain-home__avatar">
-                                    {% if post.avatar_url %}
-                                    <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
-                                    {% elif post.display_name %}
-                                    {{ post.display_name[:1] }}
-                                    {% endif %}
-                                </span>
-                                <div>
-                                    <div class="chain-home__name-line">
-                                        {% if post.display_name %}<strong>{{ post.display_name }}</strong>{% endif %}
-                                        {% if post.verified %}<i class="fas fa-circle-check"></i>{% endif %}
-                                    </div>
-                                    <small>@{{ post.username or 'chain' }} &bull; {{ post.created_label }}</small>
-                                </div>
-                            </a>
-                            <button type="button" class="chain-home__menu-dot" aria-label="Post menu"><i class="fas fa-ellipsis"></i></button>
-                        </div>
-                        <p>{{ post.excerpt|hashtag_links|safe }}</p>
-                        {% if post.town_tag %}<div class="chain-home__meta-row"><span><i class="fas fa-location-dot"></i> {{ post.town_tag }}</span></div>{% endif %}
-                        {% if post.link_url %}<p><a href="{{ post.link_url }}" target="_blank" rel="noopener">{{ post.link_url }}</a></p>{% endif %}
-                        {% if post.media_url %}
-                        <div class="chain-home__post-media">
-                            {% if post.video_url or post.post_type == 'video' %}
-                            <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
-                            {% else %}
-                            <img src="{{ post.media_url }}" alt="{{ post.display_name }} post">
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        <div class="chain-home__meta-row">
-                            <span><strong data-social-count="post:{{ post.id }}:like">{{ post.likes_count or 0 }}</strong> likes</span>
-                            <span><strong data-social-count="post:{{ post.id }}:comment">{{ post.comments_count or 0 }}</strong> comments</span>
-                        </div>
-                        <div class="chain-home__post-actions">
-                            <button type="button" data-social-like="post:{{ post.id }}"><i class="far fa-heart"></i><span>Like</span></button>
-                            <button type="button" data-social-comment="post:{{ post.id }}"><i class="far fa-comment"></i><span>Comment</span></button>
-                            <a href="{{ post.profile_url }}"><i class="fas fa-share"></i><span>Share</span></a>
-                            <button type="button" data-social-save="post:{{ post.id }}"><i class="far fa-bookmark"></i><span>Bookmark</span></button>
-                        </div>
-                    </article>
-                    {% endif %}
-                    {% endfor %}
-                    {% if not trending_posts %}
-                    {{ empty_state('fa-table-cells-large', 'No posts yet', 'Start the feed with a clean update, photo or thought.', composer_fallback if post_available else none, 'Create post' if post_available else none) }}
-                    {% endif %}
-                </div>
-            </section>
 
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Trending Groups</p>
-                        <h2>Trending Groups</h2>
-                        <p class="chain-home__section-subtitle">Communities growing fast on CHAIN.</p>
-                    </div>
-                    <a href="{{ discover_route }}" class="chain-home__section-link">Browse groups</a>
+                <!-- Feed loader (hidden, shown during infinite scroll) -->
+                <div class="feed-loader" style="display:none;text-align:center;padding:20px;color:var(--hp-text-muted);">
+                    <i class="fas fa-spinner fa-spin"></i> Loading more...
                 </div>
-                <div class="chain-home__group-row">
-                    {% for group in groups %}
-                    <article class="chain-home__group-card chain-card">
-                        <div class="chain-home__group-cover">
-                            {% if group.cover_url %}
-                            <img src="{{ group.cover_url }}" alt="{{ group.display_name }}">
+
+                <!-- Infinite scroll sentinel -->
+                <div class="feed-sentinel" style="height:1px;"></div>
+
+                <!-- Server-rendered fallback (shown if JS disabled) -->
+                <div class="feed-server-rendered" style="display:none;">
+
+                <!-- Premium Post Cards: Own Recent Posts -->
+                {% for post in own_recent_posts %}
+                <article id="post-{{ post.id }}" class="post-card-premium">
+                    <div class="post-header">
+                        <div class="post-avatar">
+                            {% if post.avatar_url %}
+                            <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
                             {% else %}
-                            <div class="chain-home__group-cover-fallback">{{ (group.display_name or group.name or 'G')[:1] }}</div>
+                            <span>{{ (post.display_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
-                        <div class="chain-home__group-body">
-                            <div class="chain-home__name-line">
-                                <h3>{{ group.display_name or group.name }}</h3>
+                        <div class="post-author-info">
+                            <div class="post-author-name">
+                                {{ post.display_name or 'CHAIN' }}
+                                {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+                                <span class="post-content-label following">Following</span>
                             </div>
-                            <small><i class="fas fa-users"></i> {{ group.member_count }} members</small>
-                            <div class="chain-home__meta-row">
-                                <span class="chain-pill chain-pill--{{ group.access_type or 'public' }}">{{ (group.access_type or 'public')|title }}</span>
-                            </div>
-                            <button type="button" class="chain-home__join-btn" data-join-group="{{ group.id }}">Join</button>
+                            <div class="post-author-username">@{{ post.username or 'chain' }}</div>
+                            <div class="post-time-location"><i class="far fa-clock"></i> {{ post.created_label }}{% if post.town_tag %} &middot; <i class="fas fa-location-dot"></i> {{ post.town_tag }}{% endif %}</div>
                         </div>
-                    </article>
-                    {% endfor %}
-                    {% if not groups %}
-                    {{ empty_state('fa-users', 'No groups yet', 'Trending groups will appear here as communities grow.', discover_route, 'Discover groups') }}
-                    {% endif %}
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Sponsored</p>
-                        <h2>Sponsored Posts</h2>
-                        <p class="chain-home__section-subtitle">Promoted content from partners and creators.</p>
+                        <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
                     </div>
-                </div>
-                <div class="chain-home__stack">
-                    {% for post in sponsored_posts %}
-                    <article id="sponsored-{{ post.id }}" class="chain-home__post-card chain-card chain-home__post-card--sponsored">
-                        <div class="chain-home__post-head">
-                            <span class="chain-home__sponsored-label">Sponsored</span>
-                            <a href="{{ post.profile_url }}" class="chain-home__person-link">
-                                <span class="chain-home__avatar">
-                                    {% if post.avatar_url %}
-                                    <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
-                                    {% elif post.display_name %}
-                                    {{ post.display_name[:1] }}
-                                    {% endif %}
-                                </span>
-                                <div>
-                                    <div class="chain-home__name-line">
-                                        {% if post.display_name %}<strong>{{ post.display_name }}</strong>{% endif %}
-                                        {% if post.verified %}<i class="fas fa-circle-check"></i>{% endif %}
-                                    </div>
-                                    <small>@{{ post.username or 'chain' }} &bull; {{ post.created_label }}</small>
-                                </div>
-                            </a>
-                        </div>
-                        <p>{{ post.excerpt|hashtag_links|safe }}</p>
-                        {% if post.town_tag %}<div class="chain-home__meta-row"><span><i class="fas fa-location-dot"></i> {{ post.town_tag }}</span></div>{% endif %}
-                        {% if post.link_url %}<p><a href="{{ post.link_url }}" target="_blank" rel="noopener">{{ post.link_url }}</a></p>{% endif %}
-                        {% if post.media_url %}
-                        <div class="chain-home__post-media">
-                            {% if post.video_url or post.post_type == 'video' %}
-                            <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
-                            {% else %}
-                            <img src="{{ post.media_url }}" alt="{{ post.display_name }} post">
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        <div class="chain-home__meta-row">
-                            <span><strong data-social-count="post:{{ post.id }}:like">{{ post.likes_count or 0 }}</strong> likes</span>
-                            <span><strong data-social-count="post:{{ post.id }}:comment">{{ post.comments_count or 0 }}</strong> comments</span>
-                        </div>
-                        <div class="chain-home__post-actions">
-                            <button type="button" data-social-like="post:{{ post.id }}"><i class="far fa-heart"></i><span>Like</span></button>
-                            <button type="button" data-social-comment="post:{{ post.id }}"><i class="far fa-comment"></i><span>Comment</span></button>
-                            <a href="{{ post.profile_url }}"><i class="fas fa-share"></i><span>Share</span></a>
-                            <button type="button" data-social-save="post:{{ post.id }}"><i class="far fa-bookmark"></i><span>Bookmark</span></button>
-                        </div>
-                    </article>
-                    {% endfor %}
-                    {% if not sponsored_posts %}
-                    {{ empty_state('fa-ad', 'No sponsored posts yet', 'Promoted content from partners will appear here.', wide=True) }}
-                    {% endif %}
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Announcements</p>
-                        <h2>Public Announcements</h2>
-                        <p class="chain-home__section-subtitle">Official updates and community notices.</p>
+                    <div class="post-body">
+                        <div class="post-text">{{ post.excerpt|hashtag_links|safe }}</div>
                     </div>
-                </div>
-                <div class="chain-home__stack chain-home__announcements-stack">
-                    {% for ann in announcements %}
-                    <article class="chain-home__announcement-card chain-card">
-                        <div class="chain-home__announcement-head">
-                            <div>
-                                <h3>{{ ann.title }}</h3>
-                                <small>{{ ann.created_label }}</small>
-                            </div>
-                            {% if ann.priority %}
-                            <span class="chain-pill chain-pill--{{ ann.priority }}">{{ ann.priority|title }}</span>
-                            {% endif %}
-                        </div>
-                        <p>{{ ann.body }}</p>
-                    </article>
-                    {% endfor %}
-                    {% if not announcements %}
-                    {{ empty_state('fa-bullhorn', 'No announcements yet', 'Official updates and community notices will appear here.', wide=True) }}
-                    {% endif %}
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Reels</p>
-                        <h2>Fresh Reels</h2>
-                        <p class="chain-home__section-subtitle">Short-form videos from creators across CHAIN.</p>
-                    </div>
-                    <a href="{{ reel_route }}" class="chain-home__section-link">Watch reels</a>
-                </div>
-                <div class="chain-home__reel-row">
-                    {% for reel in reels %}
-                    <a href="{{ reel_route }}" class="chain-home__reel-card chain-card">
-                        <div class="chain-home__reel-media">
-                            {% if reel.video_url or reel.media_url %}
-                            <video src="{{ reel.video_url or reel.media_url }}" muted playsinline preload="metadata"></video>
-                            {% else %}
-                            <span><i class="fas fa-play"></i></span>
-                            {% endif %}
-                            <small><i class="fas fa-play"></i> Reel</small>
-                        </div>
-                        <strong>{{ reel.display_name or '@chain' }}</strong>
-                        {% if reel.caption %}<p>{{ reel.caption|hashtag_links|safe }}</p>{% endif %}
-                        <span>{{ reel.likes_count }} likes</span>
-                    </a>
-                    {% endfor %}
-                    {% if not reels %}
-                    {{ empty_state('fa-film', 'No reels yet', 'Fresh reels will appear here once creators upload them.', reel_create if reel_available else reel_route, 'Create reel' if reel_available else 'Open reels', True) }}
-                    {% endif %}
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Live Now</p>
-                        <h2>Live Rooms</h2>
-                        <p class="chain-home__section-subtitle">Real-time rooms from active creators.</p>
-                    </div>
-                    <a href="{{ live_route }}" class="chain-home__section-link">Open live</a>
-                </div>
-                <div class="chain-home__grid chain-home__grid--live">
-                    {% for room in live_rooms %}
-                    <a href="{{ room.watch_url }}" class="chain-home__live-card chain-clickable-card chain-card">
-                        <div class="chain-home__live-media">
-                            {% if room.cover_url %}
-                            <img src="{{ room.cover_url }}" alt="{{ room.title }}">
-                            {% else %}
-                            <div class="chain-home__live-cover-fallback">{{ (room.title or '?')[:1] }}</div>
-                            {% endif %}
-                            <span class="chain-home__live-badge">LIVE</span>
-                            {% if room.viewer_count is not none %}
-                            <span class="chain-home__viewer-badge">{{ room.viewer_count }} watching</span>
-                            {% endif %}
-                        </div>
-                        <div class="chain-home__card-body">
-                            <div class="chain-home__person">
-                                <span class="chain-home__avatar">
-                                    {% if room.creator_avatar %}
-                                    <img src="{{ room.creator_avatar }}" alt="{{ room.creator_name }}">
-                                    {% elif room.creator_name %}
-                                    {{ room.creator_name[:1] }}
-                                    {% endif %}
-                                </span>
-                                <div>
-                                    {% if room.creator_name %}<strong>{{ room.creator_name }}</strong>{% endif %}
-                                    {% if room.creator_location %}<small>{{ room.creator_location }}</small>{% endif %}
-                                </div>
-                            </div>
-                            {% if room.title %}<h3>{{ room.title }}</h3>{% endif %}
-                            <div class="chain-home__meta-row">
-                                {% if room.category %}<span class="chain-pill">{{ room.category }}</span>{% endif %}
-                                {% if room.entry_fee_label %}<span class="chain-pill">{{ room.entry_fee_label }}</span>{% endif %}
-                            </div>
-                            <span class="chain-home__join-btn">Join Live</span>
-                        </div>
-                    </a>
-                    {% endfor %}
-                    {% if not live_rooms %}
-                    {{ empty_state('fa-video', 'No live rooms yet', 'When creators go live, their rooms will appear here.', live_create if live_available else live_route, 'Start live' if live_available else 'Browse live') }}
-                    {% endif %}
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Recommended Profiles</p>
-                        <h2>Recommended Profiles</h2>
-                        <p class="chain-home__section-subtitle">Creators and members worth discovering.</p>
-                    </div>
-                    <a href="{{ discover_route }}" class="chain-home__section-link">Discover people</a>
-                </div>
-                <div class="chain-home__grid chain-home__grid--profiles">
-                    {% for profile in recommended_profiles %}
-                    <article class="chain-home__profile-card chain-card">
-                        <div class="chain-home__profile-banner"></div>
-                        <span class="chain-home__avatar chain-home__avatar--lg">
-                            {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
-                            {% else %}
-                            {{ profile.initial }}
-                            {% endif %}
-                        </span>
-                        <div class="chain-home__name-line">
-                            {% if profile.display_name %}<h3>{{ profile.display_name }}</h3>{% endif %}
-                            {% if profile.verified %}<i class="fas fa-circle-check"></i>{% endif %}
-                        </div>
-                        <small>@{{ profile.username or 'creator' }}</small>
-                        {% if profile.bio %}<p>{{ profile.bio }}</p>{% elif profile.location %}<p>{{ profile.location }}</p>{% else %}<p>Creator building a premium CHAIN presence.</p>{% endif %}
-                        <div class="chain-home__profile-stats"><span>{{ profile.followers_count or 0 }} followers</span></div>
-                        <div class="chain-home__meta-row">
-                            {% if profile.creator_category %}<span class="chain-pill">{{ profile.creator_category }}</span>{% endif %}
-                            <span class="chain-pill">Recommended</span>
-                        </div>
-                        <button type="button" class="chain-home__follow-btn" data-follow-profile="{{ profile.id }}">Follow</button>
-                    </article>
-                    {% endfor %}
-                    {% if not recommended_profiles %}
-                    {{ empty_state('fa-user-group', 'No profiles to show yet', 'Complete your profile or explore Discover while recommendations warm up.', discover_route, 'Open Discover') }}
-                    {% endif %}
-                </div>
-            </section>
-        </main>
-
-        <aside class="chain-home__desktop-sidebar chain-home__desktop-sidebar--right">
-            <section class="chain-home__section chain-home__section--desktop-top">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">My profile</p>
-                        <h2>Profile preview</h2>
-                    </div>
-                </div>
-                <a href="{{ drawer_profile }}" class="chain-home__profile-preview chain-card">
-                    {% if is_logged_in %}
-                    <span class="chain-home__avatar chain-home__avatar--lg">
-                        {% if current.avatar_url %}
-                        <img src="{{ current.avatar_url }}" alt="Your profile">
+                    {% if post.media_url %}
+                    <div class="post-media">
+                        {% if post.video_url or post.post_type == 'video' %}
+                        <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
                         {% else %}
-                        {{ (current.full_name or current.username or 'P')[:1] }}
+                        <img src="{{ post.media_url }}" alt="{{ post.display_name }} post" loading="lazy">
                         {% endif %}
-                    </span>
-                    <h3>{{ current.full_name or current.username or 'Your profile' }}</h3>
-                    <p>Open your public profile and creator presence.</p>
-                    {% else %}
-                    <span class="chain-home__widget-icon"><i class="fas fa-user-circle"></i></span>
-                    <h3>Join CHAIN</h3>
-                    <p>Create an account to unlock profile, wallet and creator tools.</p>
+                    </div>
                     {% endif %}
-                </a>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__wallet-card chain-card">
-                    <div class="chain-home__widget-head">
-                        <div>
-                            <p class="chain-home__kicker">Creator wallet</p>
-                            <h3>Wallet Balance</h3>
-                        </div>
-                        <span class="chain-home__widget-icon"><i class="fas fa-wallet"></i></span>
+                    <div class="post-stats">
+                        <span><strong data-count="likes">{{ post.likes_count or 0 }}</strong> likes</span>
+                        <span><strong>{{ post.comments_count or 0 }}</strong> comments</span>
+                        <span><strong>{{ post.view_count or 0 }}</strong> views</span>
                     </div>
-                    <div class="chain-home__wallet-metrics">
-                        <div>
-                            <span>Balance</span>
-                            <strong>{{ wallet.label_balance if is_logged_in else '0' }} coins</strong>
-                        </div>
-                        <div>
-                            <span>Gift Earnings</span>
-                            <strong>{{ wallet.gift_earnings if is_logged_in else 0 }} coins</strong>
-                        </div>
-                        <div>
-                            <span>Withdrawable</span>
-                            <strong>{{ wallet.gift_earnings if is_logged_in else 0 }} coins</strong>
-                        </div>
+                    <div class="post-actions">
+                        <button type="button" class="post-action-btn" data-action="like"><i class="far fa-heart"></i> Like</button>
+                        <button type="button" class="post-action-btn" data-action="comment"><i class="far fa-comment"></i> Comment</button>
+                        <button type="button" class="post-action-btn" data-action="share"><i class="fas fa-share"></i> Share</button>
+                        <button type="button" class="post-action-btn" data-action="save"><i class="far fa-bookmark"></i> Save</button>
                     </div>
-                    <div class="chain-home__chart-placeholder">
-                        <span style="height:35%"></span><span style="height:58%"></span><span style="height:44%"></span><span style="height:72%"></span><span style="height:62%"></span>
-                    </div>
-                    <p class="chain-home__trend"><i class="fas fa-arrow-trend-up"></i> Earnings trend ready when activity starts.</p>
-                    <div class="chain-home__creator-actions">
-                        <a href="{{ drawer_wallet }}" class="chain-btn chain-btn-primary">Wallet</a>
-                        <a href="{{ drawer_wallet }}" class="chain-btn chain-btn-secondary">Withdraw</a>
-                    </div>
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__creator-studio chain-card">
-                    <div class="chain-home__widget-head">
-                        <div>
-                            <p class="chain-home__kicker">Creator Studio</p>
-                            <h3>Performance hub</h3>
-                        </div>
-                        <span class="chain-home__widget-icon"><i class="fas fa-chart-simple"></i></span>
-                    </div>
-                    <div class="chain-home__studio-grid">
-                        <div><i class="fas fa-chart-line"></i><span>Analytics</span></div>
-                        <div><i class="fas fa-coins"></i><span>Live Earnings</span></div>
-                        <div><i class="fas fa-user-plus"></i><span>Followers Growth</span></div>
-                        <div><i class="fas fa-photo-film"></i><span>Content Performance</span></div>
-                    </div>
-                    <div class="chain-home__creator-actions">
-                        <a href="{{ live_create }}" class="chain-btn chain-btn-secondary{% if not live_available %} is-disabled{% endif %}" {% if not live_available %}aria-disabled="true"{% endif %}>{{ 'Open Studio' if live_available else 'Coming soon' }}</a>
-                        <a href="{{ drawer_profile }}" class="chain-btn chain-btn-secondary">Manage Content</a>
-                    </div>
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Dating Matches</p>
-                        <h2>Dating Matches</h2>
-                        <p class="chain-home__section-subtitle">People who opted into dating discovery.</p>
-                    </div>
-                    <a href="{{ dating_route }}" class="chain-home__section-link">Open dating</a>
-                </div>
-                <div class="chain-home__grid chain-home__grid--matches chain-home__grid--sidebar">
-                    {% for profile in dating_matches %}
-                    <a href="{{ profile.profile_url }}" class="chain-home__match-card chain-clickable-card chain-card">
-                        <span class="chain-home__avatar chain-home__avatar--lg">
-                            {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
-                            {% else %}
-                            {{ profile.initial }}
-                            {% endif %}
-                        </span>
-                        {% if profile.display_name %}<h3>{{ profile.display_name }}</h3>{% endif %}
-                        {% if profile.location %}<p>{{ profile.location }}</p>{% endif %}
-                        <div class="chain-home__meta-row">
-                            <span class="chain-pill">{{ 88 + loop.index }}% match</span>
-                            {% if profile.verified %}
-                            <span class="chain-pill">Verified</span>
-                            {% endif %}
-                        </div>
-                        <span class="chain-home__like-btn"><i class="fas fa-heart"></i> Like</span>
-                    </a>
-                    {% endfor %}
-                    {% if not dating_matches %}
-                    {{ empty_state('fa-heart', 'No matches yet', 'Dating profiles will appear here once members opt in.', dating_route, 'Open dating') }}
-                    {% endif %}
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Nearby Users</p>
-                        <h2>Nearby Users</h2>
-                        <p class="chain-home__section-subtitle">Trending people in your area.</p>
-                    </div>
-                </div>
-                <div class="chain-home__grid chain-home__grid--sidebar chain-home__grid--nearby">
-                    {% for profile in nearby_users %}
-                    <a href="{{ profile.profile_url if profile.profile_url else '#' }}" class="chain-home__nearby-card chain-clickable-card chain-card">
-                        <span class="chain-home__avatar chain-home__avatar--sm">
-                            {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
-                            {% else %}
-                            {{ profile.initial or (profile.display_name or '?')[:1] }}
-                            {% endif %}
-                        </span>
-                        <div class="chain-home__nearby-info">
-                            {% if profile.display_name %}<strong>{{ profile.display_name }}</strong>{% endif %}
-                            {% if profile.location %}<small>{{ profile.location }}</small>{% endif %}
-                        </div>
-                        <span class="chain-home__nearby-dot"></span>
-                    </a>
-                    {% endfor %}
-                    {% if not nearby_users %}
-                    {{ empty_state('fa-location-dot', 'No nearby users yet', 'Check back when users in your area are active.') }}
-                    {% endif %}
-                </div>
-            </section>
-
-            <section class="chain-home__section">
-                <div class="chain-home__section-head">
-                    <div>
-                        <p class="chain-home__kicker">Safety</p>
-                        <h2>Trust and Safety</h2>
-                    </div>
-                </div>
-                <article class="chain-home__safety-card chain-card">
-                    <div class="chain-home__safety-row"><i class="fas fa-shield-halved"></i><span>Shield protection</span></div>
-                    <div class="chain-home__safety-row"><i class="fas fa-circle-check"></i><span>Verified profiles</span></div>
-                    <div class="chain-home__safety-row"><i class="fas fa-user-shield"></i><span>Moderation team</span></div>
-                    <div class="chain-home__safety-row"><i class="fas fa-ban"></i><span>Block control</span></div>
-                    <div class="chain-home__safety-row"><i class="fas fa-flag"></i><span>Report center</span></div>
                 </article>
-            </section>
+                {% endfor %}
 
-        </aside>
+                <!-- Premium Post Cards: Trending/Public Posts -->
+                {% for post in trending_posts %}
+                {% if post.id not in own_recent_posts|map(attribute='id')|list %}
+                <article id="post-{{ post.id }}" class="post-card-premium">
+                    <div class="post-header">
+                        <div class="post-avatar">
+                            {% if post.avatar_url %}
+                            <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
+                            {% else %}
+                            <span>{{ (post.display_name or '?')[:1] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="post-author-info">
+                            <div class="post-author-name">
+                                {{ post.display_name or 'CHAIN' }}
+                                {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+                                <span class="post-content-label public">Public</span>
+                            </div>
+                            <div class="post-author-username">@{{ post.username or 'chain' }}</div>
+                            <div class="post-time-location"><i class="far fa-clock"></i> {{ post.created_label }}{% if post.town_tag %} &middot; <i class="fas fa-location-dot"></i> {{ post.town_tag }}{% endif %}</div>
+                        </div>
+                        <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
+                    </div>
+                    <div class="post-body">
+                        <div class="post-text">{{ post.excerpt|hashtag_links|safe }}</div>
+                    </div>
+                    {% if post.media_url %}
+                    <div class="post-media">
+                        {% if post.video_url or post.post_type == 'video' %}
+                        <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
+                        {% else %}
+                        <img src="{{ post.media_url }}" alt="{{ post.display_name }} post" loading="lazy">
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="post-stats">
+                        <span><strong data-count="likes">{{ post.likes_count or 0 }}</strong> likes</span>
+                        <span><strong>{{ post.comments_count or 0 }}</strong> comments</span>
+                        <span><strong>{{ post.view_count or 0 }}</strong> views</span>
+                    </div>
+                    <div class="post-actions">
+                        <button type="button" class="post-action-btn" data-action="like"><i class="far fa-heart"></i> Like</button>
+                        <button type="button" class="post-action-btn" data-action="comment"><i class="far fa-comment"></i> Comment</button>
+                        <button type="button" class="post-action-btn" data-action="share"><i class="fas fa-share"></i> Share</button>
+                        <button type="button" class="post-action-btn" data-action="save"><i class="far fa-bookmark"></i> Save</button>
+                    </div>
+                </article>
+                {% endif %}
+                {% endfor %}
+
+                {% if not trending_posts and not own_recent_posts %}
+                <div class="feed-empty">
+                    <div class="feed-empty-icon"><i class="fas fa-table-cells-large"></i></div>
+                    <div class="feed-empty-title">No posts yet</div>
+                    <div class="feed-empty-message">Start the feed with a clean update, photo or thought. Posts from creators you follow will appear here.</div>
+                </div>
+                {% endif %}
+
+                </div><!-- /feed-server-rendered -->
+
+                <!-- Sponsored / Ad Posts -->
+                {% if sponsored_posts %}
+                {% for post in sponsored_posts %}
+                <article id="sponsored-{{ post.id }}" class="post-card-premium">
+                    <div class="post-header">
+                        <div class="post-avatar">
+                            {% if post.avatar_url %}
+                            <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
+                            {% else %}
+                            <span>{{ (post.display_name or '?')[:1] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="post-author-info">
+                            <div class="post-author-name">
+                                {{ post.display_name or 'Sponsored' }}
+                                {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+                                <span class="post-content-label sponsored">Sponsored</span>
+                            </div>
+                            <div class="post-author-username">@{{ post.username or 'partner' }}</div>
+                            <div class="post-time-location"><i class="far fa-clock"></i> {{ post.created_label }}</div>
+                        </div>
+                        <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
+                    </div>
+                    <div class="post-body">
+                        <div class="post-text">{{ post.excerpt|hashtag_links|safe }}</div>
+                    </div>
+                    {% if post.media_url %}
+                    <div class="post-media">
+                        {% if post.video_url or post.post_type == 'video' %}
+                        <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
+                        {% else %}
+                        <img src="{{ post.media_url }}" alt="{{ post.display_name }} post" loading="lazy">
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="post-stats">
+                        <span><strong>{{ post.likes_count or 0 }}</strong> likes</span>
+                        <span><strong>{{ post.comments_count or 0 }}</strong> comments</span>
+                    </div>
+                    <div class="post-actions">
+                        <button type="button" class="post-action-btn" data-action="like"><i class="far fa-heart"></i> Like</button>
+                        <button type="button" class="post-action-btn" data-action="comment"><i class="far fa-comment"></i> Comment</button>
+                        <button type="button" class="post-action-btn" data-action="share"><i class="fas fa-share"></i> Share</button>
+                        <button type="button" class="post-action-btn" data-action="save"><i class="far fa-bookmark"></i> Save</button>
+                    </div>
+                </article>
+                {% endfor %}
+                {% endif %}
+
+                <!-- Platform Announcements -->
+                {% if announcements %}
+                {% for ann in announcements %}
+                <article class="post-card-premium">
+                    <div class="post-header">
+                        <div class="post-avatar" style="background: linear-gradient(135deg, #7c3aed, #2563eb);"><span>A</span></div>
+                        <div class="post-author-info">
+                            <div class="post-author-name">
+                                {{ ann.title }}
+                                <span class="post-content-label trending">Announcement</span>
+                            </div>
+                            <div class="post-time-location"><i class="far fa-clock"></i> {{ ann.created_label }}</div>
+                        </div>
+                    </div>
+                    <div class="post-body">
+                        <div class="post-text">{{ ann.body }}</div>
+                    </div>
+                </article>
+                {% endfor %}
+                {% endif %}
+
+            </main>
+
+            <!-- RIGHT RAIL -->
+            <aside class="home-right-rail">
+
+                <!-- Profile Preview -->
+                <div class="rail-section">
+                    <a href="{{ drawer_profile }}" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:12px;">
+                        <div class="suggested-avatar" style="width:48px;height:48px;">
+                            {% if is_logged_in and current.avatar_url %}
+                            <img src="{{ current.avatar_url }}" alt="Profile">
+                            {% else %}
+                            <span>{{ (current.full_name or current.username or 'P')[:1] if is_logged_in else 'J' }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="suggested-info">
+                            <div class="suggested-name">{{ current.full_name or current.username or 'Join CHAIN' }}</div>
+                            <div class="suggested-mutual">{% if is_logged_in %}View your profile{% else %}Create an account to get started{% endif %}</div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Trending Creators -->
+                <div class="rail-section">
+                    <div class="rail-section-title">
+                        <span>Trending Creators</span>
+                        <a href="{{ discover_route }}">See all</a>
+                    </div>
+                    {% for profile in recommended_profiles[:5] %}
+                    <div class="suggested-card">
+                        <div class="suggested-avatar">
+                            {% if profile.avatar_url %}
+                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
+                            {% else %}
+                            <span>{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="suggested-info">
+                            <div class="suggested-name">
+                                {{ profile.display_name or 'Creator' }}
+                                {% if profile.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+                            </div>
+                            <div class="suggested-username">@{{ profile.username or 'creator' }}</div>
+                            <div class="suggested-mutual">{{ profile.followers_count or 0 }} followers</div>
+                        </div>
+                        <button type="button" class="suggested-follow-btn">Follow</button>
+                    </div>
+                    {% else %}
+                    <div style="text-align:center;padding:16px 0;color:var(--hp-text-muted);font-size:13px;">No creators yet</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Suggested Friends -->
+                {% if recommended_profiles|length > 5 %}
+                <div class="rail-section">
+                    <div class="rail-section-title">
+                        <span>Suggested Friends</span>
+                    </div>
+                    {% for profile in recommended_profiles[5:10] %}
+                    <div class="suggested-card">
+                        <div class="suggested-avatar">
+                            {% if profile.avatar_url %}
+                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
+                            {% else %}
+                            <span>{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="suggested-info">
+                            <div class="suggested-name">
+                                {{ profile.display_name or 'Creator' }}
+                                {% if profile.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+                            </div>
+                            <div class="suggested-username">@{{ profile.username or 'creator' }}</div>
+                            {% if profile.followers_count %}
+                            <div class="suggested-mutual">{{ profile.followers_count }} followers</div>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="suggested-follow-btn">Follow</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Platform Ad / Promotion -->
+                <div class="ad-card">
+                    <div class="ad-card-sponsored">
+                        <span>Sponsored</span>
+                        <button type="button" class="ad-card-dismiss" aria-label="Dismiss"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="ad-card-image"><i class="fas fa-bolt"></i></div>
+                    <div class="ad-card-title">CHAIN Premium</div>
+                    <div class="ad-card-body">Go premium — unlock live streaming, wallet tipping, and creator tools. Build your audience today.</div>
+                    <a href="{{ drawer_wallet }}" class="ad-card-cta">Learn More</a>
+                </div>
+
+                <!-- Live Rooms -->
+                {% if live_rooms %}
+                <div class="rail-section">
+                    <div class="rail-section-title">
+                        <span>Live Rooms</span>
+                        <a href="{{ live_route }}">Watch</a>
+                    </div>
+                    {% for room in live_rooms[:3] %}
+                    <a href="{{ room.watch_url }}" class="suggested-card" style="text-decoration:none;color:inherit;">
+                        <div class="suggested-avatar">
+                            {% if room.creator_avatar %}
+                            <img src="{{ room.creator_avatar }}" alt="{{ room.creator_name }}">
+                            {% else %}
+                            <span>{{ (room.creator_name or '?')[:1] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="suggested-info">
+                            <div class="suggested-name">{{ room.creator_name or 'Creator' }}</div>
+                            <div class="suggested-mutual">
+                                {% if room.viewer_count is not none %}{{ room.viewer_count }} watching{% endif %}
+                                {% if room.category %} &middot; {{ room.category }}{% endif %}
+                            </div>
+                        </div>
+                        <span style="padding:2px 8px;background:var(--hp-pink);color:white;font-size:10px;font-weight:700;border-radius:4px;text-transform:uppercase;flex-shrink:0;">LIVE</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Nearby Users -->
+                {% if nearby_users %}
+                <div class="rail-section">
+                    <div class="rail-section-title">
+                        <span>Nearby</span>
+                    </div>
+                    {% for profile in nearby_users[:4] %}
+                    <a href="{{ profile.profile_url if profile.profile_url else '#' }}" class="suggested-card" style="text-decoration:none;color:inherit;">
+                        <div class="suggested-avatar" style="width:32px;height:32px;font-size:12px;">
+                            {% if profile.avatar_url %}
+                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
+                            {% else %}
+                            <span>{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="suggested-info">
+                            <div class="suggested-name" style="font-size:12px;">{{ profile.display_name or 'User' }}</div>
+                            {% if profile.location %}
+                            <div class="suggested-mutual">{{ profile.location }}</div>
+                            {% endif %}
+                        </div>
+                        <span style="width:8px;height:8px;border-radius:50%;background:var(--hp-green);flex-shrink:0;" title="Active"></span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+            </aside>
+
+        </div>
     </div>
 
-    <nav class="chain-home__mobile-nav" aria-label="Bottom mobile navigation">
-        <a href="{{ home_route }}" class="is-active"><i class="fas fa-home"></i><small>Home</small></a>
-        <a href="{{ discover_route }}"><i class="fas fa-compass"></i><small>Discover</small></a>
-        <a href="{{ reel_route }}"><i class="fas fa-film"></i><small>Reels</small></a>
-        <a href="{{ drawer_messages }}"><i class="fas fa-comment"></i><small>Chat</small></a>
-        <a href="{{ drawer_profile }}"><i class="fas fa-user"></i><small>Profile</small></a>
+    <!-- MOBILE BOTTOM NAV -->
+    <nav class="mobile-bottom-nav" aria-label="Bottom mobile navigation">
+        <div class="mobile-bottom-nav-inner">
+            <a href="{{ home_route }}" class="mobile-nav-item is-active"><i class="fas fa-home"></i><span>Home</span></a>
+            <a href="{{ discover_route }}" class="mobile-nav-item"><i class="fas fa-compass"></i><span>Discover</span></a>
+            <a href="{{ composer_fallback }}" class="mobile-nav-item"><span class="mobile-nav-create"><i class="fas fa-plus"></i></span></a>
+            <a href="{{ reel_route }}" class="mobile-nav-item"><i class="fas fa-film"></i><span>Reels</span></a>
+            <a href="{{ drawer_profile }}" class="mobile-nav-item"><i class="fas fa-user"></i><span>Profile</span></a>
+        </div>
     </nav>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="/static/js/chain_home.js"></script>
+<script src="/static/js/homepage_premium.js"></script>
 {% endblock %}

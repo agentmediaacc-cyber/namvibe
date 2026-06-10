@@ -15,6 +15,8 @@ let CHAIN_WEBRTC = {
     isSpeakerOn: false,
     callTimer: null,
     callSeconds: 0,
+    networkQuality: 'Good',
+    isPiP: false,
     ringingAudio: null,
     ringingInterval: null,
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }],
@@ -217,14 +219,19 @@ function handleRemoteSpeaker(data) {}
 function handleRemoteReconnecting(data) {
     const el = document.getElementById('network-warning');
     if (el) { el.style.display = 'block'; el.textContent = 'Reconnecting...'; }
+    updateNetworkQuality('Reconnecting');
+    showReconnectingOverlay();
 }
 
 function handleRemoteReconnected(data) {
     const el = document.getElementById('network-warning');
     if (el) el.style.display = 'none';
+    updateNetworkQuality('Good');
+    hideReconnectingOverlay();
 }
 
 function handleRemoteFailed(data) {
+    updateNetworkQuality('Failed');
     showCallNotification('Call failed');
     cleanupCall();
 }
@@ -272,6 +279,7 @@ function getOrCreatePC(callId) {
     pc.oniceconnectionstatechange = () => {
         const state = pc.iceConnectionState;
         if (state === 'disconnected' || state === 'failed') {
+            updateNetworkQuality(state === 'failed' ? 'Failed' : 'Reconnecting');
             CHAIN_WEBRTC.socket.emit('call:reconnecting', {
                 call_id: CHAIN_WEBRTC.currentCallId,
                 target_id: CHAIN_WEBRTC.currentTargetId
@@ -279,6 +287,7 @@ function getOrCreatePC(callId) {
             const warn = document.getElementById('network-warning');
             if (warn) warn.style.display = 'block';
         } else if (state === 'connected') {
+            updateNetworkQuality('Good');
             CHAIN_WEBRTC.socket.emit('call:reconnected', {
                 call_id: CHAIN_WEBRTC.currentCallId,
                 target_id: CHAIN_WEBRTC.currentTargetId
@@ -359,6 +368,7 @@ function wRejectCall() {
 
 function wEndCall() {
     if (!CHAIN_WEBRTC.currentCallId) return;
+    if (typeof window !== 'undefined' && !window.confirm('End this call?')) return;
     CHAIN_WEBRTC.socket.emit('call:end', {
         call_id: CHAIN_WEBRTC.currentCallId,
         target_id: CHAIN_WEBRTC.currentTargetId
@@ -622,6 +632,7 @@ function showActiveCallUI() {
     if (!overlay) return;
     const statusEl = document.getElementById('call-status-text');
     if (statusEl) statusEl.textContent = 'Connected';
+    updateNetworkQuality('Good');
     const timerEl = document.getElementById('call-timer');
     if (timerEl) timerEl.style.display = 'block';
     const answerBtn = document.getElementById('answer-btn');
@@ -638,6 +649,9 @@ function showActiveCallUI() {
 function hideCallUI() {
     const overlay = document.getElementById('call-overlay');
     if (overlay) overlay.style.display = 'none';
+    const mini = document.getElementById('phase54-mini-call');
+    if (mini) mini.style.display = 'none';
+    CHAIN_WEBRTC.isPiP = false;
     const callScreen = document.getElementById('callScreen');
     if (callScreen) callScreen.classList.remove('active');
 }
@@ -679,6 +693,28 @@ function showCallNotification(msg) {
     setTimeout(() => {
         if (el && el.textContent === msg) el.textContent = 'Call ended';
     }, 2000);
+}
+
+function updateNetworkQuality(status) {
+    const normalized = ['Good', 'Weak', 'Reconnecting', 'Failed'].includes(status) ? status : 'Good';
+    CHAIN_WEBRTC.networkQuality = normalized;
+    const el = document.getElementById('phase54-network-quality') || document.getElementById('call-quality-status');
+    if (el) {
+        el.textContent = normalized;
+        el.style.display = 'inline-flex';
+        el.dataset.quality = normalized.toLowerCase();
+    }
+    const mini = document.getElementById('phase54-mini-call-status');
+    if (mini) mini.textContent = normalized;
+}
+
+function toggleCallPiP() {
+    const overlay = document.getElementById('call-overlay');
+    const mini = document.getElementById('phase54-mini-call');
+    if (!overlay || !mini) return;
+    CHAIN_WEBRTC.isPiP = !CHAIN_WEBRTC.isPiP;
+    overlay.classList.toggle('phase54-call-pip-active', CHAIN_WEBRTC.isPiP);
+    mini.style.display = CHAIN_WEBRTC.isPiP ? 'flex' : 'none';
 }
 
 /* ---- Exposed globals for inline onclick ---- */
@@ -808,6 +844,7 @@ function showCallFailedBanner() {
 }
 
 function showWeakNetworkBanner() {
+    updateNetworkQuality('Weak');
     let banner = document.getElementById('weak-network-banner');
     if (!banner) {
         banner = document.createElement('div');

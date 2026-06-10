@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Seller Dashboard | CHAIN Marketplace{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/marketplace_premium.css">
+{% endblock %}
+{% block content %}
+<div class="mp-wrap">
+  <div class="mp-header">
+    <div class="mp-header-left">
+      <p class="mp-kicker">Seller Dashboard</p>
+      <h1 class="mp-title">Your Marketplace</h1>
+    </div>
+    <div class="mp-header-right">
+      <a href="/marketplace/" class="mp-btn mp-btn-outline"><i class="fas fa-arrow-left"></i> Browse</a>
+    </div>
+  </div>
+
+  {% if not shop %}
+  <div class="mp-card mp-empty" style="padding:48px">
+    <i class="fas fa-store" style="font-size:48px;opacity:0.25;display:block;margin-bottom:16px"></i>
+    <p style="max-width:400px;margin:0 auto 20px;line-height:1.6">You don't have a shop yet. Create one to start selling products and services on the marketplace.</p>
+    <button class="mp-btn mp-btn-primary" id="mpCreateShopBtn"><i class="fas fa-plus"></i> Create Your Shop</button>
+  </div>
+
+  <div class="mp-card" id="mpCreateShopForm" style="display:none;margin-top:16px">
+    <div class="mp-card-label"><i class="fas fa-store"></i> New Shop</div>
+    <div class="mp-form-row"><label>Shop Name</label><input class="mp-input" id="mpShopName" placeholder="My Shop"></div>
+    <div class="mp-form-row"><label>Type</label>
+      <select class="mp-input" id="mpShopType">
+        <option value="personal">Personal</option>
+        <option value="business">Business</option>
+        <option value="creator">Creator</option>
+      </select>
+    </div>
+    <div class="mp-form-row"><label>Description</label><textarea class="mp-input" id="mpShopDesc" rows="3" placeholder="Describe your shop"></textarea></div>
+    <div class="mp-form-row"><label>Category</label><input class="mp-input" id="mpShopCategory" placeholder="e.g. fashion, electronics"></div>
+    <div class="mp-form-row"><label>Contact Email</label><input class="mp-input" id="mpShopEmail" type="email" placeholder="email@example.com"></div>
+    <div class="mp-form-row"><label>WhatsApp</label><input class="mp-input" id="mpShopWhatsApp" placeholder="+264 XX XXX XXXX"></div>
+    <div class="mp-form-row"><label>Location</label><input class="mp-input" id="mpShopLocation" placeholder="City, Country"></div>
+    <button class="mp-btn mp-btn-primary" style="margin-top:12px" id="mpSaveShopBtn"><i class="fas fa-save"></i> Save Shop</button>
+  </div>
+  {% else %}
+  <div class="mp-grid mp-grid-4" id="mpDashboardCards">
+    <div class="mp-card mp-card-accent mp-card-gold">
+      <div class="mp-card-label"><i class="fas fa-coins"></i> Earnings</div>
+      <div class="mp-card-value">N$ {{ "%.2f"|format((data.total_earnings_cents|default(0))/100) }}</div>
+      <div class="mp-card-sub">Total earnings</div>
+    </div>
+    <div class="mp-card mp-card-accent mp-card-cyan">
+      <div class="mp-card-label"><i class="fas fa-box"></i> Products</div>
+      <div class="mp-card-value">{{ data.products_count|default(0) }}</div>
+      <div class="mp-card-sub">Active listings</div>
+    </div>
+    <div class="mp-card mp-card-accent mp-card-pink">
+      <div class="mp-card-label"><i class="fas fa-concierge-bell"></i> Services</div>
+      <div class="mp-card-value">{{ data.services_count|default(0) }}</div>
+      <div class="mp-card-sub">Active services</div>
+    </div>
+    <div class="mp-card mp-card-accent mp-card-green">
+      <div class="mp-card-label"><i class="fas fa-calendar-check"></i> Bookings</div>
+      <div class="mp-card-value">{{ data.bookings_count|default(0) }}</div>
+      <div class="mp-card-sub">Total bookings</div>
+    </div>
+  </div>
+
+  <div class="mp-card" style="margin-top:20px">
+    <div class="mp-card-label"><i class="fas fa-calendar"></i> Recent Bookings</div>
+    {% if data.recent_bookings %}
+    <div class="mp-table-wrap">
+      <table class="mp-table">
+        <thead><tr><th>ID</th><th>Status</th><th>Amount</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for b in data.recent_bookings %}
+          <tr>
+            <td style="font-size:12px;color:var(--mp-muted)">{{ b.id|truncate(8, True, '..') }}</td>
+            <td><span class="mp-status mp-status-{{ b.status }}">{{ b.status }}</span></td>
+            <td>N$ {{ "%.2f"|format((b.amount_cents|default(0))/100) }}</td>
+            <td style="font-size:13px;color:var(--mp-muted)">{{ b.created_at[:10] if b.created_at else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="mp-empty" style="padding:24px"><i class="fas fa-calendar"></i><p>No bookings yet.</p></div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<script src="/static/js/marketplace_premium.js"></script>
+{% endblock %}

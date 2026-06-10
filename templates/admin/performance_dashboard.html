@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Performance Dashboard — CHAIN{% endblock %}
+{% block head %}
+<style>
+:root {
+  --pd-bg: #0a0a12;
+  --pd-card: #15151f;
+  --pd-border: #2a2a3a;
+  --pd-text: #e0e0e8;
+  --pd-muted: #8888a0;
+  --pd-green: #00e676;
+  --pd-yellow: #ffc107;
+  --pd-red: #ff5252;
+  --pd-blue: #448aff;
+}
+body { background: var(--pd-bg); color: var(--pd-text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; }
+.pd-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+.pd-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+.pd-header h1 { font-size: 24px; font-weight: 700; margin: 0; }
+.pd-refresh { background: var(--pd-blue); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; min-height: 44px; min-width: 44px; }
+.pd-refresh:hover { opacity: 0.9; }
+.pd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.pd-card { background: var(--pd-card); border: 1px solid var(--pd-border); border-radius: 12px; padding: 20px; }
+.pd-card h2 { font-size: 14px; color: var(--pd-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0; }
+.pd-stat { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+.pd-stat-label { font-size: 12px; color: var(--pd-muted); }
+.pd-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-top: 8px; }
+.pd-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.pd-dot.green { background: var(--pd-green); }
+.pd-dot.yellow { background: var(--pd-yellow); }
+.pd-dot.red { background: var(--pd-red); }
+.pd-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.pd-table th, .pd-table td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--pd-border); }
+.pd-table th { color: var(--pd-muted); font-weight: 600; }
+.pd-section { margin-bottom: 24px; }
+.pd-section h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+.pd-error { color: var(--pd-red); font-size: 13px; }
+.pd-timestamp { font-size: 12px; color: var(--pd-muted); margin-top: 16px; text-align: center; }
+.pd-loading { text-align: center; padding: 40px; color: var(--pd-muted); }
+@media (max-width: 600px) {
+  .pd-grid { grid-template-columns: 1fr; }
+  .pd-container { padding: 12px 8px; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="pd-container">
+  <div class="pd-header">
+    <h1>⚡ Performance Dashboard</h1>
+    <button class="pd-refresh" onclick="loadAll()">Refresh</button>
+  </div>
+  <div class="pd-grid" id="pdCache">
+    <div class="pd-card"><h2>Cache</h2><div class="pd-loading">Loading…</div></div>
+    <div class="pd-card"><h2>Database</h2><div class="pd-loading">Loading…</div></div>
+    <div class="pd-card"><h2>Redis</h2><div class="pd-loading">Loading…</div></div>
+    <div class="pd-card"><h2>Workers</h2><div class="pd-loading">Loading…</div></div>
+  </div>
+  <div class="pd-grid" id="pdQueues">
+    <div class="pd-card" style="grid-column:1/-1;"><h2>Queue Stats</h2><div class="pd-loading">Loading…</div></div>
+  </div>
+  <div class="pd-grid" id="pdRateLimits">
+    <div class="pd-card" style="grid-column:1/-1;"><h2>Rate Limits</h2><div class="pd-loading">Loading…</div></div>
+  </div>
+  <div class="pd-timestamp" id="pdTimestamp"></div>
+</div>
+<script>
+async function fetchJSON(url) {
+  try {
+    const r = await fetch(url);
+    return await r.json();
+  } catch(e) { return {ok: false, error: e.message}; }
+}
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function dot(ok) {
+  if (ok === true || ok === 'ok' || ok === 'healthy' || ok === 'connected') return '<span class="pd-dot green"></span>';
+  if (ok === false || ok === 'error') return '<span class="pd-dot red"></span>';
+  return '<span class="pd-dot yellow"></span>';
+}
+function renderCache(card, data) {
+  if (!data || !data.ok) { card.innerHTML = '<h2>Cache</h2><div class="pd-error">Unavailable</div>'; return; }
+  card.innerHTML = '<h2>Cache</h2>'
+    + '<div class="pd-stat">' + esc(data.memory_cache_entries || 0) + '</div>'
+    + '<div class="pd-stat-label">memory entries</div>'
+    + '<div class="pd-status">' + dot(data.redis_available) + (data.redis_available ? 'Redis online' : 'Redis offline') + '</div>';
+}
+function renderDatabase(card, data) {
+  if (!data) { card.innerHTML = '<h2>Database</h2><div class="pd-error">Unavailable</div>'; return; }
+  const pool = data.pool_ready || data.recent_success ? 'healthy' : 'degraded';
+  card.innerHTML = '<h2>Database</h2>'
+    + '<div class="pd-status">' + dot(pool === 'healthy') + ' Pool: ' + pool + '</div>'
+    + '<div style="font-size:13px;margin-top:8px">backoff: ' + esc(String(data.backoff_active)) + '</div>';
+}
+function renderRedis(card, data) {
+  const h = (data && data.health) || {};
+  const ok = h.redis_ok || h.connected || h.ok;
+  card.innerHTML = '<h2>Redis</h2>'
+    + '<div class="pd-status">' + dot(ok) + (ok ? 'Connected' : 'Disconnected') + '</div>';
+}
+function renderWorkers(card, data) {
+  if (!data || !data.ok) { card.innerHTML = '<h2>Workers</h2><div class="pd-error">Unavailable</div>'; return; }
+  const w = data.workers || {};
+  const handlers = (w.handlers || []).length;
+  card.innerHTML = '<h2>Workers</h2>'
+    + '<div class="pd-stat">' + handlers + '</div>'
+    + '<div class="pd-stat-label">job handlers registered</div>'
+    + '<div class="pd-status">' + dot(w.available) + (w.available ? 'Queue available' : 'Queue offline') + '</div>';
+}
+function renderQueues(card, data) {
+  if (!data) { card.innerHTML = '<h2>Queue Stats</h2><div class="pd-error">Unavailable</div>'; return; }
+  let html = '<h2>Queue Stats</h2>';
+  if (data.ok === false) { html += '<div class="pd-error">' + esc(data.error || 'Unknown') + '</div>'; card.innerHTML = html; return; }
+  const keys = Object.keys(data).filter(k => k !== 'ok');
+  if (keys.length === 0) { html += '<div class="pd-muted">No queue data</div>'; card.innerHTML = html; return; }
+  html += '<table class="pd-table"><thead><tr><th>Queue</th><th>Value</th></tr></thead><tbody>';
+  for (const k of keys) {
+    const v = data[k];
+    html += '<tr><td>' + esc(k) + '</td><td>' + esc(typeof v === 'object' ? JSON.stringify(v) : String(v)) + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  card.innerHTML = html;
+}
+function renderRateLimits(card, data) {
+  if (!data || !data.ok) { card.innerHTML = '<h2>Rate Limits</h2><div class="pd-error">Unavailable</div>'; return; }
+  const cfg = data.config || {};
+  const limits = cfg.limits || {};
+  let html = '<h2>Rate Limits <span style="font-weight:400;font-size:13px;color:var(--pd-muted)">storage: ' + esc(cfg.storage || '?') + '</span></h2>';
+  const keys = Object.keys(limits);
+  if (keys.length === 0) { html += '<div class="pd-muted">No limits configured</div>'; card.innerHTML = html; return; }
+  html += '<table class="pd-table"><thead><tr><th>Feature</th><th>Limit</th></tr></thead><tbody>';
+  for (const k of keys) {
+    html += '<tr><td>' + esc(k) + '</td><td>' + esc(limits[k]) + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  card.innerHTML = html;
+}
+async function loadAll() {
+  document.getElementById('pdTimestamp').textContent = 'Last refreshed: ' + new Date().toLocaleTimeString();
+  const all = await fetchJSON('/admin/performance/api/all');
+  if (all && all.ok) {
+    renderCache(document.querySelector('#pdCache .pd-card:first-child'), all.cache);
+    renderDatabase(document.querySelector('#pdCache .pd-card:nth-child(2)'), all.database);
+    renderRedis(document.querySelector('#pdCache .pd-card:nth-child(3)'), all.redis);
+    renderWorkers(document.querySelector('#pdCache .pd-card:nth-child(4)'), all.workers);
+    renderQueues(document.querySelector('#pdQueues .pd-card'), all.queues);
+    renderRateLimits(document.querySelector('#pdRateLimits .pd-card'), all.rate_limits);
+  } else {
+    const cards = document.querySelectorAll('#pdCache .pd-card');
+    for (const c of cards) c.innerHTML = c.innerHTML.replace('Loading…', '<span class="pd-error">Failed to load</span>');
+  }
+}
+loadAll();
+</script>
+{% endblock %}

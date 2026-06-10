@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Live Studio | CHAIN Premium{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/live_premium.css">
+{% endblock %}
+
+{% block content %}
+<main class="lp-dashboard">
+
+  <!-- Tab Bar -->
+  <div class="lp-tabs" id="lpTabs">
+    <button class="lp-tab is-active" data-tab="overview"><i class="fas fa-home"></i> Overview</button>
+    <button class="lp-tab" data-tab="rooms"><i class="fas fa-video"></i> My Rooms</button>
+    <button class="lp-tab" data-tab="goals"><i class="fas fa-bullseye"></i> Goals</button>
+    <button class="lp-tab" data-tab="earnings"><i class="fas fa-coins"></i> Earnings</button>
+    <button class="lp-tab" data-tab="raids"><i class="fas fa-rocket"></i> Raids</button>
+    <button class="lp-tab" data-tab="gifts"><i class="fas fa-gift"></i> Gift Catalog</button>
+    <button class="lp-tab" data-tab="moderation"><i class="fas fa-shield-alt"></i> Moderation</button>
+    <button class="lp-tab" data-tab="discover"><i class="fas fa-compass"></i> Discover</button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="lp-panels">
+
+    <!-- Overview -->
+    <section class="lp-panel is-active" id="panel-overview">
+      <div class="lp-header"><h2>Dashboard Overview</h2><a href="/live/studio" class="lp-btn lp-btn-primary"><i class="fas fa-video"></i> Go Live</a></div>
+      <div class="lp-metric-grid">
+        <div class="lp-card"><i class="fas fa-video"></i><strong>{{ stats.total_rooms }}</strong><span>Total Rooms</span></div>
+        <div class="lp-card"><i class="fas fa-broadcast-tower"></i><strong>{{ stats.active_rooms }}</strong><span>Active</span></div>
+        <div class="lp-card"><i class="fas fa-eye"></i><strong>{{ stats.total_viewers }}</strong><span>Viewers</span></div>
+        <div class="lp-card"><i class="fas fa-gift"></i><strong>{{ stats.total_gifts }}</strong><span>Gift Coins</span></div>
+        <div class="lp-card"><i class="fas fa-coins"></i><strong>{{ stats.earnings.available }}</strong><span>Available</span></div>
+        <div class="lp-card"><i class="fas fa-clock"></i><strong>{{ stats.earnings.pending }}</strong><span>Pending</span></div>
+      </div>
+      {% if featured %}
+      <div class="lp-section-head"><h3>Featured Rooms</h3></div>
+      <div class="lp-room-grid">
+        {% for r in featured %}
+        <a class="lp-room-card" href="/live/room/{{ r.id }}">
+          <div class="lp-room-media">{% if r.cover_url %}<img src="{{ r.cover_url }}">{% else %}<div class="lp-room-fallback"><i class="fas fa-video"></i></div>{% endif %}<span class="lp-badge">LIVE</span></div>
+          <div class="lp-room-info"><h4>{{ r.title }}</h4><p>{{ r.host_name }}</p></div>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    <!-- My Rooms -->
+    <section class="lp-panel" id="panel-rooms">
+      <div class="lp-header"><h2>My Rooms</h2><a href="/live/studio" class="lp-btn lp-btn-primary"><i class="fas fa-plus"></i> New Room</a></div>
+      <div class="lp-room-list" id="lpRoomList">
+        {% for r in stats.recent_rooms %}
+        <div class="lp-room-row">
+          <div class="lp-room-row-info">
+            <h4>{{ r.title }}</h4>
+            <span class="lp-status {% if r.is_live %}live{% else %}ended{% endif %}">{% if r.is_live %}● LIVE{% else %}Ended{% endif %}</span>
+            <span><i class="fas fa-eye"></i> {{ r.viewer_count or 0 }}</span>
+            <span><i class="fas fa-gift"></i> {{ r.gift_total_earned or r.gift_total or 0 }}</span>
+          </div>
+          <div class="lp-room-row-actions">
+            {% if r.is_live %}<a href="/live/room/{{ r.id }}" class="lp-btn lp-btn-sm">Join</a>{% endif %}
+            <a href="/live/room/{{ r.id }}" class="lp-btn lp-btn-sm lp-btn-ghost">View</a>
+          </div>
+        </div>
+        {% else %}
+        <div class="lp-empty"><i class="fas fa-video-slash"></i><p>No rooms yet. Start your first live stream.</p><a href="/live/studio" class="lp-btn lp-btn-primary">Go Live</a></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Goals -->
+    <section class="lp-panel" id="panel-goals">
+      <div class="lp-header"><h2>Stream Goals</h2><button class="lp-btn lp-btn-primary" id="lpCreateGoalBtn"><i class="fas fa-plus"></i> New Goal</button></div>
+      <div class="lp-goal-list" id="lpGoalList">
+        <div class="lp-loading"><div class="lp-skeleton" style="height:60px;margin-bottom:10px;"></div><div class="lp-skeleton" style="height:60px;"></div></div>
+      </div>
+      <div class="lp-modal-overlay" id="lpGoalModal">
+        <div class="lp-modal">
+          <div class="lp-modal-head"><h3>Create Goal</h3><button class="lp-modal-close">&times;</button></div>
+          <div class="lp-modal-body">
+            <input class="lp-input" id="lpGoalTitle" placeholder="Goal title" value="Reach 1000 gift coins">
+            <input class="lp-input" id="lpGoalTarget" type="number" placeholder="Target amount" value="1000">
+            <select class="lp-input" id="lpGoalType"><option value="gifts">Gifts</option><option value="followers">Followers</option><option value="viewers">Viewers</option><option value="tips">Tips</option></select>
+            <select class="lp-input" id="lpGoalRoom"><option value="">Select a live room...</option>{% for r in stats.recent_rooms %}<option value="{{ r.id }}">{{ r.title }}</option>{% endfor %}</select>
+          </div>
+          <div class="lp-modal-foot"><button class="lp-btn lp-btn-primary" id="lpGoalSave">Save Goal</button><button class="lp-btn lp-btn-ghost lp-modal-close">Cancel</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Earnings -->
+    <section class="lp-panel" id="panel-earnings">
+      <div class="lp-header"><h2>Earnings</h2></div>
+      <div class="lp-earnings-summary" id="lpEarningsSummary">
+        <div class="lp-loading"><div class="lp-skeleton" style="height:80px;"></div></div>
+      </div>
+      <div class="lp-earnings-table-wrap">
+        <table class="lp-table" id="lpEarningsTable">
+          <thead><tr><th>Source</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="lpEarningsBody"><tr><td colspan="4" class="lp-loading-cell"><div class="lp-skeleton" style="height:40px;"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="lp-withdraw-bar">
+        <input class="lp-input" id="lpWithdrawAmount" type="number" placeholder="Amount to withdraw" min="1">
+        <button class="lp-btn lp-btn-primary" id="lpWithdrawBtn">Withdraw</button>
+      </div>
+    </section>
+
+    <!-- Raids -->
+    <section class="lp-panel" id="panel-raids">
+      <div class="lp-header"><h2>Raids</h2></div>
+      <div class="lp-section-head"><h3>Outgoing Raids</h3></div>
+      <div class="lp-raid-list" id="lpRaidOutgoing"><div class="lp-loading"><div class="lp-skeleton" style="height:40px;"></div></div></div>
+      <div class="lp-section-head" style="margin-top:20px;"><h3>Incoming Raids</h3></div>
+      <div class="lp-raid-list" id="lpRaidIncoming"><div class="lp-loading"><div class="lp-skeleton" style="height:40px;"></div></div></div>
+    </section>
+
+    <!-- Gift Catalog -->
+    <section class="lp-panel" id="panel-gifts">
+      <div class="lp-header"><h2>Gift Catalog</h2></div>
+      <div class="lp-gift-grid" id="lpGiftGrid">
+        {% for g in gift_catalog %}
+        <div class="lp-gift-card">
+          <div class="lp-gift-icon">{{ g.gift_icon or '🎁' }}</div>
+          <h4>{{ g.gift_name }}</h4>
+          <span class="lp-gift-price">{{ g.coin_price }} coins</span>
+          {% if g.tier and g.tier != 'standard' %}<span class="lp-gift-tier {{ g.tier }}">{{ g.tier|title }}</span>{% endif %}
+        </div>
+        {% else %}
+        <div class="lp-empty"><p>No gifts in catalog.</p></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Moderation -->
+    <section class="lp-panel" id="panel-moderation">
+      <div class="lp-header"><h2>Moderation</h2></div>
+      <div class="lp-section-head"><h3>Moderators</h3></div>
+      <div class="lp-mod-list" id="lpModList"><div class="lp-loading"><div class="lp-skeleton" style="height:40px;"></div></div></div>
+      <div class="lp-section-head" style="margin-top:20px;"><h3>Banned Users</h3></div>
+      <div class="lp-ban-list" id="lpBanList"><div class="lp-loading"><div class="lp-skeleton" style="height:40px;"></div></div></div>
+    </section>
+
+    <!-- Discover -->
+    <section class="lp-panel" id="panel-discover">
+      <div class="lp-header"><h2>Discover</h2></div>
+      <div class="lp-section-head"><h3>Premium Rooms</h3><a href="/live/" class="lp-btn lp-btn-ghost lp-btn-sm">View All</a></div>
+      <div class="lp-room-grid" id="lpPremiumRooms"><div class="lp-loading"><div class="lp-skeleton" style="height:180px;"></div><div class="lp-skeleton" style="height:180px;"></div></div></div>
+      <div class="lp-section-head" style="margin-top:20px;"><h3>Featured</h3></div>
+      <div class="lp-room-grid" id="lpFeaturedRooms"><div class="lp-loading"><div class="lp-skeleton" style="height:180px;"></div></div></div>
+    </section>
+
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/live_premium.js"></script>
+{% endblock %}

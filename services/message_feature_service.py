@@ -441,6 +441,103 @@ def schedule_message(thread_id, profile_id, body, scheduled_for, **payload):
     return {"ok": True, "scheduled": record}
 
 
+def list_scheduled_messages(thread_id, profile_id):
+    thread_id = _uuid(thread_id)
+    profile_id = _uuid(profile_id)
+    rows = _safe_query(
+        """
+        SELECT id, thread_id, sender_profile_id, body, message_type, scheduled_for,
+               status, created_at, sent_at, cancelled_at, cancelled_by_profile_id,
+               cancel_reason, payload
+        FROM chain_message_scheduled
+        WHERE thread_id = %s AND sender_profile_id = %s
+          AND COALESCE(status, 'scheduled') NOT IN ('sent', 'cancelled')
+        ORDER BY scheduled_for ASC
+        LIMIT 100
+        """,
+        (thread_id, profile_id),
+        default=None,
+    )
+    if rows is None:
+        rows = _safe_query(
+            """
+            SELECT id, thread_id, sender_profile_id, body, message_type, scheduled_for,
+                   status, created_at, sent_at, cancelled_at, cancelled_by_profile_id,
+                   cancel_reason, NULL::jsonb AS payload
+            FROM chain_scheduled_messages
+            WHERE thread_id = %s AND sender_profile_id = %s
+              AND COALESCE(status, 'pending') NOT IN ('sent', 'cancelled')
+            ORDER BY scheduled_for ASC
+            LIMIT 100
+            """,
+            (thread_id, profile_id),
+            default=[],
+        )
+    if rows:
+        return {"ok": True, "scheduled": rows}
+    fallback = [
+        item for item in _SCHEDULED.values()
+        if item.get("thread_id") == thread_id
+        and item.get("sender_profile_id") == profile_id
+        and item.get("status") not in {"sent", "cancelled"}
+    ]
+    fallback.sort(key=lambda item: item.get("scheduled_for") or "")
+    return {"ok": True, "scheduled": fallback}
+
+
+def update_scheduled_message(scheduled_id, profile_id, scheduled_for=None, body=None):
+    scheduled_id = _uuid(scheduled_id)
+    profile_id = _uuid(profile_id)
+    try:
+        _safe_write(
+            """
+            UPDATE chain_message_scheduled
+            SET scheduled_for = COALESCE(%s, scheduled_for),
+                body = COALESCE(%s, body),
+                updated_at = now()
+            WHERE id = %s AND sender_profile_id = %s
+              AND COALESCE(status, 'scheduled') NOT IN ('sent', 'cancelled')
+            """,
+            (scheduled_for, body, scheduled_id, profile_id),
+        )
+    except Exception:
+        item = _SCHEDULED.get(scheduled_id)
+        if item and item.get("sender_profile_id") == profile_id:
+            if scheduled_for:
+                item["scheduled_for"] = scheduled_for
+            if body is not None:
+                item["body"] = body
+            item["updated_at"] = _now()
+    return {"ok": True, "scheduled_id": scheduled_id}
+
+
+def cancel_scheduled_message(scheduled_id, profile_id, reason="cancelled_by_sender"):
+    scheduled_id = _uuid(scheduled_id)
+    profile_id = _uuid(profile_id)
+    try:
+        _safe_write(
+            """
+            UPDATE chain_message_scheduled
+            SET status = 'cancelled',
+                cancelled_at = now(),
+                cancelled_by_profile_id = %s,
+                cancel_reason = %s,
+                updated_at = now()
+            WHERE id = %s AND sender_profile_id = %s
+              AND COALESCE(status, 'scheduled') NOT IN ('sent', 'cancelled')
+            """,
+            (profile_id, reason, scheduled_id, profile_id),
+        )
+    except Exception:
+        item = _SCHEDULED.get(scheduled_id)
+        if item and item.get("sender_profile_id") == profile_id:
+            item["status"] = "cancelled"
+            item["cancelled_at"] = _now()
+            item["cancelled_by_profile_id"] = profile_id
+            item["cancel_reason"] = reason
+    return {"ok": True, "scheduled_id": scheduled_id, "status": "cancelled"}
+
+
 def save_wallpaper(thread_id, profile_id, wallpaper_key=None, wallpaper_url=None, **settings):
     thread_id = _uuid(thread_id)
     profile_id = _uuid(profile_id)
@@ -717,8 +814,8 @@ def transcribe_voice_note(message_id, profile_id):
     profile_id = _uuid(profile_id)
     try:
         rows = _safe_query(
-            "SELECT id, transcript, transcript_available FROM chain_messages WHERE id = %s AND sender_profile_id = %s LIMIT 1",
-            (message_id, profile_id), default=[]
+            "SELECT id, transcript, transcript_available FROM chain_messages WHERE id = %s LIMIT 1",
+            (message_id,), default=[]
         )
         if rows and rows[0].get("transcript"):
             return {"ok": True, "transcript": rows[0]["transcript"]}
@@ -860,19 +957,41 @@ def stop_live_location(share_id, profile_id):
     return {"ok": True}
 
 def wallet_send(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
-    return {"ok": False, "error": "Wallet transfer route not available yet"}
+    return {"ok": False, "error": "Wallet transfer route not connected yet."}
 
 def wallet_request(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
-    return {"ok": False, "error": "Wallet transfer route not available yet"}
+    return {"ok": False, "error": "Wallet transfer route not connected yet."}
 
 def wallet_tip(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
-    return {"ok": False, "error": "Wallet transfer route not available yet"}
+    return {"ok": False, "error": "Wallet transfer route not connected yet."}
 
 def wallet_split(thread_id, sender_profile_id, amount, participants=None):
-    return {"ok": False, "error": "Wallet transfer route not available yet"}
+    return {"ok": False, "error": "Wallet transfer route not connected yet."}
 
 def ai_summarize(thread_id, profile_id):
     return {"ok": True, "summary": "AI summarization route not available yet", "note": "ai_route_unavailable"}
+
+def ai_summarize_unread(thread_id, profile_id):
+    thread_id = _uuid(thread_id)
+    profile_id = _uuid(profile_id)
+    rows = _safe_query(
+        """
+        SELECT body, message_type, created_at
+        FROM chain_messages
+        WHERE thread_id = %s
+          AND sender_profile_id != %s
+          AND COALESCE(is_seen, FALSE) = FALSE
+          AND deleted_at IS NULL
+        ORDER BY created_at ASC
+        LIMIT 50
+        """,
+        (thread_id, profile_id),
+        default=[],
+    )
+    if rows:
+        count = len(rows)
+        return {"ok": True, "summary": f"AI summary route not available yet. {count} unread messages are in this thread only.", "note": "ai_route_unavailable"}
+    return {"ok": True, "summary": "AI summary route not available yet", "note": "ai_route_unavailable"}
 
 def ai_find_important(thread_id, profile_id):
     return {"ok": True, "messages": [], "note": "ai_route_unavailable"}
@@ -881,7 +1000,11 @@ def ai_suggest_reply(thread_id, profile_id, context=""):
     return {"ok": True, "suggestions": [], "note": "ai_route_unavailable"}
 
 def ai_translate(message_id, target_language="en"):
-    return {"ok": True, "translated_text": None, "note": "ai_route_unavailable"}
+    allowed = {"en", "english", "oshiwambo", "afrikaans", "portuguese", "french"}
+    target = (target_language or "english").strip().lower()
+    if target not in allowed:
+        target = "english"
+    return {"ok": True, "translated_text": None, "message": "Translation not available yet", "note": "ai_route_unavailable", "target_language": target}
 
 def set_disappearing_timer(thread_id, profile_id, timer_seconds=0):
     thread_id = _uuid(thread_id)
@@ -928,3 +1051,73 @@ def get_disappearing_settings(thread_id):
     except Exception:
         pass
     return {"ok": True, "timer_seconds": 0, "enabled": False}
+
+
+def find_expired_disappearing_messages(limit=500):
+    rows = _safe_query(
+        """
+        SELECT m.id, m.thread_id, m.sender_profile_id, m.created_at,
+               s.timer_seconds
+        FROM chain_messages m
+        JOIN chain_thread_disappearing_settings s ON s.thread_id = m.thread_id
+        WHERE s.enabled = TRUE
+          AND s.timer_seconds > 0
+          AND m.deleted_at IS NULL
+          AND COALESCE(m.expired_at, m.created_at + (s.timer_seconds || ' seconds')::interval) <= now()
+        ORDER BY m.created_at ASC
+        LIMIT %s
+        """,
+        (int(limit),),
+        default=[],
+    )
+    return rows or []
+
+
+def mark_disappearing_messages_expired(message_ids):
+    ids = [_uuid(mid) for mid in (message_ids or [])]
+    if not ids:
+        return {"ok": True, "expired_count": 0}
+    try:
+        _safe_write(
+            """
+            UPDATE chain_messages
+            SET deleted_at = COALESCE(deleted_at, now()),
+                expired_at = COALESCE(expired_at, now()),
+                deletion_reason = COALESCE(deletion_reason, 'disappearing_expired'),
+                deleted_for_everyone = TRUE
+            WHERE id = ANY(%s::uuid[])
+              AND deleted_at IS NULL
+            """,
+            (ids,),
+            timeout_ms=1500,
+        )
+    except Exception:
+        expired = set(ids)
+        for messages in _MESSAGES.values():
+            for message in messages:
+                if message.get("id") in expired and not message.get("deleted_at"):
+                    message["deleted_at"] = _now()
+                    message["expired_at"] = _now()
+                    message["deletion_reason"] = "disappearing_expired"
+                    message["deleted_for_everyone"] = True
+    return {"ok": True, "expired_count": len(ids)}
+
+
+def run_disappearing_message_cleanup(limit=500):
+    expired = find_expired_disappearing_messages(limit=limit)
+    ids = [row.get("id") for row in expired if row.get("id")]
+    result = mark_disappearing_messages_expired(ids)
+    result["checked_count"] = len(expired)
+    return result
+
+
+def share_message_to_surface(message_id, profile_id, surface):
+    surface = (surface or "").strip().lower()
+    if surface not in {"story", "post"}:
+        return {"ok": False, "error": "unsupported_share_surface"}
+    return {
+        "ok": False,
+        "error": f"Share as {surface} route not connected yet.",
+        "fallback": "copy_quote",
+        "message_id": _uuid(message_id),
+    }
