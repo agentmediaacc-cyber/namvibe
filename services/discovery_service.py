@@ -3,6 +3,7 @@ from services.neon_service import fast_query, is_circuit_open
 from services.profile_service import normalize_profile
 from services.recommendation_service import get_recommended_posts, get_recommended_profiles
 from services.request_cache import get_or_set
+from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, public_profile_sql, public_profile_subquery
 
 
 DISCOVERY_PROFILE_COLUMNS = [
@@ -48,6 +49,7 @@ def _load_profiles(where_clause="", params=None, limit=20, timeout_ms=1000):
         ) live_counts ON live_counts.profile_id = chain_profiles.id
         WHERE deleted_at IS NULL
           AND COALESCE(is_public, TRUE) = TRUE
+          AND {public_profile_sql("chain_profiles")}
           {where_clause}
         ORDER BY COALESCE(is_premium, FALSE) DESC, created_at DESC
         LIMIT %s
@@ -64,6 +66,7 @@ def _load_trending(limit=50, timeout_ms=1000):
         SELECT id, profile_id, body, caption, media_url, created_at, visibility
         FROM chain_posts
         WHERE deleted_at IS NULL
+          AND profile_id IN ({public_profile_subquery()})
         ORDER BY created_at DESC
         LIMIT %s
     """
@@ -91,7 +94,7 @@ def _load_live(limit=50, timeout_ms=1000):
     )
 
 
-def get_discovery_data(section, viewer_id=None):
+def get_discovery_data(section, viewer_id=None, limit=50):
     try:
         key = _discovery_cache_key(section, viewer_id=viewer_id)
         cached_data = get_cache(key)
@@ -108,7 +111,7 @@ def get_discovery_data(section, viewer_id=None):
             return result
 
         if section == "dating":
-            profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=50, timeout_ms=1000)
+            profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=limit, timeout_ms=1000)
             viewer_profile = {}
             if viewer_id:
                 viewer_rows = fast_query(
@@ -128,20 +131,20 @@ def get_discovery_data(section, viewer_id=None):
             data.sort(key=lambda x: x.get('compatibility_score', 0), reverse=True)
             title = "Dating Discovery"
         elif section == "live-now" or section == "live":
-            data = _load_live(limit=50)
+            data = _load_live(limit=limit)
             title = "Live Now"
         elif section == "members" or section == "recommended":
-            recommended = get_recommended_profiles(viewer_id, limit=50)
-            data = [normalize_profile(profile) for profile in recommended] if recommended else _load_profiles(limit=50)
+            recommended = get_recommended_profiles(viewer_id, limit=limit)
+            data = filter_profiles([normalize_profile(profile) for profile in recommended]) if recommended else _load_profiles(limit=limit)
             title = "Recommended Members"
         elif section == "trending":
-            data = get_recommended_posts(viewer_id, limit=50) or _load_trending(limit=50)
+            data = filter_feed_posts(get_recommended_posts(viewer_id, limit=limit) or _load_trending(limit=limit))
             title = "Trending Feed"
         elif section == "nearby":
-            data = _load_profiles("AND current_location IS NOT NULL", limit=50)
+            data = _load_profiles("AND current_location IS NOT NULL", limit=limit)
             title = "Nearby Members"
         else:
-            data = _load_profiles(limit=20)
+            data = _load_profiles(limit=limit)
 
         result = {
             "title": title,

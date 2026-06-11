@@ -183,6 +183,13 @@ def handle_disconnect():
     profile_id = _get_profile_id()
     if profile_id:
         _clear_sid(profile_id)
+        # Leave all tracked rooms on disconnect
+        rooms = _recover_rooms(profile_id)
+        for room_name in rooms:
+            try:
+                leave_room(room_name)
+            except Exception:
+                pass
         if not set_members(f"profile_sids:{profile_id}"):
             set_offline(profile_id)
             mds_set_offline(profile_id)
@@ -467,16 +474,6 @@ def handle_call_offer(data):
             "call_id": data.get("call_id"),
             "call_type": data.get("call_type", "video")
         })
-        emit_to_profile(profile_id, "call:ringing", {"call_id": data.get("call_id")})
-        sender_profile = get_current_profile()
-        sender_name = (sender_profile or {}).get("display_name") or (sender_profile or {}).get("username") or "Someone"
-        queue_push_event(
-            target_id,
-            "incoming_call",
-            f"Incoming {data.get('call_type', 'video')} call",
-            f"from {sender_name}",
-            {"url": "/calls/recent"},
-        )
         return {"success": True}
     return {"success": False}
 
@@ -490,7 +487,6 @@ def handle_call_answer(data):
             "sdp": data.get("sdp"),
             "call_id": data.get("call_id")
         })
-        emit_to_profile(target_id, "call:accepted", {"call_id": data.get("call_id"), "by": profile_id})
         return {"success": True}
     return {"success": False}
 
@@ -533,16 +529,6 @@ def handle_call_end(data):
             "from_id": profile_id,
             "reason": reason
         })
-        if reason == "timeout" or reason == "no_answer":
-            caller_profile = get_current_profile()
-            caller_name = (caller_profile or {}).get("display_name") or (caller_profile or {}).get("username") or "Someone"
-            queue_push_event(
-                target_id,
-                "missed_call",
-                "Missed call",
-                f"from {caller_name}",
-                {"url": "/calls/recent"},
-            )
         return {"success": True}
     return {"success": False}
 
@@ -771,26 +757,6 @@ def handle_thread_mute(data):
         mute_thread(thread_id, profile_id, muted=muted)
         return {"success": True}
     return {"success": False}
-
-@socketio.on("message:send")
-def handle_send_message(data):
-    profile_id = _get_profile_id()
-    thread_id = (data or {}).get("thread_id")
-    body = (data or {}).get("body")
-    sticker_id = (data or {}).get("sticker_id")
-    gif_url = (data or {}).get("gif_url")
-    location = (data or {}).get("location")
-    contact = (data or {}).get("contact")
-    
-    if profile_id and thread_id:
-        result = send_message(
-            thread_id, profile_id, body=body, 
-            sticker_id=sticker_id, gif_url=gif_url, 
-            location=location, contact=contact,
-            parent_message_id=data.get("parent_message_id")
-        )
-        return result
-    return {"error": "Unauthorized", "success": False}
 
 @socketio.on("message:ack")
 def handle_message_ack(data):
@@ -2108,3 +2074,11 @@ def handle_ai_suggest(data):
     result = mfs.ai_suggest_reply(thread_id, profile_id, context)
     emit_to_profile(profile_id, "chat:suggestions", result)
     return {"ok": True}
+
+
+@socketio.on_error_default
+def handle_socket_error(e):
+    profile_id = _get_profile_id()
+    pid = profile_id or "anonymous"
+    print(f"[socket] Error for {pid}: {e}")
+    return {"ok": False, "error": "internal_error"}

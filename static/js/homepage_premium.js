@@ -240,7 +240,7 @@
     } else if (item.media_url) {
       mediaHtml = '<div class="post-media"><img src="' + escapeHtml(item.media_url) + '" alt="" loading="lazy"></div>';
     }
-    var textHtml = item.text ? '<div class="post-body"><div class="post-text">' + escapeHtml(item.text) + '</div></div>' : '';
+    var textHtml = item.text ? '<div class="post-body"><div class="post-text post-caption">' + escapeHtml(item.text) + '</div></div>' : '';
     return '' +
       '<article id="post-' + item.id + '" class="post-card-premium" data-post-id="' + escapeHtml(item.id) + '">' +
         renderPostHeader(item) +
@@ -266,18 +266,18 @@
       ? '<img src="' + escapeHtml(item.avatar_url) + '" alt="">'
       : '<span>' + escapeHtml(initial) + '</span>';
     return '' +
-      '<article class="post-card-premium" data-type="live">' +
+      '<article class="post-card-premium live-card" data-type="live">' +
         '<div class="post-header">' +
           '<div class="post-avatar">' + avatar + '</div>' +
           '<div class="post-author-info">' +
-            '<div class="post-author-name">' + escapeHtml(item.display_name || 'Live') + ' <span class="post-content-label trending" style="background:rgba(230,0,92,0.12);color:var(--hp-pink);">LIVE</span></div>' +
+            '<div class="post-author-name">' + escapeHtml(item.display_name || 'Live') + ' <span class="post-content-label trending" style="background:rgba(37, 99, 235,0.12);color:var(--hp-primary);">LIVE</span></div>' +
             '<div class="post-author-username">@' + escapeHtml(item.username || 'live') + '</div>' +
             '<div class="post-time-location">' + (item.category ? escapeHtml(item.category) : '') + ' &middot; ' + (item.view_count || 0) + ' watching</div>' +
           '</div>' +
         '</div>' +
-        '<div class="post-body"><div class="post-text">' + escapeHtml(item.text || 'Live now') + '</div></div>' +
+        '<div class="post-body"><div class="post-text post-caption">' + escapeHtml(item.text || 'Live now') + '</div></div>' +
         '<div class="post-actions">' +
-          '<a href="' + (item.watch_url || '#') + '" class="post-action-btn" style="text-decoration:none;color:var(--hp-pink);font-weight:700;"><i class="fas fa-video"></i> Watch Live</a>' +
+          '<a href="' + (item.watch_url || '#') + '" class="post-action-btn" style="text-decoration:none;color:var(--hp-primary);font-weight:700;"><i class="fas fa-video"></i> Watch Live</a>' +
         '</div>' +
       '</article>';
   }
@@ -291,9 +291,9 @@
       ? '<div class="post-media"><video src="' + escapeHtml(item.video_url) + '" muted playsinline preload="metadata"></video></div>'
       : (item.media_url ? '<div class="post-media"><img src="' + escapeHtml(item.media_url) + '" alt="" loading="lazy"></div>' : '');
     return '' +
-      '<article class="post-card-premium" data-type="reel">' +
+      '<article class="post-card-premium reel-card" data-type="reel">' +
         renderPostHeader(item) +
-        '<div class="post-body"><div class="post-text">' + escapeHtml(item.text || '') + '</div></div>' +
+        '<div class="post-body"><div class="post-text post-caption">' + escapeHtml(item.text || '') + '</div></div>' +
         mediaHtml +
         '<div class="post-stats">' +
           '<span><strong>' + (item.likes_count || 0) + '</strong> likes</span>' +
@@ -331,7 +331,7 @@
             '<div class="post-time-location"><i class="far fa-clock"></i> ' + escapeHtml(item.created_label || '') + '</div>' +
           '</div>' +
         '</div>' +
-        '<div class="post-body"><div class="post-text">' + escapeHtml(item.text || '') + '</div></div>' +
+        '<div class="post-body"><div class="post-text post-caption">' + escapeHtml(item.text || '') + '</div></div>' +
       '</article>';
   }
 

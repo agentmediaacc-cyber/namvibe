@@ -27,8 +27,16 @@ def update_live_room_media(room_id, profile_id, data, files):
     if cover_file:
         res, err = upload_live_cover(profile_id, cover_file)
         if res:
-            payload["cover_url"] = res["public_url"]
+            payload["cover_url"] = res["url"]
             payload["live_cover_upload_id"] = res["upload_id"]
+            payload["cover_bucket"] = res.get("bucket")
+            payload["cover_path"] = res.get("path")
+            payload["cover_mime_type"] = res.get("mime_type")
+            payload["cover_size_bytes"] = res.get("size_bytes")
+            payload["media_bucket"] = res.get("bucket")
+            payload["media_path"] = res.get("path")
+            payload["mime_type"] = res.get("mime_type")
+            payload["size_bytes"] = res.get("size_bytes")
 
     updated = safe_update("chain_live_rooms", payload, eq={"id": room_id})
     return updated[0] if updated else None, None

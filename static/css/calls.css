@@ -10,7 +10,7 @@
     border-radius: 34px;
     overflow: hidden;
     background:
-        radial-gradient(circle at 15% 20%, rgba(255,47,125,.28), transparent 22%),
+        radial-gradient(circle at 15% 20%, rgba(37, 99, 235,.28), transparent 22%),
         radial-gradient(circle at 80% 18%, rgba(0,212,255,.18), transparent 20%),
         linear-gradient(135deg, #090916, #04040a 62%);
     border: 1px solid rgba(255,255,255,.08);

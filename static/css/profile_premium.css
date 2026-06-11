@@ -19,11 +19,11 @@
   --profile-blue-strong: #1769d3;
   --profile-green: #12b886;
   --profile-green-strong: #069668;
-  --profile-pink: #e1306c;
+  --profile-primary: #2563eb;
   --profile-cyan: #1ecbe1;
   --profile-red: #d72638;
-  --profile-gradient: linear-gradient(135deg, #f7b733, #e1306c, #1ecbe1);
-  --profile-gradient-btn: linear-gradient(135deg, #d41472, #1ecbe1);
+  --profile-gradient: linear-gradient(135deg, #f7b733, #2563eb, #1ecbe1);
+  --profile-gradient-btn: linear-gradient(135deg, #2563eb, #1ecbe1);
   --profile-page: #f4f7fb;
   --profile-card-bg: rgba(255, 255, 255, 0.92);
   --profile-shadow-hover: 0 22px 46px rgba(15, 23, 42, 0.14);
@@ -622,7 +622,7 @@ body.has-premium-profile .premium-profile-shell { padding-bottom: 152px; }
   border: 0;
   padding: 4px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #f7b733, #e1306c, #1ecbe1);
+  background: linear-gradient(135deg, #f7b733, #2563eb, #1ecbe1);
   color: #101828;
   box-shadow: 0 10px 24px rgba(15,23,42,0.14);
   overflow: hidden;
@@ -643,6 +643,19 @@ body.has-premium-profile .premium-profile-shell { padding-bottom: 152px; }
 .profile-highlight img { width: 100%; height: 100%; object-fit: cover; }
 
 .profile-highlight.add-highlight span { background: #101828; color: #fff; }
+
+.profile-highlight-empty {
+  min-height: 84px;
+  display: grid;
+  place-items: center;
+  padding: 12px 18px;
+  border: 1px dashed var(--profile-line);
+  border-radius: 18px;
+  color: var(--profile-ink-soft);
+  background: rgba(255, 255, 255, 0.56);
+  font-weight: 800;
+  font-size: 13px;
+}
 
 .profile-highlight strong {
   max-width: 88px;
@@ -1018,7 +1031,7 @@ body.has-premium-profile .premium-profile-shell { padding-bottom: 152px; }
   display: block;
   min-height: 18px;
   border-radius: 999px 999px 8px 8px;
-  background: linear-gradient(180deg, #1ecbe1, #e1306c);
+  background: linear-gradient(180deg, #1ecbe1, #2563eb);
   box-shadow: 0 10px 24px rgba(30,136,229,0.18);
 }
 
@@ -1122,7 +1135,7 @@ body.has-premium-profile .premium-profile-shell { padding-bottom: 152px; }
   border-radius: 50%;
   background:
     linear-gradient(#fff, #fff) padding-box,
-    conic-gradient(#1ecbe1, #e1306c, #f7b733, #1ecbe1) border-box;
+    conic-gradient(#1ecbe1, #2563eb, #f7b733, #1ecbe1) border-box;
   border: 8px solid transparent;
   box-shadow: 0 18px 42px rgba(30,136,229,0.12);
 }

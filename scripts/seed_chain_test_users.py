@@ -63,6 +63,44 @@ def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
+def _profile_columns():
+    rows = fast_query(
+        """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'chain_profiles'
+        """,
+        default=[],
+    )
+    return {row.get("column_name") for row in rows if row.get("column_name")}
+
+
+def mark_non_production_profile(profile_id):
+    columns = _profile_columns()
+    updates = {}
+    if "is_public" in columns:
+        updates["is_public"] = False
+    if "is_test_account" in columns:
+        updates["is_test_account"] = True
+    if "is_demo_account" in columns:
+        updates["is_demo_account"] = True
+    if "production_visible" in columns:
+        updates["production_visible"] = False
+    if "created_by_seed_script" in columns:
+        updates["created_by_seed_script"] = "seed_chain_test_users.py"
+    if "source" in columns:
+        updates["source"] = "test_seed"
+    if "updated_at" in columns:
+        updates["updated_at"] = _utcnow_iso()
+    if not updates:
+        return
+    assignments = ", ".join(f"{column} = %s" for column in updates)
+    write_query(
+        f"UPDATE chain_profiles SET {assignments} WHERE id = %s",
+        tuple(updates.values()) + (profile_id,),
+    )
+
+
 def upsert_test_user(user_info):
     username = user_info["username"]
     email = user_info["email"]
@@ -75,6 +113,7 @@ def upsert_test_user(user_info):
     if existing:
         profile_id = existing[0]["id"]
         auth_user_id = existing[0]["auth_user_id"]
+        mark_non_production_profile(profile_id)
         print(f"  Profile already exists: {username} (id={profile_id})")
         return profile_id, auth_user_id, False
 
@@ -109,6 +148,7 @@ def upsert_test_user(user_info):
         if recheck:
             profile_id = recheck[0]["id"]
             auth_user_id = recheck[0]["auth_user_id"]
+            mark_non_production_profile(profile_id)
             print(f"  Profile already exists (retry): {username} (id={profile_id})")
             return profile_id, auth_user_id, False
         print(f"  ERROR creating {username}: {exc}")
@@ -123,6 +163,7 @@ def upsert_test_user(user_info):
         except Exception:
             pass
 
+    mark_non_production_profile(profile_id)
     print(f"  Created profile: {username} (id={profile_id}, auth={auth_user_id})")
     return profile_id, auth_user_id, True
 

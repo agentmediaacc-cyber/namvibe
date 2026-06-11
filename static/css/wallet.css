@@ -4,7 +4,7 @@ a{text-decoration:none;color:inherit}
 .wallet-side{position:fixed;left:0;top:0;width:260px;height:100vh;padding:22px;background:#0d0d1d;border-right:1px solid rgba(255,255,255,.1)}
 .wallet-side h2{font-size:25px}
 .wallet-side a{display:block;padding:14px 16px;border-radius:18px;margin:8px 0;background:rgba(255,255,255,.07);font-weight:900}
-.wallet-side a:hover{background:linear-gradient(135deg,#ff2f7d,#7c3aed)}
+.wallet-side a:hover{background:linear-gradient(135deg,#2563eb,#7c3aed)}
 .wallet-page{margin-left:260px;padding:24px}
 .wallet-hero,.gift-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:34px;border-radius:34px;background:radial-gradient(circle at top left,rgba(245,158,11,.4),transparent 42%),linear-gradient(135deg,#15152c,#090914);border:1px solid rgba(255,255,255,.12);margin-bottom:22px}
 .wallet-hero p,.gift-hero p{color:#ffd28a;font-weight:1000;letter-spacing:.16em;margin:0}
@@ -17,7 +17,7 @@ a{text-decoration:none;color:inherit}
 .wallet-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
 .wallet-panel,.empty-wallet{padding:24px;border-radius:30px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.12)}
 .empty-wallet{text-align:center;max-width:720px;margin:80px auto}
-.empty-wallet a,.topup-form button,.quick-coins button,.gift-card button{display:inline-block;padding:14px 18px;border:0;border-radius:999px;background:linear-gradient(135deg,#ff2f7d,#7c3aed);color:#fff;font-weight:1000}
+.empty-wallet a,.topup-form button,.quick-coins button,.gift-card button{display:inline-block;padding:14px 18px;border:0;border-radius:999px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-weight:1000}
 .topup-form{display:grid;grid-template-columns:1fr auto;gap:12px}
 .topup-form input{border:1px solid rgba(255,255,255,.13);background:#101024;color:#fff;border-radius:999px;padding:15px}
 .quick-coins{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}

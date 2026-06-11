@@ -11,7 +11,8 @@ search_api_bp = Blueprint("search_api", __name__, url_prefix="/api")
 @limiter.limit("60/minute")
 def search_page():
     query = (request.args.get("q") or "").strip()
-    data = search_chain(query)
+    limit = request.args.get("limit", 20, type=int)
+    data = search_chain(query, limit=limit)
     return render_template("search/index.html", **data)
 
 
@@ -19,4 +20,5 @@ def search_page():
 @limiter.limit("60/minute")
 def search_api():
     query = (request.args.get("q") or "").strip()
-    return jsonify(search_chain(query))
+    limit = request.args.get("limit", 20, type=int)
+    return jsonify(search_chain(query, limit=limit))

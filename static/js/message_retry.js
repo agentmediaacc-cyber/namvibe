@@ -118,7 +118,14 @@ function showDeliveredCheck(clientMessageId) {
 function showFailedRetryButton(clientMessageId, msg) {
     var el = document.querySelector('[data-msg-id="' + clientMessageId + '"] .msg-status');
     if (el) {
-        el.innerHTML = '<button class="retry-btn" onclick="retryPendingMessage(\'' + clientMessageId + '\')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;padding:0;" title="Retry"><i class="fas fa-exclamation-circle"></i></button>';
+        var btn = document.createElement('button');
+        btn.className = 'retry-btn';
+        btn.setAttribute('data-retry-id', clientMessageId);
+        btn.style.cssText = 'background:none;border:none;color:#ef4444;cursor:pointer;font-size:12px;padding:0;';
+        btn.title = 'Retry';
+        btn.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+        btn.onclick = function() { retryPendingMessage(this.getAttribute('data-retry-id')); };
+        el.appendChild(btn);
     }
     msg.status = 'failed';
     savePendingMessages();

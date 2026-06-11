@@ -228,7 +228,7 @@ def unread_count(profile_id):
 
     count = request_memoize(req_key, _fetch_count)
     
-    jitter_ttl = 60 + (int(uuid.uuid4().int) % 30)
+    jitter_ttl = 30 + (int(uuid.uuid4().int) % 15)
     cache_set(cache_key, count, ttl=jitter_ttl)
     
     return count

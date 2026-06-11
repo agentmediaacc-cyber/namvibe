@@ -7,11 +7,11 @@
   --chat-surface: #0d0d1d;
   --chat-panel: rgba(255,255,255,0.06);
   --chat-border: rgba(255,255,255,0.10);
-  --chat-primary: #ff2f7d;
-  --chat-primary-grad: linear-gradient(135deg,#ff2f7d,#7c3aed);
+  --chat-primary: #2563eb;
+  --chat-primary-grad: linear-gradient(135deg,#2563eb,#7c3aed);
   --chat-text: #fff;
   --chat-muted: #9ca3af;
-  --chat-bubble-mine: linear-gradient(135deg,#ff2f7d,#7c3aed);
+  --chat-bubble-mine: linear-gradient(135deg,#2563eb,#7c3aed);
   --chat-bubble-theirs: rgba(255,255,255,0.10);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -284,8 +284,8 @@
 /* ---- SELECTION MODE ---- */
 .selection-active .msg-bubble { cursor:pointer; transition:box-shadow 0.15s, transform 0.1s; }
 .selection-active .msg-bubble:hover { box-shadow:0 0 0 2px var(--chat-primary); transform:scale(0.98); }
-.msg-bubble.selected { box-shadow:0 0 0 2px var(--chat-primary); background:rgba(255,47,125,0.08); }
-.msg-bubble.selected.msg-mine { background:linear-gradient(135deg,#ff2f7d,#7c3aed); box-shadow:0 0 0 2px #fff; }
+.msg-bubble.selected { box-shadow:0 0 0 2px var(--chat-primary); background:rgba(37, 99, 235,0.08); }
+.msg-bubble.selected.msg-mine { background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 0 0 2px #fff; }
 .selection-active .msg-actions { display:none !important; }
 .selection-active .msg-reactions { display:none !important; }
 .multi-bar.show ~ .chat-composer { border-top-color:var(--chat-primary); }
@@ -336,7 +336,7 @@
 .msg-reactions { display:flex; gap:3px; margin-top:4px; flex-wrap:wrap; padding:0 2px; }
 .reaction-badge { font-size:13px; padding:2px 6px; background:rgba(255,255,255,0.08); border-radius:12px; cursor:pointer; transition:all 0.15s; user-select:none; line-height:1.4; }
 .reaction-badge:hover { background:rgba(255,255,255,0.18); transform:scale(1.1); }
-.reaction-badge.mine { background:rgba(255,47,125,0.25); border:1px solid rgba(255,47,125,0.4); }
+.reaction-badge.mine { background:rgba(37, 99, 235,0.25); border:1px solid rgba(37, 99, 235,0.4); }
 
 /* ---- PHASE 39: MESSAGE ACTIONS ---- */
 .msg-actions { display:none; gap:2px; margin-top:2px; justify-content:flex-end; }
@@ -355,7 +355,7 @@
 .msg-deleted-notice { text-align:center; font-size:11px; color:var(--chat-muted); padding:6px; font-style:italic; }
 
 /* ---- PHASE 39: UNREAD BADGE (thread list) ---- */
-.thread-unread-badge { margin-left:6px; background:#ff0050; color:white; border-radius:999px; padding:2px 7px; font-size:11px; font-weight:950; flex-shrink:0; }
+.thread-unread-badge { margin-left:6px; background:#2563eb; color:white; border-radius:999px; padding:2px 7px; font-size:11px; font-weight:950; flex-shrink:0; }
 
 /* ---- PHASE 39: PRESENCE DOT (thread list, enhanced) ---- */
 .thread-online-dot { position:absolute; bottom:2px; right:2px; width:12px; height:12px; border-radius:50%; border:2px solid var(--chat-surface, #0d0d1d); }

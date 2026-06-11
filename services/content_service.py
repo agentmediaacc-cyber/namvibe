@@ -65,7 +65,7 @@ def is_production_env():
 
 
 def local_fallback_allowed():
-    return not is_production_env()
+    return not is_production_env() and os.getenv("CHAIN_ALLOW_LOCAL_UPLOADS") == "1"
 
 
 def get_session_profile_id():
@@ -158,6 +158,36 @@ def save_media_file(file_obj, upload_type, media_kind=None, profile_id=None):
     valid, error, info = validate_media(file_obj, media_kind=media_kind)
     if not valid:
         return None, error
+    from services.supabase_storage_router import upload_file
+    routed_type = {"post": "posts", "profile_post": "posts", "reel": "reels", "story": "stories"}.get(upload_type, "posts")
+    uploaded, upload_error = upload_file(file_obj, routed_type, profile_id, public=True)
+    if upload_error:
+        return None, upload_error
+    media = {
+        "id": str(uuid.uuid4()),
+        "profile_id": profile_id,
+        "upload_type": upload_type,
+        "media_type": uploaded["media_type"],
+        "file_path": uploaded["path"],
+        "public_url": uploaded["url"],
+        "storage_bucket": uploaded["bucket"],
+        "storage_path": uploaded["path"],
+        "mime_type": uploaded["mime_type"],
+        "file_size": uploaded["size_bytes"],
+        "size_bytes": uploaded["size_bytes"],
+        "original_filename": secure_filename(file_obj.filename or "upload"),
+        "created_at": utcnow().isoformat(),
+    }
+    inserted = _insert_media_metadata(media)
+    if not inserted and is_production_env():
+        log_error("content_media_metadata_persistence_failed", upload_type=upload_type)
+        return None, "Media metadata could not be saved. Please try again."
+    if not inserted:
+        log_warning("content_using_local_fallback", content_type="media", profile_id=profile_id)
+        _LOCAL_STORE["media"].append(media)
+    return media, None
+
+    # Legacy local path retained unreachable unless router logic is removed.
     folder = UPLOAD_FOLDERS.get(upload_type, UPLOAD_FOLDERS["post"])
     os.makedirs(folder, exist_ok=True)
     original = secure_filename(file_obj.filename or "upload")
@@ -578,6 +608,10 @@ def create_post_record(profile_id, body="", media_file=None, link_url="", town_t
         "post_type": post_type,
         "media_url": media["public_url"] if media and media_type == "image" else None,
         "video_url": media["public_url"] if media and media_type == "video" else None,
+        "media_bucket": media["storage_bucket"] if media else None,
+        "media_path": media["storage_path"] if media else None,
+        "mime_type": media["mime_type"] if media else None,
+        "size_bytes": media["size_bytes"] if media else None,
         "link_url": link_url,
         "town_tag": town_tag,
         "visibility": visibility,
@@ -589,7 +623,7 @@ def create_post_record(profile_id, body="", media_file=None, link_url="", town_t
     inserted = _insert(
         "chain_posts",
         payload,
-        ["id", "profile_id", "body", "caption", "post_type", "media_url", "video_url", "link_url", "town_tag", "visibility", "likes_count", "comments_count", "shares_count", "created_at"],
+        ["id", "profile_id", "body", "caption", "post_type", "media_url", "video_url", "media_bucket", "media_path", "mime_type", "size_bytes", "link_url", "town_tag", "visibility", "likes_count", "comments_count", "shares_count", "created_at"],
     )
     if not inserted and is_production_env():
         log_error("content_post_persistence_failed", profile_id=profile_id)
@@ -619,14 +653,17 @@ def create_reel_record(profile_id, video_file, caption="", music_title="", visib
         "caption": caption,
         "video_url": media["public_url"],
         "media_url": media["public_url"],
-        "storage_bucket": "local",
-        "storage_path": media["file_path"],
+        "storage_bucket": media["storage_bucket"],
+        "storage_path": media["storage_path"],
+        "media_bucket": media["storage_bucket"],
+        "media_path": media["storage_path"],
         "music_title": music_title,
         "status": "published",
         "visibility": visibility,
         "processing_status": "ready",
         "mime_type": media["mime_type"],
         "file_size": media["file_size"],
+        "size_bytes": media["size_bytes"],
         "likes_count": 0,
         "comments_count": 0,
         "shares_count": 0,
@@ -636,7 +673,7 @@ def create_reel_record(profile_id, video_file, caption="", music_title="", visib
     inserted = _insert(
         "chain_reels",
         payload,
-        ["id", "profile_id", "caption", "video_url", "media_url", "storage_bucket", "storage_path", "music_title", "status", "visibility", "processing_status", "mime_type", "file_size", "likes_count", "comments_count", "shares_count", "views_count", "created_at"],
+        ["id", "profile_id", "caption", "video_url", "media_url", "storage_bucket", "storage_path", "media_bucket", "media_path", "music_title", "status", "visibility", "processing_status", "mime_type", "file_size", "size_bytes", "likes_count", "comments_count", "shares_count", "views_count", "created_at"],
     )
     if not inserted and is_production_env():
         log_error("content_reel_persistence_failed", profile_id=profile_id)
@@ -670,6 +707,10 @@ def create_story_record(profile_id, caption="", media_file=None, visibility="pub
         "caption": caption,
         "media_url": media["public_url"] if media and media_type == "image" else None,
         "video_url": media["public_url"] if media and media_type == "video" else None,
+        "media_bucket": media["storage_bucket"] if media else None,
+        "media_path": media["storage_path"] if media else None,
+        "mime_type": media["mime_type"] if media else None,
+        "size_bytes": media["size_bytes"] if media else None,
         "visibility": visibility,
         "expires_at": (now + timedelta(hours=24)).isoformat(),
         "likes_count": 0,
@@ -678,7 +719,7 @@ def create_story_record(profile_id, caption="", media_file=None, visibility="pub
     inserted = _insert(
         "chain_status_posts",
         payload,
-        ["id", "profile_id", "status_type", "caption", "media_url", "video_url", "visibility", "expires_at", "likes_count", "created_at"],
+        ["id", "profile_id", "status_type", "caption", "media_url", "video_url", "media_bucket", "media_path", "mime_type", "size_bytes", "visibility", "expires_at", "likes_count", "created_at"],
     )
     if not inserted and is_production_env():
         log_error("content_story_persistence_failed", profile_id=profile_id)

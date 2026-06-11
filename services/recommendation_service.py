@@ -5,6 +5,7 @@ from services.redis_service import cache_get, cache_set
 from services.request_cache import get_or_set
 from services.supabase_safe import safe_insert, safe_select, safe_update, safe_count
 from utils.supabase_client import get_supabase_admin
+from services.homepage_real_data_guard import filter_profiles, public_profile_sql
 
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -20,7 +21,7 @@ def calculate_trending_scores():
 
 def get_trending_profiles(limit=10):
     # For now, return verified profiles with high activity
-    return safe_select("chain_profiles", filters={"is_verified": True}, limit=limit, order_by="created_at", desc=True)
+    return filter_profiles(safe_select("chain_profiles", filters={"is_verified": True}, limit=limit, order_by="created_at", desc=True))
 
 def get_trending_live_rooms(limit=10):
     return safe_select("chain_live_rooms", filters={"status": "live"}, limit=limit, order_by="viewer_count", desc=True)
@@ -113,6 +114,7 @@ def get_recommended_profiles(profile_id, limit=10):
             ) live ON TRUE
             WHERE p.deleted_at IS NULL
               AND COALESCE(p.is_public, TRUE) = TRUE
+              AND {public_profile_sql("p")}
               {self_filter}
             ORDER BY COALESCE(p.is_verified, FALSE) DESC, COALESCE(live.viewer_count, 0) DESC, p.created_at DESC
             LIMIT %s
@@ -151,7 +153,7 @@ def get_recommended_posts(profile_id, limit=10):
         cache_set(cache_key, [], ttl=30)
         return []
 
-    sql = """
+    sql = f"""
         SELECT
             post.id,
             post.profile_id,
@@ -167,6 +169,7 @@ def get_recommended_posts(profile_id, limit=10):
         JOIN chain_profiles p ON p.id = post.profile_id
         WHERE post.deleted_at IS NULL
           AND COALESCE(post.visibility, 'public') = 'public'
+          AND {public_profile_sql("p")}
         ORDER BY post.created_at DESC
         LIMIT %s
     """

@@ -1,8 +1,10 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Blueprint, jsonify, request, session, render_template
 from api_routes.profile_routes import login_required
+from services.admin_auth_service import require_admin
 from services.profile_service import get_current_profile, get_lightweight_profile
 from services.wallet_service import (
     get_wallet,
@@ -265,7 +267,7 @@ def api_request_payout():
 # ---------- ADMIN PAYOUT REVIEW ----------
 
 @wallet_bp.route('/admin/api/payouts', methods=['GET'])
-@login_required
+@require_admin
 def admin_get_payouts():
     status_filter = request.args.get('status')
     limit = request.args.get('limit', 50, type=int)
@@ -275,7 +277,7 @@ def admin_get_payouts():
 
 
 @wallet_bp.route('/admin/api/payouts/<payout_id>/approve', methods=['POST'])
-@login_required
+@require_admin
 def admin_approve_payout(payout_id):
     data = request.get_json(silent=True) or request.form.to_dict()
     note = data.get('admin_note')
@@ -286,7 +288,7 @@ def admin_approve_payout(payout_id):
 
 
 @wallet_bp.route('/admin/api/payouts/<payout_id>/reject', methods=['POST'])
-@login_required
+@require_admin
 def admin_reject_payout(payout_id):
     data = request.get_json(silent=True) or request.form.to_dict()
     note = data.get('admin_note')
@@ -297,7 +299,7 @@ def admin_reject_payout(payout_id):
 
 
 @wallet_bp.route('/admin/api/payouts/<payout_id>/mark-paid', methods=['POST'])
-@login_required
+@require_admin
 def admin_mark_payout_paid(payout_id):
     result = mark_payout_paid(payout_id)
     if result.get('ok'):
@@ -433,13 +435,17 @@ def index():
     profile = get_current_profile()
     if not profile or not profile.get('id'):
         return render_template('wallet/dashboard.html', profile={'id': None, 'username': 'guest'}, wallet=None, error='Login required')
-    wallet = get_wallet(profile['id'])
-    if not wallet:
-        wallet = get_or_create_wallet(profile['id'])
-    txs = get_wallet_transactions(profile['id'], limit=20)
-    summary = get_balance_summary(profile['id'])
-    breakdown = get_earnings_breakdown(profile['id'])
-    payout_methods = get_payout_methods(profile['id'])
+    with ThreadPoolExecutor(max_workers=5) as exe:
+        f_wallet = exe.submit(get_or_create_wallet, profile['id'])
+        f_txs = exe.submit(get_wallet_transactions, profile['id'], 20)
+        f_summary = exe.submit(get_balance_summary, profile['id'])
+        f_breakdown = exe.submit(get_earnings_breakdown, profile['id'])
+        f_payout = exe.submit(get_payout_methods, profile['id'])
+        wallet = f_wallet.result()
+        txs = f_txs.result()
+        summary = f_summary.result()
+        breakdown = f_breakdown.result()
+        payout_methods = f_payout.result()
     return render_template('wallet/index.html', profile=profile, wallet=wallet, transactions=txs, summary=summary, breakdown=breakdown, payout_methods=payout_methods)
 
 

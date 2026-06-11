@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import uuid
 from services.neon_service import fast_query, write_query
-from services.storage_service import upload_status_media
+from services.supabase_storage_router import upload_story_media
 from services.socketio_service import emit_to_profile
 from services.content_service import invalidate_content_caches, local_content, local_fallback_allowed
 
@@ -12,23 +12,26 @@ def create_status(profile_id, caption, media_file=None, visibility="public", med
     media_url = None
     storage_bucket = None
     storage_path = None
+    upload_result = None
     
     if media_file:
-        res, error = upload_status_media(media_file, profile_id)
-        if res:
-            media_url = res.get("public_url")
-            storage_bucket = res.get("bucket")
-            storage_path = res.get("file_path")
+        upload_result, error = upload_story_media(media_file, profile_id)
+        if error:
+            return None
+        if upload_result:
+            media_url = upload_result.get("url")
+            storage_bucket = upload_result.get("bucket")
+            storage_path = upload_result.get("path")
             
     status_id = str(uuid.uuid4())
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
     
     sql = """
-        INSERT INTO chain_status_posts (id, profile_id, caption, media_url, media_type, storage_bucket, storage_path, visibility, expires_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO chain_status_posts (id, profile_id, caption, media_url, media_type, storage_bucket, storage_path, media_bucket, media_path, mime_type, size_bytes, visibility, expires_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     try:
-        write_query(sql, (status_id, profile_id, caption, media_url, media_type, storage_bucket, storage_path, visibility, expires_at))
+        write_query(sql, (status_id, profile_id, caption, media_url, media_type, storage_bucket, storage_path, storage_bucket, storage_path, (upload_result or {}).get("mime_type"), (upload_result or {}).get("size_bytes"), visibility, expires_at))
         record = {
             "id": status_id,
             "profile_id": profile_id,

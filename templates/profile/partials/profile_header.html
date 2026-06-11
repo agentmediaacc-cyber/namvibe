@@ -9,7 +9,7 @@
 {% set level_data = level or {'title': 'New Member', 'score': 0} %}
 {% set pinned_data = pinned or {'posts': [], 'reels': [], 'products': []} %}
 {% set stories = content_data.get('stories', []) %}
-{% set profile_location = profile.current_location or profile.location or profile.town or profile.region or profile.country_origin or 'Namibia' %}
+{% set profile_location = profile.current_location or profile.location or profile.town or profile.region or profile.country_origin %}
 {% set display_name = profile.display_name or profile.full_name or profile.username or 'CHAIN Member' %}
 {% set profile_rank = profile.rank or level_data.title or 'New Member' %}
 {% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
@@ -82,9 +82,11 @@
                 <span class="profile-badge rank"><i class="fas fa-ranking-star"></i>{{ profile_rank }}</span>
             </div>
             <p class="profile-handle">@{{ profile.username or 'chain' }}</p>
-            <p class="profile-bio">{{ profile.bio or 'Building a CHAIN identity across social, creator, wallet, marketplace, dating, and community.' }}</p>
+            {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
             <div class="profile-meta">
+                {% if profile_location %}
                 <span><i class="fas fa-location-dot"></i>{{ profile_location }}</span>
+                {% endif %}
                 <span><i class="fas fa-calendar-alt"></i>{{ member_since }}</span>
                 {% if presence and presence.status == 'online' %}
                 <span class="online"><i class="fas fa-circle"></i>Online now</span>
@@ -181,17 +183,16 @@
         <strong>{{ story.caption or 'Story' }}</strong>
     </button>
     {% else %}
-        {% for label, icon in [('Work', 'fa-briefcase'), ('Family', 'fa-users'), ('Travel', 'fa-plane'), ('Business', 'fa-store'), ('Live', 'fa-video')] %}
-        <button type="button" class="profile-highlight">
-            <span><i class="fas {{ icon }}"></i></span>
-            <strong>{{ label }}</strong>
-        </button>
-        {% endfor %}
+        {% if not own_profile %}
+        <div class="profile-highlight-empty">No public stories yet.</div>
+        {% endif %}
     {% endfor %}
+    {% if own_profile %}
     <a href="{{ '/status/create' if own_profile else '#posts' }}" class="profile-highlight add-highlight">
         <span><i class="fas fa-plus"></i></span>
         <strong>Add Story</strong>
     </a>
+    {% endif %}
 </section>
 
 <div class="profile-qr-popover" data-profile-qr-popover hidden>

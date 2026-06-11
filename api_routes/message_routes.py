@@ -108,7 +108,7 @@ def api_send():
     if client_message_id:
         from services.neon_service import fast_query
         existing = fast_query(
-            "SELECT id, delivery_status FROM chain_messages WHERE sender_profile_id = %s AND client_message_id = %s LIMIT 1",
+            "SELECT id, delivery_status FROM chain_messages WHERE sender_profile_id = %s AND client_event_id = %s LIMIT 1",
             (profile_id, client_message_id), default=[]
         )
         if existing:
@@ -1158,10 +1158,18 @@ def api_friends():
     profile_id = (profile or {}).get("id") or session.get("profile_id")
     if not profile_id:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    # Cache friend list for 30s (Phase 68B)
+    from engines.cache_engine import cache_key, get_cache, set_cache
+    cache_key_str = cache_key("friends_list", profile_id)
+    cached = get_cache(cache_key_str)
+    if cached is not None:
+        return jsonify({"ok": True, "friends": cached}), 200
+
     friends = fast_query(
         """
         SELECT p.id, p.username, p.full_name, p.avatar_url,
-               p.is_verified, p.bio, p.is_online
+               p.is_verified, p.is_online
         FROM chain_follows f1
         JOIN chain_follows f2
             ON f1.follower_profile_id = f2.following_profile_id
@@ -1169,9 +1177,11 @@ def api_friends():
         JOIN chain_profiles p ON f1.following_profile_id = p.id
         WHERE f1.follower_profile_id = %s
         ORDER BY p.is_online DESC, p.full_name ASC
+        LIMIT 50
         """,
         (profile_id,), default=[]
     )
+    set_cache(cache_key_str, friends, ttl=30)
     return jsonify({"ok": True, "friends": friends}), 200
 
 
@@ -1308,3 +1318,221 @@ def api_decline_message_request(request_id):
         (request_id,)
     )
     return jsonify({"ok": True}), 200
+
+
+# ============================================================
+# Standard API endpoints — return {ok, message} or {ok, error}
+# ============================================================
+
+@message_bp.route("/api/send", methods=["POST"])
+@login_required
+def api_messages_send():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    thread_id = data.get("thread_id")
+    body = data.get("body", "")
+    if not thread_id:
+        return jsonify({"ok": False, "error": "thread_id required"}), 400
+    if not body and not data.get("media_url"):
+        return jsonify({"ok": False, "error": "body or media_url required"}), 400
+    # Check block
+    rel = relationship_status(profile_id, thread_id)
+    if rel and rel.get("blocked"):
+        return jsonify({"ok": False, "error": "You cannot message this user."}), 403
+    result = phase29_messages.send_text_message(
+        thread_id, profile_id, body,
+        message_type=data.get("message_type", "text"),
+        client_event_id=data.get("client_event_id"),
+        parent_message_id=data.get("reply_to_message_id"),
+    )
+    if result.get("ok"):
+        return jsonify({"ok": True, "message": result.get("message", {})}), 200
+    return jsonify({"ok": False, "error": result.get("error", "send_failed")}), 400
+
+
+@message_bp.route("/api/thread/<thread_id>", methods=["GET"])
+@login_required
+def api_messages_thread(thread_id):
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    thread = get_thread(thread_id, profile_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Thread not found"}), 404
+    return jsonify({"ok": True, "message": thread}), 200
+
+
+@message_bp.route("/api/seen", methods=["POST"])
+@login_required
+def api_messages_seen():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    thread_id = data.get("thread_id")
+    if not thread_id:
+        return jsonify({"ok": False, "error": "thread_id required"}), 400
+    result = mark_thread_seen(thread_id, profile_id)
+    emit_to_profile(profile_id, "message:seen", {"thread_id": thread_id, "profile_id": profile_id})
+    return jsonify({"ok": True, "message": {"thread_id": thread_id}}), 200
+
+
+@message_bp.route("/api/delivered", methods=["POST"])
+@login_required
+def api_messages_delivered():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    thread_id = data.get("thread_id")
+    message_id = data.get("message_id")
+    if not thread_id and not message_id:
+        return jsonify({"ok": False, "error": "thread_id or message_id required"}), 400
+    if thread_id:
+        phase29_messages.mark_delivered(thread_id, profile_id)
+    elif message_id:
+        from services.messaging_engine import acknowledge_delivery
+        acknowledge_delivery(message_id, profile_id)
+    return jsonify({"ok": True, "message": {"delivered": True}}), 200
+
+
+@message_bp.route("/api/reaction", methods=["POST"])
+@login_required
+def api_messages_reaction():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    message_id = data.get("message_id")
+    reaction = data.get("reaction")
+    action = data.get("action", "add")
+    if not message_id or not reaction:
+        return jsonify({"ok": False, "error": "message_id and reaction required"}), 400
+    if action == "add":
+        result = add_reaction(message_id, profile_id, reaction)
+    else:
+        result = remove_reaction(message_id, profile_id, reaction)
+    if result:
+        return jsonify({"ok": True, "message": {"message_id": message_id, "reaction": reaction}}), 200
+    return jsonify({"ok": False, "error": "reaction_failed"}), 400
+
+
+@message_bp.route("/api/delete", methods=["POST"])
+@login_required
+def api_messages_delete():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    message_id = data.get("message_id")
+    for_everyone = data.get("for_everyone", False)
+    if not message_id:
+        return jsonify({"ok": False, "error": "message_id required"}), 400
+    result = delete_message(message_id, profile_id, for_everyone=for_everyone)
+    if result:
+        return jsonify({"ok": True, "message": {"message_id": message_id, "deleted": True}}), 200
+    return jsonify({"ok": False, "error": "delete_failed"}), 400
+
+
+@message_bp.route("/api/forward", methods=["POST"])
+@login_required
+def api_messages_forward():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    message_id = data.get("message_id")
+    target_thread_id = data.get("target_thread_id")
+    if not message_id or not target_thread_id:
+        return jsonify({"ok": False, "error": "message_id and target_thread_id required"}), 400
+    result = phase29_messages.forward_messages(profile_id, [message_id], [target_thread_id])
+    if result.get("ok") or result.get("success"):
+        return jsonify({"ok": True, "message": {"forwarded": True}}), 200
+    return jsonify({"ok": False, "error": "forward_failed"}), 400
+
+
+@message_bp.route("/api/upload", methods=["POST"])
+@login_required
+def api_messages_upload():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    thread_id = request.form.get("thread_id")
+    if not thread_id:
+        return jsonify({"ok": False, "error": "thread_id required"}), 400
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"ok": False, "error": "file required"}), 400
+    from services.messaging_engine import send_message
+    result = send_message(thread_id, profile_id, body="", file=file)
+    if result and result.get("success"):
+        return jsonify({"ok": True, "message": result}), 200
+    return jsonify({"ok": False, "error": "upload_failed"}), 400
+
+
+@message_bp.route("/api/voice-note", methods=["POST"])
+@login_required
+def api_messages_voice_note():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    thread_id = request.form.get("thread_id")
+    if not thread_id:
+        return jsonify({"ok": False, "error": "thread_id required"}), 400
+    file = request.files.get("file")
+    duration = request.form.get("duration", 0, type=int)
+    if not file:
+        return jsonify({"ok": False, "error": "audio file required"}), 400
+    from services.messaging_engine import send_message
+    result = send_message(thread_id, profile_id, body="", file=file)
+    if result and result.get("success"):
+        msg_id = result.get("id") or result.get("message_id")
+        if msg_id:
+            write_query(
+                "UPDATE chain_messages SET message_type = 'voice', audio_duration = %s WHERE id = %s",
+                (duration, msg_id),
+            )
+        return jsonify({"ok": True, "message": result}), 200
+    return jsonify({"ok": False, "error": "voice_note_failed"}), 400
+
+
+@message_bp.route("/api/unread-count", methods=["GET"])
+@login_required
+def api_messages_unread_count():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    count = phase29_messages.unread_count(profile_id)
+    return jsonify({"ok": True, "message": {"unread_count": count}}), 200
+
+
+@message_bp.route("/api/inbox", methods=["GET"])
+@login_required
+def api_inbox():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    folder = request.args.get("folder", "primary")
+    threads = list_threads(profile_id, folder=folder)
+    unread = phase29_messages.unread_count(profile_id)
+    return jsonify({
+        "ok": True,
+        "message": {
+            "threads": threads,
+            "unread_count": unread,
+            "folder": folder,
+        }
+    }), 200

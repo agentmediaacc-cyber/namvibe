@@ -30,8 +30,11 @@
     <div class="relative">
         <!-- Cover Image -->
         <div class="h-64 w-full overflow-hidden">
-            <img src="{{ profile.cover_image or profile.cover_url or 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&q=80&w=2070' }}" 
-                 class="w-full h-full object-cover" alt="Cover">
+            {% if profile.cover_image or profile.cover_url %}
+            <img src="{{ profile.cover_image or profile.cover_url }}" class="w-full h-full object-cover" alt="Cover">
+            {% else %}
+            <div class="w-full h-full bg-slate-900"></div>
+            {% endif %}
             <div class="absolute inset-0 bg-gradient-to-t from-[#0B0F19] to-transparent opacity-60"></div>
         </div>
 
@@ -42,7 +45,11 @@
                     <div class="flex items-end gap-5">
                         <div class="relative group">
                             <div class="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-[#0B0F19] overflow-hidden bg-gray-900 ring-2 ring-purple-500 ring-offset-4 ring-offset-[#0B0F19]">
-                                <img src="{{ profile.avatar or profile.avatar_url or 'https://i.pravatar.cc/150?u=' + profile.username }}" class="w-full h-full object-cover" alt="Avatar">
+                                {% if profile.avatar or profile.avatar_url %}
+                                <img src="{{ profile.avatar or profile.avatar_url }}" class="w-full h-full object-cover" alt="Avatar">
+                                {% else %}
+                                <div class="w-full h-full grid place-items-center text-4xl font-black">{{ (profile.display_name or profile.username or 'C')[0]|upper }}</div>
+                                {% endif %}
                             </div>
                             {% if profile.verified %}
                             <div class="absolute bottom-2 right-2 bg-[#0B0F19] rounded-full p-1">
@@ -82,9 +89,9 @@
                 <!-- Bio & Meta -->
                 <div class="mt-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div class="max-w-2xl">
-                        <p class="text-gray-300 leading-relaxed">{{ profile.bio or 'African next-generation creator. 🌍' }}</p>
+                        {% if profile.bio %}<p class="text-gray-300 leading-relaxed">{{ profile.bio }}</p>{% endif %}
                         <div class="flex flex-wrap gap-5 mt-4 text-sm font-medium text-gray-400">
-                            <span class="flex items-center gap-1.5"><i class="fas fa-map-marker-alt"></i> {{ profile.location or 'Windhoek, Namibia' }}</span>
+                            {% if profile.location %}<span class="flex items-center gap-1.5"><i class="fas fa-map-marker-alt"></i> {{ profile.location }}</span>{% endif %}
                             <span class="flex items-center gap-1.5"><i class="fas fa-link text-blue-400"></i> chain.africa/{{ profile.username }}</span>
                             <span class="flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Joined May 2026</span>
                         </div>
@@ -93,15 +100,15 @@
                     <!-- Header Stats -->
                     <div class="flex gap-8 p-4 glass rounded-2xl">
                         <div class="text-center">
-                            <div class="text-xl font-black">{{ profile.followers or '12.4K' }}</div>
+                            <div class="text-xl font-black">{{ profile.followers or profile.followers_count or 0 }}</div>
                             <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Followers</div>
                         </div>
                         <div class="text-center border-x border-white/10 px-8">
-                            <div class="text-xl font-black">{{ profile.following or '890' }}</div>
+                            <div class="text-xl font-black">{{ profile.following or profile.following_count or 0 }}</div>
                             <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Following</div>
                         </div>
                         <div class="text-center">
-                            <div class="text-xl font-black">{{ stats.posts_count or '42' }}</div>
+                            <div class="text-xl font-black">{{ stats.posts_count or stats.posts or 0 }}</div>
                             <div class="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Posts</div>
                         </div>
                     </div>
@@ -124,16 +131,16 @@
                     <div class="space-y-6">
                         <div>
                             <span class="text-xs text-gray-400 font-bold uppercase">Net Earnings</span>
-                            <div class="text-3xl font-black text-green-400 mt-1">N$ {{ "%.2f"|format(profile.wallet_balance or 450.75) }}</div>
+                            <div class="text-3xl font-black text-green-400 mt-1">N$ {{ "%.2f"|format(profile.wallet_balance or 0) }}</div>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
                             <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                                <div class="text-lg font-black">{{ stats.gifts or '45' }}</div>
+                                <div class="text-lg font-black">{{ stats.gifts or 0 }}</div>
                                 <div class="text-[10px] text-gray-400 uppercase font-bold">Gifts Received</div>
                             </div>
                             <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
-                                <div class="text-lg font-black">{{ stats.subscribers or '120' }}</div>
+                                <div class="text-lg font-black">{{ stats.subscribers or 0 }}</div>
                                 <div class="text-[10px] text-gray-400 uppercase font-bold">Subscribers</div>
                             </div>
                         </div>
@@ -195,15 +202,9 @@
                         </div>
                     </div>
                     {% else %}
-                    <!-- Sample Post Fallback -->
-                    {% for i in range(9) %}
-                    <div class="aspect-square bg-white/5 rounded-xl overflow-hidden group cursor-pointer relative border border-white/5 hover:border-purple-500/50 transition-all">
-                        <img src="https://picsum.photos/seed/{{ i }}/800/800" class="w-full h-full object-cover opacity-50 group-hover:opacity-80 transition-opacity" alt="Placeholder">
-                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <i class="fas fa-eye text-2xl text-white/50"></i>
-                        </div>
+                    <div class="col-span-full rounded-xl border border-white/10 bg-white/5 p-8 text-center text-gray-400">
+                        No public posts yet.
                     </div>
-                    {% endfor %}
                     {% endfor %}
                 </div>
             </div>

@@ -103,6 +103,33 @@ def get_storage_health():
 def upload_media_file(file_obj, *, bucket_name, profile_id, upload_type, public=True):
     if not file_obj:
         return None, "No file provided"
+    routed_type = {
+        "chain-avatars": "avatars",
+        "chain-covers": "covers",
+        "chain-posts": "posts",
+        "chain-reels": "reels",
+        "chain-stories": "stories",
+        "chain-status": "stories",
+        "chain-messages": "voice_notes" if (getattr(file_obj, "content_type", "") or "").startswith("audio/") else "messages",
+        "chain-live": "live",
+        "chain-marketplace": "marketplace",
+    }.get(bucket_name)
+    if routed_type:
+        from services.supabase_storage_router import upload_file
+        result, error = upload_file(file_obj, routed_type, profile_id, public=public)
+        if error:
+            return None, error
+        upload_id = record_media_upload_metadata(
+            profile_id=profile_id,
+            upload_type=upload_type,
+            bucket_name=result["bucket"],
+            file_path=result["path"],
+            public_url=result["url"],
+            mime_type=result["mime_type"],
+            file_size=result["size_bytes"],
+            original_filename=os.path.basename(file_obj.filename or "upload"),
+        )
+        return {**result, "upload_id": upload_id}, None
     
     if bucket_name not in SUPPORTED_BUCKETS:
         return None, f"Unsupported storage category: {bucket_name}"

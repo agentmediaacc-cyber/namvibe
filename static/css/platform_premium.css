@@ -6,7 +6,7 @@
   --px-blue: var(--chain-cyan);
   --px-gold: var(--chain-gold);
   --px-success: var(--chain-success);
-  --px-danger: var(--chain-pink);
+  --px-danger: var(--chain-primary);
   --px-text: var(--chain-text);
   --px-muted: var(--chain-muted);
   --px-border: var(--chain-border);
@@ -161,7 +161,7 @@ button:disabled,
 }
 
 .danger {
-  background: var(--chain-pink) !important;
+  background: var(--chain-primary) !important;
   color: #fff !important;
 }
 
@@ -180,7 +180,7 @@ button:disabled,
   padding: 0 16px;
   background: var(--chain-gradient);
   color: #fff;
-  box-shadow: 0 8px 24px rgba(255, 0, 80, 0.3);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
 }
 
 .px-btn--gold {
@@ -390,7 +390,7 @@ button:disabled,
   top: 12px;
   left: 12px;
   padding: 6px 10px;
-  background: var(--chain-pink);
+  background: var(--chain-primary);
   color: #fff;
 }
 

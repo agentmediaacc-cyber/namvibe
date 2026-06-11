@@ -5,7 +5,7 @@ body{
   font-family:Inter,Arial,sans-serif;
   color:white;
   background:
-    radial-gradient(circle at 5% 5%,rgba(255,47,125,.42),transparent 32%),
+    radial-gradient(circle at 5% 5%,rgba(37, 99, 235,.42),transparent 32%),
     radial-gradient(circle at 100% 20%,rgba(0,212,255,.25),transparent 30%),
     radial-gradient(circle at 70% 100%,rgba(124,58,237,.38),transparent 38%),
     #050510;
@@ -25,7 +25,7 @@ body{
   border:1px solid rgba(255,255,255,.14);
   background:
     linear-gradient(to top,rgba(0,0,0,.68),rgba(0,0,0,.12)),
-    radial-gradient(circle at top right,rgba(255,47,125,.35),transparent 35%),
+    radial-gradient(circle at top right,rgba(37, 99, 235,.35),transparent 35%),
     linear-gradient(145deg,#111124,#050510);
   box-shadow:0 34px 100px rgba(0,0,0,.55);
 }
@@ -49,7 +49,7 @@ body{
   font-weight:1000;
 }
 .brand-chip span{letter-spacing:.08em}
-.live-chip{color:#ff9fbd}
+.live-chip{color:#93c5fd}
 .chain-logo{
   position:absolute;
   top:86px;
@@ -62,8 +62,8 @@ body{
   place-items:center;
   font-weight:1000;
   font-size:13px;
-  background:conic-gradient(from 0deg,#ff2f7d,#ffb000,#00d4ff,#7c3aed,#ff2f7d);
-  box-shadow:0 0 45px rgba(255,47,125,.55);
+  background:conic-gradient(from 0deg,#2563eb,#ffb000,#00d4ff,#7c3aed,#2563eb);
+  box-shadow:0 0 45px rgba(37, 99, 235,.55);
   animation:spin 5s linear infinite, pulse 1.8s ease-in-out infinite alternate;
 }
 .chain-logo.left{left:24px;right:auto}
@@ -105,9 +105,9 @@ body{
   display:grid;
   place-items:center;
   border-radius:35px;
-  background:linear-gradient(135deg,#ff2f7d,#7c3aed);
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
   font-size:54px;
-  box-shadow:0 28px 80px rgba(255,47,125,.35);
+  box-shadow:0 28px 80px rgba(37, 99, 235,.35);
 }
 .camera-empty h1{
   font-size:72px;
@@ -153,7 +153,7 @@ body{
 }
 .control-header p{
   margin:0;
-  color:#ff9fbd;
+  color:#93c5fd;
   font-weight:1000;
   letter-spacing:.08em;
   font-size:12px;
@@ -168,9 +168,9 @@ body{
   margin:16px 0;
   padding:14px;
   border-radius:18px;
-  background:rgba(255,47,125,.16);
-  border:1px solid rgba(255,47,125,.35);
-  color:#ffd7e3;
+  background:rgba(37, 99, 235,.16);
+  border:1px solid rgba(37, 99, 235,.35);
+  color:#dbeafe;
   font-weight:900;
 }
 .quick-controls{
@@ -217,7 +217,7 @@ small{color:#9fa1bd;line-height:1.4}
 .upload-box b,.upload-box span{display:block}
 .upload-box span{color:#bfc0d5;margin-top:4px}
 .upload-btn{
-  background:linear-gradient(135deg,#ff2f7d,#7c3aed);
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
   white-space:nowrap;
 }
 .upload-btn input{display:none}
@@ -249,7 +249,7 @@ small{color:#9fa1bd;line-height:1.4}
 .advanced-grid div{
   padding:14px;
   border-radius:20px;
-  background:linear-gradient(135deg,rgba(255,47,125,.14),rgba(124,58,237,.12));
+  background:linear-gradient(135deg,rgba(37, 99, 235,.14),rgba(124,58,237,.12));
   border:1px solid rgba(255,255,255,.1);
 }
 .advanced-grid b{display:block;margin-bottom:5px}
@@ -257,8 +257,8 @@ small{color:#9fa1bd;line-height:1.4}
 .go-live{
   padding:17px;
   border-radius:22px;
-  background:linear-gradient(135deg,#ff2f7d,#7c3aed,#00d4ff);
-  box-shadow:0 18px 50px rgba(255,47,125,.35);
+  background:linear-gradient(135deg,#2563eb,#7c3aed,#00d4ff);
+  box-shadow:0 18px 50px rgba(37, 99, 235,.35);
   font-size:16px;
 }
 @media(max-width:1120px){

@@ -1,7 +1,7 @@
 """Phase 67 — Performance monitoring dashboard and API routes."""
 
 from flask import Blueprint, jsonify, render_template, session
-from api_routes.profile_routes import login_required
+from services.admin_auth_service import require_admin
 
 try:
     from services.production_cache_service import get_cache_stats
@@ -60,12 +60,12 @@ except Exception:
 performance_bp = Blueprint('performance', __name__, url_prefix='/admin/performance')
 
 @performance_bp.route('/')
-@login_required
+@require_admin
 def index():
     return render_template('admin/performance_dashboard.html')
 
 @performance_bp.route('/api/cache')
-@login_required
+@require_admin
 def api_cache_stats():
     if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
         return jsonify({'ok': False, 'error': 'unauthorized'}), 401
@@ -73,7 +73,7 @@ def api_cache_stats():
     return jsonify({'ok': True, **stats})
 
 @performance_bp.route('/api/workers')
-@login_required
+@require_admin
 def api_worker_stats():
     if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
         return jsonify({'ok': False, 'error': 'unauthorized'}), 401
@@ -82,7 +82,7 @@ def api_worker_stats():
     return jsonify({'ok': True, 'workers': stats, 'queues': qstats})
 
 @performance_bp.route('/api/database')
-@login_required
+@require_admin
 def api_db_stats():
     if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
         return jsonify({'ok': False, 'error': 'unauthorized'}), 401
@@ -90,7 +90,7 @@ def api_db_stats():
     return jsonify({'ok': True, **status})
 
 @performance_bp.route('/api/redis')
-@login_required
+@require_admin
 def api_redis_stats():
     if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
         return jsonify({'ok': False, 'error': 'unauthorized'}), 401
@@ -98,7 +98,7 @@ def api_redis_stats():
     return jsonify({'ok': True, 'health': health})
 
 @performance_bp.route('/api/rate-limits')
-@login_required
+@require_admin
 def api_rate_limits():
     if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
         return jsonify({'ok': False, 'error': 'unauthorized'}), 401
@@ -106,7 +106,7 @@ def api_rate_limits():
     return jsonify({'ok': True, 'config': config})
 
 @performance_bp.route('/api/all')
-@login_required
+@require_admin
 def api_all():
     if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
         return jsonify({'ok': False, 'error': 'unauthorized'}), 401

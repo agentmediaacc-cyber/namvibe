@@ -14,7 +14,7 @@ async function startCamera(){
     video.style.display = "block";
     document.getElementById("emptyCamera").style.display = "none";
   }catch(err){
-    alert("Camera blocked or unavailable. Open with http://127.0.0.1:5000 and allow Camera/Microphone permission. " + err.message);
+    alert("Camera blocked or unavailable. Please allow Camera/Microphone permission and reload. " + err.message);
   }
 }
 

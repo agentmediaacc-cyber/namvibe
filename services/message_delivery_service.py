@@ -137,7 +137,7 @@ def send_message(thread_id, sender_profile_id, body, message_type="text",
     if client_message_id:
         try:
             existing = fast_query(
-                "SELECT id FROM chain_messages WHERE sender_profile_id = %s AND client_message_id = %s LIMIT 1",
+                "SELECT id FROM chain_messages WHERE sender_profile_id = %s AND client_event_id = %s LIMIT 1",
                 (sender_profile_id, client_message_id), default=[]
             )
             if existing:

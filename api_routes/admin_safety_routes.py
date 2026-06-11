@@ -1,12 +1,12 @@
 from flask import Blueprint, jsonify, request, render_template
-from api_routes.profile_routes import login_required
+from services.admin_auth_service import require_admin
 from services.profile_service import get_current_profile
 from services.neon_service import fast_query, write_query
 
 admin_safety_bp = Blueprint('admin_safety', __name__, url_prefix='/admin/safety')
 
 @admin_safety_bp.route('/')
-@login_required
+@require_admin
 def dashboard():
     profile = get_current_profile()
     # In a real app, check for is_admin flag
@@ -36,7 +36,7 @@ def dashboard():
     return render_template("admin/safety.html", stats=stats, reports=reports, profile=profile)
 
 @admin_safety_bp.route('/detect-fake', methods=['POST'])
-@login_required
+@require_admin
 def detect_fake():
     """Simple logic to detect fake accounts based on trust score and IP repetition."""
     # This would normally be a background job
@@ -53,7 +53,7 @@ def detect_fake():
     return jsonify({"success": True, "message": "Fake account detection complete."})
 
 @admin_safety_bp.route('/report', methods=['POST'])
-@login_required
+@require_admin
 def report_spam():
     profile = get_current_profile()
     data = request.get_json(silent=True) or {}

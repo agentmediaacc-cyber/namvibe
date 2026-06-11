@@ -54,7 +54,7 @@
         gap: 12px;
         padding: 22px;
         background:
-            radial-gradient(circle at 18% 12%, rgba(255,47,125,.08), transparent 24%),
+            radial-gradient(circle at 18% 12%, rgba(37, 99, 235,.08), transparent 24%),
             radial-gradient(circle at 84% 14%, rgba(0,212,255,.06), transparent 18%),
             linear-gradient(180deg, rgba(8,8,20,.94), rgba(5,5,16,.98));
     }
@@ -69,7 +69,7 @@
 
     .chat-bubble.mine {
         margin-left: auto;
-        background: linear-gradient(135deg, rgba(255,47,125,.18), rgba(124,58,237,.18));
+        background: linear-gradient(135deg, rgba(37, 99, 235,.18), rgba(124,58,237,.18));
     }
 
     .chat-bubble p,
@@ -126,7 +126,7 @@
 
     .thread-link.primary,
     .thread-form button {
-        background: linear-gradient(135deg, rgba(255,47,125,.2), rgba(124,58,237,.22));
+        background: linear-gradient(135deg, rgba(37, 99, 235,.2), rgba(124,58,237,.22));
     }
 
     @media (max-width: 760px) {
@@ -210,15 +210,15 @@
             {% endif %}
         </div>
 
-        <div id="recorder-ui" style="display: none; padding: 18px 22px; background: rgba(255,47,125,.1); border-top: 1px solid rgba(255,47,125,.2);">
+        <div id="recorder-ui" style="display: none; padding: 18px 22px; background: rgba(37, 99, 235,.1); border-top: 1px solid rgba(37, 99, 235,.2);">
             <div style="display: flex; align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <span id="record-timer" style="font-family: monospace; font-weight: 800; color: #ff2f7d;">00:00</span>
-                    <div class="recording-pulse" style="width: 12px; height: 12px; background: #ff2f7d; border-radius: 50%;"></div>
+                    <span id="record-timer" style="font-family: monospace; font-weight: 800; color: #2563eb;">00:00</span>
+                    <div class="recording-pulse" style="width: 12px; height: 12px; background: #2563eb; border-radius: 50%;"></div>
                 </div>
                 <div style="display: flex; gap: 12px;">
                     <button type="button" onclick="cancelRecording()" style="background: rgba(255,255,255,.1); border: none; padding: 8px 16px; border-radius: 12px; color: #fff;">Cancel</button>
-                    <button type="button" onclick="stopRecording()" style="background: #ff2f7d; border: none; padding: 8px 16px; border-radius: 12px; color: #fff;">Stop & Preview</button>
+                    <button type="button" onclick="stopRecording()" style="background: #2563eb; border: none; padding: 8px 16px; border-radius: 12px; color: #fff;">Stop & Preview</button>
                 </div>
             </div>
         </div>
@@ -435,7 +435,7 @@
     .waveform-stub {
         flex: 1;
         height: 24px;
-        background: linear-gradient(90deg, #ff2f7d 20%, rgba(255,255,255,.1) 20%);
+        background: linear-gradient(90deg, #2563eb 20%, rgba(255,255,255,.1) 20%);
         border-radius: 4px;
     }
     .recording-pulse {

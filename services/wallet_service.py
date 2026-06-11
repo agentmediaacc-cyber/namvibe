@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from services.neon_service import fast_query, write_query, get_pool_status
 from services.logging_service import log_info, log_warning, log_error, log_wallet_event
+from services.request_cache import cache_get, cache_set
 
 
 def _db_available():
@@ -82,11 +83,15 @@ def get_wallet(profile_id):
         return None
     if not _db_available():
         return _fake_wallet(profile_id)
+    cached = cache_get(f"wallet:{profile_id}")
+    if cached is not None:
+        return cached
     rows = fast_query(
         "SELECT * FROM chain_wallets WHERE profile_id = %s LIMIT 1",
         (profile_id,), default=[]
     )
-    return _wallet_dict(rows[0]) if rows else None
+    result = _wallet_dict(rows[0]) if rows else None
+    return cache_set(f"wallet:{profile_id}", result)
 
 
 def lock_wallet(profile_id):
@@ -247,6 +252,10 @@ def create_wallet_transaction(wallet_id, profile_id, amount_cents, transaction_t
 def get_wallet_transactions(profile_id, limit=50, offset=0, transaction_type=None):
     if not _db_available():
         return []
+    cache_key_str = f"wallet_tx:{profile_id}:{limit}:{offset}:{transaction_type or ''}"
+    cached = cache_get(cache_key_str)
+    if cached is not None:
+        return cached
     params = [profile_id]
     where = "profile_id = %s"
     if transaction_type:
@@ -270,6 +279,7 @@ def get_wallet_transactions(profile_id, limit=50, offset=0, transaction_type=Non
         if row.get("created_at"):
             row["created_at"] = row["created_at"].isoformat()
         result.append(row)
+    cache_set(cache_key_str, result)
     return result
 
 

@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, session, render_template
 
 from api_routes.profile_routes import login_required
+from services.admin_auth_service import require_admin
 from services.profile_service import get_current_profile
 from services.trust_score_service import get_trust_summary
 from services.moderation_service import (
@@ -49,31 +50,31 @@ def creator_verification_page():
 
 
 @safety_bp.route("/admin/safety")
-@login_required
+@require_admin
 def admin_safety_dashboard():
     return render_template("admin/safety_dashboard.html")
 
 
 @safety_bp.route("/admin/safety/moderation-queue")
-@login_required
+@require_admin
 def admin_moderation_queue_page():
     return render_template("admin/moderation_queue.html")
 
 
 @safety_bp.route("/admin/safety/fraud-events")
-@login_required
+@require_admin
 def admin_fraud_events_page():
     return render_template("admin/fraud_events.html")
 
 
 @safety_bp.route("/admin/safety/spam-events")
-@login_required
+@require_admin
 def admin_spam_events_page():
     return render_template("admin/spam_events.html")
 
 
 @safety_bp.route("/admin/safety/creator-verification")
-@login_required
+@require_admin
 def admin_creator_verification_page():
     return render_template("admin/creator_verification.html")
 
@@ -127,98 +128,98 @@ def api_creator_verification_status():
 
 
 @safety_bp.route("/admin/safety/api/reports")
-@login_required
+@require_admin
 def admin_reports():
     return jsonify({"ok": True, "reports": get_reports(status=request.args.get("status"))}), 200
 
 
 @safety_bp.route("/admin/safety/api/reports/<report_id>/resolve", methods=["POST"])
-@login_required
+@require_admin
 def admin_resolve_report(report_id):
     data = request.json or {}
     return jsonify(resolve_report(report_id, _admin_id(), data.get("status", "resolved"), data.get("resolution_note"))), 200
 
 
 @safety_bp.route("/admin/safety/api/moderation-queue")
-@login_required
+@require_admin
 def admin_queue():
     return jsonify({"ok": True, "queue": get_moderation_queue(status=request.args.get("status", "pending"))}), 200
 
 
 @safety_bp.route("/admin/safety/api/moderation-queue/<item_id>/assign", methods=["POST"])
-@login_required
+@require_admin
 def admin_assign_queue(item_id):
     return jsonify(assign_moderation_item(item_id, _admin_id())), 200
 
 
 @safety_bp.route("/admin/safety/api/moderation-queue/<item_id>/review", methods=["POST"])
-@login_required
+@require_admin
 def admin_review_queue(item_id):
     data = request.json or {}
     return jsonify(review_moderation_item(item_id, _admin_id(), data.get("status", "reviewed"), data.get("note"))), 200
 
 
 @safety_bp.route("/admin/safety/api/actions/warn", methods=["POST"])
-@login_required
+@require_admin
 def admin_warn():
     data = request.json or {}
     return jsonify(warn_user(data.get("profile_id"), data.get("reason", ""), _admin_id())), 200
 
 
 @safety_bp.route("/admin/safety/api/actions/restrict", methods=["POST"])
-@login_required
+@require_admin
 def admin_restrict():
     data = request.json or {}
     return jsonify(restrict_user(data.get("profile_id"), data.get("reason", ""), data.get("duration_minutes"), _admin_id())), 200
 
 
 @safety_bp.route("/admin/safety/api/actions/unrestrict", methods=["POST"])
-@login_required
+@require_admin
 def admin_unrestrict():
     data = request.json or {}
     return jsonify(unrestrict_user(data.get("profile_id"), _admin_id(), data.get("reason", ""))), 200
 
 
 @safety_bp.route("/admin/safety/api/fraud-events")
-@login_required
+@require_admin
 def admin_fraud_events():
     return jsonify(get_fraud_summary()), 200
 
 
 @safety_bp.route("/admin/safety/api/spam-events")
-@login_required
+@require_admin
 def admin_spam_events():
     return jsonify(get_spam_summary()), 200
 
 
 @safety_bp.route("/admin/safety/api/trust-scores")
-@login_required
+@require_admin
 def admin_trust_scores():
     return jsonify({"ok": True, "trust_scores": []}), 200
 
 
 @safety_bp.route("/admin/safety/api/creator-verification")
-@login_required
+@require_admin
 def admin_creator_verification():
     return jsonify({"ok": True, "requests": list_verification_requests(status=request.args.get("status"))}), 200
 
 
 @safety_bp.route("/admin/safety/api/creator-verification/<request_id>/approve", methods=["POST"])
-@login_required
+@require_admin
 def admin_approve_verification(request_id):
     data = request.json or {}
     return jsonify(approve_creator_verification(request_id, _admin_id(), data.get("note"))), 200
 
 
 @safety_bp.route("/admin/safety/api/creator-verification/<request_id>/reject", methods=["POST"])
-@login_required
+@require_admin
 def admin_reject_verification(request_id):
     data = request.json or {}
     return jsonify(reject_creator_verification(request_id, _admin_id(), data.get("note"))), 200
 
 
 @safety_bp.route("/admin/safety/api/actions/moderate", methods=["POST"])
-@login_required
+@require_admin
 def admin_take_action():
     data = request.json or {}
     return jsonify(take_moderation_action(

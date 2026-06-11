@@ -1,6 +1,7 @@
 import os, uuid, json
 from datetime import datetime, timezone
 from services.neon_service import fast_query, write_query, get_pool_status
+from services.homepage_real_data_guard import public_profile_sql
 from services.profile_service import get_profile_by_id
 
 RELATIONSHIP_GOALS = ["friendship", "casual", "relationship", "marriage", "open"]
@@ -136,11 +137,12 @@ def get_discover_profiles(viewer_id, limit=30, offset=0):
     dating_mode_off = not (dating_profile or {}).get("dating_mode_on", True)
 
     rows = _run(
-        """SELECT dp.*, p.username, p.display_name, p.avatar_url, p.full_name
+        f"""SELECT dp.*, p.username, p.display_name, p.avatar_url, p.full_name
            FROM chain_dating_profiles dp
            JOIN chain_profiles p ON p.id = dp.profile_id
            WHERE dp.dating_mode_on = true
              AND dp.profile_id != %s
+             AND {public_profile_sql("p")}
            ORDER BY dp.trust_score DESC, dp.updated_at DESC
            LIMIT %s OFFSET %s""",
         (viewer, limit, offset),

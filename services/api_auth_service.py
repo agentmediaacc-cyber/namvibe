@@ -13,10 +13,15 @@ def api_login_required(f):
         auth_header = request.headers.get("Authorization")
         if not user_id and auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
-            # Supabase JWT validation placeholder
-            # For now, we trust the session or a simple token mock if needed
-            # In production, use supabase.auth.get_user(token)
-            pass
+            try:
+                from services.supabase_client import get_supabase
+                supabase = get_supabase()
+                user_resp = supabase.auth.get_user(token)
+                if user_resp and user_resp.user:
+                    session["auth_user_id"] = user_resp.user.id
+                    user_id = user_resp.user.id
+            except Exception:
+                pass
 
         if not user_id:
             return jsonify({

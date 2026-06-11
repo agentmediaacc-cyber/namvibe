@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Chain | Premium Live Social{% endblock %}</title>
-    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" href="/static/img/favicon.ico">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#F4F7FB">
     <link rel="apple-touch-icon" href="/static/img/icon-192.png">
@@ -22,8 +22,107 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Skeleton Loading */
-        /* Rotating Logo */
+        /* ── Skeleton Loading ── */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.14) 50%, rgba(255,255,255,.06) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.4s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        .skeleton-text { height: 14px; width: 100%; margin-bottom: 8px; }
+        .skeleton-text-sm { height: 11px; width: 60%; margin-bottom: 6px; }
+        .skeleton-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; }
+        .skeleton-card { height: 180px; width: 100%; border-radius: 16px; }
+        .skeleton-row { height: 56px; width: 100%; margin-bottom: 8px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* ── Page Transitions ── */
+        .page-fade-in {
+            animation: fadeIn .25s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .page-fade-in-fast {
+            animation: fadeInFast .18s ease-out;
+        }
+        @keyframes fadeInFast {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* ── Premium Cards ── */
+        .premium-card {
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 20px;
+            padding: 20px;
+            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+        }
+        .premium-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,.3);
+            border-color: rgba(255,255,255,.18);
+        }
+        .premium-card-static {
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 20px;
+            padding: 20px;
+        }
+
+        /* ── Phase 73: Generated Avatar ── */
+        .gen-avatar {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #00f2ea);
+            color: #fff; font-weight: 700; font-size: 16px;
+            flex-shrink: 0; user-select: none;
+            text-transform: uppercase;
+        }
+        .gen-avatar-sm { width: 32px; height: 32px; font-size: 13px; }
+        .gen-avatar-lg { width: 48px; height: 48px; font-size: 20px; }
+        .gen-avatar-xl { width: 64px; height: 64px; font-size: 26px; }
+
+        /* ── Phase 72: Touch & Tap Smoothness ── */
+        * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        a, button, .clickable, .mobile-link, [role="button"] {
+            cursor: pointer;
+            transition: opacity .12s ease, transform .12s ease;
+        }
+        a:active, button:active, .clickable:active, .mobile-link:active, [role="button"]:active {
+            opacity: .7;
+            transform: scale(.96);
+        }
+
+        /* ── Phase 72: Layout Shift Prevention ── */
+        img { aspect-ratio: attr(width) / attr(height); }
+        img[src]:not([width]):not([height]) { aspect-ratio: 1; object-fit: cover; }
+        .avatar-img, img.avatar, img[class*="avatar"] { aspect-ratio: 1; object-fit: cover; }
+        .post-media, img[class*="media"], img[class*="cover"] { aspect-ratio: 16/9; object-fit: cover; }
+
+        /* ── Phase 72: Mobile Search ── */
+        @media (max-width: 760px) {
+            .search-bar-mobile { display: flex !important; }
+            .header-search-desktop { display: none; }
+        }
+        @media (min-width: 761px) {
+            .search-bar-mobile { display: none; }
+        }
+
+        /* ── Phase 72: Reconnection UI ── */
+        .reconnect-banner {
+            position: fixed; top: 0; left: 0; right: 0;
+            background: #e74c3c; color: #fff;
+            text-align: center; padding: 6px 12px;
+            font-size: 13px; z-index: 9999;
+            transform: translateY(-100%);
+            transition: transform .3s ease;
+        }
+        .reconnect-banner.show { transform: translateY(0); }
+
+        /* ── Rotating Logo ── */
         .action-cluster {
             display: flex;
             flex-wrap: wrap;
@@ -32,7 +131,7 @@
         .chain-shell--social {
             min-height: 100vh;
             background:
-                radial-gradient(circle at top left, rgba(255, 0, 80, 0.20), transparent 32%),
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.20), transparent 32%),
                 radial-gradient(circle at top right, rgba(0, 242, 234, 0.16), transparent 30%),
                 #050505;
             color: #fff;
@@ -141,7 +240,7 @@
             background: rgba(255,255,255,.07);
         }
         .social-drawer__nav a:hover {
-            background: linear-gradient(135deg, rgba(255,0,80,.35), rgba(0,242,234,.25));
+            background: linear-gradient(135deg, rgba(37, 99, 235,.35), rgba(0,242,234,.25));
         }
         .chain-shell--social .mobile-nav {
             border-top: 1px solid rgba(255,255,255,.10);
@@ -169,6 +268,67 @@
                 justify-self: end;
             }
         }
+
+        /* ── Global Contrast & Readability Fixes ── */
+        .content-body { font-size: 15px; line-height: 1.55; }
+        .chain-shell--social a:not(.social-drawer__nav a) { color: #b0d4ff; }
+        .chain-shell--social .chain-muted,
+        .chain-shell--social [class*="muted"],
+        .chain-shell--social .text-muted { color: #a0aab8 !important; }
+
+        /* Fix low-contrast text in notifications/wallet/matching cards */
+        .chain-shell--social small,
+        .chain-shell--social .text-sm,
+        .chain-shell--social .secondary-text,
+        .chain-shell--social .caption { color: #a0aab8; }
+
+        /* Touch targets: ensure all clickable items are ≥44px */
+        .chain-shell--social button,
+        .chain-shell--social .btn,
+        .chain-shell--social [role="button"],
+        .chain-shell--social .clickable { min-height: 44px; }
+
+        /* Premium card hover lift for all cards */
+        .chain-shell--social .card,
+        .chain-shell--social [class*="card"],
+        .chain-shell--social [class*="panel"] {
+            border-radius: 20px;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .chain-shell--social .card:hover,
+        .chain-shell--social [class*="card"]:not(.premium-card-static):hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,.3);
+        }
+
+        /* Better empty states */
+        .chain-shell--social .empty-state,
+        .chain-shell--social [class*="empty"] {
+            padding: 48px 24px;
+            text-align: center;
+            color: #8895a7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .chain-shell--social .empty-state i,
+        .chain-shell--social [class*="empty"] i {
+            font-size: 36px;
+            opacity: .5;
+            margin-bottom: 8px;
+        }
+
+        /* Mobile spacing improvements */
+        @media (max-width: 760px) {
+            .chain-shell--social .content-body { padding: 0 12px 80px; }
+            .chain-shell--social .premium-card,
+            .chain-shell--social .card,
+            .chain-shell--social [class*="card"] { padding: 14px; }
+        }
+        @media (min-width: 761px) {
+            .chain-shell--social .content-body { padding: 0 24px 40px; }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -179,8 +339,7 @@
     {% if is_admin_surface %}
     <aside class="sidebar">
         <a href="/" class="sidebar-brand">
-            <span class="rotating-logo">CHAIN</span>
-            <b>CHAIN</b>
+        <span class="rotating-logo">CHAIN</span>
         </a>
         
         <nav class="sidebar-nav">
@@ -281,7 +440,7 @@
             </div>
         </header>
 
-        <div class="content-body">
+        <div class="content-body page-fade-in">
             <div id="error-retry-banner" style="display: none; background: #ff3b30; color: white; padding: 10px 20px; text-align: center; position: sticky; top: 80px; z-index: 100;">
                 <i class="fas fa-exclamation-circle mr-2"></i> Connection lost. <a href="#" onclick="location.reload()" style="color: white; text-decoration: underline; font-weight: bold;">Retry</a>
             </div>
@@ -490,11 +649,18 @@
 
 <script id="CHAIN_INCOMING_CALL_LISTENER_V2">
 (function(){
-  function attach(){
-    if (!window.io || window.chainIncomingCallListenerAttached) return;
-    window.chainIncomingCallListenerAttached = true;
-    const s = window.socket || io({transports:["polling"], upgrade:false});
-    window.socket = s;
+    function attach(){
+      if (!window.io || window.chainIncomingCallListenerAttached) return;
+      window.chainIncomingCallListenerAttached = true;
+      const s = window.socket || io({
+        transports:["polling"], upgrade:false,
+        reconnection:true, reconnectionAttempts:10, reconnectionDelay:1000, reconnectionDelayMax:10000, randomizationFactor:.5
+      });
+      window.socket = s;
+      s.on("connect", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.remove("show"); });
+      s.on("disconnect", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.add("show"); });
+      s.on("connect_error", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.add("show"); });
+      s.on("reconnect", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.remove("show"); });
 
     s.on("call:incoming", function(data){
       if(window.chainStartIncomingRing) window.chainStartIncomingRing();
@@ -516,6 +682,6 @@
 })();
 </script>
 <script src="/static/js/phase30_social_controls.js"></script>
-
+<div id="chain-reconnect-banner" class="reconnect-banner">⚠ Reconnecting…</div>
 </body>
 </html>

@@ -18,8 +18,6 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path='.env')
 url=os.getenv("DATABASE_URL","")
 print("DATABASE_URL:", "FOUND" if url else "MISSING")
-if url:
-    print("DATABASE_URL starts:", url[:25] + "...")
 for k in [
  "CHAIN_FAST_LOCAL",
  "CHAIN_DISABLE_DB_PING",
@@ -92,9 +90,8 @@ echo "--------------------------------------"
 python3 scripts/test_neon_connection.py || {
   echo ""
   echo "NEON FAILED."
-  echo "Fix DATABASE_URL in .env first."
-  echo "Make sure Neon URL looks like:"
-  echo "postgresql://USER:PASSWORD@HOST.neon.tech/DB?sslmode=require"
+  echo "Fix \${DATABASE_URL} in the runtime environment first."
+  echo "Do not paste database credentials into this script."
   exit 1
 }
 

@@ -9,7 +9,7 @@
     '--chain-text': '#ffffff',
     '--chain-muted': '#a1a1aa',
     '--chain-cyan': '#00f2ea',
-    '--chain-pink': '#ff0050',
+    '--chain-primary': '#2563eb',
     '--chain-purple': '#833ab4',
     '--chain-orange': '#fd1d1d',
     '--chain-gold': '#fcb045'

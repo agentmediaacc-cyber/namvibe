@@ -238,6 +238,8 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
     media_type = None
     storage_bucket = None
     storage_path = None
+    mime_type = None
+    size_bytes = None
     if file:
         # Validate audio for voice notes
         if getattr(file, "content_type", "").startswith("audio/"):
@@ -257,18 +259,20 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
             return {"error": error, "optimistic_id": client_message_id}
         if res:
             media_url = res["public_url"]
-            media_type = getattr(file, "content_type", None)
+            media_type = res.get("media_type")
+            mime_type = res.get("mime_type") or getattr(file, "content_type", None)
+            size_bytes = res.get("size_bytes") or res.get("file_size")
             storage_bucket = res["bucket"]
             storage_path = res["file_path"]
 
     message_id = str(uuid.uuid4())
     sql = """
         INSERT INTO chain_messages (
-            id, thread_id, sender_profile_id, body, media_url, media_type, storage_bucket, storage_path, 
+            id, thread_id, sender_profile_id, body, media_url, media_type, storage_bucket, storage_path, media_bucket, media_path, mime_type, size_bytes,
             client_event_id, parent_message_id, is_forwarded, status_id, 
             sticker_id, gif_url, location_lat, location_lng, contact_data, created_at
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
         RETURNING id
     """
     lat = location.get('lat') if location else None
@@ -278,7 +282,7 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
     try:
         write_query(sql, (
             message_id, thread_id, sender_profile_id, normalized_body or None, 
-            media_url, media_type, storage_bucket, storage_path, 
+            media_url, media_type, storage_bucket, storage_path, storage_bucket, storage_path, mime_type, size_bytes,
             client_message_id, parent_message_id, is_forwarded, status_id,
             sticker_id, gif_url, lat, lng, contact_json
         ))
@@ -298,6 +302,8 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
             "body": normalized_body,
             "media_url": media_url,
             "media_type": media_type,
+            "mime_type": mime_type,
+            "size_bytes": size_bytes,
             "parent_message": parent_info,
             "is_forwarded": is_forwarded,
             "status_id": status_id,
@@ -310,10 +316,19 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
         }
         emit_to_thread(thread_id, "message:new", payload)
 
+        member_ids = [m["profile_id"] for m in members]
+        muted_rows = {}
+        if member_ids:
+            placeholders = ",".join("%s" for _ in member_ids)
+            muted_rows_list = fast_query(
+                f"SELECT profile_id, muted FROM chain_thread_members WHERE thread_id = %s AND profile_id IN ({placeholders})",
+                (thread_id, *member_ids), default=[]
+            )
+            muted_rows = {r["profile_id"]: r["muted"] for r in muted_rows_list}
+
         for member in members:
             recipient_id = member["profile_id"]
-            muted_check = fast_query("SELECT muted FROM chain_thread_members WHERE thread_id = %s AND profile_id = %s", (thread_id, recipient_id))
-            if muted_check and muted_check[0]['muted']:
+            if muted_rows.get(recipient_id):
                 continue
 
             from services.notification_engine import create_notification

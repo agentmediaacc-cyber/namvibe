@@ -1,8 +1,16 @@
-from flask import Blueprint, jsonify, request, session, redirect, render_template_string
+import os
+from flask import Blueprint, jsonify, request, session, redirect, render_template_string, abort
 from uuid import uuid4
 from datetime import datetime
 
 message_upgrade_bp = Blueprint("message_upgrade", __name__, url_prefix="/messages")
+
+_MESSAGE_UPGRADE_ENABLED = os.environ.get("CHAIN_DEV_TOOLS", "0").lower() in ("1", "true", "yes")
+
+@message_upgrade_bp.before_request
+def _require_dev_mode():
+    if not _MESSAGE_UPGRADE_ENABLED:
+        return jsonify({"ok": False, "error": "Not available in production"}), 404
 
 def _now():
     return datetime.utcnow().isoformat()

@@ -52,23 +52,30 @@ def marketplace_create():
         if media_file and media_file.filename:
             res, err = upload_marketplace_media(current["id"], media_file)
             if res:
-                media_url = res["public_url"]
+                media_url = res["url"]
                 media_upload_id = res["upload_id"]
+                media_metadata = res
             else:
                 flash(f"Media upload failed: {err}", "error")
+        else:
+            media_metadata = None
         cover_file = request.files.get("cover")
         if cover_file and cover_file.filename:
             res, err = upload_cover(current["id"], cover_file)
             if res:
-                cover_url = res["public_url"]
+                cover_url = res["url"]
                 cover_upload_id = res["upload_id"]
+                cover_metadata = res
             else:
                 flash(f"Cover upload failed: {err}", "error")
+        else:
+            cover_metadata = None
         create_marketplace_item(
             current["id"], request.form.get("item_type"), request.form.get("title"),
             request.form.get("description"), media_url, cover_url,
             request.form.get("price_coins"), request.form.get("premium_locked"),
             media_upload_id=media_upload_id, cover_upload_id=cover_upload_id,
+            media_metadata=media_metadata, cover_metadata=cover_metadata,
         )
         flash("Marketplace item submitted for approval.", "success")
         return redirect("/marketplace/my-items")

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Communication Test</title>
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f0f0f; color: #e0e0e0; padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; }
+h1, h2, h3 { margin-bottom: 12px; }
+.status-bar { display: flex; gap: 16px; padding: 12px; background: #1a1a2e; border-radius: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.status-item { display: flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.green { background: #00ff88; }
+.dot.red { background: #ff4444; }
+.dot.yellow { background: #ffaa00; }
+.card { background: #1a1a2e; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.card h3 { color: #888; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+input, select, button { font-size: 16px; padding: 10px 14px; border-radius: 6px; border: 1px solid #333; background: #0f0f0f; color: #e0e0e0; margin-bottom: 8px; }
+button { background: #3a3a5c; color: white; cursor: pointer; min-height: 44px; min-width: 44px; font-weight: 600; }
+button:hover { background: #5a5a7c; }
+button.primary { background: #0066ff; }
+button.primary:hover { background: #3388ff; }
+button.danger { background: #cc3333; }
+button.danger:hover { background: #ff4444; }
+.flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.flex-col { display: flex; flex-direction: column; gap: 8px; }
+.w-full { width: 100%; }
+.mt-2 { margin-top: 8px; }
+.log { background: #0a0a0a; padding: 12px; border-radius: 6px; max-height: 300px; overflow-y: auto; font-family: "SF Mono", monospace; font-size: 12px; line-height: 1.6; }
+.log-entry { padding: 2px 0; border-bottom: 1px solid #1a1a1a; }
+.log-entry .time { color: #666; }
+.log-entry .ok { color: #00ff88; }
+.log-entry .err { color: #ff4444; }
+.log-entry .info { color: #88ccff; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🔧 Communication Test Panel</h1>
+  <p style="color:#888;margin-bottom:20px;">Logged in as <strong id="profile-display">{{ profile_id }}</strong></p>
+
+  <div class="status-bar">
+    <div class="status-item"><span class="dot" id="socket-dot"></span> Socket: <span id="socket-status">disconnected</span></div>
+    <div class="status-item"><span class="dot" id="redis-dot"></span> Redis: <span id="redis-status">checking...</span></div>
+    <div class="status-item"><span class="dot" id="rooms-dot"></span> Rooms: <span id="room-count">0</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Send Test Message</h3>
+    <div class="flex-col">
+      <input type="text" id="test-thread-id" placeholder="Thread ID" class="w-full">
+      <input type="text" id="test-message-body" placeholder="Message text" class="w-full">
+      <div class="flex">
+        <button class="primary" onclick="sendTestMessage()">Send via Socket</button>
+        <button onclick="sendTestRest()">Send via REST</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Emit Ping to User</h3>
+    <div class="flex">
+      <input type="text" id="ping-profile-id" placeholder="Target Profile ID" style="flex:1">
+      <button onclick="emitPing()">Ping</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Call Test</h3>
+    <div class="flex">
+      <input type="text" id="call-target-id" placeholder="Target Profile ID" style="flex:1">
+      <button class="primary" onclick="testCallStart()">Start Call</button>
+      <button onclick="testCallAccept()">Accept</button>
+      <button class="danger" onclick="testCallEnd()">End</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Notification Test</h3>
+    <div class="flex">
+      <input type="text" id="notif-target-id" placeholder="Target Profile ID" style="flex:1">
+      <button onclick="testNotification()">Send Test Notification</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Event Log</h3>
+    <div class="log" id="event-log">
+      <div class="log-entry"><span class="time">--:--:--</span> <span class="info">Ready. Connect to see events.</span></div>
+    </div>
+  </div>
+</div>
+<script>
+const PROFILE_ID = "{{ profile_id }}";
+let socket = null;
+
+function log(msg, type) {
+  const el = document.getElementById("event-log");
+  const t = new Date().toLocaleTimeString();
+  el.innerHTML = '<div class="log-entry"><span class="time">' + t + '</span> <span class="' + type + '">' + msg + '</span></div>' + el.innerHTML;
+  if (el.children.length > 200) el.lastChild.remove();
+}
+
+function connectSocket() {
+  if (socket && socket.connected) return;
+  socket = io(window.location.origin, {
+    transports: ["websocket", "polling"],
+    reconnection: true,
+    reconnectionDelay: 1000,
+  });
+  const dot = document.getElementById("socket-dot");
+  const status = document.getElementById("socket-status");
+  socket.on("connect", () => {
+    dot.className = "dot green";
+    status.textContent = "connected (" + socket.id + ")";
+    log("Socket connected: " + socket.id, "ok");
+    socket.emit("join_profile", {});
+    socket.emit("presence:heartbeat", {});
+  });
+  socket.on("disconnect", () => {
+    dot.className = "dot red";
+    status.textContent = "disconnected";
+    log("Socket disconnected", "err");
+  });
+  socket.on("connect_error", (err) => {
+    dot.className = "dot red";
+    status.textContent = "error: " + err.message;
+    log("Socket error: " + err.message, "err");
+  });
+  socket.on("message:new", (data) => log("message:new " + JSON.stringify(data).slice(0,200), "info"));
+  socket.on("message:ack", (data) => log("message:ack " + JSON.stringify(data).slice(0,100), "ok"));
+  socket.on("message:seen", (data) => log("message:seen " + JSON.stringify(data).slice(0,100), "info"));
+  socket.on("message:delivered", (data) => log("message:delivered " + JSON.stringify(data).slice(0,100), "ok"));
+  socket.on("notification:new", (data) => log("notification:new " + JSON.stringify(data).slice(0,150), "info"));
+  socket.on("call:incoming", (data) => log("call:incoming " + JSON.stringify(data).slice(0,100), "info"));
+  socket.on("call:accepted", (data) => log("call:accepted " + JSON.stringify(data).slice(0,100), "ok"));
+  socket.on("call:ended", (data) => log("call:ended " + JSON.stringify(data).slice(0,100), "err"));
+  socket.on("socket:recovered", (data) => {
+    log("Rooms recovered: " + JSON.stringify(data.rooms), "ok");
+    document.getElementById("room-count").textContent = (data.rooms || []).length;
+  });
+  socket.on("thread:joined", (data) => log("thread:joined " + JSON.stringify(data), "ok"));
+  socket.on("presence:update", (data) => log("presence:update " + JSON.stringify(data).slice(0,100), "info"));
+  socket.onAny((event, ...args) => {
+    if (!["message:new", "message:ack", "message:seen", "message:delivered", "notification:new", "call:incoming", "call:accepted", "call:ended", "socket:recovered", "thread:joined", "presence:update", "connect", "disconnect", "connect_error"].includes(event)) {
+      log("event:" + event + " " + JSON.stringify(args[0]).slice(0,100), "info");
+    }
+  });
+}
+
+function sendTestMessage() {
+  const threadId = document.getElementById("test-thread-id").value;
+  const body = document.getElementById("test-message-body").value;
+  if (!threadId || !body) { log("thread_id and body required", "err"); return; }
+  if (socket && socket.connected) {
+    socket.emit("message:send", { thread_id: threadId, body: body, client_event_id: "test_" + Date.now() });
+    log("Sent message:send via socket", "info");
+  } else {
+    log("Socket not connected", "err");
+  }
+}
+
+function sendTestRest() {
+  const threadId = document.getElementById("test-thread-id").value;
+  const body = document.getElementById("test-message-body").value;
+  if (!threadId || !body) { log("thread_id and body required", "err"); return; }
+  fetch("/messages/api/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ thread_id: threadId, body: body, client_event_id: "rest_" + Date.now() }),
+  }).then(r => r.json()).then(d => log("REST send: " + JSON.stringify(d).slice(0,200), d.ok ? "ok" : "err"));
+}
+
+function emitPing() {
+  const targetId = document.getElementById("ping-profile-id").value;
+  if (!targetId) { log("Target profile ID required", "err"); return; }
+  if (socket && socket.connected) {
+    socket.emit("call:signal", { target_id: targetId, signal: { type: "ping" }, call_id: "test" });
+    log("Ping sent to " + targetId, "info");
+  }
+}
+
+function testCallStart() {
+  const targetId = document.getElementById("call-target-id").value;
+  if (!targetId) { log("Target profile ID required", "err"); return; }
+  if (socket && socket.connected) {
+    socket.emit("call:start", { receiver_profile_id: targetId, call_type: "audio" });
+    log("call:start sent to " + targetId, "info");
+  }
+}
+
+function testCallAccept() {
+  if (socket && socket.connected) {
+    socket.emit("call:accept", { call_id: "test_call", receiver_profile_id: document.getElementById("call-target-id").value });
+    log("call:accept sent", "info");
+  }
+}
+
+function testCallEnd() {
+  if (socket && socket.connected) {
+    socket.emit("call:end", { call_id: "test_call" });
+    log("call:end sent", "info");
+  }
+}
+
+function testNotification() {
+  const targetId = document.getElementById("notif-target-id").value;
+  if (!targetId) { log("Target profile ID required", "err"); return; }
+  fetch("/notifications/api/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipient_profile_id: targetId, event_type: "test", title: "Test Notification", body: "This is a test notification from dev tools." }),
+  }).then(r => r.json()).then(d => log("Notification test: " + JSON.stringify(d).slice(0,200), d.ok ? "ok" : "err"));
+}
+
+fetch("/system/api/realtime-health").then(r => r.json()).then(d => {
+  const dot = document.getElementById("redis-dot");
+  const status = document.getElementById("redis-status");
+  if (d.redis === "connected") { dot.className = "dot green"; status.textContent = "connected"; }
+  else { dot.className = "dot yellow"; status.textContent = d.redis; }
+  log("Health: socketio=" + d.socketio + " redis=" + d.redis + " online=" + d.online_users, "ok");
+}).catch(() => {
+  document.getElementById("redis-dot").className = "dot red";
+  document.getElementById("redis-status").textContent = "unreachable";
+});
+
+// Auto-connect
+connectSocket();
+</script>
+</body>
+</html>

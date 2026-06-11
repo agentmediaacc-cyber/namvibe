@@ -8,7 +8,7 @@
   --dt-text: #f0f0f5;
   --dt-muted: #8b8b9e;
   --dt-gold: #f7b733;
-  --dt-pink: #ff0050;
+  --dt-primary: #2563eb;
   --dt-cyan: #00f2ea;
   --dt-green: #12b886;
   --dt-blue: #1e88e5;
@@ -26,7 +26,7 @@ body { background: var(--dt-bg); color: var(--dt-text); }
   margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
 }
 .dt-kicker { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dt-muted); margin: 0 0 2px; }
-.dt-title { font-size: 28px; font-weight: 800; margin: 0; background: linear-gradient(135deg, var(--dt-gold), var(--dt-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.dt-title { font-size: 28px; font-weight: 800; margin: 0; background: linear-gradient(135deg, var(--dt-gold), var(--dt-primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .dt-header-right { display: flex; gap: 10px; align-items: center; }
 
 /* Tabs */
@@ -44,7 +44,7 @@ body { background: var(--dt-bg); color: var(--dt-text); }
   min-height: 44px; transition: all 0.15s ease;
 }
 .dt-tab:hover { color: var(--dt-text); background: var(--dt-surface-hover); }
-.dt-tab.is-active { color: #fff; background: linear-gradient(135deg, rgba(255,0,80,0.25), rgba(0,242,234,0.15)); box-shadow: 0 0 20px rgba(255,0,80,0.08); }
+.dt-tab.is-active { color: #fff; background: linear-gradient(135deg, rgba(37, 99, 235,0.25), rgba(0,242,234,0.15)); box-shadow: 0 0 20px rgba(37, 99, 235,0.08); }
 
 /* Panels */
 .dt-panel { display: none; }
@@ -60,7 +60,7 @@ body { background: var(--dt-bg); color: var(--dt-text); }
 .dt-card-photo { width: 100%; height: 65%; background-size: cover; background-position: center; position: relative; }
 .dt-card-photo .dt-compat-badge {
   position: absolute; top: 16px; right: 16px;
-  background: linear-gradient(135deg, var(--dt-pink), var(--dt-cyan)); color: #fff;
+  background: linear-gradient(135deg, var(--dt-primary), var(--dt-cyan)); color: #fff;
   padding: 6px 14px; border-radius: 50px; font-size: 12px; font-weight: 800;
 }
 .dt-card-photo .dt-verified-badge {
@@ -118,7 +118,7 @@ body { background: var(--dt-bg); color: var(--dt-text); }
   padding: 12px 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
   min-height: 44px; transition: all 0.15s;
 }
-.dt-btn-primary { background: linear-gradient(135deg, var(--dt-pink), var(--dt-cyan)); color: #fff; }
+.dt-btn-primary { background: linear-gradient(135deg, var(--dt-primary), var(--dt-cyan)); color: #fff; }
 .dt-btn-primary:hover { opacity: 0.85; }
 .dt-btn-ghost { background: var(--dt-surface); color: var(--dt-text); border: 1px solid var(--dt-border); }
 .dt-btn-ghost:hover { background: var(--dt-surface-hover); }
@@ -174,7 +174,7 @@ select.dt-input { appearance: auto; }
 
 /* Badge */
 .dt-badge-sm {
-  background: var(--dt-pink); color: #fff; font-size: 10px; border-radius: 50%;
+  background: var(--dt-primary); color: #fff; font-size: 10px; border-radius: 50%;
   width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
 }
 
@@ -187,8 +187,8 @@ select.dt-input { appearance: auto; }
   background: var(--dt-surface); border: 1px solid var(--dt-border);
   border-radius: 24px; padding: 40px; text-align: center; max-width: 400px; width: 90%;
 }
-.dt-match-icon { font-size: 64px; color: var(--dt-pink); margin-bottom: 16px; }
-.dt-match-modal h2 { font-size: 32px; font-weight: 800; margin: 0 0 8px; background: linear-gradient(135deg, var(--dt-pink), var(--dt-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.dt-match-icon { font-size: 64px; color: var(--dt-primary); margin-bottom: 16px; }
+.dt-match-modal h2 { font-size: 32px; font-weight: 800; margin: 0 0 8px; background: linear-gradient(135deg, var(--dt-primary), var(--dt-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .dt-match-modal p { color: var(--dt-muted); margin: 0 0 24px; }
 .dt-match-actions { display: flex; flex-direction: column; gap: 10px; }
 

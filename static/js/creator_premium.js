@@ -94,8 +94,8 @@
         '<div class="cr-card-value">' + formatCoins(earnings.total_cents) + ' <small>NAD</small></div>' +
         '<div class="cr-card-sub"><i class="fas fa-arrow-up" style="color:var(--cr-green)"></i> Lifetime revenue</div>' +
       '</div>' +
-      '<div class="cr-card cr-card-accent cr-card-pink">' +
-        '<div class="cr-card-label"><i class="fas fa-broadcast-tower" style="color:var(--cr-pink)"></i>Live Earnings</div>' +
+      '<div class="cr-card cr-card-accent cr-card-primary">' +
+        '<div class="cr-card-label"><i class="fas fa-broadcast-tower" style="color:var(--cr-primary)"></i>Live Earnings</div>' +
         '<div class="cr-card-value">' + formatCoins(live.earnings_cents) + ' <small>NAD</small></div>' +
         '<div class="cr-card-sub">' + esc(s.total_followers || '0') + ' followers</div>' +
       '</div>' +
@@ -136,7 +136,7 @@
     var breakdown = (S.stats.earnings || {}).breakdown || {};
     container.innerHTML =
       '<div class="cr-stat-row"><span><i class="fas fa-users cr-coin-icon"></i> Subscriptions</span><span>' + formatCoins(breakdown.subscriptions || 0) + ' NAD</span></div>' +
-      '<div class="cr-stat-row"><span><i class="fas fa-gift" style="color:var(--cr-pink)"></i> Gifts</span><span>' + formatCoins(breakdown.gifts || 0) + ' NAD</span></div>' +
+      '<div class="cr-stat-row"><span><i class="fas fa-gift" style="color:var(--cr-primary)"></i> Gifts</span><span>' + formatCoins(breakdown.gifts || 0) + ' NAD</span></div>' +
       '<div class="cr-stat-row"><span><i class="fas fa-hand-holding-heart" style="color:var(--cr-cyan)"></i> Tips</span><span>' + formatCoins(breakdown.tips || 0) + ' NAD</span></div>' +
       '<div class="cr-stat-row"><span><i class="fas fa-file-alt" style="color:var(--cr-gold)"></i> Paid Content</span><span>' + formatCoins(breakdown.content_purchase || 0) + ' NAD</span></div>';
   }

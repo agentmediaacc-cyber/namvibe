@@ -2,6 +2,7 @@ from services.profile_service import get_current_profile, get_public_profiles
 from engines.matching_engine import calculate_profile_score
 from utils.supabase_client import get_supabase_admin
 from services.notification_service import create_notification
+from services.homepage_real_data_guard import is_test_profile
 
 
 def get_discover_profiles(limit=24):
@@ -32,6 +33,8 @@ def get_discover_profiles(limit=24):
 
         profiles = []
         for p in res.data or []:
+            if is_test_profile(p):
+                continue
             if p["id"] not in excluded:
                 p["match_score"] = calculate_profile_score(current, p)
                 profiles.append(p)

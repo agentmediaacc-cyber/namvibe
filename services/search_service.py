@@ -1,5 +1,6 @@
 from services.neon_service import fast_query
 from services.content_service import local_content, search_hashtags
+from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, public_profile_sql, public_profile_subquery
 
 
 def _like(q):
@@ -98,7 +99,7 @@ def get_trending_searches(limit=5):
 def get_suggested_searches(limit=5):
     """Returns suggested searches based on popular creators and hashtags"""
     # Placeholder for real suggestion logic
-    sql = "SELECT username as query FROM chain_profiles WHERE is_creator = TRUE AND is_verified = TRUE ORDER BY followers_count DESC LIMIT %s"
+    sql = f"SELECT username as query FROM chain_profiles WHERE is_creator = TRUE AND is_verified = TRUE AND {public_profile_sql('chain_profiles')} ORDER BY followers_count DESC LIMIT %s"
     return fast_query(sql, (limit,))
 
 def smart_search(query, profile_id=None, limit=20):
@@ -138,10 +139,12 @@ def smart_search(query, profile_id=None, limit=20):
     }
 
     profiles = fast_query(
-        """
+        f"""
         SELECT id, username, full_name, display_name, avatar_url, bio, current_location
         FROM chain_profiles
         WHERE deleted_at IS NULL
+        AND COALESCE(is_public, TRUE) = TRUE
+        AND {public_profile_sql("chain_profiles")}
         AND (username ILIKE %s OR full_name ILIKE %s OR display_name ILIKE %s OR current_location ILIKE %s)
         ORDER BY created_at DESC NULLS LAST LIMIT %s
         """,
@@ -150,10 +153,11 @@ def smart_search(query, profile_id=None, limit=20):
         default=[],
     )
     posts = fast_query(
-        """
+        f"""
         SELECT id, profile_id, body, caption, media_url, video_url, link_url, town_tag, created_at
         FROM chain_posts
         WHERE deleted_at IS NULL AND visibility = 'public'
+        AND profile_id IN ({public_profile_subquery()})
         AND (caption ILIKE %s OR body ILIKE %s OR town_tag ILIKE %s)
         ORDER BY created_at DESC NULLS LAST LIMIT %s
         """,
@@ -173,10 +177,11 @@ def smart_search(query, profile_id=None, limit=20):
         default=[],
     )
     reels = fast_query(
-        """
+        f"""
         SELECT id, profile_id, caption, video_url, media_url, music_title, created_at
         FROM chain_reels
         WHERE deleted_at IS NULL AND visibility = 'public'
+        AND profile_id IN ({public_profile_subquery()})
         AND (caption ILIKE %s OR music_title ILIKE %s)
         ORDER BY created_at DESC NULLS LAST LIMIT %s
         """,
@@ -185,13 +190,13 @@ def smart_search(query, profile_id=None, limit=20):
         default=[],
     )
     local_profiles, local_posts, local_reels = _local_search(q, limit)
-    results["profiles"] = profiles or local_profiles
+    results["profiles"] = filter_profiles(profiles or local_profiles)
     results["posts"] = [
         {**post, "excerpt": (post.get("caption") or post.get("body") or "")[:180]}
-        for post in (posts or local_posts)
+        for post in filter_feed_posts(posts or local_posts)
     ]
     results["live_rooms"] = live_rooms
-    results["reels"] = reels or local_reels
+    results["reels"] = filter_feed_posts(reels or local_reels)
     results["hashtags"] = search_hashtags(q)
     results["total_results"] = sum(len(results[key]) for key in ("profiles", "live_rooms", "posts", "hashtags", "reels"))
     

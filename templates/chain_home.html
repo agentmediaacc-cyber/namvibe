@@ -77,7 +77,7 @@
                 {% if current.avatar_url %}
                 <img src="{{ current.avatar_url }}" alt="Profile">
                 {% else %}
-                <span>{{ (current.full_name or current.username or 'P')[:1] }}</span>
+                <span class="gen-avatar">{{ (current.full_name or current.username or 'P')[:1] }}</span>
                 {% endif %}
             </a>
             {% else %}
@@ -92,7 +92,7 @@
     <div class="chain-home__drawer-backdrop" data-drawer-close hidden></div>
     <aside id="chain-home-drawer" class="chain-home__drawer" aria-hidden="true">
         <div class="chain-home__drawer-head">
-            <strong>CHAIN</strong>
+            <strong>Menu</strong>
             <button type="button" class="chain-home__drawer-close" data-drawer-close aria-label="Close menu">
                 <i class="fas fa-times"></i>
             </button>
@@ -177,7 +177,7 @@
                             {% if is_logged_in and current.avatar_url %}
                             <img src="{{ current.avatar_url }}" alt="Your avatar">
                             {% else %}
-                            <span>{{ (current.full_name or current.username or 'C')[:1] if is_logged_in else 'C' }}</span>
+                            <span class="gen-avatar">{{ (current.full_name or current.username or 'C')[:1] if is_logged_in else 'C' }}</span>
                             {% endif %}
                         </div>
                         <div class="composer-placeholder" onclick="location.href='{{ composer_fallback }}'">
@@ -201,7 +201,7 @@
                                 {% if current.avatar_url %}
                                 <img src="{{ current.avatar_url }}" alt="Your Story">
                                 {% else %}
-                                <span>{{ (current.full_name or current.username or 'Y')[:1] }}</span>
+                                <span class="gen-avatar">{{ (current.full_name or current.username or 'Y')[:1] }}</span>
                                 {% endif %}
                             </div>
                             <span class="story-create-icon"><i class="fas fa-plus"></i></span>
@@ -217,7 +217,7 @@
                                 {% if story.avatar_url %}
                                 <img src="{{ story.avatar_url }}" alt="{{ story.display_name }}">
                                 {% else %}
-                                <span>{{ (story.display_name or '?')[:1] }}</span>
+                                <span class="gen-avatar">{{ (story.display_name or '?')[:1] }}</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -229,7 +229,7 @@
                     {% if story_available %}
                     <a href="{{ story_create }}" class="story-card">
                         <div class="story-ring">
-                            <div class="story-ring-inner"><span>C</span></div>
+                            <div class="story-ring-inner"><span class="gen-avatar">C</span></div>
                             <span class="story-create-icon"><i class="fas fa-plus"></i></span>
                         </div>
                         <span class="story-card-name">Create</span>
@@ -242,7 +242,7 @@
                 {% if reels or live_rooms %}
                 <div class="reels-strip">
                     {% for reel in reels[:5] %}
-                    <a href="{{ reel_route }}" class="reel-thumb">
+                    <a href="{{ reel_route }}" class="reel-thumb reel-card">
                         {% if reel.video_url or reel.media_url %}
                         <video src="{{ reel.video_url or reel.media_url }}" muted playsinline preload="metadata"></video>
                         {% else %}
@@ -251,7 +251,7 @@
                     </a>
                     {% endfor %}
                     {% for room in live_rooms[:3] %}
-                    <a href="{{ room.watch_url }}" class="reel-thumb">
+                    <a href="{{ room.watch_url }}" class="reel-thumb live-card">
                         <span class="live-badge">LIVE</span>
                         {% if room.cover_url %}
                         <img src="{{ room.cover_url }}" alt="{{ room.title }}">
@@ -286,7 +286,7 @@
                             {% if post.avatar_url %}
                             <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
                             {% else %}
-                            <span>{{ (post.display_name or '?')[:1] }}</span>
+                            <span class="gen-avatar">{{ (post.display_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
                         <div class="post-author-info">
@@ -301,7 +301,7 @@
                         <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
                     </div>
                     <div class="post-body">
-                        <div class="post-text">{{ post.excerpt|hashtag_links|safe }}</div>
+                        <div class="post-text post-caption">{{ post.excerpt|hashtag_links|safe }}</div>
                     </div>
                     {% if post.media_url %}
                     <div class="post-media">
@@ -335,7 +335,7 @@
                             {% if post.avatar_url %}
                             <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
                             {% else %}
-                            <span>{{ (post.display_name or '?')[:1] }}</span>
+                            <span class="gen-avatar">{{ (post.display_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
                         <div class="post-author-info">
@@ -350,7 +350,7 @@
                         <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
                     </div>
                     <div class="post-body">
-                        <div class="post-text">{{ post.excerpt|hashtag_links|safe }}</div>
+                        <div class="post-text post-caption">{{ post.excerpt|hashtag_links|safe }}</div>
                     </div>
                     {% if post.media_url %}
                     <div class="post-media">
@@ -395,7 +395,7 @@
                             {% if post.avatar_url %}
                             <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
                             {% else %}
-                            <span>{{ (post.display_name or '?')[:1] }}</span>
+                            <span class="gen-avatar">{{ (post.display_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
                         <div class="post-author-info">
@@ -404,13 +404,13 @@
                                 {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
                                 <span class="post-content-label sponsored">Sponsored</span>
                             </div>
-                            <div class="post-author-username">@{{ post.username or 'partner' }}</div>
+                            <div class="post-author-username">@{{ post.username or 'sponsored' }}</div>
                             <div class="post-time-location"><i class="far fa-clock"></i> {{ post.created_label }}</div>
                         </div>
                         <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
                     </div>
                     <div class="post-body">
-                        <div class="post-text">{{ post.excerpt|hashtag_links|safe }}</div>
+                        <div class="post-text post-caption">{{ post.excerpt|hashtag_links|safe }}</div>
                     </div>
                     {% if post.media_url %}
                     <div class="post-media">
@@ -440,7 +440,7 @@
                 {% for ann in announcements %}
                 <article class="post-card-premium">
                     <div class="post-header">
-                        <div class="post-avatar" style="background: linear-gradient(135deg, #7c3aed, #2563eb);"><span>A</span></div>
+                        <div><span class="gen-avatar" style="background: linear-gradient(135deg, #7c3aed, #2563eb);">A</span></div>
                         <div class="post-author-info">
                             <div class="post-author-name">
                                 {{ ann.title }}
@@ -450,7 +450,7 @@
                         </div>
                     </div>
                     <div class="post-body">
-                        <div class="post-text">{{ ann.body }}</div>
+                        <div class="post-text post-caption">{{ ann.body }}</div>
                     </div>
                 </article>
                 {% endfor %}
@@ -468,7 +468,7 @@
                             {% if is_logged_in and current.avatar_url %}
                             <img src="{{ current.avatar_url }}" alt="Profile">
                             {% else %}
-                            <span>{{ (current.full_name or current.username or 'P')[:1] if is_logged_in else 'J' }}</span>
+                            <span class="gen-avatar">{{ (current.full_name or current.username or 'P')[:1] if is_logged_in else 'J' }}</span>
                             {% endif %}
                         </div>
                         <div class="suggested-info">
@@ -490,7 +490,7 @@
                             {% if profile.avatar_url %}
                             <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
                             {% else %}
-                            <span>{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
+                            <span class="gen-avatar">{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
                         <div class="suggested-info">
@@ -520,7 +520,7 @@
                             {% if profile.avatar_url %}
                             <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
                             {% else %}
-                            <span>{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
+                            <span class="gen-avatar gen-avatar-sm">{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
                         <div class="suggested-info">
@@ -539,18 +539,6 @@
                 </div>
                 {% endif %}
 
-                <!-- Platform Ad / Promotion -->
-                <div class="ad-card">
-                    <div class="ad-card-sponsored">
-                        <span>Sponsored</span>
-                        <button type="button" class="ad-card-dismiss" aria-label="Dismiss"><i class="fas fa-times"></i></button>
-                    </div>
-                    <div class="ad-card-image"><i class="fas fa-bolt"></i></div>
-                    <div class="ad-card-title">CHAIN Premium</div>
-                    <div class="ad-card-body">Go premium — unlock live streaming, wallet tipping, and creator tools. Build your audience today.</div>
-                    <a href="{{ drawer_wallet }}" class="ad-card-cta">Learn More</a>
-                </div>
-
                 <!-- Live Rooms -->
                 {% if live_rooms %}
                 <div class="rail-section">
@@ -559,12 +547,12 @@
                         <a href="{{ live_route }}">Watch</a>
                     </div>
                     {% for room in live_rooms[:3] %}
-                    <a href="{{ room.watch_url }}" class="suggested-card" style="text-decoration:none;color:inherit;">
+                    <a href="{{ room.watch_url }}" class="suggested-card live-card" style="text-decoration:none;color:inherit;">
                         <div class="suggested-avatar">
                             {% if room.creator_avatar %}
                             <img src="{{ room.creator_avatar }}" alt="{{ room.creator_name }}">
                             {% else %}
-                            <span>{{ (room.creator_name or '?')[:1] }}</span>
+                            <span class="gen-avatar gen-avatar-sm">{{ (room.creator_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
                         <div class="suggested-info">
@@ -574,7 +562,7 @@
                                 {% if room.category %} &middot; {{ room.category }}{% endif %}
                             </div>
                         </div>
-                        <span style="padding:2px 8px;background:var(--hp-pink);color:white;font-size:10px;font-weight:700;border-radius:4px;text-transform:uppercase;flex-shrink:0;">LIVE</span>
+                        <span style="padding:2px 8px;background:var(--hp-primary);color:white;font-size:10px;font-weight:700;border-radius:4px;text-transform:uppercase;flex-shrink:0;">LIVE</span>
                     </a>
                     {% endfor %}
                 </div>
@@ -592,7 +580,7 @@
                             {% if profile.avatar_url %}
                             <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
                             {% else %}
-                            <span>{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
+                            <span class="gen-avatar gen-avatar-sm">{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
                             {% endif %}
                         </div>
                         <div class="suggested-info">

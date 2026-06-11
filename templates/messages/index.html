@@ -22,7 +22,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     height:100vh;
     display:grid;
     grid-template-columns:390px 1fr;
-    background:radial-gradient(circle at top left,rgba(255,0,80,.25),transparent 35%),
+    background:radial-gradient(circle at top left,rgba(37, 99, 235,.25),transparent 35%),
                radial-gradient(circle at top right,rgba(0,242,234,.20),transparent 35%),#050505;
     color:white;
 }
@@ -46,7 +46,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 .hamburger,.icon-btn{width:44px;height:44px;border-radius:15px}
 .chain-msg-logo{
     width:42px;height:42px;border-radius:15px;display:grid;place-items:center;
-    font-weight:950;background:linear-gradient(135deg,#ff0050,#00f2ea);color:#050505
+    font-weight:950;background:linear-gradient(135deg,#2563eb,#00f2ea);color:#050505
 }
 .chain-msg-brand h1{margin:0;font-size:22px}
 .chain-msg-brand span{font-size:12px;color:#bdbdbd}
@@ -61,7 +61,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     color:#cfcfcf;text-decoration:none;border:0;padding:9px 13px;background:rgba(255,255,255,.08);
     border-radius:999px;font-size:13px;font-weight:900;white-space:nowrap;cursor:pointer
 }
-.msg-tabs .active{color:#050505;background:linear-gradient(135deg,#00f2ea,#ff0050)}
+.msg-tabs .active{color:#050505;background:linear-gradient(135deg,#00f2ea,#2563eb)}
 .thread-list{overflow:auto;flex:1;padding:8px}
 .thread-card{
     display:flex;gap:12px;padding:13px;border-radius:22px;color:white;text-decoration:none;
@@ -69,7 +69,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 }
 .thread-card:hover,.thread-card.active{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.12)}
 .thread-avatar{
-    width:54px;height:54px;border-radius:20px;background:linear-gradient(135deg,#ff0050,#00f2ea);
+    width:54px;height:54px;border-radius:20px;background:linear-gradient(135deg,#2563eb,#00f2ea);
     display:grid;place-items:center;overflow:hidden;flex-shrink:0;position:relative;
 }
 .thread-avatar img{width:100%;height:100%;object-fit:cover}
@@ -80,8 +80,8 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 .thread-preview{margin-top:5px;color:#bdbdbd;font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .thread-meta{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
 .thread-pill{font-size:10px;font-weight:950;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.1);color:#ddd}
-.thread-pill.live{background:#ff0050;color:white}
-.thread-draft-indicator{color:#ff0050;font-size:11px;font-weight:900;margin-left:6px;display:none}
+.thread-pill.live{background:#2563eb;color:white}
+.thread-draft-indicator{color:#2563eb;font-size:11px;font-weight:900;margin-left:6px;display:none}
 .thread-online-dot{
     position:absolute;bottom:2px;right:2px;width:14px;height:14px;
     border-radius:50%;border:2px solid #050505;display:none;
@@ -95,7 +95,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     border-bottom:1px solid rgba(255,255,255,.1);background:rgba(5,5,5,.72);backdrop-filter:blur(18px)
 }
 .chat-user{display:flex;align-items:center;gap:12px;min-width:0;cursor:pointer}
-.chat-user-avatar{width:50px;height:50px;border-radius:18px;background:linear-gradient(135deg,#00f2ea,#ff0050);display:grid;place-items:center;position:relative;flex-shrink:0}
+.chat-user-avatar{width:50px;height:50px;border-radius:18px;background:linear-gradient(135deg,#00f2ea,#2563eb);display:grid;place-items:center;position:relative;flex-shrink:0}
 .chat-user h2{margin:0;font-size:19px}
 .chat-user p{margin:3px 0 0;color:#aaa;font-size:12px}
 .chat-online-dot{
@@ -107,17 +107,17 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 .chat-actions{display:flex;gap:9px;flex-wrap:wrap}
 .action-circle{width:43px;height:43px;border-radius:50%}
 .action-circle.call{background:rgba(0,242,234,.18)}
-.action-circle.video{background:rgba(255,0,80,.2)}
+.action-circle.video{background:rgba(37, 99, 235,.2)}
 .messages-area{flex:1;overflow:auto;padding:22px}
 .chat-empty{height:100%;display:grid;place-items:center;text-align:center}
 .empty-phone{
-    width:120px;height:120px;border-radius:38px;background:linear-gradient(135deg,#ff0050,#00f2ea);
+    width:120px;height:120px;border-radius:38px;background:linear-gradient(135deg,#2563eb,#00f2ea);
     display:grid;place-items:center;font-size:48px;margin:0 auto 22px;color:#050505
 }
 .chat-empty h3{font-size:34px;margin:0 0 8px}
 .chat-empty p{margin:0 auto 20px;color:#bdbdbd;max-width:520px}
 .bubble{max-width:70%;padding:13px 15px;border-radius:22px;margin:8px 0;background:rgba(255,255,255,.11);position:relative}
-.bubble.me{margin-left:auto;background:linear-gradient(135deg,#ff0050,#9333ea)}
+.bubble.me{margin-left:auto;background:linear-gradient(135deg,#2563eb,#9333ea)}
 .bubble .sender{font-size:12px;font-weight:950;color:#00f2ea;margin-bottom:5px}
 .bubble .delete-msg{position:absolute;right:8px;top:6px;border:0;background:transparent;color:white;opacity:.7;cursor:pointer}
 .composer{padding:14px;display:flex;gap:10px;border-top:1px solid rgba(255,255,255,.1)}
@@ -130,7 +130,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     font-weight:950;cursor:pointer;text-decoration:none;transition:.18s ease;
 }
 .premium-btn:hover{background:rgba(255,255,255,.2)}
-.premium-btn.primary{background:linear-gradient(135deg,#ff0050,#00f2ea);color:#050505}
+.premium-btn.primary{background:linear-gradient(135deg,#2563eb,#00f2ea);color:#050505}
 .premium-btn.danger{background:#ef4444;color:white}
 .modal,.drawer{position:fixed;inset:0;display:none;z-index:2000}
 .modal.active,.drawer.active{display:block}
@@ -139,7 +139,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     position:absolute;left:0;top:0;bottom:0;width:315px;background:#090909;border-right:1px solid rgba(255,255,255,.1);padding:18px;overflow-y:auto
 }
 .drawer-link{display:flex;gap:12px;align-items:center;color:white;text-decoration:none;padding:13px;border-radius:16px;background:rgba(255,255,255,.06);margin-bottom:8px;font-weight:900;transition:.18s ease}
-.drawer-link:hover{background:linear-gradient(135deg,rgba(255,0,80,.35),rgba(0,242,234,.25))}
+.drawer-link:hover{background:linear-gradient(135deg,rgba(37, 99, 235,.35),rgba(0,242,234,.25))}
 .modal-card{
     position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(620px,92vw);
     background:#0a0a0a;border:1px solid rgba(255,255,255,.12);border-radius:28px;padding:20px;color:white;max-height:80vh;overflow-y:auto
@@ -173,11 +173,11 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 }
 .call-log-card.phase41:hover{
     background:rgba(255,255,255,.15);
-    border-color:#ff0050;
+    border-color:#2563eb;
 }
 .call-log-card.phase41 .clc-avatar{
     width:40px;height:40px;border-radius:12px;
-    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    background:linear-gradient(135deg,#2563eb,#00f2ea);
     display:flex;align-items:center;justify-content:center;
     color:#fff;font-size:16px;flex-shrink:0;
 }
@@ -193,7 +193,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
     font-size:13px;transition:all .15s;
 }
-.call-log-card.phase41 .clc-callback{background:linear-gradient(135deg,#ff0050,#00f2ea);color:#fff}
+.call-log-card.phase41 .clc-callback{background:linear-gradient(135deg,#2563eb,#00f2ea);color:#fff}
 .call-log-card.phase41 .clc-callback:hover{transform:scale(1.1)}
 /* Phase 41: Participant Chips */
 .participant-chips{
@@ -208,7 +208,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 }
 .participant-chip .pc-avatar{
     width:24px;height:24px;border-radius:50%;
-    background:linear-gradient(135deg,#ff0050,#00f2ea);
+    background:linear-gradient(135deg,#2563eb,#00f2ea);
     color:#fff;display:flex;align-items:center;justify-content:center;
     font-size:10px;font-weight:700;flex-shrink:0;
 }
@@ -219,11 +219,11 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 .call-history-section{padding:12px;border-top:1px solid rgba(255,255,255,.1)}
 .call-history-section h3{font-size:13px;color:#aaa;margin:0 0 8px;display:flex;align-items:center;gap:6px}
 .call-screen{
-    position:fixed;inset:0;background:radial-gradient(circle at top,#ff0050,#050505 55%);z-index:3000;
+    position:fixed;inset:0;background:radial-gradient(circle at top,#2563eb,#050505 55%);z-index:3000;
     display:none;align-items:center;justify-content:center;color:white;text-align:center
 }
 .call-screen.active{display:flex}
-.call-avatar{width:130px;height:130px;border-radius:42px;background:linear-gradient(135deg,#00f2ea,#ff0050);display:grid;place-items:center;font-size:56px;margin:0 auto 20px;color:#050505}
+.call-avatar{width:130px;height:130px;border-radius:42px;background:linear-gradient(135deg,#00f2ea,#2563eb);display:grid;place-items:center;font-size:56px;margin:0 auto 20px;color:#050505}
 .ring-pulse{animation:pulse 1.2s infinite}
 @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
 @keyframes timeoutShrink{from{width:100%}to{width:0%}}
@@ -236,7 +236,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 /* Pinned Message Bar */
 .pinned-bar{
     display:none;align-items:center;gap:12px;padding:10px 18px;
-    background:rgba(255,0,80,.12);border-bottom:1px solid rgba(255,255,255,.08);
+    background:rgba(37, 99, 235,.12);border-bottom:1px solid rgba(255,255,255,.08);
     font-size:13px;cursor:pointer;transition:.18s ease;
 }
 .pinned-bar.active{display:flex}
@@ -265,15 +265,15 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;
     background:rgba(255,255,255,.06);margin-bottom:8px;cursor:pointer;transition:.18s ease;
 }
-.forward-contact:hover,.forward-contact.selected{background:rgba(255,0,80,.2);border:1px solid rgba(255,0,80,.3)}
-.forward-contact-avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#ff0050,#00f2ea);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.forward-contact:hover,.forward-contact.selected{background:rgba(37, 99, 235,.2);border:1px solid rgba(37, 99, 235,.3)}
+.forward-contact-avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#00f2ea);display:grid;place-items:center;overflow:hidden;flex-shrink:0}
 .forward-contact-avatar img{width:100%;height:100%;object-fit:cover}
 .forward-contact-info{flex:1;min-width:0}
 .forward-contact-name{font-weight:950;font-size:14px}
 .forward-contact-preview{color:#aaa;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .friend-card{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:rgba(255,255,255,.06);margin-bottom:6px;cursor:default;transition:.18s ease;border:1px solid transparent}
 .friend-card:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.12)}
-.friend-card-avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#ff0050,#00f2ea);display:grid;place-items:center;overflow:hidden;flex-shrink:0;position:relative}
+.friend-card-avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#2563eb,#00f2ea);display:grid;place-items:center;overflow:hidden;flex-shrink:0;position:relative}
 .friend-card-avatar img{width:100%;height:100%;object-fit:cover}
 .friend-online-dot{position:absolute;bottom:1px;right:1px;width:12px;height:12px;border-radius:50%;border:2px solid #0a0a0a;z-index:1}
 .friend-online-dot.online{background:#34c759}
@@ -284,7 +284,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 .friend-card-btn{width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:white;cursor:pointer;font-size:14px;display:grid;place-items:center;transition:.18s ease}
 .friend-card-btn:hover{background:rgba(255,255,255,.2)}
 .friend-card-btn.msg:hover{background:rgba(0,242,234,.3);color:#00f2ea}
-.friend-card-btn.call:hover{background:rgba(255,0,80,.3);color:#ff0050}
+.friend-card-btn.call:hover{background:rgba(37, 99, 235,.3);color:#2563eb}
 
 /* Shared Media Drawer */
 .shared-drawer{
@@ -303,7 +303,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     border:0;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.08);
     color:#cfcfcf;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap;transition:.18s ease;
 }
-.shared-tab.active{background:linear-gradient(135deg,#00f2ea,#ff0050);color:#050505}
+.shared-tab.active{background:linear-gradient(135deg,#00f2ea,#2563eb);color:#050505}
 .shared-content{flex:1;overflow:auto;padding:16px}
 .shared-empty{text-align:center;padding:40px 20px;color:#aaa}
 .shared-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -317,7 +317,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.08);
 }
 .reply-preview.active{display:flex}
-.reply-preview-bar{width:4px;border-radius:99px;background:linear-gradient(180deg,#00f2ea,#ff0050);height:32px;flex-shrink:0}
+.reply-preview-bar{width:4px;border-radius:99px;background:linear-gradient(180deg,#00f2ea,#2563eb);height:32px;flex-shrink:0}
 .reply-preview-content{flex:1;min-width:0}
 .reply-preview-sender{font-size:12px;font-weight:900;color:#00f2ea}
 .reply-preview-text{font-size:13px;color:#aaa;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -355,7 +355,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     border:0;width:38px;height:38px;border-radius:50%;color:white;cursor:pointer;display:grid;place-items:center;flex-shrink:0;
 }
 .voice-delete{background:#ef4444;}
-.voice-send{background:linear-gradient(135deg,#00f2ea,#ff0050);color:#050505!important;}
+.voice-send{background:linear-gradient(135deg,#00f2ea,#2563eb);color:#050505!important;}
 .recording-dot{
     width:10px;height:10px;border-radius:50%;background:white;animation:pulse 1s infinite;
 }
@@ -398,7 +398,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 }
 .attach-item:hover{background:rgba(255,255,255,.18)}
 .attach-item i{display:block;font-size:22px;margin-bottom:7px;color:#00f2ea}
-.attach-item.photo i{color:#ff0050}
+.attach-item.photo i{color:#2563eb}
 .attach-item.document i{color:#7c3aed}
 .attach-item.gif i{color:#ff9800}
 
@@ -416,7 +416,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     border:0;padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.08);
     color:#cfcfcf;font-size:12px;font-weight:900;cursor:pointer;transition:.18s ease;
 }
-.sticker-gif-tab.active{background:linear-gradient(135deg,#00f2ea,#ff0050);color:#050505}
+.sticker-gif-tab.active{background:linear-gradient(135deg,#00f2ea,#2563eb);color:#050505}
 .sticker-gif-content{overflow:auto;flex:1;padding:12px}
 .sticker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .sticker-item{
@@ -903,7 +903,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
                     const dur = l.duration_seconds ? Math.floor(l.duration_seconds / 60) + 'm ' + (l.duration_seconds % 60) + 's' : '';
                     return `<div class="call-log-card">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#ff0050,#00f2ea);display:grid;place-items:center;flex-shrink:0;">
+                            <div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#00f2ea);display:grid;place-items:center;flex-shrink:0;">
                                 <i class="fas ${icon}" style="color:#050505;"></i>
                             </div>
                             <div>
@@ -1870,7 +1870,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
             if(!badge){
                 badge = document.createElement('span');
                 badge.className = 'thread-unread-badge';
-                badge.style.cssText = 'margin-left:6px;background:#ff0050;color:white;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:950;flex-shrink:0;';
+                badge.style.cssText = 'margin-left:6px;background:#2563eb;color:white;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:950;flex-shrink:0;';
                 card.querySelector('.thread-line')?.appendChild(badge);
             }
             badge.textContent = count > 99 ? '99+' : count;
@@ -1887,7 +1887,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
             if(!badge){
                 badge = document.createElement('span');
                 badge.id = 'messageUnreadBadge';
-                badge.style.cssText = 'margin-left:6px;background:#ff0050;color:white;border-radius:999px;padding:3px 7px;font-size:11px;font-weight:950;';
+                badge.style.cssText = 'margin-left:6px;background:#2563eb;color:white;border-radius:999px;padding:3px 7px;font-size:11px;font-weight:950;';
                 document.querySelector('.chain-msg-brand h1')?.appendChild(badge);
             }
             const total = json.unread || 0;

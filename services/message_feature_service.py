@@ -149,6 +149,27 @@ def send_text_message(thread_id, sender_profile_id, body, **meta):
         }
         _MESSAGES.setdefault(thread_id, []).append(message)
     emit_to_thread(thread_id, "message:new", message)
+    # Create notifications for non-sender members
+    try:
+        member_rows = _safe_query(
+            "SELECT tm.profile_id, tm.muted FROM chain_thread_members tm WHERE tm.thread_id = %s AND tm.profile_id != %s AND tm.deleted_at IS NULL",
+            (thread_id, sender_profile_id), default=[],
+        )
+        for member in member_rows:
+            if member.get("muted"):
+                continue
+            recipient_id = str(member["profile_id"])
+            from services.notification_engine import create_notification
+            create_notification(
+                recipient_profile_id=recipient_id,
+                actor_profile_id=sender_profile_id,
+                event_type="new_message",
+                title="New Message",
+                body=(body[:50] if body else "Sent a message"),
+                action_url=f"/messages/thread/{thread_id}",
+            )
+    except Exception:
+        pass
     return {"ok": True, "message": message, "message_id": message_id}
 
 

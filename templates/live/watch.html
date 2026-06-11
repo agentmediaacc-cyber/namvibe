@@ -50,7 +50,7 @@ button { font-family: inherit; }
   padding: 48px;
   text-align: center;
   background:
-    radial-gradient(circle at center, rgba(255,47,125,.18), transparent 35%),
+    radial-gradient(circle at center, rgba(37, 99, 235,.18), transparent 35%),
     linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.01));
 }
 .chain-disc {
@@ -62,7 +62,7 @@ button { font-family: inherit; }
   place-items: center;
   font-weight: 900;
   letter-spacing: .14em;
-  background: conic-gradient(#ff2f7d, #7c3aed, #00d4ff, #ff2f7d);
+  background: conic-gradient(#2563eb, #7c3aed, #00d4ff, #2563eb);
   color: #fff;
   box-shadow: 0 0 60px rgba(124,58,237,.4);
   animation: discSpin 6s linear infinite;
@@ -106,7 +106,7 @@ button { font-family: inherit; }
 .pill strong { font-size: 14px; }
 .pill small { display: block; color: #9ea0b9; font-size: 11px; }
 .live-badge-pill {
-  background: #ff2f7d;
+  background: #2563eb;
   color: #fff;
   font-size: 12px;
   font-weight: 900;
@@ -300,7 +300,7 @@ button { font-family: inherit; }
 .leaderboard-amount {
   font-size: 13px;
   font-weight: 800;
-  color: #ff2f7d;
+  color: #2563eb;
 }
 
 /* ─── Chat ─── */
@@ -320,7 +320,7 @@ button { font-family: inherit; }
   font-size: 13px;
   line-height: 1.4;
 }
-.msg b { color: #ff8db9; margin-right: 6px; }
+.msg b { color: #60a5fa; margin-right: 6px; }
 
 /* ─── Gifts ─── */
 .gift-grid {
@@ -372,13 +372,13 @@ button { font-family: inherit; }
 }
 .chat-form input::placeholder { color: #6b6b8a; }
 .chat-form input:focus {
-  border-color: rgba(255,47,125,.4);
-  box-shadow: 0 0 0 3px rgba(255,47,125,.12);
+  border-color: rgba(37, 99, 235,.4);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235,.12);
 }
 .chat-form button {
   border: 0;
   border-radius: 14px;
-  background: linear-gradient(135deg, #ff2f7d, #7c3aed);
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
   color: #fff;
   padding: 0 20px;
   font-weight: 800;
@@ -388,7 +388,7 @@ button { font-family: inherit; }
 }
 .chat-form button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(255,47,125,.3);
+  box-shadow: 0 4px 16px rgba(37, 99, 235,.3);
 }
 
 /* ─── Phase30 Tools ─── */
@@ -503,7 +503,7 @@ button { font-family: inherit; }
 
       <div class="actions">
         <button class="action-btn" title="Refresh activity" onclick="fetchActivity()"><i class="fas fa-rotate"></i></button>
-        <button class="action-btn" title="Like" onclick="sendReaction('heart')"><i class="fas fa-heart" style="color:#ff2f7d;"></i></button>
+        <button class="action-btn" title="Like" onclick="sendReaction('heart')"><i class="fas fa-heart" style="color:#2563eb;"></i></button>
         <button class="action-btn" title="Request co-host" onclick="requestCohost()"><i class="fas fa-user-plus"></i></button>
         <button class="action-btn" title="Share" onclick="navigator.share ? navigator.share({ title: {{ room.title|tojson }}, url: window.location.href }) : null"><i class="fas fa-share-nodes"></i></button>
         <button class="action-btn exit" title="Exit" onclick="window.location.href='/'"><i class="fas fa-xmark"></i></button>

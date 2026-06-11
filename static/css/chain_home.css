@@ -6,7 +6,7 @@
   --chain-home-soft: var(--chain-card-2);
   --chain-home-gold: var(--chain-gold);
   --chain-home-blue: var(--chain-cyan);
-  --chain-home-red: var(--chain-pink);
+  --chain-home-red: var(--chain-primary);
   --chain-home-green: #12B886;
   --chain-home-text: var(--chain-text);
   --chain-home-muted: var(--chain-muted);

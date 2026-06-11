@@ -59,7 +59,7 @@ def _admin_metrics():
         "pending_withdrawals": safe_count("chain_wallet_withdrawals", filters={"status": "pending"}),
         "pending_marketplace_items": safe_count("chain_marketplace_items", filters={"approval_status": "pending"}),
         "pending_verifications": safe_count("chain_user_verifications", filters={"verification_status": "pending"}),
-        "dating_opt_ins": safe_count("chain_dating_profiles", filters={"is_enabled": True}),
+        "dating_opt_ins": safe_count("chain_dating_profiles", filters={"dating_mode_on": True}),
         "creators_sellers": creator_count + seller_count,
         "total_follows": safe_count("chain_follows"),
         "total_comments": safe_count("chain_post_comments") + safe_count("chain_live_comments_v2"),
@@ -429,6 +429,7 @@ developer_bp = Blueprint("developer", __name__)
 
 
 @developer_bp.route("/developer")
+@require_admin
 def developer_root():
     if not session.get("admin_id"):
         return redirect("/admin/login?next=/developer/dashboard")

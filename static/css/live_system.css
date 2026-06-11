@@ -10,16 +10,16 @@ button{cursor:pointer;border:0}
 .studio-hero,.studio-form,.channel-card,.live-stage,.live-panel,.side-box,.host-card{background:linear-gradient(145deg,#111123,#070710);border:1px solid rgba(255,255,255,.1);box-shadow:0 30px 90px rgba(0,0,0,.35);border-radius:28px}
 .studio-hero{padding:24px;display:grid;align-content:center;text-align:center}
 .studio-hero h1{font-size:44px;margin:10px 0}
-.studio-hero p{color:#ff4d7d;font-weight:900}
+.studio-hero p{color:#93c5fd;font-weight:900}
 #cameraPreview{width:100%;height:420px;background:#000;border-radius:24px;object-fit:cover;border:1px solid rgba(255,255,255,.12)}
 .studio-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
-.studio-actions button,.go-live,.host-card button,.gift-grid button,.comments button{background:linear-gradient(135deg,#ff2d6f,#7c3aed);color:#fff;border-radius:999px;padding:12px 16px;font-weight:900}
+.studio-actions button,.go-live,.host-card button,.gift-grid button,.comments button{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;border-radius:999px;padding:12px 16px;font-weight:900}
 .studio-form{padding:24px;display:grid;gap:12px}
 .studio-form input,.studio-form textarea,.studio-form select,.comments input{width:100%;background:#080812;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px}
 .studio-form textarea{min-height:90px}
 .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 
-.chain-orb,.chain-mini,.chain-watermark,.chain-big{background:conic-gradient(#ff2d6f,#7c3aed,#00d4ff,#ff2d6f);display:grid;place-items:center;color:white;box-shadow:0 0 50px rgba(255,45,111,.35)}
+.chain-orb,.chain-mini,.chain-watermark,.chain-big{background:conic-gradient(#2563eb,#7c3aed,#00d4ff,#2563eb);display:grid;place-items:center;color:white;box-shadow:0 0 50px rgba(37, 99, 235,.35)}
 .chain-orb{width:130px;height:130px;border-radius:50%;margin:auto;animation:spin 6s linear infinite;font-weight:1000}
 .chain-orb span,.chain-mini span,.chain-watermark span,.chain-big span{display:block;font-size:11px}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -27,7 +27,7 @@ button{cursor:pointer;border:0}
 .channels-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:20px}
 .channel-card{padding:22px;min-height:260px}
 .chain-mini{width:74px;height:74px;border-radius:50%;margin-bottom:14px;animation:spin 7s linear infinite}
-.red{color:#ff2d55;font-weight:1000}
+.red{color:#dc2626;font-weight:1000}
 .coins-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
 .coins-row span,.small-pill{background:rgba(255,255,255,.08);border-radius:999px;padding:9px 12px}
 
@@ -44,7 +44,7 @@ button{cursor:pointer;border:0}
 .live-panel{padding:14px;display:grid;gap:12px;align-content:start;max-height:calc(100vh - 92px);overflow:auto}
 .host-card{padding:16px}
 .host-card h2{margin:0 0 8px}
-.danger{background:#ff1744!important;margin-top:8px}
+.danger{background:#dc2626!important;margin-top:8px}
 .gift-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .gift-grid form{margin:0}
 .gift-grid button{width:100%;padding:11px}

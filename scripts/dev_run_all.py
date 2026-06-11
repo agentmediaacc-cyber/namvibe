@@ -19,6 +19,7 @@ env.update({
 
 _disable_scheduler = os.environ.get("CHAIN_DISABLE_SCHEDULER") == "1"
 _disable_workers = os.environ.get("CHAIN_DISABLE_WORKERS") == "1"
+_disable_call_worker = os.environ.get("CHAIN_DISABLE_CALL_WORKER") == "1"
 
 commands = [
     ("app", [sys.executable, "app.py"]),
@@ -27,6 +28,7 @@ if not _disable_scheduler:
     commands.append(("scheduler", [sys.executable, "scripts/run_scheduler.py", "--interval", "10"]))
 if not _disable_workers:
     commands.append(("worker", [sys.executable, "scripts/run_worker.py", "--worker-name", "worker-1", "--worker-type", "default", "--interval", "2", "--queues", "default,notifications,safety,wallet"]))
+if not _disable_call_worker:
     commands.append(("call-worker", [sys.executable, "scripts/run_worker.py", "--worker-name", "call-worker-1", "--worker-type", "calls", "--interval", "2", "--queues", "default,notifications"]))
 
 processes = []
@@ -45,6 +47,13 @@ def stop_all(*_):
 
 signal.signal(signal.SIGINT, stop_all)
 signal.signal(signal.SIGTERM, stop_all)
+
+if _disable_scheduler:
+    print("[dev_run_all] SCHEDULER DISABLED (CHAIN_DISABLE_SCHEDULER=1)")
+if _disable_workers:
+    print("[dev_run_all] WORKERS DISABLED (CHAIN_DISABLE_WORKERS=1)")
+if _disable_call_worker:
+    print("[dev_run_all] CALL WORKER DISABLED (CHAIN_DISABLE_CALL_WORKER=1)")
 
 print("Starting CHAIN dev stack...")
 for name, cmd in commands:

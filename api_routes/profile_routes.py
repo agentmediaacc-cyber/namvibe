@@ -520,6 +520,95 @@ def public_profile(username):
         return render_template("profile/not_found.html", username=username or ''), 404
 
 
+@profile_bp.route("/api/summary")
+@login_required
+def api_profile_summary():
+    """Lightweight profile summary endpoint for lazy loading."""
+    try:
+        viewer = get_current_profile()
+        if not viewer:
+            return jsonify({"error": "Unauthorized"}), 401
+        profile = get_profile_by_id(viewer["id"])
+        if not profile:
+            return jsonify({"error": "Profile not found"}), 404
+        return jsonify({
+            "id": profile.get("id"),
+            "username": profile.get("username"),
+            "display_name": profile.get("display_name"),
+            "avatar_url": profile.get("avatar_url"),
+            "bio": profile.get("bio"),
+            "location": profile.get("location"),
+            "is_verified": bool(profile.get("is_verified")),
+            "is_online": bool(profile.get("is_online")),
+            "followers_count": profile.get("followers_count", 0),
+            "following_count": profile.get("following_count", 0),
+            "posts_count": profile.get("posts_count", 0),
+        }), 200
+    except Exception as e:
+        log_error("api_profile_summary_failed", error=str(e))
+        return jsonify({"error": "Summary unavailable"}), 500
+
+
+@profile_bp.route("/api/activity")
+@login_required
+def api_profile_activity():
+    """Lightweight profile activity endpoint for lazy loading."""
+    try:
+        viewer = get_current_profile()
+        if not viewer:
+            return jsonify({"error": "Unauthorized"}), 401
+        from services.profile_service import get_profile_activity
+        activity = get_profile_activity(viewer["id"]) or {}
+        return jsonify({
+            "posts": activity.get("posts", []),
+            "reels": activity.get("reels", []),
+            "stories": activity.get("stories", []),
+        }), 200
+    except Exception as e:
+        log_error("api_profile_activity_failed", error=str(e))
+        return jsonify({"error": "Activity unavailable"}), 500
+
+
+@profile_bp.route("/api/wallet-card")
+@login_required
+def api_profile_wallet_card():
+    """Lightweight wallet card endpoint for lazy loading."""
+    try:
+        viewer = get_current_profile()
+        if not viewer:
+            return jsonify({"error": "Unauthorized"}), 401
+        from services.profile_service import get_wallet_snapshot
+        wallet = get_wallet_snapshot(viewer["id"]) or {}
+        return jsonify({
+            "coin_balance": wallet.get("coin_balance", 0),
+            "gift_earnings": wallet.get("gift_earnings", 0),
+            "pending_withdrawal": wallet.get("pending_withdrawal", 0),
+        }), 200
+    except Exception as e:
+        log_error("api_profile_wallet_card_failed", error=str(e))
+        return jsonify({"error": "Wallet unavailable"}), 500
+
+
+@profile_bp.route("/api/creator-card")
+@login_required
+def api_profile_creator_card():
+    """Lightweight creator tools endpoint for lazy loading."""
+    try:
+        viewer = get_current_profile()
+        if not viewer:
+            return jsonify({"error": "Unauthorized"}), 401
+        from services.profile_service import get_creator_tools
+        creator_tools = get_creator_tools(viewer["id"]) or {}
+        return jsonify({
+            "studio_enabled": creator_tools.get("studio_enabled", False),
+            "creator_notes": creator_tools.get("creator_notes", ""),
+            "featured_links": creator_tools.get("featured_links", []),
+        }), 200
+    except Exception as e:
+        log_error("api_profile_creator_card_failed", error=str(e))
+        return jsonify({"error": "Creator tools unavailable"}), 500
+
+
 @profile_bp.route("/api/current", methods=["GET"])
 def api_current_profile():
     try:

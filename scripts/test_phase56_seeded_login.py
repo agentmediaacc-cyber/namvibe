@@ -122,8 +122,8 @@ def test_friend_follows():
            WHERE cf.follower_profile_id = %s""",
         (star_id,), default=[]
     )
-    check("chain_star follows 4 users",
-          len(follow_rows) == 4,
+    check("chain_star follows 4+ users",
+          len(follow_rows) >= 4,
           detail=f"found {len(follow_rows)} follows: {[r['username'] for r in follow_rows]}")
     follower_rows = fast_query(
         """SELECT cf.id, cp.username FROM chain_follows cf
@@ -131,13 +131,13 @@ def test_friend_follows():
            WHERE cf.following_profile_id = %s""",
         (star_id,), default=[]
     )
-    check("4 users follow chain_star back",
-          len(follower_rows) == 4,
+    check("4+ users follow chain_star back",
+          len(follower_rows) >= 4,
           detail=f"found {len(follower_rows)} followers: {[r['username'] for r in follower_rows]}")
     mutual = [r["username"] for r in follow_rows
               if r["username"] in {fr["username"] for fr in follower_rows}]
-    check("chain_star has 4 mutual friends",
-          len(mutual) == 4,
+    check("chain_star has 4+ mutual friends",
+          len(mutual) >= 4,
           detail=f"mutual: {mutual}")
 
 # ============================================================

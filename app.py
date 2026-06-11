@@ -10,6 +10,7 @@ import time
 import uuid
 from datetime import datetime, timezone, timedelta
 from flask import Flask, g, jsonify, redirect, render_template, request, session, send_from_directory, url_for
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.exceptions import HTTPException
 from engines.cache_engine import init_cache
 from engines.performance_engine import timed
@@ -166,6 +167,7 @@ from utils.security_utils import check_ip_reputation
 
 def create_app():
     app = Flask(__name__)
+    csrf = CSRFProtect(app)
     
     # Phase 13 Performance: Schema Registry Warming
     if os.getenv("CHAIN_WARM_SCHEMA", "0") == "1":
@@ -237,7 +239,7 @@ def create_app():
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=is_prod,
-        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
     )
 
     @app.before_request

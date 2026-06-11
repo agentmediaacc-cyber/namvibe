@@ -46,6 +46,14 @@ CHAIN_PROFILE_SAFE_COLUMNS = {
     "activities",
     "looking_for",
     "cover_url",
+    "avatar_bucket",
+    "avatar_path",
+    "avatar_mime_type",
+    "avatar_size_bytes",
+    "cover_bucket",
+    "cover_path",
+    "cover_mime_type",
+    "cover_size_bytes",
     "wallet_balance",
     "onboarding_step",
     "current_location",
@@ -104,6 +112,14 @@ PROFILE_COLUMNS = {
     "profile_photo",
     "cover_url",
     "cover_upload_id",
+    "avatar_bucket",
+    "avatar_path",
+    "avatar_mime_type",
+    "avatar_size_bytes",
+    "cover_bucket",
+    "cover_path",
+    "cover_mime_type",
+    "cover_size_bytes",
     "profile_photo",
     "profile_video_url",
     "video_intro_url",
@@ -193,6 +209,14 @@ NEON_PROFILE_COLUMNS = {
     "country_origin",
     "avatar_url",
     "cover_url",
+    "avatar_bucket",
+    "avatar_path",
+    "avatar_mime_type",
+    "avatar_size_bytes",
+    "cover_bucket",
+    "cover_path",
+    "cover_mime_type",
+    "cover_size_bytes",
     "storage_bucket",
     "storage_path",
     "interests",
@@ -1412,9 +1436,9 @@ def _save_onboarding_foundations(profile_id, form, profile_payload):
 
     if _bool_value(form.get("dating_mode_enabled")):
         dating_payload = {
-            "is_enabled": True,
-            "dating_intent": form.get("dating_intent", "open_to_meeting"),
-            "dating_interest": _normalize_list(form.get("dating_interest")),
+            "dating_mode_on": True,
+            "relationship_goal": form.get("dating_intent", "open_to_meeting"),
+            "interests": _normalize_list(form.get("dating_interest")),
             "updated_at": _utcnow_iso(),
         }
         if table_exists("chain_dating_profiles"):
@@ -1423,7 +1447,7 @@ def _save_onboarding_foundations(profile_id, form, profile_payload):
                 "profile_id",
                 profile_id,
                 dating_payload,
-                fallback_columns={"profile_id", "is_enabled", "dating_intent", "dating_interest", "updated_at", "created_at"},
+                fallback_columns={"profile_id", "dating_mode_on", "relationship_goal", "interests", "updated_at", "created_at"},
             )
 
 
@@ -1690,6 +1714,20 @@ def get_profile_actions(profile, viewer=None):
 def get_profile_bundle(username=None, profile_id=None, viewer=None):
     lookup_kind = "username" if username else "profile_id"
     lookup_value = username or profile_id
+
+    # Bundle caching for performance (Phase 68B)
+    if profile_id or username:
+        from engines.cache_engine import cache_key as eng_cache_key, get_cache, set_cache
+        viewer_id = str(viewer.get("id")) if viewer else "anon"
+        cache_key_str = eng_cache_key("profile_bundle", str(profile_id or username or ""), viewer_id)
+        cached_bundle = get_cache(cache_key_str)
+        if cached_bundle is not None:
+            return cached_bundle
+        _should_cache = True
+    else:
+        _should_cache = False
+        cache_key_str = None
+        get_cache = set_cache = lambda *a, **kw: None
     profile = get_profile_by_username(username) if username else get_profile_by_id(profile_id)
     log_info("profile_bundle_profile_lookup", lookup_kind=lookup_kind, found=bool(profile))
     if not profile:
@@ -1730,32 +1768,50 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
             if key not in restricted_fields
         }
 
-    try:
-        stats = get_profile_stats(profile["id"]) or {}
-    except Exception as error:
-        log_warning("profile_bundle_stats_failed", profile_id=profile.get("id"), error=str(error))
-        stats = {}
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    bundle_results = {"stats": {}, "content": {}, "activity": {}, "wallet": {}, "creator_tools": {}, "actions": [], "presence": {"status": "offline", "last_seen": None}, "is_following": False, "is_page_liked": False, "saved_items": []}
+
+    def _safe(fn, key, default):
+        try:
+            return key, fn()
+        except Exception as e:
+            log_warning(f"profile_bundle_{key}_failed", profile_id=profile.get("id"), error=str(e))
+            return key, default
+
+    with ThreadPoolExecutor(max_workers=10) as exe:
+        futures = {
+            exe.submit(_safe, lambda pid=profile["id"]: get_profile_stats(pid) or {}, "stats", {}),
+            exe.submit(_safe, lambda pid=profile["id"]: get_profile_content(pid) or {}, "content", {}),
+            exe.submit(_safe, lambda pid=profile["id"]: get_profile_activity(pid) or {}, "activity", {}),
+            exe.submit(_safe, lambda pid=profile["id"]: get_wallet_snapshot(pid) or {}, "wallet", {}),
+            exe.submit(_safe, lambda pid=profile["id"]: get_creator_tools(pid) or {}, "creator_tools", {}),
+            exe.submit(_safe, lambda p=profile, v=viewer: get_profile_actions(p, viewer=v) or [], "actions", []),
+            exe.submit(_safe, lambda pid=profile["id"]: (safe_select("chain_presence", filters={"profile_id": pid}, limit=1) or [{"status": "offline", "last_seen": None}])[0], "presence", {"status": "offline", "last_seen": None}),
+        }
+        if viewer:
+            futures.add(exe.submit(_safe, lambda v=viewer, pid=profile["id"]: bool(safe_select("chain_follows", filters={"follower_profile_id": v["id"], "following_profile_id": pid}, limit=1)), "is_following", False))
+            if profile.get('is_page'):
+                futures.add(exe.submit(_safe, lambda v=viewer, pid=profile["id"]: bool(safe_select("chain_page_likes", filters={"profile_id": v["id"], "page_id": pid}, limit=1)), "is_page_liked", False))
+            if viewer.get("id") == profile.get("id"):
+                futures.add(exe.submit(_safe, lambda pid=profile["id"]: safe_select("chain_saved_items", filters={"profile_id": pid}, limit=20) or [], "saved_items", []))
+        for f in as_completed(futures):
+            key, value = f.result()
+            bundle_results[key] = value
+
+    stats = bundle_results["stats"]
     log_info("profile_bundle_stats_state", profile_id=profile.get("id"), stats_keys=sorted(list(stats.keys()))[:8], has_stats=bool(stats))
 
-    try:
-        content = get_profile_content(profile["id"]) or {}
-    except Exception as error:
-        log_warning("profile_bundle_content_failed", profile_id=profile.get("id"), error=str(error))
-        content = {}
+    raw_content = bundle_results["content"]
     content = {
-        "rooms": content.get("rooms", []),
-        "posts": content.get("posts", []),
-        "stories": content.get("stories", []),
-        "reels": content.get("reels", []),
-        "marketplace": content.get("marketplace", []),
-        "albums": content.get("albums", []),
+        "rooms": raw_content.get("rooms", []),
+        "posts": raw_content.get("posts", []),
+        "stories": raw_content.get("stories", []),
+        "reels": raw_content.get("reels", []),
+        "marketplace": raw_content.get("marketplace", []),
+        "albums": raw_content.get("albums", []),
     }
-    saved_items = []
-    if viewer and viewer.get("id") == profile.get("id"):
-        try:
-            saved_items = safe_select("chain_saved_items", filters={"profile_id": profile["id"]}, limit=20) or []
-        except Exception as error:
-            log_warning("profile_bundle_saved_items_failed", profile_id=profile.get("id"), error=str(error))
+    saved_items = bundle_results["saved_items"] or []
     log_info(
         "profile_bundle_content_state",
         profile_id=profile.get("id"),
@@ -1765,25 +1821,17 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
         stories_count=len(content["stories"]),
     )
 
-    try:
-        activity = get_profile_activity(profile["id"]) or {}
-    except Exception as error:
-        log_warning("profile_bundle_activity_failed", profile_id=profile.get("id"), error=str(error))
-        activity = {}
+    raw_activity = bundle_results["activity"]
     activity = {
-        "rooms": activity.get("rooms", []),
-        "posts": activity.get("posts", []),
-        "stories": activity.get("stories", []),
-        "gifts": activity.get("gifts", []),
-        "favorites": activity.get("favorites", []),
-        "recent_views": activity.get("recent_views", []),
+        "rooms": raw_activity.get("rooms", []),
+        "posts": raw_activity.get("posts", []),
+        "stories": raw_activity.get("stories", []),
+        "gifts": raw_activity.get("gifts", []),
+        "favorites": raw_activity.get("favorites", []),
+        "recent_views": raw_activity.get("recent_views", []),
     }
 
-    try:
-        wallet = get_wallet_snapshot(profile["id"]) or {}
-    except Exception as error:
-        log_warning("profile_bundle_wallet_failed", profile_id=profile.get("id"), error=str(error))
-        wallet = {}
+    wallet = bundle_results["wallet"]
     wallet = {
         "coin_balance": wallet.get("coin_balance", profile.get("wallet_balance", 0) or 0),
         "gift_earnings": wallet.get("gift_earnings", 0),
@@ -1792,48 +1840,23 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
     }
     log_info("profile_bundle_wallet_state", profile_id=profile.get("id"), has_wallet=bool(wallet), coin_balance=wallet.get("coin_balance", 0))
 
-    try:
-        creator_tools = get_creator_tools(profile["id"]) or {}
-    except Exception as error:
-        log_warning("profile_bundle_creator_tools_failed", profile_id=profile.get("id"), error=str(error))
-        creator_tools = {}
+    raw_tools = bundle_results["creator_tools"]
     creator_tools = {
         "profile_id": profile.get("id"),
-        "studio_enabled": creator_tools.get("studio_enabled", False),
-        "creator_notes": creator_tools.get("creator_notes", ""),
-        "featured_links": creator_tools.get("featured_links", []),
-        **creator_tools,
+        "studio_enabled": raw_tools.get("studio_enabled", False),
+        "creator_notes": raw_tools.get("creator_notes", ""),
+        "featured_links": raw_tools.get("featured_links", []),
+        **raw_tools,
     }
     log_info("profile_bundle_creator_tools_state", profile_id=profile.get("id"), has_creator_tools=bool(creator_tools))
 
-    try:
-        actions = get_profile_actions(profile, viewer=viewer) or []
-    except Exception as error:
-        log_warning("profile_bundle_actions_failed", profile_id=profile.get("id"), error=str(error))
-        actions = []
+    actions = bundle_results["actions"] or []
     
-    # Phase 8: Real-time Presence
-    try:
-        presence_row = safe_select("chain_presence", filters={"profile_id": profile["id"]}, limit=1)
-        presence = presence_row[0] if presence_row else {"status": "offline", "last_seen": None}
-    except Exception as error:
-        log_warning("profile_bundle_presence_failed", profile_id=profile.get("id"), error=str(error))
-        presence = {"status": "offline", "last_seen": None}
-    
-    # Phase 8: Follow Status
-    is_following = False
-    is_page_liked = False
-    if viewer:
-        try:
-            res = safe_select("chain_follows", filters={"follower_profile_id": viewer["id"], "following_profile_id": profile["id"]}, limit=1)
-            is_following = bool(res)
-            if profile.get('is_page'):
-                res_like = safe_select("chain_page_likes", filters={"profile_id": viewer["id"], "page_id": profile["id"]}, limit=1)
-                is_page_liked = bool(res_like)
-        except Exception as error:
-            log_warning("profile_bundle_follow_state_failed", profile_id=profile.get("id"), error=str(error))
+    presence = bundle_results["presence"]
+    is_following = bundle_results["is_following"]
+    is_page_liked = bundle_results["is_page_liked"]
 
-    return {
+    result = {
         "profile": profile,
         "stats": stats,
         "content": content,
@@ -1850,6 +1873,14 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
         "restricted_view": restricted_view,
     }
 
+    if _should_cache and cache_key_str:
+        try:
+            set_cache(cache_key_str, result, ttl=120)
+        except Exception:
+            pass
+
+    return result
+
 
 def update_profile(auth_user_id, data):
     profile = get_current_profile()
@@ -1862,11 +1893,11 @@ def upload_profile_avatar(auth_user_id, file_obj):
     profile = get_current_profile()
     if not profile or profile.get("auth_user_id") != auth_user_id:
         return False, "Profile not found."
-    from services.media_storage_service import upload_media_file
-    result, error = upload_media_file(file_obj, bucket_name="chain-avatars", profile_id=profile["id"], upload_type="avatar", public=True)
+    from services.supabase_storage_router import upload_avatar
+    result, error = upload_avatar(file_obj, profile["id"])
     if not result:
         return False, error
-    updated = _neon_update_profile(profile["id"], {"avatar_url": result.get("public_url"), "storage_bucket": result.get("bucket"), "storage_path": result.get("file_path")})
+    updated = _neon_update_profile(profile["id"], {"avatar_url": result.get("url"), "avatar_bucket": result.get("bucket"), "avatar_path": result.get("path"), "avatar_mime_type": result.get("mime_type"), "avatar_size_bytes": result.get("size_bytes"), "storage_bucket": result.get("bucket"), "storage_path": result.get("path")})
     delete_cache(cache_key("current_profile", auth_user_id))
     return True, updated or profile
 
@@ -1875,11 +1906,11 @@ def upload_profile_cover(auth_user_id, file_obj):
     profile = get_current_profile()
     if not profile or profile.get("auth_user_id") != auth_user_id:
         return False, "Profile not found."
-    from services.media_storage_service import upload_media_file
-    result, error = upload_media_file(file_obj, bucket_name="chain-covers", profile_id=profile["id"], upload_type="cover", public=True)
+    from services.supabase_storage_router import upload_cover
+    result, error = upload_cover(file_obj, profile["id"])
     if not result:
         return False, error
-    updated = _neon_update_profile(profile["id"], {"cover_url": result.get("public_url"), "storage_bucket": result.get("bucket"), "storage_path": result.get("file_path")})
+    updated = _neon_update_profile(profile["id"], {"cover_url": result.get("url"), "cover_bucket": result.get("bucket"), "cover_path": result.get("path"), "cover_mime_type": result.get("mime_type"), "cover_size_bytes": result.get("size_bytes"), "storage_bucket": result.get("bucket"), "storage_path": result.get("path")})
     delete_cache(cache_key("current_profile", auth_user_id))
     return True, updated or profile
 

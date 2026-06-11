@@ -253,7 +253,16 @@ def get_call(call_id):
 def recent_calls(profile_id):
     profile_id = _uuid(profile_id)
     if _db_available():
-        rows = fast_query("SELECT * FROM chain_call_sessions WHERE caller_profile_id = %s OR receiver_profile_id = %s ORDER BY started_at DESC LIMIT 50", (profile_id, profile_id), timeout_ms=700, default=[])
+        from engines.cache_engine import cache_key, get_cache, set_cache
+        cache_key_str = cache_key("recent_calls", profile_id)
+        cached = get_cache(cache_key_str)
+        if cached is not None:
+            return cached
+        rows = fast_query(
+            "SELECT id, caller_profile_id, receiver_profile_id, call_type, call_status, started_at, duration_seconds, is_group_call FROM chain_call_sessions WHERE caller_profile_id = %s OR receiver_profile_id = %s ORDER BY started_at DESC LIMIT 20",
+            (profile_id, profile_id), timeout_ms=500, default=[]
+        )
         if rows:
+            set_cache(cache_key_str, rows, ttl=15)
             return rows
-    return [call for call in _CALLS.values() if profile_id in {call.get("caller_profile_id"), call.get("receiver_profile_id")}]
+    return [call for call in list(_CALLS.values())[:20] if profile_id in {call.get("caller_profile_id"), call.get("receiver_profile_id")}]

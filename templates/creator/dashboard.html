@@ -84,8 +84,8 @@
         <div class="cr-card-value">{{ stats.earnings.total|default(0)|int }} <small>coins</small></div>
         <div class="cr-card-sub">All-time earnings</div>
       </div>
-      <div class="cr-card cr-card-accent cr-card-pink">
-        <div class="cr-card-label"><i class="fas fa-gift" style="color:var(--cr-pink)"></i>Gift Earnings</div>
+      <div class="cr-card cr-card-accent cr-card-primary">
+        <div class="cr-card-label"><i class="fas fa-gift" style="color:var(--cr-primary)"></i>Gift Earnings</div>
         <div class="cr-card-value">{{ stats.gifts.total|default(0)|int }} <small>coins</small></div>
         <div class="cr-card-sub">From gifts</div>
       </div>
@@ -108,7 +108,7 @@
 
   <div id="tab-gifts" class="cr-panel">
     <div class="cr-card" style="margin-bottom:16px">
-      <div class="cr-card-label"><i class="fas fa-gift" style="color:var(--cr-pink)"></i>Gift History</div>
+      <div class="cr-card-label"><i class="fas fa-gift" style="color:var(--cr-primary)"></i>Gift History</div>
     </div>
     {% set supporters = stats.top_supporters|default([]) %}
     {% if supporters %}
@@ -139,8 +139,8 @@
   </div>
 
   <div id="tab-live" class="cr-panel">
-    <div class="cr-card cr-card-accent cr-card-pink" style="margin-bottom:16px">
-      <div class="cr-card-label"><i class="fas fa-broadcast-tower" style="color:var(--cr-pink)"></i>Live Earnings</div>
+    <div class="cr-card cr-card-accent cr-card-primary" style="margin-bottom:16px">
+      <div class="cr-card-label"><i class="fas fa-broadcast-tower" style="color:var(--cr-primary)"></i>Live Earnings</div>
       <div class="cr-card-value">{{ stats.total_live_earnings|default(stats.live_earnings.total|default(0))|int }} <small>coins</small></div>
       <div class="cr-card-sub">Total earned from live streaming</div>
     </div>
@@ -210,7 +210,7 @@
 
   <div id="tab-premium" class="cr-panel">
     <div class="cr-card">
-      <div class="cr-section-title"><i class="fas fa-lock" style="color:var(--cr-pink)"></i>Lock Premium Content</div>
+      <div class="cr-section-title"><i class="fas fa-lock" style="color:var(--cr-primary)"></i>Lock Premium Content</div>
       <div class="cr-form-row">
         <label>Content Type</label>
         <input class="cr-input" id="creator-premium-type" value="post" placeholder="e.g. post, video, gallery">
@@ -301,7 +301,7 @@
         {% for s in supporters %}
         <li>
           <div class="cr-list-left">
-            <div class="cr-avatar" style="background:{% if loop.index == 1 %}linear-gradient(135deg,var(--cr-gold),#ff8c00){% elif loop.index == 2 %}linear-gradient(135deg,var(--cr-cyan),#00bcd4){% elif loop.index == 3 %}linear-gradient(135deg,var(--cr-pink),#ff4080){% else %}var(--cr-surface){% endif %}">
+            <div class="cr-avatar" style="background:{% if loop.index == 1 %}linear-gradient(135deg,var(--cr-gold),#ff8c00){% elif loop.index == 2 %}linear-gradient(135deg,var(--cr-cyan),#00bcd4){% elif loop.index == 3 %}linear-gradient(135deg,var(--cr-primary),#06b6d4){% else %}var(--cr-surface){% endif %}">
               <i class="fas fa-user" style="color:{% if loop.index <= 3 %}#fff{% else %}var(--cr-muted){% endif %}"></i>
             </div>
             <div>
@@ -309,7 +309,7 @@
               <div style="font-size:12px;color:var(--cr-muted)">{{ s.total_amount|int }} coins contributed</div>
             </div>
           </div>
-          <span class="cr-badge {% if loop.index == 1 %}cr-badge-gold{% elif loop.index == 2 %}cr-badge-cyan{% elif loop.index == 3 %}cr-badge-pink{% else %}cr-badge-neutral{% endif %}">
+          <span class="cr-badge {% if loop.index == 1 %}cr-badge-gold{% elif loop.index == 2 %}cr-badge-cyan{% elif loop.index == 3 %}cr-badge-primary{% else %}cr-badge-neutral{% endif %}">
             {% if loop.index == 1 %}<i class="fas fa-crown"></i>{% elif loop.index == 2 %}<i class="fas fa-medal"></i>{% elif loop.index == 3 %}<i class="fas fa-medal"></i>{% endif %}
             #{{ loop.index }}
           </span>
@@ -352,8 +352,8 @@
 
   <div id="tab-verify" class="cr-panel">
     <div class="cr-grid cr-grid-2">
-      <div class="cr-card cr-card-accent {% if profile.is_verified %}cr-card-green{% else %}cr-card-pink{% endif %}">
-        <div class="cr-card-label"><i class="fas fa-check-circle" style="color:{% if profile.is_verified %}var(--cr-green){% else %}var(--cr-pink){% endif %}"></i>Verification Status</div>
+      <div class="cr-card cr-card-accent {% if profile.is_verified %}cr-card-green{% else %}cr-card-primary{% endif %}">
+        <div class="cr-card-label"><i class="fas fa-check-circle" style="color:{% if profile.is_verified %}var(--cr-green){% else %}var(--cr-primary){% endif %}"></i>Verification Status</div>
         <div style="display:flex;align-items:center;gap:12px;margin-top:8px">
           <span class="cr-status-dot {% if profile.is_verified %}verified{% else %}none{% endif %}"></span>
           <span style="font-size:18px;font-weight:800">{% if profile.is_verified %}Verified Creator{% else %}Not Verified{% endif %}</span>
@@ -378,10 +378,10 @@
       </div>
     </div>
     {% if not profile.is_verified %}
-    <div class="cr-card" style="margin-top:16px;background:rgba(255,0,80,0.06);border-color:rgba(255,0,80,0.2)">
+    <div class="cr-card" style="margin-top:16px;background:rgba(37, 99, 235,0.06);border-color:rgba(37, 99, 235,0.2)">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
         <div>
-          <h5 style="margin:0 0 4px;font-weight:800"><i class="fas fa-check-circle" style="color:var(--cr-pink)"></i> Get Verified</h5>
+          <h5 style="margin:0 0 4px;font-weight:800"><i class="fas fa-check-circle" style="color:var(--cr-primary)"></i> Get Verified</h5>
           <p style="margin:0;color:var(--cr-muted);font-size:14px">Verified creators earn 15% more and get featured in the discovery feed.</p>
         </div>
         <div style="display:flex;gap:10px">

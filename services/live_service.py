@@ -265,10 +265,14 @@ def create_live_room(form, files=None):
         if cover_file and cover_file.filename:
             res, err = upload_live_cover(current["id"], cover_file)
             if res:
-                cover_url = res["public_url"]
+                cover_url = res["url"]
                 cover_upload_id = res["upload_id"]
+                cover_metadata = res
             else:
+                cover_metadata = None
                 print(f"[live_service] Cover upload failed: {err}")
+        else:
+            cover_metadata = None
 
         access_type = (form.get("access_type") or "public").strip().lower()
         if access_type not in {"public", "private", "premium"}:
@@ -287,6 +291,10 @@ def create_live_room(form, files=None):
             "background_music_upload_id": mp3_upload_id,
             "cover_url": cover_url,
             "live_cover_upload_id": cover_upload_id,
+            "cover_bucket": (cover_metadata or {}).get("bucket"),
+            "cover_path": (cover_metadata or {}).get("path"),
+            "cover_mime_type": (cover_metadata or {}).get("mime_type"),
+            "cover_size_bytes": (cover_metadata or {}).get("size_bytes"),
             "access_type": access_type,
             "entry_fee": _safe_number(form.get("entry_fee"), 0),
             "status": "live",

@@ -3,6 +3,14 @@ import uuid
 import werkzeug.utils
 from utils.supabase_client import get_supabase_admin, SUPABASE_URL
 from services.media_storage_service import record_media_upload_metadata
+from services.supabase_storage_router import (
+    upload_avatar as routed_avatar_upload,
+    upload_cover as routed_cover_upload,
+    upload_marketplace_image,
+    upload_message_attachment,
+    upload_story_media as routed_story_upload,
+    upload_live_thumbnail,
+)
 
 # Configuration
 ALLOWED_EXTENSIONS = {
@@ -89,6 +97,32 @@ def upload_file_to_bucket(file_obj, bucket_name, profile_id, upload_type, public
     storage_path = build_storage_path(profile_id, upload_type, filename)
     mime_type = file_obj.content_type
     
+    routed_type = {
+        "chain-avatars": "avatars",
+        "chain-covers": "covers",
+        "chain-marketplace": "marketplace",
+        "chain-messages": "messages",
+        "chain-stories": "stories",
+        "chain-status": "stories",
+        "chain-live": "live",
+    }.get(bucket_name)
+    if routed_type:
+        from services.supabase_storage_router import upload_file
+        result, error = upload_file(file_obj, routed_type, profile_id, public=public)
+        if error:
+            return None, error
+        upload_id = record_media_upload(
+            profile_id=profile_id,
+            upload_type=upload_type,
+            bucket_name=result["bucket"],
+            file_path=result["path"],
+            public_url=result["url"],
+            mime_type=result["mime_type"],
+            file_size=result["size_bytes"],
+            original_filename=filename,
+        )
+        return {**result, "upload_id": upload_id}, None
+
     try:
         storage = get_storage_client()
         # Read file content
@@ -128,13 +162,25 @@ def upload_file_to_bucket(file_obj, bucket_name, profile_id, upload_type, public
         return None, str(e)
 
 def upload_avatar(profile_id, file):
-    return upload_file_to_bucket(file, 'chain-avatars', profile_id, 'avatar', public=True)
+    result, error = routed_avatar_upload(file, profile_id)
+    if error:
+        return None, error
+    upload_id = record_media_upload(profile_id, "avatar", result["bucket"], result["path"], result["url"], result["mime_type"], result["size_bytes"], file.filename)
+    return {**result, "upload_id": upload_id}, None
 
 def upload_cover(profile_id, file):
-    return upload_file_to_bucket(file, 'chain-covers', profile_id, 'cover', public=True)
+    result, error = routed_cover_upload(file, profile_id)
+    if error:
+        return None, error
+    upload_id = record_media_upload(profile_id, "cover", result["bucket"], result["path"], result["url"], result["mime_type"], result["size_bytes"], file.filename)
+    return {**result, "upload_id": upload_id}, None
 
 def upload_marketplace_media(profile_id, file):
-    return upload_file_to_bucket(file, 'chain-marketplace', profile_id, 'marketplace_media', public=True)
+    result, error = upload_marketplace_image(file, profile_id)
+    if error:
+        return None, error
+    upload_id = record_media_upload(profile_id, "marketplace_media", result["bucket"], result["path"], result["url"], result["mime_type"], result["size_bytes"], file.filename)
+    return {**result, "upload_id": upload_id}, None
 
 def upload_music_track(profile_id, file):
     return upload_file_to_bucket(file, 'chain-music', profile_id, 'music_track', public=True)
@@ -148,10 +194,18 @@ def upload_verification_file(profile_id, file, upload_type='verification_doc'):
     return upload_file_to_bucket(file, 'chain-verifications', profile_id, upload_type, public=False)
 
 def upload_chat_media(profile_id, file):
-    return upload_file_to_bucket(file, 'chain-marketplace', profile_id, 'chat_media', public=True)
+    result, error = upload_message_attachment(file, profile_id)
+    if error:
+        return None, error
+    upload_id = record_media_upload(profile_id, "chat_media", result["bucket"], result["path"], result["url"], result["mime_type"], result["size_bytes"], file.filename)
+    return {**result, "upload_id": upload_id}, None
 
 def upload_status_media(profile_id, file):
-    return upload_file_to_bucket(file, 'chain-stories', profile_id, 'status_media', public=True)
+    result, error = routed_story_upload(file, profile_id)
+    if error:
+        return None, error
+    upload_id = record_media_upload(profile_id, "status_media", result["bucket"], result["path"], result["url"], result["mime_type"], result["size_bytes"], file.filename)
+    return {**result, "upload_id": upload_id}, None
 
 def upload_story_media(profile_id, file):
     return upload_status_media(profile_id, file)
@@ -160,4 +214,8 @@ def upload_live_music(profile_id, file):
     return upload_file_to_bucket(file, 'chain-music', profile_id, 'live_music', public=True)
 
 def upload_live_cover(profile_id, file):
-    return upload_file_to_bucket(file, 'chain-covers', profile_id, 'live_cover', public=True)
+    result, error = upload_live_thumbnail(file, profile_id)
+    if error:
+        return None, error
+    upload_id = record_media_upload(profile_id, "live_cover", result["bucket"], result["path"], result["url"], result["mime_type"], result["size_bytes"], file.filename)
+    return {**result, "upload_id": upload_id}, None

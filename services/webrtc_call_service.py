@@ -63,7 +63,7 @@ def _check_relationship_gate(caller_id, receiver_id):
 def _check_blocked(caller_id, receiver_id):
     try:
         rows = fast_query(
-            "SELECT id FROM chain_blocked_users WHERE (blocked_by_profile_id = %s AND blocked_profile_id = %s) OR (blocked_by_profile_id = %s AND blocked_profile_id = %s) LIMIT 1",
+            "SELECT id FROM chain_blocks WHERE (blocker_profile_id = %s AND blocked_profile_id = %s AND deleted_at IS NULL) OR (blocker_profile_id = %s AND blocked_profile_id = %s AND deleted_at IS NULL) LIMIT 1",
             (receiver_id, caller_id, caller_id, receiver_id),
             timeout_ms=300, default=[],
         )

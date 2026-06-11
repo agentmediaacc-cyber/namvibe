@@ -59,7 +59,7 @@ def create_track(profile_id, album_id, title, audio_url, price_coins, audio_uplo
     return inserted[0] if inserted else payload
 
 
-def create_marketplace_item(profile_id, item_type, title, description, media_url, cover_url, price_coins, premium_locked, media_upload_id=None, cover_upload_id=None):
+def create_marketplace_item(profile_id, item_type, title, description, media_url, cover_url, price_coins, premium_locked, media_upload_id=None, cover_upload_id=None, media_metadata=None, cover_metadata=None):
     coins = _safe_int(price_coins, 0)
     payload = {
         "profile_id": profile_id,
@@ -68,6 +68,14 @@ def create_marketplace_item(profile_id, item_type, title, description, media_url
         "description": description,
         "media_url": media_url,
         "cover_url": cover_url,
+        "media_bucket": (media_metadata or {}).get("bucket"),
+        "media_path": (media_metadata or {}).get("path"),
+        "mime_type": (media_metadata or {}).get("mime_type"),
+        "size_bytes": (media_metadata or {}).get("size_bytes"),
+        "cover_bucket": (cover_metadata or {}).get("bucket"),
+        "cover_path": (cover_metadata or {}).get("path"),
+        "cover_mime_type": (cover_metadata or {}).get("mime_type"),
+        "cover_size_bytes": (cover_metadata or {}).get("size_bytes"),
         "media_upload_id": media_upload_id,
         "cover_upload_id": cover_upload_id,
         "price_coins": coins,
