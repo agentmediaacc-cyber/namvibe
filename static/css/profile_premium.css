@@ -1,5 +1,5 @@
 /* ============================================================
-   CHAIN Profile Premium – Complete Social Profile Design
+   NamVibe Profile Premium – Complete Social Profile Design
    Do NOT conflict with platform_premium.css classes (px-*)
    Uses only profile-*, premium-profile-shell, post-*, reel-*
    ============================================================ */
@@ -144,7 +144,7 @@ body.has-premium-profile .premium-profile-shell { padding-bottom: 152px; }
 }
 
 .profile-cover-fallback::after {
-  content: "CHAIN";
+  content: "NamVibe";
   position: absolute;
   right: 5vw;
   bottom: 28px;

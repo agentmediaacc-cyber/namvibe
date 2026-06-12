@@ -1,4 +1,4 @@
-# CHAIN Go-Live Checklist
+# NamVibe Go-Live Checklist
 
 Use this checklist before public launch. Phase 50 validates application readiness, but production readiness still depends on deployed infrastructure.
 

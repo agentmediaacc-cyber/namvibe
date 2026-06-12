@@ -2,7 +2,7 @@ import uuid
 import os
 from decimal import Decimal
 
-from services.neon_service import fast_query, fetch_one_with_connection, get_connection, release_connection, transaction_query
+from services.neon_service import fast_query, fetch_one_with_connection, get_connection, release_connection, transaction_query, safe_row_get
 from services.notification_engine import create_notification
 from services.logging_service import log_wallet_event
 from services.request_cache import build_request_key, request_memoize
@@ -95,7 +95,7 @@ def _insert_transaction(cursor, profile_id, amount_delta, tx_type, description, 
         ),
     )
     row = cursor.fetchone()
-    return row[0] if row else tx_id
+    return safe_row_get(row, "id", safe_row_get(row, 0, tx_id))
 
 
 def _apply_wallet_delta(cursor, profile_id, amount_delta):
@@ -123,7 +123,7 @@ def _apply_wallet_delta(cursor, profile_id, amount_delta):
     row = cursor.fetchone()
     if not row:
         raise ValueError("insufficient_balance")
-    return row[0]
+    return safe_row_get(row, "coin_balance", safe_row_get(row, 0, 0))
 
 
 def _atomic_wallet_transaction(profile_id, amount_delta, tx_type, description, source_profile_id=None, entity_type=None, entity_id=None, idempotency_key=None, status="completed", cursor=None):
@@ -225,7 +225,7 @@ def ensure_wallet(profile_id):
         return row
     except Exception as error:
         print(f"[wallet_engine] Failed to ensure wallet: {error}")
-        return None
+        return {"profile_id": profile_id, "coin_balance": 0, "gift_earnings": 0}
     finally:
         release_connection(connection)
 

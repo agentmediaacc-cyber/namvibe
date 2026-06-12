@@ -134,25 +134,36 @@ def upsert_test_user(user_info):
     ]
     cols_str = ", ".join(profile_columns)
     placeholders = ", ".join("%s" for _ in profile_columns)
+
+    rows = []
     try:
-        write_query(
-            f"INSERT INTO chain_profiles ({cols_str}) VALUES ({placeholders})",
+        rows = write_query(
+            f"""
+            INSERT INTO chain_profiles ({cols_str})
+            VALUES ({placeholders})
+            ON CONFLICT (username) DO UPDATE SET
+                updated_at = NOW()
+            RETURNING id, auth_user_id
+            """,
             tuple(profile_values)
         )
-    except Exception as exc:
-        # Idempotent: if duplicate key (fast_query timed out), re-fetch
-        recheck = fast_query(
+    except Exception as e:
+        print(f"  INSERT conflict for {username}, falling back to SELECT: {e}")
+        existing = fast_query(
             "SELECT id, auth_user_id FROM chain_profiles WHERE username = %s OR email = %s LIMIT 1",
             (username, email), default=[]
         )
-        if recheck:
-            profile_id = recheck[0]["id"]
-            auth_user_id = recheck[0]["auth_user_id"]
+        if existing:
+            profile_id = existing[0]["id"]
+            auth_user_id = existing[0]["auth_user_id"]
             mark_non_production_profile(profile_id)
-            print(f"  Profile already exists (retry): {username} (id={profile_id})")
+            print(f"  Recovered existing profile: {username} (id={profile_id})")
             return profile_id, auth_user_id, False
-        print(f"  ERROR creating {username}: {exc}")
-        raise
+
+    if rows:
+        row = rows[0] if isinstance(rows, list) else rows
+        profile_id = row.get("id") or profile_id
+        auth_user_id = row.get("auth_user_id") or auth_user_id
 
     if user_info.get("premium_tier"):
         try:
@@ -169,65 +180,37 @@ def upsert_test_user(user_info):
 
 
 def seed_mutual_follows(profiles):
-    usernames = list(profiles.keys())
     star_id = profiles["chain_star"]
+    pairs = []
 
     for username, pid in profiles.items():
         if username == "chain_star":
             continue
-        existing = fast_query(
-            "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
-            (star_id, pid), default=[]
-        )
-        if not existing:
-            try:
-                write_query(
-                    "INSERT INTO chain_follows (id, follower_profile_id, following_profile_id, created_at) VALUES (%s, %s, %s, %s)",
-                    (str(uuid.uuid4()), star_id, pid, _utcnow_iso())
-                )
-            except Exception:
-                pass
-        existing = fast_query(
-            "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
-            (pid, star_id), default=[]
-        )
-        if not existing:
-            try:
-                write_query(
-                    "INSERT INTO chain_follows (id, follower_profile_id, following_profile_id, created_at) VALUES (%s, %s, %s, %s)",
-                    (str(uuid.uuid4()), pid, star_id, _utcnow_iso())
-                )
-            except Exception:
-                pass
+        pairs.append((star_id, pid))
+        pairs.append((pid, star_id))
 
     for i, (u1, pid1) in enumerate(profiles.items()):
         for j, (u2, pid2) in enumerate(profiles.items()):
             if i >= j or u1 == "chain_star" or u2 == "chain_star":
                 continue
-            existing = fast_query(
-                "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
-                (pid1, pid2), default=[]
-            )
-            if not existing:
-                try:
-                    write_query(
-                        "INSERT INTO chain_follows (id, follower_profile_id, following_profile_id, created_at) VALUES (%s, %s, %s, %s)",
-                        (str(uuid.uuid4()), pid1, pid2, _utcnow_iso())
-                    )
-                except Exception:
-                    pass
-            existing = fast_query(
-                "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
-                (pid2, pid1), default=[]
-            )
-            if not existing:
-                try:
-                    write_query(
-                        "INSERT INTO chain_follows (id, follower_profile_id, following_profile_id, created_at) VALUES (%s, %s, %s, %s)",
-                        (str(uuid.uuid4()), pid2, pid1, _utcnow_iso())
-                    )
-                except Exception:
-                    pass
+            pairs.append((pid1, pid2))
+            pairs.append((pid2, pid1))
+
+    if pairs:
+        values = []
+        params = []
+        now = _utcnow_iso()
+        for follower_id, following_id in pairs:
+            values.append("(%s, %s, %s, %s)")
+            params.extend([str(uuid.uuid4()), follower_id, following_id, now])
+        write_query(
+            f"""
+            INSERT INTO chain_follows (id, follower_profile_id, following_profile_id, created_at)
+            VALUES {", ".join(values)}
+            ON CONFLICT DO NOTHING
+            """,
+            tuple(params),
+        )
 
     print(f"  Seeded mutual follows for {len(profiles)} users (star follows all, all follow back)")
 

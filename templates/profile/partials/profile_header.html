@@ -10,7 +10,7 @@
 {% set pinned_data = pinned or {'posts': [], 'reels': [], 'products': []} %}
 {% set stories = content_data.get('stories', []) %}
 {% set profile_location = profile.current_location or profile.location or profile.town or profile.region or profile.country_origin %}
-{% set display_name = profile.display_name or profile.full_name or profile.username or 'CHAIN Member' %}
+{% set display_name = profile.display_name or profile.full_name or profile.username or 'NamVibe Member' %}
 {% set profile_rank = profile.rank or level_data.title or 'New Member' %}
 {% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
 {% set last_seen = presence.last_seen|datetime if presence and presence.last_seen else (profile.last_login_at|datetime if profile.last_login_at else 'recently') %}
@@ -132,7 +132,7 @@
     <div><strong data-count-up="{{ likes_count }}">{{ likes_count }}</strong><span>Likes</span></div>
     <div><strong data-count-up="{{ views_count }}">{{ views_count }}</strong><span>Profile Views</span></div>
     <div><strong data-count-up="{{ visitors_week }}">{{ visitors_week }}</strong><span>Visitors This Week</span></div>
-    <div><strong data-count-up="{{ score_total }}">{{ score_total }}</strong><span>CHAIN Score</span></div>
+    <div><strong data-count-up="{{ score_total }}">{{ score_total }}</strong><span>NamVibe Score</span></div>
 </section>
 
 <div class="profile-top-grid">
@@ -155,7 +155,7 @@
         <i class="fas fa-shield-halved"></i>
         <div>
             {% if profile.is_verified or profile.verified %}
-            <span>Trusted CHAIN identity</span>
+            <span>Trusted NamVibe identity</span>
             <h2>Verified profile</h2>
             {% else %}
             <span>Verification recommended</span>
@@ -207,7 +207,7 @@
 <section class="profile-featured profile-section">
     <div class="profile-section-head">
         <span>Featured</span>
-        <h2>Pinned on CHAIN</h2>
+        <h2>Pinned on NamVibe</h2>
     </div>
     <div class="profile-featured-grid">
         <article class="profile-card featured-card">

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>{{ room.title }} | Chain Live</title>
+<title>{{ room.title }} | {{ APP_NAME }} Live</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <style>
@@ -479,7 +479,7 @@ button { font-family: inherit; }
         {% else %}
         <div class="stage-fallback">
           <div>
-            <div class="chain-disc">CHAIN</div>
+            <div class="chain-disc">NamVibe</div>
             <h1>{{ room.title }}</h1>
             <p>{{ room.welcome_message or "This live room is connected and ready. Add a YouTube source or MP3 layer from the studio when you want media playback." }}</p>
           </div>

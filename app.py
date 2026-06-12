@@ -233,6 +233,8 @@ def create_app():
     socketio = init_socketio(app)
     
     app.config.from_object("config.settings.Config")
+    app.config.setdefault("APP_NAME", os.getenv("APP_NAME", "NamVibe"))
+    app.config.setdefault("APP_DOMAIN", os.getenv("APP_DOMAIN", "namvibe.com"))
 
     # Session and Security Configuration
     app.config.update(
@@ -261,7 +263,11 @@ def create_app():
     @app.context_processor
     def inject_auth_state():
         from services.session_service import is_logged_in
-        return dict(is_logged_in=is_logged_in())
+        return dict(
+            is_logged_in=is_logged_in(),
+            APP_NAME=app.config.get("APP_NAME", "NamVibe"),
+            APP_DOMAIN=app.config.get("APP_DOMAIN", "namvibe.com"),
+        )
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
@@ -536,11 +542,11 @@ def create_app():
 
     @app.route("/terms")
     def terms():
-        return render_template("dashboard/legal.html", page_title="Terms of Service", page_intro="These terms explain how CHAIN works, what users can expect, and the standards for using premium live, chat, wallet, and discovery features.")
+        return render_template("dashboard/legal.html", page_title="Terms of Service", page_intro="These terms explain how NamVibe works, what users can expect, and the standards for using premium live, chat, wallet, and discovery features.")
 
     @app.route("/privacy")
     def privacy():
-        return render_template("dashboard/legal.html", page_title="Privacy Policy", page_intro="This page explains how CHAIN stores profile data, wallet activity, live interactions, and notifications when connected to Supabase.")
+        return render_template("dashboard/legal.html", page_title="Privacy Policy", page_intro="This page explains how NamVibe stores profile data, wallet activity, live interactions, and notifications when connected to Supabase.")
 
     @app.route("/healthz")
     def healthz():

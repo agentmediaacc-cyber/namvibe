@@ -1,13 +1,13 @@
 <!doctype html>
 <html>
 <head>
-  <title>Premium Matching | Chain</title>
+  <title>Premium Matching | {{ APP_NAME }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/matching.css') }}">
 </head>
 <body>
   <aside class="match-side">
-    <h2>⛓️ Chain</h2>
+    <h2>⛓️ NamVibe</h2>
     <a href="/">🏠 Home</a>
     <a href="/profile/">👤 Profile</a>
     <a href="/matching/">💘 Discover</a>
@@ -21,13 +21,13 @@
     <section class="match-hero">
       <p>PREMIUM MATCH ENGINE</p>
       <h1>Find real people who match your vibe.</h1>
-      <span>Matching uses real Chain profiles from Supabase: location, interests, dating goal, creator status, and activity.</span>
+      <span>Matching uses real NamVibe profiles from Supabase: location, interests, dating goal, creator status, and activity.</span>
     </section>
 
     {% if not current %}
       <section class="empty">
         <h2>Create your profile first</h2>
-        <p>Matching only works with real Chain profiles.</p>
+        <p>Matching only works with real NamVibe profiles.</p>
         <a href="/profile/create">Create Profile</a>
       </section>
     {% elif profiles %}

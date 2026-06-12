@@ -72,6 +72,48 @@ def _memory_job(job_id):
     return deepcopy(job) if job else None
 
 
+def active_unique_job_exists(unique_key, job_type=None):
+    if not unique_key:
+        return False
+    for job in _JOBS.values():
+        if job.get("payload", {}).get("_unique_key") != unique_key:
+            continue
+        if job_type and job.get("job_type") != job_type:
+            continue
+        if job.get("status") in {"queued", "running"}:
+            return True
+    if not _db_available():
+        return False
+    try:
+        from services.neon_service import fast_query
+        if job_type:
+            rows = fast_query(
+                """SELECT id
+                   FROM chain_background_jobs
+                   WHERE payload->>'_unique_key' = %s
+                     AND job_type = %s
+                     AND status IN ('queued', 'running')
+                   LIMIT 1""",
+                (unique_key, job_type),
+                timeout_ms=500,
+                default=[],
+            )
+        else:
+            rows = fast_query(
+                """SELECT id
+                   FROM chain_background_jobs
+                   WHERE payload->>'_unique_key' = %s
+                     AND status IN ('queued', 'running')
+                   LIMIT 1""",
+                (unique_key,),
+                timeout_ms=500,
+                default=[],
+            )
+        return bool(rows)
+    except Exception:
+        return False
+
+
 def enqueue_job(job_type, payload=None, priority=5, run_after=None, max_attempts=3, queue="default"):
     payload = payload or {}
     run_at = _parse_time(run_after)
@@ -97,35 +139,64 @@ def enqueue_job(job_type, payload=None, priority=5, run_after=None, max_attempts
     }
     if _db_available():
         try:
-            from services.neon_service import write_query
-            row = write_query(
-                """INSERT INTO chain_background_jobs
-                   (id, job_type, status, priority, payload, max_attempts, run_after)
-                   VALUES (%s,%s,'queued',%s,%s::jsonb,%s,%s)
-                   RETURNING *""",
-                (job_id, job_type, int(priority or 5), json.dumps(payload), int(max_attempts or 3), run_at),
-            )
+            from services.neon_service import fast_query, write_query
+            if payload.get("_unique_key"):
+                row = write_query(
+                    """INSERT INTO chain_background_jobs
+                       (id, job_type, status, priority, payload, max_attempts, run_after)
+                       SELECT %s,%s,'queued',%s,%s::jsonb,%s,%s
+                       WHERE NOT EXISTS (
+                           SELECT 1
+                           FROM chain_background_jobs
+                           WHERE payload->>'_unique_key' = %s
+                             AND status IN ('queued', 'running')
+                       )
+                       ON CONFLICT DO NOTHING
+                       RETURNING *""",
+                    (
+                        job_id,
+                        job_type,
+                        int(priority or 5),
+                        json.dumps(payload),
+                        int(max_attempts or 3),
+                        run_at,
+                        payload.get("_unique_key"),
+                    ),
+                )
+            else:
+                row = write_query(
+                    """INSERT INTO chain_background_jobs
+                       (id, job_type, status, priority, payload, max_attempts, run_after)
+                       VALUES (%s,%s,'queued',%s,%s::jsonb,%s,%s)
+                       ON CONFLICT DO NOTHING
+                       RETURNING *""",
+                    (job_id, job_type, int(priority or 5), json.dumps(payload), int(max_attempts or 3), run_at),
+                )
             if row:
                 job = _row_to_job(row[0] if isinstance(row, list) else row)
                 job["backend"] = "database"
+            elif payload.get("_unique_key"):
+                job["duplicate"] = True
         except Exception as error:
             job["error_message"] = str(error)
-    _JOBS[job_id] = deepcopy(job)
-    safe_redis_lpush(f"chain:jobs:{queue}", job_id)
-    log_job_event(job_id, job_type, "info", "job_queued", {"queue": queue})
-    return {"ok": True, "job": deepcopy(job), "job_id": job_id}
+    final_job_id = str(job.get("id") or job_id)
+    _JOBS[final_job_id] = deepcopy(job)
+    if not job.get("duplicate"):
+        safe_redis_lpush(f"chain:jobs:{queue}", final_job_id)
+        log_job_event(final_job_id, job_type, "info", "job_queued", {"queue": queue})
+    return {"ok": True, "job": deepcopy(job), "job_id": final_job_id, "duplicate": bool(job.get("duplicate"))}
 
 
 def enqueue_unique_job(job_type, payload=None, unique_key=None, priority=5, run_after=None, max_attempts=3, queue="default"):
     payload = payload or {}
     unique_key = unique_key or json.dumps({"job_type": job_type, "payload": payload}, sort_keys=True)
     for job in _JOBS.values():
-        if job.get("job_type") == job_type and job.get("payload", {}).get("_unique_key") == unique_key and job.get("status") in {"queued", "running"}:
+        if job.get("payload", {}).get("_unique_key") == unique_key and job.get("status") in {"queued", "running"}:
             return {"ok": True, "job": deepcopy(job), "job_id": job["id"], "duplicate": True}
     payload = dict(payload)
     payload["_unique_key"] = unique_key
     result = enqueue_job(job_type, payload, priority=priority, run_after=run_after, max_attempts=max_attempts, queue=queue)
-    result["duplicate"] = False
+    result["duplicate"] = bool(result.get("duplicate"))
     return result
 
 

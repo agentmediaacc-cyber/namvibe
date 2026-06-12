@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import pool, sql, extensions
 from psycopg2.extras import Json, RealDictCursor
+from psycopg2 import errors as pg_errors
 from services.circuit_breaker import CircuitBreaker
 from services.logging_service import log_error, log_warning, log_info, log_metric
 
@@ -23,8 +24,12 @@ CHAIN_STATIC_COLUMNS = {
         "id", "auth_user_id", "email", "username", "display_name", "full_name",
         "avatar_url",   "thumbnail_url", "town", "city",
         "location", "region",  "country_origin", "current_location",
+        "avatar_size_bytes", "cover_size_bytes", "avatar_mime_type", "cover_mime_type",
+        "avatar_storage_bucket", "cover_storage_bucket", "avatar_storage_path",
+        "cover_storage_path", "avatar_updated_at", "cover_updated_at",
         "is_verified", "verified", "is_online", "is_creator", "creator_category",
         "dating_mode_enabled", "is_premium", "wallet_balance", "profile_completed",
+        "followers_count", "following_count", "bio", "is_public", "photo_url",
         "deleted_at", "created_at", "updated_at", "bio",
         "privacy_accepted_at", "privacy_accepted", "privacy_version", "terms_version",
         "who_can_message", "who_can_call", "who_can_see_status",
@@ -166,6 +171,42 @@ def _get_dsn_kwargs():
         "cursor_factory": RealDictCursor
     }
 
+
+def _is_connection_error(error: Exception) -> bool:
+    if isinstance(error, (CircuitOpenError, psycopg2.OperationalError, psycopg2.InterfaceError, pool.PoolError)):
+        return True
+    text = str(error).lower()
+    connection_markers = (
+        "connection refused",
+        "connection already closed",
+        "server closed the connection",
+        "terminating connection",
+        "timeout expired",
+        "could not connect",
+        "connection pool",
+        "ssl syscall error",
+        "network is unreachable",
+    )
+    return any(marker in text for marker in connection_markers)
+
+
+def _record_query_failure(error: Exception) -> None:
+    if _is_connection_error(error):
+        _NEON_BREAKER.failure(error)
+    else:
+        log_warning("neon_query_non_connection_error", error=str(error)[:240])
+
+
+def safe_row_get(row: Any, key_or_index: Any, default: Any = None) -> Any:
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        return row.get(key_or_index, default)
+    try:
+        return row[key_or_index]
+    except (IndexError, KeyError, TypeError):
+        return default
+
 def _is_connection_alive(conn) -> bool:
     """Performs a lightweight ping on the connection."""
     if not conn or conn.closed:
@@ -261,7 +302,7 @@ def release_connection(conn):
     """Safely returns a connection to the pool."""
     if not conn:
         return
-    pool_inst = _pool_instance()
+    pool_inst = _POOL
     if not pool_inst:
         try: conn.close()
         except: pass
@@ -307,7 +348,7 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                 return {"rowcount": cur.rowcount}
                 
     except Exception as e:
-        _NEON_BREAKER.failure(e)
+        _record_query_failure(e)
         log_error("neon_query_error", error=e, sql=sql_text[:200])
         if fetch == "write":
             raise NeonWriteError(str(e))
@@ -356,7 +397,7 @@ def transaction_query(callback, timeout_ms=10000):
                 return result
     except Exception as e:
         if conn: conn.rollback()
-        _NEON_BREAKER.failure(e)
+        _record_query_failure(e)
         log_error("neon_transaction_failed", error=e)
         raise NeonWriteError(str(e))
     finally:

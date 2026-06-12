@@ -1,5 +1,5 @@
 /**
- * CHAIN Group Calls — Multi-Party Audio/Video/Screen-Share Engine
+ * NamVibe Group Calls — Multi-Party Audio/Video/Screen-Share Engine
  * Phase 44
  */
 (function () {

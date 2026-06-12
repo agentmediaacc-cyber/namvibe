@@ -1,4 +1,4 @@
-# CHAIN Mobile API v1 Documentation
+# NamVibe Mobile API v1 Documentation
 
 ## Base URL
 `https://your-domain.com/api/v1`

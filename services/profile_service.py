@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 import uuid
 
-from flask import has_request_context, session
+from flask import g, has_request_context, session
 from psycopg2.extras import Json
 
 from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
@@ -50,10 +50,16 @@ CHAIN_PROFILE_SAFE_COLUMNS = {
     "avatar_path",
     "avatar_mime_type",
     "avatar_size_bytes",
+    "avatar_storage_bucket",
+    "avatar_storage_path",
+    "avatar_updated_at",
     "cover_bucket",
     "cover_path",
     "cover_mime_type",
     "cover_size_bytes",
+    "cover_storage_bucket",
+    "cover_storage_path",
+    "cover_updated_at",
     "wallet_balance",
     "onboarding_step",
     "current_location",
@@ -116,10 +122,16 @@ PROFILE_COLUMNS = {
     "avatar_path",
     "avatar_mime_type",
     "avatar_size_bytes",
+    "avatar_storage_bucket",
+    "avatar_storage_path",
+    "avatar_updated_at",
     "cover_bucket",
     "cover_path",
     "cover_mime_type",
     "cover_size_bytes",
+    "cover_storage_bucket",
+    "cover_storage_path",
+    "cover_updated_at",
     "profile_photo",
     "profile_video_url",
     "video_intro_url",
@@ -213,10 +225,16 @@ NEON_PROFILE_COLUMNS = {
     "avatar_path",
     "avatar_mime_type",
     "avatar_size_bytes",
+    "avatar_storage_bucket",
+    "avatar_storage_path",
+    "avatar_updated_at",
     "cover_bucket",
     "cover_path",
     "cover_mime_type",
     "cover_size_bytes",
+    "cover_storage_bucket",
+    "cover_storage_path",
+    "cover_updated_at",
     "storage_bucket",
     "storage_path",
     "interests",
@@ -505,7 +523,7 @@ def verify_profile_age(profile):
     if is_adult is True:
         return True, None
     if is_adult is False:
-        return False, "CHAIN is only available to users 18 and older."
+        return False, "NamVibe is only available to users 18 and older."
     # is_adult is None -> missing DOB
     return False, "REDIRECT_AGE_CHECK"
 
@@ -874,21 +892,21 @@ def get_current_profile():
             return None
 
         cache_id = auth_user_id or profile_id or email
-        # Request-level cache — avoids repeated DB lookups within same request
-        from services.request_cache import request_get, request_set
-        req_key = "current_profile:" + str(cache_id)
-        req_cached = request_get(req_key)
-        if req_cached is not None:
-            return req_cached
+        _g_cache_key = str(cache_id)
+        if getattr(g, "current_profile_cache_key", None) == _g_cache_key and hasattr(g, "current_profile"):
+            return g.current_profile
 
         cached_profile = get_cache(cache_key("current_profile", cache_id))
         if cached_profile is not None:
-            request_set(req_key, cached_profile)
+            g.current_profile_cache_key = _g_cache_key
+            g.current_profile = cached_profile
             return cached_profile
 
         if os.getenv("FLASK_TESTING") == "1" and session.get("profile_warning"):
             profile = _test_fallback_profile(auth_user_id=auth_user_id, profile_id=profile_id, email=email)
             set_cache(cache_key("current_profile", cache_id), profile, ttl=15)
+            g.current_profile_cache_key = _g_cache_key
+            g.current_profile = profile
             return profile
 
         profile = None
@@ -911,6 +929,21 @@ def get_current_profile():
         if not profile and email:
             profiles = safe_select("chain_profiles", columns="*", filters={"email": email}, limit=1)
             profile = normalize_profile(profiles[0]) if profiles else None
+
+        if not profile and auth_user_id and email:
+            defaults = {
+                "email": email,
+                "username": session.get("username") or normalize_username(email.split("@", 1)[0]),
+                "full_name": session.get("full_name") or session.get("display_name") or email.split("@", 1)[0].replace("_", " ").title(),
+                "display_name": session.get("display_name") or session.get("full_name"),
+                "profile_completed": bool(session.get("profile_completed")),
+            }
+            bootstrapped, bootstrap_error = ensure_neon_profile(auth_user_id, defaults)
+            if bootstrapped:
+                profile = normalize_profile(bootstrapped)
+                log_info("current_profile_bootstrapped", auth_user_id=auth_user_id, profile_id=profile.get("id"), email=email)
+            elif bootstrap_error:
+                log_warning("current_profile_bootstrap_failed", auth_user_id=auth_user_id, email=email, error=bootstrap_error)
         
         if not profile and os.getenv("FLASK_TESTING") == "1":
             profile = _test_fallback_profile(auth_user_id=auth_user_id, profile_id=profile_id, email=email)
@@ -940,8 +973,9 @@ def get_current_profile():
             if profile.get("auth_user_id"):
                 session["auth_user_id"] = profile.get("auth_user_id")
                 session["user_id"] = profile.get("auth_user_id")
-            request_set(req_key, profile)
             set_cache(cache_key("current_profile", cache_id), profile, ttl=60)
+            g.current_profile_cache_key = _g_cache_key
+            g.current_profile = profile
             return profile
 
         print(f"[profile_service] get_current_profile missing profile for auth_user_id={auth_user_id} profile_id={profile_id} email={email}")
@@ -1152,17 +1186,17 @@ def _check_duplicate_identity(payload, existing_id=None):
     if email:
         owner = _neon_get_profile_by("email", email)
         if owner and owner.get("id") != existing_id:
-            return False, "That email is already connected to another CHAIN profile."
+            return False, "That email is already connected to another NamVibe profile."
         for field in ("normalized_email", "email"):
             owner = safe_select("chain_profiles", columns="id", filters={field: email}, limit=1, order_by=None)
             if owner and owner[0].get("id") != existing_id:
-                return False, "That email is already connected to another CHAIN profile."
+                return False, "That email is already connected to another NamVibe profile."
 
     if phone:
         for field in ("normalized_phone", "phone"):
             owner = safe_select("chain_profiles", columns="id", filters={field: phone}, limit=1, order_by=None)
             if owner and owner[0].get("id") != existing_id:
-                return False, "That phone number is already connected to another CHAIN profile."
+                return False, "That phone number is already connected to another NamVibe profile."
 
     return True, None
 

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Create Account | CHAIN{% endblock %}
+{% block title %}Create Account | NamVibe{% endblock %}
 {% block body_class %}chain-wallpaper-auth{% endblock %}
 
 {% block extra_css %}
@@ -8,10 +8,10 @@
 {% endblock %}
 
 {% block content %}
-<!-- CHAIN_REGISTER_V7_ACTIVE -->
+<!-- NAMVIBE_REGISTER_V7_ACTIVE -->
 <section class="chain-auth-shell chain-register-shell chain-register-premium" data-register-version="v7">
     <div class="chain-register-bg" aria-hidden="true">
-        <span>CHAIN</span>
+        <span>NamVibe</span>
         <span>CONNECT</span>
         <span>CREATE</span>
     </div>
@@ -26,7 +26,7 @@
         </div>
 
         {% if request.args.get('oauth_signup_required') %}
-        <div class="chain-auth-alert chain-auth-alert--info">No CHAIN account found for that social login. Please create your account first.</div>
+        <div class="chain-auth-alert chain-auth-alert--info">No NamVibe account found for that social login. Please create your account first.</div>
         {% endif %}
 
         {% if error %}
@@ -66,9 +66,9 @@
 
         <div class="chain-register-step chain-onboarding-step is-active" data-step="1" data-step-name="welcome">
             <div class="chain-onboarding-center">
-                <span class="chain-auth-brand-mark">CH</span>
+                <span class="chain-auth-brand-mark">NV</span>
                 <span class="chain-auth-step-label">Step 1 · Welcome</span>
-                <h1>Join CHAIN</h1>
+                <h1>Join NamVibe</h1>
                 <p>Your account starts here. We will set up your identity, location, security, and account standards one step at a time.</p>
                 <a href="/auth/login" class="chain-auth-link">Already have an account?</a>
             </div>
@@ -86,7 +86,7 @@
 
         <div class="chain-register-step chain-onboarding-step" data-step="3" data-step-name="contact">
             <span class="chain-auth-step-label">Step 3 · Email + Phone</span>
-            <h2>How can CHAIN secure your account?</h2>
+            <h2>How can NamVibe secure your account?</h2>
             <p class="chain-step-copy">These details are used for account identity and ownership.</p>
             <div class="chain-single-task-stack">
                 <label class="chain-field-xl">
@@ -117,7 +117,7 @@
 
         <div class="chain-register-step chain-onboarding-step" data-step="5" data-step-name="location">
             <span class="chain-auth-step-label">Step 5 · Location</span>
-            <h2>Where should CHAIN place you?</h2>
+            <h2>Where should NamVibe place you?</h2>
             <p class="chain-step-copy">Search or type your location. Region and town stay typeable if suggestions are missing.</p>
             <div class="chain-single-task-stack">
                 <label class="chain-field-xl search-field">
@@ -146,7 +146,7 @@
         <div class="chain-register-step chain-onboarding-step" data-step="6" data-step-name="password">
             <span class="chain-auth-step-label">Step 6 · Password</span>
             <h2>Create a secure password</h2>
-            <p class="chain-step-copy">Use at least 8 characters. A stronger password helps protect your CHAIN account.</p>
+            <p class="chain-step-copy">Use at least 8 characters. A stronger password helps protect your NamVibe account.</p>
             <div class="chain-single-task-stack">
                 <label class="chain-field-xl">
                     <span>Password <span class="req">*</span></span>
@@ -173,9 +173,9 @@
             <h2>Confirm your account standards</h2>
             <div class="chain-toggle-list chain-agreement-list">
                 <label class="chain-toggle"><input type="checkbox" name="agreement_true_details" required> <span>I confirm that my full name and phone number are my true details.</span></label>
-                <label class="chain-toggle"><input type="checkbox" name="agreement_identity_use" required> <span>I understand CHAIN collects these details only for account identity and ownership.</span></label>
+                <label class="chain-toggle"><input type="checkbox" name="agreement_identity_use" required> <span>I understand NamVibe collects these details only for account identity and ownership.</span></label>
                 <label class="chain-toggle"><input type="checkbox" name="agreement_username_privacy" required> <span>I understand other users communicate with me mainly by username, not my private details.</span></label>
-                <label class="chain-toggle"><input type="checkbox" name="agreement_standards" required> <span>I agree CHAIN may block accounts that violate standards.</span></label>
+                <label class="chain-toggle"><input type="checkbox" name="agreement_standards" required> <span>I agree NamVibe may block accounts that violate standards.</span></label>
                 <label class="chain-toggle"><input type="checkbox" name="agreement_no_abuse" required> <span>I agree not to misuse the platform, disrespect users, scam, harass, impersonate, or abuse services.</span></label>
                 <label class="chain-toggle"><input type="checkbox" name="terms" id="terms" required> <span>I agree to the <a href="/terms">Terms and Conditions</a> and <a href="/privacy">Privacy Policy</a>.</span></label>
             </div>
@@ -185,8 +185,8 @@
         </div>
 
         <div class="chain-register-success" id="chain-register-success" aria-live="polite">
-            <span class="chain-auth-brand-mark">CH</span>
-            <h2>Creating your CHAIN profile</h2>
+            <span class="chain-auth-brand-mark">NV</span>
+            <h2>Creating your NamVibe profile</h2>
             <p>When this finishes, you will enter your profile. If your email is not confirmed yet, your profile will show Not Verified.</p>
         </div>
 

@@ -3,7 +3,7 @@ import uuid
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
-from services.job_queue_service import enqueue_unique_job
+from services.job_queue_service import active_unique_job_exists, enqueue_unique_job
 
 _TASKS = {}
 
@@ -54,6 +54,10 @@ def _task(task_name, job_type, interval_seconds, payload=None, enabled=True):
     }
 
 
+def _scheduled_unique_key(task):
+    return f"scheduled:{task.get('job_type') or task['task_name']}"
+
+
 def seed_default_tasks():
     for task_name, job_type, interval in DEFAULT_TASKS:
         _TASKS.setdefault(task_name, _task(task_name, job_type, interval))
@@ -81,10 +85,22 @@ def run_due_tasks():
     due = get_due_tasks()
     enqueued = []
     for task in due:
+        unique_key = _scheduled_unique_key(task)
+        if active_unique_job_exists(unique_key, job_type=task["job_type"]):
+            enqueued.append({
+                "ok": True,
+                "job_id": None,
+                "duplicate": False,
+                "skipped": True,
+                "reason": "active_job_exists",
+                "unique_key": unique_key,
+            })
+            update_next_run(task["task_name"])
+            continue
         result = enqueue_unique_job(
             task["job_type"],
             payload={**(task.get("payload") or {}), "_scheduled_task": task["task_name"]},
-            unique_key=f"scheduled:{task['task_name']}",
+            unique_key=unique_key,
             priority=5,
         )
         enqueued.append(result)

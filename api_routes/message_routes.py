@@ -1154,8 +1154,10 @@ def api_start_thread():
 @message_bp.route("/api/friends")
 @login_required
 def api_friends():
-    profile = get_current_profile()
-    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    profile_id = session.get("profile_id")
+    if not profile_id:
+        profile = get_current_profile()
+        profile_id = (profile or {}).get("id")
     if not profile_id:
         return jsonify({"ok": False, "error": "unauthorized"}), 401
 
@@ -1168,18 +1170,26 @@ def api_friends():
 
     friends = fast_query(
         """
+        WITH mutual AS (
+            SELECT DISTINCT f1.following_profile_id
+            FROM chain_follows f1
+            WHERE f1.follower_profile_id = %s
+              AND EXISTS (
+                  SELECT 1
+                  FROM chain_follows f2
+                  WHERE f2.follower_profile_id = f1.following_profile_id
+                    AND f2.following_profile_id = f1.follower_profile_id
+              )
+            LIMIT 100
+        )
         SELECT p.id, p.username, p.full_name, p.avatar_url,
                p.is_verified, p.is_online
-        FROM chain_follows f1
-        JOIN chain_follows f2
-            ON f1.follower_profile_id = f2.following_profile_id
-           AND f1.following_profile_id = f2.follower_profile_id
-        JOIN chain_profiles p ON f1.following_profile_id = p.id
-        WHERE f1.follower_profile_id = %s
+        FROM mutual m
+        JOIN chain_profiles p ON m.following_profile_id = p.id
         ORDER BY p.is_online DESC, p.full_name ASC
         LIMIT 50
         """,
-        (profile_id,), default=[]
+        (profile_id,), timeout_ms=600, default=[]
     )
     set_cache(cache_key_str, friends, ttl=30)
     return jsonify({"ok": True, "friends": friends}), 200

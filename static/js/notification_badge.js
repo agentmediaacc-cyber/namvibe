@@ -1,5 +1,5 @@
 /**
- * CHAIN Notification Badge Updater
+ * NamVibe Notification Badge Updater
  * Phase 45: Real-time unread badge count
  */
 (function () {

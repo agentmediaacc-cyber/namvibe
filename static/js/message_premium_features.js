@@ -252,7 +252,7 @@
     function walletTransfer(type) {
       _walletTransferType = type;
       var labels = { send: 'Send Money', request: 'Request Money', tip: 'Tip User', split: 'Split Bill' };
-      var amount = prompt(labels[type] + ':\nEnter amount (CHAIN coins):');
+      var amount = prompt(labels[type] + ':\nEnter amount (NamVibe coins):');
       if (!amount || isNaN(amount) || Number(amount) <= 0) return;
       var note = prompt('Optional note:') || '';
       var endpoint = '/messages/api/wallet/' + type;

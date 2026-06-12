@@ -7,7 +7,7 @@ from services.neon_service import fast_query, write_query, get_pool_status
 from services.supabase_safe import safe_insert, safe_select, safe_update, safe_delete
 from services.profile_service import get_current_profile, get_lightweight_profile
 
-PLATFORM = "CHAIN"
+PLATFORM = "NamVibe"
 AI_MARKER = "[AI Suggestion]"
 
 ASSISTANT_TYPES = (
@@ -51,7 +51,7 @@ def _mock_response(assistant_type, user_input, context=None):
             "Try exploring the Discover tab to find new creators and content.",
             "Your profile looks great! Consider adding a bio to help others learn about you.",
             "Engage with your audience by responding to comments on your posts.",
-            "Use the CHAIN marketplace to find unique products and services.",
+            "Use the NamVibe marketplace to find unique products and services.",
             "Stay safe online — never share personal contact information publicly.",
         ],
         'creator': [
@@ -73,7 +73,7 @@ def _mock_response(assistant_type, user_input, context=None):
             "Meet in public places for first dates and tell a friend where you're going.",
             "Trust your instincts — if something feels off, report and block.",
             "Keep conversations on the platform until you're comfortable.",
-            "CHAIN will never ask for your password or payment details through DMs.",
+            "NamVibe will never ask for your password or payment details through DMs.",
         ],
         'moderation': [
             "Review reported content carefully before taking action.",

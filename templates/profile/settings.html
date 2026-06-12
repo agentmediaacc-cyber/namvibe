@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings | CHAIN{% endblock %}
+{% block title %}Settings | NamVibe{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -227,7 +227,7 @@
 <div class="settings-shell">
     <div class="settings-hero">
         <h1>Settings</h1>
-        <p>Control your CHAIN profile, privacy, messages, audio calls, video calls and conference calls.</p>
+        <p>Control your NamVibe profile, privacy, messages, audio calls, video calls and conference calls.</p>
     </div>
 
     <form method="POST">
@@ -282,7 +282,7 @@
                 <div class="setting-row">
                     <div class="setting-text">
                         <strong>Allow video calls</strong>
-                        <span>Enable camera calls on CHAIN.</span>
+                        <span>Enable camera calls on NamVibe.</span>
                     </div>
                     <label class="switch">
                         <input type="checkbox" name="allow_video_calls" {% if profile_settings.allow_video_calls != false %}checked{% endif %}>
@@ -446,7 +446,7 @@
                     <button class="save-btn" id="e2ee-settings-rotate" style="padding:8px 16px;font-size:12px;">Rotate Keys</button>
                 </div>
                 <div style="font-size:12px;color:#64748b;padding:12px 0 0;border-top:1px solid rgba(15,23,42,.07);">
-                    <i class="fas fa-info-circle"></i> CHAIN uses hybrid encryption (RSA-2048 + AES-256-GCM). Encrypted messages show a lock icon. This is encryption-ready — not full Signal Protocol PFS.
+                    <i class="fas fa-info-circle"></i> NamVibe uses hybrid encryption (RSA-2048 + AES-256-GCM). Encrypted messages show a lock icon. This is encryption-ready — not full Signal Protocol PFS.
                 </div>
             </section>
 
@@ -462,7 +462,7 @@
                         <span>Choose your incoming call tone.</span>
                     </div>
                     <select class="select-control" name="call_ringtone">
-                        <option value="chain_classic" {% if profile_settings.call_ringtone == 'chain_classic' %}selected{% endif %}>CHAIN Classic</option>
+                        <option value="namvibe_classic" {% if profile_settings.call_ringtone == 'namvibe_classic' %}selected{% endif %}>NamVibe Classic</option>
                         <option value="soft_ring" {% if profile_settings.call_ringtone == 'soft_ring' %}selected{% endif %}>Soft Ring</option>
                         <option value="premium_beep" {% if profile_settings.call_ringtone == 'premium_beep' %}selected{% endif %}>Premium Beep</option>
                         <option value="silent" {% if profile_settings.call_ringtone == 'silent' %}selected{% endif %}>Silent</option>
@@ -519,7 +519,7 @@
                             <i class="fas fa-user"></i>
                         </div>
                         <div class="preview-name">
-                            <h3>CHAIN Contact</h3>
+                            <h3>NamVibe Contact</h3>
                             <p>Ringing...</p>
                         </div>
                         <div class="preview-controls">

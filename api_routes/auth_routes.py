@@ -139,8 +139,9 @@ def _post_login_redirect(result):
 
 
 def _existing_session_redirect():
-    user = get_current_user()
-    if not user:
+    if not (session.get("auth_user_id") or session.get("user_id")):
+        return None
+    if not session.get("access_token") and not session.get("profile_id"):
         return None
     profile = get_current_profile()
     if not profile:
@@ -153,7 +154,7 @@ def _existing_session_redirect():
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10/minute", key_func=lambda: request.headers.get("X-Forwarded-For") or request.remote_addr)
 def login():
-    existing_target = _existing_session_redirect()
+    existing_target = _existing_session_redirect() if request.method == "GET" else None
     if request.method == "GET" and existing_target:
         return redirect(existing_target)
     error = None
@@ -258,7 +259,7 @@ def register_post():
         "terms",
     )
     if not all(request.form.get(field) for field in agreement_fields):
-        error = "You must accept all account agreements before creating your CHAIN account."
+        error = "You must accept all account agreements before creating your NamVibe account."
         return render_template("auth/register.html", error=error, form=request.form)
     result = register_chain_user(
         request.form.get("email"),
@@ -304,7 +305,7 @@ def register_post():
 
     if result.get("error") == "EMAIL_EXISTS":
         error = {
-            "message": "This email already has a CHAIN account.",
+            "message": "This email already has a NamVibe account.",
             "email": request.form.get("email"),
             "exists": True
         }
@@ -350,7 +351,7 @@ def onboarding_tour():
         return redirect(url_for("auth.login", next=request.path))
     if request.method == "POST":
         return redirect("/profile/")
-    return render_template("auth/profile_error.html", error_detail="Welcome tour is ready. Start exploring CHAIN or skip for now.")
+    return render_template("auth/profile_error.html", error_detail="Welcome tour is ready. Start exploring NamVibe or skip for now.")
 
 
 @auth_bp.route("/check-availability")

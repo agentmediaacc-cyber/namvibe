@@ -1,5 +1,5 @@
 /**
- * CHAIN Push Notifications Client
+ * NamVibe Push Notifications Client
  * Phase 45: Push Notifications, Background Calls, APNS, FCM, CallKit
  *
  * Features:

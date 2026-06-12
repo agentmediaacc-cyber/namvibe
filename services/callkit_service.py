@@ -77,7 +77,7 @@ def build_apns_push_payload(payload):
     apns = {
         "aps": {
             "alert": {
-                "title": payload.get("aps", {}).get("alert", {}).get("title", "CHAIN"),
+                "title": payload.get("aps", {}).get("alert", {}).get("title", "NamVibe"),
                 "body": payload.get("aps", {}).get("alert", {}).get("body", ""),
             },
             "sound": payload.get("aps", {}).get("sound", "call.caf"),

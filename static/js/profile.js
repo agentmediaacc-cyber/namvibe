@@ -1,4 +1,4 @@
-// CHAIN premium profile interactions
+// NamVibe premium profile interactions
 document.addEventListener("DOMContentLoaded", () => {
   const body = document.body;
 

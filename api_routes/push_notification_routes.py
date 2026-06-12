@@ -78,7 +78,7 @@ def api_test_notification():
         return jsonify({"ok": False, "error": "profile_not_found"}), 400
     data = request.json or {}
     title = data.get("title", "Test Notification")
-    body = data.get("body", "This is a test notification from CHAIN")
+    body = data.get("body", "This is a test notification from NamVibe")
     result = send_push_notification(profile["id"], title, body, {"test": True})
     if result.get("ok"):
         return jsonify({"ok": True, "message": "Test notification queued"}), 200

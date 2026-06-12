@@ -69,7 +69,7 @@
     check: check,
     report: function() {
       var r = check();
-      console.log('[CHAIN Theme Audit]');
+      console.log('[NamVibe Theme Audit]');
       console.log('  OK:', r.ok);
       console.log('  Checked:', r.checked, 'variables');
       if (r.missing) console.log('  MISSING:', r.missing);

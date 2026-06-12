@@ -1,4 +1,4 @@
-# CHAIN Production Deployment Guide
+# NamVibe Production Deployment Guide
 
 ## Prerequisites
 - **Ubuntu 22.04+ VPS** recommended

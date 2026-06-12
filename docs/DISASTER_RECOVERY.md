@@ -1,4 +1,4 @@
-# CHAIN DISASTER RECOVERY PLAN
+# NAMVIBE DISASTER RECOVERY PLAN
 
 ## 1. Database Backups
 - **Primary DB (Neon/PostgreSQL):**

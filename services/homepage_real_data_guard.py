@@ -77,14 +77,14 @@ def public_profile_sql(alias="chain_profiles"):
     return (
         f"LOWER(COALESCE({prefix}username, '')) NOT IN "
         "('chain_star', 'chain_moon', 'chain_gold', 'chain_million', 'chain_premium') "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'demo_%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'dev_%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'test_%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'testuser%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'phase8_%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'devsetup_%' "
-        f"AND LOWER(COALESCE({prefix}email, '')) NOT LIKE '%.local' "
-        f"AND LOWER(COALESCE({prefix}email, '')) NOT LIKE '%@chain.local'"
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'demo_%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'dev_%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'test_%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'testuser%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'phase8_%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'devsetup_%%' "
+        f"AND LOWER(COALESCE({prefix}email, '')) NOT LIKE '%%.local' "
+        f"AND LOWER(COALESCE({prefix}email, '')) NOT LIKE '%%@chain.local'"
     )
 
 

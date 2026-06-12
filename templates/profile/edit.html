@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Profile | Chain Premium{% endblock %}
+{% block title %}Edit Profile | {{ APP_NAME }} Premium{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/profile_premium.css">
@@ -40,7 +40,7 @@
         <div class="panel-head">
             <div>
                 <p>{% if setup_mode %}ONBOARDING{% else %}PROFILE EDITOR{% endif %}</p>
-                <h2>{% if setup_mode %}Finish your CHAIN setup{% else %}Refine your premium profile{% endif %}</h2>
+                <h2>{% if setup_mode %}Finish your NamVibe setup{% else %}Refine your premium profile{% endif %}</h2>
             </div>
             <a class="profile-empty-btn" href="/profile/settings">Settings</a>
         </div>

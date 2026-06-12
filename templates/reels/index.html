@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Reels | CHAIN{% endblock %}
+{% block title %}Reels | NamVibe{% endblock %}
 
 {% block content %}
 <main class="reels-page">
@@ -17,7 +17,7 @@
                     <span class="avatar-dot">{% if reel.avatar_url %}<img src="{{ reel.avatar_url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ (reel.username or 'C')[0]|upper }}{% endif %}</span>
                     <div>
                         <h2 style="margin:0;">@{{ reel.username }} <i class="fas fa-circle-check" style="color:#1E88E5;font-size:15px;"></i></h2>
-                        <p style="margin:4px 0 0;">Original sound · {{ reel.music_title or 'CHAIN Music' }}</p>
+                        <p style="margin:4px 0 0;">Original sound · {{ reel.music_title or 'NamVibe Music' }}</p>
                     </div>
                     <button class="px-btn px-btn--gold" type="button">Follow</button>
                 </div>
@@ -37,7 +37,7 @@
             <div>
                 <i class="fas fa-film" style="font-size:64px;opacity:.35;"></i>
                 <h1>No reels yet</h1>
-                <p>Be the first to start the short-form video feed on CHAIN.</p>
+                <p>Be the first to start the short-form video feed on NamVibe.</p>
                 <a href="{{ url_for('reels.upload') }}" class="px-btn px-btn--gold">Upload Reel</a>
             </div>
         </section>

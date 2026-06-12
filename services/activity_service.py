@@ -84,7 +84,7 @@ def _resolve_post_item(row):
     return {
         "kind": "post",
         "title": body[:110] + ("..." if len(body) > 110 else ""),
-        "subtitle": "Post from Chain feed",
+        "subtitle": "Post from NamVibe feed",
         "href": "/discover/trending",
         "image_url": post.get("media_url"),
         "created_at": row.get("created_at") or post.get("created_at"),
@@ -112,7 +112,7 @@ def _resolve_room_item(row):
 
 def _fallback_item(row, label):
     title = row.get("title") or row.get("label") or row.get("name") or label
-    subtitle = row.get("description") or row.get("favorite_type") or row.get("view_type") or "Saved from your Chain activity."
+    subtitle = row.get("description") or row.get("favorite_type") or row.get("view_type") or "Saved from your NamVibe activity."
     href = row.get("target_url") or row.get("href") or "/discover"
     return {
         "kind": "generic",

@@ -58,6 +58,47 @@ AUTH_PROFILE_COLUMNS = {
     "updated_at",
 }
 
+LOGIN_PROFILE_FIELD_CANDIDATES = (
+    "id",
+    "auth_user_id",
+    "username",
+    "email",
+    "password_hash",
+    "password",
+    "is_active",
+    "is_blocked",
+    "login_allowed",
+    "profile_completed",
+)
+_LOGIN_PROFILE_COLUMNS_CACHE = None
+
+
+def _login_profile_columns():
+    global _LOGIN_PROFILE_COLUMNS_CACHE
+    if _LOGIN_PROFILE_COLUMNS_CACHE:
+        return _LOGIN_PROFILE_COLUMNS_CACHE
+    try:
+        rows = fast_query(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'chain_profiles'
+              AND column_name = ANY(%s)
+            """,
+            (list(LOGIN_PROFILE_FIELD_CANDIDATES),),
+            timeout_ms=800,
+            default=[],
+        )
+        found = {row.get("column_name") for row in rows if row.get("column_name")}
+        selected = [column for column in LOGIN_PROFILE_FIELD_CANDIDATES if column in found]
+    except Exception:
+        selected = ["id", "auth_user_id", "username", "email", "password_hash", "profile_completed"]
+    if "id" not in selected:
+        selected.insert(0, "id")
+    _LOGIN_PROFILE_COLUMNS_CACHE = ", ".join(selected)
+    return _LOGIN_PROFILE_COLUMNS_CACHE
+
 
 _DEV_REGISTRATION_CREDENTIALS = {}
 
@@ -382,23 +423,20 @@ def _profile_exists_by_username(username):
     return bool(rows)
 
 
-def _find_login_profile(login_id):
+def _find_login_profile(login_id, columns=None):
     login_id = (login_id or "").strip().lower()
     if not login_id:
         return None
+    selected_columns = columns or _login_profile_columns()
     if "@" in login_id:
-        rows = safe_select("chain_profiles", columns="*", filters={"normalized_email": clean_email(login_id)}, limit=1, order_by=None)
+        rows = safe_select("chain_profiles", columns=selected_columns, filters={"normalized_email": clean_email(login_id)}, limit=1, order_by=None)
         if rows:
             return rows[0]
-        rows = safe_select("chain_profiles", columns="*", filters={"email": clean_email(login_id)}, limit=1, order_by=None)
+        rows = safe_select("chain_profiles", columns=selected_columns, filters={"email": clean_email(login_id)}, limit=1, order_by=None)
         return rows[0] if rows else None
 
     username = normalize_username(login_id)
-    from services.profile_service import get_profile_by_username
-    profile = get_profile_by_username(username)
-    if profile:
-        return profile
-    rows = safe_select("chain_profiles", columns="*", filters={"username": username}, limit=1, order_by=None)
+    rows = safe_select("chain_profiles", columns=selected_columns, filters={"username": username}, limit=1, order_by=None)
     return rows[0] if rows else None
 
 
@@ -448,37 +486,45 @@ def _ensure_profile_dependencies(profile_id):
     if not profile_id:
         return
     if table_exists("chain_wallets"):
-        existing_wallet = safe_select("chain_wallets", columns="id", filters={"profile_id": profile_id}, limit=1, order_by=None)
-        if not existing_wallet:
-            safe_insert(
-                "chain_wallets",
-                {"profile_id": profile_id, "coin_balance": 0, "gift_earnings": 0, "pending_withdrawal": 0, "status": "active"},
-                fallback_columns={"profile_id", "coin_balance", "gift_earnings", "pending_withdrawal", "status", "created_at", "updated_at"},
-            )
+        write_query(
+            """
+            INSERT INTO chain_wallets (profile_id, coin_balance, gift_earnings, pending_withdrawal, status)
+            VALUES (%s, 0, 0, 0, 'active')
+            ON CONFLICT DO NOTHING
+            """,
+            (profile_id,),
+            timeout_ms=800,
+        )
     if table_exists("chain_creator_tools"):
-        existing_tools = safe_select("chain_creator_tools", columns="id", filters={"profile_id": profile_id}, limit=1, order_by=None)
-        if not existing_tools:
-            safe_insert(
-                "chain_creator_tools",
-                {"profile_id": profile_id, "studio_enabled": False, "monetization_enabled": False, "creator_notes": "", "featured_links": []},
-                fallback_columns={"profile_id", "studio_enabled", "monetization_enabled", "creator_notes", "featured_links", "status", "created_at", "updated_at"},
-            )
+        write_query(
+            """
+            INSERT INTO chain_creator_tools (profile_id, studio_enabled, monetization_enabled, creator_notes, featured_links)
+            VALUES (%s, FALSE, FALSE, '', '[]'::jsonb)
+            ON CONFLICT DO NOTHING
+            """,
+            (profile_id,),
+            timeout_ms=800,
+        )
     if table_exists("chain_user_settings"):
-        existing_settings = safe_select("chain_user_settings", columns="id", filters={"profile_id": profile_id}, limit=1, order_by=None)
-        if not existing_settings:
-            safe_insert(
-                "chain_user_settings",
-                {"profile_id": profile_id, "allow_messages": True, "allow_video_calls": True, "show_online_status": True, "profile_visibility": "public"},
-                fallback_columns={"profile_id", "allow_messages", "allow_video_calls", "show_online_status", "profile_visibility", "created_at", "updated_at"},
-            )
+        write_query(
+            """
+            INSERT INTO chain_user_settings (profile_id, allow_messages, allow_video_calls, show_online_status, profile_visibility)
+            VALUES (%s, TRUE, TRUE, TRUE, 'public')
+            ON CONFLICT DO NOTHING
+            """,
+            (profile_id,),
+            timeout_ms=800,
+        )
     if table_exists("chain_account_security"):
-        existing_security = safe_select("chain_account_security", columns="id", filters={"profile_id": profile_id}, limit=1, order_by=None)
-        if not existing_security:
-            safe_insert(
-                "chain_account_security",
-                {"profile_id": profile_id, "password_set": False, "recovery_enabled": True},
-                fallback_columns={"profile_id", "email", "password_set", "recovery_enabled", "created_at", "updated_at"},
-            )
+        write_query(
+            """
+            INSERT INTO chain_account_security (profile_id, password_set, recovery_enabled)
+            VALUES (%s, FALSE, TRUE)
+            ON CONFLICT DO NOTHING
+            """,
+            (profile_id,),
+            timeout_ms=800,
+        )
 
 
 def _find_profile_for_user(user):
@@ -491,8 +537,8 @@ def _find_profile_for_user(user):
             {
                 "email": email,
                 "username": (_metadata_name(user) or email.split("@")[0] if email else "chainuser"),
-                "full_name": _metadata_name(user) or email.split("@")[0] if email else "Chain User",
-                "display_name": _metadata_name(user) or email.split("@")[0] if email else "Chain User",
+                "full_name": _metadata_name(user) or email.split("@")[0] if email else "NamVibe User",
+                "display_name": _metadata_name(user) or email.split("@")[0] if email else "NamVibe User",
                 "profile_completed": False,
             },
         )
@@ -510,7 +556,7 @@ from services.profile_service import ensure_neon_profile, get_profile_completion
 
 def sync_oauth_profile(user, provider):
     email = clean_email(getattr(user, "email", None))
-    full_name = (_metadata_name(user) or email.split("@")[0] if email else "Chain User").strip()
+    full_name = (_metadata_name(user) or email.split("@")[0] if email else "NamVibe User").strip()
     avatar_url = _metadata_avatar(user)
     provider_user_id = _provider_user_id(user, provider=provider)
     profile = _find_profile_for_user(user)
@@ -700,7 +746,7 @@ def _build_session_profile(user, profile=None):
         base.get("full_name")
         or base.get("display_name")
         or _metadata_name(user)
-        or (email.split("@")[0] if email else "Chain User")
+        or (email.split("@")[0] if email else "NamVibe User")
     )
     username = base.get("username") or normalize_username(metadata.get("username") or full_name or "chainuser")
     return {
@@ -851,7 +897,7 @@ def register_chain_user(email, password, username, full_name, extra=None):
     if not email or not password or not username or not full_name or not phone or not country_origin or not current_country or not region or not town:
         return _registration_result(error="Please complete all required fields (Name, Email, Phone, Username, Country, Region, Town, Password).")
     if dob and (age is None or age < 18):
-        return _registration_result(error="CHAIN is only available to users 18 and older.")
+        return _registration_result(error="NamVibe is only available to users 18 and older.")
     if not _username_valid(username):
         return _registration_result(error="Username must be 3 to 30 characters using lowercase letters, numbers or underscores only.")
     if len(password) < 8:
@@ -865,7 +911,7 @@ def register_chain_user(email, password, username, full_name, extra=None):
         "terms_accepted",
     )
     if not all(extra.get(field) for field in agreement_fields):
-        return _registration_result(error="You must accept all account agreements before creating your CHAIN account.")
+        return _registration_result(error="You must accept all account agreements before creating your NamVibe account.")
 
     if safe_select("chain_profiles", columns="id", filters={"normalized_email": email}, limit=1, order_by=None):
         return _registration_result(error="EMAIL_EXISTS")
@@ -944,7 +990,7 @@ def register_chain_user(email, password, username, full_name, extra=None):
                 save_error=profile_error,
             )
             if not dev_profile:
-                return _registration_result(error=f"Your account was created, but your CHAIN profile could not be saved yet. Database error: {profile_error}")
+                return _registration_result(error=f"Your account was created, but your NamVibe profile could not be saved yet. Database error: {profile_error}")
             _remember_dev_registration_credential(
                 email,
                 final_username,
@@ -1031,7 +1077,7 @@ def register_chain_user(email, password, username, full_name, extra=None):
                     save_error=profile_error,
                 )
                 if not dev_profile:
-                    return _registration_result(error=f"Email verification is pending, but your CHAIN profile could not be created yet. Database error: {profile_error}")
+                    return _registration_result(error=f"Email verification is pending, but your NamVibe profile could not be created yet. Database error: {profile_error}")
                 _remember_dev_registration_credential(
                     email,
                     final_username,
@@ -1114,24 +1160,30 @@ def login_chain_user(email, password=None, remember=False):
     _is_dev = os.getenv("CHAIN_FAST_LOCAL") == "1" or os.getenv("FLASK_ENV") != "production"
 
     resolved_email = login_id
-    login_profile = _find_login_profile(login_id)
-    dev_credential = _get_dev_registration_credential(login_id, profile=login_profile)
-    if not login_profile and dev_credential and _dev_credential_profile(dev_credential):
-        login_profile = _dev_credential_profile(dev_credential)
+    login_profile = None
+    dev_credential = _get_dev_registration_credential(login_id)
     if "@" not in login_id:
         username = normalize_username(login_id)
+        dev_profile = _dev_credential_profile(dev_credential) if dev_credential else None
+        if dev_profile and dev_profile.get("email"):
+            login_profile = dev_profile
+            resolved_email = clean_email(dev_profile.get("email"))
+        else:
+            login_profile = _find_login_profile(username)
         if not login_profile:
-            dev_profile = _dev_credential_profile(dev_credential) if dev_credential else None
-            if dev_profile and dev_profile.get("email"):
-                resolved_email = clean_email(dev_profile.get("email"))
-            elif is_circuit_open():
+            if is_circuit_open():
                 return False, "Username login is temporarily unavailable. Please use your email."
-            else:
-                return False, "Account not found."
+            return False, "Account not found."
         else:
             resolved_email = clean_email(login_profile.get("email"))
         if not resolved_email:
             return False, "Account not found."
+
+    if dev_credential and check_password_hash(dev_credential.get("password_hash", ""), password):
+        profile = login_profile or _dev_credential_profile(dev_credential)
+        if profile and profile.get("auth_user_id"):
+            _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
+            return True, "/profile/"
 
     try:
         auth_res = get_supabase().auth.sign_in_with_password({"email": resolved_email, "password": password})
@@ -1175,6 +1227,8 @@ def login_chain_user(email, password=None, remember=False):
                 if profile and profile.get("auth_user_id"):
                     _store_registration_session(profile.get("auth_user_id"), clean_email(profile.get("email") or resolved_email), profile)
                     return True, "/profile/"
+            if login_profile is None and "@" in login_id:
+                login_profile = _find_login_profile(resolved_email)
             _final_err = "Invalid password." if login_profile else "Account not found."
             return False, _final_err
         if "email not confirmed" in err_msg:

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Explore | Chain Premium{% endblock %}
+{% block title %}Explore | {{ APP_NAME }} Premium{% endblock %}
 
 {% block content %}
 <section class="section-head">
@@ -17,7 +17,7 @@
             {% else %}✨{% endif %}
         </div>
         <h3 style="font-size: 32px; margin-bottom: 15px;">{{ title }}</h3>
-        <p style="color: #bfc0d5; font-size: 18px; line-height: 1.6; max-width: 500px; margin: 0 auto 40px;">{{ message or 'This feature is part of the CHAIN premium ecosystem and is ready to grow with your community.' }}</p>
+        <p style="color: #bfc0d5; font-size: 18px; line-height: 1.6; max-width: 500px; margin: 0 auto 40px;">{{ message or 'This feature is part of the NamVibe premium ecosystem and is ready to grow with your community.' }}</p>
         
         <div style="display: flex; justify-content: center; gap: 15px;">
             <a href="/" class="primary" style="padding: 15px 40px;">Return Home</a>

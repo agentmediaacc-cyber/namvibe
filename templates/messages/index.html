@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Messages | CHAIN{% endblock %}
+{% block title %}Messages | NamVibe{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
@@ -554,7 +554,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
                     <span class="chat-online-dot" id="chatOnlineDot"></span>
                 </div>
                 <div>
-                    <h2 id="chatTitle">CHAIN Chat</h2>
+                    <h2 id="chatTitle">NamVibe Chat</h2>
                     <p id="chatSub">Select chat or start new conversation</p>
                     <p id="chatLastSeen" style="display:none;color:#9ca3af;font-size:11px;margin:0;"></p>
                     <div class="typing-line" id="typingLine">Typing...</div>
@@ -668,7 +668,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 <div class="drawer" id="drawer">
     <div class="drawer-bg" data-close="drawer"></div>
     <div class="drawer-card">
-        <h3>CHAIN Menu</h3>
+        <h3>NamVibe Menu</h3>
         <a class="drawer-link" href="/messages/"><i class="fas fa-comment"></i> Messages</a>
         <button class="drawer-link" id="drawerCalls" type="button"><i class="fas fa-phone"></i> Recent Calls</button>
         <a class="drawer-link" href="/profile/settings"><i class="fas fa-sliders-h"></i> Call Settings</a>
@@ -1648,7 +1648,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
     }
 
     $('shareChat')?.addEventListener('click',async()=>{
-        const data = {title:'CHAIN Chat',text:'Join me on CHAIN: ' + (currentThreadName || 'Messages'),url:location.href};
+        const data = {title:'NamVibe Chat',text:'Join me on NamVibe: ' + (currentThreadName || 'Messages'),url:location.href};
         if(navigator.share){await navigator.share(data).catch(()=>{});}
         else{await navigator.clipboard.writeText(location.href);alert('Link copied');}
     });
@@ -1673,7 +1673,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         }
         document.querySelector(`.thread-card[data-id="${currentThreadId}"]`)?.remove();
         currentThreadId = null;
-        $('chatTitle').textContent = 'CHAIN Chat';
+        $('chatTitle').textContent = 'NamVibe Chat';
         $('chatSub').textContent = 'Select chat or start new conversation';
         $('messagesArea').innerHTML = '<div class="chat-empty"><div><div class="empty-phone"><i class="fas fa-comment-dots"></i></div><h3>Your Messages</h3><p>Select another conversation.</p></div></div>';
     });

@@ -1,5 +1,5 @@
 /* ============================================================
-   CHAIN Phase 40 — Premium WebRTC Calling Engine
+   NamVibe Phase 40 — Premium WebRTC Calling Engine
    ============================================================ */
 
 let CHAIN_WEBRTC = {

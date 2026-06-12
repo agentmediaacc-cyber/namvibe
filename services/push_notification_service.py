@@ -248,7 +248,7 @@ def _web_push_send(endpoint, p256dh, auth_key, title, body, payload=None):
     try:
         import pywebpush
         data = json.dumps({
-            "title": title or "CHAIN",
+            "title": title or "NamVibe",
             "body": body or "",
             "data": payload or {},
             "icon": "/static/img/icon-192.png",
@@ -303,7 +303,7 @@ def _fcm_send(token, title, body, payload=None):
         message = {
             "to": token,
             "notification": {
-                "title": title or "CHAIN",
+                "title": title or "NamVibe",
                 "body": body or "",
                 "sound": "default",
                 "badge": "1",

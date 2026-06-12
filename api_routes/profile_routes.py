@@ -395,7 +395,7 @@ def age_check():
             error = "Please enter a valid date of birth (DD/MM/YYYY or YYYY-MM-DD)."
         elif age < 18:
             # Explicitly block if underage
-            return render_template("auth/profile_error.html", error_detail="CHAIN is only available to users 18 and older."), 200
+            return render_template("auth/profile_error.html", error_detail="NamVibe is only available to users 18 and older."), 200
         else:
             session["age_verified"] = True
             session[K_PENDING_DATE_OF_BIRTH] = dob
@@ -784,7 +784,7 @@ def onboarding():
 
     adult_state = is_adult_profile(profile)
     if adult_state is False:
-        return render_template("auth/profile_error.html", error_detail="CHAIN is only available to users 18 and older."), 200
+        return render_template("auth/profile_error.html", error_detail="NamVibe is only available to users 18 and older."), 200
 
     if request.method == "POST":
         if not profile or not profile.get("id"):

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Favorites | Chain Premium{% endblock %}
+{% block title %}Favorites | {{ APP_NAME }} Premium{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/profile_premium.css">
@@ -26,7 +26,7 @@
         {% set title = "No favorites yet" %}
         {% set message = "Your real `chain_favorites` records will appear here as soon as you start saving profiles, posts, or live rooms." %}
         {% set action_href = "/discover" %}
-        {% set action_label = "Explore Chain" %}
+        {% set action_label = "Explore NamVibe" %}
         {% set icon = "fa-heart" %}
         {% include "profile/partials/profile_empty_state.html" %}
         {% endif %}

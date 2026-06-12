@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const logNotificationPolling = (message, detail = {}) => {
         if (isDevelopment) {
-            console.debug(`[CHAIN] notification polling ${message}`, detail);
+            console.debug(`[NamVibe] notification polling ${message}`, detail);
         }
     };
 

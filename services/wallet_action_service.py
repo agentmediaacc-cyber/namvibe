@@ -92,7 +92,7 @@ def list_wallet_transactions(profile_id):
 
 
 def generate_topup_reference():
-    return f"CHAIN-TOPUP-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
+    return f"NAMVIBE-TOPUP-{datetime.now(timezone.utc).strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
 
 
 def create_topup_request(profile_id, amount_nad, payment_method, proof_url=None, proof_upload_id=None):

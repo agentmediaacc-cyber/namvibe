@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>Liked You | Chain</title>
+  <title>Liked You | {{ APP_NAME }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/matching.css') }}">
 </head>
@@ -10,7 +10,7 @@
     <section class="match-hero">
       <p>LIKED YOU</p>
       <h1>People interested in you.</h1>
-      <span>These likes come from real Chain profile actions.</span>
+      <span>These likes come from real NamVibe profile actions.</span>
     </section>
 
     {% if profiles %}
@@ -19,7 +19,7 @@
           <a class="mini-card" href="/profile/@{{ p.username }}">
             <img src="{{ p.profile_photo }}" alt="{{ p.full_name }}">
             <h3>{{ p.full_name }}</h3>
-            <p>{{ p.relationship_goal or "Chain member" }}</p>
+            <p>{{ p.relationship_goal or "NamVibe member" }}</p>
             <span>View Profile</span>
           </a>
         {% endfor %}

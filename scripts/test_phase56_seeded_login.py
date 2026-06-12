@@ -10,6 +10,8 @@ os.environ["CHAIN_TRUST_PROFILE_SCHEMA"] = "1"
 
 from app import create_app
 app = create_app()
+app.config["WTF_CSRF_ENABLED"] = False
+app.config["CSRF_ENABLED"] = False
 
 PASS = 0; FAIL = 0
 def check(label, ok, detail=None):

@@ -1,0 +1,1 @@
+from .branding import APP_NAME, APP_DOMAIN, APP_TAGLINE, APP_PREMIUM

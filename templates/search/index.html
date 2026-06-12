@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Search | Chain Premium{% endblock %}
+{% block title %}Search | {{ APP_NAME }} Premium{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -85,13 +85,13 @@
         <div class="px-section-head" style="margin:0 0 16px;">
             <div>
                 <p>DISCOVERY ENGINE</p>
-                <h1>{% if has_query %}Search results for "{{ query }}"{% else %}Search CHAIN{% endif %}</h1>
+                <h1>{% if has_query %}Search results for "{{ query }}"{% else %}Search NamVibe{% endif %}</h1>
                 <span class="px-muted">Find creators, posts, live rooms, towns and hashtags.</span>
             </div>
         </div>
         <form class="px-search" action="/search" method="get">
             <i class="fas fa-search"></i>
-            <input name="q" value="{{ query }}" placeholder="Search CHAIN">
+            <input name="q" value="{{ query }}" placeholder="Search NamVibe">
         </form>
     </section>
 
@@ -123,7 +123,7 @@
                 </div>
                 <h3>{{ profile.full_name or profile.username }}</h3>
                 <p>@{{ profile.username }}</p>
-                <small>{{ profile.bio or profile.current_location or "Chain member" }}</small>
+                <small>{{ profile.bio or profile.current_location or "NamVibe member" }}</small>
             </a>
             <div class="search-member-actions">
                 <a class="secondary" href="/chat/start/{{ profile.username }}" style="padding: 10px 14px;">Message</a>
@@ -175,7 +175,7 @@
                 <span>{{ post.created_at }}</span>
             </article>
             {% else %}
-            <div class="premium-empty"><i class="fas fa-pen"></i><h3>No matching posts</h3><p>Be the first to start the conversation on CHAIN.</p><a class="px-btn" href="/posts/create">Create Post</a></div>
+            <div class="premium-empty"><i class="fas fa-pen"></i><h3>No matching posts</h3><p>Be the first to start the conversation on NamVibe.</p><a class="px-btn" href="/posts/create">Create Post</a></div>
             {% endfor %}
         </div>
     </section>

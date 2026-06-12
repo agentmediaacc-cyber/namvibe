@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Discover | CHAIN Premium{% endblock %}
+{% block title %}Discover | NamVibe Premium{% endblock %}
 
 {% block content %}
 <main class="px-page platform-fade-up">
@@ -8,7 +8,7 @@
         <div class="px-section-head" style="margin:0 0 18px;">
             <div>
                 <p>DISCOVER</p>
-                <h1>{{ title or 'Explore CHAIN' }}</h1>
+                <h1>{{ title or 'Explore NamVibe' }}</h1>
                 <span class="px-muted">Creators, reels, live rooms, dating profiles, towns and businesses worth discovering.</span>
             </div>
             <a href="/reels/" class="px-btn"><i class="fas fa-play"></i>Explore Reels</a>
@@ -28,7 +28,7 @@
 
     <section class="discover-rail">
         <article class="px-card" style="padding:16px;">
-            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Trending hashtags</p><h2>Now on CHAIN</h2></div></div>
+            <div class="px-section-head" style="margin:0 0 12px;"><div><p>Trending hashtags</p><h2>Now on NamVibe</h2></div></div>
             <div style="display:flex; flex-wrap:wrap; gap:10px;">
                 {% for tag in ['#chainlive', '#windhoek', '#creatorpay', '#namibiatiktok', '#dating', '#business'] %}
                 <a class="px-chip" href="/search?q={{ tag|replace('#','%23') }}">{{ tag }}</a>
@@ -83,7 +83,7 @@
             </div>
         </article>
         {% else %}
-        <article class="premium-empty"><i class="fas fa-photo-film"></i><h3>No trending videos yet</h3><p>Be the first to start the conversation on CHAIN.</p><a class="px-btn" href="/posts/create">Create Post</a></article>
+        <article class="premium-empty"><i class="fas fa-photo-film"></i><h3>No trending videos yet</h3><p>Be the first to start the conversation on NamVibe.</p><a class="px-btn" href="/posts/create">Create Post</a></article>
         {% endfor %}
     </section>
     {% else %}

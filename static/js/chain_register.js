@@ -1,5 +1,5 @@
 (() => {
-  console.log("CHAIN REGISTER V7 LOADED");
+  console.log("NamVibe REGISTER V7 LOADED");
   const form = document.getElementById("chain-register-form");
   if (!form) return;
 
@@ -37,8 +37,8 @@
   }
 
   const log = (message, detail) => {
-    if (detail !== undefined) console.log(`[CHAIN register] ${message}`, detail);
-    else console.log(`[CHAIN register] ${message}`);
+    if (detail !== undefined) console.log(`[NamVibe register] ${message}`, detail);
+    else console.log(`[NamVibe register] ${message}`);
   };
 
   const normalize = (value) => String(value || "").trim().toLowerCase();
@@ -217,7 +217,7 @@
           const payload = await response.json();
           setAvailability(field, payload);
         } catch (error) {
-          console.error("[CHAIN register] availability check failed", error);
+          console.error("[NamVibe register] availability check failed", error);
         }
       }, 700);
     };
@@ -283,7 +283,7 @@
       stepMessage.textContent = message;
       stepMessage.hidden = false;
     }
-    console.warn("[CHAIN register] validation blocked", message);
+    console.warn("[NamVibe register] validation blocked", message);
   };
 
   const stepValid = (index, report = false) => {

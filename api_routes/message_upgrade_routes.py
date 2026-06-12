@@ -79,7 +79,7 @@ def delete_message(message_id):
 @message_upgrade_bp.route("/groups/create", methods=["POST"])
 def create_group_chat():
     data = request.get_json(silent=True) or request.form.to_dict()
-    name = (data.get("name") or "New CHAIN Group").strip()
+    name = (data.get("name") or "New NamVibe Group").strip()
     members = (data.get("members") or "").strip()
     group_id = "group-" + str(uuid4())
 
@@ -166,7 +166,7 @@ def group_post(group_id):
 @message_upgrade_bp.route("/calls/start", methods=["POST"])
 def start_demo_call():
     data = request.get_json(silent=True) or request.form.to_dict()
-    target = (data.get("target") or data.get("username") or "CHAIN User").strip()
+    target = (data.get("target") or data.get("username") or "NamVibe User").strip()
     call_type = data.get("call_type") or "audio"
     call_id = "call-" + str(uuid4())
 

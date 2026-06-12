@@ -1,5 +1,5 @@
 /* ============================================================
-   CHAIN Message Composer
+   NamVibe Message Composer
    Handles: auto-grow, drafts, typing emission, emoji, attach,
             voice recording, send coordination
    ============================================================ */

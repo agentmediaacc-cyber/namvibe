@@ -1,6 +1,6 @@
-# CHAIN Cloud Run Test Deployment
+# NamVibe Cloud Run Test Deployment
 
-This document describes how to deploy CHAIN to Google Cloud Run for testing purposes.
+This document describes how to deploy NamVibe to Google Cloud Run for testing purposes.
 
 ## Prerequisites
 

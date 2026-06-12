@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" width="200" height="50">
+  <defs>
+    <linearGradient id="nv-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#00f2ea"/>
+    </linearGradient>
+  </defs>
+  <text x="0" y="38" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="40" fill="url(#nv-grad)">NamVibe</text>
+</svg>

@@ -99,7 +99,7 @@ def _safe_number(value, default=0):
 def _viewer_name(display_name=None):
     current = get_current_profile()
     if current:
-        return current.get("full_name") or current.get("username") or "Chain Member"
+        return current.get("full_name") or current.get("username") or "NamVibe Member"
 
     candidate = (display_name or "").strip()
     if candidate:
@@ -127,7 +127,7 @@ def _normalize_room(room):
     normalized["gift_total"] = normalized.get("gift_total")
     if normalized["gift_total"] is None:
         normalized["gift_total"] = normalized.get("total_gift_coins") or 0
-    normalized["host_name"] = normalized.get("host_name") or "Chain Host"
+    normalized["host_name"] = normalized.get("host_name") or "NamVibe Host"
     return normalized
 
 
@@ -279,9 +279,9 @@ def create_live_room(form, files=None):
             access_type = "public"
 
         base_payload = {
-            "title": (form.get("title") or "My Chain Live Room").strip(),
-            "host_name": (current or {}).get("full_name") or (current or {}).get("username") or "Chain Host",
-            "welcome_message": (form.get("welcome_message") or "").strip() or "Welcome to my Chain live room.",
+            "title": (form.get("title") or "My NamVibe Live Room").strip(),
+            "host_name": (current or {}).get("full_name") or (current or {}).get("username") or "NamVibe Host",
+            "welcome_message": (form.get("welcome_message") or "").strip() or "Welcome to my NamVibe live room.",
             "category": (form.get("category") or "").strip() or None,
             "youtube_url": youtube_url,
             "youtube_video_id": video_id,
@@ -432,7 +432,7 @@ def get_room(room_id):
         if room and room.get("host_profile_id"):
             profile = _load_profile_map([room["host_profile_id"]]).get(room["host_profile_id"])
             if profile:
-                room["host_name"] = room.get("host_name") or profile.get("full_name") or profile.get("username") or "Chain Host"
+                room["host_name"] = room.get("host_name") or profile.get("full_name") or profile.get("username") or "NamVibe Host"
         return room
     except Exception as error:
         print(f"[live_service] get_room failed: {error}")

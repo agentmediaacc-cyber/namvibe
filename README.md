@@ -1,6 +1,6 @@
-# Chain App
+# NamVibe
 
-Chain is a global dating, chat, wallet, video call, and live streaming platform.
+NamVibe is a global dating, chat, wallet, video call, and live streaming platform.
 
 ## Main folders
 

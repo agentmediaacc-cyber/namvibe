@@ -12,7 +12,7 @@ def _db_available():
     if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
         return False
     status = get_pool_status()
-    return bool(status.get("pool_ready") or status.get("recent_success") or status.get("configured"))
+    return bool(status.get("pool_ready") or status.get("recent_success"))
 
 
 def _utcnow():
@@ -39,15 +39,24 @@ def get_or_create_wallet(profile_id):
         return None
     if not _db_available():
         return _fake_wallet(profile_id)
-    existing = fast_query(
-        "SELECT * FROM chain_wallets WHERE profile_id = %s LIMIT 1",
-        (profile_id,), default=[]
-    )
+    try:
+        existing = fast_query(
+            "SELECT * FROM chain_wallets WHERE profile_id = %s LIMIT 1",
+            (profile_id,), default=[]
+        )
+    except Exception as e:
+        log_warning("wallet_lookup_failed", profile_id=profile_id, error=str(e))
+        return _fake_wallet(profile_id)
     if existing:
         return _wallet_dict(existing[0])
     try:
         rows = write_query(
-            "INSERT INTO chain_wallets (id, profile_id) VALUES (%s, %s) RETURNING *",
+            """
+            INSERT INTO chain_wallets (id, profile_id)
+            VALUES (%s, %s)
+            ON CONFLICT (profile_id) DO NOTHING
+            RETURNING *
+            """,
             (str(uuid4()), profile_id), timeout_ms=3000
         )
         if rows:

@@ -23,7 +23,7 @@
 {% set ai_suggestions = ai_data.suggestions or [] %}
 {% set skills = portfolio_data.get('skills', []) or profile.skills or [] %}
 {% set profile_location = profile.current_location or profile.location or profile.town or profile.region or profile.country_origin or 'Namibia' %}
-{% set display_name = profile.display_name or profile.full_name or profile.username or 'CHAIN Member' %}
+{% set display_name = profile.display_name or profile.full_name or profile.username or 'NamVibe Member' %}
 {% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
 
 <main class="profile-shell">
@@ -66,7 +66,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-sparkles' %}{% set title='Start your CHAIN journey' %}{% set message='Posts you create will appear here as your public social feed.' %}{% set action_href='/posts/create' if own_profile else None %}{% set action_label='Create Post' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-sparkles' %}{% set title='Start your NamVibe journey' %}{% set message='Posts you create will appear here as your public social feed.' %}{% set action_href='/posts/create' if own_profile else None %}{% set action_label='Create Post' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -98,7 +98,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-film' %}{% set title='Start your CHAIN journey' %}{% set message='Reels will appear here when short videos are uploaded.' %}{% set action_href='/reels/upload' if own_profile else None %}{% set action_label='Upload Reel' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-film' %}{% set title='Start your NamVibe journey' %}{% set message='Reels will appear here when short videos are uploaded.' %}{% set action_href='/reels/upload' if own_profile else None %}{% set action_label='Upload Reel' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -117,7 +117,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-photo-film' %}{% set title='Start your CHAIN journey' %}{% set message='Photos, videos, and reels appear here.' %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-photo-film' %}{% set title='Start your NamVibe journey' %}{% set message='Photos, videos, and reels appear here.' %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -137,7 +137,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-broadcast-tower' %}{% set title='Start your CHAIN journey' %}{% set message='Live rooms and creator sessions will appear here.' %}{% set action_href=live_data.go_live_url if own_profile else None %}{% set action_label='Go Live' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-broadcast-tower' %}{% set title='Start your NamVibe journey' %}{% set message='Live rooms and creator sessions will appear here.' %}{% set action_href=live_data.go_live_url if own_profile else None %}{% set action_label='Go Live' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -158,14 +158,14 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-store' %}{% set title='Start your CHAIN journey' %}{% set message='Products, services, bookings, and creator offers appear here.' %}{% set action_href='/marketplace/create' if own_profile else None %}{% set action_label='Add Product' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-store' %}{% set title='Start your NamVibe journey' %}{% set message='Products, services, bookings, and creator offers appear here.' %}{% set action_href='/marketplace/create' if own_profile else None %}{% set action_label='Add Product' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
     <section id="about-content" class="profile-section tab-content" hidden>
         <div class="profile-section-head">
             <span>About</span>
-            <h2>CHAIN identity</h2>
+            <h2>NamVibe identity</h2>
         </div>
         <div class="profile-about-grid">
             <article class="profile-card about-card">
@@ -207,7 +207,7 @@
 
             <article class="profile-card wallet-social-card">
                 <h3><i class="fas fa-wallet"></i>Wallet</h3>
-                <div class="secure-badge"><i class="fas fa-lock"></i>Secure CHAIN wallet</div>
+                <div class="secure-badge"><i class="fas fa-lock"></i>Secure NamVibe wallet</div>
                 <div class="wallet-balance">N$ {{ '%.2f'|format(wallet_data.coin_balance or profile.wallet_balance or 0) }}</div>
                 <div class="metric-grid">
                     <div><span>Gifts</span><strong>N$ {{ '%.2f'|format(wallet_data.gift_earnings or 0) }}</strong></div>
@@ -245,7 +245,7 @@
             </article>
 
             <article class="profile-card ai-social-card">
-                <h3><i class="fas fa-robot"></i>CHAIN AI</h3>
+                <h3><i class="fas fa-robot"></i>NamVibe AI</h3>
                 <div class="ai-score-orb">
                     <strong>{{ ai_data.optimization_score or ai_data.profile_score or 72 }}</strong>
                     <span>Profile score</span>
@@ -281,7 +281,7 @@
                     </div>
                     {% else %}
                     {% for label in ['Top Creator', 'First Reel', 'First Sale', '100 Likes', 'Verified User', 'Trending Creator'] %}
-                    <div class="achievement-card is-locked" title="{{ label }} unlocks as your CHAIN profile grows."><i class="fas fa-lock"></i><span>{{ label }}</span><small>{{ loop.index * 10 }}%</small><em><b style="width: {{ loop.index * 10 }}%"></b></em></div>
+                    <div class="achievement-card is-locked" title="{{ label }} unlocks as your NamVibe profile grows."><i class="fas fa-lock"></i><span>{{ label }}</span><small>{{ loop.index * 10 }}%</small><em><b style="width: {{ loop.index * 10 }}%"></b></em></div>
                     {% endfor %}
                     {% endfor %}
                 </div>
@@ -334,7 +334,7 @@
 </div>
 
 {% if own_profile %}
-<nav class="profile-mobile-createbar" aria-label="Create on CHAIN">
+<nav class="profile-mobile-createbar" aria-label="Create on NamVibe">
     <a href="/posts/create"><i class="fas fa-square-plus"></i><span>Post</span></a>
     <a href="/reels/upload"><i class="fas fa-film"></i><span>Reel</span></a>
     <a href="/status/create"><i class="fas fa-circle-notch"></i><span>Story</span></a>

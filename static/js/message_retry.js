@@ -1,5 +1,5 @@
 /* ============================================================
-   CHAIN Message Retry & Delivery
+   NamVibe Message Retry & Delivery
    ============================================================ */
 
 let CHAIN_MESSAGE_RETRY = {

@@ -1,5 +1,5 @@
 /**
- * CHAIN Push Notification Service Worker
+ * NamVibe Push Notification Service Worker
  * Phase 45: Push Notifications, Background Calls, APNS, FCM, CallKit
  */
 self.addEventListener('install', function (event) {
@@ -15,10 +15,10 @@ self.addEventListener('push', function (event) {
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
-    data = { title: 'CHAIN', body: event.data ? event.data.text() : '' };
+    data = { title: 'NamVibe', body: event.data ? event.data.text() : '' };
   }
 
-  var title = data.title || 'CHAIN';
+  var title = data.title || 'NamVibe';
   var body = data.body || '';
   var icon = data.icon || '/static/img/icon-192.png';
   var badge = data.badge || '/static/img/icon-192.png';

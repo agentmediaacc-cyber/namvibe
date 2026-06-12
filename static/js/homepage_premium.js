@@ -1,4 +1,4 @@
-/* CHAIN Phase 59 — Premium Homepage: Real Feed API + Infinite Scroll + Actions */
+/* NamVibe Phase 59 — Premium Homepage: Real Feed API + Infinite Scroll + Actions */
 
 (function () {
   'use strict';
@@ -225,7 +225,7 @@
       '<div class="post-header">' +
         '<div class="post-avatar">' + avatar + '</div>' +
         '<div class="post-author-info">' +
-          '<div class="post-author-name">' + escapeHtml(item.display_name || 'CHAIN') + ' ' + verified + ' ' + label + '</div>' +
+          '<div class="post-author-name">' + escapeHtml(item.display_name || 'NamVibe') + ' ' + verified + ' ' + label + '</div>' +
           '<div class="post-author-username">@' + escapeHtml(item.username || 'chain') + '</div>' +
           '<div class="post-time-location">' + timeHtml + location + '</div>' +
         '</div>' +

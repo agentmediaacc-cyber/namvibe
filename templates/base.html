@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Chain | Premium Live Social{% endblock %}</title>
+    <title>{% block title %}{{ APP_NAME }} | Premium Live Social{% endblock %}</title>
     <link rel="icon" href="/static/img/favicon.ico">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#F4F7FB">
     <link rel="apple-touch-icon" href="/static/img/icon-192.png">
     
     <!-- SEO & Social Sharing -->
-    <meta name="description" content="CHAIN | Meet. Stream. Earn. Connect. The premium social engine for creators.">
-    <meta property="og:title" content="CHAIN Premium Social">
+    <meta name="description" content="NamVibe | Meet. Stream. Earn. Connect. The premium social engine for creators.">
+    <meta property="og:title" content="NamVibe Premium Social">
     <meta property="og:description" content="Join the next generation of premium creators and live streamers.">
     <meta property="og:image" content="/static/img/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
@@ -339,7 +339,7 @@
     {% if is_admin_surface %}
     <aside class="sidebar">
         <a href="/" class="sidebar-brand">
-        <span class="rotating-logo">CHAIN</span>
+        <span class="rotating-logo">NamVibe</span>
         </a>
         
         <nav class="sidebar-nav">
@@ -370,7 +370,7 @@
     <div class="social-drawer-backdrop" data-social-drawer-close hidden></div>
     <aside id="social-drawer" class="social-drawer" aria-hidden="true">
         <div class="social-drawer__head">
-            <a href="/" class="social-drawer__brand">CHAIN</a>
+            <a href="/" class="social-drawer__brand">NamVibe</a>
             <button type="button" class="social-icon-btn" data-social-drawer-close aria-label="Close menu"><i class="fas fa-times"></i></button>
         </div>
         <nav class="social-drawer__nav">
@@ -401,7 +401,7 @@
             <button type="button" class="social-menu-btn" data-social-drawer-open aria-label="Open menu" aria-expanded="false" aria-controls="social-drawer">
                 <i class="fas fa-bars"></i>
             </button>
-            <a href="/" class="social-top-brand" aria-label="CHAIN home">CHAIN</a>
+            <a href="/" class="social-top-brand" aria-label="NamVibe home">NamVibe</a>
             {% endif %}
             <form class="search-bar" id="chain-search-form" action="/search" method="get" autocomplete="off">
                 <i class="fas fa-search" style="color: var(--chain-muted);"></i>

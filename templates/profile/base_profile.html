@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ profile.full_name if profile else 'Profile' }} | Chain Premium{% endblock %}
+{% block title %}{{ profile.full_name if profile else 'Profile' }} | {{ APP_NAME }} Premium{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/profile_premium.css">

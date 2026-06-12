@@ -53,7 +53,7 @@ def create_group(owner_profile_id, name, visibility="public", **settings):
     payload = {
         "id": group_id,
         "owner_profile_id": owner_profile_id,
-        "name": (name or "CHAIN Group").strip(),
+        "name": (name or "NamVibe Group").strip(),
         "visibility": visibility,
         "access_type": settings.get("access_type") or visibility,
         "join_fee": float(settings.get("join_fee") or 0),

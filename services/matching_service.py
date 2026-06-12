@@ -130,8 +130,8 @@ def like_target(target_id):
                 "match_reason": "Mutual like",
             }).execute()
 
-            create_notification(current["id"], "💘 New Match", "You matched with someone on Chain.", "match", "/matching/matches")
-            create_notification(target_id, "💘 New Match", "You matched with someone on Chain.", "match", "/matching/matches")
+            create_notification(current["id"], "💘 New Match", "You matched with someone on NamVibe.", "match", "/matching/matches")
+            create_notification(target_id, "💘 New Match", "You matched with someone on NamVibe.", "match", "/matching/matches")
 
         return True, "match"
 

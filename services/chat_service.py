@@ -80,7 +80,7 @@ def list_conversations(profile_id):
             )
             if other_member:
                 convo['other_profile'] = get_profile_by_id(other_member[0]['profile_id'])
-                convo['display_title'] = convo['other_profile'].get('full_name') if convo['other_profile'] else "Chain Member"
+                convo['display_title'] = convo['other_profile'].get('full_name') if convo['other_profile'] else "NamVibe Member"
         else:
             convo['display_title'] = convo.get('title') or "Group Chat"
             

@@ -642,7 +642,7 @@ headers: { 'Content-Type': 'application/json' } });
     
     // Share profile
     function shareProfile() {
-        if (navigator.share) navigator.share({ title: 'Check out my CHAIN profile', url: 
+        if (navigator.share) navigator.share({ title: 'Check out my NamVibe profile', url: 
 window.location.href });
         else navigator.clipboard.writeText(window.location.href).then(() => alert('Link 
 copied!'));

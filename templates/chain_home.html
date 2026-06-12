@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}CHAIN | Home{% endblock %}
+{% block title %}NamVibe | Home{% endblock %}
 {% block body_class %}chain-home-page{% endblock %}
 
 {% block extra_css %}
@@ -58,8 +58,8 @@
             <button type="button" class="chain-home__menu-btn" data-drawer-toggle aria-label="Open menu" aria-expanded="false" aria-controls="chain-home-drawer">
                 <span></span><span></span><span></span>
             </button>
-            <a href="{{ home_route }}" class="chain-home__brand" aria-label="CHAIN home">
-                <span>CHAIN</span>
+            <a href="{{ home_route }}" class="chain-home__brand" aria-label="NamVibe home">
+                <span>NamVibe</span>
                 <strong>Home</strong>
             </a>
         </div>
@@ -122,7 +122,7 @@
          MOBILE TOPBAR
     ============================================================ -->
     <div class="home-topbar">
-        <input type="text" class="home-topbar-search" placeholder="Search CHAIN..." aria-label="Search">
+        <input type="text" class="home-topbar-search" placeholder="Search NamVibe..." aria-label="Search">
     </div>
 
     <!-- ============================================================
@@ -291,7 +291,7 @@
                         </div>
                         <div class="post-author-info">
                             <div class="post-author-name">
-                                {{ post.display_name or 'CHAIN' }}
+                                {{ post.display_name or 'NamVibe' }}
                                 {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
                                 <span class="post-content-label following">Following</span>
                             </div>
@@ -340,7 +340,7 @@
                         </div>
                         <div class="post-author-info">
                             <div class="post-author-name">
-                                {{ post.display_name or 'CHAIN' }}
+                                {{ post.display_name or 'NamVibe' }}
                                 {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
                                 <span class="post-content-label public">Public</span>
                             </div>
@@ -472,7 +472,7 @@
                             {% endif %}
                         </div>
                         <div class="suggested-info">
-                            <div class="suggested-name">{{ current.full_name or current.username or 'Join CHAIN' }}</div>
+                            <div class="suggested-name">{{ current.full_name or current.username or 'Join NamVibe' }}</div>
                             <div class="suggested-mutual">{% if is_logged_in %}View your profile{% else %}Create an account to get started{% endif %}</div>
                         </div>
                     </a>

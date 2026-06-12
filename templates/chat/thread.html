@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Chat Thread | Chain Premium{% endblock %}
+{% block title %}Chat Thread | {{ APP_NAME }} Premium{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/profile_premium.css">
@@ -165,7 +165,7 @@
         <header class="thread-head">
             <div class="thread-head-copy">
                 <h2>{{ convo.other_profile.full_name if convo.other_profile else convo.title or "Conversation" }}</h2>
-                <p>{{ convo.other_profile.current_location if convo.other_profile else "Secure Chain conversation" }}</p>
+                <p>{{ convo.other_profile.current_location if convo.other_profile else "Secure NamVibe conversation" }}</p>
             </div>
             <div class="action-cluster">
                 <a class="thread-link" href="/chat/">Back to Messages</a>

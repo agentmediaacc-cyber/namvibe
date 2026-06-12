@@ -16,6 +16,7 @@ from services.neon_service import (
     get_pool_status,
     get_tables_columns,
     is_circuit_open,
+    safe_row_get,
 )
 from services.homepage_cache_service import (
     HOMEPAGE_TTL_SECONDS,
@@ -144,6 +145,8 @@ def _boolish(value):
 
 
 def _first_present(record, keys, default=None):
+    if not isinstance(record, dict):
+        return default
     for key in keys:
         value = record.get(key)
         if value not in (None, ""):
@@ -261,10 +264,19 @@ def _profile_select():
             "display_name",
             "full_name",
             "avatar_url",
+            "photo_url",
+            "thumbnail_url",
+            "town",
+            "location",
+            "bio",
+            "created_at",
             "is_verified",
             "verified",
+            "is_online",
             "is_creator",
             "creator_category",
+            "dating_mode_enabled",
+            "followers_count",
             "deleted_at",
         ],
         required=["id"],
@@ -521,6 +533,8 @@ def _load_profile_map(profile_ids):
 
 
 def _normalize_profile(row):
+    if row and not isinstance(row, dict):
+        return None
     if not row:
         return None
     username = _clean_text(row.get("username"))
@@ -549,6 +563,8 @@ def _normalize_profile(row):
 
 
 def _normalize_story(row, profile_map):
+    if row and not isinstance(row, dict):
+        return {}
     profile = profile_map.get(row.get("profile_id")) or {}
     display_name = profile.get("display_name") or profile.get("username") or ""
     return {
@@ -564,6 +580,8 @@ def _normalize_story(row, profile_map):
 
 
 def _normalize_live_room(row, profile_map):
+    if row and not isinstance(row, dict):
+        return {}
     profile_id = _first_present(row, ["profile_id", "host_id", "creator_id"])
     profile = profile_map.get(profile_id) or {}
     title = _clean_text(_first_present(row, ["title", "room_title"]), "")
@@ -588,6 +606,8 @@ def _normalize_live_room(row, profile_map):
 
 
 def _normalize_post(row, profile_map):
+    if row and not isinstance(row, dict):
+        return {}
     profile = profile_map.get(row.get("profile_id")) or {}
     caption = _clean_text(_first_present(row, ["caption", "content", "body"]), "")
     return {
@@ -726,7 +746,7 @@ def build_homepage_payload(async_warm=False):
             "_fetch_stories",
             lambda: profiled_query(
                 "stories",
-                f"SELECT {', '.join(cols)} FROM chain_stories WHERE deleted_at IS NULL AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC LIMIT 12",
+                f"SELECT {', '.join(cols)} FROM chain_stories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 12",
                 timeout_ms=100,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["stories"],
@@ -741,7 +761,7 @@ def build_homepage_payload(async_warm=False):
             "_fetch_live_rooms",
             lambda: profiled_query(
                 "live_rooms",
-                f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE (is_live = TRUE OR status = 'live') AND deleted_at IS NULL AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC LIMIT 8",
+                f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE (is_live = TRUE OR status = 'live') AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
                 timeout_ms=100,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["live_rooms"],
@@ -751,12 +771,13 @@ def build_homepage_payload(async_warm=False):
     def fetch_profiles():
         cols = _profile_select()
         if not cols: return []
+        order_by = "followers_count DESC NULLS LAST" if "followers_count" in cols else "created_at DESC NULLS LAST" if "created_at" in cols else "id DESC"
         return timed_section(
             "creator_profiles",
             "creator_section",
             lambda: profiled_query(
                 "profiles",
-                f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL AND {public_profile_sql('chain_profiles')} ORDER BY followers_count DESC NULLS LAST LIMIT 10",
+                f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL ORDER BY {order_by} LIMIT 10",
                 timeout_ms=200,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["profiles"],
@@ -772,7 +793,7 @@ def build_homepage_payload(async_warm=False):
             "_fetch_posts",
             lambda: profiled_query(
                 "posts",
-                f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC NULLS LAST LIMIT 8",
+                f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY created_at DESC NULLS LAST LIMIT 8",
                 timeout_ms=200,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["posts"],
@@ -787,7 +808,7 @@ def build_homepage_payload(async_warm=False):
             "dating_previews",
             lambda: profiled_query(
                 "profiles",
-                f"SELECT {', '.join(cols)} FROM chain_profiles WHERE dating_mode_enabled = TRUE AND deleted_at IS NULL AND {public_profile_sql('chain_profiles')} ORDER BY created_at DESC LIMIT 8",
+                f"SELECT {', '.join(cols)} FROM chain_profiles WHERE dating_mode_enabled = TRUE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
                 timeout_ms=200,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["profiles"],
@@ -803,7 +824,7 @@ def build_homepage_payload(async_warm=False):
             "_fetch_reels",
             lambda: profiled_query(
                 "reels",
-                f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC LIMIT 8",
+                f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
                 timeout_ms=100,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["reels"],
@@ -947,6 +968,9 @@ def _fetch_groups():
 def _fetch_sponsored_posts():
     """Fetch sponsored/ad posts — only from chain_posts where post_type='sponsored' or sponsored=TRUE."""
     started = time.perf_counter()
+    if os.getenv("CHAIN_ENABLE_SPONSORED_HOME", "0").strip().lower() not in {"1", "true", "yes", "on"}:
+        _log_section_timing("sponsored_posts_section", started)
+        return []
     cached = get_cache(cache_key("home_sponsored"))
     if cached is not None:
         _log_section_timing("sponsored_posts_section", started)
@@ -968,9 +992,9 @@ def _fetch_sponsored_posts():
             return []
         query = "SELECT " + ", ".join(cols) + " FROM chain_posts"
         if where:
-            query += " WHERE " + " AND ".join(where) + f" AND profile_id IN ({public_profile_subquery()}) AND (" + " OR ".join(filters) + ")"
+            query += " WHERE " + " AND ".join(where) + " AND (" + " OR ".join(filters) + ")"
         else:
-            query += f" WHERE profile_id IN ({public_profile_subquery()}) AND (" + " OR ".join(filters) + ")"
+            query += " WHERE (" + " OR ".join(filters) + ")"
         query += " ORDER BY created_at DESC NULLS LAST LIMIT 4"
         rows, _ = _run_sql("sponsored_posts", query, [])
         p_map = {}
@@ -995,6 +1019,9 @@ def _fetch_announcements():
 def _fetch_nearby_users(current_profile=None):
     """Fetch users by matching town/location if available, otherwise recent profiles."""
     started = time.perf_counter()
+    if not current_profile:
+        _log_section_timing("nearby_users_section", started)
+        return []
     cached = get_cache(cache_key("home_nearby"))
     if cached is not None:
         _log_section_timing("nearby_users_section", started)
@@ -1010,25 +1037,25 @@ def _fetch_nearby_users(current_profile=None):
         if user_town and "town" in available:
             query = "SELECT " + ", ".join(cols) + " FROM chain_profiles"
             if where:
-                query += " WHERE " + " AND ".join(where) + f" AND {public_profile_sql('chain_profiles')} AND LOWER(town) = LOWER(%s)"
+                query += " WHERE " + " AND ".join(where) + " AND LOWER(town) = LOWER(%s)"
             else:
-                query += f" WHERE {public_profile_sql('chain_profiles')} AND LOWER(town) = LOWER(%s)"
+                query += " WHERE LOWER(town) = LOWER(%s)"
             query += " ORDER BY created_at DESC NULLS LAST LIMIT 4"
             rows, _ = _run_sql("nearby_users", query, [user_town])
         elif user_town and "location" in available:
             query = "SELECT " + ", ".join(cols) + " FROM chain_profiles"
             if where:
-                query += " WHERE " + " AND ".join(where) + f" AND {public_profile_sql('chain_profiles')} AND LOWER(location) = LOWER(%s)"
+                query += " WHERE " + " AND ".join(where) + " AND LOWER(location) = LOWER(%s)"
             else:
-                query += f" WHERE {public_profile_sql('chain_profiles')} AND LOWER(location) = LOWER(%s)"
+                query += " WHERE LOWER(location) = LOWER(%s)"
             query += " ORDER BY created_at DESC NULLS LAST LIMIT 4"
             rows, _ = _run_sql("nearby_users", query, [user_town])
         else:
             query = "SELECT " + ", ".join(cols) + " FROM chain_profiles"
             if where:
-                query += " WHERE " + " AND ".join(where) + f" AND {public_profile_sql('chain_profiles')}"
+                query += " WHERE " + " AND ".join(where)
             else:
-                query += f" WHERE {public_profile_sql('chain_profiles')}"
+                query += ""
             query += " ORDER BY created_at DESC NULLS LAST LIMIT 4"
             rows, _ = _run_sql("nearby_users", query, [])
         result = [_normalize_profile(r) for r in rows if r.get("id")]
@@ -1245,11 +1272,11 @@ def _normalize_items(rows, default_type="post"):
     """Normalize raw rows to feed item dicts with type tag."""
     result = []
     for r in (rows or []):
-        if not r or not r.get("id"):
+        if not isinstance(r, dict) or not r.get("id"):
             continue
         item_type = r.get("_type") or r.get("type") or default_type
         normalized = {
-            "id": str(r["id"]),
+            "id": str(r.get("id")),
             "type": item_type,
             "profile_id": str(r.get("profile_id") or r.get("creator_id") or ""),
             "display_name": r.get("display_name") or r.get("creator_name") or "",
@@ -1289,7 +1316,7 @@ def _profile_map_for_ids(profile_ids):
             f"FROM chain_profiles WHERE id IN ({placeholders})",
             list(unique), timeout_ms=500, default=[]
         )
-        return {str(r["id"]): r for r in rows if r.get("id")}
+        return {str(r.get("id")): r for r in rows if isinstance(r, dict) and r.get("id")}
     except Exception:
         return {}
 
@@ -1301,9 +1328,11 @@ def _feed_for_you(profile_id=None, limit=20, offset=0):
     if not cols:
         return items
     try:
-        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND (visibility IS NULL OR visibility = 'public') AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC LIMIT {limit + offset}"
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND (visibility IS NULL OR visibility = 'public') ORDER BY created_at DESC LIMIT {limit + offset}"
         rows = fast_query(query, timeout_ms=800, default=[])
         for r in rows:
+            if not isinstance(r, dict):
+                continue
             if r.get("id") and r["id"] not in seen:
                 items.append(r)
                 seen.add(r["id"])
@@ -1351,7 +1380,7 @@ def _feed_following(profile_id=None, limit=20, offset=0):
     cols = _post_select() or ["id", "profile_id", "caption", "media_url", "likes_count", "comments_count", "created_at", "visibility", "video_url"]
     try:
         placeholders = ",".join(f"'{fid}'" for fid in fids[:50])
-        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND profile_id IN ({placeholders}) AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC LIMIT {limit + offset}"
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND profile_id IN ({placeholders}) ORDER BY created_at DESC LIMIT {limit + offset}"
         rows = fast_query(query, timeout_ms=500, default=[])
     except Exception:
         rows = []
@@ -1375,7 +1404,7 @@ def _feed_public_posts(profile_id=None, limit=20, offset=0):
     if not cols:
         return []
     try:
-        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND (visibility IS NULL OR visibility = 'public') AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC LIMIT {limit + offset}"
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND (visibility IS NULL OR visibility = 'public') ORDER BY created_at DESC LIMIT {limit + offset}"
         rows = fast_query(query, timeout_ms=500, default=[])
     except Exception:
         rows = []
@@ -1399,7 +1428,7 @@ def _feed_trending(profile_id=None, limit=20, offset=0):
     if not cols:
         return []
     try:
-        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL AND profile_id IN ({public_profile_subquery()}) ORDER BY (COALESCE(likes_count,0) + COALESCE(comments_count,0)) DESC LIMIT {limit + offset}"
+        query = f"SELECT {', '.join(cols)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY (COALESCE(likes_count,0) + COALESCE(comments_count,0)) DESC LIMIT {limit + offset}"
         rows = fast_query(query, timeout_ms=500, default=[])
     except Exception:
         rows = []
@@ -1420,11 +1449,15 @@ def _feed_trending(profile_id=None, limit=20, offset=0):
 
 def _feed_nearby(profile_id=None, limit=20, offset=0):
     try:
+        cols = _profile_select()
+        for extra in ("location", "bio", "created_at"):
+            if extra in _table_columns("chain_profiles") and extra not in cols:
+                cols.append(extra)
+        if not cols:
+            return []
         rows = fast_query(
-            "SELECT id, display_name, full_name, username, avatar_url, is_verified, verified, location, bio "
-            "FROM chain_profiles WHERE deleted_at IS NULL AND "
-            + public_profile_sql("chain_profiles")
-            + " ORDER BY created_at DESC LIMIT "
+            "SELECT " + ", ".join(cols) + " "
+            "FROM chain_profiles WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT "
             + str(limit + offset),
             timeout_ms=500, default=[]
         )
@@ -1432,8 +1465,10 @@ def _feed_nearby(profile_id=None, limit=20, offset=0):
         rows = []
     result = []
     for r in rows[offset:]:
+        if not isinstance(r, dict) or not r.get("id"):
+            continue
         result.append({
-            "id": str(r["id"]),
+            "id": str(r.get("id")),
             "type": "suggested_user",
             "profile_id": str(r["id"]),
             "display_name": r.get("display_name") or r.get("full_name") or "User",
@@ -1454,9 +1489,14 @@ def _feed_nearby(profile_id=None, limit=20, offset=0):
 
 def _feed_live(profile_id=None, limit=20, offset=0):
     try:
-        cols = ["id", "profile_id", "host_id", "creator_id", "title", "cover_url", "viewer_count", "category", "created_at"]
+        cols = _live_select()
+        if not cols:
+            return []
+        available = set(cols)
+        live_clause = "is_live = TRUE" if "is_live" in available else "status = 'live'" if "status" in available else "TRUE"
+        order_col = "viewer_count" if "viewer_count" in available else "created_at"
         rows = fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE deleted_at IS NULL AND status = 'live' AND profile_id IN ({public_profile_subquery()}) ORDER BY viewer_count DESC LIMIT {limit + offset}",
+            f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE deleted_at IS NULL AND {live_clause} ORDER BY {order_col} DESC NULLS LAST LIMIT {limit + offset}",
             timeout_ms=500, default=[]
         )
     except Exception:
@@ -1467,11 +1507,13 @@ def _feed_live(profile_id=None, limit=20, offset=0):
     pmap = _profile_map_for_ids(pids)
     result = []
     for r in rows[offset:]:
+        if not isinstance(r, dict) or not r.get("id"):
+            continue
         pid = r.get("profile_id") or r.get("host_id") or r.get("creator_id")
         p = pmap.get(str(pid)) if pid else None
         title = r.get("title") or ""
         result.append({
-            "id": str(r["id"]),
+            "id": str(r.get("id")),
             "type": "live",
             "profile_id": str(pid) if pid else "",
             "display_name": (p.get("display_name") or p.get("full_name") or "Live") if p else "Live",
@@ -1485,17 +1527,21 @@ def _feed_live(profile_id=None, limit=20, offset=0):
             "location": r.get("category") or "",
             "visibility": "public",
             "sponsored": False,
-            "watch_url": f"/live/{r['id']}",
+            "watch_url": f"/live/{r.get('id')}",
             "category": r.get("category") or "",
         })
-    return result, len(result) >= limit
+    return result
 
 
 def _feed_reels(profile_id=None, limit=20, offset=0):
-    from services.content_service import _reel_columns
     try:
-        cols = ["id", "profile_id", "caption", "video_url", "thumbnail_url", "media_url", "likes_count", "comments_count", "view_count", "created_at"]
-        query = f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL AND profile_id IN ({public_profile_subquery()}) ORDER BY created_at DESC LIMIT {limit + offset}"
+        cols = _reel_select()
+        for extra in ("likes_count", "comments_count", "view_count", "media_url"):
+            if extra in _table_columns("chain_reels") and extra not in cols:
+                cols.append(extra)
+        if not cols:
+            return []
+        query = f"SELECT {', '.join(cols)} FROM chain_reels WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT {limit + offset}"
         rows = fast_query(query, timeout_ms=500, default=[])
     except Exception:
         rows = []
@@ -1503,10 +1549,12 @@ def _feed_reels(profile_id=None, limit=20, offset=0):
     pmap = _profile_map_for_ids(pids)
     result = []
     for r in rows[offset:]:
+        if not isinstance(r, dict) or not r.get("id"):
+            continue
         pid = r.get("profile_id")
         p = pmap.get(str(pid)) if pid else None
         result.append({
-            "id": str(r["id"]),
+            "id": str(r.get("id")),
             "type": "reel",
             "profile_id": str(pid) if pid else "",
             "display_name": (p.get("display_name") or p.get("full_name") or "Creator") if p else "Creator",
@@ -1523,4 +1571,4 @@ def _feed_reels(profile_id=None, limit=20, offset=0):
             "visibility": "public",
             "sponsored": False,
         })
-    return result, len(result) >= limit
+    return result

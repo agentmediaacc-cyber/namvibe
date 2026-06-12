@@ -43,10 +43,10 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
-    data = { title: 'CHAIN', body: event.data ? event.data.text() : 'New notification' };
+    data = { title: 'NamVibe', body: event.data ? event.data.text() : 'New notification' };
   }
 
-  const title = data.title || 'CHAIN';
+  const title = data.title || 'NamVibe';
   const options = {
     body: data.body || '',
     icon: data.icon || '/static/img/icon-192.png',

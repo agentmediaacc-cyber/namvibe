@@ -61,7 +61,7 @@ def start_live(profile_id, title, host_name=None, allow_comments=True, allow_gif
         "id": room_id,
         "profile_id": profile_id,
         "host_profile_id": profile_id,
-        "title": (title or "Live on CHAIN").strip(),
+        "title": (title or "Live on NamVibe").strip(),
         "host_name": host_name or "Creator",
         "status": "live",
         "is_live": True,
