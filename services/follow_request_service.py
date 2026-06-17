@@ -3,10 +3,57 @@
 import uuid
 from datetime import datetime, timezone
 from services.neon_service import fast_query, write_query
-from services.relationship_privacy_service import are_friends, is_follower, is_blocked_any
-from services.engagement_service import follow_profile, is_following
-from services.notification_engine import create_notification
+from services.relationship_privacy_service import are_friends, is_follower
+from services.logging_service import log_info, log_error
 from services.socketio_service import emit_to_profile
+from services.notification_engine import create_notification
+
+def get_follow_status(viewer_id, target_id):
+    """
+    Returns the relationship status between two profiles:
+    - 'self': viewer is target
+    - 'following': viewer follows target
+    - 'request_pending': viewer sent a request
+    - 'request_received': target sent a request to viewer
+    - 'none': no relationship
+    """
+    if not viewer_id or not target_id:
+        return "none"
+        
+    if str(viewer_id) == str(target_id):
+        return "self"
+
+    if is_follower(viewer_id, target_id):
+        return "following"
+        
+    # Check pending requests
+    rows = fast_query(
+        "SELECT id, requester_profile_id FROM chain_follow_requests "
+        "WHERE ((requester_profile_id = %s AND target_profile_id = %s) "
+        "OR (requester_profile_id = %s AND target_profile_id = %s)) "
+        "AND status = 'pending' LIMIT 2",
+        (viewer_id, target_id, target_id, viewer_id),
+        default=[]
+    )
+    
+    for row in rows:
+        if str(row["requester_profile_id"]) == str(viewer_id):
+            return "request_pending"
+        else:
+            return "request_received"
+            
+    return "none"
+
+def cancel_follow_request(request_id, requester_profile_id):
+    """Cancels an outgoing follow request."""
+    try:
+        write_query(
+            "DELETE FROM chain_follow_requests WHERE id = %s AND requester_profile_id = %s AND status = 'pending'",
+            (request_id, requester_profile_id)
+        )
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 def is_private_follow_required(viewer_id, target_profile):
     """True if the target profile requires a follow request to see followers-only content."""
@@ -20,66 +67,17 @@ def is_private_follow_required(viewer_id, target_profile):
     if viewer_id and str(viewer_id) == str(owner_id):
         return False
         
-    # Check if already following or friends
-    if viewer_id:
-        if is_following(viewer_id, owner_id):
-            return False
-        if are_friends(viewer_id, owner_id):
-            return False
-            
+    # Check friends first (friends always bypass)
+    if viewer_id and are_friends(viewer_id, owner_id):
+        return False
+        
     visibility = target_profile.get("profile_visibility", "public")
-    # If private or followers_only, we might need a request if not already friends/followers
-    # For simplicity, if profile_visibility is 'private', it always requires approval.
     if visibility == "private":
         return True
-        
-    # If account kind is 'person' and it's not public, we might want to default to private-style follows
-    # but let's stick to explicit profile_visibility for now.
     return False
 
-def get_follow_status(viewer_id, target_id):
-    """Returns the current follow relationship status."""
-    if not viewer_id or not target_id:
-        return "none"
-        
-    if str(viewer_id) == str(target_id):
-        return "self"
-        
-    if is_blocked_any(viewer_id, target_id):
-        return "blocked"
-        
-    if is_following(viewer_id, target_id):
-        return "following"
-        
-    # Check for pending request
-    pending = fast_query(
-        "SELECT id, requester_profile_id FROM chain_follow_requests WHERE "
-        "((requester_profile_id = %s AND target_profile_id = %s) OR "
-        "(requester_profile_id = %s AND target_profile_id = %s)) "
-        "AND status = 'pending' LIMIT 1",
-        (viewer_id, target_id, target_id, viewer_id),
-        default=[]
-    )
-    
-    if pending:
-        if str(pending[0]["requester_profile_id"]) == str(viewer_id):
-            return "request_pending"
-        else:
-            return "request_received"
-            
-    return "none"
-
 def send_follow_request(requester_id, target_id, message=None):
-    """Sends a follow request or follows immediately if allowed."""
-    if str(requester_id) == str(target_id):
-        return {"ok": False, "error": "cannot_follow_self"}
-        
-    if is_blocked_any(requester_id, target_id):
-        return {"ok": False, "error": "blocked"}
-        
-    if is_following(requester_id, target_id):
-        return {"ok": True, "status": "following", "message": "Already following"}
-        
+    """Sends a follow request or follows directly if public."""
     from services.profile_service import get_profile_by_id
     target_profile = get_profile_by_id(target_id)
     if not target_profile:
@@ -87,21 +85,20 @@ def send_follow_request(requester_id, target_id, message=None):
         
     if not is_private_follow_required(requester_id, target_profile):
         # Direct follow
+        from services.engagement_service import follow_profile
         follow_profile(requester_id, target_id)
         return {"ok": True, "status": "following"}
         
-    # Private follow request
+    # Private profile -> Request
     try:
         req_id = str(uuid.uuid4())
         write_query(
             "INSERT INTO chain_follow_requests (id, requester_profile_id, target_profile_id, status, message) "
             "VALUES (%s, %s, %s, 'pending', %s) "
-            "ON CONFLICT (requester_profile_id, target_profile_id) DO UPDATE SET "
-            "status = 'pending', message = %s, updated_at = now()",
-            (req_id, requester_id, target_id, message, message)
+            "ON CONFLICT (requester_profile_id, target_profile_id) DO UPDATE SET status = 'pending', updated_at = now()",
+            (req_id, requester_id, target_id, message)
         )
         
-        # Notify target
         requester = get_profile_by_id(requester_id)
         requester_name = requester.get("display_name") or requester.get("username") or "Someone"
         
@@ -134,20 +131,21 @@ def approve_follow_request(request_id, target_profile_id):
     )
     if not req:
         return {"ok": False, "error": "request_not_found"}
-        
+
     if str(req[0]["target_profile_id"]) != str(target_profile_id):
         return {"ok": False, "error": "not_authorized"}
-        
+
     requester_id = req[0]["requester_profile_id"]
-    
+
     try:
         write_query(
             "UPDATE chain_follow_requests SET status = 'approved', responded_at = now(), updated_at = now() WHERE id = %s",
             (request_id,)
         )
-        
-        # Add to chain_follows
-        follow_profile(requester_id, target_profile_id)
+
+        # 2. Add as follower
+        from services.engagement_service import follow_profile
+        follow_profile(requester_id, target_profile_id, toggle=False)
         
         # Notify requester
         target_p = fast_query("SELECT username, display_name FROM chain_profiles WHERE id = %s", (target_profile_id,), default=[])
@@ -159,7 +157,9 @@ def approve_follow_request(request_id, target_profile_id):
             event_type="follow_request_approved",
             title="Follow Request Approved",
             body=f"{target_name} approved your follow request.",
-            action_url=f"/profile/@{target_p[0].get('username') if target_p else ''}"
+            action_url=f"/profile/@{target_p[0].get('username') if target_p else ''}",
+            entity_type="follow_approval",
+            entity_id=request_id
         )
         
         emit_to_profile(requester_id, "follow_request:approved", {
@@ -173,57 +173,13 @@ def approve_follow_request(request_id, target_profile_id):
 
 def decline_follow_request(request_id, target_profile_id):
     """Declines a follow request."""
-    req = fast_query(
-        "SELECT * FROM chain_follow_requests WHERE id = %s AND status = 'pending' LIMIT 1",
-        (request_id,), default=[]
-    )
-    if not req:
-        return {"ok": False, "error": "request_not_found"}
-        
-    if str(req[0]["target_profile_id"]) != str(target_profile_id):
-        return {"ok": False, "error": "not_authorized"}
-        
     try:
         write_query(
-            "UPDATE chain_follow_requests SET status = 'declined', responded_at = now(), updated_at = now() WHERE id = %s",
-            (request_id,)
+            "UPDATE chain_follow_requests SET status = 'declined', responded_at = now(), updated_at = now() "
+            "WHERE id = %s AND target_profile_id = %s",
+            (request_id, target_profile_id)
         )
-        
-        requester_id = req[0]["requester_profile_id"]
-        target_p = fast_query("SELECT username, display_name FROM chain_profiles WHERE id = %s", (target_profile_id,), default=[])
-        target_name = target_p[0].get("display_name") or target_p[0].get("username") if target_p else "Someone"
-        
-        create_notification(
-            recipient_profile_id=requester_id,
-            actor_profile_id=target_profile_id,
-            event_type="follow_request_declined",
-            title="Follow Request Declined",
-            body=f"{target_name} declined your follow request.",
-            action_url=f"/profile/@{target_p[0].get('username') if target_p else ''}"
-        )
-        
-        return {"ok": True, "status": "none"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-def cancel_follow_request(request_id, requester_profile_id):
-    """Cancels an outgoing follow request."""
-    req = fast_query(
-        "SELECT * FROM chain_follow_requests WHERE id = %s AND status = 'pending' LIMIT 1",
-        (request_id,), default=[]
-    )
-    if not req:
-        return {"ok": False, "error": "request_not_found"}
-        
-    if str(req[0]["requester_profile_id"]) != str(requester_profile_id):
-        return {"ok": False, "error": "not_authorized"}
-        
-    try:
-        write_query(
-            "UPDATE chain_follow_requests SET status = 'cancelled', updated_at = now() WHERE id = %s",
-            (request_id,)
-        )
-        return {"ok": True, "status": "none"}
+        return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 

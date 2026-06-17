@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from html import escape
 
+from services.neon_service import fast_query, write_query
 from services.supabase_safe import safe_count, safe_delete, safe_insert, safe_select, safe_update, table_exists
 
 
@@ -290,34 +291,27 @@ def delete_comment(profile_id, entity_type, comment_id):
     return {"success": True, "count": count}
 
 
-def follow_profile(follower_id, following_id):
+def follow_profile(follower_id, following_id, toggle=True):
     if not follower_id or not following_id:
         return {"success": False, "error": "Invalid profile."}
     if follower_id == following_id:
         return {"success": False, "error": "You cannot follow yourself."}
-    if not table_exists("chain_follows"):
-        return {"success": False, "error": "Follow table is not available."}
 
-    existing = _first(
-        "chain_follows",
-        {"follower_profile_id": follower_id, "following_profile_id": following_id},
-        columns="id",
-        order_by=None,
+    existing = fast_query(
+        "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
+        (follower_id, following_id), default=[]
     )
     if existing:
-        safe_delete("chain_follows", eq={"id": existing["id"]})
-        following = False
+        if toggle:
+            write_query("DELETE FROM chain_follows WHERE id = %s", (existing[0]["id"],))
+            following = False
+        else:
+            following = True
     else:
-        inserted = safe_insert(
-            "chain_follows",
-            {
-                "follower_profile_id": follower_id,
-                "following_profile_id": following_id,
-                "created_at": _utcnow_iso(),
-            },
+        write_query(
+            "INSERT INTO chain_follows (follower_profile_id, following_profile_id, created_at) VALUES (%s, %s, now())",
+            (follower_id, following_id)
         )
-        if inserted is None:
-            return {"success": False, "error": "Could not update follow state."}
         following = True
         _notify(
             following_id,
@@ -330,45 +324,46 @@ def follow_profile(follower_id, following_id):
             entity_id=following_id,
         )
 
-    followers = safe_count("chain_follows", filters={"following_profile_id": following_id})
-    following_count = safe_count("chain_follows", filters={"follower_profile_id": follower_id})
-    safe_update("chain_profiles", {"followers_count": followers}, eq={"id": following_id})
-    safe_update("chain_profiles", {"following_count": following_count}, eq={"id": follower_id})
+    # Update counts in Neon
+    followers_count = fast_query("SELECT COUNT(*) as count FROM chain_follows WHERE following_profile_id = %s", (following_id,))[0]["count"]
+    following_count = fast_query("SELECT COUNT(*) as count FROM chain_follows WHERE follower_profile_id = %s", (follower_id,))[0]["count"]
     
+    write_query("UPDATE chain_profiles SET followers_count = %s WHERE id = %s", (followers_count, following_id))
+    write_query("UPDATE chain_profiles SET following_count = %s WHERE id = %s", (following_count, follower_id))
+
     from services.social_service import _invalidate_social_cache
     _invalidate_social_cache(following_id)
     _invalidate_social_cache(follower_id)
     
-    return {"success": True, "following": following, "followers_count": followers, "following_count": following_count}
+    return {"success": True, "following": following, "followers_count": followers_count, "following_count": following_count}
 
 
 def unfollow_profile(follower_id, following_id):
     if not follower_id or not following_id:
         return {"success": False, "error": "Invalid profile."}
-    safe_delete("chain_follows", eq={"follower_profile_id": follower_id, "following_profile_id": following_id})
-    followers = safe_count("chain_follows", filters={"following_profile_id": following_id})
-    following_count = safe_count("chain_follows", filters={"follower_profile_id": follower_id})
-    safe_update("chain_profiles", {"followers_count": followers}, eq={"id": following_id})
-    safe_update("chain_profiles", {"following_count": following_count}, eq={"id": follower_id})
+    write_query("DELETE FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s", (follower_id, following_id))
+    
+    followers_count = fast_query("SELECT COUNT(*) as count FROM chain_follows WHERE following_profile_id = %s", (following_id,))[0]["count"]
+    following_count = fast_query("SELECT COUNT(*) as count FROM chain_follows WHERE follower_profile_id = %s", (follower_id,))[0]["count"]
+    
+    write_query("UPDATE chain_profiles SET followers_count = %s WHERE id = %s", (followers_count, following_id))
+    write_query("UPDATE chain_profiles SET following_count = %s WHERE id = %s", (following_count, follower_id))
     
     from services.social_service import _invalidate_social_cache
     _invalidate_social_cache(following_id)
     _invalidate_social_cache(follower_id)
     
-    return {"success": True, "following": False, "followers_count": followers, "following_count": following_count}
+    return {"success": True, "following": False, "followers_count": followers_count, "following_count": following_count}
 
 
 def is_following(follower_id, following_id):
-    return bool(
-        follower_id
-        and following_id
-        and _first(
-            "chain_follows",
-            {"follower_profile_id": follower_id, "following_profile_id": following_id},
-            columns="id",
-            order_by=None,
-        )
+    if not follower_id or not following_id:
+        return False
+    rows = fast_query(
+        "SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
+        (follower_id, following_id), default=[]
     )
+    return bool(rows)
 
 
 def toggle_save(profile_id, item_type, item_id):

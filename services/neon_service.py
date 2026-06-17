@@ -33,7 +33,7 @@ CHAIN_STATIC_COLUMNS = {
         "followers_count", "following_count", "posts_count", "reels_count", "friends_count", "saved_count",
         "tagged_count", "bio", "is_public", "photo_url",
         "deleted_at", "created_at", "updated_at", "bio",
-        "visibility", "profile_type", "terms_accepted_at",
+        "visibility", "profile_visibility", "profile_type", "terms_accepted_at",
         "privacy_accepted_at", "privacy_accepted", "privacy_version", "terms_version",
         "who_can_message", "who_can_call", "who_can_see_status",
         "message_only_after_match", "tour_seen"

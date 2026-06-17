@@ -118,10 +118,8 @@ def can_view_by_rule(viewer_id, owner_id, rule):
         return True
     if rule == "friends_only":
         return are_friends(viewer_id, owner_id)
-    if rule == "followers_only":
+    if rule == "followers_only" or rule == "private":
         return are_friends(viewer_id, owner_id) or is_approved_follower(viewer_id, owner_id)
-    if rule == "private":
-        return False
     return True
 
 
@@ -129,6 +127,8 @@ def _profile_value(profile, key, default=None):
     if not profile:
         return default
     val = profile.get(key)
+    if val is None and key == "profile_visibility":
+        val = profile.get("visibility")
     if val is None:
         val = profile.get(key.replace("who_can_", "who_can_"), default)
     return val if val is not None else default
@@ -151,13 +151,9 @@ def can_view_profile(viewer_id, profile):
 def can_view_posts(viewer_id, profile):
     if not profile:
         return False
+    if not can_view_profile(viewer_id, profile):
+        return False
     owner_id = profile.get("id")
-    if not owner_id:
-        return False
-    if is_blocked_any(viewer_id, owner_id):
-        return False
-    if _is_self(viewer_id, owner_id):
-        return True
     rule = normalize_visibility(_profile_value(profile, "who_can_see_posts", "public"))
     return can_view_by_rule(viewer_id, owner_id, rule)
 
@@ -165,13 +161,9 @@ def can_view_posts(viewer_id, profile):
 def can_view_reels(viewer_id, profile):
     if not profile:
         return False
+    if not can_view_profile(viewer_id, profile):
+        return False
     owner_id = profile.get("id")
-    if not owner_id:
-        return False
-    if is_blocked_any(viewer_id, owner_id):
-        return False
-    if _is_self(viewer_id, owner_id):
-        return True
     rule = normalize_visibility(_profile_value(profile, "who_can_see_reels", "public"))
     return can_view_by_rule(viewer_id, owner_id, rule)
 
@@ -179,13 +171,9 @@ def can_view_reels(viewer_id, profile):
 def can_view_stories(viewer_id, profile):
     if not profile:
         return False
+    if not can_view_profile(viewer_id, profile):
+        return False
     owner_id = profile.get("id")
-    if not owner_id:
-        return False
-    if is_blocked_any(viewer_id, owner_id):
-        return False
-    if _is_self(viewer_id, owner_id):
-        return True
     rule = normalize_visibility(_profile_value(profile, "who_can_see_stories", "friends_only"))
     return can_view_by_rule(viewer_id, owner_id, rule)
 
@@ -193,13 +181,9 @@ def can_view_stories(viewer_id, profile):
 def can_view_followers(viewer_id, profile):
     if not profile:
         return False
+    if not can_view_profile(viewer_id, profile):
+        return False
     owner_id = profile.get("id")
-    if not owner_id:
-        return False
-    if is_blocked_any(viewer_id, owner_id):
-        return False
-    if _is_self(viewer_id, owner_id):
-        return True
     rule = normalize_visibility(_profile_value(profile, "who_can_see_followers", "public"))
     return can_view_by_rule(viewer_id, owner_id, rule)
 
@@ -207,13 +191,9 @@ def can_view_followers(viewer_id, profile):
 def can_view_following(viewer_id, profile):
     if not profile:
         return False
+    if not can_view_profile(viewer_id, profile):
+        return False
     owner_id = profile.get("id")
-    if not owner_id:
-        return False
-    if is_blocked_any(viewer_id, owner_id):
-        return False
-    if _is_self(viewer_id, owner_id):
-        return True
     rule = normalize_visibility(_profile_value(profile, "who_can_see_following", "public"))
     return can_view_by_rule(viewer_id, owner_id, rule)
 

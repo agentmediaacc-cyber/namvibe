@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
         followBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
-            const response = await fetch(`/api/social/follow/${profileId}`, { 
+            const response = await fetch(`/social/follow/${profileId}`, { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });

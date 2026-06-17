@@ -273,6 +273,7 @@ NEON_PROFILE_COLUMNS = {
     "verified",
     "email_verified",
     "visibility",
+    "profile_visibility",
     "allow_messages",
     "allow_dating",
     "allow_gifts",
@@ -723,7 +724,7 @@ def _neon_get_profile_by(field, value):
         rows = fast_query(
             f"SELECT {_neon_profile_columns()} FROM chain_profiles WHERE {field} = %s AND deleted_at IS NULL LIMIT 1",
             [value],
-            timeout_ms=500,
+            timeout_ms=10000,
         )
         row = rows[0] if rows else None
         if row:
