@@ -1,0 +1,37 @@
+<div class="tab-inline-panel">
+  <div class="tab-inline-header">
+    <h3><i class="fas fa-phone-volume"></i> Recent Calls</h3>
+    <a href="/calls/recent" class="filter-chip">Call History <i class="fas fa-arrow-right"></i></a>
+  </div>
+  {% if calls %}
+  <div class="people-list">
+    {% for c in calls[:10] %}
+    <div class="people-card">
+      <div class="people-avatar">
+        {% if c.avatar_url %}
+        <img src="{{ c.avatar_url }}" alt="">
+        {% else %}
+        {{ (c.name or '?')[0]|upper }}
+        {% endif %}
+      </div>
+      <div class="people-info">
+        <strong>{{ c.name or 'Unknown' }}</strong>
+        <span>
+          {% if c.call_type == 'video' %}<i class="fas fa-video"></i>{% else %}<i class="fas fa-phone"></i>{% endif %}
+          {{ c.status|capitalize }}
+          {% if c.duration_seconds %}
+          &middot; {{ (c.duration_seconds // 60) }}:{{ '%02d' % (c.duration_seconds % 60) }}
+          {% endif %}
+        </span>
+        <small>{{ c.created_at[:10] if c.created_at else '' }}</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-phone-volume"></i>
+    <p>No calls yet</p>
+  </div>
+  {% endif %}
+</div>

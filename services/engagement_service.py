@@ -12,7 +12,7 @@ def _clean_body(value, max_len=1000):
     text = " ".join((value or "").strip().split())
     if not text:
         return ""
-    return escape(text[:max_len], quote=False)
+    return escape(text[:max_len])
 
 
 def _first(table, filters, columns="*", order_by=None):
@@ -131,6 +131,10 @@ def toggle_like(profile_id, entity_type, entity_id):
         return {"success": False, "error": "Invalid like target."}
     if not table_exists(config["table"]):
         return {"success": False, "error": f"{config['table']} is not available."}
+
+    owner_id = _owner_for(entity_type, entity_id)
+    if owner_id and str(profile_id) == str(owner_id):
+        return {"success": False, "error": "cannot_like_own_content"}
 
     filters = {
         "profile_id": profile_id,
@@ -330,6 +334,11 @@ def follow_profile(follower_id, following_id):
     following_count = safe_count("chain_follows", filters={"follower_profile_id": follower_id})
     safe_update("chain_profiles", {"followers_count": followers}, eq={"id": following_id})
     safe_update("chain_profiles", {"following_count": following_count}, eq={"id": follower_id})
+    
+    from services.social_service import _invalidate_social_cache
+    _invalidate_social_cache(following_id)
+    _invalidate_social_cache(follower_id)
+    
     return {"success": True, "following": following, "followers_count": followers, "following_count": following_count}
 
 
@@ -341,6 +350,11 @@ def unfollow_profile(follower_id, following_id):
     following_count = safe_count("chain_follows", filters={"follower_profile_id": follower_id})
     safe_update("chain_profiles", {"followers_count": followers}, eq={"id": following_id})
     safe_update("chain_profiles", {"following_count": following_count}, eq={"id": follower_id})
+    
+    from services.social_service import _invalidate_social_cache
+    _invalidate_social_cache(following_id)
+    _invalidate_social_cache(follower_id)
+    
     return {"success": True, "following": False, "followers_count": followers, "following_count": following_count}
 
 

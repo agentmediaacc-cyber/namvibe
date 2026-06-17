@@ -17,34 +17,69 @@ from services.session_service import (
 )
 from services.notification_service import get_my_notifications
 from services.profile_service import (
+    _age_from_dob,
+    accept_friend_request,
     block_profile,
     bootstrap_profile_for_current_user,
+    cancel_friend_request,
     create_or_update_profile,
+    decline_friend_request,
+    delete_post,
+    delete_reel,
     favorite_profile,
     follow_profile,
     get_current_profile,
+    get_followers_page,
+    get_following_page,
+    get_following_types,
+    get_friend_requests,
+    get_friend_status,
+    get_friends,
     get_profile_bundle,
     get_profile_by_id,
     get_profile_by_username,
     get_profile_content,
+    get_profile_posts,
+    get_profile_privacy,
+    get_profile_reels,
     get_profile_settings,
     get_profile_stats,
+    get_reel_analytics,
+    get_sent_friend_requests,
+    invalidate_profile_cache,
     is_adult_profile,
     is_profile_complete,
     like_profile,
+    mute_profile,
+    normalize_dob,
     record_profile_view,
+    remove_follower,
+    remove_friend,
     report_profile,
+    send_friend_request,
+    toggle_post_comments,
+    toggle_post_pin,
+    toggle_post_sharing,
+    toggle_reel_comments,
+    toggle_reel_pin,
+    toggle_reel_sharing,
+    unmute_profile,
+    update_post_visibility,
     update_profile,
+    update_profile_privacy,
     update_profile_setup,
+    update_reel_visibility,
     upload_profile_avatar,
     upload_profile_cover,
     verify_profile_age,
-    _age_from_dob,
-    normalize_dob,
 )
 from services.profile_dashboard_service import build_profile_dashboard
 from services.storage_service import upload_avatar, upload_cover, upload_verification_file
 from services.logging_service import log_error, log_warning
+from services.friend_service import list_friends, list_friend_requests, are_friends, get_mutual_friends, suggest_friends
+from services.creator_service import get_creator_dashboard_data, get_creator_analytics
+from services.wallet_service import get_or_create_wallet
+from services.profile_service import get_wallet_snapshot
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
@@ -64,11 +99,12 @@ def _is_production_env():
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        has_local_session = bool(session.get("profile_id") and (session.get("auth_user_id") or session.get("user_id")))
         if not is_logged_in():
             if session.get("refresh_token"):
                 refresh_supabase_session_if_needed()
-        if not is_logged_in():
-            if request.path.startswith('/api/'):
+        if not is_logged_in() and not has_local_session:
+            if request.path.startswith('/api/') or request.path.startswith('/reels/api/'):
                 return jsonify({"error": "Unauthorized", "message": "Authentication required"}), 401
             return redirect(url_for("auth.login", next=request.path))
         return f(*args, **kwargs)
@@ -103,7 +139,7 @@ def _redirect_back(username=None):
 
 def _session_profile_stub():
     email = session.get("auth_email") or ""
-    username = session.get("username") or (email.split("@")[0] if "@" in email else "chainuser")
+    username = session.get("username") or (email.split("@")[0] if "@" in email else "user")
     full_name = session.get("full_name") or username.replace("_", " ").title()
     return _with_profile_defaults({
         "id": session.get("profile_id"),
@@ -130,7 +166,7 @@ def _safe_number(value, default=0):
 
 def _with_profile_defaults(profile):
     profile = dict(profile or {})
-    username = profile.get("username") or "chainuser"
+    username = profile.get("username") or "user"
     display_name = profile.get("display_name") or profile.get("full_name") or username.replace("_", " ").title()
     created_at = profile.get("created_at") or datetime.now(timezone.utc).isoformat()
     profile.setdefault("id", profile.get("auth_user_id") or session.get("profile_id") or session.get("auth_user_id") or "local-profile")
@@ -141,7 +177,7 @@ def _with_profile_defaults(profile):
     profile["bio"] = profile.get("bio") or ""
     profile["avatar_url"] = profile.get("avatar_url") or profile.get("profile_photo")
     profile["cover_url"] = profile.get("cover_url")
-    profile["location"] = profile.get("location") or profile.get("current_location") or profile.get("town") or profile.get("region") or profile.get("country_origin") or "Namibia"
+    profile["location"] = profile.get("location") or profile.get("current_location") or profile.get("town") or profile.get("region") or profile.get("country_origin") or ""
     profile["current_location"] = profile.get("current_location") or profile["location"]
     profile["website"] = profile.get("website") or profile.get("portfolio_url") or ""
     profile["is_verified"] = bool(profile.get("is_verified") or profile.get("verified") or profile.get("email_verified"))
@@ -219,7 +255,7 @@ def _apply_profile_session(profile, fallback_email=None):
     session.modified = True
 
 
-def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0, setup_warning=False, bundle=None):
+def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0, setup_warning=False, bundle=None, action_policy=None):
     try:
         bundle = bundle or get_profile_bundle(profile_id=profile["id"], viewer=viewer)
     except Exception as error:
@@ -250,11 +286,16 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         "viewer": viewer,
         "profile": render_profile,
         "setup_warning": setup_warning,
+        "action_policy": action_policy,
     }
     context.update(render_bundle)
     context.update(dashboard)
     context["profile"] = render_profile
     context["viewer"] = _with_profile_defaults(viewer) if viewer else None
+    if not context.get("action_policy"):
+        from services.social_action_policy import get_action_policy
+        viewer_id = viewer.get("id") if viewer else None
+        context["action_policy"] = get_action_policy(viewer_id, render_profile)
     return render_template("profile/index.html", **context), status_code
 
 
@@ -274,7 +315,25 @@ def _resolve_profile_route(username=None, user_id=None):
     if viewer and viewer.get("id") != profile.get("id"):
         record_profile_view(profile.get("id"), viewer.get("id"))
 
-    return _render_profile_index(profile, viewer=viewer)
+    from services.social_action_policy import get_action_policy, can_view_profile
+    viewer_id = viewer.get("id") if viewer else None
+    action_policy = get_action_policy(viewer_id, profile)
+    view_result = can_view_profile(viewer_id, profile)
+    profile["action_policy"] = action_policy
+
+    if not view_result.get("can_view_full_profile"):
+        context = {
+            "profile": profile,
+            "viewer": viewer,
+            "action_policy": action_policy,
+            "privacy_message": "This profile is private.",
+            "current_year": profile.get("created_at", datetime.now(timezone.utc)).year
+            if isinstance(profile.get("created_at"), datetime)
+            else datetime.now(timezone.utc).year,
+        }
+        return render_template("profile/private_profile.html", **context), 200
+
+    return _render_profile_index(profile, viewer=viewer, action_policy=action_policy)
 
 
 
@@ -294,7 +353,14 @@ def my_profile():
 
         viewer = get_current_profile()
         if not viewer:
-            if not _is_production_env() and session.get("profile_id"):
+            if session.get("profile_id"):
+                try:
+                    viewer = get_profile_by_id(session.get("profile_id"))
+                    if viewer:
+                        _apply_profile_session(viewer)
+                except Exception as error:
+                    log_warning("profile_session_id_lookup_failed", profile_id=session.get("profile_id"), error=str(error))
+            if not viewer and session.get("profile_id"):
                 viewer = _session_profile_stub()
                 context = _profile_fallback_context()
                 context["profile"] = viewer
@@ -341,8 +407,7 @@ def my_profile():
                 log_warning("profile_age_verification_failed", profile_id=viewer.get("id"), detail=result)
                 return render_template("auth/profile_error.html", error_detail=result), 200
 
-        if not is_profile_complete(viewer):
-            return redirect(url_for("profile.onboarding"))
+        incomplete_profile = not is_profile_complete(viewer)
 
         try:
             bundle = get_profile_bundle(profile_id=viewer["id"], viewer=viewer)
@@ -372,7 +437,7 @@ def my_profile():
             viewer,
             viewer=viewer,
             unread_count=unread_count,
-            setup_warning=setup_warning,
+            setup_warning=setup_warning or incomplete_profile,
             bundle=bundle,
         )
     except Exception as error:
@@ -452,16 +517,20 @@ def setup_profile():
 def edit_profile():
     viewer = get_current_profile()
     if not viewer:
-        return redirect(url_for("profile.onboarding"))
+        ok, result = bootstrap_profile_for_current_user()
+        viewer = result if ok and isinstance(result, dict) else get_current_profile()
+        if not viewer:
+            return redirect(url_for("profile.onboarding"))
     
     ok, result = verify_profile_age(viewer)
     if not ok:
         if result == "REDIRECT_AGE_CHECK":
-            return redirect(url_for("profile.age_check"))
+            session[K_AGE_CHECK_REQUIRED] = False
+            result = None
+            ok = True
+    if not ok:
         return render_template("auth/profile_error.html", error_detail=result), 200
         
-    if not is_profile_complete(viewer):
-        return redirect(url_for("profile.onboarding"))
     setup_mode = request.args.get("setup") == "1"
 
     if request.method == "POST":
@@ -508,7 +577,7 @@ def view_profile(username=None, user_id=None):
 
 @profile_bp.route("", methods=["GET"])
 def my_profile_no_slash():
-    return redirect(url_for("profile.my_profile"), code=308)
+    return my_profile()
 
 
 @profile_bp.route("/<username>")
@@ -609,6 +678,66 @@ def api_profile_creator_card():
         return jsonify({"error": "Creator tools unavailable"}), 500
 
 
+def _schedule_item(profile_id, content_type, caption, scheduled_at_str):
+    import uuid
+    from services.neon_service import write_query
+    table = "chain_posts" if content_type == "post" else "chain_reels"
+    item_id = str(uuid.uuid4())
+    write_query(
+        f"INSERT INTO {table} (id, profile_id, caption, scheduled_at, created_at) VALUES (%s, %s, %s, %s, now())",
+        (item_id, profile_id, caption, scheduled_at_str),
+    )
+    return item_id
+
+
+@profile_bp.route("/api/schedule/create", methods=["POST"])
+@login_required
+def api_schedule_create():
+    viewer = get_current_profile()
+    if not viewer:
+        return jsonify({"status": "error", "error": "Unauthorized"}), 401
+    content_type = request.form.get("content_type")
+    caption = request.form.get("caption", "").strip()
+    scheduled_at = request.form.get("scheduled_at")
+    if content_type not in ("post", "reel"):
+        return jsonify({"status": "error", "error": "content_type must be post or reel"}), 400
+    if not caption:
+        return jsonify({"status": "error", "error": "caption is required"}), 400
+    if not scheduled_at:
+        return jsonify({"status": "error", "error": "scheduled_at is required"}), 400
+    try:
+        item_id = _schedule_item(viewer["id"], content_type, caption, scheduled_at)
+        return jsonify({"status": "ok", "item_id": item_id, "content_type": content_type, "scheduled_at": scheduled_at})
+    except Exception as e:
+        log_error("api_schedule_create_failed", error=str(e))
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@profile_bp.route("/api/scheduled")
+@login_required
+def api_scheduled_items():
+    viewer = get_current_profile()
+    if not viewer:
+        return jsonify({"status": "error", "error": "Unauthorized"}), 401
+    try:
+        from services.neon_service import fast_query
+        limit = min(int(request.args.get("limit", 20)), 50)
+        posts = fast_query(
+            "SELECT id, caption, scheduled_at, 'post' as content_type FROM chain_posts WHERE profile_id = %s AND scheduled_at IS NOT NULL AND deleted_at IS NULL ORDER BY scheduled_at ASC LIMIT %s",
+            (viewer["id"], limit),
+        )
+        reels = fast_query(
+            "SELECT id, caption, scheduled_at, 'reel' as content_type FROM chain_reels WHERE profile_id = %s AND scheduled_at IS NOT NULL AND deleted_at IS NULL ORDER BY scheduled_at ASC LIMIT %s",
+            (viewer["id"], limit),
+        )
+        items = (posts or []) + (reels or [])
+        items.sort(key=lambda x: x.get("scheduled_at") or "")
+        return jsonify({"status": "ok", "items": items[:limit]})
+    except Exception as e:
+        log_error("api_scheduled_failed", error=str(e))
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @profile_bp.route("/api/current", methods=["GET"])
 def api_current_profile():
     try:
@@ -677,18 +806,6 @@ def follow(username):
     return _redirect_back(username)
 
 
-@profile_bp.route("/follow/<profile_id>", methods=["POST"])
-@login_required
-def follow_by_id(profile_id):
-    try:
-        target = get_profile_bundle(profile_id=profile_id, viewer=get_current_profile())
-        ok = bool(target and follow_profile(target["profile"]["username"]))
-    except Exception as error:
-        log_warning("profile_follow_by_id_failed", profile_id=profile_id, error=str(error))
-        ok = False
-    return {"status": "ok" if ok else "setup", "profile_id": profile_id}, (200 if ok else 202)
-
-
 @profile_bp.route("/@<username>/like", methods=["POST"])
 @login_required
 def like(username):
@@ -725,14 +842,6 @@ def block(username):
     return _redirect_back(username)
 
 
-@profile_bp.route("/block/<profile_id>", methods=["POST"])
-@login_required
-def block_by_id(profile_id):
-    target = get_profile_bundle(profile_id=profile_id, viewer=get_current_profile())
-    ok = bool(target and block_profile(target["profile"]["username"]))
-    return {"status": "ok" if ok else "setup", "profile_id": profile_id}, (200 if ok else 202)
-
-
 @profile_bp.route("/@<username>/premium")
 def premium(username):
     viewer = get_current_profile()
@@ -749,13 +858,148 @@ def creator_tools(username):
     bundle = get_profile_bundle(username=username, viewer=viewer)
     if not bundle:
         return render_template("profile/not_found.html", username=username), 404
-    return render_template("profile/creator_tools.html", viewer=viewer, **bundle)
+    profile = bundle.get("profile", {})
+    creator_data = get_creator_dashboard_data(profile.get("id"))
+    analytics = get_creator_analytics(profile.get("id"), days=30)
+    wallet = get_wallet_snapshot(profile.get("id"))
+    stats = get_profile_stats(profile.get("id"))
+    try:
+        from services.friend_service import list_friends
+        friends = list_friends(profile.get("id"), limit=8)
+    except Exception:
+        friends = []
+    schedule_count = _count_scheduled(profile.get("id"))
+    return render_template(
+        "profile/creator_tools.html",
+        viewer=viewer, profile=profile, wallet=wallet, stats=stats,
+        creator_data=creator_data, analytics=analytics, friends=friends,
+        schedule_count=schedule_count, **bundle
+    )
 
 
-@profile_bp.route("/settings")
+def _count_scheduled(profile_id):
+    count = 0
+    try:
+        from services.neon_service import fast_query
+        rows = fast_query(
+            "SELECT COUNT(*) AS c FROM chain_posts WHERE profile_id = %s AND scheduled_at IS NOT NULL AND scheduled_at > now() AND deleted_at IS NULL",
+            (profile_id,), default=[]
+        )
+        if rows: count += int(rows[0].get("c", 0) or 0)
+        rows = fast_query(
+            "SELECT COUNT(*) AS c FROM chain_reels WHERE profile_id = %s AND scheduled_at IS NOT NULL AND scheduled_at > now() AND deleted_at IS NULL",
+            (profile_id,), default=[]
+        )
+        if rows: count += int(rows[0].get("c", 0) or 0)
+    except Exception:
+        pass
+    return count
+
+
+@profile_bp.route("/tab/<tab_name>")
+@login_required
+def tab_content(tab_name):
+    viewer = get_current_profile()
+    bundle = get_profile_bundle(profile_id=viewer.get("id"), viewer=viewer)
+    template_map = {
+        "stories": "profile/tabs/tab_stories.html",
+        "messages": "profile/tabs/tab_messages.html",
+        "calls": "profile/tabs/tab_calls.html",
+        "dating": "profile/tabs/tab_dating.html",
+        "wallet": "profile/tabs/tab_wallet.html",
+        "notifications": "profile/tabs/tab_notifications.html",
+    }
+    tpl = template_map.get(tab_name)
+    if not tpl:
+        return '<div class="manager-empty"><i class="fas fa-exclamation-triangle"></i><p>Tab not found</p></div>'
+    extra = {}
+    if tab_name == "stories":
+        try:
+            from services.stories_service import get_stories_feed
+            extra["stories"] = get_stories_feed(viewer.get("id"))
+        except Exception:
+            extra["stories"] = []
+    elif tab_name == "wallet":
+        extra["wallet_data"] = get_wallet_snapshot(viewer.get("id"))
+        try:
+            from services.wallet_service import get_wallet_transactions
+            extra["recent_txns"] = get_wallet_transactions(viewer.get("id"), limit=5)
+        except Exception:
+            extra["recent_txns"] = []
+    elif tab_name == "notifications":
+        try:
+            from services.notification_engine import list_notifications_tab, unread_count
+            extra["notifications"] = list_notifications_tab(viewer.get("id"), tab="all", page=1, limit=10).get("items", [])
+            extra["unread"] = unread_count(viewer.get("id"))
+        except Exception:
+            extra["notifications"] = []
+            extra["unread"] = 0
+    elif tab_name == "messages":
+        try:
+            from services.messaging_engine import list_threads
+            extra["threads"] = list_threads(viewer.get("id"), limit=5).get("threads", [])
+        except Exception:
+            extra["threads"] = []
+    elif tab_name == "calls":
+        try:
+            from services.call_service import list_recent_calls
+            extra["calls"] = list_recent_calls(viewer.get("id"))
+        except Exception:
+            extra["calls"] = []
+    elif tab_name == "dating":
+        try:
+            from services.dating_service import get_matches, get_dating_profile
+            extra["dating_profile"] = get_dating_profile(viewer.get("id"))
+            extra["matches"] = get_matches(viewer.get("id"), limit=6).get("items", [])
+        except Exception:
+            extra["dating_profile"] = {}
+            extra["matches"] = []
+    ctx = {"viewer": viewer, "profile": bundle.get("profile", viewer), "tab_name": tab_name}
+    ctx.update(extra)
+    return render_template(tpl, **ctx)
+
+
+@profile_bp.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings():
     profile = get_current_profile()
+    if not profile:
+        ok, result = bootstrap_profile_for_current_user()
+        profile = result if ok and isinstance(result, dict) else get_current_profile()
+        if not profile:
+            return redirect(url_for("profile.onboarding"))
+    if request.method == "POST":
+        data = dict(request.form)
+        avatar_file = request.files.get("avatar")
+        if avatar_file and avatar_file.filename:
+            res, err = upload_avatar(profile["id"], avatar_file)
+            if res:
+                data["avatar_url"] = res["public_url"]
+                data["avatar_upload_id"] = res["upload_id"]
+            else:
+                flash(f"Avatar upload failed: {err}", "error")
+        cover_file = request.files.get("cover")
+        if cover_file and cover_file.filename:
+            res, err = upload_cover(profile["id"], cover_file)
+            if res:
+                data["cover_url"] = res["public_url"]
+                data["cover_upload_id"] = res["upload_id"]
+            else:
+                flash(f"Cover upload failed: {err}", "error")
+        verification_file = request.files.get("verification")
+        if verification_file and verification_file.filename:
+            res, err = upload_verification_file(profile["id"], verification_file, upload_type="profile_verification")
+            if res:
+                data["verification_selfie_url"] = res.get("public_url") or res.get("file_path")
+                data["verification_upload_id"] = res.get("upload_id")
+            else:
+                flash(f"Verification upload failed: {err}", "error")
+        ok, result = update_profile_setup(profile["id"], data, current_profile=profile)
+        if ok:
+            _apply_profile_session(result if isinstance(result, dict) else profile, fallback_email=data.get("email"))
+            flash("Profile updated.", "success")
+            return redirect(url_for("profile.settings"))
+        flash(result or "Profile could not be saved yet.", "error")
     profile_settings = get_profile_settings(profile["id"])
     return render_template("profile/settings.html", profile=profile, profile_settings=profile_settings["settings"], account_security=profile_settings["security"])
 
@@ -1008,7 +1252,8 @@ def ai_assist():
 @login_required
 def privacy_settings():
     profile = get_current_profile()
-    return render_template("profile/privacy.html", profile=profile)
+    privacy = get_profile_privacy(profile["id"]) if profile else {}
+    return render_template("profile/privacy.html", profile=profile, privacy=privacy)
 
 
 @profile_bp.route("/page/like/<page_id>", methods=["POST"])
@@ -1028,16 +1273,6 @@ def unlike_page(page_id):
     sql = "DELETE FROM chain_page_likes WHERE profile_id = %s AND page_id = %s"
     ok = write_query(sql, (profile["id"], page_id))
     return jsonify({"status": "ok" if ok else "error"})
-
-
-@profile_bp.route("/unblock/<target_id>", methods=["POST"])
-@login_required
-def unblock(target_id):
-    profile = get_current_profile()
-    from services.supabase_safe import safe_update
-    # Soft delete block record
-    safe_update("chain_blocks", {"deleted_at": datetime.now(timezone.utc).isoformat()}, eq={"blocker_profile_id": profile["id"], "blocked_profile_id": target_id})
-    return jsonify({"status": "ok"})
 
 
 @profile_bp.route("/convert-to-page", methods=["POST"])
@@ -1133,3 +1368,208 @@ def toggle_follow(user_id):
         "following": following,
         "followers_count": counts["count"]
     })
+
+# ── Posts Manager Routes ──────────────────────────────────────────────
+
+@profile_bp.route("/api/posts/<post_id>/visibility", methods=["POST"])
+@login_required
+def api_post_visibility(post_id):
+    profile = get_current_profile()
+    visibility = request.json.get("visibility", "public") if request.is_json else request.form.get("visibility", "public")
+    allowed = {"public", "followers", "friends", "private"}
+    if visibility not in allowed:
+        return jsonify({"error": "Invalid visibility"}), 400
+    ok = update_post_visibility(post_id, profile["id"], visibility)
+    invalidate_profile_cache(profile["id"])
+    return jsonify({"status": "ok" if ok else "error"})
+
+@profile_bp.route("/api/posts/<post_id>/comments-toggle", methods=["POST"])
+@login_required
+def api_post_comments_toggle(post_id):
+    profile = get_current_profile()
+    ok = toggle_post_comments(post_id, profile["id"])
+    return jsonify({"status": "ok" if ok else "error", "comments_enabled": ok})
+
+@profile_bp.route("/api/posts/<post_id>/share-toggle", methods=["POST"])
+@login_required
+def api_post_share_toggle(post_id):
+    profile = get_current_profile()
+    ok = toggle_post_sharing(post_id, profile["id"])
+    return jsonify({"status": "ok" if ok else "error", "sharing_enabled": ok})
+
+@profile_bp.route("/api/posts/<post_id>/pin", methods=["POST"])
+@login_required
+def api_post_pin(post_id):
+    profile = get_current_profile()
+    ok = toggle_post_pin(post_id, profile["id"])
+    invalidate_profile_cache(profile["id"])
+    return jsonify({"status": "ok" if ok else "error", "pinned": ok})
+
+@profile_bp.route("/api/posts/<post_id>", methods=["DELETE"])
+@login_required
+def api_post_delete(post_id):
+    profile = get_current_profile()
+    ok = delete_post(post_id, profile["id"])
+    invalidate_profile_cache(profile["id"])
+    return jsonify({"status": "ok" if ok else "error"})
+
+@profile_bp.route("/api/posts", methods=["GET"])
+@login_required
+def api_my_posts():
+    profile = get_current_profile()
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    visibility = request.args.get("visibility", "all")
+    result = get_profile_posts(profile["id"], page=page, per_page=per_page, visibility=visibility)
+    return jsonify(result)
+
+@profile_bp.route("/@<username>/posts", methods=["GET"])
+def view_posts(username):
+    viewer = get_current_profile()
+    profile = get_profile_by_username(username) if username else None
+    if not profile:
+        return render_template("profile/not_found.html", username=username), 404
+    page = request.args.get("page", 1, type=int)
+    result = get_profile_posts(profile["id"], page=page, per_page=20)
+    return render_template("profile/posts.html", profile=profile, viewer=viewer, posts=result.get("posts", []), pagination=result)
+
+# ── Reels Manager Routes ──────────────────────────────────────────────
+
+@profile_bp.route("/api/reels/<reel_id>/visibility", methods=["POST"])
+@login_required
+def api_reel_visibility(reel_id):
+    profile = get_current_profile()
+    visibility = request.json.get("visibility", "public") if request.is_json else request.form.get("visibility", "public")
+    allowed = {"public", "followers", "friends", "private"}
+    if visibility not in allowed:
+        return jsonify({"error": "Invalid visibility"}), 400
+    ok = update_reel_visibility(reel_id, profile["id"], visibility)
+    invalidate_profile_cache(profile["id"])
+    return jsonify({"status": "ok" if ok else "error"})
+
+@profile_bp.route("/api/reels/<reel_id>/comments-toggle", methods=["POST"])
+@login_required
+def api_reel_comments_toggle(reel_id):
+    profile = get_current_profile()
+    ok = toggle_reel_comments(reel_id, profile["id"])
+    return jsonify({"status": "ok" if ok else "error", "comments_enabled": ok})
+
+@profile_bp.route("/api/reels/<reel_id>/pin", methods=["POST"])
+@login_required
+def api_reel_pin(reel_id):
+    profile = get_current_profile()
+    ok = toggle_reel_pin(reel_id, profile["id"])
+    invalidate_profile_cache(profile["id"])
+    return jsonify({"status": "ok" if ok else "error", "pinned": ok})
+
+@profile_bp.route("/api/reels/<reel_id>/share-toggle", methods=["POST"])
+@login_required
+def api_reel_share_toggle(reel_id):
+    profile = get_current_profile()
+    ok = toggle_reel_sharing(reel_id, profile["id"])
+    return jsonify({"status": "ok" if ok else "error", "sharing_enabled": ok})
+
+@profile_bp.route("/api/reels/<reel_id>", methods=["DELETE"])
+@login_required
+def api_reel_delete(reel_id):
+    profile = get_current_profile()
+    ok = delete_reel(reel_id, profile["id"])
+    invalidate_profile_cache(profile["id"])
+    return jsonify({"status": "ok" if ok else "error"})
+
+@profile_bp.route("/api/reels/analytics/<reel_id>", methods=["GET"])
+@login_required
+def api_reel_analytics(reel_id):
+    profile = get_current_profile()
+    analytics = get_reel_analytics(reel_id, profile["id"])
+    return jsonify(analytics)
+
+@profile_bp.route("/api/reels", methods=["GET"])
+@login_required
+def api_my_reels():
+    profile = get_current_profile()
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    reel_type = request.args.get("type", "own")
+    result = get_profile_reels(profile["id"], page=page, per_page=per_page, reel_type=reel_type)
+    return jsonify(result)
+
+@profile_bp.route("/@<username>/reels", methods=["GET"])
+def view_reels(username):
+    viewer = get_current_profile()
+    profile = get_profile_by_username(username) if username else None
+    if not profile:
+        return render_template("profile/not_found.html", username=username), 404
+    page = request.args.get("page", 1, type=int)
+    reel_type = request.args.get("type", "own")
+    result = get_profile_reels(profile["id"], page=page, per_page=20, reel_type=reel_type)
+    return render_template("profile/reels.html", profile=profile, viewer=viewer, reels=result.get("reels", []), pagination=result)
+
+# ── Followers / Following / Friends Routes Moved to social_routes.py ──
+
+# ── Privacy Settings Routes ──────────────────────────────────────────
+
+@profile_bp.route("/settings/privacy-advanced", methods=["POST"])
+@login_required
+def update_privacy_advanced():
+    profile = get_current_profile()
+    allowed_form_keys = (
+        "who_can_follow", "who_can_message", "who_can_call",
+        "who_can_view_posts", "who_can_view_reels",
+        "who_can_see_posts", "who_can_see_reels", "who_can_see_stories",
+        "who_can_see_followers", "who_can_see_following",
+        "who_can_send_friend_requests", "who_can_follow_me", "who_can_message_me",
+        "profile_visibility", "visibility",
+    )
+    data = {}
+    for key in allowed_form_keys:
+        val = request.form.get(key)
+        if val is not None:
+            data[key] = val
+    data["require_coins_to_follow"] = request.form.get("require_coins_to_follow") == "on"
+    data["premium_only_follow"] = request.form.get("premium_only_follow") == "on"
+    ok = update_profile_privacy(profile["id"], data)
+    invalidate_profile_cache(profile["id"])
+    flash("Privacy settings updated.", "success")
+    return redirect(url_for("profile.privacy_settings"))
+
+
+# ── Following Mute Routes ────────────────────────────────────────────
+
+@profile_bp.route("/command-center")
+@login_required
+def command_center():
+    viewer = get_current_profile()
+    if not viewer:
+        return redirect(url_for("auth.login"))
+    return render_template("profile/command_center.html", profile=viewer, viewer=viewer)
+
+
+@profile_bp.route("/@<username>/likes")
+def view_likes(username):
+    viewer = get_current_profile()
+    profile = get_profile_by_username(username)
+    if not profile:
+        return render_template("profile/not_found.html", username=username), 404
+    page = request.args.get("page", 1, type=int)
+    result = get_profile_posts(profile["id"], page=page, per_page=20, visibility="all")
+    return render_template("profile/posts.html", profile=profile, viewer=viewer,
+                           posts=result.get("posts", []), pagination=result)
+
+
+@profile_bp.route("/@<username>/views")
+def view_views(username):
+    viewer = get_current_profile()
+    profile = get_profile_by_username(username)
+    if not profile:
+        return render_template("profile/not_found.html", username=username), 404
+    return render_template("profile/command_center.html", profile=profile, viewer=viewer)
+
+
+@profile_bp.route("/@<username>/score")
+def view_score(username):
+    viewer = get_current_profile()
+    profile = get_profile_by_username(username)
+    if not profile:
+        return render_template("profile/not_found.html", username=username), 404
+    return render_template("profile/command_center.html", profile=profile, viewer=viewer)

@@ -1,0 +1,152 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell" data-page="friends">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Friends</h2>
+    <span class="manager-count">{{ total or 0 }} friends</span>
+  </div>
+  {% if pending_requests %}
+  <section class="following-group">
+    <h3 class="group-title"><i class="fas fa-clock"></i> Pending Requests <span class="badge">{{ pending_requests|length }}</span></h3>
+    <div class="people-list">
+      {% for req in pending_requests %}
+      <div class="people-card" data-request-id="{{ req.id }}">
+        <div class="people-avatar">
+          {% if req.sender_avatar_url %}
+          <img src="{{ req.sender_avatar_url }}" alt="{{ req.sender_display_name or 'User' }}" loading="lazy">
+          {% else %}
+          <span>{{ (req.sender_display_name or req.sender_username or 'U')[0]|upper }}</span>
+          {% endif %}
+        </div>
+        <div class="people-info">
+          <strong>{{ req.sender_display_name or req.sender_username or 'NamVibe User' }}</strong>
+          <span>@{{ req.sender_username or 'user' }}</span>
+        </div>
+        <div class="people-actions">
+          <a href="/profile/{{ req.sender_username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+          <button class="action-btn primary" title="Accept" data-action="accept-friend" data-id="{{ req.id }}"><i class="fas fa-check"></i></button>
+          <button class="action-btn danger" title="Decline" data-action="decline-friend" data-id="{{ req.id }}"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  {% if outbound_requests %}
+  <section class="following-group">
+    <h3 class="group-title"><i class="fas fa-paper-plane"></i> Sent Requests</h3>
+    <div class="people-list">
+      {% for req in outbound_requests %}
+      <div class="people-card" data-request-id="{{ req.id }}">
+        <div class="people-avatar">
+          {% if req.receiver_avatar_url %}
+          <img src="{{ req.receiver_avatar_url }}" alt="" loading="lazy">
+          {% else %}
+          <span>{{ (req.receiver_display_name or req.receiver_username or 'U')[0]|upper }}</span>
+          {% endif %}
+        </div>
+        <div class="people-info">
+          <strong>{{ req.receiver_display_name or req.receiver_username or 'User' }}</strong>
+          <span>@{{ req.receiver_username or 'user' }}</span>
+        </div>
+        <div class="people-actions">
+          <button class="action-btn danger" title="Cancel" data-action="cancel-friend-request" data-id="{{ req.id }}"><i class="fas fa-ban"></i></button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  {% if friends %}
+  <section class="following-group">
+    <h3 class="group-title"><i class="fas fa-user-group"></i> All Friends</h3>
+    <div class="people-list" id="friendsList">
+      {% for f in friends %}
+      {% set fid = f.friend_profile_id or f.profile_id %}
+      <div class="people-card" data-friend-id="{{ fid }}">
+        <div class="people-avatar">
+          {% if f.friend_avatar_url or f.avatar_url %}
+          <img src="{{ f.friend_avatar_url or f.avatar_url }}" alt="{{ f.friend_display_name or f.display_name or 'User' }}" loading="lazy">
+          {% else %}
+          <span>{{ (f.friend_display_name or f.display_name or f.friend_username or f.username or 'U')[0]|upper }}</span>
+          {% endif %}
+        </div>
+        <div class="people-info">
+          <strong>{{ f.friend_display_name or f.display_name or f.friend_username or f.username or 'NamVibe User' }}</strong>
+          <span>@{{ f.friend_username or f.username or 'user' }}</span>
+          {% if f.created_at %}<small>Friends since {{ f.created_at[:10] }}</small>{% endif %}
+          {% if f.is_close_friend %}<span class="tag tag-friends" style="font-size:9px;">close friend</span>{% endif %}
+          {% if f.is_best_friend %}<span class="tag tag-pinned" style="font-size:9px;">best friend</span>{% endif %}
+        </div>
+        <div class="people-actions">
+          <a href="/profile/{{ f.friend_username or f.username }}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
+          <button class="action-btn" title="Message" onclick="window.location='/messages/start/{{ fid }}'"><i class="fas fa-comment"></i></button>
+          <button class="action-btn" title="Audio Call" onclick="window.location='/calls/start/{{ fid }}/audio'"><i class="fas fa-phone"></i></button>
+          <button class="action-btn" title="Video Call" onclick="window.location='/calls/start/{{ fid }}/video'"><i class="fas fa-video"></i></button>
+          <button class="action-btn" title="Close Friend" data-action="close-friend" data-id="{{ fid }}" data-enabled="{{ 'false' if f.is_close_friend else 'true' }}"><i class="fas fa-star"></i></button>
+          <button class="action-btn" title="Best Friend" data-action="best-friend" data-id="{{ fid }}" data-enabled="{{ 'false' if f.is_best_friend else 'true' }}"><i class="fas fa-crown"></i></button>
+          <button class="action-btn danger" title="Remove" data-action="remove-friend" data-id="{{ fid }}"><i class="fas fa-user-slash"></i></button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% if next_cursor %}
+  <div class="load-more-wrap">
+    <button class="load-more-btn" data-load-more="loadMoreFriends" data-cursor="{{ next_cursor }}"><i class="fas fa-chevron-down"></i> Load more</button>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-user-group"></i>
+    <h3>No friends yet</h3>
+    <p>Send friend requests to connect with people on NamVibe.</p>
+    <a href="/profile/api/friend-suggestions"><i class="fas fa-search"></i> Discover People</a>
+  </div>
+  {% endif %}
+</div>
+<script>
+window.loadMoreFriends = function() {
+  const btn = document.querySelector('[data-load-more="loadMoreFriends"]');
+  if (!btn) return;
+  const cursor = btn.dataset.cursor;
+  const list = document.getElementById('friendsList');
+  fetch(`/social/api/friends?cursor=${encodeURIComponent(cursor)}&limit=20`)
+    .then(r => r.json()).then(data => {
+      (data.friends || []).forEach(f => {
+        const fid = f.friend_profile_id || f.profile_id;
+        const div = document.createElement('div');
+        div.className = 'people-card';
+        div.dataset.friendId = fid;
+        div.innerHTML = `
+          <div class="people-avatar">${(f.friend_avatar_url || f.avatar_url) ? `<img src="${f.friend_avatar_url || f.avatar_url}" alt="" loading="lazy">` : `<span>${((f.friend_display_name || f.display_name || f.friend_username || f.username || 'U')[0]).toUpperCase()}</span>`}</div>
+          <div class="people-info">
+            <strong>${f.friend_display_name || f.display_name || f.friend_username || f.username || 'User'}</strong>
+            <span>@${f.friend_username || f.username || 'user'}</span>
+            ${f.is_close_friend ? '<span class="tag tag-friends" style="font-size:9px;">close friend</span>' : ''}
+            ${f.is_best_friend ? '<span class="tag tag-pinned" style="font-size:9px;">best friend</span>' : ''}
+          </div>
+          <div class="people-actions">
+            <a href="/profile/${f.friend_username || f.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
+            <button class="action-btn" title="Message" onclick="window.location='/messages/start/${fid}'"><i class="fas fa-comment"></i></button>
+            <button class="action-btn" title="Close Friend" data-action="close-friend" data-id="${fid}" data-enabled="${f.is_close_friend ? 'false' : 'true'}"><i class="fas fa-star"></i></button>
+            <button class="action-btn" title="Best Friend" data-action="best-friend" data-id="${fid}" data-enabled="${f.is_best_friend ? 'false' : 'true'}"><i class="fas fa-crown"></i></button>
+            <button class="action-btn danger" title="Remove" data-action="remove-friend" data-id="${fid}"><i class="fas fa-user-slash"></i></button>
+          </div>`;
+        list.appendChild(div);
+      });
+      Phase86.init();
+      if (data.next_cursor) {
+        btn.dataset.cursor = data.next_cursor;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load more';
+      } else {
+        btn.style.display = 'none';
+      }
+    }).catch(() => { alert('Failed to load'); btn.disabled = false; });
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+};
+</script>
+{% endblock %}

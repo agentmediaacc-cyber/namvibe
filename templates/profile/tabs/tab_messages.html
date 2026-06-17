@@ -1,0 +1,34 @@
+<div class="tab-inline-panel">
+  <div class="tab-inline-header">
+    <h3><i class="fas fa-comment-dots"></i> Recent Messages</h3>
+    <a href="/messages/" class="filter-chip">Open Inbox <i class="fas fa-arrow-right"></i></a>
+  </div>
+  {% if threads %}
+  <div class="people-list">
+    {% for t in threads %}
+    <a href="/messages/{{ t.id }}" class="people-card" style="text-decoration:none; color:var(--profile-ink);">
+      <div class="people-avatar">
+        {% if t.avatar_url %}
+        <img src="{{ t.avatar_url }}" alt="">
+        {% else %}
+        {{ (t.name or 'U')[0]|upper }}
+        {% endif %}
+      </div>
+      <div class="people-info">
+        <strong>{{ t.name or 'Unknown' }}</strong>
+        <span>{{ t.last_message or 'No messages yet' }}</span>
+        {% if t.unread_count %}
+        <small style="color:var(--profile-red); font-weight:900;">{{ t.unread_count }} unread</small>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-comment-dots"></i>
+    <p>No messages yet</p>
+    <a href="/messages/"><i class="fas fa-plus"></i> Start a conversation</a>
+  </div>
+  {% endif %}
+</div>

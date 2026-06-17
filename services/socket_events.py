@@ -19,7 +19,7 @@ from services.messaging_engine import (
     mute_thread
 )
 from services.push_notification_service import queue_push_event
-from services.presence_engine import heartbeat, set_offline, set_online, set_typing
+from services.presence_service import heartbeat, set_offline, set_online, set_typing
 from services.profile_service import get_current_profile
 from services.redis_service import (
     delete_key,
@@ -179,7 +179,7 @@ def handle_join_profile(data):
 
 
 @socketio.on("disconnect")
-def handle_disconnect():
+def handle_disconnect(*args):
     profile_id = _get_profile_id()
     if profile_id:
         _clear_sid(profile_id)
@@ -371,7 +371,17 @@ def handle_message_send(data):
     thread_id = payload.get("thread_id")
     if not profile_id or not thread_id:
         return {"success": False, "error": "missing_thread"}
-    
+
+    from services.neon_service import fast_query as _mq_friendship
+    other = _mq_friendship(
+        "SELECT profile_id FROM chain_thread_members WHERE thread_id = %s AND profile_id != %s LIMIT 1",
+        (thread_id, profile_id), default=[]
+    )
+    if other:
+        from services.friend_service import are_friends
+        if not are_friends(profile_id, other[0]["profile_id"]):
+            return {"success": False, "error": "friendship_required"}
+
     # Check for voice note / audio
     media_file = None # Usually handled via REST API, but placeholder if binary is sent
     
@@ -888,6 +898,10 @@ def handle_webrtc_call_start(data):
     call_type = (data or {}).get("call_type", "audio")
     if not target_id:
         return {"ok": False, "error": "target_required"}
+    from services.friend_service import are_friends
+    if not are_friends(profile_id, target_id):
+        emit("call:blocked", {"reason": "friendship_required", "message": "You must be friends before you can call."})
+        return {"ok": False, "error": "You must be friends before you can call."}
     from services.relationship_gate_service import can_call as _gate_can_call
     gate = _gate_can_call(profile_id, target_id)
     if not gate.get("ok"):

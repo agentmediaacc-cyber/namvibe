@@ -1,7 +1,6 @@
 from datetime import datetime, timezone, timedelta
 import uuid
 from services.neon_service import fast_query, write_query
-from services.supabase_storage_router import upload_story_media
 from services.socketio_service import emit_to_profile
 from services.content_service import invalidate_content_caches, local_content, local_fallback_allowed
 
@@ -15,13 +14,14 @@ def create_status(profile_id, caption, media_file=None, visibility="public", med
     upload_result = None
     
     if media_file:
-        upload_result, error = upload_story_media(media_file, profile_id)
-        if error:
+        from services.storage_service import safe_upload_file
+        result = safe_upload_file(media_file, "story", profile_id=profile_id)
+        if not result.get("ok"):
             return None
-        if upload_result:
-            media_url = upload_result.get("url")
-            storage_bucket = upload_result.get("bucket")
-            storage_path = upload_result.get("path")
+        upload_result = result
+        media_url = result.get("url")
+        storage_bucket = result.get("storage", "local")
+        storage_path = result.get("storage", "local")
             
     status_id = str(uuid.uuid4())
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()

@@ -90,6 +90,8 @@ def api_unread_counts():
     counts = get_unread_counts_per_thread(profile_id)
     return jsonify({"ok": True, "counts": counts})
 
+import threading as _th
+
 @message_production_bp.route("/online", methods=["POST"])
 @login_required
 def api_online():
@@ -98,8 +100,18 @@ def api_online():
         return jsonify({"ok": False}), 401
     if profile.get("profile_fallback"):
         return jsonify({"ok": True, "delivery": "skipped"})
-    mark_delivered_for_online_user(profile["id"])
-    update_presence(profile["id"], status="online")
+    # Quick UPSERT for presence — must be instant
+    try:
+        update_presence(profile["id"], status="online")
+    except Exception:
+        pass
+    # Deliver undelivered messages in background
+    def _bg_deliver(pid):
+        try:
+            mark_delivered_for_online_user(pid)
+        except Exception:
+            pass
+    _th.Thread(target=_bg_deliver, args=(profile["id"],), daemon=True).start()
     return jsonify({"ok": True, "delivery": "updated"})
 
 @message_production_bp.route("/thread/<thread_id>/seen", methods=["POST"])

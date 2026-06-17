@@ -51,12 +51,6 @@ except Exception:
     RATE_LIMIT_AVAILABLE = False
     def get_rate_limit_config(): return {}
 
-try:
-    from services.rate_limit_service import user_or_ip_key
-    pass
-except Exception:
-    pass
-
 performance_bp = Blueprint('performance', __name__, url_prefix='/admin/performance')
 
 @performance_bp.route('/')
@@ -67,16 +61,13 @@ def index():
 @performance_bp.route('/api/cache')
 @require_admin
 def api_cache_stats():
-    if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
     stats = get_cache_stats()
     return jsonify({'ok': True, **stats})
 
 @performance_bp.route('/api/workers')
 @require_admin
 def api_worker_stats():
-    if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+
     stats = get_worker_stats()
     qstats = get_queue_stats()
     return jsonify({'ok': True, 'workers': stats, 'queues': qstats})
@@ -84,32 +75,28 @@ def api_worker_stats():
 @performance_bp.route('/api/database')
 @require_admin
 def api_db_stats():
-    if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+
     status = get_db_status()
     return jsonify({'ok': True, **status})
 
 @performance_bp.route('/api/redis')
 @require_admin
 def api_redis_stats():
-    if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+
     health = get_redis_health()
     return jsonify({'ok': True, 'health': health})
 
 @performance_bp.route('/api/rate-limits')
 @require_admin
 def api_rate_limits():
-    if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+
     config = get_rate_limit_config()
     return jsonify({'ok': True, 'config': config})
 
 @performance_bp.route('/api/all')
 @require_admin
 def api_all():
-    if session.get('profile_id') != 'admin' and not session.get('auth_user_id'):
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+
     cache_stats = get_cache_stats()
     worker_stats = get_worker_stats()
     queue_stats = get_queue_stats()

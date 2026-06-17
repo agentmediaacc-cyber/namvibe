@@ -1,0 +1,34 @@
+<div class="tab-inline-panel">
+  <div class="tab-inline-header">
+    <h3><i class="fas fa-heart"></i> Dating</h3>
+    <a href="/dating/" class="filter-chip">Open Dating <i class="fas fa-arrow-right"></i></a>
+  </div>
+  {% if matches %}
+  <p style="font-size:13px; color:var(--profile-ink-soft); margin:0 0 12px;">You have {{ matches|length }} match{% if matches|length != 1 %}es{% endif %}</p>
+  <div class="people-list">
+    {% for m in matches[:6] %}
+    <a href="/dating/profile/{{ m.id }}" class="people-card" style="text-decoration:none; color:var(--profile-ink);">
+      <div class="people-avatar">
+        {% if m.photo %}
+        <img src="{{ m.photo }}" alt="">
+        {% else %}
+        {{ (m.name or '?')[0]|upper }}
+        {% endif %}
+      </div>
+      <div class="people-info">
+        <strong>{{ m.name or 'Unknown' }}</strong>
+        {% if m.compatibility_score %}
+        <span>{{ m.compatibility_score }}% match</span>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-heart"></i>
+    <p>No matches yet</p>
+    <a href="/dating/discover"><i class="fas fa-compass"></i> Discover People</a>
+  </div>
+  {% endif %}
+</div>

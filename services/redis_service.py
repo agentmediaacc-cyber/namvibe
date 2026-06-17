@@ -6,12 +6,14 @@ from datetime import datetime, timezone
 import redis
 
 from services.circuit_breaker import CircuitBreaker
+from services.env_service import get_env, load_project_env
 from services.logging_service import log_warning
 
 
+load_project_env()
 _DEFAULT_LOCAL_REDIS_URL = "redis://localhost:6379/0"
-_ENV = os.getenv("FLASK_ENV", "development")
-_REDIS_URL = (os.getenv("REDIS_URL") or (_DEFAULT_LOCAL_REDIS_URL if _ENV != "production" else "")).strip()
+_ENV = get_env("FLASK_ENV", "development")
+_REDIS_URL = (get_env("REDIS_URL") or (_DEFAULT_LOCAL_REDIS_URL if _ENV != "production" else "")).strip()
 _LOG_THROTTLE = {}
 _MEMORY_FALLBACK = {}
 _SET_FALLBACK = {}

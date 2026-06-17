@@ -35,6 +35,59 @@
   });
 })();
 
+/* ================================================================
+   Phase 58 — Additional polish
+=============================================================== */
+(() => {
+  // Active nav item highlighting
+  const currentPath = window.location.pathname;
+  document.querySelectorAll(".home-nav-item, .mobile-nav-item, .chain-home__drawer-nav a").forEach((link) => {
+    const href = link.getAttribute("href");
+    if (href && href !== "#" && href !== "/") {
+      if (currentPath.indexOf(href) === 0) {
+        link.classList.add("is-active");
+      }
+    } else if (href === "/" && currentPath === "/") {
+      link.classList.add("is-active");
+    }
+  });
+
+  // Bottom nav active state
+  document.querySelectorAll(".mobile-nav-item").forEach((item) => {
+    const href = item.getAttribute("href");
+    if (href && currentPath.indexOf(href) === 0) {
+      item.classList.add("is-active");
+    }
+  });
+
+  // Smooth scroll for story strip
+  const storyStrip = document.querySelector(".story-strip");
+  if (storyStrip) {
+    let isDown = false, startX, scrollLeftPos;
+    storyStrip.addEventListener("mousedown", (e) => {
+      isDown = true;
+      startX = e.pageX - storyStrip.offsetLeft;
+      scrollLeftPos = storyStrip.scrollLeft;
+      storyStrip.style.cursor = "grabbing";
+    });
+    storyStrip.addEventListener("mouseleave", () => {
+      isDown = false;
+      storyStrip.style.cursor = "grab";
+    });
+    storyStrip.addEventListener("mouseup", () => {
+      isDown = false;
+      storyStrip.style.cursor = "grab";
+    });
+    storyStrip.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - storyStrip.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      storyStrip.scrollLeft = scrollLeftPos - walk;
+    });
+  }
+})();
+
 (() => {
   const parseTarget = (value) => {
     const [type, id] = String(value || "").split(":");
@@ -42,7 +95,21 @@
   };
 
   const fetchJson = async (url, options = {}) => {
-    const response = await fetch(url, options);
+    const method = String(options.method || "GET").toUpperCase();
+    const unsafe = ["POST", "PATCH", "PUT", "DELETE"].indexOf(method) !== -1;
+    const finalOptions = Object.assign({}, options);
+    if (unsafe) {
+      const headers = window.chainCsrfHeaders
+        ? window.chainCsrfHeaders(finalOptions.headers)
+        : new Headers(finalOptions.headers || {});
+      if (!headers.has("X-CSRFToken")) {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        const token = meta ? meta.getAttribute("content") : "";
+        if (token) headers.set("X-CSRFToken", token);
+      }
+      finalOptions.headers = headers;
+    }
+    const response = await fetch(url, finalOptions);
     if (response.redirected) {
       window.location.href = response.url;
       return null;

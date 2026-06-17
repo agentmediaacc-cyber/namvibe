@@ -31,6 +31,7 @@ from services.webrtc_call_service import (
     get_participants_with_profiles as w_get_participants_with_profiles,
 )
 from services.webrtc_turn_service import get_webrtc_ice_config
+from services.friendship_service import require_friendship_or_403
 
 call_bp = Blueprint("calls_v2", __name__, url_prefix="/calls")
 
@@ -59,6 +60,10 @@ def init_call():
     receiver_id = request.form.get("receiver_id")
     call_type = request.form.get("call_type", "video")
     
+    _, friends = require_friendship_or_403(profile["id"], receiver_id, "call")
+    if not friends:
+        flash("You must be friends before you can call.", "error")
+        return redirect(request.referrer or url_for("messages.inbox"))
     from services.relationship_gate_service import can_call as _gate_call
     gate = _gate_call(profile["id"], receiver_id)
     if not gate.get("ok"):
@@ -228,6 +233,11 @@ def start_direct_call_from_profile(profile_id, call_type):
         flash("You cannot call yourself.", "info")
         return redirect("/calls/recent")
 
+    _, friends = require_friendship_or_403(viewer_id, target_id, "call")
+    if not friends:
+        flash("You must be friends before you can call.", "error")
+        return redirect(request.referrer or "/calls/recent")
+
     # Make sure target exists
     target_rows = fast_query(
         "SELECT id FROM chain_profiles WHERE id = %s AND deleted_at IS NULL LIMIT 1",
@@ -335,7 +345,7 @@ def api_webrtc_start():
     result = w_create_call(profile["id"], receiver_id, thread_id=thread_id, call_type=call_type)
     if result.get("ok"):
         return jsonify({"ok": True, "call": result["call"]}), 200
-    if result.get("status") == "busy":
+    if result.get("status") == "busy" or result.get("error") == "duplicate_call":
         return jsonify({"ok": False, "error": result.get("error", "busy"), "status": "busy"}), 409
     return jsonify({"ok": False, "error": result.get("error", "failed")}), 500
 

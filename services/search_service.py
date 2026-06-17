@@ -1,6 +1,7 @@
 from services.neon_service import fast_query
 from services.content_service import local_content, search_hashtags
 from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, public_profile_sql, public_profile_subquery
+from services.relationship_privacy_service import can_view_profile, can_view_posts, can_view_reels, is_blocked_any
 
 
 def _like(q):
@@ -23,8 +24,8 @@ def _local_search(q, limit):
     ][:limit]
     return profiles, posts, reels
 
+
 def record_search(profile_id, query):
-    """Records a search query for history and trending analytics."""
     if not profile_id or not query:
         return
 
@@ -49,8 +50,8 @@ def record_search(profile_id, query):
     from services.neon_service import write_query
     write_query(sql, (str(resolved_profile_id), query.strip()))
 
+
 def get_recent_searches(profile_id, limit=5):
-    """Returns recent searches for a user."""
     if not profile_id:
         return []
 
@@ -84,8 +85,8 @@ def get_recent_searches(profile_id, limit=5):
     """
     return fast_query(sql, (str(resolved_profile_id), limit), default=[])
 
+
 def get_trending_searches(limit=5):
-    """Returns popular searches in the last 24 hours"""
     sql = """
         SELECT query, COUNT(*) as frequency
         FROM chain_search_history
@@ -96,34 +97,65 @@ def get_trending_searches(limit=5):
     """
     return fast_query(sql, (limit,))
 
+
 def get_suggested_searches(limit=5):
-    """Returns suggested searches based on popular creators and hashtags"""
-    # Placeholder for real suggestion logic
     sql = f"SELECT username as query FROM chain_profiles WHERE is_creator = TRUE AND is_verified = TRUE AND {public_profile_sql('chain_profiles')} ORDER BY followers_count DESC LIMIT %s"
     return fast_query(sql, (limit,))
+
+
+def _privacy_filter_profiles(profiles, viewer_id):
+    filtered = []
+    for p in profiles:
+        if not viewer_id:
+            filtered.append(p)
+            continue
+        if is_blocked_any(viewer_id, p.get("id")):
+            continue
+        filtered.append(p)
+    return filtered
+
+
+def _privacy_filter_posts(posts, viewer_id, check_fn):
+    if not viewer_id:
+        return [p for p in posts if p.get("visibility") in (None, "public")]
+    filtered = []
+    for post in posts:
+        owner_id = post.get("profile_id")
+        if not owner_id:
+            filtered.append(post)
+            continue
+        if is_blocked_any(viewer_id, owner_id):
+            continue
+        from services.supabase_safe import safe_select
+        owner = safe_select("chain_profiles", columns="*", filters={"id": owner_id}, limit=1)
+        if owner and check_fn(viewer_id, owner[0]):
+            filtered.append(post)
+        elif not owner:
+            filtered.append(post)
+    return filtered
+
 
 def smart_search(query, profile_id=None, limit=20):
     q = (query or "").strip()
     if not q:
         return {
-            "query": q, "has_query": False, "profiles": [], "live_rooms": [], "posts": [], 
+            "query": q, "has_query": False, "profiles": [], "live_rooms": [], "posts": [],
             "hashtags": [], "reels": [], "total_results": 0,
             "recent": [],
             "trending": [],
             "suggested": []
         }
 
-    # Caching search results
     from services.redis_service import cache_get, cache_set
     cache_key = f"search_v2:{q}:{limit}"
     cached = cache_get(cache_key)
     if cached:
         return cached
 
-    # Skip blocking search-history writes during page render.
-    # TODO: move this to a background job.
-    pass
-    
+    if profile_id:
+        import threading
+        threading.Thread(target=record_search, args=(profile_id, q), daemon=True).start()
+
     results = {
         "query": q,
         "has_query": True,
@@ -190,34 +222,40 @@ def smart_search(query, profile_id=None, limit=20):
         default=[],
     )
     local_profiles, local_posts, local_reels = _local_search(q, limit)
-    results["profiles"] = filter_profiles(profiles or local_profiles)
-    results["posts"] = [
-        {**post, "excerpt": (post.get("caption") or post.get("body") or "")[:180]}
-        for post in filter_feed_posts(posts or local_posts)
-    ]
+
+    results["profiles"] = _privacy_filter_profiles(filter_profiles(profiles or local_profiles), profile_id)
+    results["posts"] = _privacy_filter_posts(
+        [
+            {**post, "excerpt": (post.get("caption") or post.get("body") or "")[:180]}
+            for post in filter_feed_posts(posts or local_posts)
+        ],
+        profile_id, can_view_posts,
+    )
     results["live_rooms"] = live_rooms
-    results["reels"] = filter_feed_posts(reels or local_reels)
+    results["reels"] = _privacy_filter_posts(
+        filter_feed_posts(reels or local_reels),
+        profile_id, can_view_reels,
+    )
     results["hashtags"] = search_hashtags(q)
     results["total_results"] = sum(len(results[key]) for key in ("profiles", "live_rooms", "posts", "hashtags", "reels"))
-    
-    # Cache for 5 minutes
-    from services.redis_service import cache_set
+
     cache_set(f"search_v2:{q}:{limit}", results, ttl=300)
-    
+
     return results
+
 
 def search_chain(query, limit=20):
     return smart_search(query, limit)
 
+
 def instant_search_dropdown(query):
-    """Simplified search for dropdown results"""
     results = smart_search(query, limit=5)
-    
+
     dropdown = []
     for p in results['profiles']:
         dropdown.append({"title": p['full_name'], "subtitle": f"@{p['username']}", "type": "profile", "image": p.get('avatar_url'), "url": f"/profile/@{p['username']}"})
-    
+
     for r in results['live_rooms']:
         dropdown.append({"title": r['title'], "subtitle": f"Live in {r['category']}", "type": "live", "image": r.get('cover_url'), "url": f"/live/room/{r['id']}"})
-        
+
     return dropdown[:10]

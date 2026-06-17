@@ -1,8 +1,10 @@
 import os
+import re
 import time
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, session, url_for
 
+from engines.performance_engine import clean_email, normalize_username
 from services.auth_service import (
     get_current_profile,
     get_current_user,
@@ -13,12 +15,15 @@ from services.auth_service import (
     logout_chain_user,
     refresh_chain_session,
     register_chain_user,
+    normalize_phone,
     set_current_user_password,
     send_password_reset,
     resend_confirmation_email,
+    username_suggestions,
     verify_recovery_token,
     update_password_from_recovery,
 )
+from services.logging_service import log_warning
 from services.rate_limit_service import limiter
 
 
@@ -39,10 +44,90 @@ def _auth_rate_limit_key():
     return request.headers.get("X-Forwarded-For") or request.remote_addr
 
 
+def _email_valid(email):
+    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", (email or "").strip()))
+
+
+def _availability(field, value, town=None):
+    try:
+        result = check_account_availability(field, value, town=town)
+        result["ok"] = True
+        return result
+    except Exception as error:
+        print(f"[auth.availability] {field} check failed: {error}")
+        return {
+            "ok": False,
+            "available": False,
+            "field": field,
+            "message": "Availability check is temporarily unavailable. Please try again.",
+            "suggestions": [],
+        }
+
+
+def _fast_api_availability(field, value, town=None):
+    raw_value = (value or "").strip()
+    if not raw_value:
+        return {
+            "ok": True,
+            "available": False,
+            "field": field,
+            "message": "Enter a value first.",
+            "suggestions": [],
+        }
+    if field == "email":
+        normalized = clean_email(raw_value)
+        if not _email_valid(normalized):
+            return {
+                "ok": True,
+                "available": False,
+                "field": field,
+                "message": "Enter a valid email address.",
+                "suggestions": [],
+            }
+    elif field == "username":
+        normalized = normalize_username(raw_value)
+        if not re.fullmatch(r"[a-z0-9_]{3,30}", normalized or ""):
+            return {
+                "ok": True,
+                "available": False,
+                "field": field,
+                "message": "Use 3 to 30 lowercase letters, numbers or underscores only.",
+                "suggestions": username_suggestions(normalized or raw_value or "namvibe", town=town),
+            }
+    elif field == "phone":
+        if not normalize_phone(raw_value):
+            return {
+                "ok": True,
+                "available": False,
+                "field": field,
+                "message": "Enter a phone number.",
+                "suggestions": [],
+            }
+    else:
+        return {
+            "ok": True,
+            "available": False,
+            "field": field,
+            "message": "Unsupported field.",
+            "suggestions": [],
+        }
+
+    return {
+        "ok": True,
+        "available": True,
+        "field": field,
+        "message": "Looks good. We will verify this during signup.",
+        "suggestions": [],
+    }
+
+
 def _apply_registration_session(result):
     profile = result.get("profile") or {}
     auth_user_id = result.get("auth_user_id") or profile.get("auth_user_id")
     email = profile.get("email")
+    session.clear()
+    session.permanent = True
+    session["logged_in"] = True
     if auth_user_id:
         session["auth_user_id"] = auth_user_id
         session["user_id"] = auth_user_id
@@ -61,7 +146,12 @@ def _apply_registration_session(result):
         session["dev_profile_fallback"] = True
 
     session["auth_provider"] = "password"
+    session["logged_in"] = True
+    session["profile_completed"] = bool(profile.get("profile_completed"))
+    session["remember_me"] = True
     session["login_at"] = int(time.time())
+    if result.get("access_token"):
+        session["access_token"] = result.get("access_token")
     session["age_check_required"] = False
     session["age_verified"] = bool(profile.get("date_of_birth"))
     if profile.get("date_of_birth"):
@@ -83,6 +173,31 @@ def _log_registration_route_state(result, redirect_to=None):
             "redirect_to": redirect_to,
         },
     )
+
+
+def _registration_session_keys_present():
+    return {
+        "profile_id": bool(session.get("profile_id")),
+        "auth_user_id": bool(session.get("auth_user_id")),
+        "user_id": bool(session.get("user_id")),
+        "email": bool(session.get("email") or session.get("auth_email")),
+        "logged_in": bool(session.get("logged_in")),
+    }
+
+
+def _debug_session_payload():
+    return {
+        "ok": True,
+        "logged_in": bool(session.get("profile_id") and (session.get("auth_user_id") or session.get("user_id"))),
+        "profile_id": session.get("profile_id"),
+        "auth_user_id": session.get("auth_user_id"),
+        "user_id": session.get("user_id"),
+        "email": session.get("email"),
+        "session_keys": sorted(list(session.keys())),
+        "cookie_name": current_app.config.get("SESSION_COOKIE_NAME", "session"),
+        "host": request.host,
+        "user_agent": request.headers.get("User-Agent", ""),
+    }
 
 
 def _age_from_date(date_of_birth):
@@ -138,6 +253,17 @@ def _post_login_redirect(result):
     return target
 
 
+def _no_cache_headers(template_output):
+    if isinstance(template_output, str):
+        response = make_response(template_output)
+    else:
+        response = template_output
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 def _existing_session_redirect():
     if not (session.get("auth_user_id") or session.get("user_id")):
         return None
@@ -165,7 +291,7 @@ def login():
     if request.args.get("password_reset") == "1":
         success_message = "Password updated. You can now log in."
     elif request.args.get("registered") == "1":
-        success_message = "Account created. Check your email to confirm your account."
+        success_message = "Account created. You can log in now."
     elif request.args.get("oauth_error") == "1":
         oauth_error = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
 
@@ -205,11 +331,11 @@ def login():
         else:
             _clear_oauth_error_state()
             
-    return render_template("auth/login.html", 
-                           error=error, 
-                           oauth_error=oauth_error, 
-                           success_message=success_message,
-                           next_path=session.get("auth_next"))
+    return _no_cache_headers(render_template("auth/login.html", 
+                                              error=error, 
+                                              oauth_error=oauth_error, 
+                                              success_message=success_message,
+                                              next_path=session.get("auth_next")))
 
 
 @auth_bp.route("/register", methods=["GET"])
@@ -218,7 +344,7 @@ def register():
     existing_target = _existing_session_redirect()
     if existing_target:
         return redirect(existing_target)
-    return render_template("auth/register.html", error=None, form=None)
+    return _no_cache_headers(render_template("auth/register.html", error=None, form=None))
 
 
 @auth_bp.route("/register", methods=["POST"])
@@ -232,76 +358,87 @@ def register_post():
     error = None
     password = request.form.get("password") or ""
     confirm_password = request.form.get("confirm_password") or ""
-    required_fields = {
-        "full_name": "Full name is required.",
-        "email": "Email is required.",
-        "phone": "Phone number is required.",
-        "username": "Username is required.",
-        "country_origin": "Country of origin is required.",
-        "current_country": "Current country is required.",
-        "region": "Region, state, or province is required.",
-        "town": "Town or city is required.",
-        "password": "Password is required.",
-        "confirm_password": "Confirm your password.",
-    }
-    for field, message in required_fields.items():
-        if not (request.form.get(field) or "").strip():
-            return render_template("auth/register.html", error=message, form=request.form)
+    raw_email = request.form.get("email")
+    email = clean_email(raw_email)
+    username = (request.form.get("username") or request.form.get("display_name") or request.form.get("full_name") or "").strip()
+    full_name = (request.form.get("full_name") or request.form.get("display_name") or request.form.get("name") or username or "").strip()
+    phone = (request.form.get("phone") or "").strip()
+    country_origin = (request.form.get("country_origin") or "").strip()
+    date_of_birth = (request.form.get("date_of_birth") or "").strip()
+    gender = (request.form.get("gender") or "").strip()
+    csrf_valid = bool(request.environ.get("namvibe_csrf_valid", True))
+    log_warning(
+        "auth_register_apk_route_input",
+        user_agent=request.headers.get("User-Agent", ""),
+        host=request.host,
+        form_email_received=str(raw_email or "").strip(),
+        normalized_email=email,
+        csrf_valid=csrf_valid,
+        auth_provider_used="pending",
+    )
+    if not (username or "").strip():
+        return _no_cache_headers(render_template("auth/register.html", error="Enter a name or username.", form=request.form))
+    if not _email_valid(email):
+        return _no_cache_headers(render_template("auth/register.html", error="Enter a valid email address.", form=request.form))
+    if not password:
+        return _no_cache_headers(render_template("auth/register.html", error="Password is required.", form=request.form))
+    if len(password) < 8:
+        return _no_cache_headers(render_template("auth/register.html", error="Password must be at least 8 characters.", form=request.form))
     if password != confirm_password:
         error = "Passwords do not match."
-        return render_template("auth/register.html", error=error, form=request.form)
-    agreement_fields = (
-        "agreement_true_details",
-        "agreement_identity_use",
-        "agreement_username_privacy",
-        "agreement_standards",
-        "agreement_no_abuse",
-        "terms",
-    )
-    if not all(request.form.get(field) for field in agreement_fields):
-        error = "You must accept all account agreements before creating your NamVibe account."
-        return render_template("auth/register.html", error=error, form=request.form)
+        return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
+    if not request.form.get("terms"):
+        return _no_cache_headers(render_template("auth/register.html", error="You must accept the terms before creating your account.", form=request.form))
+
     result = register_chain_user(
-        request.form.get("email"),
-        request.form.get("password"),
-        request.form.get("username"),
-        request.form.get("full_name"),
+        email,
+        password,
+        username,
+        full_name,
         extra={
-            "phone": request.form.get("phone"),
-            "phone_code": request.form.get("phone_code"),
-            "date_of_birth": request.form.get("date_of_birth"),
-            "residential_address": request.form.get("residential_address"),
-            "country_origin": request.form.get("country_origin") or request.form.get("country"),
-            "current_country": request.form.get("current_country"),
-            "country": request.form.get("current_country") or request.form.get("country") or request.form.get("country_origin"),
-            "preferred_language": request.form.get("preferred_language"),
-            "current_location": request.form.get("town") or request.form.get("current_location"),
-            "town": request.form.get("town"),
-            "region": request.form.get("region"),
-            "interests": [item.strip() for item in (request.form.get("interests") or "").split(",") if item.strip()],
-            "activities": [item.strip() for item in (request.form.get("activities") or "").split(",") if item.strip()],
-            "looking_for": request.form.getlist("looking_for") or [item.strip() for item in (request.form.get("looking_for") or "").split(",") if item.strip()],
-            "profile_type": request.form.get("profile_type"),
-            "creator_mode_enabled": request.form.get("creator_mode_enabled"),
-            "seller_mode_enabled": request.form.get("seller_mode_enabled") or request.form.get("business_mode_enabled"),
-            "dating_mode_enabled": request.form.get("dating_mode_enabled"),
-            "premium_mode_enabled": request.form.get("premium_mode_enabled"),
-            "terms_accepted": request.form.get("terms"),
-            "human_confirmed": request.form.get("human_confirmed"),
-            "agreement_true_details": request.form.get("agreement_true_details"),
-            "agreement_identity_use": request.form.get("agreement_identity_use"),
-            "agreement_username_privacy": request.form.get("agreement_username_privacy"),
-            "agreement_standards": request.form.get("agreement_standards"),
-            "agreement_no_abuse": request.form.get("agreement_no_abuse"),
+            "phone": phone,
+            "phone_code": (request.form.get("phone_code") or "").strip(),
+            "gender": gender,
+            "date_of_birth": date_of_birth,
+            "country_origin": country_origin,
+            "current_country": country_origin,
+            "country": country_origin,
+            "profile_type": request.form.get("profile_type") or "member",
+            "signup_method": "email",
+            "terms_accepted": True,
+            "profile_completed": False,
+            "csrf_valid": csrf_valid,
         },
+    )
+    log_warning(
+        "auth_register_apk_route_result",
+        user_agent=request.headers.get("User-Agent", ""),
+        host=request.host,
+        form_email_received=str(raw_email or "").strip(),
+        normalized_email=email,
+        csrf_valid=csrf_valid,
+        auth_provider_used=result.get("auth_provider") or ("local_fallback" if result.get("dev_fallback") else "supabase"),
+        ok=bool(result.get("ok")),
+        error=result.get("error"),
     )
     if result.get("ok"):
         _apply_registration_session(result)
-        redirect_to = result.get("redirect_to") or "/profile/"
+        redirect_to = "/profile/"
         _log_registration_route_state(result, redirect_to=redirect_to)
-        if result.get("dev_fallback"):
-            flash("Email verification is pending. You can continue testing your profile.", "info")
-        return redirect(redirect_to)
+        flash("Account created. Complete your profile when you are ready.", "success")
+        response = redirect(redirect_to)
+        current_app.session_interface.save_session(current_app, session, response)
+        log_warning(
+            "auth_register_session_redirect",
+            route=request.path,
+            user_agent=request.headers.get("User-Agent", ""),
+            result_ok=True,
+            redirect_to=redirect_to,
+            session_keys_present=_registration_session_keys_present(),
+            set_cookie_exists=bool(response.headers.get("Set-Cookie")),
+            profile_id_in_session=bool(session.get("profile_id")),
+        )
+        return response
 
     if result.get("error") == "EMAIL_EXISTS":
         error = {
@@ -311,7 +448,25 @@ def register_post():
         }
     else:
         error = result.get("error") or "Registration failed. Please try again."
-    return render_template("auth/register.html", error=error, form=request.form)
+    return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
+
+
+@auth_bp.get("/api/prewarm-register")
+@limiter.exempt
+def api_prewarm_register():
+    try:
+        from services.neon_service import prime_neon_runtime
+        prime_neon_runtime()
+        return jsonify({"ok": True, "pool_ready": True}), 200
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 200
+
+
+@auth_bp.route("/debug-input")
+def debug_input():
+    if _is_production_env():
+        abort(404)
+    return render_template("auth/debug_input.html", form=request.args)
 
 
 @auth_bp.route("/resend-confirmation", methods=["POST"])
@@ -364,7 +519,61 @@ def check_availability():
     field = request.args.get("field")
     value = request.args.get("value")
     town = request.args.get("town")
-    return jsonify(check_account_availability(field, value, town=town))
+    return jsonify(_availability(field, value, town=town))
+
+
+@auth_bp.get("/api/check-email")
+@limiter.limit("180/minute", key_func=_auth_rate_limit_key, exempt_when=_register_rate_limit_exempt)
+def api_check_email():
+    result = _fast_api_availability("email", request.args.get("email"))
+    return jsonify({
+        "ok": bool(result.get("ok")),
+        "available": bool(result.get("available")),
+        "message": result.get("message") or "",
+    })
+
+
+@auth_bp.get("/api/check-username")
+@limiter.limit("180/minute", key_func=_auth_rate_limit_key, exempt_when=_register_rate_limit_exempt)
+def api_check_username():
+    result = _fast_api_availability("username", request.args.get("username"), town=request.args.get("town"))
+    return jsonify({
+        "ok": bool(result.get("ok")),
+        "available": bool(result.get("available")),
+        "message": result.get("message") or "",
+        "suggestions": result.get("suggestions") or [],
+    })
+
+
+@auth_bp.get("/api/check-phone")
+@limiter.limit("180/minute", key_func=_auth_rate_limit_key, exempt_when=_register_rate_limit_exempt)
+def api_check_phone():
+    result = _fast_api_availability("phone", request.args.get("phone"))
+    return jsonify({
+        "ok": bool(result.get("ok")),
+        "available": bool(result.get("available")),
+        "message": result.get("message") or "",
+    })
+
+
+@auth_bp.get("/debug-csrf")
+def debug_csrf():
+    if _is_production_env():
+        abort(404)
+    cookie_name = current_app.config.get("SESSION_COOKIE_NAME", "session")
+    return jsonify({
+        "has_session_cookie": cookie_name in request.cookies,
+        "secure_cookie": current_app.config.get("SESSION_COOKIE_SECURE"),
+        "samesite": current_app.config.get("SESSION_COOKIE_SAMESITE"),
+        "csrf_enabled": bool(current_app.config.get("WTF_CSRF_ENABLED", True)),
+    })
+
+
+@auth_bp.get("/debug-session")
+def debug_session():
+    if _is_production_env():
+        abort(404)
+    return jsonify(_debug_session_payload())
 
 
 @auth_bp.route("/google")

@@ -1,0 +1,48 @@
+<div class="tab-inline-panel">
+  <div class="tab-inline-header">
+    <h3><i class="fas fa-wallet"></i> Wallet</h3>
+    <a href="/wallet/" class="filter-chip">Full Wallet <i class="fas fa-arrow-right"></i></a>
+  </div>
+  {% if wallet_data %}
+  <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;">
+    <div style="background:var(--profile-surface); border:1px solid var(--profile-line); border-radius:16px; padding:16px; text-align:center;">
+      <small style="font-size:10px; font-weight:900; text-transform:uppercase; color:var(--profile-ink-soft);">Balance</small>
+      <strong style="display:block; font-size:22px; margin-top:4px; color:var(--profile-ink);">{{ wallet_data.coin_balance or 0 }}</strong>
+      <small style="color:var(--profile-ink-soft);">coins</small>
+    </div>
+    <div style="background:var(--profile-surface); border:1px solid var(--profile-line); border-radius:16px; padding:16px; text-align:center;">
+      <small style="font-size:10px; font-weight:900; text-transform:uppercase; color:var(--profile-ink-soft);">Pending</small>
+      <strong style="display:block; font-size:22px; margin-top:4px; color:var(--profile-ink);">{{ wallet_data.pending_withdrawal or 0 }}</strong>
+      <small style="color:var(--profile-ink-soft);">coins</small>
+    </div>
+    <div style="background:var(--profile-surface); border:1px solid var(--profile-line); border-radius:16px; padding:16px; text-align:center;">
+      <small style="font-size:10px; font-weight:900; text-transform:uppercase; color:var(--profile-ink-soft);">Gifts</small>
+      <strong style="display:block; font-size:22px; margin-top:4px; color:var(--profile-ink);">{{ wallet_data.gift_earnings or 0 }}</strong>
+      <small style="color:var(--profile-ink-soft);">coins</small>
+    </div>
+  </div>
+  {% if recent_txns %}
+  <div class="people-list">
+    {% for tx in recent_txns[:5] %}
+    <div class="people-card">
+      <div class="people-info">
+        <strong>{{ tx.description or tx.transaction_type or 'Transaction' }}</strong>
+        <span>{{ tx.created_at[:10] if tx.created_at else '' }}</span>
+      </div>
+      <div class="people-actions">
+        <span style="font-weight:900; {% if tx.direction == 'in' %}color:var(--profile-green){% else %}color:var(--profile-red){% endif %}">
+          {{ '+' if tx.direction == 'in' else '-' }}{{ tx.amount_cents or 0 }}
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-wallet"></i>
+    <p>Wallet not set up</p>
+    <a href="/wallet/"><i class="fas fa-plus"></i> Set up wallet</a>
+  </div>
+  {% endif %}
+</div>

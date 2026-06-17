@@ -40,7 +40,21 @@ def is_test_profile(profile):
         return True
     if profile.get("production_visible") is False:
         return True
+    display_name = (profile.get("display_name") or "").strip()
+    if _PHASE8_DISPLAY_PATTERN.search(display_name):
+        return True
     return False
+
+
+_PHASE8_DISPLAY_PATTERN = re.compile(r"phase\s*8\s*persistence", re.I)
+_PHASE8_CONTENT_PATTERN = re.compile(r"phase\s*8\s*production\s*post", re.I)
+
+# Phase 58: additional test/demo content filters
+_TEST_CONTENT_PATTERNS = [
+    re.compile(r"test\s*post", re.I),
+    re.compile(r"debug", re.I),
+    re.compile(r"lorem\s*ipsum", re.I),
+]
 
 
 def filter_feed_posts(posts, profile_map=None):
@@ -58,6 +72,17 @@ def filter_feed_posts(posts, profile_map=None):
             continue
         email = (p.get("email") or p.get("normalized_email") or "").strip().lower()
         if any(pat.search(email) for pat in _TEST_EMAIL_PATTERNS):
+            continue
+        # Filter by display name containing "Phase 8 Persistence"
+        display_name = (p.get("display_name") or "").strip()
+        if _PHASE8_DISPLAY_PATTERN.search(display_name):
+            continue
+        # Filter by content containing "Phase 8 production post"
+        content = (p.get("caption") or p.get("excerpt") or p.get("text") or p.get("body") or "").strip()
+        if _PHASE8_CONTENT_PATTERN.search(content):
+            continue
+        # Phase 58: filter additional test/demo content
+        if any(pat.search(content) for pat in _TEST_CONTENT_PATTERNS):
             continue
         result.append(p)
     return result

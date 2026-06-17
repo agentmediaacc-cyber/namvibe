@@ -9,10 +9,10 @@
   --chain-text: #0f172a;
   --chain-muted: #64748b;
   --chain-border: #e2e8f0;
-  --chain-primary: #2563eb;
-  --chain-primary-dark: #1d4ed8;
-  --chain-accent: #06b6d4;
-  --chain-premium: #f59e0b;
+  --chain-primary: #FE2C55;
+  --chain-primary-dark: #D91A3C;
+  --chain-accent: #00F2EA;
+  --chain-premium: #FCAF45;
   --chain-success: #16a34a;
   --chain-danger: #dc2626;
   --hp-bg: var(--chain-bg);
@@ -1168,6 +1168,690 @@
     min-width: 56px;
   }
   .story-card-name {
-    font-size: 10px;
+    font-size: 11px;
   }
+  .composer-action-chip span {
+    display: none;
+  }
+  .post-action-btn span {
+    display: none;
+  }
+}
+
+/* ================================================================
+   Phase 58 — Premium Additions
+   ================================================================ */
+
+/* Story Empty State */
+.story-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.story-empty-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hp-text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Rail Profile Card */
+.rail-profile-card {
+  padding: 0;
+}
+
+.rail-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease;
+  border-radius: var(--hp-radius-lg);
+}
+
+.rail-profile-link:hover {
+  background: var(--hp-surface-alt);
+}
+
+.rail-profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--hp-gradient-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+}
+
+.rail-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rail-profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rail-profile-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--hp-text);
+}
+
+.rail-profile-username {
+  font-size: 13px;
+  color: var(--hp-text-muted);
+}
+
+.rail-profile-status {
+  font-size: 12px;
+  color: var(--hp-text-muted);
+}
+
+/* Rail Empty State */
+.rail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 0;
+  text-align: center;
+  color: var(--hp-text-muted);
+  font-size: 13px;
+}
+
+.rail-empty i {
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+.rail-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 20px;
+  background: var(--hp-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.rail-empty-btn:hover {
+  opacity: 0.85;
+  color: white;
+}
+
+/* Live Dot Badge */
+.live-dot {
+  padding: 2px 8px;
+  background: var(--hp-primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* Tags Cloud */
+.rail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rail-tag {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--hp-surface-alt);
+  color: var(--hp-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.rail-tag:hover {
+  background: var(--hp-primary);
+  color: white;
+}
+
+/* Towns List */
+.rail-towns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rail-town {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hp-text-secondary);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  min-height: 44px;
+}
+
+.rail-town:hover {
+  background: var(--hp-surface-alt);
+  color: var(--hp-primary);
+}
+
+.rail-town i {
+  color: var(--hp-primary);
+  font-size: 14px;
+}
+
+/* Feed Empty Actions */
+.feed-empty-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.feed-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: var(--hp-text);
+  color: var(--hp-surface);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  min-height: 44px;
+}
+
+.feed-empty-btn:hover {
+  opacity: 0.85;
+  color: var(--hp-surface);
+}
+
+.feed-empty-btn.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Skeleton Feed Styles */
+.feed-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-row {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+}
+
+.skeleton-text {
+  height: 14px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.skeleton-text-sm {
+  height: 11px;
+  width: 60%;
+  margin-bottom: 6px;
+}
+
+/* Composer expanded */
+.composer-card:focus-within {
+  border-color: var(--hp-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Composer action chip improvements */
+.composer-action-chip.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Mobile font size minimum 16px */
+@media (max-width: 768px) {
+  .composer-placeholder,
+  .post-text,
+  .home-topbar-search,
+  .post-action-btn {
+    font-size: 16px !important;
+  }
+  .post-author-name {
+    font-size: 15px !important;
+  }
+  .post-author-username {
+    font-size: 14px !important;
+  }
+  .feed-tab {
+    min-height: 44px;
+    font-size: 14px !important;
+  }
+  .composer-action-chip {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+  .post-action-btn {
+    min-height: 44px;
+    padding: 8px 0;
+  }
+}
+
+/* Touch targets minimum 44px */
+.chain-home-page button,
+.chain-home-page a,
+.chain-home-page .clickable {
+  min-height: 44px;
+}
+
+/* Safe area padding for iPhone */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .chain-home-page .chain-home {
+    padding-bottom: calc(110px + env(safe-area-inset-bottom));
+  }
+  .chain-home-page .mobile-bottom-nav {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ================================================================
+   Phase 59 — Reels Preview Section (TikTok-style)
+   ================================================================ */
+.reels-preview {
+  background: var(--hp-surface);
+  border-radius: var(--hp-radius-lg);
+  box-shadow: var(--hp-shadow);
+  margin-bottom: 16px;
+  border: 1px solid var(--hp-border-light);
+  overflow: hidden;
+  padding: 16px;
+}
+
+.reels-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.reels-preview-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--hp-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reels-preview-title i {
+  color: var(--hp-primary);
+}
+
+.reels-preview-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hp-primary);
+  text-decoration: none;
+}
+
+.reels-preview-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.reels-preview-strip::-webkit-scrollbar { display: none; }
+
+.reel-preview-card {
+  flex-shrink: 0;
+  width: 160px;
+  border-radius: var(--hp-radius);
+  overflow: hidden;
+  background: var(--hp-bg);
+  border: 1px solid var(--hp-border-light);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reel-preview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hp-shadow);
+}
+
+.reel-preview-media {
+  display: block;
+  width: 160px;
+  height: 240px;
+  overflow: hidden;
+  position: relative;
+  background: var(--hp-surface-alt);
+}
+
+.reel-preview-media video,
+.reel-preview-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reel-preview-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--hp-primary), var(--hp-cyan));
+  color: white;
+  font-size: 32px;
+}
+
+.reel-preview-info {
+  padding: 8px;
+}
+
+.reel-preview-creator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hp-text);
+  margin-bottom: 4px;
+}
+
+.reel-preview-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.reel-preview-caption {
+  font-size: 11px;
+  color: var(--hp-text-secondary);
+  margin-bottom: 4px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.reel-preview-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--hp-text-muted);
+}
+
+.reel-preview-stats span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.reel-preview-actions {
+  display: flex;
+  border-top: 1px solid var(--hp-border-light);
+}
+
+.reel-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  color: var(--hp-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  min-height: 36px;
+}
+
+.reel-action-btn:hover {
+  background: var(--hp-surface-alt);
+  color: var(--hp-primary);
+}
+
+.reel-action-btn.is-liked {
+  color: var(--hp-danger);
+}
+
+/* Reels Preview Empty State */
+.reels-preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+  text-align: center;
+  color: var(--hp-text-muted);
+  font-size: 13px;
+}
+
+.reels-preview-empty i {
+  font-size: 32px;
+  opacity: 0.5;
+}
+
+/* ================================================================
+   Phase 59 — Poll Composer UI
+   ================================================================ */
+.poll-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.poll-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--hp-radius-sm);
+  border: 1px solid var(--hp-border);
+  background: var(--hp-surface-alt);
+  font-size: 14px;
+  color: var(--hp-text);
+  outline: none;
+  min-height: 40px;
+}
+
+.poll-input:focus {
+  border-color: var(--hp-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.poll-add-option-btn {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px dashed var(--hp-border);
+  background: transparent;
+  color: var(--hp-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 36px;
+}
+
+.poll-add-option-btn:hover {
+  background: var(--hp-surface-alt);
+  border-color: var(--hp-primary);
+}
+
+.poll-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.poll-cancel-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--hp-border);
+  background: transparent;
+  color: var(--hp-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 36px;
+}
+
+.poll-cancel-btn:hover {
+  background: var(--hp-surface-alt);
+}
+
+.poll-submit-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: none;
+  background: var(--hp-text);
+  color: var(--hp-surface);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 36px;
+}
+
+.poll-submit-btn.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.poll-submit-btn:hover {
+  opacity: 0.85;
+}
+
+/* ================================================================
+   Phase 59 — Save Toast
+   ================================================================ */
+.save-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--hp-text);
+  color: var(--hp-surface);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 9999;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  box-shadow: var(--hp-shadow-lg);
+}
+
+.save-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ================================================================
+   Phase 59 — Story Empty Button
+   ================================================================ */
+.story-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 140px;
+  padding: 8px 16px;
+  flex-shrink: 0;
+}
+
+.story-empty-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hp-text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.story-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--hp-primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+  min-height: 32px;
+}
+
+.story-empty-btn:hover {
+  opacity: 0.85;
+  color: white;
+}
+
+.story-empty-btn.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ================================================================
+   Phase 59 — Rail Town Active State
+   ================================================================ */
+.rail-town.is-active {
+  background: var(--hp-surface-alt);
+  color: var(--hp-primary);
+}
+
+/* ================================================================
+   Phase 59 — Mobile Real-time Counter Styles
+   ================================================================ */
+@keyframes counter-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.counter-updated {
+  animation: counter-pulse 0.3s ease;
+}
+
+/* ================================================================
+   Phase 59 — Rail Empty Enhancements
+   ================================================================ */
+.rail-empty-btn + .rail-empty-btn {
+  margin-top: 4px;
 }

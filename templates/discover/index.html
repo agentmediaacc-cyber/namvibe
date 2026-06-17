@@ -96,13 +96,35 @@
                     {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" alt="{{ profile.full_name }}" style="width:100%;height:100%;object-fit:cover;">{% else %}{{ (profile.full_name or profile.username or "C")[0]|upper }}{% endif %}
                 </a>
                 <h3>{{ profile.full_name or profile.username }}</h3>
-                <p class="px-muted">@{{ profile.username }} · {{ profile.current_location or 'Location not set' }}</p>
+                <p class="px-muted">@{{ profile.username }}{% if profile.privacy_restricted %} · <span style="color:#ef4444;">🔒 Private Account</span>{% elif profile.current_location %} · {{ profile.current_location }}{% endif %}</p>
+                {% if not profile.privacy_restricted %}
+                <p style="font-size:12px;color:#64748b;margin:6px 0;">{{ (profile.bio or '')[:120] }}</p>
+                {% endif %}
                 <div style="display:flex; flex-wrap:wrap; gap:8px; margin:12px 0;">
                     <a class="px-chip" href="/profile/@{{ profile.username }}">Profile</a>
-                    <a class="px-chip" href="/messages/">Message</a>
-                    <a class="px-chip" href="/calls/recent">Call</a>
+                    {% if viewer_id and profile.primary_action == 'message' %}
+                    <a class="px-chip" href="/messages/start/{{ profile.id }}">Message</a>
+                    {% endif %}
                 </div>
-                <button type="button" class="px-btn" style="width:100%;" data-follow-profile="{{ profile.id }}">Follow</button>
+                {% if viewer_id %}
+                    {% if profile.primary_action == 'self' %}
+                    <span class="px-btn" style="width:100%;display:block;text-align:center;opacity:0.7;">You</span>
+                    {% elif profile.primary_action == 'friend_request' %}
+                    <button type="button" class="px-btn" style="width:100%;" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="none">Add Friend</button>
+                    {% elif profile.primary_action == 'follow' %}
+                    <button type="button" class="px-btn" style="width:100%;" data-follow-profile="{{ profile.id }}">Follow</button>
+                    {% elif profile.primary_action == 'message' %}
+                    <a href="/messages/start/{{ profile.id }}" class="px-btn" style="width:100%;display:block;text-align:center;">Message</a>
+                    {% elif profile.primary_action == 'request_sent' %}
+                    <span class="px-btn" style="width:100%;display:block;text-align:center;opacity:0.7;">Request Sent</span>
+                    {% elif profile.primary_action == 'accept_request' %}
+                    <button type="button" class="px-btn" style="width:100%;" data-friend-response data-target-id="{{ profile.id }}">Respond</button>
+                    {% else %}
+                    <button type="button" class="px-btn" style="width:100%;" data-follow-profile="{{ profile.id }}">Follow</button>
+                    {% endif %}
+                {% else %}
+                <a href="/auth/login" class="px-btn" style="width:100%;display:block;text-align:center;">Follow</a>
+                {% endif %}
             </div>
         </article>
         {% else %}
@@ -139,12 +161,43 @@ document.querySelectorAll('[data-follow-profile]').forEach((button) => {
             }
             const data = await response.json();
             if (data.success) {
-                button.classList.toggle('is-active', data.following);
                 button.textContent = data.following ? 'Following' : 'Follow';
+                if (data.following) {
+                    button.classList.add('is-active');
+                }
             }
         } finally {
             button.disabled = false;
         }
+    });
+});
+
+document.querySelectorAll('[data-friend-action]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        const targetId = button.dataset.targetId;
+        if (!targetId) return;
+        button.disabled = true;
+        try {
+            const response = await fetch('/api/friends/request', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({recipient_id: targetId})
+            });
+            if (response.redirected) { window.location.href = response.url; return; }
+            const data = await response.json();
+            if (data.success) {
+                button.textContent = 'Request Sent';
+                button.disabled = true;
+            } else {
+                alert(data.error || 'Failed to send request');
+            }
+        } finally { button.disabled = false; }
+    });
+});
+
+document.querySelectorAll('[data-friend-response]').forEach((button) => {
+    button.addEventListener('click', async () => {
+        window.location.href = '/friends';
     });
 });
 </script>

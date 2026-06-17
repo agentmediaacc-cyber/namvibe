@@ -3,7 +3,7 @@ import time
 from services.cache_service import delete, get, remember, set, status
 
 
-HOMEPAGE_TTL_SECONDS = 30
+HOMEPAGE_TTL_SECONDS = 60
 SECTION_KEYS = {
     "stories": "phase51:homepage:stories",
     "reels": "phase51:homepage:reels",
@@ -12,6 +12,7 @@ SECTION_KEYS = {
     "creator_profiles": "phase51:homepage:creator_profiles",
     "dating_previews": "phase51:homepage:dating_previews",
     "nearby_users": "phase51:homepage:nearby_users",
+    "suggested_people": "phase51:homepage:suggested_people",
     "payload": "phase51:homepage:payload",
     "full": "homepage:full",
     "meta": "homepage:meta",

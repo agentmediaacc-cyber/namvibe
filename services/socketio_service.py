@@ -63,11 +63,22 @@ def init_socketio(app):
         else:
             log_redis_warning("redis_socketio_fallback", "[socketio] WARNING: Running in SINGLE-NODE mode. For production with multiple users, configure REDIS_URL and restart.")
 
+    # Determine async_mode: prefer gevent when gevent-websocket is available
+    # (fixes Android APK websocket crash vs threading fallback)
+    async_mode = None
+    try:
+        import geventwebsocket
+        async_mode = 'gevent'
+        print(f"[socketio] Using gevent async_mode (websocket supported)")
+    except ImportError:
+        print("[socketio] gevent-websocket not installed. Falling back to 'threading' mode (polling only).")
+        async_mode = 'threading'
+
     socketio.init_app(
         app,
         message_queue=mgr,
         cors_allowed_origins="*",
-        async_mode='gevent' if os.getenv('FLASK_ENV') == 'production' else None,
+        async_mode=async_mode,
         ping_timeout=20,
         ping_interval=10,
         engineio_logger=False

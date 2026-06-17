@@ -3,618 +3,465 @@
 {% block title %}NamVibe | Home{% endblock %}
 {% block body_class %}chain-home-page{% endblock %}
 
+{% block top_header %}{% endblock %}
+{% block mobile_nav %}{% endblock %}
+
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/chain_home.css">
-<link rel="stylesheet" href="/static/css/homepage_premium.css">
+<link rel="stylesheet" href="/static/css/namvibe_2026_home.css">
 {% endblock %}
 
 {% block content %}
-<div class="chain-home">
-    {% set is_logged_in = current is not none %}
-    {% set home_route = safe_link('home', is_logged_in) %}
-    {% set discover_route = safe_link('discover', is_logged_in) %}
-    {% set live_route = safe_link('live', is_logged_in) %}
-    {% set drawer_profile = safe_link('profile', is_logged_in) %}
-    {% set drawer_wallet = safe_link('wallet', is_logged_in) %}
-    {% set drawer_messages = safe_link('messages', is_logged_in) %}
-    {% set drawer_notifications = safe_link('notifications', is_logged_in) %}
-    {% set drawer_settings = safe_link('settings', is_logged_in) %}
-    {% set login_route = safe_link('login', is_logged_in) %}
-    {% set register_route = safe_link('register', is_logged_in) %}
-    {% set composer_fallback = safe_link('create_post', is_logged_in) %}
-    {% set story_create = safe_link('create_story', is_logged_in) %}
-    {% set live_create = safe_link('go_live', is_logged_in) %}
-    {% set reel_route = safe_link('reels', is_logged_in) %}
-    {% set reel_create = safe_link('upload_reel', is_logged_in) %}
-    {% set upload_video_route = safe_link('upload_video', is_logged_in) %}
-    {% set friends_route = safe_link('friends', is_logged_in) %}
-    {% set dating_route = safe_link('dating', is_logged_in) %}
-    {% set post_available = route_exists('/posts/create') or route_exists('/features/create-post') %}
-    {% set story_available = route_exists('/status/create') %}
-    {% set reel_available = route_exists('/reels/upload') or route_exists('/features/upload-reel') %}
-    {% set live_available = route_exists('/live/studio') %}
-    {% set upload_video_available = route_exists('/features/upload-video') or route_exists('/upload/video') or route_exists('/media/upload') %}
+{% set is_logged_in = current is not none %}
+{% set home_route = safe_link('home', is_logged_in) %}
+{% set discover_route = safe_link('discover', is_logged_in) %}
+{% set live_route = safe_link('live', is_logged_in) %}
+{% set drawer_profile = safe_link('profile', is_logged_in) %}
+{% set drawer_wallet = safe_link('wallet', is_logged_in) %}
+{% set drawer_messages = safe_link('messages', is_logged_in) %}
+{% set drawer_notifications = safe_link('notifications', is_logged_in) %}
+{% set drawer_settings = safe_link('settings', is_logged_in) %}
+{% set login_route = safe_link('login', is_logged_in) %}
+{% set register_route = safe_link('register', is_logged_in) %}
+{% set composer_fallback = safe_link('create_post', is_logged_in) %}
+{% set story_create = safe_link('create_story', is_logged_in) %}
+{% set reel_create = safe_link('upload_reel', is_logged_in) %}
+{% set reel_route = safe_link('reels', is_logged_in) %}
+{% set upload_video_route = safe_link('upload_video', is_logged_in) %}
+{% set friends_route = safe_link('friends', is_logged_in) %}
+{% set dating_route = safe_link('dating', is_logged_in) %}
+{% set post_available = route_exists('/posts/create') or route_exists('/features/create-post') %}
+{% set story_available = route_exists('/status/create') %}
+{% set reel_available = route_exists('/reels/upload') or route_exists('/features/upload-reel') %}
+{% set live_available = route_exists('/live/studio') %}
+{% set upload_video_available = route_exists('/features/upload-video') or route_exists('/upload/video') or route_exists('/media/upload') %}
 
-    {% macro empty_state(icon, title, message, href=None, label=None, wide=False) -%}
-    <div class="chain-home__empty-card{% if wide %} chain-home__empty-card--wide{% endif %}">
-        <span class="chain-home__empty-icon"><i class="fas {{ icon }}"></i></span>
-        <div>
-            <h3>{{ title }}</h3>
-            <p>{{ message }}</p>
+<div class="nv-home-shell">
+
+  <div class="nv-home-grid">
+
+    {# LEFT RAIL #}
+    <aside class="nv-left-rail">
+      <a href="{{ drawer_profile }}" class="nv-left-profile">
+        <div class="nv-avatar">
+          {% if current.avatar_url %}
+          <img src="{{ current.avatar_url }}" alt="{{ current.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <span class="nv-avatar-initials" style="display:none">{{ (current.display_name or '?')[0] }}</span>
+          {% else %}
+          <span class="nv-avatar-initials">{{ (current.display_name or '?')[0] }}</span>
+          {% endif %}
         </div>
-        {% if href and label %}
-        <div class="chain-home__empty-actions">
-            <a href="{{ href }}" class="chain-home__empty-cta">{{ label }}</a>
+        <div class="nv-left-profile-info">
+          <div class="nv-left-profile-name">{{ current.display_name or current.username or 'NamVibe' }}</div>
+          <div class="nv-left-profile-username">@{{ current.username or 'namvibe' }}</div>
+          {% if is_logged_in %}
+          <div class="nv-left-balance"><i class="fas fa-coins"></i> {{ wallet.label_balance or '0' }}</div>
+          {% endif %}
         </div>
+      </a>
+
+      <nav class="nv-left-nav">
+        <div class="nv-left-nav-section">Main</div>
+        <a href="{{ home_route }}" class="nv-left-nav-item is-active"><i class="fas fa-home"></i> Home</a>
+        <a href="{{ discover_route }}" class="nv-left-nav-item"><i class="fas fa-compass"></i> Discover</a>
+        <a href="{{ live_route }}" class="nv-left-nav-item{% if not live_available %} is-disabled{% endif %}"><i class="fas fa-video"></i> Live</a>
+        <a href="{{ reel_route }}" class="nv-left-nav-item{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-film"></i> Reels</a>
+        <div class="nv-left-nav-section">Social</div>
+        <a href="{{ story_create }}" class="nv-left-nav-item{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-notch"></i> Stories</a>
+        <a href="{{ drawer_messages }}" class="nv-left-nav-item"><i class="fas fa-comment"></i> Messages</a>
+        <a href="{{ drawer_notifications }}" class="nv-left-nav-item"><i class="fas fa-bell"></i> Notifications</a>
+        <a href="{{ drawer_wallet }}" class="nv-left-nav-item"><i class="fas fa-wallet"></i> Wallet</a>
+        <a href="{{ dating_route }}" class="nv-left-nav-item"><i class="fas fa-heart"></i> Dating</a>
+        <a href="{{ friends_route }}" class="nv-left-nav-item"><i class="fas fa-user-friends"></i> Friends</a>
+        <div class="nv-left-nav-section">More</div>
+        <a href="{{ drawer_profile }}" class="nv-left-nav-item"><i class="fas fa-user-circle"></i> Profile</a>
+        <a href="{{ drawer_settings }}" class="nv-left-nav-item"><i class="fas fa-cog"></i> Settings</a>
+        {% if is_logged_in %}
+        <a href="/auth/logout" class="nv-left-nav-item"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+        {% else %}
+        <a href="{{ login_route }}" class="nv-left-nav-item"><i class="fas fa-sign-in-alt"></i> Login</a>
+        <a href="{{ register_route }}" class="nv-left-nav-item"><i class="fas fa-user-plus"></i> Register</a>
         {% endif %}
-    </div>
-    {%- endmacro %}
-
-    <!-- ============================================================
-         HEADER
-    ============================================================ -->
-    <header class="chain-home__app-header">
-        <div class="chain-home__header-left">
-            <button type="button" class="chain-home__menu-btn" data-drawer-toggle aria-label="Open menu" aria-expanded="false" aria-controls="chain-home-drawer">
-                <span></span><span></span><span></span>
-            </button>
-            <a href="{{ home_route }}" class="chain-home__brand" aria-label="NamVibe home">
-                <span>NamVibe</span>
-                <strong>Home</strong>
-            </a>
-        </div>
-        <form class="chain-home__top-search" action="/search" method="get" autocomplete="off">
-            <i class="fas fa-search" aria-hidden="true"></i>
-            <input type="text" name="q" placeholder="Search creators, live rooms, hashtags, towns..." aria-label="Search">
-        </form>
-        <div class="chain-home__header-actions">
-            <a href="/search" class="chain-home__icon-btn chain-home__icon-btn--mobile" aria-label="Search"><i class="fas fa-search"></i></a>
-            <a href="{{ drawer_notifications }}" class="chain-home__icon-btn" aria-label="Notifications"><i class="fas fa-bell"></i></a>
-            <a href="{{ drawer_messages }}" class="chain-home__icon-btn" aria-label="Messages"><i class="fas fa-comment"></i></a>
-            <a href="{{ drawer_wallet }}" class="chain-home__icon-btn" aria-label="Wallet"><i class="fas fa-coins"></i></a>
-            {% if is_logged_in %}
-            <a href="/profile/" class="chain-home__profile-btn" aria-label="Open profile">
-                {% if current.avatar_url %}
-                <img src="{{ current.avatar_url }}" alt="Profile">
-                {% else %}
-                <span class="gen-avatar">{{ (current.full_name or current.username or 'P')[:1] }}</span>
-                {% endif %}
-            </a>
-            {% else %}
-            <a href="{{ login_route }}" class="chain-home__login-btn">Login</a>
-            {% endif %}
-        </div>
-    </header>
-
-    <!-- ============================================================
-         DRAWER
-    ============================================================ -->
-    <div class="chain-home__drawer-backdrop" data-drawer-close hidden></div>
-    <aside id="chain-home-drawer" class="chain-home__drawer" aria-hidden="true">
-        <div class="chain-home__drawer-head">
-            <strong>Menu</strong>
-            <button type="button" class="chain-home__drawer-close" data-drawer-close aria-label="Close menu">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <nav class="chain-home__drawer-nav">
-            <a href="{{ home_route }}"><i class="fas fa-home"></i>Home</a>
-            <a href="{{ discover_route }}"><i class="fas fa-compass"></i>Discover</a>
-            <a href="{{ live_route }}"><i class="fas fa-video"></i>Live</a>
-            <a href="{{ reel_route }}"><i class="fas fa-film"></i>Reels</a>
-            <a href="/status/"><i class="fas fa-circle-notch"></i>Stories</a>
-            <a href="{{ drawer_messages }}"><i class="fas fa-comment"></i>Messages</a>
-            <a href="{{ drawer_wallet }}"><i class="fas fa-wallet"></i>Wallet</a>
-            <a href="{{ dating_route }}"><i class="fas fa-heart"></i>Dating</a>
-            <a href="{{ drawer_notifications }}"><i class="fas fa-bell"></i>Notifications</a>
-            <a href="{{ drawer_profile }}"><i class="fas fa-user-circle"></i>Profile</a>
-            <a href="{{ drawer_settings }}"><i class="fas fa-cog"></i>Settings</a>
-            {% if is_logged_in %}
-            <a href="/auth/logout"><i class="fas fa-sign-out-alt"></i>Sign Out</a>
-            {% else %}
-            <a href="{{ login_route }}"><i class="fas fa-sign-in-alt"></i>Login</a>
-            <a href="{{ register_route }}"><i class="fas fa-user-plus"></i>Register</a>
-            {% endif %}
-        </nav>
+      </nav>
     </aside>
 
-    <!-- ============================================================
-         MOBILE TOPBAR
-    ============================================================ -->
-    <div class="home-topbar">
-        <input type="text" class="home-topbar-search" placeholder="Search NamVibe..." aria-label="Search">
+    {# CENTER — REEL FEED #}
+    <div class="nv-feed-center">
+      <div class="nv-feed-stack">
+        <div class="nv-feed-scroll">
+          {% if reels_feed %}
+          {% for reel in reels_feed %}
+          <div class="nv-reel-card" data-reel-id="{{ reel.id }}" data-index="{{ loop.index0 }}">
+            {% if reel.thumbnail_url %}
+            <img class="nv-reel-thumbnail" src="{{ reel.thumbnail_url }}" alt="" loading="lazy">
+            {% endif %}
+            <div class="nv-reel-loader"><div class="spinner"></div></div>
+            {% if reel.video_url %}
+            <video class="nv-reel-video" src="{{ reel.video_url }}" muted playsinline preload="metadata" poster="{{ reel.thumbnail_url }}"></video>
+            {% endif %}
+            <div class="nv-like-heart"><i class="fas fa-heart"></i></div>
+
+            {# Action Rail #}
+            <div class="nv-action-rail">
+              {% if reel.profile_id and reel.profile_id != (current.id or '') %}
+              <div style="position:relative;display:flex;flex-direction:column;align-items:center;">
+                <button type="button" class="nv-action-avatar-btn" onclick="location.href='/profile/@{{ reel.username }}'">
+                  {% if reel.avatar_url %}
+                  <img src="{{ reel.avatar_url }}" alt="{{ reel.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                  <span class="nv-avatar-initials" style="display:none">{{ (reel.display_name or '?')[0] }}</span>
+                  {% else %}
+                  <span class="nv-avatar-initials">{{ (reel.display_name or '?')[0] }}</span>
+                  {% endif %}
+                </button>
+                <button type="button" class="nv-follow-pill nv-follow-badge {% if reel.is_followed %}is-following{% endif %}" data-profile-id="{{ reel.profile_id }}">
+                  <i class="fas {% if reel.is_followed %}fa-check{% else %}fa-plus{% endif %}"></i>
+                </button>
+              </div>
+              {% endif %}
+              <button type="button" class="nv-action-btn {% if reel.is_liked %}is-liked{% endif %}" data-action="like" data-reel-id="{{ reel.id }}">
+                <i class="fas fa-heart"></i>
+                <span>{{ reel.likes_count or 0 }}</span>
+              </button>
+              <button type="button" class="nv-action-btn" data-action="comment" data-reel-id="{{ reel.id }}">
+                <i class="fas fa-comment"></i>
+                <span>{{ reel.comments_count or 0 }}</span>
+              </button>
+              <button type="button" class="nv-action-btn" data-action="share" data-reel-id="{{ reel.id }}">
+                <i class="fas fa-share"></i>
+                <span>{{ reel.shares_count or 0 }}</span>
+              </button>
+              <button type="button" class="nv-action-btn {% if reel.is_saved %}is-saved{% endif %}" data-action="save" data-reel-id="{{ reel.id }}">
+                <i class="fas {% if reel.is_saved %}fa-bookmark{% else %}fa-bookmark{% endif %}"></i>
+                <span>Save</span>
+              </button>
+            </div>
+
+            {# Bottom Overlay #}
+            <div class="nv-reel-overlay">
+              <div class="nv-reel-creator">
+                <a href="/profile/@{{ reel.username }}" class="nv-reel-creator-avatar">
+                  {% if reel.avatar_url %}
+                  <img src="{{ reel.avatar_url }}" alt="{{ reel.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                  <span class="nv-avatar-initials" style="display:none">{{ (reel.display_name or '?')[0] }}</span>
+                  {% else %}
+                  <span class="nv-avatar-initials">{{ (reel.display_name or '?')[0] }}</span>
+                  {% endif %}
+                </a>
+                <a href="/profile/@{{ reel.username }}" class="nv-reel-creator-name">
+                  @{{ reel.username or 'creator' }}{% if reel.is_verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+                </a>
+              </div>
+              {% if reel.caption %}
+              <div class="nv-reel-caption">{{ reel.caption[:150] }}</div>
+              {% endif %}
+              {% if reel.hashtags %}
+              <div class="nv-reel-hashtags">
+                {% for tag in reel.hashtags[:5] %}
+                <a href="/search?q=%23{{ tag }}" class="nv-reel-hashtag">#{{ tag }}</a>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if reel.music_title %}
+              <div class="nv-reel-music"><i class="fas fa-music"></i> {{ reel.music_title }}</div>
+              {% endif %}
+              {% if reel.town %}
+              <div class="nv-reel-town"><i class="fas fa-location-dot"></i> {{ reel.town }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+          {% else %}
+          <div class="nv-empty-state">
+            <div class="nv-empty-icon"><i class="fas fa-film"></i></div>
+            <div class="nv-empty-title">No Reels Yet</div>
+            <div class="nv-empty-desc">Be the first to post a NamVibe reel. Share your story with Namibia and the world.</div>
+            <div class="nv-empty-actions">
+              <a href="{{ reel_create if reel_available else composer_fallback }}" class="nv-empty-btn{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-upload"></i> Upload Reel</a>
+              <a href="{{ composer_fallback }}" class="nv-empty-btn nv-empty-btn-outline"><i class="fas fa-plus"></i> Create Post</a>
+              <a href="{{ discover_route }}" class="nv-empty-btn nv-empty-btn-outline"><i class="fas fa-compass"></i> Explore Creators</a>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
     </div>
 
-    <!-- ============================================================
-         HOME SHELL — 3-COLUMN LAYOUT
-    ============================================================ -->
-    <div class="home-shell">
-        <div class="home-layout">
+    {# RIGHT RAIL #}
+    <aside class="nv-right-rail">
+      {# Profile Mini Card #}
+      <div class="nv-rail-section">
+        <a href="{{ drawer_profile }}" class="nv-creator-row" style="text-decoration:none;color:inherit;">
+          <div class="nv-avatar">
+            {% if current.avatar_url %}
+            <img src="{{ current.avatar_url }}" alt="{{ current.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="nv-avatar-initials" style="display:none">{{ (current.display_name or '?')[0] }}</span>
+            {% else %}
+            <span class="nv-avatar-initials">{{ (current.display_name or '?')[0] }}</span>
+            {% endif %}
+          </div>
+          <div class="nv-creator-info">
+            <div class="nv-creator-name">{{ current.display_name or current.username or 'Join NamVibe' }}</div>
+            <div class="nv-creator-username">@{{ current.username or 'namvibe' }}</div>
+          </div>
+        </a>
+      </div>
 
-            <!-- LEFT RAIL — NAV -->
-            <aside class="home-left-rail">
-                <nav class="home-nav">
-                    <div class="home-nav-section-label">Main</div>
-                    <a href="{{ home_route }}" class="home-nav-item is-active"><i class="fas fa-home"></i><span>Home</span></a>
-                    <a href="{{ discover_route }}" class="home-nav-item"><i class="fas fa-compass"></i><span>Discover</span></a>
-                    <a href="{{ live_route }}" class="home-nav-item"><i class="fas fa-video"></i><span>Live</span></a>
-                    <a href="{{ reel_route }}" class="home-nav-item"><i class="fas fa-film"></i><span>Reels</span></a>
-                    <a href="/status/" class="home-nav-item"><i class="fas fa-circle-notch"></i><span>Stories</span></a>
-                    <div class="home-nav-section-label">Social</div>
-                    <a href="{{ drawer_messages }}" class="home-nav-item"><i class="fas fa-comment"></i><span>Messages</span></a>
-                    <a href="{{ drawer_notifications }}" class="home-nav-item"><i class="fas fa-bell"></i><span>Notifications</span></a>
-                    <a href="{{ drawer_wallet }}" class="home-nav-item"><i class="fas fa-wallet"></i><span>Wallet</span></a>
-                    <a href="{{ drawer_profile }}" class="home-nav-item"><i class="fas fa-user-circle"></i><span>Profile</span></a>
-                    <div class="home-nav-section-label">More</div>
-                    <a href="{{ drawer_settings }}" class="home-nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
-                    {% if is_logged_in %}
-                    <a href="/auth/logout" class="home-nav-item"><i class="fas fa-sign-out-alt"></i><span>Sign Out</span></a>
-                    {% else %}
-                    <a href="{{ login_route }}" class="home-nav-item"><i class="fas fa-sign-in-alt"></i><span>Login</span></a>
-                    <a href="{{ register_route }}" class="home-nav-item"><i class="fas fa-user-plus"></i><span>Register</span></a>
-                    {% endif %}
-                </nav>
-            </aside>
-
-            <!-- CENTER FEED -->
-            <main class="home-feed">
-
-                <!-- Feed Tabs -->
-                <div class="feed-tabs">
-                    <button class="feed-tab is-active" data-tab="for_you">For You</button>
-                    <button class="feed-tab" data-tab="following">Following</button>
-                    <button class="feed-tab" data-tab="public">Public</button>
-                    <button class="feed-tab" data-tab="nearby">Nearby</button>
-                    <button class="feed-tab" data-tab="live">Live</button>
-                    <button class="feed-tab" data-tab="reels">Reels</button>
-                    <button class="feed-tab" data-tab="trending">Trending</button>
-                </div>
-
-                <!-- Composer Card -->
-                <div class="composer-card">
-                    <div class="composer-card-top">
-                        <div class="composer-avatar">
-                            {% if is_logged_in and current.avatar_url %}
-                            <img src="{{ current.avatar_url }}" alt="Your avatar">
-                            {% else %}
-                            <span class="gen-avatar">{{ (current.full_name or current.username or 'C')[:1] if is_logged_in else 'C' }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="composer-placeholder" onclick="location.href='{{ composer_fallback }}'">
-                            Start a post, reel, story or live room...
-                        </div>
-                    </div>
-                    <div class="composer-actions">
-                        <a href="{{ composer_fallback }}" class="composer-action-chip{% if not post_available %} is-disabled{% endif %}"><i class="fas fa-pen"></i>Post</a>
-                        <a href="{{ reel_create }}" class="composer-action-chip{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-film"></i>Reel</a>
-                        <a href="{{ story_create }}" class="composer-action-chip{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-plus"></i>Story</a>
-                        <a href="{{ live_create }}" class="composer-action-chip{% if not live_available %} is-disabled{% endif %}"><i class="fas fa-video"></i>Live</a>
-                    </div>
-                </div>
-
-                <!-- Story Strip -->
-                <div class="story-strip">
-                    {% if is_logged_in %}
-                    <a href="/status/create" class="story-card">
-                        <div class="story-ring">
-                            <div class="story-ring-inner">
-                                {% if current.avatar_url %}
-                                <img src="{{ current.avatar_url }}" alt="Your Story">
-                                {% else %}
-                                <span class="gen-avatar">{{ (current.full_name or current.username or 'Y')[:1] }}</span>
-                                {% endif %}
-                            </div>
-                            <span class="story-create-icon"><i class="fas fa-plus"></i></span>
-                        </div>
-                        <span class="story-card-name">Your Story</span>
-                    </a>
-                    {% endif %}
-
-                    {% for story in stories %}
-                    <a href="/status/{{ story.id }}" class="story-card">
-                        <div class="story-ring">
-                            <div class="story-ring-inner">
-                                {% if story.avatar_url %}
-                                <img src="{{ story.avatar_url }}" alt="{{ story.display_name }}">
-                                {% else %}
-                                <span class="gen-avatar">{{ (story.display_name or '?')[:1] }}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <span class="story-card-name">{{ story.display_name or 'Story' }}</span>
-                    </a>
-                    {% endfor %}
-
-                    {% if not stories %}
-                    {% if story_available %}
-                    <a href="{{ story_create }}" class="story-card">
-                        <div class="story-ring">
-                            <div class="story-ring-inner"><span class="gen-avatar">C</span></div>
-                            <span class="story-create-icon"><i class="fas fa-plus"></i></span>
-                        </div>
-                        <span class="story-card-name">Create</span>
-                    </a>
-                    {% endif %}
-                    {% endif %}
-                </div>
-
-                <!-- Reels / Live Strip -->
-                {% if reels or live_rooms %}
-                <div class="reels-strip">
-                    {% for reel in reels[:5] %}
-                    <a href="{{ reel_route }}" class="reel-thumb reel-card">
-                        {% if reel.video_url or reel.media_url %}
-                        <video src="{{ reel.video_url or reel.media_url }}" muted playsinline preload="metadata"></video>
-                        {% else %}
-                        <div class="reel-play-icon"><i class="fas fa-play"></i></div>
-                        {% endif %}
-                    </a>
-                    {% endfor %}
-                    {% for room in live_rooms[:3] %}
-                    <a href="{{ room.watch_url }}" class="reel-thumb live-card">
-                        <span class="live-badge">LIVE</span>
-                        {% if room.cover_url %}
-                        <img src="{{ room.cover_url }}" alt="{{ room.title }}">
-                        {% else %}
-                        <div class="reel-play-icon"><i class="fas fa-video"></i></div>
-                        {% endif %}
-                    </a>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                <!-- Dynamic Feed Items (JS-rendered) -->
-                <div class="feed-items">
-                </div>
-
-                <!-- Feed loader (hidden, shown during infinite scroll) -->
-                <div class="feed-loader" style="display:none;text-align:center;padding:20px;color:var(--hp-text-muted);">
-                    <i class="fas fa-spinner fa-spin"></i> Loading more...
-                </div>
-
-                <!-- Infinite scroll sentinel -->
-                <div class="feed-sentinel" style="height:1px;"></div>
-
-                <!-- Server-rendered fallback (shown if JS disabled) -->
-                <div class="feed-server-rendered" style="display:none;">
-
-                <!-- Premium Post Cards: Own Recent Posts -->
-                {% for post in own_recent_posts %}
-                <article id="post-{{ post.id }}" class="post-card-premium">
-                    <div class="post-header">
-                        <div class="post-avatar">
-                            {% if post.avatar_url %}
-                            <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
-                            {% else %}
-                            <span class="gen-avatar">{{ (post.display_name or '?')[:1] }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="post-author-info">
-                            <div class="post-author-name">
-                                {{ post.display_name or 'NamVibe' }}
-                                {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
-                                <span class="post-content-label following">Following</span>
-                            </div>
-                            <div class="post-author-username">@{{ post.username or 'chain' }}</div>
-                            <div class="post-time-location"><i class="far fa-clock"></i> {{ post.created_label }}{% if post.town_tag %} &middot; <i class="fas fa-location-dot"></i> {{ post.town_tag }}{% endif %}</div>
-                        </div>
-                        <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
-                    </div>
-                    <div class="post-body">
-                        <div class="post-text post-caption">{{ post.excerpt|hashtag_links|safe }}</div>
-                    </div>
-                    {% if post.media_url %}
-                    <div class="post-media">
-                        {% if post.video_url or post.post_type == 'video' %}
-                        <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
-                        {% else %}
-                        <img src="{{ post.media_url }}" alt="{{ post.display_name }} post" loading="lazy">
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="post-stats">
-                        <span><strong data-count="likes">{{ post.likes_count or 0 }}</strong> likes</span>
-                        <span><strong>{{ post.comments_count or 0 }}</strong> comments</span>
-                        <span><strong>{{ post.view_count or 0 }}</strong> views</span>
-                    </div>
-                    <div class="post-actions">
-                        <button type="button" class="post-action-btn" data-action="like"><i class="far fa-heart"></i> Like</button>
-                        <button type="button" class="post-action-btn" data-action="comment"><i class="far fa-comment"></i> Comment</button>
-                        <button type="button" class="post-action-btn" data-action="share"><i class="fas fa-share"></i> Share</button>
-                        <button type="button" class="post-action-btn" data-action="save"><i class="far fa-bookmark"></i> Save</button>
-                    </div>
-                </article>
-                {% endfor %}
-
-                <!-- Premium Post Cards: Trending/Public Posts -->
-                {% for post in trending_posts %}
-                {% if post.id not in own_recent_posts|map(attribute='id')|list %}
-                <article id="post-{{ post.id }}" class="post-card-premium">
-                    <div class="post-header">
-                        <div class="post-avatar">
-                            {% if post.avatar_url %}
-                            <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
-                            {% else %}
-                            <span class="gen-avatar">{{ (post.display_name or '?')[:1] }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="post-author-info">
-                            <div class="post-author-name">
-                                {{ post.display_name or 'NamVibe' }}
-                                {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
-                                <span class="post-content-label public">Public</span>
-                            </div>
-                            <div class="post-author-username">@{{ post.username or 'chain' }}</div>
-                            <div class="post-time-location"><i class="far fa-clock"></i> {{ post.created_label }}{% if post.town_tag %} &middot; <i class="fas fa-location-dot"></i> {{ post.town_tag }}{% endif %}</div>
-                        </div>
-                        <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
-                    </div>
-                    <div class="post-body">
-                        <div class="post-text post-caption">{{ post.excerpt|hashtag_links|safe }}</div>
-                    </div>
-                    {% if post.media_url %}
-                    <div class="post-media">
-                        {% if post.video_url or post.post_type == 'video' %}
-                        <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
-                        {% else %}
-                        <img src="{{ post.media_url }}" alt="{{ post.display_name }} post" loading="lazy">
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="post-stats">
-                        <span><strong data-count="likes">{{ post.likes_count or 0 }}</strong> likes</span>
-                        <span><strong>{{ post.comments_count or 0 }}</strong> comments</span>
-                        <span><strong>{{ post.view_count or 0 }}</strong> views</span>
-                    </div>
-                    <div class="post-actions">
-                        <button type="button" class="post-action-btn" data-action="like"><i class="far fa-heart"></i> Like</button>
-                        <button type="button" class="post-action-btn" data-action="comment"><i class="far fa-comment"></i> Comment</button>
-                        <button type="button" class="post-action-btn" data-action="share"><i class="fas fa-share"></i> Share</button>
-                        <button type="button" class="post-action-btn" data-action="save"><i class="far fa-bookmark"></i> Save</button>
-                    </div>
-                </article>
-                {% endif %}
-                {% endfor %}
-
-                {% if not trending_posts and not own_recent_posts %}
-                <div class="feed-empty">
-                    <div class="feed-empty-icon"><i class="fas fa-table-cells-large"></i></div>
-                    <div class="feed-empty-title">No posts yet</div>
-                    <div class="feed-empty-message">Start the feed with a clean update, photo or thought. Posts from creators you follow will appear here.</div>
-                </div>
-                {% endif %}
-
-                </div><!-- /feed-server-rendered -->
-
-                <!-- Sponsored / Ad Posts -->
-                {% if sponsored_posts %}
-                {% for post in sponsored_posts %}
-                <article id="sponsored-{{ post.id }}" class="post-card-premium">
-                    <div class="post-header">
-                        <div class="post-avatar">
-                            {% if post.avatar_url %}
-                            <img src="{{ post.avatar_url }}" alt="{{ post.display_name }}">
-                            {% else %}
-                            <span class="gen-avatar">{{ (post.display_name or '?')[:1] }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="post-author-info">
-                            <div class="post-author-name">
-                                {{ post.display_name or 'Sponsored' }}
-                                {% if post.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
-                                <span class="post-content-label sponsored">Sponsored</span>
-                            </div>
-                            <div class="post-author-username">@{{ post.username or 'sponsored' }}</div>
-                            <div class="post-time-location"><i class="far fa-clock"></i> {{ post.created_label }}</div>
-                        </div>
-                        <button type="button" class="post-more-btn" aria-label="More"><i class="fas fa-ellipsis"></i></button>
-                    </div>
-                    <div class="post-body">
-                        <div class="post-text post-caption">{{ post.excerpt|hashtag_links|safe }}</div>
-                    </div>
-                    {% if post.media_url %}
-                    <div class="post-media">
-                        {% if post.video_url or post.post_type == 'video' %}
-                        <video src="{{ post.video_url or post.media_url }}" controls playsinline preload="metadata"></video>
-                        {% else %}
-                        <img src="{{ post.media_url }}" alt="{{ post.display_name }} post" loading="lazy">
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <div class="post-stats">
-                        <span><strong>{{ post.likes_count or 0 }}</strong> likes</span>
-                        <span><strong>{{ post.comments_count or 0 }}</strong> comments</span>
-                    </div>
-                    <div class="post-actions">
-                        <button type="button" class="post-action-btn" data-action="like"><i class="far fa-heart"></i> Like</button>
-                        <button type="button" class="post-action-btn" data-action="comment"><i class="far fa-comment"></i> Comment</button>
-                        <button type="button" class="post-action-btn" data-action="share"><i class="fas fa-share"></i> Share</button>
-                        <button type="button" class="post-action-btn" data-action="save"><i class="far fa-bookmark"></i> Save</button>
-                    </div>
-                </article>
-                {% endfor %}
-                {% endif %}
-
-                <!-- Platform Announcements -->
-                {% if announcements %}
-                {% for ann in announcements %}
-                <article class="post-card-premium">
-                    <div class="post-header">
-                        <div><span class="gen-avatar" style="background: linear-gradient(135deg, #7c3aed, #2563eb);">A</span></div>
-                        <div class="post-author-info">
-                            <div class="post-author-name">
-                                {{ ann.title }}
-                                <span class="post-content-label trending">Announcement</span>
-                            </div>
-                            <div class="post-time-location"><i class="far fa-clock"></i> {{ ann.created_label }}</div>
-                        </div>
-                    </div>
-                    <div class="post-body">
-                        <div class="post-text post-caption">{{ ann.body }}</div>
-                    </div>
-                </article>
-                {% endfor %}
-                {% endif %}
-
-            </main>
-
-            <!-- RIGHT RAIL -->
-            <aside class="home-right-rail">
-
-                <!-- Profile Preview -->
-                <div class="rail-section">
-                    <a href="{{ drawer_profile }}" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:12px;">
-                        <div class="suggested-avatar" style="width:48px;height:48px;">
-                            {% if is_logged_in and current.avatar_url %}
-                            <img src="{{ current.avatar_url }}" alt="Profile">
-                            {% else %}
-                            <span class="gen-avatar">{{ (current.full_name or current.username or 'P')[:1] if is_logged_in else 'J' }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="suggested-info">
-                            <div class="suggested-name">{{ current.full_name or current.username or 'Join NamVibe' }}</div>
-                            <div class="suggested-mutual">{% if is_logged_in %}View your profile{% else %}Create an account to get started{% endif %}</div>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Trending Creators -->
-                <div class="rail-section">
-                    <div class="rail-section-title">
-                        <span>Trending Creators</span>
-                        <a href="{{ discover_route }}">See all</a>
-                    </div>
-                    {% for profile in recommended_profiles[:5] %}
-                    <div class="suggested-card">
-                        <div class="suggested-avatar">
-                            {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
-                            {% else %}
-                            <span class="gen-avatar">{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="suggested-info">
-                            <div class="suggested-name">
-                                {{ profile.display_name or 'Creator' }}
-                                {% if profile.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
-                            </div>
-                            <div class="suggested-username">@{{ profile.username or 'creator' }}</div>
-                            <div class="suggested-mutual">{{ profile.followers_count or 0 }} followers</div>
-                        </div>
-                        <button type="button" class="suggested-follow-btn">Follow</button>
-                    </div>
-                    {% else %}
-                    <div style="text-align:center;padding:16px 0;color:var(--hp-text-muted);font-size:13px;">No creators yet</div>
-                    {% endfor %}
-                </div>
-
-                <!-- Suggested Friends -->
-                {% if recommended_profiles|length > 5 %}
-                <div class="rail-section">
-                    <div class="rail-section-title">
-                        <span>Suggested Friends</span>
-                    </div>
-                    {% for profile in recommended_profiles[5:10] %}
-                    <div class="suggested-card">
-                        <div class="suggested-avatar">
-                            {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
-                            {% else %}
-                            <span class="gen-avatar gen-avatar-sm">{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="suggested-info">
-                            <div class="suggested-name">
-                                {{ profile.display_name or 'Creator' }}
-                                {% if profile.verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
-                            </div>
-                            <div class="suggested-username">@{{ profile.username or 'creator' }}</div>
-                            {% if profile.followers_count %}
-                            <div class="suggested-mutual">{{ profile.followers_count }} followers</div>
-                            {% endif %}
-                        </div>
-                        <button type="button" class="suggested-follow-btn">Follow</button>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                <!-- Live Rooms -->
-                {% if live_rooms %}
-                <div class="rail-section">
-                    <div class="rail-section-title">
-                        <span>Live Rooms</span>
-                        <a href="{{ live_route }}">Watch</a>
-                    </div>
-                    {% for room in live_rooms[:3] %}
-                    <a href="{{ room.watch_url }}" class="suggested-card live-card" style="text-decoration:none;color:inherit;">
-                        <div class="suggested-avatar">
-                            {% if room.creator_avatar %}
-                            <img src="{{ room.creator_avatar }}" alt="{{ room.creator_name }}">
-                            {% else %}
-                            <span class="gen-avatar gen-avatar-sm">{{ (room.creator_name or '?')[:1] }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="suggested-info">
-                            <div class="suggested-name">{{ room.creator_name or 'Creator' }}</div>
-                            <div class="suggested-mutual">
-                                {% if room.viewer_count is not none %}{{ room.viewer_count }} watching{% endif %}
-                                {% if room.category %} &middot; {{ room.category }}{% endif %}
-                            </div>
-                        </div>
-                        <span style="padding:2px 8px;background:var(--hp-primary);color:white;font-size:10px;font-weight:700;border-radius:4px;text-transform:uppercase;flex-shrink:0;">LIVE</span>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-                <!-- Nearby Users -->
-                {% if nearby_users %}
-                <div class="rail-section">
-                    <div class="rail-section-title">
-                        <span>Nearby</span>
-                    </div>
-                    {% for profile in nearby_users[:4] %}
-                    <a href="{{ profile.profile_url if profile.profile_url else '#' }}" class="suggested-card" style="text-decoration:none;color:inherit;">
-                        <div class="suggested-avatar" style="width:32px;height:32px;font-size:12px;">
-                            {% if profile.avatar_url %}
-                            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}">
-                            {% else %}
-                            <span class="gen-avatar gen-avatar-sm">{{ profile.initial or (profile.display_name or '?')[:1] }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="suggested-info">
-                            <div class="suggested-name" style="font-size:12px;">{{ profile.display_name or 'User' }}</div>
-                            {% if profile.location %}
-                            <div class="suggested-mutual">{{ profile.location }}</div>
-                            {% endif %}
-                        </div>
-                        <span style="width:8px;height:8px;border-radius:50%;background:var(--hp-green);flex-shrink:0;" title="Active"></span>
-                    </a>
-                    {% endfor %}
-                </div>
-                {% endif %}
-
-            </aside>
-
+      {# Suggested Creators #}
+      <div class="nv-rail-section">
+        <div class="nv-rail-title">
+          <span>Suggested Creators</span>
+          <a href="{{ discover_route }}">See all</a>
         </div>
+        {% if suggested_creators %}
+        {% for profile in suggested_creators[:5] %}
+        <div class="nv-creator-row">
+          <div class="nv-avatar nv-avatar-sm">
+            {% if profile.avatar_url %}
+            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="nv-avatar-initials" style="display:none">{{ (profile.display_name or '?')[0] }}</span>
+            {% else %}
+            <span class="nv-avatar-initials">{{ (profile.display_name or '?')[0] }}</span>
+            {% endif %}
+          </div>
+          <div class="nv-creator-info">
+            <div class="nv-creator-name">{{ profile.display_name or 'Creator' }}{% if profile.is_verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}</div>
+            <div class="nv-creator-username">@{{ profile.username or 'creator' }}</div>
+            {% if profile.followers_count %}
+            <div class="nv-creator-meta">{{ profile.followers_count }} followers</div>
+            {% endif %}
+          </div>
+          <button type="button" class="nv-follow-btn" data-profile-id="{{ profile.id }}">Follow</button>
+        </div>
+        {% endfor %}
+        {% elif suggested_people %}
+        {% for profile in suggested_people[:5] %}
+        <div class="nv-creator-row">
+          <div class="nv-avatar nv-avatar-sm">
+            {% if profile.avatar_url %}
+            <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="nv-avatar-initials" style="display:none">{{ (profile.display_name or '?')[0] }}</span>
+            {% else %}
+            <span class="nv-avatar-initials">{{ (profile.display_name or '?')[0] }}</span>
+            {% endif %}
+          </div>
+          <div class="nv-creator-info">
+            <div class="nv-creator-name">{{ profile.display_name or 'Creator' }}{% if profile.is_verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}</div>
+            <div class="nv-creator-username">@{{ profile.username or 'creator' }}</div>
+            {% if profile.followers_count %}
+            <div class="nv-creator-meta">{{ profile.followers_count }} followers</div>
+            {% endif %}
+          </div>
+          <button type="button" class="nv-follow-btn" data-profile-id="{{ profile.id }}">Follow</button>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="nv-rail-empty">
+          <i class="fas fa-users"></i>
+          <span>No creators in your feed yet. Explore Namibia's rising stars!</span>
+          <a href="{{ discover_route }}" class="nv-rail-empty-btn">Discover Creators</a>
+        </div>
+        {% endif %}
+      </div>
+
+      {# Trending Hashtags #}
+      <div class="nv-rail-section">
+        <div class="nv-rail-title">
+          <span>Trending Hashtags</span>
+          <a href="/search">Discover</a>
+        </div>
+        {% if trending_hashtags %}
+        <div class="nv-rail-tags">
+          {% for ht in trending_hashtags %}
+          <a href="{{ ht.url or '/search?q=%23' + ht.tag }}" class="nv-rail-tag">#{{ ht.tag }}</a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="nv-rail-empty">
+          <i class="fas fa-hashtag"></i>
+          <span>No trending hashtags yet. Be the first to post!</span>
+        </div>
+        {% endif %}
+      </div>
+
+      {# Live Now #}
+      {% if live_rooms %}
+      <div class="nv-rail-section">
+        <div class="nv-rail-title">
+          <span>Live Now</span>
+          <a href="{{ live_route }}">Watch</a>
+        </div>
+        {% for room in live_rooms[:3] %}
+        <a href="{{ room.watch_url or live_route }}" class="nv-creator-row">
+          <div class="nv-avatar nv-avatar-sm">
+            {% if room.creator_avatar %}
+            <img src="{{ room.creator_avatar }}" alt="{{ room.creator_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="nv-avatar-initials" style="display:none">{{ (room.creator_name or '?')[0] }}</span>
+            {% else %}
+            <span class="nv-avatar-initials">{{ (room.creator_name or '?')[0] }}</span>
+            {% endif %}
+          </div>
+          <div class="nv-creator-info">
+            <div class="nv-creator-name">{{ room.creator_name or 'Creator' }}</div>
+            <div class="nv-creator-meta">{% if room.viewer_count is not none %}{{ room.viewer_count }} watching{% endif %}{% if room.category %} &middot; {{ room.category }}{% endif %}</div>
+          </div>
+          <span style="font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;">LIVE</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {# Popular Towns #}
+      {% if popular_towns %}
+      <div class="nv-rail-section">
+        <div class="nv-rail-title">
+          <span>Popular Towns</span>
+        </div>
+        <div class="nv-rail-tags">
+          {% for town in popular_towns %}
+          <a href="/?town={{ town }}" class="nv-rail-tag{% if town_filter == town %} is-active{% endif %}"><i class="fas fa-location-dot"></i> {{ town }}</a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </aside>
+
+  </div>{# /.nv-home-grid #}
+
+  {# MOBILE TOPBAR #}
+  <div class="nv-mobile-topbar">
+    <button type="button" class="nv-mobile-topbar-icon" data-drawer-toggle aria-label="Open menu"><i class="fas fa-bars"></i></button>
+    <a href="{{ home_route }}" class="nv-mobile-topbar-brand">NamVibe</a>
+    <input type="text" class="nv-mobile-topbar-search" placeholder="Search NamVibe..." aria-label="Search" onkeydown="if(event.key==='Enter'){window.location='/search?q='+encodeURIComponent(this.value);}">
+    <div class="nv-mobile-topbar-icons">
+      <a href="{{ drawer_notifications }}" class="nv-mobile-topbar-icon" aria-label="Notifications"><i class="fas fa-bell"></i></a>
+      <a href="{{ drawer_messages }}" class="nv-mobile-topbar-icon" aria-label="Messages"><i class="fas fa-comment"></i></a>
     </div>
+  </div>
 
-    <!-- MOBILE BOTTOM NAV -->
-    <nav class="mobile-bottom-nav" aria-label="Bottom mobile navigation">
-        <div class="mobile-bottom-nav-inner">
-            <a href="{{ home_route }}" class="mobile-nav-item is-active"><i class="fas fa-home"></i><span>Home</span></a>
-            <a href="{{ discover_route }}" class="mobile-nav-item"><i class="fas fa-compass"></i><span>Discover</span></a>
-            <a href="{{ composer_fallback }}" class="mobile-nav-item"><span class="mobile-nav-create"><i class="fas fa-plus"></i></span></a>
-            <a href="{{ reel_route }}" class="mobile-nav-item"><i class="fas fa-film"></i><span>Reels</span></a>
-            <a href="{{ drawer_profile }}" class="mobile-nav-item"><i class="fas fa-user"></i><span>Profile</span></a>
-        </div>
+  {# BOTTOM NAV #}
+  <nav class="nv-bottom-nav" aria-label="Bottom mobile navigation">
+    <a href="{{ home_route }}" class="nv-bottom-nav-item is-active"><i class="fas fa-home"></i><span>Home</span></a>
+    <a href="{{ discover_route }}" class="nv-bottom-nav-item"><i class="fas fa-compass"></i><span>Discover</span></a>
+    <a href="{{ composer_fallback }}" class="nv-bottom-nav-item"><span class="nv-bottom-nav-create"><i class="fas fa-plus"></i></span></a>
+    <a href="{{ reel_route }}" class="nv-bottom-nav-item"><i class="fas fa-film"></i><span>Reels</span></a>
+    <a href="{{ drawer_profile }}" class="nv-bottom-nav-item"><i class="fas fa-user"></i><span>Profile</span></a>
+  </nav>
+
+  {# DRAWER BACKDROP #}
+  <div class="nv-drawer-backdrop" data-drawer-close></div>
+
+  {# MOBILE DRAWER #}
+  <aside class="nv-mobile-drawer" aria-hidden="true">
+    <div class="nv-drawer-head">
+      <strong>Menu</strong>
+      <button type="button" class="nv-drawer-close" data-drawer-close aria-label="Close menu"><i class="fas fa-times"></i></button>
+    </div>
+    {% if is_logged_in %}
+    <a href="{{ drawer_profile }}" class="nv-drawer-profile">
+      <div class="nv-avatar">
+        {% if current.avatar_url %}
+        <img src="{{ current.avatar_url }}" alt="{{ current.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <span class="nv-avatar-initials" style="display:none">{{ (current.display_name or '?')[0] }}</span>
+        {% else %}
+        <span class="nv-avatar-initials">{{ (current.display_name or '?')[0] }}</span>
+        {% endif %}
+      </div>
+      <div class="nv-drawer-profile-info">
+        <div class="nv-drawer-profile-name">{{ current.display_name or current.username }}</div>
+        <div class="nv-drawer-profile-username">@{{ current.username }}</div>
+      </div>
+    </a>
+    {% endif %}
+    <nav class="nv-drawer-body">
+      <a href="{{ home_route }}" class="nv-drawer-item is-active"><i class="fas fa-home"></i> Home</a>
+      <a href="{{ discover_route }}" class="nv-drawer-item"><i class="fas fa-compass"></i> Discover</a>
+      <a href="{{ live_route }}" class="nv-drawer-item{% if not live_available %} is-disabled{% endif %}"><i class="fas fa-video"></i> Live</a>
+      <a href="{{ reel_route }}" class="nv-drawer-item{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-film"></i> Reels</a>
+      <a href="{{ story_create }}" class="nv-drawer-item{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-notch"></i> Stories</a>
+      <a href="{{ drawer_messages }}" class="nv-drawer-item"><i class="fas fa-comment"></i> Messages</a>
+      <div class="nv-drawer-divider"></div>
+      <a href="{{ drawer_wallet }}" class="nv-drawer-item"><i class="fas fa-wallet"></i> Wallet</a>
+      <a href="{{ drawer_notifications }}" class="nv-drawer-item"><i class="fas fa-bell"></i> Notifications</a>
+      <a href="{{ dating_route }}" class="nv-drawer-item"><i class="fas fa-heart"></i> Dating</a>
+      <a href="{{ friends_route }}" class="nv-drawer-item"><i class="fas fa-user-friends"></i> Friends</a>
+      <a href="{{ drawer_profile }}" class="nv-drawer-item"><i class="fas fa-user-circle"></i> Profile</a>
+      <a href="{{ drawer_settings }}" class="nv-drawer-item"><i class="fas fa-cog"></i> Settings</a>
+      <div class="nv-drawer-divider"></div>
+      {% if is_logged_in %}
+      <a href="/auth/logout" class="nv-drawer-item"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+      {% else %}
+      <a href="{{ login_route }}" class="nv-drawer-item"><i class="fas fa-sign-in-alt"></i> Login</a>
+      <a href="{{ register_route }}" class="nv-drawer-item"><i class="fas fa-user-plus"></i> Register</a>
+      {% endif %}
     </nav>
-</div>
+  </aside>
 
+  {# STORY MODAL #}
+  <div class="nv-story-overlay" id="nv-story-overlay">
+    <div class="nv-story-modal">
+      <div class="nv-story-modal-head">
+        <h3>Create Story</h3>
+        <button type="button" class="nv-story-modal-close" id="story-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="nv-story-modal-body">
+        <div class="nv-story-upload-zone" id="story-upload-zone">
+          <i class="fas fa-camera"></i>
+          <p><strong>Tap to upload</strong> a photo or video</p>
+        </div>
+        <input type="file" id="story-file-input" accept="image/*,video/*" style="display:none">
+        <div class="nv-story-preview" id="story-preview">
+          <button type="button" class="nv-story-remove-media" id="story-remove-media" aria-label="Remove media">&times;</button>
+        </div>
+        <textarea class="nv-story-caption" id="story-caption" placeholder="Add a caption..." rows="2"></textarea>
+        <div class="nv-story-error" id="story-error"></div>
+        <div class="nv-story-loading" id="story-loading"><i class="fas fa-spinner fa-spin"></i> Posting your story...</div>
+      </div>
+      <div class="nv-story-modal-foot">
+        <button type="button" class="nv-story-btn nv-story-btn-cancel" id="story-btn-cancel">Cancel</button>
+        <button type="button" class="nv-story-btn nv-story-btn-post" id="story-btn-post" disabled>Post Story</button>
+      </div>
+    </div>
+  </div>
+
+  {# COMMENT DRAWER #}
+  <div class="nv-comment-overlay" id="nv-comment-overlay">
+    <div class="nv-comment-drawer">
+      <div class="nv-comment-head">
+        <h3>Comments</h3>
+        <button type="button" class="nv-comment-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="nv-comment-body">
+        <div class="nv-comment-empty"><i class="fas fa-comment"></i><span>No comments yet.</span></div>
+      </div>
+      <div class="nv-comment-input-area">
+        <input type="text" class="nv-comment-input" placeholder="Add a comment..." maxlength="500">
+        <button type="button" class="nv-comment-send" disabled><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+
+  {# SHARE DRAWER #}
+  <div class="nv-share-overlay" id="nv-share-overlay">
+    <div class="nv-share-drawer">
+      <div class="nv-share-head">
+        <h3>Share</h3>
+        <button type="button" class="nv-comment-close" onclick="document.getElementById('nv-share-overlay').classList.remove('is-open')" aria-label="Close">&times;</button>
+      </div>
+      <input type="hidden" id="nv-share-url" value="">
+      <button type="button" class="nv-share-opt" data-share-action="copy"><i class="fas fa-link"></i> Copy Link</button>
+      <button type="button" class="nv-share-opt" data-share-action="native" id="nv-share-native" style="display:none;"><i class="fas fa-share-alt"></i> Share via...</button>
+    </div>
+  </div>
+
+  {# RECONNECT BANNER #}
+  <div class="nv-reconnect" id="nv-reconnect"></div>
+
+  {# TOAST #}
+  <div class="nv-toast" id="nv-toast"></div>
+
+</div>{# /.nv-home-shell #}
 {% endblock %}
 
 {% block extra_js %}
 <script src="/static/js/chain_home.js"></script>
-<script src="/static/js/homepage_premium.js"></script>
+<script src="/static/js/namvibe_2026_home.js"></script>
 {% endblock %}

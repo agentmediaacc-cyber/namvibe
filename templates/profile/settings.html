@@ -113,7 +113,7 @@
 .switch input:checked + .slider:before{
     transform:translateX(26px);
 }
-.select-control{
+	.select-control{
     width:220px;
     max-width:100%;
     border:1px solid #cbd5e1;
@@ -122,7 +122,37 @@
     background:#f8fafc;
     font-weight:800;
     color:#0f172a;
-}
+	}
+	.text-control{
+	    width:100%;
+	    border:1px solid #cbd5e1;
+	    border-radius:14px;
+	    padding:12px 14px;
+	    background:#f8fafc;
+	    color:#0f172a;
+	    font:inherit;
+	    font-weight:700;
+	}
+	.profile-fields{
+	    display:grid;
+	    grid-template-columns:1fr 1fr;
+	    gap:14px;
+	}
+	.profile-fields label{
+	    display:flex;
+	    flex-direction:column;
+	    gap:7px;
+	    color:#334155;
+	    font-size:13px;
+	    font-weight:900;
+	}
+	.profile-fields label.full{
+	    grid-column:1/-1;
+	}
+	.profile-fields textarea{
+	    min-height:110px;
+	    resize:vertical;
+	}
 .save-bar{
     position:sticky;
     bottom:14px;
@@ -216,11 +246,17 @@
         align-items:flex-start;
         flex-direction:column;
     }
-    .select-control{
-        width:100%;
-    }
-}
-</style>
+	    .select-control{
+	        width:100%;
+	    }
+	    .profile-fields{
+	        grid-template-columns:1fr;
+	    }
+	    .profile-fields label.full{
+	        grid-column:auto;
+	    }
+	}
+	</style>
 {% endblock %}
 
 {% block content %}
@@ -230,10 +266,67 @@
         <p>Control your NamVibe profile, privacy, messages, audio calls, video calls and conference calls.</p>
     </div>
 
-    <form method="POST">
-        <div class="settings-grid">
+	    <form method="POST" enctype="multipart/form-data">
+	        <div class="settings-grid">
+	            <section class="settings-card full">
+	                <div class="card-title">
+	                    <i class="fas fa-user"></i>
+	                    <h2>Profile Details</h2>
+	                </div>
+	                <div class="profile-fields">
+	                    <label>
+	                        Display name
+	                        <input class="text-control" type="text" name="full_name" value="{{ profile.full_name or profile.display_name or profile.username }}" required>
+	                    </label>
+	                    <label>
+	                        Username
+	                        <input class="text-control" type="text" name="username" value="{{ profile.username }}" minlength="3" maxlength="30" required>
+	                    </label>
+	                    <label class="full">
+	                        Bio
+	                        <textarea class="text-control" name="bio">{{ profile.bio or '' }}</textarea>
+	                    </label>
+	                    <label>
+	                        Town or location
+	                        <input class="text-control" type="text" name="town" value="{{ profile.town or profile.current_location or '' }}">
+	                    </label>
+	                    <label>
+	                        Phone
+	                        <input class="text-control" type="tel" name="phone" value="{{ profile.phone or '' }}">
+	                    </label>
+	                    <label>
+	                        Avatar
+	                        <input class="text-control" type="file" name="avatar" accept="image/*">
+	                    </label>
+	                    <label>
+	                        Cover image
+	                        <input class="text-control" type="file" name="cover" accept="image/*">
+	                    </label>
+	                    <label>
+	                        Date of birth
+	                        <input class="text-control" type="date" name="date_of_birth" value="{{ profile.date_of_birth or '' }}">
+	                    </label>
+	                    <label>
+	                        Creator type
+	                        <select class="text-control" name="profile_type">
+	                            <option value="member" {% if profile.profile_type == 'member' %}selected{% endif %}>Member</option>
+	                            <option value="creator" {% if profile.profile_type == 'creator' %}selected{% endif %}>Creator</option>
+	                            <option value="seller" {% if profile.profile_type == 'seller' %}selected{% endif %}>Seller</option>
+	                            <option value="host" {% if profile.profile_type == 'host' %}selected{% endif %}>Host</option>
+	                        </select>
+	                    </label>
+	                    <label>
+	                        Creator or business category
+	                        <input class="text-control" type="text" name="creator_category" value="{{ profile.creator_category or '' }}">
+	                    </label>
+	                    <label>
+	                        Verification file
+	                        <input class="text-control" type="file" name="verification" accept="image/*,application/pdf">
+	                    </label>
+	                </div>
+	            </section>
 
-            <section class="settings-card">
+	            <section class="settings-card">
                 <div class="card-title">
                     <i class="fas fa-user-shield"></i>
                     <h2>Profile Privacy</h2>

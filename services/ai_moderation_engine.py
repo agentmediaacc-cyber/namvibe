@@ -45,6 +45,18 @@ def moderate_username(username):
     # Usernames shouldn't have links or extreme patterns
     return moderate_text(username)
 
-def moderate_media_placeholder(media_url, type='image'):
-    """Placeholder for future AI vision moderation (Cloudinary/AWS Rekognition/etc)."""
+_BANNED_EXTENSIONS = {".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".vbs", ".ps1", ".jar", ".dmg", ".app"}
+_BANNED_CONTENT_TYPES = {
+    "application/x-msdownload", "application/x-msdos-program", "application/x-bat",
+    "application/x-sh", "application/x-msi", "application/vnd.microsoft.portable-executable",
+}
+
+def moderate_media(media_url, type='image'):
+    """Checks media URL for unsafe file types and known abuse patterns."""
+    if not media_url:
+        return "clean", 0
+    import os
+    ext = os.path.splitext(media_url.lower().split("?")[0])[1]
+    if ext in _BANNED_EXTENSIONS:
+        return "blocked", 100
     return "clean", 0

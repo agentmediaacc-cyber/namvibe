@@ -1,11 +1,39 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile
-from services.post_service import create_post
+from services.post_service import create_post, edit_post, delete_post
 from services.content_service import get_session_profile_id, save_media_file, session_profile_stub
+
+from services.content_manager_service import get_managed_posts, update_content_status, delete_content
 
 post_bp = Blueprint("posts", __name__, url_prefix="/posts")
 media_bp = Blueprint("media_uploads", __name__, url_prefix="/media")
+
+@post_bp.route("/profile/posts")
+@login_required
+def profile_posts():
+    profile = get_current_profile()
+    sort = request.args.get("sort", "newest")
+    cursor = request.args.get("cursor")
+    limit = min(int(request.args.get("limit", 20)), 50)
+    data = get_managed_posts(profile['id'], tab=sort, limit=limit, cursor=cursor)
+    return render_template(
+        "profile/posts_manager.html", 
+        profile=profile, 
+        posts=data['items'], 
+        pagination={'total': data['total']},
+        **data
+    )
+
+@post_bp.route("/api/posts")
+@login_required
+def api_posts():
+    profile = get_current_profile()
+    tab = request.args.get("tab", "newest")
+    cursor = request.args.get("cursor")
+    limit = min(int(request.args.get("limit", 20)), 50)
+    data = get_managed_posts(profile['id'], tab=tab, limit=limit, cursor=cursor)
+    return jsonify(data)
 
 @post_bp.route("/create", methods=["GET", "POST"])
 @login_required
@@ -49,3 +77,33 @@ def upload_media():
     if error:
         return jsonify({"success": False, "error": error}), 400
     return jsonify({"success": True, "media": media}), 201
+
+
+@post_bp.route("/<post_id>/edit", methods=["POST"])
+@login_required
+def edit(post_id):
+    profile_id = get_session_profile_id()
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    caption = request.form.get("caption")
+    visibility = request.form.get("visibility")
+    result = edit_post(post_id, profile_id, caption=caption, visibility=visibility)
+    if result.get("ok"):
+        flash("Post updated.")
+        return redirect(request.referrer or url_for("profile.my_profile"))
+    flash(result.get("error", "Could not edit post."))
+    return redirect(request.referrer or url_for("profile.my_profile"))
+
+
+@post_bp.route("/<post_id>/delete", methods=["POST"])
+@login_required
+def delete(post_id):
+    profile_id = get_session_profile_id()
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    result = delete_post(post_id, profile_id)
+    if result.get("ok"):
+        flash("Post deleted.")
+        return redirect(request.referrer or url_for("profile.my_profile"))
+    flash(result.get("error", "Could not delete post."))
+    return redirect(request.referrer or url_for("profile.my_profile"))

@@ -24,6 +24,8 @@ _NOTIF_TYPE_CATEGORIES = {
     "wallet_transfer": "activity",
     "wallet_received": "activity",
     "dating_match": "activity",
+    "friend_request": "activity",
+    "friend_accepted": "activity",
     "verification_approved": "system",
     "security_alert": "system",
     "system_announcement": "system",
@@ -46,6 +48,8 @@ _NOTIF_ICONS = {
     "wallet_transfer": "fa-paper-plane",
     "wallet_received": "fa-wallet",
     "dating_match": "fa-heart",
+    "friend_request": "fa-user-plus",
+    "friend_accepted": "fa-user-check",
     "verification_approved": "fa-check-circle",
     "security_alert": "fa-shield-alt",
     "system_announcement": "fa-bullhorn",
@@ -109,7 +113,7 @@ def create_notification(
             id, recipient_profile_id, actor_profile_id, event_type, 
             title, body, entity_type, entity_id, action_url, created_at
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, now())
-        RETURNING *
+        RETURNING id, recipient_profile_id, actor_profile_id, event_type, title, body, entity_type, entity_id, action_url, is_read, created_at
     """
     params = (
         str(uuid.uuid4()), recipient_profile_id, actor_profile_id, event_type,
@@ -133,7 +137,9 @@ def create_notification(
 def list_notifications(profile_id, limit=30):
     """Lists notifications for a specific profile."""
     sql = """
-        SELECT n.*, p.username as actor_username, p.avatar_url as actor_avatar
+        SELECT n.id, n.recipient_profile_id, n.actor_profile_id, n.event_type, n.title, n.body, 
+               n.entity_type, n.entity_id, n.action_url, n.is_read, n.created_at,
+               p.username as actor_username, p.avatar_url as actor_avatar
         FROM chain_notifications n
         LEFT JOIN chain_profiles p ON n.actor_profile_id = p.id
         WHERE n.recipient_profile_id = %s AND n.deleted_at IS NULL
@@ -228,8 +234,7 @@ def unread_count(profile_id):
 
     count = request_memoize(req_key, _fetch_count)
     
-    jitter_ttl = 30 + (int(uuid.uuid4().int) % 15)
-    cache_set(cache_key, count, ttl=jitter_ttl)
+    cache_set(cache_key, count, ttl=60)
     
     return count
 
@@ -260,6 +265,7 @@ def delete_notification(notification_id, profile_id):
     sql = "UPDATE chain_notifications SET deleted_at = now() WHERE id = %s AND recipient_profile_id = %s"
     try:
         write_query(sql, (notification_id, profile_id))
+        cache_delete(f"notif_unread_{profile_id}")
         return True
     except Exception as e:
         log_error("notification_delete_failed", error=e, id=notification_id)
@@ -306,7 +312,7 @@ def mute_notification_type(profile_id, event_type, muted=True):
 
 def get_notification_preferences(profile_id):
     """Gets notification preferences for a profile."""
-    sql = "SELECT * FROM chain_notification_preferences WHERE profile_id = %s"
+    sql = "SELECT profile_id, muted_types, email_enabled, push_enabled, in_app_enabled, sms_enabled, updated_at FROM chain_notification_preferences WHERE profile_id = %s"
     try:
         rows = fast_query(sql, (profile_id,), timeout_ms=500, default=[])
         if rows:

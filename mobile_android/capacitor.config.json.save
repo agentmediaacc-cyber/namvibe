@@ -1,0 +1,30 @@
+
+
+xycxzx cxxx
+
+
+{
+  "appId": "com.namvibe.app",
+  "appName": "NamVibe",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "http://192.168.179.30:5000",
+    "cleartext": true,
+    "allowNavigation": [
+      "192.168.179.30:*",
+      "*.namvibe.app",
+      "namvibe.app"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

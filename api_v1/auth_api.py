@@ -13,19 +13,13 @@ def login():
     if not email or not password:
         return api_error("Email and password required", code="invalid_input")
         
-    res, error = login_chain_user(email, password)
-    if error:
-        return api_error(error, code="auth_failed")
+    ok, result = login_chain_user(email, password)
+    if not ok:
+        return api_error(result, code="auth_failed")
         
     return api_response(data={
-        "user": {
-            "id": res.user.id,
-            "email": res.user.email
-        },
-        "session": {
-            "access_token": res.session.access_token,
-            "refresh_token": res.session.refresh_token
-        }
+        "message": "Login successful",
+        "redirect": result
     })
 
 @auth_api_bp.route('/register', methods=['POST'])
@@ -39,8 +33,8 @@ def register():
     if not email or not password or not username:
         return api_error("Email, password and username required", code="invalid_input")
         
-    res, error = register_chain_user(email, password, username, full_name)
-    if error:
-        return api_error(error, code="registration_failed")
+    result = register_chain_user(email, password, username, full_name)
+    if not result.get("ok"):
+        return api_error(result.get("error") or "Registration failed", code="registration_failed")
         
     return api_response(data={"message": "Verification email sent"})

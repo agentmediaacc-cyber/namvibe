@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Stories | NamVibe{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/stories.css') }}">
+{% endblock %}
+{% block content %}
+<main id="stories-app" class="stories-container">
+  <div class="stories-tray">
+    <a href="/status/create" class="story-avatar my-story">
+      <div class="story-ring">
+        {% if profile and profile.avatar_url %}
+        <img src="{{ profile.avatar_url }}" alt="">
+        {% else %}
+        <div class="story-avatar-placeholder"><i class="fas fa-user"></i></div>
+        {% endif %}
+        <span class="story-add-badge"><i class="fas fa-plus"></i></span>
+      </div>
+      <span class="story-username">Your Story</span>
+    </a>
+    {% if stories %}
+      {% for story in stories %}
+      <a href="/stories/{{ story.id }}" class="story-avatar" data-story-id="{{ story.id }}">
+        <div class="story-ring {% if story.viewer_count and story.viewer_count > 0 %}viewed{% endif %}">
+          {% if story.avatar_url %}
+          <img src="{{ story.avatar_url }}" alt="">
+          {% else %}
+          <div class="story-avatar-placeholder">{{ (story.username or 'S')[0]|upper }}</div>
+          {% endif %}
+        </div>
+        <span class="story-username">{{ story.username }}</span>
+      </a>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div id="story-viewer" class="story-viewer" style="display:none">
+    <div class="story-progress-bar">
+      {% for i in range(10) %}
+      <div class="story-progress-segment" data-segment="{{ i }}"><span></span></div>
+      {% endfor %}
+    </div>
+    <button class="story-close-btn" id="story-close">&times;</button>
+    <div class="story-media-wrap" id="story-media-wrap">
+      <div class="story-user-info">
+        <img id="story-user-avatar" src="" alt="" class="story-user-avatar-img">
+        <span id="story-username-label" class="story-username-label"></span>
+        <span id="story-time-label" class="story-time-label"></span>
+      </div>
+      <img id="story-image" class="story-image" style="display:none" alt="">
+      <video id="story-video" class="story-video" style="display:none" loop playsinline></video>
+      <div id="story-text" class="story-text-overlay"></div>
+    </div>
+    <div class="story-tap-zones">
+      <div class="story-tap-left" id="story-tap-left"></div>
+      <div class="story-tap-right" id="story-tap-right"></div>
+    </div>
+    <div class="story-footer-actions">
+      <button id="story-react-like" class="story-react-btn" title="Like"><i class="fas fa-heart"></i></button>
+      <button id="story-react-laugh" class="story-react-btn" title="Laugh"><i class="fas fa-laugh"></i></button>
+      <button id="story-react-wow" class="story-react-btn" title="Wow"><i class="fas fa-surprise"></i></button>
+      <button id="story-react-sad" class="story-react-btn" title="Sad"><i class="fas fa-sad-tear"></i></button>
+      <div class="story-reply-wrap">
+        <input id="story-reply-input" type="text" placeholder="Send reply..." maxlength="200">
+        <button id="story-reply-send" class="px-btn primary small">Send</button>
+      </div>
+    </div>
+  </div>
+
+  {% if not stories %}
+  <div class="stories-empty">
+    <i class="fas fa-story"></i>
+    <h2>No stories yet</h2>
+    <p>Stories disappear after 24 hours. Be the first to share!</p>
+    <a href="/status/create" class="px-btn px-btn--gold">Create Story</a>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.__STORIES_DATA = {{ stories_json|safe }};
+</script>
+<script src="{{ url_for('static', filename='js/stories.js') }}"></script>
+{% endblock %}

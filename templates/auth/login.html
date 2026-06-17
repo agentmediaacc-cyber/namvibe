@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="chain-auth-shell chain-auth-shell--login">
+<section class="chain-auth-shell chain-auth-shell--login auth-page auth-mobile-social auth-mobile-login">
     <div class="chain-auth-layout">
         <aside class="chain-auth-brand-panel">
             <div class="chain-auth-brand-mark" aria-hidden="true">NV</div>
@@ -24,7 +24,8 @@
             </div>
         </aside>
 
-        <div class="chain-auth-card chain-auth-card--login">
+        <div class="chain-auth-card chain-auth-card--login auth-social-card">
+            <button type="button" class="auth-back-btn js-go-back" data-go-back aria-label="Go back"><i class="fas fa-arrow-left"></i> Back</button>
             <div class="chain-auth-head">
                 <h1>Log In to NamVibe</h1>
                 <p>Welcome back. Continue to your profile, chats, live rooms and creator tools.</p>
@@ -79,6 +80,8 @@
                 <div class="chain-auth-divider"><span>or</span></div>
 
                 <form class="auth-submit-form chain-auth-form" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="apk_csrf_token" value="{{ apk_csrf_token('/auth/login') }}">
                     <label>
                         <span>Email or Username</span>
                         <input type="text" name="login_id" placeholder="Enter your email or username" required>
@@ -87,7 +90,7 @@
                         <span>Password</span>
                         <input type="password" name="password" placeholder="••••••••" required>
                     </label>
-                    <button type="submit" class="primary auth-submit-btn">
+                    <button type="submit" class="primary auth-submit-btn" data-loading-text="Logging in...">
                         <span class="btn-label">Log In</span>
                         <span class="btn-spinner" aria-hidden="true"></span>
                     </button>
@@ -98,7 +101,10 @@
 
             <div class="chain-auth-actions chain-auth-actions--stack">
                 <a href="/auth/forgot-password" class="chain-auth-link">Forgot password?</a>
-                <a href="/auth/register" class="chain-auth-link chain-auth-link--strong">Create account</a>
+            </div>
+            <div class="chain-auth-register-prompt">
+                <span>No account?</span>
+                <a href="/auth/register" class="chain-auth-link chain-auth-link--strong chain-auth-register-btn">Create account</a>
             </div>
         </div>
     </div>
@@ -106,23 +112,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('.auth-submit-form');
-    const submitBtn = document.querySelector('.auth-submit-btn');
-    const triggers = document.querySelectorAll('.oauth-trigger');
-    form?.addEventListener('submit', () => {
-        if (!submitBtn) return;
-        submitBtn.disabled = true;
-        submitBtn.classList.add('loading');
-    });
-    triggers.forEach(link => {
-        link.addEventListener('click', () => {
-            link.classList.add('loading');
-            link.setAttribute('aria-disabled', 'true');
-            link.style.pointerEvents = 'none';
-        });
-    });
-});
-</script>
+<script src="/static/js/auth_minimal.js?v=phase87"></script>
 {% endblock %}

@@ -121,11 +121,57 @@ def _mock_response(assistant_type, user_input, context=None):
         'warning': 'AI provider not configured. Using offline suggestions.'
     }
 
-# ─── AI Provider call (mock only — no external API) ───
+def _build_system_prompt(assistant_type, context=None):
+    prompts = {
+        'general': "You are a helpful NamVibe social platform assistant. Give friendly, concise advice about using the platform.",
+        'creator': "You are a creator growth coach for NamVibe. Give actionable tips to help creators grow their audience and monetize.",
+        'marketplace': "You are a marketplace advisor for NamVibe sellers. Give practical tips for selling products on the platform.",
+        'dating_safety': "You are a dating safety advisor for NamVibe. Give safety tips for online dating on the platform.",
+        'moderation': "You are a content moderation assistant. Help moderators make fair, context-aware decisions.",
+        'messages': "You are a communication coach. Give friendly advice about messaging and conversation etiquette.",
+        'captions': "You are a creative caption writer for NamVibe. Suggest engaging, platform-appropriate captions.",
+        'profile_suggestions': "You are a profile optimization coach. Give specific advice to improve NamVibe profiles.",
+        'search': "You are a search assistant. Help users find content, creators, and features on NamVibe.",
+    }
+    base = prompts.get(assistant_type, prompts['general'])
+    return f"{base} Keep responses under 200 words. Be friendly and specific to NamVibe."
+
+# ─── AI Provider call (OpenAI when key available, mock fallback) ───
 
 def _call_ai_provider(assistant_type, user_input, context=None):
-    if _has_api_key():
-        pass
+    key = os.getenv('OPENAI_API_KEY') or os.getenv('AI_API_KEY')
+    if key:
+        try:
+            import urllib.request, json as _json
+            system_prompt = _build_system_prompt(assistant_type, context)
+            payload = _json.dumps({
+                "model": "gpt-4o-mini",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_input}
+                ],
+                "max_tokens": 300,
+                "temperature": 0.7,
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/chat/completions",
+                data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {key}",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = _json.loads(resp.read())
+                text = data["choices"][0]["message"]["content"]
+                return {
+                    'response': f"{AI_MARKER} {text}",
+                    'suggestions': [],
+                    'provider': 'openai',
+                }
+        except Exception:
+            pass
     return _mock_response(assistant_type, user_input, context)
 
 # ─── Session management ───

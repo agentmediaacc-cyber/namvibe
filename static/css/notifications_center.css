@@ -24,7 +24,7 @@
   font-size: 28px;
   font-weight: 800;
   margin: 0;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, #FE2C55, #833AB4);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -75,7 +75,7 @@
 }
 
 .notif-btn-primary {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, #FE2C55, #833AB4);
   color: #fff;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .notif-tab.active {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, #FE2C55, #833AB4);
   color: #fff;
   border-color: transparent;
 }
@@ -136,7 +136,7 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #2563eb;
+  background: #FE2C55;
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -236,8 +236,8 @@
 }
 
 .notif-card.unread .notif-card-icon {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(124, 58, 237, 0.2));
-  color: #2563eb;
+  background: linear-gradient(135deg, rgba(254, 44, 85, 0.2), rgba(131, 58, 180, 0.2));
+  color: #FE2C55;
 }
 
 .notif-card-body {
@@ -322,7 +322,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #2563eb;
+  background: #FE2C55;
   flex-shrink: 0;
   margin-top: 6px;
 }
@@ -584,7 +584,7 @@
 }
 
 .notif-settings-toggle.active {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, #FE2C55, #833AB4);
 }
 
 .notif-settings-toggle::after {

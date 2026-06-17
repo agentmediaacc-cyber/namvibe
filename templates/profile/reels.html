@@ -1,0 +1,130 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell" data-page="reels">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Reels</h2>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/reels/upload" class="profile-btn primary"><i class="fas fa-plus"></i> Upload Reel</a>
+    {% endif %}
+  </div>
+  <div class="manager-toolbar">
+    <div class="manager-filters">
+      <a href="?filter=my" class="filter-chip {% if request.args.get('filter','my') == 'my' %}active{% endif %}">My Reels</a>
+      <a href="?filter=following" class="filter-chip {% if request.args.get('filter') == 'following' %}active{% endif %}">Following</a>
+      <a href="?filter=friends" class="filter-chip {% if request.args.get('filter') == 'friends' %}active{% endif %}">Friends</a>
+      <a href="?filter=liked" class="filter-chip {% if request.args.get('filter') == 'liked' %}active{% endif %}">Liked</a>
+      <a href="?filter=saved" class="filter-chip {% if request.args.get('filter') == 'saved' %}active{% endif %}">Saved</a>
+      <a href="?filter=tagged" class="filter-chip {% if request.args.get('filter') == 'tagged' %}active{% endif %}">Tagged</a>
+      <a href="?filter=creators" class="filter-chip {% if request.args.get('filter') == 'creators' %}active{% endif %}">Creators</a>
+    </div>
+    <span class="manager-count">{{ total or 0 }} reels</span>
+  </div>
+  {% if reels %}
+  <div class="manager-grid reels-grid" id="reelsGrid">
+    {% for reel in reels %}
+    <article class="manager-card" data-item-id="{{ reel.id }}">
+      <div class="manager-card-media reel-media">
+        {% if reel.video_url %}
+        <video src="{{ reel.video_url }}" preload="metadata"></video>
+        {% elif reel.thumbnail_url %}
+        <img src="{{ reel.thumbnail_url }}" alt="{{ reel.caption or 'Reel' }}" loading="lazy">
+        {% else %}
+        <div class="manager-card-text"><i class="fas fa-film"></i></div>
+        {% endif %}
+        {% if reel.views_count is defined %}
+        <div class="reel-badge"><i class="fas fa-play"></i> {{ reel.views_count }}</div>
+        {% endif %}
+      </div>
+      <div class="manager-card-body">
+        <h3>{{ (reel.caption or 'Untitled')|truncate(60) }}</h3>
+        <div class="manager-card-meta">
+          <span><i class="fas fa-play"></i> {{ reel.views_count or 0 }}</span>
+          <span><i class="fas fa-heart"></i> {{ reel.likes_count or 0 }}</span>
+          <span><i class="fas fa-comment"></i> {{ reel.comments_count or 0 }}</span>
+        </div>
+        <div class="manager-card-tags">
+          <span class="tag tag-{{ reel.visibility or 'public' }}">{{ reel.visibility or 'public' }}</span>
+          {% if reel.is_pinned %}<span class="tag tag-pinned">pinned</span>{% endif %}
+          {% if reel.is_archived %}<span class="tag tag-archived">archived</span>{% endif %}
+          {% if reel.allow_comments == false %}<span class="tag tag-muted">comments off</span>{% endif %}
+        </div>
+      </div>
+      {% if viewer and viewer.id == profile.id %}
+      <div class="manager-card-actions">
+        <button class="action-btn" title="Visibility" data-action="show-visibility" data-id="{{ reel.id }}" data-type="reel" data-vis="{{ reel.visibility or 'public' }}"><i class="fas fa-globe"></i></button>
+        <button class="action-btn" title="Comments" data-action="toggle-comments" data-id="{{ reel.id }}"><i class="fas fa-comment-slash"></i></button>
+        <button class="action-btn" title="Pin" data-action="toggle-pin" data-id="{{ reel.id }}" data-type="reel"><i class="fas fa-thumbtack"></i></button>
+        <button class="action-btn" title="Archive" data-action="toggle-archive" data-id="{{ reel.id }}" data-type="reel"><i class="fas fa-box-archive"></i></button>
+        <button class="action-btn" title="Analytics" data-action="reel-analytics" data-id="{{ reel.id }}"><i class="fas fa-chart-simple"></i></button>
+        <button class="action-btn danger" title="Delete" data-action="delete-item" data-id="{{ reel.id }}" data-type="reel"><i class="fas fa-trash"></i></button>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% if next_cursor %}
+  <div class="load-more-wrap">
+    <button class="load-more-btn" data-load-more="loadMoreReels" data-cursor="{{ next_cursor }}"><i class="fas fa-chevron-down"></i> Load more</button>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-film"></i>
+    <h3>No reels yet</h3>
+    <p>Short videos you upload will appear here.</p>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/reels/upload"><i class="fas fa-plus"></i> Upload Reel</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<script>
+window.loadMoreReels = function() {
+  const btn = document.querySelector('[data-load-more="loadMoreReels"]');
+  if (!btn) return;
+  const cursor = btn.dataset.cursor;
+  const grid = document.getElementById('reelsGrid');
+  const filter = new URLSearchParams(location.search).get('filter') || 'my';
+  fetch(`/profile/api/reels?profile_id={{ profile.id }}&cursor=${encodeURIComponent(cursor)}&filter=${filter}&limit=20`)
+    .then(r => r.json()).then(data => {
+      (data.reels || []).forEach(r => {
+        const card = document.createElement('article');
+        card.className = 'manager-card';
+        card.dataset.itemId = r.id;
+        card.innerHTML = `
+          <div class="manager-card-media reel-media">
+            ${r.video_url ? `<video src="${r.video_url}" preload="metadata"></video>` : r.thumbnail_url ? `<img src="${r.thumbnail_url}" alt="" loading="lazy">` : '<div class="manager-card-text"><i class="fas fa-film"></i></div>'}
+          </div>
+          <div class="manager-card-body">
+            <h3>${(r.caption || 'Untitled').substring(0,60)}</h3>
+            <div class="manager-card-meta">
+              <span><i class="fas fa-play"></i> ${r.views_count || 0}</span>
+              <span><i class="fas fa-heart"></i> ${r.likes_count || 0}</span>
+              <span><i class="fas fa-comment"></i> ${r.comments_count || 0}</span>
+            </div>
+            <div class="manager-card-tags">
+              <span class="tag tag-${r.visibility || 'public'}">${r.visibility || 'public'}</span>
+              ${r.is_pinned ? '<span class="tag tag-pinned">pinned</span>' : ''}
+            </div>
+          </div>
+          <div class="manager-card-actions">
+            <button class="action-btn" title="Visibility" data-action="show-visibility" data-id="${r.id}" data-type="reel" data-vis="${r.visibility || 'public'}"><i class="fas fa-globe"></i></button>
+            <button class="action-btn danger" title="Delete" data-action="delete-item" data-id="${r.id}" data-type="reel"><i class="fas fa-trash"></i></button>
+          </div>`;
+        grid.appendChild(card);
+      });
+      Phase86.init();
+      if (data.next_cursor) {
+        btn.dataset.cursor = data.next_cursor;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load more';
+      } else {
+        btn.style.display = 'none';
+      }
+    }).catch(() => { alert('Failed to load'); btn.disabled = false; });
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+};
+</script>
+{% endblock %}

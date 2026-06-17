@@ -25,6 +25,7 @@ from services.creator_monetization_service import (
     get_creator_dashboard,
     get_creator_earnings,
 )
+from services.friendship_service import require_friendship_or_403
 from services.payout_service import (
     request_payout,
     get_payout_requests,
@@ -111,6 +112,9 @@ def api_tip():
         return jsonify({'ok': False, 'error': 'receiver_required'}), 400
     if amount_cents <= 0:
         return jsonify({'ok': False, 'error': 'invalid_amount'}), 400
+    _, friends = require_friendship_or_403(profile_id, receiver_id, "send_tip")
+    if not friends:
+        return jsonify({'ok': False, 'error': 'friendship_required', 'message': 'You must be friends before you can message, call, video call, send funds, or send gifts.'}), 403
     result = premium_send_tip(profile_id, receiver_id, amount_cents, message=message, idempotency_key=idempotency_key)
     if result.get('ok'):
         return jsonify({'ok': True, 'transaction_id': result.get('transaction_id'), 'amount_cents': amount_cents, 'fee_cents': result.get('fee_cents', 0), 'net_cents': result.get('net_cents', amount_cents)}), 200
@@ -137,6 +141,9 @@ def api_gift():
     idempotency_key = data.get('idempotency_key')
     if not receiver_id or not gift_id:
         return jsonify({'ok': False, 'error': 'receiver_and_gift_required'}), 400
+    _, friends = require_friendship_or_403(profile_id, receiver_id, "send_gift")
+    if not friends:
+        return jsonify({'ok': False, 'error': 'friendship_required', 'message': 'You must be friends before you can message, call, video call, send funds, or send gifts.'}), 403
     result = premium_send_gift(profile_id, receiver_id, gift_id, idempotency_key=idempotency_key)
     if result.get('ok'):
         return jsonify({

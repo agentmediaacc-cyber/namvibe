@@ -97,7 +97,7 @@ def sanitize_text(value, max_len=2200):
     text = " ".join((value or "").replace("\x00", "").strip().split())
     if not text:
         return ""
-    return escape(text[:max_len], quote=False)
+    return escape(text[:max_len])
 
 
 def normalize_visibility(value):

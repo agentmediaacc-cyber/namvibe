@@ -4,6 +4,8 @@ from services.profile_service import normalize_profile
 from services.recommendation_service import get_recommended_posts, get_recommended_profiles
 from services.request_cache import get_or_set
 from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, public_profile_sql, public_profile_subquery
+from services.social_action_policy import get_action_policy, is_self
+from services.relationship_privacy_service import get_full_policy, is_blocked_any
 
 
 DISCOVERY_PROFILE_COLUMNS = [
@@ -94,6 +96,16 @@ def _load_live(limit=50, timeout_ms=1000):
     )
 
 
+def _strip_private_data(item):
+    sensitive_keys = {"reel_count", "live_count", "current_location", "date_of_birth", "country_origin", "interests", "cover_url"}
+    stripped = dict(item)
+    for key in sensitive_keys:
+        stripped.pop(key, None)
+    stripped["privacy_restricted"] = True
+    stripped["bio"] = (item.get("bio") or "")[:120]
+    return stripped
+
+
 def get_discovery_data(section, viewer_id=None, limit=50):
     try:
         key = _discovery_cache_key(section, viewer_id=viewer_id)
@@ -146,10 +158,35 @@ def get_discovery_data(section, viewer_id=None, limit=50):
         else:
             data = _load_profiles(limit=limit)
 
+        enriched = []
+        for item in data:
+            if isinstance(item, dict) and "username" in item:
+                if viewer_id and is_blocked_any(viewer_id, item.get("id")):
+                    continue
+
+                full_policy = get_full_policy(viewer_id, item) if viewer_id else None
+                policy = get_action_policy(viewer_id, item) if viewer_id else {
+                    "is_self": False, "account_kind": "person", "can_view_full_profile": False,
+                    "can_follow": False, "can_send_friend_request": False, "can_chat": False,
+                    "can_like": False, "relationship": "none", "primary_action": "none",
+                }
+                if viewer_id and is_self(viewer_id, item.get("id")):
+                    policy["primary_action"] = "self"
+                item["account_kind"] = policy["account_kind"]
+                item["relationship"] = policy["relationship"]
+                item["primary_action"] = policy["primary_action"]
+                item["can_send_friend_request"] = policy["can_send_friend_request"]
+                item["can_follow"] = policy["can_follow"]
+
+                can_view = full_policy.get("can_view_profile", False) if full_policy else True
+                if not can_view:
+                    item = _strip_private_data(item)
+            enriched.append(item)
+
         result = {
             "title": title,
             "section": section,
-            "items": data
+            "items": enriched
         }
         if key:
             set_cache(key, result, ttl=30)
@@ -159,17 +196,16 @@ def get_discovery_data(section, viewer_id=None, limit=50):
         return {"title": "Discovery", "section": section, "items": []}
 
 def _calculate_compatibility(a, b):
-    """Calculates a compatibility score between 0-100"""
     score = 50
     a_interests = set(a.get("interests") or [])
     b_interests = set(b.get("interests") or [])
     shared = a_interests.intersection(b_interests)
     score += len(shared) * 10
-    
+
     if a.get("country_origin") == b.get("country_origin"):
         score += 15
-    
+
     if b.get("is_premium"):
         score += 5
-        
+
     return min(score, 99)

@@ -80,6 +80,19 @@
 {% block content %}
 <div class="onboard-shell">
     <div class="onboard-card" id="onboarding-wizard">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="chain-auth-alert chain-auth-alert--{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div style="text-align:center;margin-bottom:20px;">
+            <h1 style="font-size:1.5rem;margin:0;">Welcome to NamVibe</h1>
+            <p style="color:var(--chain-muted);margin:4px 0 0 0;">Finish setting up your profile. You can verify your email and phone later to secure your account.</p>
+        </div>
+
         <div class="progress-track">
             <div class="progress-fill" id="progress-bar"></div>
         </div>

@@ -26,7 +26,15 @@
 {% set display_name = profile.display_name or profile.full_name or profile.username or 'NamVibe Member' %}
 {% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
 
+{% set show_verify_banner = own_profile and not profile.email_verified %}
 <main class="profile-shell">
+    {% if show_verify_banner %}
+    <div class="verify-banner" role="alert">
+        <i class="fas fa-shield-alt" aria-hidden="true"></i>
+        <span>Verify your email and phone number later to secure your account. <a href="{{ url_for('profile.security') }}" class="verify-banner-link">Go to Security</a></span>
+        <button type="button" class="verify-banner-close" aria-label="Dismiss" onclick="this.parentElement.remove()">&times;</button>
+    </div>
+    {% endif %}
     <section id="posts-content" class="profile-section tab-content">
         <div class="profile-section-head">
             <span>Posts</span>
@@ -66,7 +74,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-sparkles' %}{% set title='Start your NamVibe journey' %}{% set message='Posts you create will appear here as your public social feed.' %}{% set action_href='/posts/create' if own_profile else None %}{% set action_label='Create Post' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-sparkles' %}{% set title='No posts yet' %}{% set message='Posts you create will appear here.' %}{% set action_href='/posts/create' if own_profile else None %}{% set action_label='Create Post' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -98,7 +106,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-film' %}{% set title='Start your NamVibe journey' %}{% set message='Reels will appear here when short videos are uploaded.' %}{% set action_href='/reels/upload' if own_profile else None %}{% set action_label='Upload Reel' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-film' %}{% set title='No reels yet' %}{% set message='Reels will appear here when short videos are uploaded.' %}{% set action_href='/reels/upload' if own_profile else None %}{% set action_label='Upload Reel' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -117,7 +125,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-photo-film' %}{% set title='Start your NamVibe journey' %}{% set message='Photos, videos, and reels appear here.' %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-photo-film' %}{% set title='No media yet' %}{% set message='Photos, videos, and reels appear here.' %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -137,7 +145,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-broadcast-tower' %}{% set title='Start your NamVibe journey' %}{% set message='Live rooms and creator sessions will appear here.' %}{% set action_href=live_data.go_live_url if own_profile else None %}{% set action_label='Go Live' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-broadcast-tower' %}{% set title='No live rooms yet' %}{% set message='Live rooms and creator sessions will appear here.' %}{% set action_href=live_data.go_live_url if own_profile else None %}{% set action_label='Go Live' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -158,7 +166,7 @@
             {% endfor %}
         </div>
         {% else %}
-        {% set icon='fa-store' %}{% set title='Start your NamVibe journey' %}{% set message='Products, services, bookings, and creator offers appear here.' %}{% set action_href='/marketplace/create' if own_profile else None %}{% set action_label='Add Product' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
+        {% set icon='fa-store' %}{% set title='No shop items yet' %}{% set message='Products, services, bookings, and creator offers appear here.' %}{% set action_href='/marketplace/create' if own_profile else None %}{% set action_label='Add Product' if own_profile else None %}{% include "profile/partials/profile_empty_state.html" %}
         {% endif %}
     </section>
 
@@ -327,10 +335,31 @@
     {% if own_profile %}
     <a href="/profile/edit"><i class="fas fa-pen"></i><span>Edit</span></a>
     {% else %}
-    <button type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+        {% set pa = action_policy or {} %}
+        {% if pa.primary_action == 'friend_request' or pa.primary_action == 'request_sent' or pa.primary_action == 'accept_request' %}
+            {% if pa.primary_action == 'friend_request' %}
+            <button type="button" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="none"><i class="fas fa-user-plus"></i><span>Add Friend</span></button>
+            {% elif pa.primary_action == 'request_sent' %}
+            <span><i class="fas fa-check"></i><span>Sent</span></span>
+            {% elif pa.primary_action == 'accept_request' %}
+            <a href="/friends"><i class="fas fa-user-check"></i><span>Respond</span></a>
+            {% endif %}
+        {% elif pa.primary_action == 'follow' or pa.primary_action == 'message' %}
+            {% if pa.primary_action == 'follow' %}
+            <button type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+            {% else %}
+            <a href="/messages/start/{{ profile.id }}"><i class="fas fa-comment"></i><span>Message</span></a>
+            {% endif %}
+        {% else %}
+        <button type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+        {% endif %}
+        {% if pa.can_chat %}
+        <a href="/messages/start/{{ profile.id }}"><i class="fas fa-comment"></i><span>Message</span></a>
+        {% endif %}
     {% endif %}
-    <a href="/messages/start/{{ profile.id }}"><i class="fas fa-comment"></i><span>Message</span></a>
+    {% if not own_profile and action_policy and action_policy.can_chat %}
     <a href="/calls/start/{{ profile.id }}/audio"><i class="fas fa-phone"></i><span>Call</span></a>
+    {% endif %}
 </div>
 
 {% if own_profile %}

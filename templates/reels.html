@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Reels | NamVibe{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reels.css') }}">
+{% endblock %}
+{% block content %}
+<main id="reels-app" class="reels-fullscreen">
+  <div id="reels-viewport" class="reels-viewport">
+    {% if reels %}
+      {% for reel in reels %}
+      <section class="reel-slide" data-reel-id="{{ reel.id }}" data-index="{{ loop.index0 }}">
+        <div class="reel-media-wrap">
+          {% if reel.video_url %}
+          <video class="reel-video" src="{{ reel.video_url }}" preload="metadata" loop playsinline webkit-playsinline></video>
+          {% else %}
+          <div class="reel-no-video"><i class="fas fa-film"></i><p>Video unavailable</p></div>
+          {% endif %}
+          <div class="reel-gradient-bottom"></div>
+          <div class="double-tap-heart"><i class="fas fa-heart"></i></div>
+        </div>
+        <div class="reel-sidebar">
+          <button class="reel-action-btn" data-like data-reel-id="{{ reel.id }}" aria-label="Like">
+            <i class="fas fa-heart"></i>
+            <span class="reel-count" id="reel-likes-{{ reel.id }}">{{ reel.likes_count or 0 }}</span>
+          </button>
+          <button class="reel-action-btn" data-comment aria-label="Comment">
+            <i class="fas fa-comment"></i>
+            <span class="reel-count" id="reel-comments-{{ reel.id }}">{{ reel.comments_count or 0 }}</span>
+          </button>
+          <button class="reel-action-btn" data-save data-reel-id="{{ reel.id }}" aria-label="Save">
+            <i class="fas fa-bookmark"></i>
+            <span class="reel-count">Save</span>
+          </button>
+          <button class="reel-action-btn" data-share data-reel-id="{{ reel.id }}" aria-label="Share">
+            <i class="fas fa-share"></i>
+            <span class="reel-count">Share</span>
+          </button>
+        </div>
+        <div class="reel-footer">
+          <div class="reel-creator-row">
+            <a href="/profile/{{ reel.profile_id }}" class="reel-creator-avatar">
+              {% if reel.avatar_url %}
+              <img src="{{ reel.avatar_url }}" alt="">
+              {% else %}
+              <div class="reel-avatar-placeholder">{{ (reel.username or 'C')[0]|upper }}</div>
+              {% endif %}
+            </a>
+            <div class="reel-creator-info">
+              <a href="/profile/{{ reel.profile_id }}" class="reel-creator-name">
+                @{{ reel.username }}
+                {% if reel.is_verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+              </a>
+              <span class="reel-music">{{ reel.music_title or 'Original Audio' }}</span>
+            </div>
+            {% if profile %}
+            <button class="reel-follow-btn" data-follow data-creator-id="{{ reel.profile_id }}"
+              {% if follow_map and follow_map.get(reel.profile_id) %}style="display:none"{% endif %}>
+              Follow
+            </button>
+            <button class="reel-following-btn" data-following data-creator-id="{{ reel.profile_id }}"
+              {% if not follow_map or not follow_map.get(reel.profile_id) %}style="display:none"{% endif %}>
+              Following
+            </button>
+            {% endif %}
+          </div>
+          <div class="reel-caption">
+            <a href="/profile/{{ reel.profile_id }}" class="reel-caption-user">@{{ reel.username }}</a>
+            {{ reel.caption or '' }}
+          </div>
+        </div>
+      </section>
+      {% endfor %}
+    {% else %}
+    <div class="reels-empty">
+      <i class="fas fa-film"></i>
+      <h2>No reels yet</h2>
+      <p>Be the first to share a short video on NamVibe.</p>
+      <a href="{{ url_for('reels.upload') }}" class="px-btn px-btn--gold">Upload Reel</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div id="reel-comment-drawer" class="reel-drawer" style="display:none">
+    <div class="reel-drawer-header">
+      <span>Comments</span>
+      <button id="reel-comment-close" class="reel-drawer-close">&times;</button>
+    </div>
+    <div id="reel-comment-list" class="reel-drawer-body"></div>
+    <div class="reel-drawer-input">
+      <input id="reel-comment-input" type="text" placeholder="Add a comment..." maxlength="500">
+      <button id="reel-comment-submit" class="px-btn primary small">Post</button>
+    </div>
+  </div>
+
+  <div id="reel-share-drawer" class="reel-drawer" style="display:none">
+    <div class="reel-drawer-header">
+      <span>Share</span>
+      <button id="reel-share-close" class="reel-drawer-close">&times;</button>
+    </div>
+    <div class="reel-drawer-body">
+      <button class="reel-share-option" data-copy-link><i class="fas fa-link"></i> Copy Link</button>
+      <a class="reel-share-option" data-share-whatsapp target="_blank"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+      <a class="reel-share-option" data-share-twitter target="_blank"><i class="fab fa-twitter"></i> Twitter</a>
+    </div>
+  </div>
+</main>
+
+<a href="{{ url_for('reels.upload') }}" class="reels-upload-fab" aria-label="Upload reel"><i class="fas fa-plus"></i></a>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reels.js') }}"></script>
+{% endblock %}

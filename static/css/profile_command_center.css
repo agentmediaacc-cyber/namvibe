@@ -1,0 +1,795 @@
+/* ============================================================
+   NamVibe Profile Command Center – Complete Manager UI
+   Shares design tokens with profile_premium.css
+   ============================================================ */
+
+.command-center-shell,
+.manager-shell,
+.command-tabs,
+.command-grid,
+.command-stats,
+.people-list {
+  --profile-surface: #ffffff;
+  --profile-ink: #101828;
+  --profile-ink-soft: #475467;
+  --profile-line: rgba(15, 23, 42, 0.1);
+  --profile-shadow: 0 18px 50px rgba(15, 23, 42, 0.1);
+  --profile-gold: #f7b733;
+  --profile-gold-strong: #d99612;
+  --profile-blue: #1e88e5;
+  --profile-blue-strong: #1769d3;
+  --profile-green: #12b886;
+  --profile-red: #d72638;
+  --profile-gradient: linear-gradient(135deg, #f7b733, #2563eb, #1ecbe1);
+  --profile-gradient-btn: linear-gradient(135deg, #2563eb, #1ecbe1);
+  --profile-page: #f4f7fb;
+  --profile-surface-soft: #f8fafc;
+  --profile-shadow-hover: 0 22px 46px rgba(15, 23, 42, 0.14);
+}
+
+/* ── Command Center Shell ────────────────────────────────── */
+
+.command-center-shell {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  color: var(--profile-ink);
+}
+
+/* ── Command Tabs (Horizontal Scrollable Tab Bar) ────────── */
+
+.command-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px 12px;
+  scrollbar-width: none;
+}
+
+.command-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.command-tab {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--profile-ink-soft);
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+  scroll-snap-align: start;
+}
+
+.command-tab i {
+  font-size: 16px;
+}
+
+.command-tab:hover {
+  transform: translateY(-2px);
+  background: rgba(30, 136, 229, 0.08);
+}
+
+.command-tab.is-active {
+  background: #101828;
+  color: #fff;
+}
+
+/* ── Command Stats (Horizontal Stat Bar) ─────────────────── */
+
+.command-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 6px;
+  scrollbar-width: none;
+}
+
+.command-stats::-webkit-scrollbar {
+  display: none;
+}
+
+.command-stat {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 90px;
+  min-height: 60px;
+  padding: 10px 16px;
+  border: 1px solid var(--profile-line);
+  border-radius: 16px;
+  background: var(--profile-surface);
+  color: var(--profile-ink);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.command-stat:hover {
+  background: var(--profile-surface-soft);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.command-stat strong {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--profile-ink);
+}
+
+.command-stat span {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--profile-ink-soft);
+  text-align: center;
+}
+
+/* ── Command Grid ────────────────────────────────────────── */
+
+.command-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.command-card {
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-line);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: var(--profile-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--profile-ink);
+  display: block;
+}
+
+.command-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--profile-shadow-hover);
+  border-color: rgba(30, 136, 229, 0.2);
+}
+
+.command-card i {
+  font-size: 32px;
+  background: var(--profile-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+  display: inline-block;
+}
+
+.command-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--profile-ink);
+}
+
+.command-card p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--profile-ink-soft);
+  line-height: 1.4;
+}
+
+.command-card .count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--profile-gradient);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── Manager Shell ───────────────────────────────────────── */
+
+.manager-shell {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+  color: var(--profile-ink);
+}
+
+.manager-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.manager-head a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: var(--profile-ink-soft);
+  font-weight: 900;
+  font-size: 14px;
+  transition: color 0.18s;
+  flex-shrink: 0;
+}
+
+.manager-head a:hover {
+  color: var(--profile-blue);
+}
+
+.manager-head h2 {
+  margin: 0;
+  font-size: 22px;
+  color: var(--profile-ink);
+  flex: 1;
+}
+
+.manager-head .action-btn {
+  flex-shrink: 0;
+}
+
+/* ── Manager Grid (Posts / Reels / Followers) ────────────── */
+
+.manager-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.manager-card {
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.manager-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--profile-shadow-hover);
+}
+
+.manager-card-media {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #101828;
+}
+
+.manager-card-media img,
+.manager-card-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.manager-card-body {
+  padding: 12px;
+}
+
+.manager-card-body .caption {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--profile-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manager-card-body .meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--profile-ink-soft);
+  font-weight: 800;
+}
+
+.manager-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--profile-line);
+}
+
+.manager-card-actions .action-btn {
+  flex: 1;
+}
+
+.manager-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 12px 0;
+}
+
+.manager-card-tags span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.manager-card-tags .tag-public { background: #e8f3ff; color: var(--profile-blue-strong); }
+.manager-card-tags .tag-followers { background: #fff4d8; color: #9a6400; }
+.manager-card-tags .tag-friends { background: #e8fff7; color: #067647; }
+.manager-card-tags .tag-private { background: #fee4e2; color: #b42318; }
+.manager-card-tags .tag-pinned { background: #f0e6ff; color: #6941c6; }
+.manager-card-tags .tag-archived { background: #f2f4f7; color: #475467; }
+.manager-card-tags .tag-comments-off { background: #fef3c7; color: #92400e; }
+
+/* ── People List (Friends / Followers / Following) ───────── */
+
+.people-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.people-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-line);
+  border-radius: 16px;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.people-card:hover {
+  background: var(--profile-surface-soft);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+.people-avatar {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--profile-gradient);
+  color: #fff;
+  font-weight: 900;
+  font-size: 20px;
+  overflow: hidden;
+}
+
+.people-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.people-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.people-info strong {
+  font-size: 15px;
+  color: var(--profile-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.people-info span {
+  font-size: 12px;
+  color: var(--profile-ink-soft);
+  font-weight: 800;
+}
+
+.people-info small {
+  font-size: 11px;
+  color: var(--profile-ink-soft);
+}
+
+.people-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Action Buttons ──────────────────────────────────────── */
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--profile-surface-soft);
+  color: var(--profile-ink-soft);
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease;
+  text-decoration: none;
+}
+
+.action-btn:hover {
+  transform: translateY(-1px);
+  color: var(--profile-blue);
+  background: rgba(30, 136, 229, 0.1);
+}
+
+.action-btn.danger:hover {
+  color: var(--profile-red);
+  background: rgba(215, 38, 56, 0.1);
+}
+
+.action-btn.primary:hover {
+  color: #fff;
+  background: var(--profile-blue);
+}
+
+.action-btn.primary {
+  color: var(--profile-blue);
+}
+
+/* ── Filter Chips ────────────────────────────────────────── */
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--profile-line);
+  border-radius: 999px;
+  background: var(--profile-surface);
+  color: var(--profile-ink-soft);
+  font-weight: 900;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.filter-chip:hover {
+  border-color: var(--profile-blue);
+  color: var(--profile-blue);
+}
+
+.filter-chip.active {
+  background: var(--profile-blue);
+  color: #fff;
+  border-color: var(--profile-blue);
+}
+
+/* ── Manager Pagination ──────────────────────────────────── */
+
+.manager-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 16px 0;
+}
+
+.manager-pagination a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--profile-line);
+  border-radius: 999px;
+  background: var(--profile-surface);
+  color: var(--profile-ink);
+  text-decoration: none;
+  font-weight: 900;
+  font-size: 14px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.manager-pagination a:hover {
+  background: #101828;
+  color: #fff;
+  border-color: #101828;
+}
+
+.manager-pagination span {
+  color: var(--profile-ink-soft);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* ── Manager Empty State ─────────────────────────────────── */
+
+.manager-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--profile-ink-soft);
+}
+
+.manager-empty i {
+  font-size: 48px;
+  color: var(--profile-gold);
+  opacity: 0.6;
+}
+
+.manager-empty p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.manager-empty a,
+.manager-empty button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--profile-gradient-btn);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+
+.manager-empty a:hover,
+.manager-empty button:hover {
+  transform: translateY(-2px);
+}
+
+/* ── Visibility Modal ────────────────────────────────────── */
+
+.visibility-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(16, 24, 40, 0.52);
+  backdrop-filter: blur(10px);
+}
+
+.visibility-modal {
+  width: min(92vw, 380px);
+  background: var(--profile-surface);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.24);
+  color: var(--profile-ink);
+}
+
+.visibility-modal h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.visibility-modal select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--profile-line);
+  border-radius: 12px;
+  background: var(--profile-surface);
+  color: var(--profile-ink);
+  font-weight: 900;
+  font-size: 15px;
+  margin-bottom: 18px;
+  cursor: pointer;
+}
+
+.visibility-modal .modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.visibility-modal .modal-actions button {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.visibility-modal .modal-actions button:hover {
+  transform: translateY(-1px);
+}
+
+.visibility-modal .btn-cancel {
+  background: var(--profile-surface-soft);
+  color: var(--profile-ink-soft);
+}
+
+.visibility-modal .btn-save {
+  background: #101828;
+  color: #fff;
+}
+
+/* ── Tab Lazy Placeholder (Skeleton) ─────────────────────── */
+
+.tab-lazy-placeholder {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--profile-ink-soft);
+  font-weight: 900;
+  font-size: 14px;
+  background:
+    linear-gradient(90deg, var(--profile-surface-soft) 25%, var(--profile-line) 50%, var(--profile-surface-soft) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 16px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Tab Inline Panels (for lazy-loaded tabs) ────────────── */
+
+.tab-inline-panel {
+  padding: 8px 0;
+}
+
+.tab-inline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.tab-inline-header h3 {
+  margin: 0;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--profile-ink);
+}
+
+.tab-inline-header h3 i {
+  font-size: 18px;
+}
+
+.tab-inline-header .filter-chip {
+  font-size: 12px;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.tab-story-card {
+  flex-shrink: 0;
+  width: 100px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--profile-ink);
+  transition: transform 0.15s;
+}
+
+.tab-story-card:hover {
+  transform: translateY(-2px);
+}
+
+.tab-story-ring {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  margin: 0 auto 6px;
+  background: var(--profile-gradient);
+  padding: 3px;
+}
+
+.tab-story-ring > div {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--profile-surface);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .command-center-shell,
+  .manager-shell {
+    padding-inline: 12px;
+  }
+
+  .command-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-stats {
+    gap: 8px;
+  }
+
+  .command-stat {
+    min-width: 76px;
+    padding: 8px 12px;
+  }
+
+  .command-tabs {
+    gap: 6px;
+  }
+
+  .command-tab {
+    padding: 0 12px;
+    min-height: 38px;
+    font-size: 13px;
+  }
+
+  .manager-head {
+    flex-wrap: wrap;
+  }
+
+  .people-card {
+    flex-wrap: wrap;
+  }
+
+  .people-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .manager-card-tags {
+    flex-wrap: wrap;
+  }
+
+  .visibility-modal select {
+    font-size: 16px;
+  }
+}

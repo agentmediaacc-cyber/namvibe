@@ -1,0 +1,17 @@
+# cloudrun.example.yaml
+# Example Secret Manager setup for NamVibe/CHAIN.
+# Do not paste real secret values into this repository.
+
+secrets:
+  SECRET_KEY: chain-secret-key
+  DATABASE_URL: chain-database-url
+  REDIS_URL: chain-redis-url
+  SUPABASE_URL: chain-supabase-url
+  SUPABASE_ANON_KEY: chain-supabase-anon-key
+  SUPABASE_SERVICE_ROLE_KEY: chain-supabase-service-role-key
+  APP_BASE_URL: chain-app-base-url
+
+deploy:
+  region: REGION_PLACEHOLDER
+  image: IMAGE_PLACEHOLDER
+  note: "Use cloudrun.yaml with valueFrom.secretKeyRef entries; never commit real secrets."

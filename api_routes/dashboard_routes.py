@@ -157,26 +157,24 @@ for k in updates.keys())),
 @login_required
 def ai_bio_generator():
     """AI bio suggestion endpoint"""
-    data = request.json
-    interests = data.get('interests', '')
-    # Mock AI response - integrate with real AI service later
-    suggestions = [
-        f"🚀 Building the future of {interests} | Creator | Live Streamer",
-        f"✨ {interests} enthusiast sharing daily inspiration",
-        f"💡 Helping you grow in {interests} - Join the journey"
-    ]
+    viewer = get_current_profile()
+    profile_id = viewer['id'] if viewer else session.get('profile_id')
+    data = request.json or {}
+    from services.ai_assistant_service import profile_suggestions
+    result = profile_suggestions(profile_id, {"interests": data.get('interests', '')})
+    alternatives = result.get('alternatives', [])
+    suggestions = alternatives if alternatives else [result.get('suggestion', '')]
     return jsonify({'suggestions': suggestions})
 
 @dashboard_bp.route('/ai-caption', methods=['POST'])
 @login_required
 def ai_caption_writer():
-    data = request.json
-    topic = data.get('topic', '')
-    # Mock AI response
-    captions = [
-        f"🔥 Dropping some {topic} vibes today! Who's with me?",
-        f"✨ New {topic} alert! Double tap if you're ready",
-        f"💯 The grind never stops. {topic} mode: ON"
-    ]
+    viewer = get_current_profile()
+    profile_id = viewer['id'] if viewer else session.get('profile_id')
+    data = request.json or {}
+    from services.ai_assistant_service import caption_generator
+    result = caption_generator(profile_id, {"topic": data.get('topic', '')})
+    alternatives = result.get('alternatives', [])
+    captions = alternatives if alternatives else [result.get('caption', '')]
     return jsonify({'captions': captions})
 

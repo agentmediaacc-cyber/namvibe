@@ -6,6 +6,7 @@ from services.notification_center_service import (
     mark_read, mark_all_read, delete_notification, delete_selected,
     get_preferences, update_preferences, mute_type,
 )
+from services.notification_grouping_service import group_notifications
 from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile
 
@@ -15,10 +16,7 @@ _LOGGED_OUT_UNREAD_CACHE = {"expires_at": 0.0, "payload": {"count": 0}}
 _TABS = [
     {"key": "all", "label": "All"},
     {"key": "unread", "label": "Unread"},
-    {"key": "mentions", "label": "Mentions"},
-    {"key": "messages", "label": "Messages"},
-    {"key": "activity", "label": "Activity"},
-    {"key": "system", "label": "System"},
+    {"key": "requests", "label": "Requests"},
 ]
 
 @notification_engine_bp.route("/notifications/")
@@ -37,8 +35,11 @@ def api_list():
     tab = request.args.get("tab", "all")
     page = request.args.get("page", 1, type=int)
     limit = request.args.get("limit", 30, type=int)
+    grouped = request.args.get("grouped", "1") != "0"
     try:
         items, has_more = list_notifications(profile_id, tab=tab, page=page, limit=limit)
+        if grouped and tab != "requests":
+            items = group_notifications(items)
         return jsonify({
             "ok": True,
             "tab": tab,
@@ -79,6 +80,16 @@ def api_mark_read(notification_id):
     ok = mark_read(profile_id, notification_id)
     return jsonify({"ok": ok}), 200 if ok else 500
 
+@notification_engine_bp.route("/notifications/api/read/<notification_id>", methods=["POST"])
+@login_required
+def api_mark_read_short(notification_id):
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "Profile setup incomplete"}), 400
+    ok = mark_read(profile_id, notification_id)
+    return jsonify({"ok": ok}), 200 if ok else 500
+
 @notification_engine_bp.route("/api/notifications/read-all", methods=["POST"])
 @login_required
 def api_mark_all_read():
@@ -87,6 +98,23 @@ def api_mark_all_read():
     if not profile_id:
         return jsonify({"ok": False, "error": "Profile setup incomplete"}), 400
     ok = mark_all_read(profile_id)
+    return jsonify({"ok": ok}), 200 if ok else 500
+
+@notification_engine_bp.route("/api/notifications/read-group", methods=["POST"])
+@login_required
+def api_mark_group_read():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "Profile setup incomplete"}), 400
+    data = request.json or {}
+    ids = data.get("ids", [])
+    if not ids:
+        return jsonify({"ok": False, "error": "no_ids_provided"}), 400
+    ok = True
+    for nid in ids:
+        if not mark_read(profile_id, nid):
+            ok = False
     return jsonify({"ok": ok}), 200 if ok else 500
 
 @notification_engine_bp.route("/api/notifications/<notification_id>/delete", methods=["POST"])

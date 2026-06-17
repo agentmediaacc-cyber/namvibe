@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Input Diagnostics | NamVibe{% endblock %}
+{% block body_class %}chain-wallpaper-auth{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_auth.css">
+<style>
+    .diag-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 800px; margin: 40px auto; color: #333; }
+    .diag-head { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+    .diag-section { margin-bottom: 20px; }
+    .diag-label { font-weight: 800; color: #666; font-size: 13px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+    .diag-row { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-family: monospace; font-size: 14px; }
+    .diag-key { color: #64748b; min-width: 140px; font-weight: 700; }
+    .diag-val { word-break: break-all; }
+    .diag-missing { color: #dc2626; font-style: italic; }
+    .diag-ok { color: #16a34a; }
+    .diag-test-btn { display: inline-block; background: #111827; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 700; margin-top: 10px; border: 0; cursor: pointer; font-size: 14px; }
+    .diag-test-btn:hover { background: #1e293b; }
+    .diag-field { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 16px; margin-top: 6px; box-sizing: border-box; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="diag-card">
+    <div class="diag-head">
+        <h1>Input Diagnostics</h1>
+        <p>Test form submission, keyboard input, and field behavior.</p>
+    </div>
+
+    <div class="diag-section">
+        <span class="diag-label">Session</span>
+        <div class="diag-row"><span class="diag-key">authenticated</span><span class="diag-val" id="diag-auth-status">checking...</span></div>
+        <div class="diag-row"><span class="diag-key">user_agent</span><span class="diag-val">{{ request.headers.get('User-Agent', 'unknown') }}</span></div>
+        <div class="diag-row"><span class="diag-key">viewport</span><span class="diag-val" id="diag-viewport">checking...</span></div>
+    </div>
+
+    <div class="diag-section" style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; margin-bottom:16px;">
+        <p style="margin:0; color:#991b1b; font-weight:800; font-size:14px;">
+            <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+            If delete/backspace fails here, the issue is Android keyboard/WebView, not NamVibe JS.
+        </p>
+    </div>
+
+    <div class="diag-section">
+        <span class="diag-label">Test Input</span>
+        <p style="color:#64748b; font-size:13px; margin:0 0 4px;">Type in the field below. Backspace, Delete, and all keys should work normally.</p>
+        <input type="text" class="diag-field" id="diag-test-input" placeholder="Type here to test keyboard input..." autocomplete="off">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+            <button class="diag-test-btn" id="diag-submit-test">Test Submit (no redirect)</button>
+            <button class="diag-test-btn" id="diag-log-keys" style="background:#4338ca;">Log Key Events</button>
+        </div>
+        <pre id="diag-key-log" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-top:10px; font-size:13px; min-height:40px; max-height:160px; overflow:auto; color:#0f172a;"></pre>
+    </div>
+
+    <div class="diag-section" style="border-top:1px solid #eee; padding-top:16px;">
+        <a href="/auth/register" class="diag-test-btn" style="background:#4338ca;">Go to Register</a>
+        <a href="/auth/login" class="diag-test-btn" style="background:#64748b;">Go to Login</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  "use strict";
+  const status = document.getElementById("diag-auth-status");
+  if (status) {
+    fetch("/auth/me", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(d => { status.textContent = d.auth_user_id ? "yes (" + d.email + ")" : "no"; })
+      .catch(() => { status.textContent = "error"; });
+  }
+  const vp = document.getElementById("diag-viewport");
+  if (vp) { vp.textContent = window.innerWidth + "x" + window.innerHeight; }
+
+  const input = document.getElementById("diag-test-input");
+  const log = document.getElementById("diag-key-log");
+  const logBtn = document.getElementById("diag-log-keys");
+  const submitBtn = document.getElementById("diag-submit-test");
+  let logging = false;
+
+  function keyInfo(e) {
+    return "key=" + JSON.stringify(e.key) + " code=" + JSON.stringify(e.code) + " ctrlKey=" + e.ctrlKey + " metaKey=" + e.metaKey;
+  }
+
+  if (logBtn && input) {
+    logBtn.addEventListener("click", () => {
+      logging = !logging;
+      logBtn.textContent = logging ? "Stop Logging" : "Log Key Events";
+      logBtn.style.background = logging ? "#dc2626" : "#4338ca";
+      if (logging && log) log.textContent = "Logging started...\n";
+    });
+    input.addEventListener("keydown", (e) => {
+      if (logging && log) log.textContent += "keydown: " + keyInfo(e) + "\n";
+    });
+    input.addEventListener("keyup", (e) => {
+      if (logging && log) log.textContent += "keyup: " + keyInfo(e) + "\n";
+    });
+    input.addEventListener("input", () => {
+      if (logging && log) log.textContent += "input: value=" + JSON.stringify(input.value) + "\n";
+    });
+    input.addEventListener("beforeinput", (e) => {
+      if (logging && log) log.textContent += "beforeinput: " + e.inputType + "\n";
+    });
+  }
+
+  if (submitBtn && input) {
+    submitBtn.addEventListener("click", () => {
+      alert("Submitted value: " + input.value);
+    });
+  }
+})();
+</script>
+{% endblock %}

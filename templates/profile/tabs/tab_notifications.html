@@ -1,0 +1,31 @@
+<div class="tab-inline-panel">
+  <div class="tab-inline-header">
+    <h3><i class="fas fa-bell"></i> Notifications</h3>
+    <a href="/notifications/" class="filter-chip">All notifications <i class="fas fa-arrow-right"></i></a>
+  </div>
+  {% if notifications %}
+  <div class="people-list">
+    {% for n in notifications[:8] %}
+    <a href="{{ n.action_url or '#' }}" class="people-card" style="text-decoration:none; color:var(--profile-ink); {% if not n.is_read %}border-left:3px solid var(--profile-blue);{% endif %}">
+      <div class="people-avatar" style="width:40px; height:40px; font-size:14px;">
+        {% if n.image_url %}
+        <img src="{{ n.image_url }}" alt="">
+        {% else %}
+        <i class="fas fa-bell"></i>
+        {% endif %}
+      </div>
+      <div class="people-info">
+        <strong>{{ n.title or 'Notification' }}</strong>
+        <span>{{ n.body or n.preview or '' }}</span>
+        <small>{{ n.created_at[:10] if n.created_at else '' }}</small>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-bell"></i>
+    <p>No notifications yet</p>
+  </div>
+  {% endif %}
+</div>

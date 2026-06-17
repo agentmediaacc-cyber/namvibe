@@ -1,0 +1,158 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Command Center</h2>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/profile/edit" class="profile-btn primary"><i class="fas fa-wrench"></i> Manage Profile</a>
+    {% endif %}
+  </div>
+
+  <div class="profile-stats" aria-label="Account statistics" style="margin-bottom:28px;">
+    <a href="{{ url_for('profile.view_posts', username=profile.username) if profile.username else '#' }}" class="stat-card"><strong data-count-up="{{ stats.posts or 0 }}">{{ stats.posts or 0 }}</strong><span>Posts</span></a>
+    <a href="{{ url_for('profile.view_reels', username=profile.username) if profile.username else '#' }}" class="stat-card"><strong data-count-up="{{ stats.reels or 0 }}">{{ stats.reels or 0 }}</strong><span>Reels</span></a>
+    <a href="{{ url_for('social.view_user_followers', username=profile.username) if profile.username else url_for('social.view_followers') }}" class="stat-card"><strong data-count-up="{{ stats.followers or 0 }}">{{ stats.followers or 0 }}</strong><span>Followers</span></a>
+    <a href="{{ url_for('social.view_user_following', username=profile.username) if profile.username else url_for('social.view_following') }}" class="stat-card"><strong data-count-up="{{ stats.following or 0 }}">{{ stats.following or 0 }}</strong><span>Following</span></a>
+    <a href="{{ url_for('social.view_user_friends', username=profile.username) if profile.username else url_for('social.view_friends') }}" class="stat-card"><strong data-count-up="{{ stats.friends or 0 }}">{{ stats.friends or 0 }}</strong><span>Friends</span></a>
+  </div>
+
+  <div class="command-center-grid">
+    <a href="{{ url_for('profile.view_posts', username=profile.username) if profile.username else '#' }}" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-table-cells-large"></i></div>
+      <div class="command-card-body">
+        <strong>Posts</strong>
+        <span>Manage, create, and schedule your posts</span>
+      </div>
+    </a>
+
+    <a href="{{ url_for('profile.view_reels', username=profile.username) if profile.username else '#' }}" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-film"></i></div>
+      <div class="command-card-body">
+        <strong>Reels</strong>
+        <span>Upload and manage short-form videos</span>
+      </div>
+    </a>
+
+    <a href="{{ url_for('social.view_user_followers', username=profile.username) if profile.username else url_for('social.view_followers') }}" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-users"></i></div>
+      <div class="command-card-body">
+        <strong>Followers</strong>
+        <span>View and manage your follower list</span>
+      </div>
+    </a>
+
+    <a href="{{ url_for('social.view_user_following', username=profile.username) if profile.username else url_for('social.view_following') }}" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-user-plus"></i></div>
+      <div class="command-card-body">
+        <strong>Following</strong>
+        <span>Profiles and creators you follow</span>
+      </div>
+    </a>
+
+    <a href="{{ url_for('social.view_user_friends', username=profile.username) if profile.username else url_for('social.view_friends') }}" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-handshake"></i></div>
+      <div class="command-card-body">
+        <strong>Friends</strong>
+        <span>Your close connections on NamVibe</span>
+      </div>
+    </a>
+
+    <a href="/stories/" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-circle-play"></i></div>
+      <div class="command-card-body">
+        <strong>Stories</strong>
+        <span>View and post ephemeral updates</span>
+      </div>
+    </a>
+
+    <a href="/messages/" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-comment-dots"></i></div>
+      <div class="command-card-body">
+        <strong>Messages</strong>
+        <span>Direct messages and group chats</span>
+      </div>
+    </a>
+
+    <a href="/calls/" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-phone-volume"></i></div>
+      <div class="command-card-body">
+        <strong>Calls</strong>
+        <span>Audio and video calling history</span>
+      </div>
+    </a>
+
+    <a href="/dating/" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-heart"></i></div>
+      <div class="command-card-body">
+        <strong>Dating</strong>
+        <span>Discover and match with new people</span>
+      </div>
+    </a>
+
+    <a href="/wallet/" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-wallet"></i></div>
+      <div class="command-card-body">
+        <strong>Wallet</strong>
+        <span>Manage coins, transactions, and earnings</span>
+      </div>
+    </a>
+
+    <a href="/notifications/" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-bell"></i></div>
+      <div class="command-card-body">
+        <strong>Notifications</strong>
+        <span>View your alerts and activity updates</span>
+      </div>
+    </a>
+
+    <a href="/profile/verification" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-circle-check"></i></div>
+      <div class="command-card-body">
+        <strong>Verification</strong>
+        <span>Verify your identity and unlock features</span>
+      </div>
+    </a>
+
+    <a href="{{ url_for('profile.view_profile', username=profile.username) if profile.username else '#' }}/creator-tools" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-star"></i></div>
+      <div class="command-card-body">
+        <strong>Creator Studio</strong>
+        <span>Analytics, insights, and monetization tools</span>
+      </div>
+    </a>
+
+    <a href="/profile/privacy" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-shield-halved"></i></div>
+      <div class="command-card-body">
+        <strong>Privacy</strong>
+        <span>Control who sees your content and activity</span>
+      </div>
+    </a>
+
+    <a href="/profile/settings" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-gear"></i></div>
+      <div class="command-card-body">
+        <strong>Settings</strong>
+        <span>Account preferences and configurations</span>
+      </div>
+    </a>
+
+    <a href="{{ url_for('profile.view_profile', username=profile.username) if profile.username else '#' }}#saved" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-bookmark"></i></div>
+      <div class="command-card-body">
+        <strong>Saved</strong>
+        <span>Bookmarked posts, reels, and content</span>
+      </div>
+    </a>
+
+    <a href="{{ url_for('profile.view_profile', username=profile.username) if profile.username else '#' }}#liked" class="command-card">
+      <div class="command-card-icon"><i class="fas fa-heart"></i></div>
+      <div class="command-card-body">
+        <strong>Liked</strong>
+        <span>Content you have liked and engaged with</span>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

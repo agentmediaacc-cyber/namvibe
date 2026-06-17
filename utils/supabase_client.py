@@ -1,13 +1,14 @@
 import os
 from functools import lru_cache
-from dotenv import load_dotenv
 from supabase import create_client
 
-load_dotenv()
+from services.env_service import get_env, load_project_env
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+load_project_env()
+
+SUPABASE_URL = get_env("SUPABASE_URL")
+SUPABASE_ANON_KEY = get_env("SUPABASE_ANON_KEY") or get_env("SUPABASE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = get_env("SUPABASE_SERVICE_ROLE_KEY")
 
 @lru_cache(maxsize=1)
 def get_supabase():

@@ -25,10 +25,22 @@ def process_webhook(provider, payload):
     """
     Main entry point for payment provider webhooks (Paystack, Flutterwave, etc.)
     """
-    # 1. Validate signature
-    # 2. Extract transaction ID and status
-    # 3. Trigger wallet update if successful
-    pass
+    if not payload:
+        return {"ok": False, "error": "empty_payload"}
+    txn_id = payload.get("transaction_id") or payload.get("id") or payload.get("reference")
+    status = payload.get("status", "").lower()
+    amount_cents = int(float(payload.get("amount", 0)) * 100)
+    profile_id = payload.get("profile_id") or payload.get("user_id")
+
+    if status not in ("success", "completed", "confirmed"):
+        return {"ok": True, "status": status, "message": "no_action_needed"}
+
+    if not profile_id or not txn_id or amount_cents <= 0:
+        return {"ok": False, "error": "missing_fields"}
+
+    from services.wallet_service import credit_wallet
+    result = credit_wallet(profile_id, amount_cents, description=f"{provider} deposit: {txn_id}", transaction_type="deposit")
+    return {"ok": result.get("ok", False), "transaction_id": txn_id, "wallet_result": result}
 
 def log_payout_request(profile_id, amount_nad, method):
     """Logs a creator payout request for admin review"""

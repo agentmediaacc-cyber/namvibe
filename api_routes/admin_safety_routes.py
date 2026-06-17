@@ -9,8 +9,6 @@ admin_safety_bp = Blueprint('admin_safety', __name__, url_prefix='/admin/safety'
 @require_admin
 def dashboard():
     profile = get_current_profile()
-    # In a real app, check for is_admin flag
-    # For now, let's just allow access
 
     def count_or_zero(sql):
         rows = fast_query(sql, default=[])

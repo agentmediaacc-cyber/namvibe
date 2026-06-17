@@ -446,7 +446,7 @@ def get_encryption_status(profile_id):
         return {
             "ok": True,
             "has_keys": has_keys,
-            "encryption_enabled": True,
+            "encryption_enabled": has_keys,
             "key_version": key_version,
             "public_key_present": bool(pk),
             "private_key_available": private_key_available,

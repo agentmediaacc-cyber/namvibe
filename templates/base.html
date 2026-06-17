@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ APP_NAME }} | Premium Live Social{% endblock %}</title>
     <link rel="icon" href="/static/img/favicon.ico">
     <link rel="manifest" href="/static/manifest.json">
@@ -19,6 +20,7 @@
     <link rel="stylesheet" href="/static/css/chain_theme.css">
     <link rel="stylesheet" href="/static/css/platform_premium.css">
     <link rel="stylesheet" href="/static/css/chain_wallpapers.css">
+    <link rel="stylesheet" href="/static/css/realtime_presence.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -86,15 +88,18 @@
         .gen-avatar-xl { width: 64px; height: 64px; font-size: 26px; }
 
         /* ── Phase 72: Touch & Tap Smoothness ── */
-        * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        * { -webkit-tap-highlight-color: transparent; }
+        html { scroll-behavior: smooth; }
         a, button, .clickable, .mobile-link, [role="button"] {
             cursor: pointer;
             transition: opacity .12s ease, transform .12s ease;
+            touch-action: manipulation;
         }
         a:active, button:active, .clickable:active, .mobile-link:active, [role="button"]:active {
             opacity: .7;
             transform: scale(.96);
         }
+        input, textarea, select { touch-action: auto; }
 
         /* ── Phase 72: Layout Shift Prevention ── */
         img { aspect-ratio: attr(width) / attr(height); }
@@ -111,16 +116,22 @@
             .search-bar-mobile { display: none; }
         }
 
-        /* ── Phase 72: Reconnection UI ── */
+        /* ── Reconnection Toast ── */
         .reconnect-banner {
-            position: fixed; top: 0; left: 0; right: 0;
+            position: fixed; top: 12px; left: 50%; transform: translateX(-50%) translateY(-120%);
             background: #e74c3c; color: #fff;
-            text-align: center; padding: 6px 12px;
-            font-size: 13px; z-index: 9999;
-            transform: translateY(-100%);
-            transition: transform .3s ease;
+            text-align: center; padding: 8px 20px;
+            font-size: 13px; font-weight: 600;
+            border-radius: 999px; z-index: 9999;
+            box-shadow: 0 6px 24px rgba(231, 76, 60, 0.35);
+            white-space: nowrap;
+            transition: transform .35s cubic-bezier(.22,1,.36,1);
+            pointer-events: none;
         }
-        .reconnect-banner.show { transform: translateY(0); }
+        .reconnect-banner.show { transform: translateX(-50%) translateY(0); }
+        @media (max-width: 480px) {
+            .reconnect-banner { font-size: 12px; padding: 6px 14px; white-space: normal; }
+        }
 
         /* ── Rotating Logo ── */
         .action-cluster {
@@ -334,8 +345,9 @@
 </head>
 <body class="{% block body_class %}{% endblock %}" data-authenticated="{{ 'true' if g_current else 'false' }}">
     {% set is_admin_surface = request.path.startswith('/admin') or request.path.startswith('/developer') %}
+    {% set is_auth_surface = request.path.startswith('/auth') %}
     <!-- Sidebar -->
-    <div class="chain-shell{% if not is_admin_surface %} chain-shell--social{% endif %}">
+    <div class="chain-shell{% if is_auth_surface %} chain-shell--auth{% elif not is_admin_surface %} chain-shell--social{% endif %}">
     {% if is_admin_surface %}
     <aside class="sidebar">
         <a href="/" class="sidebar-brand">
@@ -366,7 +378,7 @@
             {% endif %}
         </nav>
     </aside>
-    {% else %}
+    {% elif not is_auth_surface %}
     <div class="social-drawer-backdrop" data-social-drawer-close hidden></div>
     <aside id="social-drawer" class="social-drawer" aria-hidden="true">
         <div class="social-drawer__head">
@@ -394,8 +406,11 @@
     </aside>
     {% endif %}
 
+    {% block before_main %}{% endblock %}
     <!-- Main Content -->
     <main class="main-container">
+        {% block top_header %}
+        {% if not is_auth_surface %}
         <header class="top-header">
             {% if not is_admin_surface %}
             <button type="button" class="social-menu-btn" data-social-drawer-open aria-label="Open menu" aria-expanded="false" aria-controls="social-drawer">
@@ -425,7 +440,7 @@
                 </a>
                 <a href="/notifications/" class="notif-badge" style="text-decoration: none;">
                     <i class="fas fa-bell"></i>
-                    <span class="notif-count" {% if not g_unread_count %}style="display: none;"{% endif %}>{{ g_unread_count or 0 }}</span>
+                    <span class="notif-count" data-notification-badge {% if not g_unread_count %}style="display: none;"{% endif %}>{{ g_unread_count or 0 }}</span>
                 </a>
                 <a href="/profile/" class="user-profile" style="width: 40px; height: 40px; border-radius: 50%; background: var(--chain-bg-panel); border: 1px solid var(--chain-border); display: grid; place-items: center; overflow: hidden; text-decoration: none; color: var(--chain-text);">
                     {% if g_current.avatar_url %}
@@ -439,6 +454,8 @@
                 {% endif %}
             </div>
         </header>
+        {% endif %}
+        {% endblock %}
 
         <div class="content-body page-fade-in">
             <div id="error-retry-banner" style="display: none; background: #ff3b30; color: white; padding: 10px 20px; text-align: center; position: sticky; top: 80px; z-index: 100;">
@@ -449,7 +466,8 @@
     </main>
     </div>
 
-    <!-- Mobile Nav -->
+    {% block mobile_nav %}
+    {% if not is_auth_surface %}
     <nav class="mobile-nav">
         <a href="/" class="mobile-link active">
             <i class="fas fa-home"></i>
@@ -467,10 +485,15 @@
             <i class="fas fa-user"></i>
         </a>
     </nav>
+    {% endif %}
+    {% endblock %}
+    {% if not is_auth_surface %}
     <a href="/posts/create" class="app-floating-create" aria-label="Create post">
         <i class="fas fa-plus"></i>
     </a>
+    {% endif %}
 
+    {% if not is_auth_surface %}
     <script src="/static/js/chain_theme_audit.js"></script>
     <script src="/static/js/main.js"></script>
     <script>
@@ -508,8 +531,65 @@
             });
         })();
     </script>
+    {% endif %}
+    <script id="CHAIN_CSRF_BRIDGE">
+        (function () {
+            function csrfToken() {
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute("content") : "";
+            }
+            function unsafeMethod(method) {
+                return ["POST", "PATCH", "PUT", "DELETE"].indexOf(String(method || "GET").toUpperCase()) !== -1;
+            }
+            function sameOrigin(input) {
+                try {
+                    var url = input instanceof Request ? input.url : input;
+                    return new URL(url, window.location.href).origin === window.location.origin;
+                } catch (e) {
+                    return true;
+                }
+            }
+            window.chainCsrfToken = csrfToken;
+            window.chainCsrfHeaders = function (headers) {
+                var merged = new Headers(headers || {});
+                var token = csrfToken();
+                if (token && !merged.has("X-CSRFToken")) {
+                    merged.set("X-CSRFToken", token);
+                }
+                return merged;
+            };
+            if (window.fetch && !window.__chainCsrfFetchPatched) {
+                var nativeFetch = window.fetch.bind(window);
+                window.fetch = function (input, init) {
+                    var options = init ? Object.assign({}, init) : {};
+                    var method = options.method || (input instanceof Request ? input.method : "GET");
+                    if (unsafeMethod(method) && sameOrigin(input)) {
+                        options.headers = window.chainCsrfHeaders(options.headers || (input instanceof Request ? input.headers : null));
+                    }
+                    return nativeFetch(input, options);
+                };
+                window.__chainCsrfFetchPatched = true;
+            }
+            document.addEventListener("submit", function (event) {
+                var form = event.target;
+                if (!form || form.tagName !== "FORM" || !unsafeMethod(form.method)) return;
+                if (form.querySelector('input[name="csrf_token"]')) return;
+                var token = csrfToken();
+                if (!token) return;
+                var input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "csrf_token";
+                input.setAttribute("value", token);
+                form.appendChild(input);
+            }, true);
+        })();
+    </script>
+    {% if not is_auth_surface %}
+    <script src="/static/js/namvibe_mobile_nav.js?v=phase76" defer></script>
+    {% endif %}
     {% block extra_js %}{% endblock %}
 
+{% if not is_auth_surface %}
 <script id="CHAIN_CALL_SOUND_PATCH">
 (function(){
   let ringCtx = null;
@@ -628,6 +708,8 @@
 
   function addUnlockButton(){
     if (document.getElementById("chainSoundUnlockBtn")) return;
+    var path = window.location.pathname;
+    if (!path.startsWith("/admin") && !path.startsWith("/developer")) return;
     const btn = document.createElement("button");
     btn.id = "chainSoundUnlockBtn";
     btn.type = "button";
@@ -649,6 +731,26 @@
 
 <script id="CHAIN_INCOMING_CALL_LISTENER_V2">
 (function(){
+    var reconnectTimer = null;
+    var initialConnectDone = false;
+
+    function showReconnect() {
+      var b = document.getElementById("chain-reconnect-banner");
+      if (!b) return;
+      if (!initialConnectDone) return;
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(function() {
+        b.classList.add("show");
+        reconnectTimer = null;
+      }, 3000);
+    }
+
+    function hideReconnect() {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      var b = document.getElementById("chain-reconnect-banner");
+      if (b) b.classList.remove("show");
+    }
+
     function attach(){
       if (!window.io || window.chainIncomingCallListenerAttached) return;
       window.chainIncomingCallListenerAttached = true;
@@ -657,10 +759,11 @@
         reconnection:true, reconnectionAttempts:10, reconnectionDelay:1000, reconnectionDelayMax:10000, randomizationFactor:.5
       });
       window.socket = s;
-      s.on("connect", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.remove("show"); });
-      s.on("disconnect", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.add("show"); });
-      s.on("connect_error", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.add("show"); });
-      s.on("reconnect", function(){ var b=document.getElementById("chain-reconnect-banner"); if(b) b.classList.remove("show"); });
+      s.on("connect", function(){ initialConnectDone = true; hideReconnect(); });
+      s.on("disconnect", showReconnect);
+      s.on("connect_error", showReconnect);
+      s.on("reconnect", function(){ hideReconnect(); });
+      s.on("reconnect_attempt", function(){ hideReconnect(); });
 
     s.on("call:incoming", function(data){
       if(window.chainStartIncomingRing) window.chainStartIncomingRing();
@@ -682,6 +785,10 @@
 })();
 </script>
 <script src="/static/js/phase30_social_controls.js"></script>
+<script src="/static/js/friendship_controls.js"></script>
+<script src="/static/js/namvibe_global_badges.js"></script>
+<script src="/static/js/realtime_presence.js"></script>
 <div id="chain-reconnect-banner" class="reconnect-banner">⚠ Reconnecting…</div>
+{% endif %}
 </body>
 </html>

@@ -41,12 +41,17 @@ def moderation_cleanliness_score(status):
     return 1.0 if normalized == "clean" else 0.2
 
 
-def auto_mute_placeholder(profile_id, repeated_reports):
+def auto_mute(profile_id, repeated_reports, severity="medium"):
+    severity_weight = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+    weight = severity_weight.get(severity.lower(), 1)
+    adjusted_threshold = max(3, 5 - weight)
+    should_mute = int(repeated_reports or 0) >= adjusted_threshold
     return {
         "profile_id": profile_id,
-        "threshold": 5,
+        "threshold": adjusted_threshold,
         "repeated_reports": int(repeated_reports or 0),
-        "should_auto_mute": int(repeated_reports or 0) >= 5,
+        "severity": severity,
+        "should_auto_mute": should_mute,
     }
 
 def report_entity(reporter_profile_id, entity_type, entity_id, reason, details=None, target_profile_id=None):
@@ -69,9 +74,10 @@ def report_entity(reporter_profile_id, entity_type, entity_id, reason, details=N
     """
     counts = fast_query(escalation_sql, (entity_type, entity_id), timeout_ms=1000, default=[])
     repeated_reports = int((counts[0] or {}).get("count") or 0) if counts else 0
-    escalation = auto_mute_placeholder(target_profile_id, repeated_reports)
+    severity = "critical" if repeated_reports >= 10 else "high" if repeated_reports >= 5 else "medium"
+    escalation = auto_mute(target_profile_id, repeated_reports, severity)
     if repeated_reports >= 3:
-        print(f"[moderation_engine] escalation placeholder: {escalation}")
+        print(f"[moderation_engine] escalation: {escalation}")
     return result
 
 def block_profile(blocker_profile_id, blocked_profile_id):

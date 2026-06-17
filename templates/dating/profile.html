@@ -230,9 +230,9 @@
         </div>
 
         <div class="dating-profile-actions">
-            <button class="dating-action-btn nope" onclick="alert('Passed')" title="Pass"><i class="fas fa-times"></i></button>
-            <button class="dating-action-btn super" onclick="alert('Super like!')" title="Super Like"><i class="fas fa-star"></i></button>
-            <button class="dating-action-btn like" onclick="alert('Liked! Match pending')" title="Like"><i class="fas fa-heart"></i></button>
+            <button class="dating-action-btn nope" onclick="fetch('/dating/api/pass',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_id:'{{ profile.id }}'})}).then(()=>window.history.back())" title="Pass"><i class="fas fa-times"></i></button>
+            <button class="dating-action-btn super" onclick="fetch('/dating/api/super-like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_id:'{{ profile.id }}'})}).then(()=>window.location='/dating/matches')" title="Super Like"><i class="fas fa-star"></i></button>
+            <button class="dating-action-btn like" onclick="fetch('/dating/api/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_id:'{{ profile.id }}'})}).then(()=>window.location='/dating/matches')" title="Like"><i class="fas fa-heart"></i></button>
         </div>
 
         <div class="dating-profile-section">

@@ -37,3 +37,48 @@
         padding: 0 16px 110px;
     }
 }
+
+.verify-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  color: #fbbf24;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.verify-banner i {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.verify-banner-link {
+  color: #fbbf24;
+  text-decoration: underline;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.verify-banner-close {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #fbbf24;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  opacity: 0.7;
+}
+
+.verify-banner-close:hover {
+  opacity: 1;
+}

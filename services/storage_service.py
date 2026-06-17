@@ -1,6 +1,8 @@
-import os
+import os, time
 import uuid
+from pathlib import Path
 import werkzeug.utils
+from werkzeug.utils import secure_filename
 from utils.supabase_client import get_supabase_admin, SUPABASE_URL
 from services.media_storage_service import record_media_upload_metadata
 from services.supabase_storage_router import (
@@ -11,6 +13,78 @@ from services.supabase_storage_router import (
     upload_story_media as routed_story_upload,
     upload_live_thumbnail,
 )
+
+LOCAL_UPLOAD_DIRS = {
+    "avatar": "static/uploads/profile/avatars",
+    "cover": "static/uploads/profile/covers",
+    "post": "static/uploads/posts",
+    "story": "static/uploads/stories",
+    "reel": "static/uploads/reels",
+    "banner": "static/uploads/profile/banners",
+    "marketplace": "static/uploads/marketplace",
+    "message": "static/uploads/messages",
+    "verification": "static/uploads/profile/verifications",
+}
+
+def _save_to_local(file_obj, category):
+    """Save file to local storage and return a public URL."""
+    folder = LOCAL_UPLOAD_DIRS.get(category, f"static/uploads/{category}")
+    os.makedirs(folder, exist_ok=True)
+    filename = secure_filename(file_obj.filename or f"upload_{int(time.time())}")
+    if not filename:
+        filename = f"upload_{int(time.time())}.bin"
+    unique_name = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{filename}"
+    dest = Path(folder) / unique_name
+    file_obj.save(str(dest))
+    url = "/" + str(dest).replace(os.sep, "/")
+    return url, str(dest)
+
+
+def safe_upload_file(file_obj, category, profile_id=None):
+    """
+    Upload a file with automatic fallback.
+    1. Try Supabase Storage
+    2. If bucket missing or upload fails, fall back to local storage
+    3. Return standardized result
+    
+    Returns:
+        {"ok": True, "url": "...", "storage": "supabase"|"local"}
+        or {"ok": False, "error": "..."}
+    """
+    if not file_obj or not getattr(file_obj, "filename", ""):
+        return {"ok": False, "error": "No file provided."}
+
+    routed_type_map = {
+        "avatar": "avatars",
+        "cover": "covers",
+        "post": "posts",
+        "story": "stories",
+        "reel": "reels",
+        "marketplace": "marketplace",
+        "message": "messages",
+        "banner": "covers",
+    }
+
+    # Try Supabase
+    if profile_id and category in routed_type_map:
+        try:
+            from services.supabase_storage_router import upload_file as router_upload
+            result, error = router_upload(file_obj, routed_type_map[category], profile_id, public=True)
+            if result and result.get("url"):
+                return {"ok": True, "url": result["url"], "storage": "supabase", "meta": result}
+            error_lower = (error or "").lower()
+            if "bucket" not in error_lower and "not found" not in error_lower and "not exist" not in error_lower:
+                pass
+        except Exception as e:
+            error = str(e)
+
+    # Fallback: local storage
+    try:
+        file_obj.seek(0)
+        url, path = _save_to_local(file_obj, category)
+        return {"ok": True, "url": url, "storage": "local"}
+    except Exception as e:
+        return {"ok": False, "error": f"Upload failed: {e}"}
 
 # Configuration
 ALLOWED_EXTENSIONS = {

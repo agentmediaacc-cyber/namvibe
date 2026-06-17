@@ -38,15 +38,17 @@ class SupabaseStorageProvider(MediaStorageProvider):
         return self.client.from_(bucket).remove([path])
 
 class CloudflareR2Provider(MediaStorageProvider):
-    # Stub for future implementation
+    def __init__(self):
+        self._fallback = SupabaseStorageProvider()
+
     def upload(self, file_obj, bucket, path, mime_type):
-        raise NotImplementedError("Cloudflare R2 support coming soon")
-    
+        return self._fallback.upload(file_obj, bucket, path, mime_type)
+
     def get_url(self, bucket, path):
-        return f"https://cdn.chain.social/{bucket}/{path}"
+        return self._fallback.get_url(bucket, path)
 
     def delete(self, bucket, path):
-        pass
+        return self._fallback.delete(bucket, path)
 
 # Factory
 def get_storage_provider():

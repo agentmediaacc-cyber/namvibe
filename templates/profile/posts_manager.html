@@ -1,0 +1,80 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Posts Manager</h2>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/posts/create" class="profile-btn primary"><i class="fas fa-plus"></i> New Post</a>
+    {% endif %}
+  </div>
+  <div class="manager-toolbar">
+    <div class="manager-filters">
+      <a href="?sort=newest{% if request.args.get('page') %}&page={{ request.args.get('page') }}{% endif %}" class="filter-chip {% if request.args.get('sort', 'newest') == 'newest' %}active{% endif %}">Newest</a>
+      <a href="?sort=oldest{% if request.args.get('page') %}&page={{ request.args.get('page') }}{% endif %}" class="filter-chip {% if request.args.get('sort') == 'oldest' %}active{% endif %}">Oldest</a>
+      <a href="?sort=pinned{% if request.args.get('page') %}&page={{ request.args.get('page') }}{% endif %}" class="filter-chip {% if request.args.get('sort') == 'pinned' %}active{% endif %}">Pinned</a>
+      <a href="?sort=archived{% if request.args.get('page') %}&page={{ request.args.get('page') }}{% endif %}" class="filter-chip {% if request.args.get('sort') == 'archived' %}active{% endif %}">Archived</a>
+    </div>
+    <span class="manager-count">{{ pagination.total if pagination else 0 }} posts</span>
+  </div>
+  {% if posts %}
+  <div class="manager-grid">
+    {% for post in posts %}
+    <article class="manager-card" data-post-id="{{ post.id }}">
+      <div class="manager-card-media">
+        {% if post.video_url %}
+        <video src="{{ post.video_url }}" preload="metadata"></video>
+        {% elif post.media_url %}
+        <img src="{{ post.media_url }}" alt="{{ post.caption or 'Post' }}">
+        {% else %}
+        <div class="manager-card-text"><i class="fas fa-quote-left"></i></div>
+        {% endif %}
+      </div>
+      <div class="manager-card-body">
+        <h3>{{ (post.caption or post.body or 'Untitled')|truncate(60) }}</h3>
+        <div class="manager-card-meta">
+          <span><i class="fas fa-heart"></i> {{ post.likes_count or 0 }}</span>
+          <span><i class="fas fa-comment"></i> {{ post.comments_count or 0 }}</span>
+          <span><i class="fas fa-share"></i> {{ post.shares_count or 0 }}</span>
+        </div>
+        <div class="manager-card-tags">
+          <span class="tag tag-{{ post.visibility or 'public' }}">{{ post.visibility or 'public' }}</span>
+          {% if post.is_pinned %}<span class="tag tag-pinned">pinned</span>{% endif %}
+          {% if post.is_archived %}<span class="tag tag-muted">archived</span>{% endif %}
+          {% if post.allow_comments == false %}<span class="tag tag-muted">comments off</span>{% endif %}
+        </div>
+      </div>
+      {% if viewer and viewer.id == profile.id %}
+      <div class="manager-card-actions">
+        <a href="/posts/{{ post.id }}" class="action-btn" title="View"><i class="fas fa-eye"></i></a>
+        <a href="/posts/{{ post.id }}/edit" class="action-btn" title="Edit"><i class="fas fa-pen"></i></a>
+        <button type="button" class="action-btn" title="Visibility" onclick="Phase85.showVisibilityModal('{{ post.id }}', 'post', '{{ post.visibility or 'public' }}')"><i class="fas fa-globe"></i></button>
+        <button type="button" class="action-btn" title="Toggle comments" onclick="toggleComments('{{ post.id }}')"><i class="fas fa-comment-slash"></i></button>
+        <button type="button" class="action-btn" title="Toggle sharing" onclick="toggleSharing('{{ post.id }}')"><i class="fas fa-share-nodes"></i></button>
+        <button type="button" class="action-btn" title="Pin" onclick="togglePin('{{ post.id }}', 'post')"><i class="fas fa-thumbtack"></i></button>
+        <button type="button" class="action-btn" title="Archive" onclick="toggleArchive('{{ post.id }}', 'post')"><i class="fas fa-box-archive"></i></button>
+        <button type="button" class="action-btn danger" title="Delete" onclick="confirmDelete('{{ post.id }}', 'post')"><i class="fas fa-trash"></i></button>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% if pagination and pagination.pages > 1 %}
+  <nav class="manager-pagination">
+    {% if pagination.page > 1 %}<a href="?page={{ pagination.page - 1 }}&sort={{ request.args.get('sort', 'newest') }}">&laquo; Prev</a>{% endif %}
+    <span>Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.page < pagination.pages %}<a href="?page={{ pagination.page + 1 }}&sort={{ request.args.get('sort', 'newest') }}">Next &raquo;</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-sparkles"></i>
+    <h3>No posts yet</h3>
+    <p>Posts you create will appear here. Share your first moment with the NamVibe community.</p>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/posts/create" class="profile-btn primary">Create Post</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

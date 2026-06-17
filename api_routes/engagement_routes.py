@@ -86,6 +86,18 @@ def api_unfollow(profile_id):
     return _response(unfollow_profile(current_id, profile_id))
 
 
+@engagement_bp.route("/api/profile/<profile_id>/follow", methods=["POST", "DELETE"])
+@login_required
+def api_profile_follow(profile_id):
+    """JS from namvibe_2026_home.js calls POST to follow, DELETE to unfollow."""
+    current_id = _current_id()
+    if not current_id:
+        return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
+    if request.method == "DELETE":
+        return _response(unfollow_profile(current_id, profile_id))
+    return _response(follow_profile(current_id, profile_id))
+
+
 @engagement_bp.route("/api/social/<item_type>/<item_id>/save", methods=["POST"])
 @login_required
 def api_toggle_save(item_type, item_id):

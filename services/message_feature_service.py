@@ -371,6 +371,16 @@ def forward_messages(profile_id, message_ids, to_thread_ids):
     profile_id = _uuid(profile_id)
     message_ids = [_uuid(mid) for mid in (message_ids or [])]
     to_thread_ids = [_uuid(tid) for tid in (to_thread_ids or [])]
+    member_threads = set()
+    rows = _safe_query(
+        "SELECT thread_id FROM chain_thread_members WHERE profile_id = %s AND deleted_at IS NULL",
+        (profile_id,), default=[]
+    )
+    if rows:
+        member_threads = {str(r["thread_id"]) for r in rows}
+    to_thread_ids = [tid for tid in to_thread_ids if tid in member_threads]
+    if not to_thread_ids:
+        return {"ok": False, "error": "not_member", "forwarded": [], "count": 0}
     forwarded = []
     for source_id in message_ids:
         source_thread = message_thread_id(source_id)

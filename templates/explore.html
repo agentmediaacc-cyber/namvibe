@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Explore | NamVibe{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/explore.css') }}">
+{% endblock %}
+{% block content %}
+<main class="explore-page">
+  <section class="explore-hero">
+    <div class="explore-head">
+      <h1>Explore Namibia</h1>
+      <p class="explore-sub">Trending videos, creators, businesses, events &amp; hashtags</p>
+    </div>
+    <form class="explore-search" action="/search" method="get">
+      <i class="fas fa-search"></i>
+      <input type="text" name="q" placeholder="Search Namibia..." value="{{ query or '' }}">
+    </form>
+  </section>
+
+  <nav class="explore-tabs">
+    <a href="/explore" class="explore-tab {% if not tab or tab == 'trending' %}is-active{% endif %}">Trending</a>
+    <a href="/explore?tab=videos" class="explore-tab {% if tab == 'videos' %}is-active{% endif %}">Videos</a>
+    <a href="/explore?tab=creators" class="explore-tab {% if tab == 'creators' %}is-active{% endif %}">Creators</a>
+    <a href="/explore?tab=businesses" class="explore-tab {% if tab == 'businesses' %}is-active{% endif %}">Businesses</a>
+    <a href="/explore?tab=events" class="explore-tab {% if tab == 'events' %}is-active{% endif %}">Events</a>
+    <a href="/explore?tab=hashtags" class="explore-tab {% if tab == 'hashtags' %}is-active{% endif %}">Hashtags</a>
+    <a href="/explore?tab=nearby" class="explore-tab {% if tab == 'nearby' %}is-active{% endif %}">Nearby</a>
+    <a href="/explore?tab=regions" class="explore-tab {% if tab == 'regions' %}is-active{% endif %}">Regions</a>
+  </nav>
+
+  <!-- Regions filter chips -->
+  {% if regions %}
+  <div class="explore-region-chips">
+    {% for r in regions %}
+    <a href="/explore?region={{ r.slug }}" class="region-chip {% if active_region and active_region == r.slug %}is-active{% endif %}">{{ r.name }}</a>
+    {% endfor %}
+    {% if active_region %}<a href="/explore" class="region-chip clear-chip">Clear</a>{% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Trending Section -->
+  {% if tab == 'videos' %}
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-video"></i> Popular Videos</h2>
+      {% if videos %}
+      <div class="explore-video-grid">
+        {% for v in videos %}
+        <a href="/reels" class="explore-video-card">
+          <div class="ev-thumb">
+            {% if v.thumbnail_url %}<img src="{{ v.thumbnail_url }}" alt="">{% else %}<div class="ev-thumb-placeholder"><i class="fas fa-play"></i></div>{% endif %}
+            <span class="ev-duration">{{ v.duration_seconds or '' }}s</span>
+          </div>
+          <div class="ev-info">
+            <p class="ev-caption">{{ (v.caption or '')[:60] }}</p>
+            <span class="ev-user">@{{ v.username or 'creator' }}</span>
+            <span class="ev-stats">{{ v.views_count or 0 }} views</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="explore-empty"><i class="fas fa-video"></i><p>No videos yet. Be the first to upload a reel!</p></div>
+      {% endif %}
+    </section>
+  {% elif tab == 'creators' %}
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-users"></i> Creators</h2>
+      {% if creators %}
+      <div class="explore-creator-grid">
+        {% for c in creators %}
+        <div class="explore-creator-card">
+          <a href="/profile/{{ c.id }}" class="ec-avatar">{% if c.avatar_url %}<img src="{{ c.avatar_url }}">{% else %}<div class="ec-avatar-placeholder">{{ (c.username or 'C')[0]|upper }}</div>{% endif %}</a>
+          <div class="ec-info">
+            <a href="/profile/{{ c.id }}" class="ec-name">@{{ c.username }}{% if c.is_verified %} <i class="fas fa-circle-check" style="color:#1E88E5;font-size:12px;"></i>{% endif %}</a>
+            <span class="ec-bio">{{ (c.bio or '')[:60] }}</span>
+            <span class="ec-stats">{{ c.followers_count or 0 }} followers</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="explore-empty"><i class="fas fa-users"></i><p>No creators found. Discover more on NamVibe!</p></div>
+      {% endif %}
+    </section>
+  {% elif tab == 'businesses' %}
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-briefcase"></i> Businesses</h2>
+      {% if businesses %}
+      <div class="explore-creator-grid">
+        {% for b in businesses %}
+        <div class="explore-creator-card">
+          <a href="/profile/{{ b.id }}" class="ec-avatar">{% if b.avatar_url %}<img src="{{ b.avatar_url }}">{% else %}<div class="ec-avatar-placeholder">{{ (b.username or 'B')[0]|upper }}</div>{% endif %}</a>
+          <div class="ec-info">
+            <a href="/profile/{{ b.id }}" class="ec-name">{{ b.full_name or b.username }}{% if b.is_verified %} <i class="fas fa-circle-check" style="color:#FFB300;font-size:12px;"></i>{% endif %}</a>
+            <span class="ec-bio">{{ (b.bio or '')[:60] }}</span>
+            <span class="ec-stats">{{ b.followers_count or 0 }} followers</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="explore-empty"><i class="fas fa-briefcase"></i><p>No businesses yet.</p></div>
+      {% endif %}
+    </section>
+  {% elif tab == 'hashtags' %}
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-hashtag"></i> Trending Hashtags</h2>
+      {% if hashtags %}
+      <div class="explore-hashtag-grid">
+        {% for h in hashtags %}
+        <a href="/search?q=%23{{ h.tag }}" class="explore-hashtag-chip">
+          <span class="eh-name">#{{ h.tag }}</span>
+          <span class="eh-count">{{ h.count }} posts</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="explore-empty"><i class="fas fa-hashtag"></i><p>No trending hashtags yet.</p></div>
+      {% endif %}
+    </section>
+  {% elif tab == 'regions' %}
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-map-marker-alt"></i> Namibia Regions</h2>
+      {% if regions %}
+      <div class="explore-region-grid">
+        {% for r in regions %}
+        <a href="/explore?region={{ r.slug }}" class="explore-region-card">
+          <span class="er-name">{{ r.name }}</span>
+          <span class="er-country">{{ r.country }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="explore-empty"><i class="fas fa-map-marker-alt"></i><p>No regions configured.</p></div>
+      {% endif %}
+    </section>
+  {% else %}
+    <!-- Default: Trending tab -->
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-fire"></i> Trending Namibia</h2>
+      {% if trending %}
+      <div class="explore-post-feed">
+        {% for p in trending %}
+        <div class="explore-post-card">
+          <div class="ep-header">
+            <a href="/profile/{{ p.profile_id }}" class="ep-avatar">{% if p.avatar_url %}<img src="{{ p.avatar_url }}" alt="">{% else %}<div class="ep-avatar-placeholder">{{ (p.username or 'T')[0]|upper }}</div>{% endif %}</a>
+            <div><a href="/profile/{{ p.profile_id }}" class="ep-user">@{{ p.username }}</a><span class="ep-time">{{ time_ago(p.created_at) }}</span></div>
+          </div>
+          <p class="ep-body">{{ (p.caption or p.body or '')[:150] }}</p>
+          <div class="ep-stats-row">
+            <span><i class="fas fa-heart"></i> {{ p.likes_count or 0 }}</span>
+            <span><i class="fas fa-comment"></i> {{ p.comments_count or 0 }}</span>
+            <span><i class="fas fa-share"></i> {{ p.shares_count or 0 }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="explore-empty"><i class="fas fa-fire"></i><p>Nothing trending yet. Be the first to post!</p></div>
+      {% endif %}
+    </section>
+
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-video"></i> Popular Videos</h2>
+      {% if videos %}
+      <div class="explore-video-grid">
+        {% for v in videos %}
+        <a href="/reels" class="explore-video-card">
+          <div class="ev-thumb">{% if v.thumbnail_url %}<img src="{{ v.thumbnail_url }}">{% else %}<div class="ev-thumb-placeholder"><i class="fas fa-play"></i></div>{% endif %}<span class="ev-duration">{{ v.duration_seconds or '' }}s</span></div>
+          <div class="ev-info"><p class="ev-caption">{{ (v.caption or '')[:60] }}</p><span class="ev-user">@{{ v.username or 'creator' }}</span><span class="ev-stats">{{ v.views_count or 0 }} views</span></div>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="explore-section">
+      <h2 class="explore-section-title"><i class="fas fa-users"></i> Creators</h2>
+      {% if creators %}
+      <div class="explore-creator-grid">
+        {% for c in creators %}
+        <div class="explore-creator-card">
+          <a href="/profile/{{ c.id }}" class="ec-avatar">{% if c.avatar_url %}<img src="{{ c.avatar_url }}">{% else %}<div class="ec-avatar-placeholder">{{ (c.username or 'C')[0]|upper }}</div>{% endif %}</a>
+          <div class="ec-info"><a href="/profile/{{ c.id }}" class="ec-name">@{{ c.username }}{% if c.is_verified %} <i class="fas fa-circle-check" style="color:#1E88E5;font-size:12px;"></i>{% endif %}</a><span class="ec-bio">{{ (c.bio or '')[:60] }}</span><span class="ec-stats">{{ c.followers_count or 0 }} followers</span></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+  {% endif %}
+</main>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/explore.js') }}"></script>
+{% endblock %}

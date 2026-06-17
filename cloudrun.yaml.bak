@@ -1,0 +1,42 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: chain-app
+  labels:
+    cloud.googleapis.com/location: REGION_PLACEHOLDER
+spec:
+  template:
+    spec:
+      containers:
+      - image: IMAGE_PLACEHOLDER
+        resources:
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+        env:
+        - name: ENV
+          value: "production"
+        - name: FLASK_ENV
+          value: "production"
+        - name: SECRET_KEY
+          value: "YOUR_SECRET_KEY_PLACEHOLDER"
+        - name: DATABASE_URL
+          value: "YOUR_DATABASE_URL_PLACEHOLDER"
+        - name: REDIS_URL
+          value: "YOUR_REDIS_URL_PLACEHOLDER"
+        - name: SUPABASE_URL
+          value: "YOUR_SUPABASE_URL_PLACEHOLDER"
+        - name: SUPABASE_ANON_KEY
+          value: "YOUR_SUPABASE_ANON_KEY_PLACEHOLDER"
+        - name: SUPABASE_SERVICE_ROLE_KEY
+          value: "YOUR_SUPABASE_SERVICE_ROLE_KEY_PLACEHOLDER"
+        - name: APP_BASE_URL
+          value: "YOUR_APP_BASE_URL_PLACEHOLDER"
+        ports:
+        - containerPort: 8080
+      containerConcurrency: 80
+      timeoutSeconds: 300
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "5"

@@ -123,7 +123,13 @@
       : '<div class="notif-card-icon"><i class="fas ' + (item.icon || 'fa-bell') + '"></i></div>';
 
     var actionBtnHtml = '';
-    if (!isRead) {
+    if (item.event_type === 'friend_request' && item.entity_id) {
+      actionBtnHtml =
+        '<button class="notif-card-action-btn accept-fr-btn" data-notification-action="accept" data-request-id="' + escapeHtml(item.entity_id) + '" data-notification-id="' + escapeHtml(item.id) + '" style="background:#2ecc71;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px"><i class="fas fa-check"></i> Accept</button>' +
+        '<button class="notif-card-action-btn decline-fr-btn" data-notification-action="decline" data-request-id="' + escapeHtml(item.entity_id) + '" data-notification-id="' + escapeHtml(item.id) + '" style="background:#e74c3c;color:#fff;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px"><i class="fas fa-times"></i> Decline</button>';
+    } else if (item.event_type === 'friend_request_accepted' || item.event_type === 'friend_accepted') {
+      actionBtnHtml = '<a href="/messages/" class="notif-card-action-btn" style="background:#3498db;color:#fff;border:none;padding:4px 10px;border-radius:6px;text-decoration:none;font-size:12px"><i class="fas fa-comment"></i> Message</a>';
+    } else if (!isRead) {
       actionBtnHtml = '<button class="notif-card-action-btn mark-read-btn" data-action="mark-read" title="Mark as read"><i class="fas fa-check"></i></button>';
     }
 

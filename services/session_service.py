@@ -45,6 +45,11 @@ def store_auth_session(auth_session, user, profile=None, provider='password', re
     if remember:
         session.permanent = True
     
+    session["logged_in"] = True
+    session["auth_user_id"] = getattr(user, "id", None)
+    session["user_id"] = getattr(user, "id", None)
+    session["email"] = getattr(user, "email", None)
+    
     # Profile details
     if profile:
         session[K_PROFILE_ID] = profile.get("id")

@@ -1,45 +1,137 @@
 {% extends "base.html" %}
-
 {% block title %}Privacy Settings | NamVibe{% endblock %}
-
 {% block content %}
-<div class="container" style="max-width: 600px; margin: 40px auto; padding: 0 20px;">
-    <div class="glass-card" style="padding: 30px;">
-        <h2 style="margin-bottom: 25px;">Privacy & Safety</h2>
-        
-        <form action="/profile/settings/privacy" method="POST">
-            <div class="form-group" style="margin-bottom: 25px;">
-                <label style="display: block; font-weight: 700; margin-bottom: 10px;">Account Visibility</label>
-                <select name="visibility" class="form-control" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--chain-border); background: var(--chain-bg-soft);">
-                    <option value="public" {% if profile.profile_visibility == 'public' %}selected{% endif %}>Public (Everyone can see your content)</option>
-                    <option value="private" {% if profile.profile_visibility == 'private' %}selected{% endif %}>Private (Only followers can see your content)</option>
-                    <option value="premium" {% if profile.profile_visibility == 'premium' %}selected{% endif %}>Premium Only (Only subscribers can see your content)</option>
-                </select>
-                <small style="color: var(--chain-muted); margin-top: 8px; display: block;">Control who can view your profile and media.</small>
-            </div>
+<div class="settings-shell">
+  <div class="settings-hero">
+    <h1>Privacy & Relationships</h1>
+    <p>Control who can see your profile, content, and interact with you.</p>
+  </div>
+  <form method="POST" action="{{ url_for('profile.update_privacy_advanced') }}">
+    <div class="settings-grid">
 
-            <div class="form-group" style="margin-bottom: 25px;">
-                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                    <input type="checkbox" name="allow_audio" {% if profile.allow_audio_calls != False %}checked{% endif %} style="width: 20px; height: 20px;">
-                    <span style="font-weight: 600;">Allow Audio Calls</span>
-                </label>
-            </div>
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-user-shield"></i><h2>Profile Visibility</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Profile visibility</strong><span>Who can view your full profile.</span></div>
+          <select name="profile_visibility" class="select-control">
+            <option value="public" {% if privacy.profile_visibility == 'public' %}selected{% endif %}>Public</option>
+            <option value="friends_only" {% if privacy.profile_visibility == 'friends_only' %}selected{% endif %}>Friends Only</option>
+            <option value="followers_only" {% if privacy.profile_visibility == 'followers_only' %}selected{% endif %}>Followers Only</option>
+            <option value="private" {% if privacy.profile_visibility == 'private' %}selected{% endif %}>Private</option>
+          </select>
+        </div>
+      </section>
 
-            <div class="form-group" style="margin-bottom: 25px;">
-                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                    <input type="checkbox" name="allow_video" {% if profile.allow_video_calls != False %}checked{% endif %} style="width: 20px; height: 20px;">
-                    <span style="font-weight: 600;">Allow Video Calls</span>
-                </label>
-            </div>
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-eye"></i><h2>Content Visibility</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Who can see my posts</strong><span>Default visibility for your posts.</span></div>
+          <select name="who_can_see_posts" class="select-control">
+            <option value="public" {% if privacy.who_can_see_posts == 'public' %}selected{% endif %}>Public</option>
+            <option value="friends_only" {% if privacy.who_can_see_posts == 'friends_only' %}selected{% endif %}>Friends Only</option>
+            <option value="followers_only" {% if privacy.who_can_see_posts == 'followers_only' %}selected{% endif %}>Followers Only</option>
+            <option value="private" {% if privacy.who_can_see_posts == 'private' %}selected{% endif %}>Private</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Who can see my reels</strong><span>Default visibility for your reels.</span></div>
+          <select name="who_can_see_reels" class="select-control">
+            <option value="public" {% if privacy.who_can_see_reels == 'public' %}selected{% endif %}>Public</option>
+            <option value="friends_only" {% if privacy.who_can_see_reels == 'friends_only' %}selected{% endif %}>Friends Only</option>
+            <option value="followers_only" {% if privacy.who_can_see_reels == 'followers_only' %}selected{% endif %}>Followers Only</option>
+            <option value="private" {% if privacy.who_can_see_reels == 'private' %}selected{% endif %}>Private</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Who can see my stories</strong><span>Default visibility for your stories.</span></div>
+          <select name="who_can_see_stories" class="select-control">
+            <option value="public" {% if privacy.who_can_see_stories == 'public' %}selected{% endif %}>Public</option>
+            <option value="friends_only" {% if privacy.who_can_see_stories == 'friends_only' %}selected{% endif %}>Friends Only</option>
+            <option value="followers_only" {% if privacy.who_can_see_stories == 'followers_only' %}selected{% endif %}>Followers Only</option>
+            <option value="private" {% if privacy.who_can_see_stories == 'private' %}selected{% endif %}>Private</option>
+          </select>
+        </div>
+      </section>
 
-            <div class="form-group" style="margin-bottom: 30px;">
-                <a href="/profile/blocked" style="color: var(--chain-primary); text-decoration: none; font-weight: 700;">
-                    <i class="fas fa-user-slash"></i> Manage Blocked Users
-                </a>
-            </div>
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-users"></i><h2>Social Visibility</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Who can see my followers</strong><span>Who can view your follower list.</span></div>
+          <select name="who_can_see_followers" class="select-control">
+            <option value="public" {% if privacy.who_can_see_followers == 'public' %}selected{% endif %}>Public</option>
+            <option value="friends_only" {% if privacy.who_can_see_followers == 'friends_only' %}selected{% endif %}>Friends Only</option>
+            <option value="followers_only" {% if privacy.who_can_see_followers == 'followers_only' %}selected{% endif %}>Followers Only</option>
+            <option value="private" {% if privacy.who_can_see_followers == 'private' %}selected{% endif %}>Private</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Who can see my following</strong><span>Who can view who you follow.</span></div>
+          <select name="who_can_see_following" class="select-control">
+            <option value="public" {% if privacy.who_can_see_following == 'public' %}selected{% endif %}>Public</option>
+            <option value="friends_only" {% if privacy.who_can_see_following == 'friends_only' %}selected{% endif %}>Friends Only</option>
+            <option value="followers_only" {% if privacy.who_can_see_following == 'followers_only' %}selected{% endif %}>Followers Only</option>
+            <option value="private" {% if privacy.who_can_see_following == 'private' %}selected{% endif %}>Private</option>
+          </select>
+        </div>
+      </section>
 
-            <button type="submit" class="primary" style="width: 100%; padding: 15px; border-radius: 12px;">Save Changes</button>
-        </form>
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-user-plus"></i><h2>Who Can Send Friend Requests</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Friend request permission</strong><span>Choose who can send you friend requests.</span></div>
+          <select name="who_can_send_friend_requests" class="select-control">
+            <option value="everyone" {% if privacy.who_can_send_friend_requests == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="friends" {% if privacy.who_can_send_friend_requests == 'friends' %}selected{% endif %}>Friends</option>
+            <option value="followers" {% if privacy.who_can_send_friend_requests == 'followers' %}selected{% endif %}>Followers</option>
+            <option value="no_one" {% if privacy.who_can_send_friend_requests == 'no_one' %}selected{% endif %}>No one</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-user-check"></i><h2>Who Can Follow Me</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Follow permission</strong><span>Choose who can follow your profile.</span></div>
+          <select name="who_can_follow_me" class="select-control">
+            <option value="everyone" {% if privacy.who_can_follow_me == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="friends" {% if privacy.who_can_follow_me == 'friends' %}selected{% endif %}>Friends</option>
+            <option value="followers" {% if privacy.who_can_follow_me == 'followers' %}selected{% endif %}>Followers</option>
+            <option value="no_one" {% if privacy.who_can_follow_me == 'no_one' %}selected{% endif %}>No one</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-comment-dots"></i><h2>Who Can Message Me</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Message permission</strong><span>Choose who can send you direct messages.</span></div>
+          <select name="who_can_message_me" class="select-control">
+            <option value="everyone" {% if privacy.who_can_message_me == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="friends" {% if privacy.who_can_message_me == 'friends' %}selected{% endif %}>Friends only</option>
+            <option value="followers" {% if privacy.who_can_message_me == 'followers' %}selected{% endif %}>Followers & Friends</option>
+            <option value="no_one" {% if privacy.who_can_message_me == 'no_one' %}selected{% endif %}>No one</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-phone"></i><h2>Who Can Call You</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Call permission</strong><span>Choose who can start audio/video calls with you.</span></div>
+          <select name="who_can_call" class="select-control">
+            <option value="friends" {% if privacy.who_can_call == 'friends' %}selected{% endif %}>Friends only</option>
+            <option value="followers" {% if privacy.who_can_call == 'followers' %}selected{% endif %}>Followers & Friends</option>
+            <option value="everyone" {% if privacy.who_can_call == 'everyone' %}selected{% endif %}>Everyone</option>
+            <option value="no_one" {% if privacy.who_can_call == 'no_one' %}selected{% endif %}>No one</option>
+          </select>
+        </div>
+      </section>
+
     </div>
+    <div class="save-bar">
+      <a href="/profile/" class="cancel-btn">Cancel</a>
+      <button class="save-btn" type="submit"><i class="fas fa-save"></i> Save Privacy Settings</button>
+    </div>
+  </form>
 </div>
 {% endblock %}

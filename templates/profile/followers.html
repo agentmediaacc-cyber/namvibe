@@ -1,0 +1,92 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell" data-page="followers">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Followers</h2>
+    <span class="manager-count">{{ total or 0 }} followers</span>
+  </div>
+  {% if followers %}
+  <div class="people-list" id="followersList">
+    {% for f in followers %}
+    {% set pid = f.follower_profile_id or f.profile_id %}
+    <div class="people-card" data-profile-id="{{ pid }}">
+      <div class="people-avatar">
+        {% if f.avatar_url %}
+        <img src="{{ f.avatar_url }}" alt="{{ f.display_name or 'User' }}" loading="lazy">
+        {% else %}
+        <span>{{ (f.display_name or f.username or 'U')[0]|upper }}</span>
+        {% endif %}
+      </div>
+      <div class="people-info">
+        <strong>{{ f.display_name or f.username or 'NamVibe User' }}</strong>
+        <span>@{{ f.username or 'user' }}</span>
+        {% if f.created_at %}<small>Followed {{ f.created_at[:10] }}</small>{% endif %}
+      </div>
+      <div class="people-actions">
+        <a href="/profile/{{ f.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+        {% if viewer %}
+        <button class="action-btn" title="Message" onclick="window.location='/messages/start/{{ pid }}'"><i class="fas fa-comment"></i></button>
+        <button class="action-btn" title="Audio Call" onclick="window.location='/calls/start/{{ pid }}/audio'"><i class="fas fa-phone"></i></button>
+        <button class="action-btn" title="Video Call" onclick="window.location='/calls/start/{{ pid }}/video'"><i class="fas fa-video"></i></button>
+        <button class="action-btn" title="Follow Back" data-action="follow" data-id="{{ pid }}"><i class="fas fa-user-plus"></i></button>
+        {% if viewer.id == profile.id %}
+        <button class="action-btn danger" title="Remove" data-action="remove-follower" data-id="{{ pid }}"><i class="fas fa-user-minus"></i></button>
+        <button class="action-btn danger" title="Block" data-action="block" data-id="{{ pid }}"><i class="fas fa-ban"></i></button>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if next_cursor %}
+  <div class="load-more-wrap">
+    <button class="load-more-btn" data-load-more="loadMoreFollowers" data-cursor="{{ next_cursor }}"><i class="fas fa-chevron-down"></i> Load more</button>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-users"></i>
+    <h3>No followers yet</h3>
+    <p>When people follow this profile, they will appear here.</p>
+  </div>
+  {% endif %}
+</div>
+<script>
+window.loadMoreFollowers = function() {
+  const btn = document.querySelector('[data-load-more="loadMoreFollowers"]');
+  if (!btn) return;
+  const cursor = btn.dataset.cursor;
+  const list = document.getElementById('followersList');
+  fetch(`/social/api/followers?profile_id={{ profile.id }}&cursor=${encodeURIComponent(cursor)}&limit=20`)
+    .then(r => r.json()).then(data => {
+      (data.followers || []).forEach(f => {
+        const pid = f.follower_profile_id || f.profile_id;
+        const div = document.createElement('div');
+        div.className = 'people-card';
+        div.dataset.profileId = pid;
+        div.innerHTML = `
+          <div class="people-avatar">${f.avatar_url ? `<img src="${f.avatar_url}" alt="" loading="lazy">` : `<span>${(f.display_name || f.username || 'U')[0].toUpperCase()}</span>`}</div>
+          <div class="people-info"><strong>${f.display_name || f.username || 'User'}</strong><span>@${f.username || 'user'}</span></div>
+          <div class="people-actions">
+            <a href="/profile/${f.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
+            <button class="action-btn" title="Message" onclick="window.location='/messages/start/${pid}'"><i class="fas fa-comment"></i></button>
+            <button class="action-btn" title="Follow" data-action="follow" data-id="${pid}"><i class="fas fa-user-plus"></i></button>
+            {% if viewer and viewer.id == profile.id %}<button class="action-btn danger" title="Remove" data-action="remove-follower" data-id="${pid}"><i class="fas fa-user-minus"></i></button>{% endif %}
+          </div>`;
+        list.appendChild(div);
+      });
+      Phase86.init();
+      if (data.next_cursor) {
+        btn.dataset.cursor = data.next_cursor;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load more';
+      } else {
+        btn.style.display = 'none';
+      }
+    }).catch(() => { alert('Failed to load'); btn.disabled = false; });
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+};
+</script>
+{% endblock %}

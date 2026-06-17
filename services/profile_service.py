@@ -46,6 +46,8 @@ CHAIN_PROFILE_SAFE_COLUMNS = {
     "activities",
     "looking_for",
     "cover_url",
+    "banner_url",
+    "banner_path",
     "avatar_bucket",
     "avatar_path",
     "avatar_mime_type",
@@ -69,6 +71,10 @@ CHAIN_PROFILE_SAFE_COLUMNS = {
     "premium_tier",
     "followers_count",
     "following_count",
+    "posts_count",
+    "reels_count",
+    "saved_count",
+    "tagged_count",
     "profile_views",
     "total_likes",
     "is_public",
@@ -117,6 +123,8 @@ PROFILE_COLUMNS = {
     "avatar_upload_id",
     "profile_photo",
     "cover_url",
+    "banner_url",
+    "banner_path",
     "cover_upload_id",
     "avatar_bucket",
     "avatar_path",
@@ -149,6 +157,7 @@ PROFILE_COLUMNS = {
     "relationship_goal",
     "creator_category",
     "profile_type",
+    "visibility",
     "interests",
     "languages",
     "is_public",
@@ -158,6 +167,10 @@ PROFILE_COLUMNS = {
     "premium_tier",
     "followers_count",
     "following_count",
+    "posts_count",
+    "reels_count",
+    "saved_count",
+    "tagged_count",
     "profile_views",
     "total_likes",
     "wallet_balance",
@@ -221,6 +234,8 @@ NEON_PROFILE_COLUMNS = {
     "country_origin",
     "avatar_url",
     "cover_url",
+    "banner_url",
+    "banner_path",
     "avatar_bucket",
     "avatar_path",
     "avatar_mime_type",
@@ -250,6 +265,8 @@ NEON_PROFILE_COLUMNS = {
     "following_count",
     "posts_count",
     "reels_count",
+    "saved_count",
+    "tagged_count",
     "live_rooms_count",
     "profile_views",
     "wallet_balance",
@@ -311,7 +328,14 @@ def _chain_profile_columns_set(refresh=False):
 
     if trust_schema and not refresh:
         if _CHAIN_PROFILE_COLUMNS_CACHE is None:
-            _CHAIN_PROFILE_COLUMNS_CACHE = set(NEON_PROFILE_COLUMNS)
+            try:
+                actual = set(get_cached_table_columns("chain_profiles", timeout_ms=2000) or [])
+                if actual:
+                    _CHAIN_PROFILE_COLUMNS_CACHE = set(NEON_PROFILE_COLUMNS) & actual
+                else:
+                    _CHAIN_PROFILE_COLUMNS_CACHE = set(NEON_PROFILE_COLUMNS)
+            except Exception:
+                _CHAIN_PROFILE_COLUMNS_CACHE = set(NEON_PROFILE_COLUMNS)
         return _CHAIN_PROFILE_COLUMNS_CACHE
 
     if _CHAIN_PROFILE_COLUMNS_CACHE is not None and not refresh:
@@ -544,7 +568,7 @@ def normalize_profile(profile):
         return None
 
     normalized = dict(profile)
-    username = normalized.get("username") or (normalized.get("email", "").split("@")[0] if normalized.get("email") else "chainuser")
+    username = normalized.get("username") or (normalized.get("email", "").split("@")[0] if normalized.get("email") else "user")
     display_name = normalized.get("display_name") or normalized.get("full_name") or username.replace("_", " ").title()
     created_at = normalized.get("created_at") or _utcnow_iso()
     normalized["username"] = username
@@ -554,7 +578,7 @@ def normalize_profile(profile):
     normalized["avatar_url"] = normalized.get("avatar_url") or normalized.get("profile_photo")
     normalized["cover_url"] = normalized.get("cover_url") or normalized.get("cover_photo")
     normalized["profile_video_url"] = normalized.get("profile_video_url") or normalized.get("video_intro_url")
-    normalized["location"] = normalized.get("location") or normalized.get("current_location") or normalized.get("town") or normalized.get("region") or normalized.get("country_origin") or "Namibia"
+    normalized["location"] = normalized.get("location") or normalized.get("current_location") or normalized.get("town") or normalized.get("region") or normalized.get("country_origin") or ""
     normalized["current_location"] = normalized.get("current_location") or normalized["location"]
     normalized["website"] = normalized.get("website") or normalized.get("portfolio_url") or ""
     normalized["created_at"] = created_at
@@ -643,8 +667,8 @@ def _test_fallback_profile(auth_user_id=None, profile_id=None, email=None):
     return normalize_profile({
         "id": str(fallback_id),
         "auth_user_id": str(fallback_auth_user_id),
-        "username": session.get("username") or "phase27",
-        "full_name": session.get("full_name") or "Phase 27",
+        "username": session.get("username") or "user",
+        "full_name": session.get("full_name") or "User",
         "email": email,
         "is_verified": False,
         "email_verified": False,
@@ -671,6 +695,18 @@ def _direct_profile_lookup(field, value, timeout_ms=4000):
         return normalize_profile(row) if row else None
     except Exception as error:
         print(f"[profile_service] direct neon lookup failed for {field}: {error}")
+        missing_column = _extract_missing_column(error)
+        if missing_column:
+            _drop_missing_profile_column(missing_column)
+            try:
+                row = fetch_one(
+                    f"SELECT {_neon_profile_columns()} FROM chain_profiles WHERE {field} = %s AND deleted_at IS NULL LIMIT 1",
+                    [value],
+                    timeout_ms=timeout_ms,
+                )
+                return normalize_profile(row) if row else None
+            except Exception as retry_error:
+                print(f"[profile_service] direct neon lookup retry failed for {field}: {retry_error}")
         return None
 
 
@@ -692,9 +728,24 @@ def _neon_get_profile_by(field, value):
         row = rows[0] if rows else None
         if row:
             return normalize_profile(row)
-        return _direct_profile_lookup(field, value)
+        return None  # not found — no double-query
     except Exception as error:
         print(f"[profile_service] neon lookup failed for {field}: {error}")
+        missing_column = _extract_missing_column(error)
+        if missing_column:
+            _drop_missing_profile_column(missing_column)
+            # Retry once with corrected columns
+            try:
+                rows = fast_query(
+                    f"SELECT {_neon_profile_columns()} FROM chain_profiles WHERE {field} = %s AND deleted_at IS NULL LIMIT 1",
+                    [value],
+                    timeout_ms=500,
+                )
+                row = rows[0] if rows else None
+                if row:
+                    return normalize_profile(row)
+            except Exception as retry_error:
+                print(f"[profile_service] neon lookup retry failed for {field}: {retry_error}")
         return _direct_profile_lookup(field, value)
 
 
@@ -809,9 +860,9 @@ def ensure_neon_profile(auth_user_id, defaults=None):
             )
             return None, "Profile update failed for existing profile."
         return normalize_profile(fallback_existing), None
-    username = normalize_username(defaults.get("username") or session.get("username") or "chainuser")
+    username = normalize_username(defaults.get("username") or session.get("username") or "user")
     if not _username_valid(username):
-        username = "chainuser"
+        username = "user"
     while _neon_get_profile_by("username", username):
         username = _username_suggestions(username, defaults.get("town"))[0]
     payload = _filter_chain_profile_payload({
@@ -879,6 +930,63 @@ def ensure_neon_profile(auth_user_id, defaults=None):
         return None, f"Profile insert failed: {error}"
 
 
+def ensure_profile_for_user(user_id, email=None, username=None, defaults=None):
+    defaults = dict(defaults or {})
+    cleaned_email = _clean_email(email or defaults.get("email") or (session.get("email") if has_request_context() else None))
+    username_seed = normalize_username(username or defaults.get("username") or ((cleaned_email or "user").split("@", 1)[0]))
+    if not _username_valid(username_seed):
+        username_seed = normalize_username((cleaned_email or "user").split("@", 1)[0])
+    if not _username_valid(username_seed):
+        username_seed = "user"
+
+    profile = _neon_get_profile_by("auth_user_id", user_id)
+    if not profile and cleaned_email:
+        profile = _neon_get_profile_by("email", cleaned_email) or _neon_get_profile_by("normalized_email", cleaned_email)
+    if profile:
+        update_payload = {
+            "auth_user_id": user_id,
+            "email": cleaned_email or profile.get("email"),
+            "normalized_email": cleaned_email or profile.get("normalized_email") or profile.get("email"),
+            "username": profile.get("username") or username_seed,
+            "display_name": profile.get("display_name") or profile.get("full_name") or username_seed,
+            "full_name": profile.get("full_name") or profile.get("display_name") or username_seed,
+            "profile_completed": bool(profile.get("profile_completed")),
+            "email_verified": bool(profile.get("email_verified")),
+            "is_verified": bool(profile.get("is_verified")),
+        }
+        updated = _neon_update_profile(profile["id"], update_payload)
+        return updated or profile, None
+
+    while _neon_get_profile_by("username", username_seed):
+        username_seed = _username_suggestions(username_seed)[0]
+
+    minimal_defaults = {
+        **defaults,
+        "email": cleaned_email,
+        "normalized_email": cleaned_email,
+        "username": username_seed,
+        "username_slug": username_seed,
+        "display_name": defaults.get("display_name") or defaults.get("full_name") or username_seed,
+        "full_name": defaults.get("full_name") or defaults.get("display_name") or username_seed,
+        "bio": defaults.get("bio") or "",
+        "phone": defaults.get("phone") or None,
+        "normalized_phone": defaults.get("normalized_phone") or None,
+        "avatar_url": defaults.get("avatar_url") or None,
+        "town": defaults.get("town") or None,
+        "region": defaults.get("region") or None,
+        "current_location": defaults.get("current_location") or None,
+        "country_origin": defaults.get("country_origin") or None,
+        "country": defaults.get("country") or None,
+        "profile_type": defaults.get("profile_type") or "member",
+        "profile_completion": defaults.get("profile_completion") or 0,
+        "profile_completed": False,
+        "onboarding_step": defaults.get("onboarding_step") or "profile",
+        "email_verified": bool(defaults.get("email_verified", False)),
+        "is_verified": bool(defaults.get("is_verified", False)),
+    }
+    return ensure_neon_profile(user_id, minimal_defaults)
+
+
 def get_current_profile():
     try:
         if not has_request_context():
@@ -910,40 +1018,43 @@ def get_current_profile():
             return profile
 
         profile = None
-        if auth_user_id:
-            profile = _neon_get_profile_by("auth_user_id", auth_user_id)
         if not profile and profile_id:
             profile = _neon_get_profile_by("id", profile_id)
         if not profile and auth_user_id:
-            profile = _direct_profile_lookup("auth_user_id", auth_user_id)
+            profile = _neon_get_profile_by("auth_user_id", auth_user_id)
         if not profile and profile_id:
             profile = _direct_profile_lookup("id", profile_id)
         if not profile and auth_user_id:
-            profiles = safe_select("chain_profiles", columns="*", filters={"auth_user_id": auth_user_id}, limit=1)
-            profile = normalize_profile(profiles[0]) if profiles else None
+            profile = _direct_profile_lookup("auth_user_id", auth_user_id)
         if not profile and profile_id:
-            profiles = safe_select("chain_profiles", columns="*", filters={"id": profile_id}, limit=1)
+            profiles = safe_select("chain_profiles", columns=_neon_profile_columns(), filters={"id": profile_id}, limit=1)
+            profile = normalize_profile(profiles[0]) if profiles else None
+        if not profile and auth_user_id:
+            profiles = safe_select("chain_profiles", columns=_neon_profile_columns(), filters={"auth_user_id": auth_user_id}, limit=1)
             profile = normalize_profile(profiles[0]) if profiles else None
         if not profile and email:
             profile = _direct_profile_lookup("email", email)
         if not profile and email:
-            profiles = safe_select("chain_profiles", columns="*", filters={"email": email}, limit=1)
+            profiles = safe_select("chain_profiles", columns=_neon_profile_columns(), filters={"email": email}, limit=1)
             profile = normalize_profile(profiles[0]) if profiles else None
 
-        if not profile and auth_user_id and email:
+        if not profile and (auth_user_id or profile_id or email):
+            bootstrap_user_id = auth_user_id or profile_id
+            if not bootstrap_user_id:
+                bootstrap_user_id = str(uuid.uuid4())
             defaults = {
                 "email": email,
-                "username": session.get("username") or normalize_username(email.split("@", 1)[0]),
-                "full_name": session.get("full_name") or session.get("display_name") or email.split("@", 1)[0].replace("_", " ").title(),
+                "username": session.get("username") or normalize_username((email or "user").split("@", 1)[0]),
+                "full_name": session.get("full_name") or session.get("display_name") or (email or "user").split("@", 1)[0],
                 "display_name": session.get("display_name") or session.get("full_name"),
                 "profile_completed": bool(session.get("profile_completed")),
             }
-            bootstrapped, bootstrap_error = ensure_neon_profile(auth_user_id, defaults)
+            bootstrapped, bootstrap_error = ensure_profile_for_user(bootstrap_user_id, email=email, username=defaults.get("username"), defaults=defaults)
             if bootstrapped:
                 profile = normalize_profile(bootstrapped)
-                log_info("current_profile_bootstrapped", auth_user_id=auth_user_id, profile_id=profile.get("id"), email=email)
+                log_info("current_profile_bootstrapped", auth_user_id=bootstrap_user_id, profile_id=profile.get("id"), email=email)
             elif bootstrap_error:
-                log_warning("current_profile_bootstrap_failed", auth_user_id=auth_user_id, email=email, error=bootstrap_error)
+                log_warning("current_profile_bootstrap_failed", auth_user_id=bootstrap_user_id, email=email, error=bootstrap_error)
         
         if not profile and os.getenv("FLASK_TESTING") == "1":
             profile = _test_fallback_profile(auth_user_id=auth_user_id, profile_id=profile_id, email=email)
@@ -954,8 +1065,8 @@ def get_current_profile():
                 profile = normalize_profile({
                     "id": session.get("profile_id") or dev_data.get("id") or f"dev_{uuid.uuid4()}",
                     "auth_user_id": session.get("auth_user_id") or dev_data.get("auth_user_id"),
-                    "username": session.get("username") or dev_data.get("username") or "dev_user",
-                    "full_name": session.get("full_name") or dev_data.get("full_name") or "Dev User",
+                    "username": session.get("username") or dev_data.get("username") or "user",
+                    "full_name": session.get("full_name") or dev_data.get("full_name") or session.get("username") or dev_data.get("username") or "user",
                     "email": session.get("email") or dev_data.get("email"),
                     "is_verified": False,
                     "email_verified": False,
@@ -1010,7 +1121,7 @@ def get_profile_by_username(username):
             return cached_profile
         profile = _neon_get_profile_by("username", cleaned)
         if not profile:
-            profiles = safe_select("chain_profiles", columns="*", filters={"username": cleaned}, limit=1)
+            profiles = safe_select("chain_profiles", columns=_neon_profile_columns(), filters={"username": cleaned}, limit=1)
             profile = normalize_profile(profiles[0]) if profiles else None
         set_cache(key, profile, ttl=120)
         return profile
@@ -1026,7 +1137,7 @@ def get_profile_by_id(profile_id):
         return cached_profile
     profile = _neon_get_profile_by("id", profile_id)
     if not profile:
-        profiles = safe_select("chain_profiles", columns="*", filters={"id": profile_id}, limit=1, order_by=None)
+        profiles = safe_select("chain_profiles", columns=_neon_profile_columns(), filters={"id": profile_id}, limit=1, order_by=None)
         profile = normalize_profile(profiles[0]) if profiles else None
     set_cache(key, profile, ttl=120)
     return profile
@@ -1212,7 +1323,7 @@ def bootstrap_profile_for_current_user():
 
     email = _clean_email(session.get("email"))
     base_username = normalize_username(session.get("username") or ((email or "chain").split("@")[0]))
-    username = base_username if _username_valid(base_username) else "chainuser"
+    username = base_username if _username_valid(base_username) else "user"
 
     while _neon_get_profile_by("username", username) or safe_select("chain_profiles", columns="id", filters={"username": username}, limit=1, order_by=None):
         username = _username_suggestions(base_username)[0]
@@ -1339,6 +1450,8 @@ def update_profile_setup(profile_id, form, current_profile=None):
         if not is_valid:
             return False, duplicate_error
 
+        completion = get_profile_completion(payload)
+        completed = completion >= 100
         neon_payload = {
             "email": payload.get("email"),
             "username": payload.get("username"),
@@ -1364,9 +1477,9 @@ def update_profile_setup(profile_id, form, current_profile=None):
             "dating_mode_enabled": payload.get("dating_mode_enabled"),
             "is_creator": payload.get("is_creator"),
             "visibility": form.get("visibility") or form.get("profile_visibility") or "public",
-            "profile_completion": payload.get("profile_completion"),
-            "profile_completed": True,
-            "onboarding_step": form.get("onboarding_step") or "complete",
+            "profile_completion": completion,
+            "profile_completed": completed,
+            "onboarding_step": form.get("onboarding_step") or ("complete" if completed else "profile"),
         }
         updated_profile = _neon_update_profile(profile_id, neon_payload)
         if not updated_profile:
@@ -1376,7 +1489,8 @@ def update_profile_setup(profile_id, form, current_profile=None):
         delete_cache(cache_key("profile_id", profile_id))
         delete_cache(cache_key("profile_username", profile.get("username")))
         delete_cache(cache_key("current_profile", profile.get("auth_user_id")))
-        return complete_profile_setup(profile_id, updated_profile=updated_profile)
+        refreshed = get_profile_by_id(profile_id) or updated_profile
+        return True, refreshed
     except Exception as error:
         print(f"[profile_service] update_profile_setup failed: {error}")
         return False, str(error)
@@ -1927,11 +2041,12 @@ def upload_profile_avatar(auth_user_id, file_obj):
     profile = get_current_profile()
     if not profile or profile.get("auth_user_id") != auth_user_id:
         return False, "Profile not found."
-    from services.supabase_storage_router import upload_avatar
-    result, error = upload_avatar(file_obj, profile["id"])
-    if not result:
-        return False, error
-    updated = _neon_update_profile(profile["id"], {"avatar_url": result.get("url"), "avatar_bucket": result.get("bucket"), "avatar_path": result.get("path"), "avatar_mime_type": result.get("mime_type"), "avatar_size_bytes": result.get("size_bytes"), "storage_bucket": result.get("bucket"), "storage_path": result.get("path")})
+    from services.storage_service import safe_upload_file
+    result = safe_upload_file(file_obj, "avatar", profile_id=profile["id"])
+    if not result.get("ok"):
+        return False, result.get("error", "Avatar upload failed.")
+    meta = result.get("meta", {})
+    updated = _neon_update_profile(profile["id"], {"avatar_url": result.get("url"), "avatar_storage_bucket": meta.get("bucket") or result.get("storage"), "avatar_storage_path": meta.get("path") or "", "avatar_mime_type": meta.get("mime_type", ""), "avatar_size_bytes": meta.get("size_bytes", 0)})
     delete_cache(cache_key("current_profile", auth_user_id))
     return True, updated or profile
 
@@ -1940,11 +2055,12 @@ def upload_profile_cover(auth_user_id, file_obj):
     profile = get_current_profile()
     if not profile or profile.get("auth_user_id") != auth_user_id:
         return False, "Profile not found."
-    from services.supabase_storage_router import upload_cover
-    result, error = upload_cover(file_obj, profile["id"])
-    if not result:
-        return False, error
-    updated = _neon_update_profile(profile["id"], {"cover_url": result.get("url"), "cover_bucket": result.get("bucket"), "cover_path": result.get("path"), "cover_mime_type": result.get("mime_type"), "cover_size_bytes": result.get("size_bytes"), "storage_bucket": result.get("bucket"), "storage_path": result.get("path")})
+    from services.storage_service import safe_upload_file
+    result = safe_upload_file(file_obj, "cover", profile_id=profile["id"])
+    if not result.get("ok"):
+        return False, result.get("error", "Cover upload failed.")
+    meta = result.get("meta", {})
+    updated = _neon_update_profile(profile["id"], {"cover_url": result.get("url"), "cover_path": meta.get("path") or "", "cover_mime_type": meta.get("mime_type", ""), "cover_size_bytes": meta.get("size_bytes", 0), "cover_storage_bucket": meta.get("bucket") or result.get("storage")})
     delete_cache(cache_key("current_profile", auth_user_id))
     return True, updated or profile
 
@@ -2120,3 +2236,724 @@ def block_profile(username):
             fallback_columns={"blocker_profile_id", "blocked_profile_id", "created_at"},
         )
     return True
+
+
+def send_friend_request(sender_profile_id, receiver_profile_id, message=None):
+    try:
+        existing = safe_select(
+            "chain_friend_requests",
+            filters={"sender_profile_id": sender_profile_id, "receiver_profile_id": receiver_profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if existing:
+            return False, "Friend request already sent."
+        inserted = safe_insert(
+            "chain_friend_requests",
+            {
+                "sender_profile_id": sender_profile_id,
+                "receiver_profile_id": receiver_profile_id,
+                "status": "pending",
+                "message": message,
+                "created_at": _utcnow_iso(),
+            },
+            fallback_columns={"sender_profile_id", "receiver_profile_id", "status", "message", "created_at"},
+        )
+        if inserted:
+            return True, inserted[0].get("id")
+        return False, "Failed to send friend request."
+    except Exception as error:
+        print(f"[profile_service] send_friend_request failed: {error}")
+        return False, str(error)
+
+
+def accept_friend_request(request_id, profile_id):
+    try:
+        request = safe_select(
+            "chain_friend_requests",
+            filters={"id": request_id, "receiver_profile_id": profile_id, "status": "pending"},
+            limit=1,
+            order_by=None,
+        )
+        if not request:
+            return False, "Friend request not found."
+        req = request[0]
+        safe_update(
+            "chain_friend_requests",
+            {"status": "accepted", "responded_at": _utcnow_iso()},
+            eq={"id": request_id},
+            fallback_columns={"status", "responded_at"},
+        )
+        friend_profile_id = req["sender_profile_id"]
+        safe_insert(
+            "chain_friends",
+            {"profile_id": profile_id, "friend_profile_id": friend_profile_id, "created_at": _utcnow_iso()},
+            fallback_columns={"profile_id", "friend_profile_id", "created_at"},
+        )
+        safe_insert(
+            "chain_friends",
+            {"profile_id": friend_profile_id, "friend_profile_id": profile_id, "created_at": _utcnow_iso()},
+            fallback_columns={"profile_id", "friend_profile_id", "created_at"},
+        )
+        return True, None
+    except Exception as error:
+        print(f"[profile_service] accept_friend_request failed: {error}")
+        return False, str(error)
+
+
+def decline_friend_request(request_id, profile_id):
+    try:
+        from services.friend_service import decline_friend_request as friend_decline
+        res = friend_decline(profile_id, request_id)
+        return res.get("success", False)
+    except Exception as error:
+        print(f"[profile_service] decline_friend_request failed: {error}")
+        return False
+
+
+def cancel_friend_request(request_id, profile_id):
+    try:
+        from services.friend_service import cancel_friend_request as friend_cancel
+        res = friend_cancel(profile_id, request_id)
+        return res.get("success", False)
+    except Exception as error:
+        print(f"[profile_service] cancel_friend_request failed: {error}")
+        return False
+
+
+def remove_friend(profile_id, friend_profile_id):
+    try:
+        from services.friend_service import remove_friend as friend_remove
+        res = friend_remove(profile_id, friend_profile_id)
+        return res.get("success", False)
+    except Exception as error:
+        print(f"[profile_service] remove_friend failed: {error}")
+        return False
+
+
+def get_friends(profile_id, page=1, per_page=20):
+    try:
+        from services.friend_service import list_friends
+        # Convert page/per_page to limit/cursor if needed, or just use list_friends
+        # profile_service version uses offset/limit, friend_service uses cursor.
+        # For simplicity, we'll implement the query here with normalized schema.
+        offset = (page - 1) * per_page
+        query = """
+            SELECT cp.id, cp.username, cp.display_name, cp.avatar_url, cf.status, cf.created_at
+            FROM chain_friends cf
+            JOIN chain_profiles cp ON (CASE WHEN cf.profile_id_1 = %s THEN cf.profile_id_2 ELSE cf.profile_id_1 END) = cp.id
+            WHERE (cf.profile_id_1 = %s OR cf.profile_id_2 = %s)
+              AND cp.deleted_at IS NULL
+            ORDER BY cf.created_at DESC LIMIT %s OFFSET %s
+        """
+        rows = fast_query(query, [profile_id, profile_id, profile_id, per_page, offset], default=[])
+        total = fast_query("SELECT COUNT(*) as count FROM chain_friends WHERE profile_id_1 = %s OR profile_id_2 = %s", [profile_id, profile_id])
+        count = total[0]['count'] if total else 0
+        total_pages = max(1, (count + per_page - 1) // per_page)
+        return {"friends": rows, "total": count, "page": page, "pages": total_pages}
+    except Exception as error:
+        print(f"[profile_service] get_friends failed: {error}")
+        return {"friends": [], "total": 0, "page": page, "pages": 0}
+
+
+def get_friend_requests(profile_id, status="pending"):
+    try:
+        rows = fast_query(
+            f"SELECT cfr.id, cfr.sender_profile_id, cfr.recipient_profile_id, cfr.status, cfr.created_at, "
+            f"cp.username, cp.display_name, cp.avatar_url "
+            f"FROM chain_friend_requests cfr "
+            f"LEFT JOIN chain_profiles cp ON cfr.sender_profile_id = cp.id "
+            f"WHERE cfr.recipient_profile_id = %s AND cfr.status = %s AND cp.deleted_at IS NULL "
+            f"ORDER BY cfr.created_at DESC",
+            [profile_id, status],
+            default=[],
+        )
+        return rows
+    except Exception as error:
+        print(f"[profile_service] get_friend_requests failed: {error}")
+        return []
+
+
+def get_sent_friend_requests(profile_id, status="pending"):
+    try:
+        rows = fast_query(
+            f"SELECT cfr.id, cfr.sender_profile_id, cfr.recipient_profile_id, cfr.status, cfr.created_at, "
+            f"cp.username, cp.display_name, cp.avatar_url "
+            f"FROM chain_friend_requests cfr "
+            f"LEFT JOIN chain_profiles cp ON cfr.recipient_profile_id = cp.id "
+            f"WHERE cfr.sender_profile_id = %s AND cfr.status = %s AND cp.deleted_at IS NULL "
+            f"ORDER BY cfr.created_at DESC",
+            [profile_id, status],
+            default=[],
+        )
+        return rows
+    except Exception as error:
+        print(f"[profile_service] get_sent_friend_requests failed: {error}")
+        return []
+
+
+def get_friend_status(profile_id, other_profile_id):
+    try:
+        if profile_id == other_profile_id:
+            return "none"
+        p1 = min(profile_id, other_profile_id)
+        p2 = max(profile_id, other_profile_id)
+        friend = fast_query(
+            "SELECT 1 FROM chain_friends WHERE profile_id_1 = %s AND profile_id_2 = %s LIMIT 1",
+            [p1, p2]
+        )
+        if friend:
+            return "friends"
+        sent = fast_query(
+            "SELECT 1 FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending' LIMIT 1",
+            [profile_id, other_profile_id]
+        )
+        if sent:
+            return "request_sent"
+        received = fast_query(
+            "SELECT 1 FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending' LIMIT 1",
+            [other_profile_id, profile_id]
+        )
+        if received:
+            return "request_received"
+        return "none"
+    except Exception as error:
+        print(f"[profile_service] get_friend_status failed: {error}")
+        return "none"
+
+
+def are_friends(profile_id_a, profile_id_b):
+    try:
+        p1 = min(profile_id_a, profile_id_b)
+        p2 = max(profile_id_a, profile_id_b)
+        friend = fast_query(
+            "SELECT 1 FROM chain_friends WHERE profile_id_1 = %s AND profile_id_2 = %s LIMIT 1",
+            [p1, p2]
+        )
+        return bool(friend)
+    except Exception as error:
+        print(f"[profile_service] are_friends failed: {error}")
+        return False
+
+
+
+def get_followers_page(profile_id, page=1, per_page=20):
+    try:
+        offset = (page - 1) * per_page
+        total = safe_count("chain_follows", filters={"following_profile_id": profile_id})
+        rows = fast_query(
+            f"SELECT cf.follower_profile_id AS id, cp.username, cp.display_name, cp.avatar_url "
+            f"FROM chain_follows cf "
+            f"LEFT JOIN chain_profiles cp ON cf.follower_profile_id = cp.id "
+            f"WHERE cf.following_profile_id = %s AND cp.deleted_at IS NULL "
+            f"ORDER BY cf.created_at DESC LIMIT %s OFFSET %s",
+            [profile_id, per_page, offset],
+            default=[],
+        )
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        return {"followers": rows, "count": total, "page": page, "pages": total_pages}
+    except Exception as error:
+        print(f"[profile_service] get_followers_page failed: {error}")
+        return {"followers": [], "count": 0, "page": page, "pages": 0}
+
+
+def get_following_page(profile_id, page=1, per_page=20):
+    try:
+        offset = (page - 1) * per_page
+        total = safe_count("chain_follows", filters={"follower_profile_id": profile_id})
+        rows = fast_query(
+            f"SELECT cf.following_profile_id AS id, cf.type, cp.username, cp.display_name, cp.avatar_url "
+            f"FROM chain_follows cf "
+            f"LEFT JOIN chain_profiles cp ON cf.following_profile_id = cp.id "
+            f"WHERE cf.follower_profile_id = %s AND cp.deleted_at IS NULL "
+            f"ORDER BY cf.created_at DESC LIMIT %s OFFSET %s",
+            [profile_id, per_page, offset],
+            default=[],
+        )
+        grouped = {"users": [], "pages": [], "creators": [], "businesses": []}
+        for row in rows:
+            row_type = (row.get("type") or "user").lower()
+            if row_type in grouped:
+                grouped[row_type].append(row)
+            else:
+                grouped["users"].append(row)
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        return {"following": grouped, "count": total, "page": page, "pages": total_pages}
+    except Exception as error:
+        print(f"[profile_service] get_following_page failed: {error}")
+        return {"following": {"users": [], "pages": [], "creators": [], "businesses": []}, "count": 0, "page": page, "pages": 0}
+
+
+def get_profile_posts(profile_id, page=1, per_page=20, visibility="public"):
+    try:
+        offset = (page - 1) * per_page
+        filters = {"profile_id": profile_id, "visibility": visibility, "deleted_at": None}
+        total = safe_count("chain_posts", filters=filters)
+        rows = fast_query(
+            f"SELECT * FROM chain_posts "
+            f"WHERE profile_id = %s AND visibility = %s AND deleted_at IS NULL "
+            f"ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            [profile_id, visibility, per_page, offset],
+            default=[],
+        )
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        return {"posts": rows, "count": total, "page": page, "pages": total_pages}
+    except Exception as error:
+        print(f"[profile_service] get_profile_posts failed: {error}")
+        return {"posts": [], "count": 0, "page": page, "pages": 0}
+
+
+def update_post_visibility(post_id, profile_id, visibility):
+    try:
+        safe_update(
+            "chain_posts",
+            {"visibility": visibility},
+            eq={"id": post_id, "profile_id": profile_id},
+            fallback_columns={"visibility"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] update_post_visibility failed: {error}")
+        return False
+
+
+def toggle_post_comments(post_id, profile_id):
+    try:
+        post = safe_select(
+            "chain_posts",
+            columns="allow_comments",
+            filters={"id": post_id, "profile_id": profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if not post:
+            return False
+        current = bool(post[0].get("allow_comments", True))
+        safe_update(
+            "chain_posts",
+            {"allow_comments": not current},
+            eq={"id": post_id, "profile_id": profile_id},
+            fallback_columns={"allow_comments"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] toggle_post_comments failed: {error}")
+        return False
+
+
+def toggle_post_sharing(post_id, profile_id):
+    try:
+        post = safe_select(
+            "chain_posts",
+            columns="allow_sharing",
+            filters={"id": post_id, "profile_id": profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if not post:
+            return False
+        current = bool(post[0].get("allow_sharing", True))
+        safe_update(
+            "chain_posts",
+            {"allow_sharing": not current},
+            eq={"id": post_id, "profile_id": profile_id},
+            fallback_columns={"allow_sharing"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] toggle_post_sharing failed: {error}")
+        return False
+
+
+def toggle_post_pin(post_id, profile_id):
+    try:
+        post = safe_select(
+            "chain_posts",
+            columns="is_pinned",
+            filters={"id": post_id, "profile_id": profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if not post:
+            return False
+        current = bool(post[0].get("is_pinned", False))
+        safe_update(
+            "chain_posts",
+            {"is_pinned": not current},
+            eq={"id": post_id, "profile_id": profile_id},
+            fallback_columns={"is_pinned"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] toggle_post_pin failed: {error}")
+        return False
+
+
+def delete_post(post_id, profile_id):
+    try:
+        safe_update(
+            "chain_posts",
+            {"deleted_at": _utcnow_iso()},
+            eq={"id": post_id, "profile_id": profile_id},
+            fallback_columns={"deleted_at"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] delete_post failed: {error}")
+        return False
+
+
+def get_profile_reels(profile_id, page=1, per_page=20, reel_type="own"):
+    try:
+        offset = (page - 1) * per_page
+        where_clause = "cr.profile_id = %s AND cr.deleted_at IS NULL"
+        params = [profile_id]
+
+        if reel_type == "public":
+            where_clause = "cr.visibility = 'public' AND cr.deleted_at IS NULL"
+            params = []
+        elif reel_type == "followers":
+            where_clause = "cr.visibility = 'followers' AND cr.deleted_at IS NULL"
+            params = []
+        elif reel_type == "tagged":
+            where_clause = "cr.id IN (SELECT reel_id FROM chain_reel_tags WHERE tagged_profile_id = %s) AND cr.deleted_at IS NULL"
+            params = [profile_id]
+        elif reel_type == "saved":
+            where_clause = "cr.id IN (SELECT reel_id FROM chain_saved_reels WHERE profile_id = %s) AND cr.deleted_at IS NULL"
+            params = [profile_id]
+        elif reel_type == "liked":
+            where_clause = "cr.id IN (SELECT reel_id FROM chain_reel_likes WHERE profile_id = %s) AND cr.deleted_at IS NULL"
+            params = [profile_id]
+        elif reel_type == "following":
+            where_clause = (
+                "cr.profile_id IN (SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s) "
+                "AND cr.deleted_at IS NULL"
+            )
+            params = [profile_id]
+
+        count_sql = f"SELECT COUNT(*) AS cnt FROM chain_reels cr WHERE {where_clause}"
+        count_rows = fast_query(count_sql, params, default=[])
+        total = count_rows[0]["cnt"] if count_rows else 0
+
+        rows = fast_query(
+            f"SELECT cr.*, cp.username, cp.display_name, cp.avatar_url "
+            f"FROM chain_reels cr "
+            f"LEFT JOIN chain_profiles cp ON cr.profile_id = cp.id "
+            f"WHERE {where_clause} "
+            f"ORDER BY cr.created_at DESC LIMIT %s OFFSET %s",
+            params + [per_page, offset],
+            default=[],
+        )
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        return {"reels": rows, "count": total, "page": page, "pages": total_pages}
+    except Exception as error:
+        print(f"[profile_service] get_profile_reels failed: {error}")
+        return {"reels": [], "count": 0, "page": page, "pages": 0}
+
+
+def update_reel_visibility(reel_id, profile_id, visibility):
+    try:
+        safe_update(
+            "chain_reels",
+            {"visibility": visibility},
+            eq={"id": reel_id, "profile_id": profile_id},
+            fallback_columns={"visibility"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] update_reel_visibility failed: {error}")
+        return False
+
+
+def toggle_reel_comments(reel_id, profile_id):
+    try:
+        reel = safe_select(
+            "chain_reels",
+            columns="allow_comments",
+            filters={"id": reel_id, "profile_id": profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if not reel:
+            return False
+        current = bool(reel[0].get("allow_comments", True))
+        safe_update(
+            "chain_reels",
+            {"allow_comments": not current},
+            eq={"id": reel_id, "profile_id": profile_id},
+            fallback_columns={"allow_comments"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] toggle_reel_comments failed: {error}")
+        return False
+
+
+def toggle_reel_pin(reel_id, profile_id):
+    try:
+        reel = safe_select(
+            "chain_reels",
+            columns="is_pinned",
+            filters={"id": reel_id, "profile_id": profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if not reel:
+            return False
+        current = bool(reel[0].get("is_pinned", False))
+        safe_update(
+            "chain_reels",
+            {"is_pinned": not current},
+            eq={"id": reel_id, "profile_id": profile_id},
+            fallback_columns={"is_pinned"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] toggle_reel_pin failed: {error}")
+        return False
+
+
+def toggle_reel_sharing(reel_id, profile_id):
+    try:
+        reel = safe_select(
+            "chain_reels",
+            columns="allow_sharing",
+            filters={"id": reel_id, "profile_id": profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if not reel:
+            return False
+        current = bool(reel[0].get("allow_sharing", True))
+        safe_update(
+            "chain_reels",
+            {"allow_sharing": not current},
+            eq={"id": reel_id, "profile_id": profile_id},
+            fallback_columns={"allow_sharing"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] toggle_reel_sharing failed: {error}")
+        return False
+
+
+def delete_reel(reel_id, profile_id):
+    try:
+        safe_update(
+            "chain_reels",
+            {"deleted_at": _utcnow_iso()},
+            eq={"id": reel_id, "profile_id": profile_id},
+            fallback_columns={"deleted_at"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] delete_reel failed: {error}")
+        return False
+
+
+def get_reel_analytics(reel_id, profile_id):
+    try:
+        views = safe_count("chain_reel_views", filters={"reel_id": reel_id})
+        likes = safe_count("chain_reel_likes", filters={"reel_id": reel_id})
+        comments = safe_count("chain_reel_comments", filters={"reel_id": reel_id})
+        return {"views": views, "likes": likes, "comments": comments}
+    except Exception as error:
+        print(f"[profile_service] get_reel_analytics failed: {error}")
+        return {"views": 0, "likes": 0, "comments": 0}
+
+
+def update_profile_privacy(profile_id, data):
+    try:
+        allowed = (
+            "who_can_follow", "who_can_message", "who_can_call",
+            "who_can_view_posts", "who_can_view_reels",
+            "who_can_see_posts", "who_can_see_reels", "who_can_see_stories",
+            "who_can_see_followers", "who_can_see_following",
+            "who_can_send_friend_requests", "who_can_follow_me", "who_can_message_me",
+            "profile_visibility", "visibility",
+            "require_coins_to_follow", "premium_only_follow",
+        )
+        payload = {}
+        for field in allowed:
+            if field in data:
+                payload[field] = data[field]
+        if not payload:
+            return True
+        payload["updated_at"] = _utcnow_iso()
+        safe_update(
+            "chain_profiles",
+            payload,
+            eq={"id": profile_id},
+            fallback_columns=PROFILE_COLUMNS,
+        )
+        delete_cache(cache_key("profile_id", profile_id))
+        return True
+    except Exception as error:
+        print(f"[profile_service] update_profile_privacy failed: {error}")
+        return False
+
+
+def get_profile_privacy(profile_id):
+    try:
+        profile = safe_select(
+            "chain_profiles",
+            columns="who_can_follow, who_can_message, who_can_call, who_can_view_posts, who_can_view_reels, who_can_see_posts, who_can_see_reels, who_can_see_stories, who_can_see_followers, who_can_see_following, who_can_send_friend_requests, who_can_follow_me, who_can_message_me, profile_visibility, visibility, require_coins_to_follow, premium_only_follow",
+            filters={"id": profile_id},
+            limit=1,
+            order_by=None,
+        )
+        if profile:
+            p = profile[0]
+            return {
+                "who_can_follow": p.get("who_can_follow", "everyone"),
+                "who_can_message": p.get("who_can_message", "followers"),
+                "who_can_call": p.get("who_can_call", "friends"),
+                "who_can_view_posts": p.get("who_can_view_posts", "public"),
+                "who_can_view_reels": p.get("who_can_view_reels", "public"),
+                "who_can_see_posts": p.get("who_can_see_posts", "public"),
+                "who_can_see_reels": p.get("who_can_see_reels", "public"),
+                "who_can_see_stories": p.get("who_can_see_stories", "friends_only"),
+                "who_can_see_followers": p.get("who_can_see_followers", "public"),
+                "who_can_see_following": p.get("who_can_see_following", "public"),
+                "who_can_send_friend_requests": p.get("who_can_send_friend_requests", "everyone"),
+                "who_can_follow_me": p.get("who_can_follow_me", "everyone"),
+                "who_can_message_me": p.get("who_can_message_me", "friends"),
+                "profile_visibility": p.get("profile_visibility") or p.get("visibility") or "public",
+                "require_coins_to_follow": bool(p.get("require_coins_to_follow", False)),
+                "premium_only_follow": bool(p.get("premium_only_follow", False)),
+            }
+        return {
+            "who_can_follow": "everyone",
+            "who_can_message": "followers",
+            "who_can_call": "friends",
+            "who_can_view_posts": "public",
+            "who_can_view_reels": "public",
+            "who_can_see_posts": "public",
+            "who_can_see_reels": "public",
+            "who_can_see_stories": "friends_only",
+            "who_can_see_followers": "public",
+            "who_can_see_following": "public",
+            "who_can_send_friend_requests": "everyone",
+            "who_can_follow_me": "everyone",
+            "who_can_message_me": "friends",
+            "profile_visibility": "public",
+            "require_coins_to_follow": False,
+            "premium_only_follow": False,
+        }
+    except Exception as error:
+        print(f"[profile_service] get_profile_privacy failed: {error}")
+        return {
+            "who_can_follow": "everyone",
+            "who_can_message": "followers",
+            "who_can_call": "friends",
+            "who_can_view_posts": "public",
+            "who_can_view_reels": "public",
+            "who_can_see_posts": "public",
+            "who_can_see_reels": "public",
+            "who_can_see_stories": "friends_only",
+            "who_can_see_followers": "public",
+            "who_can_see_following": "public",
+            "who_can_send_friend_requests": "everyone",
+            "who_can_follow_me": "everyone",
+            "who_can_message_me": "friends",
+            "profile_visibility": "public",
+            "require_coins_to_follow": False,
+            "premium_only_follow": False,
+        }
+
+
+def invalidate_profile_cache(profile_id):
+    try:
+        profile = get_lightweight_profile(profile_id)
+        username = profile.get("username") if profile else None
+        prefixes = ["profile_bundle", "current_profile", "profile_summary", "followers_count", "following_count", "friends_count", "posts_count", "reels_count"]
+        for prefix in prefixes:
+            delete_cache(cache_key(prefix, profile_id))
+            if username:
+                delete_cache(cache_key(prefix, username))
+        delete_cache(cache_key("profile_id", profile_id))
+        if username:
+            delete_cache(cache_key("profile_username", username))
+        return True
+    except Exception as error:
+        print(f"[profile_service] invalidate_profile_cache failed: {error}")
+        return False
+
+
+def get_following_types(profile_id, page=1, per_page=20):
+    try:
+        offset = (page - 1) * per_page
+        total = safe_count("chain_follows", filters={"follower_profile_id": profile_id})
+        rows = fast_query(
+            f"SELECT cf.following_profile_id AS id, cf.type, cp.username, cp.display_name, cp.avatar_url, "
+            f"cp.profile_type, cp.creator_category "
+            f"FROM chain_follows cf "
+            f"LEFT JOIN chain_profiles cp ON cf.following_profile_id = cp.id "
+            f"WHERE cf.follower_profile_id = %s AND cp.deleted_at IS NULL "
+            f"ORDER BY cf.created_at DESC LIMIT %s OFFSET %s",
+            [profile_id, per_page, offset],
+            default=[],
+        )
+        grouped = {"users": [], "pages": [], "creators": [], "businesses": []}
+        for row in rows:
+            ptype = (row.get("type") or row.get("profile_type") or "user").lower()
+            if ptype in grouped:
+                grouped[ptype].append(row)
+            else:
+                grouped["users"].append(row)
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        return {"following": grouped, "count": total, "page": page, "pages": total_pages}
+    except Exception as error:
+        print(f"[profile_service] get_following_types failed: {error}")
+        return {"following": {"users": [], "pages": [], "creators": [], "businesses": []}, "count": 0, "page": page, "pages": 0}
+
+
+def remove_follower(profile_id, follower_profile_id):
+    try:
+        write_query(
+            "DELETE FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s",
+            [follower_profile_id, profile_id],
+        )
+        _recount_and_store_profile_counts(profile_id)
+        return True
+    except Exception as error:
+        print(f"[profile_service] remove_follower failed: {error}")
+        return False
+
+
+def mute_profile(profile_id, target_profile_id, mute_type="posts"):
+    try:
+        existing = safe_select(
+            "chain_mutes",
+            filters={"profile_id": profile_id, "target_profile_id": target_profile_id, "mute_type": mute_type},
+            limit=1,
+            order_by=None,
+        )
+        if existing:
+            return True
+        safe_insert(
+            "chain_mutes",
+            {
+                "profile_id": profile_id,
+                "target_profile_id": target_profile_id,
+                "mute_type": mute_type,
+                "created_at": _utcnow_iso(),
+            },
+            fallback_columns={"profile_id", "target_profile_id", "mute_type", "created_at"},
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] mute_profile failed: {error}")
+        return False
+
+
+def unmute_profile(profile_id, target_profile_id, mute_type="posts"):
+    try:
+        write_query(
+            "DELETE FROM chain_mutes WHERE profile_id = %s AND target_profile_id = %s AND mute_type = %s",
+            [profile_id, target_profile_id, mute_type],
+        )
+        return True
+    except Exception as error:
+        print(f"[profile_service] unmute_profile failed: {error}")
+        return False

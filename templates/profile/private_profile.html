@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.display_name or profile.full_name or profile.username }} | NamVibe{% endblock %}
+{% block content %}
+<main class="profile-shell private-profile">
+    <section class="profile-hero">
+        <div class="profile-cover">
+            {% if profile.cover_url %}
+            <img src="{{ profile.cover_url }}" alt="Cover">
+            {% else %}
+            <div class="profile-cover-fallback"></div>
+            {% endif %}
+            <div class="profile-cover-shade"></div>
+        </div>
+        <div class="profile-hero-body">
+            <div class="profile-avatar-wrap">
+                <div class="profile-avatar">
+                    {% if profile.avatar_url %}
+                    <img src="{{ profile.avatar_url }}" alt="{{ display_name }}">
+                    {% else %}
+                    <span>{{ (profile.display_name or profile.full_name or profile.username or 'C')[0]|upper }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="profile-identity">
+                <div class="profile-name-row">
+                    <h1>{{ profile.display_name or profile.full_name or profile.username }}</h1>
+                    {% if profile.is_verified or profile.verified %}
+                    <span class="profile-badge verified"><i class="fas fa-circle-check"></i>Verified</span>
+                    {% endif %}
+                </div>
+                <p class="profile-handle">@{{ profile.username }}</p>
+                {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
+                <div class="profile-meta">
+                    {% if profile.current_location or profile.location or profile.town %}
+                    <span><i class="fas fa-location-dot"></i>{{ profile.current_location or profile.location or profile.town }}</span>
+                    {% endif %}
+                </div>
+                <div class="private-profile-notice">
+                    <i class="fas fa-lock"></i>
+                    <p>{{ privacy_message }}</p>
+                    {% if action_policy.can_send_friend_request or action_policy.can_follow %}
+                    <p>Send a friend request or follow to see more.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="profile-main-actions">
+                {% if viewer %}
+                    {% if action_policy.primary_action == 'friend_request' %}
+                    <button class="profile-btn primary" type="button" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="none">Add Friend</button>
+                    {% elif action_policy.primary_action == 'follow' %}
+                    <button class="profile-btn primary" type="button" data-follow-profile="{{ profile.id }}">Follow</button>
+                    {% elif action_policy.primary_action == 'message' %}
+                    <a href="/messages/start/{{ profile.id }}" class="profile-btn primary">Message</a>
+                    {% elif action_policy.primary_action == 'request_sent' %}
+                    <span class="profile-btn" style="opacity:0.7;">Request Sent</span>
+                    {% elif action_policy.primary_action == 'accept_request' %}
+                    <a href="/friends" class="profile-btn primary">Respond to Request</a>
+                    {% endif %}
+                {% else %}
+                <a href="/auth/login" class="profile-btn primary">Log in to connect</a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}

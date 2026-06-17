@@ -9,12 +9,12 @@ import uuid
 from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from datetime import datetime, timezone
 
-from dotenv import load_dotenv
 import psycopg2
 from psycopg2 import pool, sql, extensions
 from psycopg2.extras import Json, RealDictCursor
 from psycopg2 import errors as pg_errors
 from services.circuit_breaker import CircuitBreaker
+from services.env_service import get_env, load_project_env
 from services.logging_service import log_error, log_warning, log_info, log_metric
 
 # CHAIN_STATIC_SCHEMA_CACHE
@@ -22,15 +22,18 @@ from services.logging_service import log_error, log_warning, log_info, log_metri
 CHAIN_STATIC_COLUMNS = {
     "chain_profiles": {
         "id", "auth_user_id", "email", "username", "display_name", "full_name",
-        "avatar_url",   "thumbnail_url", "town", "city",
-        "location", "region",  "country_origin", "current_location",
+        "avatar_url", "thumbnail_url", "town", "city",
+        "location", "region", "country", "country_origin", "current_country", "current_location",
+        "cover_url", "cover_path", "banner_url", "banner_path",
         "avatar_size_bytes", "cover_size_bytes", "avatar_mime_type", "cover_mime_type",
         "avatar_storage_bucket", "cover_storage_bucket", "avatar_storage_path",
         "cover_storage_path", "avatar_updated_at", "cover_updated_at",
-        "is_verified", "verified", "is_online", "is_creator", "creator_category",
+        "is_verified", "verified", "is_online", "is_online_status", "is_creator", "creator_category",
         "dating_mode_enabled", "is_premium", "wallet_balance", "profile_completed",
-        "followers_count", "following_count", "bio", "is_public", "photo_url",
+        "followers_count", "following_count", "posts_count", "reels_count", "friends_count", "saved_count",
+        "tagged_count", "bio", "is_public", "photo_url",
         "deleted_at", "created_at", "updated_at", "bio",
+        "visibility", "profile_type", "terms_accepted_at",
         "privacy_accepted_at", "privacy_accepted", "privacy_version", "terms_version",
         "who_can_message", "who_can_call", "who_can_see_status",
         "message_only_after_match", "tour_seen"
@@ -39,13 +42,23 @@ CHAIN_STATIC_COLUMNS = {
         "id", "profile_id", "body", "caption", "content", "post_type", "link_url",
         "town_tag", "visibility",  "video_url", "thumbnail_url",
         "likes_count", "comments_count", "shares_count", "category",
+        "status", "is_archived", "is_pinned", "scheduled_at",
         "deleted_at", "created_at", "updated_at"
     },
     "chain_reels": {
         "id", "profile_id", "caption", "video_url",  "thumbnail_url",
         "storage_bucket", "storage_path", "music_title", "status", "visibility",
         "processing_status", "mime_type", "file_size", "likes_count",
-        "comments_count", "shares_count", "deleted_at", "created_at", "updated_at"
+        "comments_count", "shares_count", "is_archived", "is_pinned", "scheduled_at",
+        "deleted_at", "created_at", "updated_at"
+    },
+    "chain_friend_requests": {
+        "id", "sender_profile_id", "recipient_profile_id",
+        "status", "message", "created_at", "updated_at", "responded_at"
+    },
+    "chain_friends": {
+        "id", "profile_id_1", "profile_id_2",
+        "status", "created_at", "updated_at"
     },
     "chain_status_posts": {
         "id", "profile_id", "caption",  "thumbnail_url", "media_type",
@@ -70,14 +83,34 @@ CHAIN_STATIC_COLUMNS = {
     "chain_ip_reputation": {
         "ip_address", "is_blocked", "created_at", "updated_at"
     },
+    "chain_wallets": {
+        "id", "profile_id", "coin_balance", "gift_earnings", "pending_withdrawal",
+        "status", "withdrawal_status", "created_at", "updated_at"
+    },
+    "chain_creator_tools": {
+        "id", "profile_id", "studio_enabled", "monetization_enabled",
+        "creator_notes", "featured_links", "created_at", "updated_at"
+    },
+    "chain_user_settings": {
+        "id", "profile_id", "allow_messages", "allow_video_calls",
+        "show_online_status", "profile_visibility", "created_at", "updated_at"
+    },
+    "chain_account_security": {
+        "id", "profile_id", "password_set", "recovery_enabled",
+        "created_at", "updated_at"
+    },
+    "chain_login_events": {
+        "id", "profile_id", "auth_user_id", "provider", "email",
+        "ip_address", "user_agent", "status", "created_at"
+    },
 }
 
 
-load_dotenv(dotenv_path=".env")
+load_project_env()
 
 
 def _is_production_env():
-    return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
+    return get_env("FLASK_ENV") == "production" or get_env("ENV") == "production"
 
 
 if not _is_production_env():
@@ -90,11 +123,11 @@ def _flag_enabled(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 # Configuration from Environment
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
-POOL_MIN = int(os.getenv("DB_POOL_MIN", "1"))
-POOL_MAX = int(os.getenv("DB_POOL_MAX", "20"))
-POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "600")) # 10 minutes
-STATEMENT_TIMEOUT_DEFAULT = int(os.getenv("DB_STATEMENT_TIMEOUT", "10000"))
+DATABASE_URL = (get_env("DATABASE_URL", "") or "").strip()
+POOL_MIN = int(get_env("DB_POOL_MIN", "5") or "5")
+POOL_MAX = int(get_env("DB_POOL_MAX", "40") or "40")
+POOL_RECYCLE = int(get_env("DB_POOL_RECYCLE", "600") or "600") # 10 minutes
+STATEMENT_TIMEOUT_DEFAULT = int(get_env("DB_STATEMENT_TIMEOUT", "30000") or "30000")
 
 # State Management
 _POOL = None
@@ -102,23 +135,74 @@ _POOL_LOCK = threading.Lock()
 _CONN_CREATED_AT = {} # id(conn) -> float (timestamp)
 _LAST_SUCCESS_AT = 0.0
 _NEON_BREAKER = CircuitBreaker("neon", failure_threshold=5, recovery_seconds=30)
-_DB_EXECUTOR = ThreadPoolExecutor(max_workers=POOL_MAX + 5, thread_name_prefix="neon_db")
+_DB_EXECUTOR = ThreadPoolExecutor(max_workers=POOL_MAX + 10, thread_name_prefix="neon_db")
 
 # Schema Caching
 _COLUMN_CACHE = {}
 _TABLE_EXISTS_CACHE = {}
-_TABLE_COLUMNS_CACHE = {}
-_COLUMN_CACHE_TTL = 3600 * 24 # 1 hour in dev, 24 hours in prod
+_COLUMN_CACHE_TTL = 3600 * 24 # 24 hours
 _TABLE_EXISTS_CACHE_TTL = 3600 * 24
 
-def prime_schema_cache(table_names: List[str]):
-    """Warms up the column cache for a list of tables."""
-    now = time.time()
-    for table in table_names:
-        get_table_columns(table, timeout_ms=5000)
-        table_exists(table, timeout_ms=2000)
+def get_table_columns(table_name: str, timeout_ms=10000):
+    """Retrieves column names for a table, prioritizing static cache."""
+    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
+        static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
+        if static_cols:
+            return set(static_cols)
 
-_HEALTH_CACHE = {"expires_at": 0.0, "payload": None}
+    cached = _COLUMN_CACHE.get(table_name)
+    now = time.time()
+    if cached is not None and now < cached["expires_at"]:
+        return cached["columns"]
+
+    log_info("schema_cache_miss", table=table_name, kind="columns")
+    query = """
+        SELECT a.attname as column_name
+        FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = %s AND n.nspname = 'public'
+        AND a.attnum > 0 AND NOT a.attisdropped
+    """
+    rows = fast_query(query, (table_name,), timeout_ms=timeout_ms)
+    columns = [r["column_name"] for r in rows] if rows else []
+    
+    _COLUMN_CACHE[table_name] = {
+        "columns": columns,
+        "expires_at": now + _COLUMN_CACHE_TTL
+    }
+    return columns
+
+
+
+def is_circuit_open():
+    """Compatibility helper used by auth/profile services."""
+    try:
+        return not _NEON_BREAKER.allow()
+    except Exception:
+        return False
+
+
+def table_exists(table_name: str, timeout_ms=5000):
+    """Checks if a table exists, prioritizing static cache."""
+    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
+        if table_name in CHAIN_STATIC_COLUMNS:
+            return True
+
+    cached = _TABLE_EXISTS_CACHE.get(table_name)
+    now = time.time()
+    if cached is not None and now < cached["expires_at"]:
+        return cached["exists"]
+
+    log_info("schema_cache_miss", table=table_name, kind="table_exists")
+    query = "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = %s LIMIT 1"
+    res = fast_query(query, (table_name,), timeout_ms=timeout_ms)
+    exists = bool(res)
+    _TABLE_EXISTS_CACHE[table_name] = {
+        "exists": exists,
+        "expires_at": now + _TABLE_EXISTS_CACHE_TTL,
+    }
+    return exists
 
 class NeonError(Exception):
     """Base exception for Neon service errors."""
@@ -186,6 +270,10 @@ def _is_connection_error(error: Exception) -> bool:
         "connection pool",
         "ssl syscall error",
         "network is unreachable",
+        "ssl connection closed unexpectedly",
+        "ssl error",
+        "connection has been closed",
+        "connection closed",
     )
     return any(marker in text for marker in connection_markers)
 
@@ -217,6 +305,24 @@ def _is_connection_alive(conn) -> bool:
         return True
     except Exception:
         return False
+
+def _discard_broken_connection(conn):
+    """Safely discards a broken connection from the pool (e.g. SSL closed)."""
+    if not conn:
+        return
+    pool_inst = _POOL
+    if not pool_inst:
+        try: conn.close()
+        except: pass
+        return
+    conn_id = id(conn)
+    _CONN_CREATED_AT.pop(conn_id, None)
+    try:
+        pool_inst.putconn(conn, close=True)
+        log_info("neon_conn_recycled", reason="ssl_connection_closed")
+    except Exception:
+        try: conn.close()
+        except: pass
 
 def _pool_instance():
     """Returns the singleton connection pool instance, initializing if needed."""
@@ -348,17 +454,44 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                 return {"rowcount": cur.rowcount}
                 
     except Exception as e:
+        error_text = str(e).lower()
+        is_ssl_closed = "ssl connection closed unexpectedly" in error_text or "connection closed" in error_text
+        if is_ssl_closed and conn:
+            _discard_broken_connection(conn)
+            conn = None  # prevent double-release
+            log_info("neon_ssl_closed_detected", sql=sql_text[:100])
+            # Retry once with fresh connection
+            try:
+                conn = get_connection(timeout_ms=timeout_ms)
+                with conn:
+                    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                        cur.execute(sql_text, params)
+                        _NEON_BREAKER.success()
+                        _LAST_SUCCESS_AT = time.time()
+                        if fetch == "all" or (fetch == "write" and "RETURNING" in sql_text.upper()):
+                            return [dict(row) for row in cur.fetchall()]
+                        if fetch == "one":
+                            row = cur.fetchone()
+                            return dict(row) if row else None
+                        return {"rowcount": cur.rowcount}
+            except Exception as retry_e:
+                _record_query_failure(retry_e)
+                log_error("neon_ssl_retry_failed", error=retry_e, sql=sql_text[:100])
+                if fetch == "write":
+                    raise NeonWriteError(str(retry_e))
+                return [] if fetch == "all" else None
         _record_query_failure(e)
         log_error("neon_query_error", error=e, sql=sql_text[:200])
         if fetch == "write":
             raise NeonWriteError(str(e))
         return [] if fetch == "all" else None
     finally:
-        release_connection(conn)
+        if conn:
+            release_connection(conn)
 
 _run = _run_query
 
-def fast_query(sql_text: str, params: Any = None, timeout_ms: int = 2000, default: Any = None):
+def fast_query(sql_text: str, params: Any = None, timeout_ms: int = 10000, default: Any = None):
     """Route-safe query helper with strict timeout protection."""
     if not _NEON_BREAKER.allow():
         return default if default is not None else []
@@ -477,31 +610,14 @@ def get_table_columns(table_name: str, timeout_ms=5000):
     if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
         static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
         if static_cols:
-            log_info("schema_cache_static_hit", table=table_name, kind="columns")
             return set(static_cols)
 
-    cached = _TABLE_COLUMNS_CACHE.get(table_name)
-    if cached is not None:
-        log_info("schema_cache_hit", table=table_name, kind="columns")
-        return cached
-
-    """Retrieves column names for a table using a faster pg_attribute query."""
+    cached = _COLUMN_CACHE.get(table_name)
     now = time.time()
-    if table_name in _COLUMN_CACHE:
-        entry = _COLUMN_CACHE[table_name]
-        if now < entry["expires_at"]:
-            log_info("schema_cache_hit", table=table_name, kind="columns")
-            return entry["columns"]
+    if cached is not None and now < cached["expires_at"]:
+        return cached["columns"]
 
     log_info("schema_cache_miss", table=table_name, kind="columns")
-    if not _is_production_env() and _flag_enabled("CHAIN_FAST_LOCAL"):
-        log_info("schema_check_skipped_fast_local", table=table_name, kind="columns")
-        _COLUMN_CACHE[table_name] = {
-            "columns": [],
-            "expires_at": now + _COLUMN_CACHE_TTL,
-        }
-        return []
-
     query = """
         SELECT a.attname as column_name
         FROM pg_attribute a
@@ -513,43 +629,24 @@ def get_table_columns(table_name: str, timeout_ms=5000):
     rows = fast_query(query, (table_name,), timeout_ms=timeout_ms)
     columns = [r["column_name"] for r in rows] if rows else []
     
-    if columns:
-        _COLUMN_CACHE[table_name] = {
-            "columns": columns,
-            "expires_at": now + _COLUMN_CACHE_TTL
-        }
+    _COLUMN_CACHE[table_name] = {
+        "columns": columns,
+        "expires_at": now + _COLUMN_CACHE_TTL
+    }
     return columns
 
-def is_circuit_open():
-    return not _NEON_BREAKER.allow()
 
 def table_exists(table_name: str, timeout_ms=2000):
-    """Checks if a table exists using a faster pg_class query."""
-    now = time.time()
-    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1" and table_name in CHAIN_STATIC_COLUMNS:
-        _TABLE_EXISTS_CACHE[table_name] = {
-            "exists": True,
-            "expires_at": now + _TABLE_EXISTS_CACHE_TTL,
-        }
-        log_info("schema_cache_static_hit", table=table_name, kind="table_exists")
-        return True
+    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
+        if table_name in CHAIN_STATIC_COLUMNS:
+            return True
 
-    if table_name in _TABLE_EXISTS_CACHE:
-        entry = _TABLE_EXISTS_CACHE[table_name]
-        if now < entry["expires_at"]:
-            log_info("schema_cache_hit", table=table_name, kind="table_exists")
-            return entry["exists"]
+    cached = _TABLE_EXISTS_CACHE.get(table_name)
+    now = time.time()
+    if cached is not None and now < cached["expires_at"]:
+        return cached["exists"]
 
     log_info("schema_cache_miss", table=table_name, kind="table_exists")
-    if not _is_production_env() and _flag_enabled("CHAIN_FAST_LOCAL"):
-        log_info("schema_check_skipped_fast_local", table=table_name, kind="table_exists")
-        assumed_exists = table_name in {"chain_profiles"}
-        _TABLE_EXISTS_CACHE[table_name] = {
-            "exists": assumed_exists,
-            "expires_at": now + _TABLE_EXISTS_CACHE_TTL,
-        }
-        return assumed_exists
-
     query = "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = %s LIMIT 1"
     res = fast_query(query, (table_name,), timeout_ms=timeout_ms)
     exists = bool(res)
@@ -618,6 +715,11 @@ def get_tables_columns(table_names: List[str], timeout_ms=1000) -> Dict[str, Lis
     return results
 
 # Aliases for backward compatibility
+
+def is_circuit_open():
+    """Returns True if the Neon circuit breaker is open (blocking requests)."""
+    return not _NEON_BREAKER.allow()
+
 
 def get_cached_table_columns(table_name: str, timeout_ms=5000):
     """Cached wrapper for table columns to avoid pg_attribute checks during requests."""

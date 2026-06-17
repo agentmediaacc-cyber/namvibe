@@ -441,6 +441,108 @@
   font-weight: 800;
 }
 
+/* ── Phase 69: APK / Mobile form visibility ── */
+.auth-page input,
+.auth-page select,
+.auth-page textarea {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #d1d5db !important;
+  caret-color: #0f172a !important;
+  font-size: 16px !important;
+  min-height: 48px !important;
+  touch-action: auto !important;
+}
+
+.auth-page input::placeholder,
+.auth-page textarea::placeholder {
+  color: #6b7280 !important;
+  opacity: 1 !important;
+}
+
+.auth-page select {
+  -webkit-appearance: menulist !important;
+  appearance: menulist !important;
+}
+
+.auth-page input[type="password"] {
+  -webkit-text-security: disc !important;
+}
+
+.auth-page label {
+  color: #111827 !important;
+}
+
+.auth-page button,
+.auth-page a {
+  touch-action: manipulation;
+}
+
+.auth-page input[type="date"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  min-height: 48px !important;
+}
+
+.auth-page input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+.field {
+  position: relative;
+}
+
+.country-suggestions {
+  display: none;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, .16);
+}
+
+.country-suggestions.is-open {
+  display: grid;
+}
+
+.country-suggestions button {
+  min-height: 44px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.country-suggestions button:focus,
+.country-suggestions button:hover {
+  background: #e0f2fe;
+}
+
+/* Mobile: ensure auth inputs use light bg even on dark auth theme */
+@media (max-width: 760px) {
+  .chain-wallpaper-auth .chain-field-xl input,
+  .chain-wallpaper-auth .auth-page input,
+  .chain-wallpaper-auth .auth-page select,
+  .chain-wallpaper-auth .auth-page textarea {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+  }
+  .chain-wallpaper-auth .chain-field-xl input::placeholder {
+    color: #6b7280 !important;
+    opacity: 1 !important;
+  }
+}
+
 .chain-auth-form,
 .chain-auth-grid label {
   display: grid;
@@ -632,9 +734,7 @@
   font-weight: 800;
 }
 
-#register_submit {
-  display: none;
-}
+/* register_submit is now visible from Phase 73 onward */
 
 @media (max-width: 960px) {
   .chain-auth-layout {
@@ -984,4 +1084,870 @@
   .chain-onboarding-card .secondary {
     justify-content: center;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHASE 70 — SHORT REGISTRATION CARD
+   Single-page bright registration form for mobile/APK.
+   ══════════════════════════════════════════════════════════════ */
+
+.chain-register-short {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 20px 16px 40px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(247,183,51,.16), transparent 28%),
+    radial-gradient(circle at 82% 78%, rgba(30,136,229,.18), transparent 30%),
+    linear-gradient(135deg, rgba(7,17,31,.98), rgba(11,27,51,.96));
+}
+
+.register-card {
+  width: min(100%, 520px);
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 36px 32px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  display: grid;
+  gap: 20px;
+}
+
+.register-header {
+  text-align: center;
+  display: grid;
+  gap: 6px;
+}
+
+.register-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0f172a;
+  font-weight: 950;
+  font-size: 20px;
+  justify-self: center;
+  margin-bottom: 4px;
+}
+
+.register-header h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 36px);
+  color: #0f172a;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.register-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.register-fields {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field-label {
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.field input,
+.field select {
+  min-height: 52px;
+  width: 100%;
+  border-radius: 14px;
+  padding: 12px 16px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 16px;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245,158,11,.12);
+}
+
+.field input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.field select {
+  -webkit-appearance: menulist;
+  appearance: menulist;
+}
+
+.field-hint {
+  font-size: 13px;
+  color: #64748b;
+  min-height: 1em;
+}
+
+.field-hint.is-available {
+  color: #16a34a;
+}
+
+.field-hint.is-unavailable,
+.field-hint.is-weak {
+  color: #dc2626;
+}
+
+.field-hint.is-strong {
+  color: #16a34a;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.password-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.password-wrap input {
+  min-width: 0;
+}
+
+.password-wrap .toggle-password {
+  min-height: 52px;
+  min-width: 72px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.password-meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.password-meter span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #dc2626;
+  transition: width .2s ease, background .2s ease;
+}
+
+.password-meter span[data-score="3"] {
+  background: #f59e0b;
+}
+
+.password-meter span[data-score="4"],
+.password-meter span[data-score="5"] {
+  background: #16a34a;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestions button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.suggestions button:hover {
+  background: #f1f5f9;
+}
+
+.field-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.field-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.field-checkbox span {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.field-checkbox a {
+  color: #2563eb;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.register-btn {
+  width: 100%;
+  min-height: 56px;
+  border-radius: 16px;
+  border: 0;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: opacity .12s ease, transform .12s ease;
+}
+
+.register-btn:hover {
+  opacity: .9;
+}
+
+.register-btn:active {
+  transform: scale(.97);
+}
+
+.register-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.register-footer {
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}
+
+.register-footer a {
+  color: #2563eb;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .register-card {
+    padding: 24px 18px;
+    border-radius: 22px;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .field input,
+  .field select {
+    font-size: 16px;
+    min-height: 48px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHASE 70 — FINAL MOBILE/APK READABLE OVERRIDE
+   Forces light backgrounds, dark text on all auth form inputs
+   for Android WebView compatibility.
+   ══════════════════════════════════════════════════════════════ */
+
+.auth-page,
+.auth-shell,
+.auth-card {
+  color-scheme: light !important;
+}
+
+.auth-page input,
+.auth-page select,
+.auth-page textarea,
+.auth-page .chain-field-xl input,
+.auth-page .chain-field-xl select,
+.auth-page .chain-field-xl textarea,
+.auth-page .form-control,
+.auth-page .form-input {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.auth-page input::placeholder,
+.auth-page textarea::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.auth-page label,
+.auth-page .field-label,
+.auth-page .form-label {
+  color: #0f172a !important;
+}
+
+.auth-page select option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.auth-page input:-webkit-autofill,
+.auth-page input:-webkit-autofill:hover,
+.auth-page input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f172a !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  transition: background-color 9999s ease-in-out 0s !important;
+}
+
+@media (max-width: 768px) {
+  .auth-page input,
+  .auth-page select,
+  .auth-page textarea {
+    font-size: 16px !important;
+    min-height: 48px !important;
+    border-radius: 14px !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHASE 71 — LOGIN CARD READABILITY
+   Keep labels/text visible on dark login card.
+   ══════════════════════════════════════════════════════════════ */
+
+.chain-auth-card--login .chain-auth-form label span {
+  color: #f1f5f9 !important;
+}
+
+.chain-auth-card--login .chain-auth-form input {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.chain-auth-card--login .chain-auth-form input::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.chain-auth-card--login .chain-auth-head p {
+  color: #cbd5e1 !important;
+}
+
+.chain-auth-card--login .chain-auth-oauth {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.chain-auth-card--login .chain-auth-oauth strong {
+  color: #0f172a !important;
+}
+
+.chain-auth-card--login .chain-auth-panel {
+  background: rgba(30, 41, 59, 0.6) !important;
+}
+
+.chain-auth-card--login .chain-auth-divider span {
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: #94a3b8 !important;
+}
+
+.chain-auth-card--login .auth-submit-btn {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #0f172a !important;
+  border: 0 !important;
+  font-weight: 950 !important;
+}
+
+.chain-auth-card--login .chain-auth-link {
+  color: #94a3b8 !important;
+}
+
+.chain-auth-card--login .chain-auth-link--strong {
+  color: #f1f5f9 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHASE 72 — REGISTER CARD OAUTH BUTTONS
+   Light OAuth buttons on white register card.
+   ══════════════════════════════════════════════════════════════ */
+
+.register-card .chain-auth-oauth-grid {
+  margin-bottom: 4px;
+}
+
+.register-card .chain-auth-oauth {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  text-decoration: none !important;
+}
+
+.register-card .chain-auth-oauth strong {
+  color: #0f172a !important;
+}
+
+.register-card .chain-auth-oauth:hover {
+  background: #f1f5f9 !important;
+}
+
+.register-card .chain-auth-divider span {
+  background: #ffffff !important;
+  color: #64748b !important;
+}
+
+.register-card .chain-auth-divider::before {
+  background: #e2e8f0 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHASE 73 — DATE OF BIRTH INPUT READABILITY
+   White bg, dark text, mobile-friendly.
+   ══════════════════════════════════════════════════════════════ */
+
+.register-card input[type="date"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  min-height: 52px;
+  font-size: 16px;
+  border-radius: 14px;
+  padding: 12px 16px;
+  width: 100%;
+  caret-color: #0f172a !important;
+  color-scheme: light !important;
+}
+
+.register-card input[type="date"]:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px rgba(245,158,11,.12) !important;
+  outline: none !important;
+}
+
+.register-card input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.register-card input[type="date"]::-webkit-datetime-edit {
+  color: #0f172a !important;
+}
+
+/* ── Phase 76: Mobile Back Button ── */
+.auth-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  z-index: 10;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.auth-back-btn:hover,
+.auth-back-btn:active {
+  background: rgba(255,255,255,0.10);
+}
+.auth-back-btn i {
+  font-size: 16px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHASE 80 — MOBILE SOCIAL AUTH UX
+   Keyboard-safe, lightweight, no dashboard chrome.
+   ══════════════════════════════════════════════════════════════ */
+
+.chain-wallpaper-auth,
+.chain-wallpaper-auth .chain-shell--auth,
+.chain-wallpaper-auth .main-container,
+.chain-wallpaper-auth .content-body {
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-y: auto;
+  background: transparent !important;
+}
+
+.chain-wallpaper-auth {
+  color-scheme: light;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, 0) 34%),
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, .42), transparent 26%),
+    radial-gradient(circle at 82% 0%, rgba(125, 211, 252, .34), transparent 30%),
+    linear-gradient(135deg, #0ea5e9 0%, #6366f1 38%, #ec4899 72%, #f97316 100%) !important;
+  background-size: 140% 140%, 100% 100%, 100% 100%, 220% 220% !important;
+  animation: authWallpaperShift 14s ease-in-out infinite alternate;
+}
+
+@keyframes authWallpaperShift {
+  from { background-position: 0 0, 0 0, 0 0, 0% 50%; }
+  to { background-position: 0 0, 0 0, 0 0, 100% 50%; }
+}
+
+.chain-shell--auth {
+  display: block !important;
+}
+
+.chain-shell--auth .main-container,
+.chain-shell--auth .content-body {
+  width: 100%;
+  padding: 0 !important;
+}
+
+.chain-shell--auth .content-body {
+  display: block;
+}
+
+.auth-mobile-social {
+  min-height: 100svh;
+  min-height: 100dvh;
+  width: 100%;
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  padding: max(18px, env(safe-area-inset-top)) 14px max(28px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: transparent !important;
+}
+
+.auth-social-card,
+.chain-auth-card.auth-social-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, .42) !important;
+  border-radius: 28px !important;
+  background: rgba(255, 255, 255, .92) !important;
+  color: #0f172a !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .22) !important;
+  backdrop-filter: blur(22px);
+}
+
+.chain-auth-layout {
+  width: min(100%, 940px);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.chain-auth-brand-panel {
+  display: none !important;
+}
+
+.chain-auth-card--login {
+  align-content: start;
+}
+
+.chain-auth-card--login .chain-auth-panel {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.register-header h1,
+.chain-auth-head h1 {
+  color: #0f172a !important;
+  font-size: clamp(30px, 8vw, 42px);
+  letter-spacing: 0;
+}
+
+.register-header p,
+.chain-auth-head p,
+.chain-auth-trust-row,
+.register-footer {
+  color: #475569 !important;
+}
+
+.auth-page label,
+.auth-page .field-label,
+.chain-auth-card--login .chain-auth-form label span {
+  color: #1e293b !important;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-page input,
+.auth-page select,
+.auth-page textarea {
+  min-height: 48px !important;
+  width: 100%;
+  border-radius: 16px !important;
+  border: 1px solid rgba(148, 163, 184, .7) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  font-size: 16px !important;
+  touch-action: auto !important;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, .04) !important;
+}
+
+.auth-page input:focus,
+.auth-page select:focus,
+.auth-page textarea:focus {
+  outline: 0 !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, .14) !important;
+}
+
+.auth-page button,
+.auth-page a,
+.auth-back-btn,
+.register-btn,
+.auth-submit-btn,
+.chain-auth-oauth {
+  min-height: 44px;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 2;
+}
+
+.auth-back-btn {
+  width: fit-content;
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, .72) !important;
+  border: 1px solid rgba(226, 232, 240, .86) !important;
+}
+
+.register-btn,
+.chain-auth-card--login .auth-submit-btn {
+  min-height: 56px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #111827, #4338ca) !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 30px rgba(67, 56, 202, .24);
+}
+
+.chain-auth-oauth,
+.register-card .chain-auth-oauth,
+.chain-auth-card--login .chain-auth-oauth {
+  min-height: 50px;
+  border-radius: 16px !important;
+  background: rgba(255, 255, 255, .82) !important;
+  border: 1px solid rgba(203, 213, 225, .9) !important;
+  color: #0f172a !important;
+  text-align: center;
+  text-decoration: none;
+}
+
+.chain-auth-divider span,
+.register-card .chain-auth-divider span,
+.chain-auth-card--login .chain-auth-divider span {
+  background: rgba(255, 255, 255, .9) !important;
+  color: #64748b !important;
+}
+
+.country-suggestions {
+  position: static;
+  max-height: min(232px, 34svh);
+  overflow-y: auto;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .12);
+  z-index: 3;
+}
+
+.country-suggestions button {
+  min-height: 44px;
+}
+
+.chain-auth-alert {
+  border-radius: 16px;
+}
+
+.app-floating-create,
+.chain-shell--auth .top-header,
+.chain-shell--auth .mobile-nav,
+.chain-shell--auth .social-drawer,
+.chain-shell--auth .social-drawer-backdrop,
+.chain-shell--auth #error-retry-banner {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .auth-mobile-social {
+    align-items: start;
+    padding: max(12px, env(safe-area-inset-top)) 10px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .auth-social-card,
+  .chain-auth-card.auth-social-card,
+  .register-card {
+    width: min(100%, 440px);
+    padding: 22px 16px !important;
+    border-radius: 24px !important;
+    gap: 16px;
+  }
+
+  .chain-auth-shell {
+    padding: 12px 10px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .field-row,
+  .password-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .password-wrap .toggle-password {
+    width: 100%;
+  }
+}
+
+.register-loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(7, 17, 31, .92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #f1f5f9;
+  text-align: center;
+  padding: 32px;
+}
+
+.register-loading-overlay.is-visible {
+  display: flex;
+}
+
+.register-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(248, 250, 252, .12);
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: registerSpinner .7s linear infinite;
+}
+
+@keyframes registerSpinner {
+  to { transform: rotate(360deg); }
+}
+
+.register-loading-text {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.register-loading-hint {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+.loading-dots span {
+  animation: loadingDot 1.4s infinite;
+  opacity: 0;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: 0s; }
+.loading-dots span:nth-child(2) { animation-delay: .2s; }
+.loading-dots span:nth-child(3) { animation-delay: .4s; }
+
+@keyframes loadingDot {
+  0%, 60%, 100% { opacity: 0; }
+  30% { opacity: 1; }
+}
+
+@keyframes registerFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .register-loading-spinner {
+    animation: none;
+    border-top-color: #fbbf24;
+  }
+  .loading-dots span {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.auth-page {
+  position: relative;
+  z-index: 0;
+}
+
+.auth-page::before,
+.auth-page::after,
+.chain-wallpaper-auth::before,
+.chain-wallpaper-auth::after {
+  pointer-events: none !important;
+}
+
+.auth-page input,
+.auth-page select,
+.auth-page textarea,
+.auth-page .diag-field {
+  touch-action: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  caret-color: #0f172a !important;
+  pointer-events: auto !important;
+  font-size: 16px !important;
+  min-height: 48px !important;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-page .register-card,
+.auth-page .auth-social-card,
+.auth-page .chain-auth-card,
+.auth-page form {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-page .register-loading-overlay {
+  z-index: 9999;
 }

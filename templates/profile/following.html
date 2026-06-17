@@ -1,0 +1,99 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell" data-page="following">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Following</h2>
+    <span class="manager-count">{{ total or 0 }} following</span>
+  </div>
+  <div class="manager-toolbar">
+    <div class="manager-filters">
+      <a href="?type=all" class="filter-chip {% if request.args.get('type','all') == 'all' %}active{% endif %}">All</a>
+      <a href="?type=users" class="filter-chip {% if request.args.get('type') == 'users' %}active{% endif %}">Users</a>
+      <a href="?type=creators" class="filter-chip {% if request.args.get('type') == 'creators' %}active{% endif %}">Creators</a>
+      <a href="?type=businesses" class="filter-chip {% if request.args.get('type') == 'businesses' %}active{% endif %}">Businesses</a>
+    </div>
+  </div>
+  {% if following %}
+  <div class="people-list" id="followingList">
+    {% for f in following %}
+    {% set pid = f.following_profile_id or f.profile_id %}
+    <div class="people-card" data-profile-id="{{ pid }}">
+      <div class="people-avatar">
+        {% if f.avatar_url %}
+        <img src="{{ f.avatar_url }}" alt="{{ f.display_name or 'User' }}" loading="lazy">
+        {% else %}
+        <span>{{ (f.display_name or f.username or 'U')[0]|upper }}</span>
+        {% endif %}
+      </div>
+      <div class="people-info">
+        <strong>{{ f.display_name or f.username or 'NamVibe User' }}</strong>
+        <span>@{{ f.username or 'user' }}</span>
+        {% if f.created_at %}<small>Followed {{ f.created_at[:10] }}</small>{% endif %}
+      </div>
+      <div class="people-actions">
+        <a href="/profile/{{ f.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+        {% if viewer %}
+        <button class="action-btn" title="Message" onclick="window.location='/messages/start/{{ pid }}'"><i class="fas fa-comment"></i></button>
+        <button class="action-btn" title="Audio Call" onclick="window.location='/calls/start/{{ pid }}/audio'"><i class="fas fa-phone"></i></button>
+        <button class="action-btn" title="Video Call" onclick="window.location='/calls/start/{{ pid }}/video'"><i class="fas fa-video"></i></button>
+        <button class="action-btn" title="Add Friend" data-action="send-friend-request" data-id="{{ pid }}"><i class="fas fa-user-group"></i></button>
+        <button class="action-btn danger" title="Unfollow" data-action="unfollow" data-id="{{ pid }}"><i class="fas fa-user-slash"></i></button>
+        <button class="action-btn" title="Mute" data-action="mute" data-id="{{ pid }}"><i class="fas fa-bell-slash"></i></button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if next_cursor %}
+  <div class="load-more-wrap">
+    <button class="load-more-btn" data-load-more="loadMoreFollowing" data-cursor="{{ next_cursor }}"><i class="fas fa-chevron-down"></i> Load more</button>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-user-plus"></i>
+    <h3>Not following anyone yet</h3>
+    <p>People and pages followed by this profile will appear here.</p>
+  </div>
+  {% endif %}
+</div>
+<script>
+window.loadMoreFollowing = function() {
+  const btn = document.querySelector('[data-load-more="loadMoreFollowing"]');
+  if (!btn) return;
+  const cursor = btn.dataset.cursor;
+  const list = document.getElementById('followingList');
+  const type = new URLSearchParams(location.search).get('type') || 'all';
+  fetch(`/social/api/following?profile_id={{ profile.id }}&cursor=${encodeURIComponent(cursor)}&type=${type}&limit=20`)
+    .then(r => r.json()).then(data => {
+      (data.following || []).forEach(f => {
+        const pid = f.following_profile_id || f.profile_id;
+        const div = document.createElement('div');
+        div.className = 'people-card';
+        div.dataset.profileId = pid;
+        div.innerHTML = `
+          <div class="people-avatar">${f.avatar_url ? `<img src="${f.avatar_url}" alt="" loading="lazy">` : `<span>${(f.display_name || f.username || 'U')[0].toUpperCase()}</span>`}</div>
+          <div class="people-info"><strong>${f.display_name || f.username || 'User'}</strong><span>@${f.username || 'user'}</span></div>
+          <div class="people-actions">
+            <a href="/profile/${f.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
+            <button class="action-btn" title="Message" onclick="window.location='/messages/start/${pid}'"><i class="fas fa-comment"></i></button>
+            <button class="action-btn" title="Add Friend" data-action="send-friend-request" data-id="${pid}"><i class="fas fa-user-group"></i></button>
+            <button class="action-btn danger" title="Unfollow" data-action="unfollow" data-id="${pid}"><i class="fas fa-user-slash"></i></button>
+          </div>`;
+        list.appendChild(div);
+      });
+      Phase86.init();
+      if (data.next_cursor) {
+        btn.dataset.cursor = data.next_cursor;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load more';
+      } else {
+        btn.style.display = 'none';
+      }
+    }).catch(() => { alert('Failed to load'); btn.disabled = false; });
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+};
+</script>
+{% endblock %}

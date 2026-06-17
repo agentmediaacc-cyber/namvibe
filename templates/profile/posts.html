@@ -1,0 +1,127 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell" data-page="posts">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Posts</h2>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/posts/create" class="profile-btn primary"><i class="fas fa-plus"></i> New Post</a>
+    {% endif %}
+  </div>
+  <div class="manager-toolbar">
+    <div class="manager-filters">
+      <a href="?sort=newest" class="filter-chip {% if request.args.get('sort','newest') == 'newest' %}active{% endif %}">Newest</a>
+      <a href="?sort=oldest" class="filter-chip {% if request.args.get('sort') == 'oldest' %}active{% endif %}">Oldest</a>
+      {% if viewer and viewer.id == profile.id %}
+      <a href="?sort=pinned" class="filter-chip {% if request.args.get('sort') == 'pinned' %}active{% endif %}">Pinned</a>
+      <a href="?sort=archived" class="filter-chip {% if request.args.get('sort') == 'archived' %}active{% endif %}">Archived</a>
+      {% endif %}
+    </div>
+    <span class="manager-count">{{ total or 0 }} posts</span>
+  </div>
+  {% if posts %}
+  <div class="manager-grid" id="postsGrid">
+    {% for post in posts %}
+    <article class="manager-card" data-item-id="{{ post.id }}">
+      <div class="manager-card-media">
+        {% if post.video_url %}
+        <video src="{{ post.video_url }}" preload="metadata"></video>
+        {% elif post.media_url %}
+        <img src="{{ post.media_url }}" alt="{{ post.caption or 'Post' }}" loading="lazy">
+        {% else %}
+        <div class="manager-card-text"><i class="fas fa-quote-left"></i></div>
+        {% endif %}
+      </div>
+      <div class="manager-card-body">
+        <h3>{{ (post.caption or post.body or 'Untitled')|truncate(60) }}</h3>
+        <div class="manager-card-meta">
+          <span><i class="fas fa-heart"></i> {{ post.likes_count or 0 }}</span>
+          <span><i class="fas fa-comment"></i> {{ post.comments_count or 0 }}</span>
+          <span><i class="fas fa-share"></i> {{ post.shares_count or 0 }}</span>
+        </div>
+        <div class="manager-card-tags">
+          <span class="tag tag-{{ post.visibility or 'public' }}">{{ post.visibility or 'public' }}</span>
+          {% if post.is_pinned %}<span class="tag tag-pinned">pinned</span>{% endif %}
+          {% if post.is_archived %}<span class="tag tag-archived">archived</span>{% endif %}
+          {% if post.allow_comments == false %}<span class="tag tag-muted">comments off</span>{% endif %}
+        </div>
+      </div>
+      {% if viewer and viewer.id == profile.id %}
+      <div class="manager-card-actions">
+        <a href="/posts/{{ post.id }}" class="action-btn" title="View"><i class="fas fa-eye"></i></a>
+        <button class="action-btn" title="Visibility" data-action="show-visibility" data-id="{{ post.id }}" data-type="post" data-vis="{{ post.visibility or 'public' }}"><i class="fas fa-globe"></i></button>
+        <button class="action-btn" title="Comments" data-action="toggle-comments" data-id="{{ post.id }}"><i class="fas fa-comment-slash"></i></button>
+        <button class="action-btn" title="Sharing" data-action="toggle-sharing" data-id="{{ post.id }}"><i class="fas fa-share-nodes"></i></button>
+        <button class="action-btn" title="Pin" data-action="toggle-pin" data-id="{{ post.id }}" data-type="post"><i class="fas fa-thumbtack"></i></button>
+        <button class="action-btn" title="Archive" data-action="toggle-archive" data-id="{{ post.id }}" data-type="post"><i class="fas fa-box-archive"></i></button>
+        <button class="action-btn danger" title="Delete" data-action="delete-item" data-id="{{ post.id }}" data-type="post"><i class="fas fa-trash"></i></button>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% if next_cursor %}
+  <div class="load-more-wrap">
+    <button class="load-more-btn" data-load-more="loadMorePosts" data-cursor="{{ next_cursor }}"><i class="fas fa-chevron-down"></i> Load more</button>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-sparkles"></i>
+    <h3>No posts yet</h3>
+    <p>Posts you create will appear here.</p>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/posts/create"><i class="fas fa-plus"></i> Create Post</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<script>
+window.loadMorePosts = function() {
+  const btn = document.querySelector('[data-load-more="loadMorePosts"]');
+  if (!btn) return;
+  const cursor = btn.dataset.cursor;
+  const grid = document.getElementById('postsGrid');
+  const sort = new URLSearchParams(location.search).get('sort') || 'newest';
+  fetch(`/profile/api/posts?profile_id={{ profile.id }}&cursor=${encodeURIComponent(cursor)}&sort=${sort}&limit=20`)
+    .then(r => r.json()).then(data => {
+      data.posts.forEach(p => {
+        const card = document.createElement('article');
+        card.className = 'manager-card';
+        card.dataset.itemId = p.id;
+        card.innerHTML = `
+          <div class="manager-card-media">${p.video_url ? `<video src="${p.video_url}" preload="metadata"></video>` : p.media_url ? `<img src="${p.media_url}" alt="" loading="lazy">` : '<div class="manager-card-text"><i class="fas fa-quote-left"></i></div>'}</div>
+          <div class="manager-card-body">
+            <h3>${(p.caption || p.body || 'Untitled').substring(0,60)}</h3>
+            <div class="manager-card-meta">
+              <span><i class="fas fa-heart"></i> ${p.likes_count || 0}</span>
+              <span><i class="fas fa-comment"></i> ${p.comments_count || 0}</span>
+              <span><i class="fas fa-share"></i> ${p.shares_count || 0}</span>
+            </div>
+            <div class="manager-card-tags">
+              <span class="tag tag-${p.visibility || 'public'}">${p.visibility || 'public'}</span>
+              ${p.is_pinned ? '<span class="tag tag-pinned">pinned</span>' : ''}
+              ${p.is_archived ? '<span class="tag tag-archived">archived</span>' : ''}
+            </div>
+          </div>
+          <div class="manager-card-actions">
+            <a href="/posts/${p.id}" class="action-btn" title="View"><i class="fas fa-eye"></i></a>
+            <button class="action-btn" title="Visibility" data-action="show-visibility" data-id="${p.id}" data-type="post" data-vis="${p.visibility || 'public'}"><i class="fas fa-globe"></i></button>
+            <button class="action-btn" title="Pin" data-action="toggle-pin" data-id="${p.id}" data-type="post"><i class="fas fa-thumbtack"></i></button>
+            <button class="action-btn danger" title="Delete" data-action="delete-item" data-id="${p.id}" data-type="post"><i class="fas fa-trash"></i></button>
+          </div>`;
+        grid.appendChild(card);
+      });
+      Phase86.init();
+      if (data.next_cursor) {
+        btn.dataset.cursor = data.next_cursor;
+        btn.disabled = false;
+      } else {
+        btn.style.display = 'none';
+      }
+    }).catch(() => { alert('Failed to load'); btn.disabled = false; });
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+};
+</script>
+{% endblock %}

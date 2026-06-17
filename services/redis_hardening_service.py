@@ -2,10 +2,16 @@ import os
 import time
 from collections import deque
 
+from services.env_service import get_env, load_project_env
+
 _MEMORY = {}
 _LISTS = {}
 _CIRCUIT = {"open_until": 0.0, "failures": 0, "last_error": None}
 _CLIENT = None
+_DEFAULT_LOCAL_REDIS_URL = "redis://localhost:6379/0"
+
+
+load_project_env()
 
 
 def _testing():
@@ -41,7 +47,11 @@ def get_redis_client():
         return _CLIENT
     try:
         import redis
-        url = os.getenv("REDIS_URL") or os.getenv("CHAIN_REDIS_URL") or "redis://localhost:6379/0"
+        url = get_env("REDIS_URL") or get_env("CHAIN_REDIS_URL")
+        if not url and get_env("FLASK_ENV", "development") != "production":
+            url = _DEFAULT_LOCAL_REDIS_URL
+        if not url:
+            return None
         _CLIENT = redis.Redis.from_url(
             url,
             socket_connect_timeout=float(os.getenv("CHAIN_REDIS_CONNECT_TIMEOUT", "0.25")),

@@ -1,0 +1,117 @@
+/* Realtime Presence Indicators */
+
+/* Typing indicator */
+.presence-typing {
+  display: none;
+  font-size: 12px;
+  color: #00f2ea;
+  font-weight: 600;
+  margin-top: 2px;
+  animation: presencePulse 1.2s infinite;
+}
+
+.presence-typing.active {
+  display: block;
+}
+
+.presence-typing::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00f2ea;
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: presenceBlink 1s infinite;
+}
+
+/* Seen tick */
+.presence-seen {
+  font-size: 11px;
+  color: #8888a0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.presence-seen.seen {
+  color: #34c759;
+}
+
+/* Calling indicator */
+.presence-calling {
+  display: none;
+  font-size: 12px;
+  color: #fe2c55;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.presence-calling.active {
+  display: block;
+}
+
+.presence-calling::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fe2c55;
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: presenceBlink 0.8s infinite;
+}
+
+/* Recording indicator */
+.presence-recording {
+  display: none;
+  font-size: 12px;
+  color: #fe2c55;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.presence-recording.active {
+  display: block;
+}
+
+.presence-recording .recording-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fe2c55;
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: presenceBlink 0.6s infinite;
+}
+
+/* Online/offline dots */
+.online-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg, #070711);
+  flex-shrink: 0;
+}
+
+.online-dot.online {
+  background: #34c759;
+}
+
+.online-dot.offline {
+  background: #9ca3af;
+}
+
+@keyframes presencePulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+@keyframes presenceBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}

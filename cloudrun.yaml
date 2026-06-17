@@ -1,3 +1,8 @@
+# cloudrun.yaml
+# Safe deployment template. Never commit real secrets in this file.
+# Replace REGION_PLACEHOLDER and IMAGE_PLACEHOLDER for your deployment target.
+# Secret values must come from Google Secret Manager via valueFrom.secretKeyRef.
+
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
@@ -6,6 +11,10 @@ metadata:
     cloud.googleapis.com/location: REGION_PLACEHOLDER
 spec:
   template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "5"
     spec:
       containers:
       - image: IMAGE_PLACEHOLDER
@@ -19,24 +28,41 @@ spec:
         - name: FLASK_ENV
           value: "production"
         - name: SECRET_KEY
-          value: "YOUR_SECRET_KEY_PLACEHOLDER"
+          valueFrom:
+            secretKeyRef:
+              name: chain-secret-key
+              key: latest
         - name: DATABASE_URL
-          value: "YOUR_DATABASE_URL_PLACEHOLDER"
+          valueFrom:
+            secretKeyRef:
+              name: chain-database-url
+              key: latest
         - name: REDIS_URL
-          value: "YOUR_REDIS_URL_PLACEHOLDER"
+          valueFrom:
+            secretKeyRef:
+              name: chain-redis-url
+              key: latest
         - name: SUPABASE_URL
-          value: "YOUR_SUPABASE_URL_PLACEHOLDER"
+          valueFrom:
+            secretKeyRef:
+              name: chain-supabase-url
+              key: latest
         - name: SUPABASE_ANON_KEY
-          value: "YOUR_SUPABASE_ANON_KEY_PLACEHOLDER"
+          valueFrom:
+            secretKeyRef:
+              name: chain-supabase-anon-key
+              key: latest
         - name: SUPABASE_SERVICE_ROLE_KEY
-          value: "YOUR_SUPABASE_SERVICE_ROLE_KEY_PLACEHOLDER"
+          valueFrom:
+            secretKeyRef:
+              name: chain-supabase-service-role-key
+              key: latest
         - name: APP_BASE_URL
-          value: "YOUR_APP_BASE_URL_PLACEHOLDER"
+          valueFrom:
+            secretKeyRef:
+              name: chain-app-base-url
+              key: latest
         ports:
         - containerPort: 8080
       containerConcurrency: 80
       timeoutSeconds: 300
-    metadata:
-      annotations:
-        autoscaling.knative.dev/minScale: "0"
-        autoscaling.knative.dev/maxScale: "5"

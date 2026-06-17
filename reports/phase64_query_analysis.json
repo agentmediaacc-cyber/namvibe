@@ -1,0 +1,1603 @@
+{
+  "queries": {
+    "dating_matches": {
+      "timing": {
+        "label": "dating_matches",
+        "duration_ms": 306.75,
+        "rows_returned": 3
+      },
+      "plan": {
+        "node_type": "Limit",
+        "relation": "",
+        "actual_rows": 3,
+        "actual_total_ms": 0.04,
+        "plan_rows": 3,
+        "plan_width": 379,
+        "sort_keys": [],
+        "index_name": "",
+        "filter": "",
+        "issues": [
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=3)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=3, cost=0.03ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=3)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=3, cost=0.03ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=3)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=3, cost=0.03ms)",
+            "severity": "high"
+          }
+        ],
+        "children": [
+          {
+            "node_type": "Sort",
+            "relation": "",
+            "actual_rows": 3,
+            "actual_total_ms": 0.04,
+            "plan_rows": 3,
+            "plan_width": 379,
+            "sort_keys": [
+              "created_at DESC"
+            ],
+            "index_name": "",
+            "filter": "",
+            "issues": [
+              {
+                "type": "sort",
+                "detail": "Sort operation: ['created_at DESC'] (rows=3)",
+                "severity": "low"
+              },
+              {
+                "type": "seq_scan",
+                "table": "chain_profiles",
+                "detail": "Sequential scan on chain_profiles (rows=3, cost=0.03ms)",
+                "severity": "high"
+              }
+            ],
+            "children": [
+              {
+                "node_type": "Seq Scan",
+                "relation": "chain_profiles",
+                "actual_rows": 3,
+                "actual_total_ms": 0.03,
+                "plan_rows": 3,
+                "plan_width": 379,
+                "sort_keys": [],
+                "index_name": "",
+                "filter": "(dating_mode_enabled AND (deleted_at IS NULL))",
+                "issues": [
+                  {
+                    "type": "seq_scan",
+                    "table": "chain_profiles",
+                    "detail": "Sequential scan on chain_profiles (rows=3, cost=0.03ms)",
+                    "severity": "high"
+                  }
+                ]
+              }
+            ],
+            "sub_issues": []
+          }
+        ],
+        "sub_issues": [],
+        "label": "dating_matches",
+        "planning_time_ms": 0.16,
+        "execution_time_ms": 0.06,
+        "total_time_ms": 0.22,
+        "rows_returned": 3,
+        "raw_plan": {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 5.65,
+            "Total Cost": 5.66,
+            "Plan Rows": 3,
+            "Plan Width": 379,
+            "Actual Startup Time": 0.036,
+            "Actual Total Time": 0.037,
+            "Actual Rows": 3,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 5.65,
+                "Total Cost": 5.66,
+                "Plan Rows": 3,
+                "Plan Width": 379,
+                "Actual Startup Time": 0.035,
+                "Actual Total Time": 0.035,
+                "Actual Rows": 3,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "created_at DESC"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 5,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "chain_profiles",
+                    "Alias": "chain_profiles",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 5.63,
+                    "Plan Rows": 3,
+                    "Plan Width": 379,
+                    "Actual Startup Time": 0.015,
+                    "Actual Total Time": 0.028,
+                    "Actual Rows": 3,
+                    "Actual Loops": 1,
+                    "Filter": "(dating_mode_enabled AND (deleted_at IS NULL))",
+                    "Rows Removed by Filter": 60,
+                    "Shared Hit Blocks": 5,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.159,
+          "Triggers": [],
+          "Execution Time": 0.055
+        }
+      }
+    },
+    "live_rooms": {
+      "timing": {
+        "label": "live_rooms",
+        "duration_ms": 288.65,
+        "rows_returned": 0
+      },
+      "plan": {
+        "node_type": "Limit",
+        "relation": "",
+        "actual_rows": 0,
+        "actual_total_ms": 0.01,
+        "plan_rows": 1,
+        "plan_width": 229,
+        "sort_keys": [],
+        "index_name": "",
+        "filter": "",
+        "issues": [
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_live_rooms",
+            "detail": "Sequential scan on chain_live_rooms (rows=0, cost=0.01ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_live_rooms",
+            "detail": "Sequential scan on chain_live_rooms (rows=0, cost=0.01ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_live_rooms",
+            "detail": "Sequential scan on chain_live_rooms (rows=0, cost=0.01ms)",
+            "severity": "high"
+          }
+        ],
+        "children": [
+          {
+            "node_type": "Sort",
+            "relation": "",
+            "actual_rows": 0,
+            "actual_total_ms": 0.01,
+            "plan_rows": 1,
+            "plan_width": 229,
+            "sort_keys": [
+              "created_at DESC"
+            ],
+            "index_name": "",
+            "filter": "",
+            "issues": [
+              {
+                "type": "sort",
+                "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+                "severity": "low"
+              },
+              {
+                "type": "seq_scan",
+                "table": "chain_live_rooms",
+                "detail": "Sequential scan on chain_live_rooms (rows=0, cost=0.01ms)",
+                "severity": "high"
+              }
+            ],
+            "children": [
+              {
+                "node_type": "Seq Scan",
+                "relation": "chain_live_rooms",
+                "actual_rows": 0,
+                "actual_total_ms": 0.01,
+                "plan_rows": 1,
+                "plan_width": 229,
+                "sort_keys": [],
+                "index_name": "",
+                "filter": "((deleted_at IS NULL) AND (is_live OR (status = 'live'::text)))",
+                "issues": [
+                  {
+                    "type": "seq_scan",
+                    "table": "chain_live_rooms",
+                    "detail": "Sequential scan on chain_live_rooms (rows=0, cost=0.01ms)",
+                    "severity": "high"
+                  }
+                ]
+              }
+            ],
+            "sub_issues": []
+          }
+        ],
+        "sub_issues": [],
+        "label": "live_rooms",
+        "planning_time_ms": 0.16,
+        "execution_time_ms": 0.03,
+        "total_time_ms": 0.19,
+        "rows_returned": 1,
+        "raw_plan": {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 0.01,
+            "Total Cost": 0.02,
+            "Plan Rows": 1,
+            "Plan Width": 229,
+            "Actual Startup Time": 0.01,
+            "Actual Total Time": 0.01,
+            "Actual Rows": 0,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 0.01,
+                "Total Cost": 0.02,
+                "Plan Rows": 1,
+                "Plan Width": 229,
+                "Actual Startup Time": 0.009,
+                "Actual Total Time": 0.009,
+                "Actual Rows": 0,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "created_at DESC"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "chain_live_rooms",
+                    "Alias": "chain_live_rooms",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 0.0,
+                    "Plan Rows": 1,
+                    "Plan Width": 229,
+                    "Actual Startup Time": 0.005,
+                    "Actual Total Time": 0.005,
+                    "Actual Rows": 0,
+                    "Actual Loops": 1,
+                    "Filter": "((deleted_at IS NULL) AND (is_live OR (status = 'live'::text)))",
+                    "Rows Removed by Filter": 0,
+                    "Shared Hit Blocks": 0,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 17,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.158,
+          "Triggers": [],
+          "Execution Time": 0.026
+        }
+      }
+    },
+    "posts": {
+      "timing": {
+        "label": "posts",
+        "duration_ms": 307.19,
+        "rows_returned": 8
+      },
+      "plan": {
+        "node_type": "Limit",
+        "relation": "",
+        "actual_rows": 8,
+        "actual_total_ms": 0.03,
+        "plan_rows": 8,
+        "plan_width": 288,
+        "sort_keys": [],
+        "index_name": "",
+        "filter": "",
+        "issues": [
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC NULLS LAST'] (rows=8)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_posts",
+            "detail": "Sequential scan on chain_posts (rows=19, cost=0.02ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC NULLS LAST'] (rows=8)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_posts",
+            "detail": "Sequential scan on chain_posts (rows=19, cost=0.02ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC NULLS LAST'] (rows=8)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_posts",
+            "detail": "Sequential scan on chain_posts (rows=19, cost=0.02ms)",
+            "severity": "high"
+          }
+        ],
+        "children": [
+          {
+            "node_type": "Sort",
+            "relation": "",
+            "actual_rows": 8,
+            "actual_total_ms": 0.03,
+            "plan_rows": 19,
+            "plan_width": 288,
+            "sort_keys": [
+              "created_at DESC NULLS LAST"
+            ],
+            "index_name": "",
+            "filter": "",
+            "issues": [
+              {
+                "type": "sort",
+                "detail": "Sort operation: ['created_at DESC NULLS LAST'] (rows=8)",
+                "severity": "low"
+              },
+              {
+                "type": "seq_scan",
+                "table": "chain_posts",
+                "detail": "Sequential scan on chain_posts (rows=19, cost=0.02ms)",
+                "severity": "high"
+              }
+            ],
+            "children": [
+              {
+                "node_type": "Seq Scan",
+                "relation": "chain_posts",
+                "actual_rows": 19,
+                "actual_total_ms": 0.02,
+                "plan_rows": 19,
+                "plan_width": 288,
+                "sort_keys": [],
+                "index_name": "",
+                "filter": "(deleted_at IS NULL)",
+                "issues": [
+                  {
+                    "type": "seq_scan",
+                    "table": "chain_posts",
+                    "detail": "Sequential scan on chain_posts (rows=19, cost=0.02ms)",
+                    "severity": "high"
+                  }
+                ]
+              }
+            ],
+            "sub_issues": []
+          }
+        ],
+        "sub_issues": [],
+        "label": "posts",
+        "planning_time_ms": 0.13,
+        "execution_time_ms": 0.05,
+        "total_time_ms": 0.18,
+        "rows_returned": 8,
+        "raw_plan": {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 1.57,
+            "Total Cost": 1.59,
+            "Plan Rows": 8,
+            "Plan Width": 288,
+            "Actual Startup Time": 0.03,
+            "Actual Total Time": 0.032,
+            "Actual Rows": 8,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 1,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 1.57,
+                "Total Cost": 1.62,
+                "Plan Rows": 19,
+                "Plan Width": 288,
+                "Actual Startup Time": 0.03,
+                "Actual Total Time": 0.03,
+                "Actual Rows": 8,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "created_at DESC NULLS LAST"
+                ],
+                "Sort Method": "top-N heapsort",
+                "Sort Space Used": 28,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "chain_posts",
+                    "Alias": "chain_posts",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 1.19,
+                    "Plan Rows": 19,
+                    "Plan Width": 288,
+                    "Actual Startup Time": 0.012,
+                    "Actual Total Time": 0.017,
+                    "Actual Rows": 19,
+                    "Actual Loops": 1,
+                    "Filter": "(deleted_at IS NULL)",
+                    "Rows Removed by Filter": 0,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.129,
+          "Triggers": [],
+          "Execution Time": 0.047
+        }
+      }
+    },
+    "profiles_creator": {
+      "timing": {
+        "label": "profiles_creator",
+        "duration_ms": 408.32,
+        "rows_returned": 4
+      },
+      "plan": {
+        "node_type": "Limit",
+        "relation": "",
+        "actual_rows": 4,
+        "actual_total_ms": 0.04,
+        "plan_rows": 4,
+        "plan_width": 379,
+        "sort_keys": [],
+        "index_name": "",
+        "filter": "",
+        "issues": [
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['followers_count DESC NULLS LAST'] (rows=4)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=4, cost=0.03ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['followers_count DESC NULLS LAST'] (rows=4)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=4, cost=0.03ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['followers_count DESC NULLS LAST'] (rows=4)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=4, cost=0.03ms)",
+            "severity": "high"
+          }
+        ],
+        "children": [
+          {
+            "node_type": "Sort",
+            "relation": "",
+            "actual_rows": 4,
+            "actual_total_ms": 0.04,
+            "plan_rows": 4,
+            "plan_width": 379,
+            "sort_keys": [
+              "followers_count DESC NULLS LAST"
+            ],
+            "index_name": "",
+            "filter": "",
+            "issues": [
+              {
+                "type": "sort",
+                "detail": "Sort operation: ['followers_count DESC NULLS LAST'] (rows=4)",
+                "severity": "low"
+              },
+              {
+                "type": "seq_scan",
+                "table": "chain_profiles",
+                "detail": "Sequential scan on chain_profiles (rows=4, cost=0.03ms)",
+                "severity": "high"
+              }
+            ],
+            "children": [
+              {
+                "node_type": "Seq Scan",
+                "relation": "chain_profiles",
+                "actual_rows": 4,
+                "actual_total_ms": 0.03,
+                "plan_rows": 4,
+                "plan_width": 379,
+                "sort_keys": [],
+                "index_name": "",
+                "filter": "(is_creator AND (deleted_at IS NULL))",
+                "issues": [
+                  {
+                    "type": "seq_scan",
+                    "table": "chain_profiles",
+                    "detail": "Sequential scan on chain_profiles (rows=4, cost=0.03ms)",
+                    "severity": "high"
+                  }
+                ]
+              }
+            ],
+            "sub_issues": []
+          }
+        ],
+        "sub_issues": [],
+        "label": "profiles_creator",
+        "planning_time_ms": 0.14,
+        "execution_time_ms": 0.06,
+        "total_time_ms": 0.2,
+        "rows_returned": 4,
+        "raw_plan": {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 5.67,
+            "Total Cost": 5.68,
+            "Plan Rows": 4,
+            "Plan Width": 379,
+            "Actual Startup Time": 0.042,
+            "Actual Total Time": 0.044,
+            "Actual Rows": 4,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 5.67,
+                "Total Cost": 5.68,
+                "Plan Rows": 4,
+                "Plan Width": 379,
+                "Actual Startup Time": 0.041,
+                "Actual Total Time": 0.042,
+                "Actual Rows": 4,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "followers_count DESC NULLS LAST"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Used": 26,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 5,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "chain_profiles",
+                    "Alias": "chain_profiles",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 5.63,
+                    "Plan Rows": 4,
+                    "Plan Width": 379,
+                    "Actual Startup Time": 0.013,
+                    "Actual Total Time": 0.032,
+                    "Actual Rows": 4,
+                    "Actual Loops": 1,
+                    "Filter": "(is_creator AND (deleted_at IS NULL))",
+                    "Rows Removed by Filter": 59,
+                    "Shared Hit Blocks": 5,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.141,
+          "Triggers": [],
+          "Execution Time": 0.062
+        }
+      }
+    },
+    "reels": {
+      "timing": {
+        "label": "reels",
+        "duration_ms": 306.01,
+        "rows_returned": 8
+      },
+      "plan": {
+        "node_type": "Limit",
+        "relation": "",
+        "actual_rows": 8,
+        "actual_total_ms": 0.03,
+        "plan_rows": 8,
+        "plan_width": 176,
+        "sort_keys": [],
+        "index_name": "",
+        "filter": "",
+        "issues": [
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=8)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_reels",
+            "detail": "Sequential scan on chain_reels (rows=9, cost=0.01ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=8)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_reels",
+            "detail": "Sequential scan on chain_reels (rows=9, cost=0.01ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=8)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_reels",
+            "detail": "Sequential scan on chain_reels (rows=9, cost=0.01ms)",
+            "severity": "high"
+          }
+        ],
+        "children": [
+          {
+            "node_type": "Sort",
+            "relation": "",
+            "actual_rows": 8,
+            "actual_total_ms": 0.02,
+            "plan_rows": 9,
+            "plan_width": 176,
+            "sort_keys": [
+              "created_at DESC"
+            ],
+            "index_name": "",
+            "filter": "",
+            "issues": [
+              {
+                "type": "sort",
+                "detail": "Sort operation: ['created_at DESC'] (rows=8)",
+                "severity": "low"
+              },
+              {
+                "type": "seq_scan",
+                "table": "chain_reels",
+                "detail": "Sequential scan on chain_reels (rows=9, cost=0.01ms)",
+                "severity": "high"
+              }
+            ],
+            "children": [
+              {
+                "node_type": "Seq Scan",
+                "relation": "chain_reels",
+                "actual_rows": 9,
+                "actual_total_ms": 0.01,
+                "plan_rows": 9,
+                "plan_width": 176,
+                "sort_keys": [],
+                "index_name": "",
+                "filter": "(deleted_at IS NULL)",
+                "issues": [
+                  {
+                    "type": "seq_scan",
+                    "table": "chain_reels",
+                    "detail": "Sequential scan on chain_reels (rows=9, cost=0.01ms)",
+                    "severity": "high"
+                  }
+                ]
+              }
+            ],
+            "sub_issues": []
+          }
+        ],
+        "sub_issues": [],
+        "label": "reels",
+        "planning_time_ms": 0.11,
+        "execution_time_ms": 0.04,
+        "total_time_ms": 0.15,
+        "rows_returned": 8,
+        "raw_plan": {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 1.23,
+            "Total Cost": 1.25,
+            "Plan Rows": 8,
+            "Plan Width": 176,
+            "Actual Startup Time": 0.023,
+            "Actual Total Time": 0.025,
+            "Actual Rows": 8,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 1,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 1.23,
+                "Total Cost": 1.26,
+                "Plan Rows": 9,
+                "Plan Width": 176,
+                "Actual Startup Time": 0.023,
+                "Actual Total Time": 0.023,
+                "Actual Rows": 8,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "created_at DESC"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Used": 27,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "chain_reels",
+                    "Alias": "chain_reels",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 1.09,
+                    "Plan Rows": 9,
+                    "Plan Width": 176,
+                    "Actual Startup Time": 0.012,
+                    "Actual Total Time": 0.014,
+                    "Actual Rows": 9,
+                    "Actual Loops": 1,
+                    "Filter": "(deleted_at IS NULL)",
+                    "Rows Removed by Filter": 0,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.113,
+          "Triggers": [],
+          "Execution Time": 0.038
+        }
+      }
+    },
+    "stories": {
+      "timing": {
+        "label": "stories",
+        "duration_ms": 287.74,
+        "rows_returned": 0
+      },
+      "plan": {
+        "node_type": "Limit",
+        "relation": "",
+        "actual_rows": 0,
+        "actual_total_ms": 0.01,
+        "plan_rows": 1,
+        "plan_width": 112,
+        "sort_keys": [],
+        "index_name": "",
+        "filter": "",
+        "issues": [
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_stories",
+            "detail": "Sequential scan on chain_stories (rows=0, cost=0.0ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_stories",
+            "detail": "Sequential scan on chain_stories (rows=0, cost=0.0ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_stories",
+            "detail": "Sequential scan on chain_stories (rows=0, cost=0.0ms)",
+            "severity": "high"
+          }
+        ],
+        "children": [
+          {
+            "node_type": "Sort",
+            "relation": "",
+            "actual_rows": 0,
+            "actual_total_ms": 0.01,
+            "plan_rows": 1,
+            "plan_width": 112,
+            "sort_keys": [
+              "created_at DESC"
+            ],
+            "index_name": "",
+            "filter": "",
+            "issues": [
+              {
+                "type": "sort",
+                "detail": "Sort operation: ['created_at DESC'] (rows=0)",
+                "severity": "low"
+              },
+              {
+                "type": "seq_scan",
+                "table": "chain_stories",
+                "detail": "Sequential scan on chain_stories (rows=0, cost=0.0ms)",
+                "severity": "high"
+              }
+            ],
+            "children": [
+              {
+                "node_type": "Seq Scan",
+                "relation": "chain_stories",
+                "actual_rows": 0,
+                "actual_total_ms": 0.0,
+                "plan_rows": 1,
+                "plan_width": 112,
+                "sort_keys": [],
+                "index_name": "",
+                "filter": "(deleted_at IS NULL)",
+                "issues": [
+                  {
+                    "type": "seq_scan",
+                    "table": "chain_stories",
+                    "detail": "Sequential scan on chain_stories (rows=0, cost=0.0ms)",
+                    "severity": "high"
+                  }
+                ]
+              }
+            ],
+            "sub_issues": []
+          }
+        ],
+        "sub_issues": [],
+        "label": "stories",
+        "planning_time_ms": 0.1,
+        "execution_time_ms": 0.02,
+        "total_time_ms": 0.12,
+        "rows_returned": 1,
+        "raw_plan": {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 0.01,
+            "Total Cost": 0.02,
+            "Plan Rows": 1,
+            "Plan Width": 112,
+            "Actual Startup Time": 0.008,
+            "Actual Total Time": 0.009,
+            "Actual Rows": 0,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 0.01,
+                "Total Cost": 0.02,
+                "Plan Rows": 1,
+                "Plan Width": 112,
+                "Actual Startup Time": 0.007,
+                "Actual Total Time": 0.008,
+                "Actual Rows": 0,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "created_at DESC"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "chain_stories",
+                    "Alias": "chain_stories",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 0.0,
+                    "Plan Rows": 1,
+                    "Plan Width": 112,
+                    "Actual Startup Time": 0.004,
+                    "Actual Total Time": 0.004,
+                    "Actual Rows": 0,
+                    "Actual Loops": 1,
+                    "Filter": "(deleted_at IS NULL)",
+                    "Rows Removed by Filter": 0,
+                    "Shared Hit Blocks": 0,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 12,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.104,
+          "Triggers": [],
+          "Execution Time": 0.022
+        }
+      }
+    },
+    "suggested_people": {
+      "timing": {
+        "label": "suggested_people",
+        "duration_ms": 229.57,
+        "rows_returned": 10
+      },
+      "plan": {
+        "node_type": "Limit",
+        "relation": "",
+        "actual_rows": 10,
+        "actual_total_ms": 0.12,
+        "plan_rows": 10,
+        "plan_width": 411,
+        "sort_keys": [],
+        "index_name": "",
+        "filter": "",
+        "issues": [
+          {
+            "type": "sort",
+            "detail": "Sort operation: [\"(((((((CASE WHEN ((avatar_url IS NOT NULL) AND (avatar_url <> ''::text)) THEN 2 ELSE 0 END)::numeric + CASE WHEN ((bio IS NOT NULL) AND (bio <> ''::text)) THEN 1.5 ELSE '0'::numeric END) + (CASE WHEN ((location IS NOT NULL) AND (location <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN ((town IS NOT NULL) AND (town <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN (is_verified IS TRUE) THEN 2 ELSE 0 END)::numeric) + (CASE WHEN (verified IS TRUE) THEN 1 ELSE 0 END)::numeric)) DESC\", 'created_at DESC NULLS LAST'] (rows=10)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=63, cost=0.07ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: [\"(((((((CASE WHEN ((avatar_url IS NOT NULL) AND (avatar_url <> ''::text)) THEN 2 ELSE 0 END)::numeric + CASE WHEN ((bio IS NOT NULL) AND (bio <> ''::text)) THEN 1.5 ELSE '0'::numeric END) + (CASE WHEN ((location IS NOT NULL) AND (location <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN ((town IS NOT NULL) AND (town <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN (is_verified IS TRUE) THEN 2 ELSE 0 END)::numeric) + (CASE WHEN (verified IS TRUE) THEN 1 ELSE 0 END)::numeric)) DESC\", 'created_at DESC NULLS LAST'] (rows=10)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=63, cost=0.07ms)",
+            "severity": "high"
+          },
+          {
+            "type": "sort",
+            "detail": "Sort operation: [\"(((((((CASE WHEN ((avatar_url IS NOT NULL) AND (avatar_url <> ''::text)) THEN 2 ELSE 0 END)::numeric + CASE WHEN ((bio IS NOT NULL) AND (bio <> ''::text)) THEN 1.5 ELSE '0'::numeric END) + (CASE WHEN ((location IS NOT NULL) AND (location <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN ((town IS NOT NULL) AND (town <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN (is_verified IS TRUE) THEN 2 ELSE 0 END)::numeric) + (CASE WHEN (verified IS TRUE) THEN 1 ELSE 0 END)::numeric)) DESC\", 'created_at DESC NULLS LAST'] (rows=10)",
+            "severity": "low"
+          },
+          {
+            "type": "seq_scan",
+            "table": "chain_profiles",
+            "detail": "Sequential scan on chain_profiles (rows=63, cost=0.07ms)",
+            "severity": "high"
+          }
+        ],
+        "children": [
+          {
+            "node_type": "Sort",
+            "relation": "",
+            "actual_rows": 10,
+            "actual_total_ms": 0.12,
+            "plan_rows": 62,
+            "plan_width": 411,
+            "sort_keys": [
+              "(((((((CASE WHEN ((avatar_url IS NOT NULL) AND (avatar_url <> ''::text)) THEN 2 ELSE 0 END)::numeric + CASE WHEN ((bio IS NOT NULL) AND (bio <> ''::text)) THEN 1.5 ELSE '0'::numeric END) + (CASE WHEN ((location IS NOT NULL) AND (location <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN ((town IS NOT NULL) AND (town <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN (is_verified IS TRUE) THEN 2 ELSE 0 END)::numeric) + (CASE WHEN (verified IS TRUE) THEN 1 ELSE 0 END)::numeric)) DESC",
+              "created_at DESC NULLS LAST"
+            ],
+            "index_name": "",
+            "filter": "",
+            "issues": [
+              {
+                "type": "sort",
+                "detail": "Sort operation: [\"(((((((CASE WHEN ((avatar_url IS NOT NULL) AND (avatar_url <> ''::text)) THEN 2 ELSE 0 END)::numeric + CASE WHEN ((bio IS NOT NULL) AND (bio <> ''::text)) THEN 1.5 ELSE '0'::numeric END) + (CASE WHEN ((location IS NOT NULL) AND (location <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN ((town IS NOT NULL) AND (town <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN (is_verified IS TRUE) THEN 2 ELSE 0 END)::numeric) + (CASE WHEN (verified IS TRUE) THEN 1 ELSE 0 END)::numeric)) DESC\", 'created_at DESC NULLS LAST'] (rows=10)",
+                "severity": "low"
+              },
+              {
+                "type": "seq_scan",
+                "table": "chain_profiles",
+                "detail": "Sequential scan on chain_profiles (rows=63, cost=0.07ms)",
+                "severity": "high"
+              }
+            ],
+            "children": [
+              {
+                "node_type": "Seq Scan",
+                "relation": "chain_profiles",
+                "actual_rows": 63,
+                "actual_total_ms": 0.07,
+                "plan_rows": 62,
+                "plan_width": 411,
+                "sort_keys": [],
+                "index_name": "",
+                "filter": "((deleted_at IS NULL) AND (id <> '00000000-0000-0000-0000-000000000000'::uuid))",
+                "issues": [
+                  {
+                    "type": "seq_scan",
+                    "table": "chain_profiles",
+                    "detail": "Sequential scan on chain_profiles (rows=63, cost=0.07ms)",
+                    "severity": "high"
+                  }
+                ]
+              }
+            ],
+            "sub_issues": []
+          }
+        ],
+        "sub_issues": [],
+        "label": "suggested_people",
+        "planning_time_ms": 0.15,
+        "execution_time_ms": 0.14,
+        "total_time_ms": 0.29,
+        "rows_returned": 10,
+        "raw_plan": {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 9.3,
+            "Total Cost": 9.32,
+            "Plan Rows": 10,
+            "Plan Width": 411,
+            "Actual Startup Time": 0.12,
+            "Actual Total Time": 0.122,
+            "Actual Rows": 10,
+            "Actual Loops": 1,
+            "Shared Hit Blocks": 5,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Sort",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 9.3,
+                "Total Cost": 9.45,
+                "Plan Rows": 62,
+                "Plan Width": 411,
+                "Actual Startup Time": 0.119,
+                "Actual Total Time": 0.12,
+                "Actual Rows": 10,
+                "Actual Loops": 1,
+                "Sort Key": [
+                  "(((((((CASE WHEN ((avatar_url IS NOT NULL) AND (avatar_url <> ''::text)) THEN 2 ELSE 0 END)::numeric + CASE WHEN ((bio IS NOT NULL) AND (bio <> ''::text)) THEN 1.5 ELSE '0'::numeric END) + (CASE WHEN ((location IS NOT NULL) AND (location <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN ((town IS NOT NULL) AND (town <> ''::text)) THEN 1 ELSE 0 END)::numeric) + (CASE WHEN (is_verified IS TRUE) THEN 2 ELSE 0 END)::numeric) + (CASE WHEN (verified IS TRUE) THEN 1 ELSE 0 END)::numeric)) DESC",
+                  "created_at DESC NULLS LAST"
+                ],
+                "Sort Method": "top-N heapsort",
+                "Sort Space Used": 29,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 5,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "chain_profiles",
+                    "Alias": "chain_profiles",
+                    "Startup Cost": 0.0,
+                    "Total Cost": 7.96,
+                    "Plan Rows": 62,
+                    "Plan Width": 411,
+                    "Actual Startup Time": 0.016,
+                    "Actual Total Time": 0.074,
+                    "Actual Rows": 63,
+                    "Actual Loops": 1,
+                    "Filter": "((deleted_at IS NULL) AND (id <> '00000000-0000-0000-0000-000000000000'::uuid))",
+                    "Rows Removed by Filter": 0,
+                    "Shared Hit Blocks": 5,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.15,
+          "Triggers": [],
+          "Execution Time": 0.144
+        }
+      }
+    }
+  },
+  "indexes": {
+    "chain_stories": [
+      "chain_stories_pkey",
+      "idx_chain_stories_active",
+      "idx_chain_stories_profile_created",
+      "idx_namvibe_stories_profile_created",
+      "idx_p63_chain_stories_created_at_desc",
+      "idx_p63_chain_stories_deleted_at",
+      "idx_p63_chain_stories_deleted_created",
+      "idx_p63_chain_stories_id",
+      "idx_p63_chain_stories_profile_created",
+      "idx_p63_chain_stories_profile_id",
+      "idx_p71_stories_profile_active",
+      "idx_phase62_chain_stories_created_at"
+    ],
+    "chain_live_rooms": [
+      "chain_live_rooms_pkey",
+      "idx_chain_live_rooms_active_v2",
+      "idx_chain_live_rooms_status",
+      "idx_chain_live_rooms_status_created",
+      "idx_live_created",
+      "idx_live_rooms_status",
+      "idx_namvibe_live_rooms_profile_created",
+      "idx_p63_chain_live_rooms_created_at_desc",
+      "idx_p63_chain_live_rooms_deleted_at",
+      "idx_p63_chain_live_rooms_id",
+      "idx_p63_chain_live_rooms_is_live",
+      "idx_p63_chain_live_rooms_is_live_deleted_created",
+      "idx_p63_chain_live_rooms_profile_id",
+      "idx_p63_chain_live_rooms_status",
+      "idx_p63_chain_live_rooms_status_deleted_created",
+      "idx_p71_live_rooms_profile_status",
+      "idx_phase62_chain_live_rooms_created_at"
+    ],
+    "chain_profiles": [
+      "chain_profiles_auth_user_id_key",
+      "chain_profiles_pkey",
+      "chain_profiles_username_key",
+      "idx_chain_profiles_auth_user_id",
+      "idx_chain_profiles_creator",
+      "idx_chain_profiles_dating",
+      "idx_chain_profiles_deleted_at",
+      "idx_chain_profiles_email",
+      "idx_chain_profiles_full_name_trgm",
+      "idx_chain_profiles_normalized_email",
+      "idx_chain_profiles_username",
+      "idx_chain_profiles_username_trgm",
+      "idx_namvibe_profiles_auth_user_id",
+      "idx_namvibe_profiles_email",
+      "idx_p63_chain_profiles_auth_user_id",
+      "idx_p63_chain_profiles_created_at_desc",
+      "idx_p63_chain_profiles_deleted_at",
+      "idx_p63_chain_profiles_id",
+      "idx_p63_chain_profiles_is_online",
+      "idx_p63_chain_profiles_is_verified",
+      "idx_p63_chain_profiles_location",
+      "idx_p63_chain_profiles_town",
+      "idx_p63_chain_profiles_username",
+      "idx_phase62_chain_profiles_created_at",
+      "idx_profiles_account_type",
+      "idx_profiles_auth_user",
+      "idx_profiles_auth_user_id",
+      "idx_profiles_email",
+      "idx_profiles_trust_score",
+      "idx_profiles_username"
+    ],
+    "chain_posts": [
+      "chain_posts_pkey",
+      "idx_chain_posts_created_at_desc",
+      "idx_chain_posts_feed_real_content",
+      "idx_chain_posts_feed_v2",
+      "idx_chain_posts_profile_created",
+      "idx_chain_posts_profile_recent_real_content",
+      "idx_chain_posts_trending",
+      "idx_namvibe_posts_profile_created",
+      "idx_p63_chain_posts_category",
+      "idx_p63_chain_posts_created_at_desc",
+      "idx_p63_chain_posts_deleted_at",
+      "idx_p63_chain_posts_deleted_created",
+      "idx_p63_chain_posts_id",
+      "idx_p63_chain_posts_post_type",
+      "idx_p63_chain_posts_profile_created",
+      "idx_p63_chain_posts_profile_id",
+      "idx_p63_chain_posts_town_tag",
+      "idx_p63_chain_posts_visibility",
+      "idx_p63_chain_posts_visibility_deleted_created",
+      "idx_p71_posts_profile_engagement",
+      "idx_phase62_chain_posts_created_at",
+      "idx_posts_created",
+      "idx_posts_profile",
+      "idx_posts_visibility"
+    ],
+    "chain_reels": [
+      "chain_reels_pkey",
+      "idx_chain_reels_feed_v2",
+      "idx_chain_reels_profile_created",
+      "idx_chain_reels_profile_recent_real_content",
+      "idx_namvibe_reels_profile_created",
+      "idx_p63_chain_reels_created_at_desc",
+      "idx_p63_chain_reels_deleted_at",
+      "idx_p63_chain_reels_deleted_created",
+      "idx_p63_chain_reels_id",
+      "idx_p63_chain_reels_profile_created",
+      "idx_p63_chain_reels_profile_id",
+      "idx_p71_reels_profile_created_desc",
+      "idx_phase62_chain_reels_created_at",
+      "idx_reels_created",
+      "idx_reels_profile",
+      "idx_reels_status_visibility",
+      "idx_reels_visibility"
+    ]
+  },
+  "fastest": {
+    "label": "suggested_people",
+    "ms": 229.57
+  },
+  "slowest": {
+    "label": "profiles_creator",
+    "ms": 408.32
+  }
+}

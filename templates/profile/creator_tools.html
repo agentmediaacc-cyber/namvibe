@@ -1,139 +1,294 @@
 {% extends "base.html" %}
-
-{% block title %}Creator Studio Pro | NamVibe{% endblock %}
+{% block title %}Creator Studio | NamVibe{% endblock %}
 {% block body_class %}chain-wallpaper-premium{% endblock %}
-
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/chain_portal.css">
+<link rel="stylesheet" href="/static/css/profile_command_center.css">
 <style>
-    .pro-dashboard {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 40px 20px 120px;
-    }
-    .creator-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 40px;
-    }
-    .ai-assistant-card {
-        background: white;
-        border-radius: 24px;
-        padding: 30px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.05);
-        border-top: 6px solid var(--premium-accent);
-        margin-bottom: 30px;
-    }
-    .analytics-row {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-    .pro-stat-card {
-        background: white;
-        padding: 25px;
-        border-radius: 20px;
-        text-align: center;
-    }
-    .tag-cloud {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 15px;
-    }
-    .ai-tag {
-        background: rgba(37, 99, 235,0.1);
-        color: var(--premium-accent);
-        padding: 5px 12px;
-        border-radius: 50px;
-        font-size: 11px;
-        font-weight: bold;
-    }
+  .creator-studio { max-width:1200px; margin:0 auto; padding:40px 20px 120px; }
+  .cs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:36px; flex-wrap:wrap; gap:12px; }
+  .cs-kicker { font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.08em; color:var(--profile-ink-soft); margin:0 0 4px; }
+  .cs-header h1 { margin:0; font-size:28px; }
+  .cs-earnings-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
+  .cs-earnings-card { background:var(--profile-surface); border:1px solid var(--profile-line); border-radius:20px; padding:24px; }
+  .cs-earnings-card .label { font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; color:var(--profile-ink-soft); }
+  .cs-earnings-card .value { font-size:32px; font-weight:900; color:var(--profile-ink); margin:8px 0 4px; }
+  .cs-earnings-card .change { font-size:12px; font-weight:800; }
+  .cs-analytics-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:32px; }
+  .cs-panel { background:var(--profile-surface); border:1px solid var(--profile-line); border-radius:20px; padding:24px; }
+  .cs-panel h3 { margin:0 0 16px; font-size:16px; display:flex; align-items:center; gap:8px; }
+  .cs-panel h3 i { font-size:18px; }
+  .cs-stat-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--profile-line); font-size:14px; }
+  .cs-stat-row:last-child { border-bottom:0; }
+  .cs-stat-row .stat-label { color:var(--profile-ink-soft); font-weight:800; }
+  .cs-stat-row .stat-value { font-weight:900; color:var(--profile-ink); }
+  .cs-schedule-form { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .cs-schedule-form input, .cs-schedule-form select { flex:1; min-width:140px; min-height:42px; padding:0 12px; border:1px solid var(--profile-line); border-radius:12px; font-weight:800; font-size:13px; background:var(--profile-surface); color:var(--profile-ink); }
+  .cs-schedule-form button { min-height:42px; padding:0 20px; border:0; border-radius:12px; background:var(--profile-gradient-btn); color:#fff; font-weight:900; cursor:pointer; font-size:13px; }
+  .cs-schedule-list { margin-top:16px; }
+  .cs-schedule-item { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--profile-line); font-size:13px; }
+  .cs-schedule-item:last-child { border-bottom:0; }
+  .cs-schedule-item .cs-sched-info { display:flex; flex-direction:column; gap:2px; }
+  .cs-schedule-item .cs-sched-type { font-weight:900; text-transform:uppercase; font-size:10px; letter-spacing:.04em; color:var(--profile-blue); }
+  .cs-schedule-item .cs-sched-title { font-weight:800; color:var(--profile-ink); }
+  .cs-schedule-item .cs-sched-time { font-size:11px; color:var(--profile-ink-soft); }
+  .cs-schedule-item .cs-sched-status { font-size:10px; font-weight:900; text-transform:uppercase; padding:2px 8px; border-radius:999px; }
+  .cs-schedule-item .cs-sched-status.pending { background:#fff4d8; color:#9a6400; }
+  .cs-schedule-item .cs-sched-status.published { background:#e8fff7; color:#067647; }
+  .cs-chart-bar { display:flex; align-items:flex-end; gap:4px; height:120px; margin-top:12px; }
+  .cs-chart-bar .bar { flex:1; border-radius:4px 4px 0 0; min-height:4px; background:var(--profile-blue); opacity:.7; transition:opacity .2s; position:relative; }
+  .cs-chart-bar .bar:hover { opacity:1; }
+  .cs-chart-bar .bar .tooltip { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); background:var(--profile-ink); color:#fff; font-size:10px; font-weight:900; padding:2px 6px; border-radius:6px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s; }
+  .cs-chart-bar .bar:hover .tooltip { opacity:1; }
+  .cs-chart-labels { display:flex; gap:4px; margin-top:4px; }
+  .cs-chart-labels span { flex:1; font-size:9px; font-weight:800; color:var(--profile-ink-soft); text-align:center; }
+  .cs-links { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-top:24px; }
+  .cs-links a { display:flex; align-items:center; gap:10px; padding:14px 18px; border:1px solid var(--profile-line); border-radius:14px; background:var(--profile-surface); text-decoration:none; color:var(--profile-ink); font-weight:900; font-size:13px; transition:transform .15s,box-shadow .15s; }
+  .cs-links a:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(15,23,42,.08); }
+  .cs-links a i { font-size:20px; }
+  @media(max-width:768px) {
+    .cs-analytics-grid { grid-template-columns:1fr; }
+    .cs-earnings-row { grid-template-columns:1fr 1fr; }
+    .cs-header { flex-direction:column; align-items:flex-start; }
+  }
 </style>
 {% endblock %}
-
 {% block content %}
-<div class="pro-dashboard">
-    <div class="creator-header">
-        <div>
-            <p class="chain-portal-kicker">CREATOR STUDIO PRO</p>
-            <h1>Your Creator Business at a Glance</h1>
+<div class="creator-studio">
+  <div class="cs-header">
+    <div>
+      <p class="cs-kicker">Creator Studio</p>
+      <h1>{{ creator_data.creator_level_display or 'Creator' }} Dashboard</h1>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="/creator/dashboard" class="filter-chip" style="text-decoration:none;"><i class="fas fa-chart-simple"></i> Full Analytics</a>
+      <a href="/live/studio" class="filter-chip" style="background:var(--profile-gradient-btn); color:#fff; border-color:transparent; text-decoration:none;"><i class="fas fa-video"></i> Go Live</a>
+    </div>
+  </div>
+
+  <div class="cs-earnings-row">
+    <div class="cs-earnings-card">
+      <div class="label">Estimated Earnings</div>
+      <div class="value">{{ (creator_data.earnings.total_coins or 0) }}</div>
+      <div class="change" style="color:var(--profile-green);">
+        <i class="fas fa-arrow-up"></i>
+        {% if analytics and analytics.summary and analytics.summary.earnings %}
+        {{ analytics.summary.earnings.average|round|int }} avg/day
+        {% else %}
+        0 avg/day
+        {% endif %}
+      </div>
+    </div>
+    <div class="cs-earnings-card">
+      <div class="label">Followers</div>
+      <div class="value">{{ stats.followers or creator_data.total_followers or 0 }}</div>
+      <div class="change" style="color:var(--profile-blue);">
+        <i class="fas fa-user-plus"></i>
+        {% if analytics and analytics.summary and analytics.summary.follower_growth %}
+        +{{ analytics.summary.follower_growth.total }} this period
+        {% else %}
+        0 new
+        {% endif %}
+      </div>
+    </div>
+    <div class="cs-earnings-card">
+      <div class="label">Subscribers</div>
+      <div class="value">{{ creator_data.subscribers or 0 }}</div>
+      <div class="change" style="color:var(--profile-ink-soft);">{{ creator_data.subscriptions.active_count or 0 }} active</div>
+    </div>
+    <div class="cs-earnings-card">
+      <div class="label">Total Views</div>
+      <div class="value">{{ creator_data.total_views or stats.views or 0 }}</div>
+      <div class="change" style="color:var(--profile-ink-soft);">
+        Reels: {{ creator_data.reels_performance.views or 0 }}
+      </div>
+    </div>
+  </div>
+
+  {% if analytics and analytics.summary %}
+  <div class="cs-analytics-grid">
+    <div class="cs-panel">
+      <h3><i class="fas fa-eye" style="color:var(--profile-blue);"></i> Daily Views (30 days)</h3>
+      {% set views_data = analytics.views or [] %}
+      {% if views_data %}
+      {% set max_view = views_data|map(attribute='value')|max or 1 %}
+      <div class="cs-chart-bar">
+        {% for d in views_data[-14:] %}
+        <div class="bar" style="height:{{ (d.value / max_view * 100)|round|int }}%; background:var(--profile-blue);">
+          <span class="tooltip">{{ d.value }} views<br>{{ d.date[-5:] }}</span>
         </div>
-        <div style="display:flex; gap:15px;">
-            <a href="/live/studio" class="primary" style="padding:12px 25px; background:var(--premium-gradient);">Go Live</a>
-            <a href="/profile/edit" class="secondary">Manage Profile</a>
-        </div>
+        {% endfor %}
+      </div>
+      <div class="cs-chart-labels">
+        {% for d in views_data[-14:] %}
+        <span>{{ d.date[-5:] }}</span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="manager-empty" style="padding:24px;">
+        <i class="fas fa-chart-line"></i>
+        <p style="font-size:13px;">View data coming once your content gets traction</p>
+      </div>
+      {% endif %}
+      <div style="margin-top:12px; display:flex; gap:16px; font-size:12px; font-weight:800; color:var(--profile-ink-soft);">
+        <span>Total: {{ analytics.summary.views.total }}</span>
+        <span>Avg: {{ analytics.summary.views.average|round|int }}/day</span>
+      </div>
     </div>
 
-    <!-- Analytics Stats -->
-    <div class="analytics-row">
-        <div class="pro-stat-card">
-            <small style="opacity:0.5; text-transform:uppercase; font-size:10px; font-weight:bold;">Estimated Earnings</small>
-            <strong style="display:block; font-size:28px; margin-top:5px;">N$ {{ wallet.coin_balance * 0.1 }}</strong>
-            <span style="color:#10b981; font-size:12px;"><i class="fas fa-arrow-up"></i> 15% this month</span>
+    <div class="cs-panel">
+      <h3><i class="fas fa-coins" style="color:var(--profile-gold);"></i> Earnings Trend (30 days)</h3>
+      {% set earnings_data = analytics.earnings or [] %}
+      {% if earnings_data %}
+      {% set max_earn = earnings_data|map(attribute='value')|max or 1 %}
+      <div class="cs-chart-bar">
+        {% for d in earnings_data[-14:] %}
+        <div class="bar" style="height:{{ (d.value / max_earn * 100)|round|int }}%; background:var(--profile-gold);">
+          <span class="tooltip">{{ d.value }} coins<br>{{ d.date[-5:] }}</span>
         </div>
-        <div class="pro-stat-card">
-            <small style="opacity:0.5; text-transform:uppercase; font-size:10px; font-weight:bold;">Total Audience</small>
-            <strong style="display:block; font-size:28px; margin-top:5px;">{{ stats.followers }}</strong>
-            <span style="color:#10b981; font-size:12px;"><i class="fas fa-user-plus"></i> +24 new today</span>
+        {% endfor %}
+      </div>
+      <div class="cs-chart-labels">
+        {% for d in earnings_data[-14:] %}
+        <span>{{ d.date[-5:] }}</span>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="manager-empty" style="padding:24px;">
+        <i class="fas fa-coins"></i>
+        <p style="font-size:13px;">Earnings data will appear after first revenue</p>
+      </div>
+      {% endif %}
+      <div style="margin-top:12px; display:flex; gap:16px; font-size:12px; font-weight:800; color:var(--profile-ink-soft);">
+        <span>Total: {{ analytics.summary.earnings.total|round|int }}</span>
+        <span>Avg: {{ analytics.summary.earnings.average|round|int }}/day</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="cs-analytics-grid">
+    <div class="cs-panel">
+      <h3><i class="fas fa-calendar-clock" style="color:var(--profile-blue);"></i> Post / Reel Schedule</h3>
+      {% if schedule_count > 0 %}
+      <p style="font-size:13px; color:var(--profile-ink-soft); margin:0 0 12px;">{{ schedule_count }} item{% if schedule_count != 1 %}s{% endif %} scheduled</p>
+      <div class="cs-schedule-list">
+        {% for item in (bundle.get('content',{}).get('posts',[])|list + bundle.get('content',{}).get('reels',[])|list) if False %}{% endfor %}
+        <div class="manager-empty" style="padding:16px;">
+          <p style="font-size:13px;">Scheduled items will appear here</p>
         </div>
-        <div class="pro-stat-card">
-            <small style="opacity:0.5; text-transform:uppercase; font-size:10px; font-weight:bold;">Avg. Watch Time</small>
-            <strong style="display:block; font-size:28px; margin-top:5px;">12.4m</strong>
-            <span style="color:#3b82f6; font-size:12px;">Top 10% in Category</span>
-        </div>
+      </div>
+      {% else %}
+      <div style="text-align:center; padding:16px 0;">
+        <p style="font-size:13px; color:var(--profile-ink-soft); margin:0 0 12px;">No scheduled items. Schedule your next post:</p>
+      </div>
+      {% endif %}
+      <form class="cs-schedule-form" id="scheduleForm" action="/profile/api/schedule/create" method="POST">
+        <select name="content_type" required>
+          <option value="post">Post</option>
+          <option value="reel">Reel</option>
+        </select>
+        <input type="text" name="caption" placeholder="Caption..." required style="flex:2;">
+        <input type="datetime-local" name="scheduled_at" required>
+        <button type="submit"><i class="fas fa-calendar-plus"></i> Schedule</button>
+      </form>
+      <div id="scheduleResult" style="margin-top:8px; font-size:12px; font-weight:800;"></div>
     </div>
 
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
-        <!-- AI Creator Assistant -->
-        <div class="ai-assistant-card">
-            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:20px;">
-                <h2 style="margin:0;"><i class="fas fa-magic" style="color:var(--premium-accent); margin-right:10px;"></i> AI Creative Assistant</h2>
-                <span style="background:#000; color:white; padding:4px 10px; border-radius:5px; font-size:10px;">BETA</span>
-            </div>
-            
-            <div style="margin-bottom:25px;">
-                <label style="display:block; font-size:12px; font-weight:bold; opacity:0.5; margin-bottom:10px;">OPTIMIZED CAPTION IDEAS</label>
-                <div style="background:#f9f9f9; padding:15px; border-radius:12px; border-left:4px solid var(--premium-accent); margin-bottom:10px;">
-                    <p style="font-size:14px; margin:0;">"POV: You found the best vibes in Windhoek tonight! ✨ Join NamVibe."</p>
-                </div>
-                <div style="background:#f9f9f9; padding:15px; border-radius:12px; border-left:4px solid #eee;">
-                    <p style="font-size:14px; margin:0;">"Exclusive session starts now. 🎤 Grab your virtual front row seat."</p>
-                </div>
-            </div>
-
-            <div>
-                <label style="display:block; font-size:12px; font-weight:bold; opacity:0.5; margin-bottom:10px;">TRENDING HASHTAGS</label>
-                <div class="tag-cloud">
-                    <span class="ai-tag">#NamVibePremium</span>
-                    <span class="ai-tag">#CreatorEconomy</span>
-                    <span class="ai-tag">#WindhoekVibes</span>
-                    <span class="ai-tag">#TrendingNow</span>
-                    <span class="ai-tag">#ViralCreator</span>
-                </div>
-            </div>
-            
-            <button class="secondary" style="width:100%; margin-top:30px; border-color:var(--premium-accent); color:var(--premium-accent);">Refresh Suggestions</button>
-        </div>
-
-        <!-- Strategy & Tools -->
-        <div style="display:flex; flex-direction:column; gap:25px;">
-            <div class="glass-panel" style="padding:25px; background:white;">
-                <h3><i class="fas fa-calendar-alt" style="color:#3b82f6; margin-right:10px;"></i> Smart Scheduling</h3>
-                <p style="font-size:13px; opacity:0.7;">AI recommends posting your next Reel at <strong>19:30 tonight</strong> for maximum reach.</p>
-                <button class="secondary" style="width:100%; margin-top:15px; font-size:12px;">Schedule Stream</button>
-            </div>
-            
-            <div class="glass-panel" style="padding:25px; background:white;">
-                <h3><i class="fas fa-handshake" style="color:#10b981; margin-right:10px;"></i> Sponsor Offers</h3>
-                <div style="background:#fdfafb; padding:15px; border-radius:12px; border:1px dashed #ddd; text-align:center;">
-                    <p style="font-size:13px; margin:0 0 10px;">New Partnership Invite from <strong>MTC Namibia</strong></p>
-                    <button class="btn-sm" style="background:#000; color:white; border:none; padding:8px 20px; border-radius:50px;">View Offer</button>
-                </div>
-            </div>
-        </div>
+    <div class="cs-panel">
+      <h3><i class="fas fa-chart-bar" style="color:var(--profile-green);"></i> Performance Metrics</h3>
+      <div class="cs-stat-row">
+        <span class="stat-label">Reel Engagement Rate</span>
+        <span class="stat-value">{{ creator_data.reels_performance.engagement_rate|round(1) }}%</span>
+      </div>
+      <div class="cs-stat-row">
+        <span class="stat-label">Reel Likes</span>
+        <span class="stat-value">{{ creator_data.reels_performance.likes }}</span>
+      </div>
+      <div class="cs-stat-row">
+        <span class="stat-label">Tips Received</span>
+        <span class="stat-value">{{ creator_data.tips_cents // 100 }} coins</span>
+      </div>
+      <div class="cs-stat-row">
+        <span class="stat-label">Gifts Received</span>
+        <span class="stat-value">{{ creator_data.gifts_cents // 100 }} coins</span>
+      </div>
+      <div class="cs-stat-row">
+        <span class="stat-label">Earnings Breakdown</span>
+        <span class="stat-value" style="font-size:12px;">
+          {% set eb = creator_data.earnings.breakdown or {} %}
+          Subs: {{ (eb.subscriptions or 0) // 100 }} | Gifts: {{ (eb.gifts or 0) // 100 }} | Tips: {{ (eb.tips or 0) // 100 }}
+        </span>
+      </div>
+      {% if creator_data.verification_status %}
+      <div class="cs-stat-row">
+        <span class="stat-label">Verification</span>
+        <span class="stat-value" style="{% if creator_data.verification_status == 'verified' %}color:var(--profile-green){% else %}color:var(--profile-ink-soft){% endif %}">
+          {% if creator_data.verification_status == 'verified' %}<i class="fas fa-check-circle"></i>{% else %}<i class="fas fa-clock"></i>{% endif %}
+          {{ creator_data.verification_status|replace('_',' ')|title }}
+        </span>
+      </div>
+      {% endif %}
+      <div class="cs-stat-row">
+        <span class="stat-label">Creator Level</span>
+        <span class="stat-value">{{ creator_data.creator_level_display }}</span>
+      </div>
     </div>
+  </div>
+
+  {% if friends %}
+  <div class="cs-panel" style="margin-top:24px;">
+    <h3><i class="fas fa-users" style="color:var(--profile-blue);"></i> Top Supporters</h3>
+    <div class="people-list">
+      {% for f in friends[:6] %}
+      <div class="people-card">
+        <div class="people-avatar" style="width:40px; height:40px; font-size:14px;">
+          {% if f.avatar_url %}<img src="{{ f.avatar_url }}" alt="">{% else %}{{ (f.display_name or f.username or '?')[0]|upper }}{% endif %}
+        </div>
+        <div class="people-info">
+          <strong>{{ f.display_name or f.username or 'Unknown' }}</strong>
+          <span>Friend since {{ f.created_at[:10] if f.created_at else 'recently' }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="cs-links">
+    <a href="/creator/dashboard"><i class="fas fa-chart-simple" style="color:var(--profile-blue);"></i> Creator Dashboard</a>
+    <a href="/profile/{{ profile.username }}/posts"><i class="fas fa-table-cells-large" style="color:var(--profile-gold);"></i> All Posts</a>
+    <a href="/profile/{{ profile.username }}/reels"><i class="fas fa-film" style="color:var(--profile-green);"></i> All Reels</a>
+    <a href="/live/studio"><i class="fas fa-video" style="color:var(--profile-red);"></i> Live Studio</a>
+    <a href="/profile/{{ profile.username }}/likes"><i class="fas fa-heart" style="color:var(--profile-red);"></i> Liked Content</a>
+    <a href="/profile/{{ profile.username }}/views"><i class="fas fa-eye" style="color:var(--profile-blue);"></i> Profile Views</a>
+    <a href="/social/@{{ profile.username }}/friends"><i class="fas fa-handshake" style="color:var(--profile-green);"></i> Friends</a>
+    <a href="/wallet/"><i class="fas fa-wallet" style="color:var(--profile-gold);"></i> Wallet</a>
+    <a href="/profile/privacy"><i class="fas fa-shield-halved" style="color:var(--profile-blue);"></i> Privacy</a>
+    <a href="/profile/verification"><i class="fas fa-circle-check" style="color:var(--profile-green);"></i> Get Verified</a>
+  </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('scheduleForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = this.querySelector('button');
+  btn.disabled = true;
+  const result = document.getElementById('scheduleResult');
+  result.textContent = 'Scheduling...';
+  try {
+    const r = await fetch(this.action, { method:'POST', body:new FormData(this) });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      result.innerHTML = '<span style="color:var(--profile-green);"><i class="fas fa-check"></i> Scheduled! Refresh to see it.</span>';
+      this.reset();
+    } else {
+      result.innerHTML = '<span style="color:var(--profile-red);">' + (d.error || 'Failed') + '</span>';
+    }
+  } catch {
+    result.innerHTML = '<span style="color:var(--profile-red);">Request failed</span>';
+  }
+  btn.disabled = false;
+});
+</script>
 {% endblock %}

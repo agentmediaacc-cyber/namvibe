@@ -7,11 +7,11 @@
   --chat-surface: #0d0d1d;
   --chat-panel: rgba(255,255,255,0.06);
   --chat-border: rgba(255,255,255,0.10);
-  --chat-primary: #2563eb;
-  --chat-primary-grad: linear-gradient(135deg,#2563eb,#7c3aed);
+  --chat-primary: #FE2C55;
+  --chat-primary-grad: linear-gradient(135deg,#FE2C55,#833AB4);
   --chat-text: #fff;
   --chat-muted: #9ca3af;
-  --chat-bubble-mine: linear-gradient(135deg,#2563eb,#7c3aed);
+  --chat-bubble-mine: linear-gradient(135deg,#FE2C55,#833AB4);
   --chat-bubble-theirs: rgba(255,255,255,0.10);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -285,7 +285,7 @@
 .selection-active .msg-bubble { cursor:pointer; transition:box-shadow 0.15s, transform 0.1s; }
 .selection-active .msg-bubble:hover { box-shadow:0 0 0 2px var(--chat-primary); transform:scale(0.98); }
 .msg-bubble.selected { box-shadow:0 0 0 2px var(--chat-primary); background:rgba(37, 99, 235,0.08); }
-.msg-bubble.selected.msg-mine { background:linear-gradient(135deg,#2563eb,#7c3aed); box-shadow:0 0 0 2px #fff; }
+.msg-bubble.selected.msg-mine { background:linear-gradient(135deg,#FE2C55,#833AB4); box-shadow:0 0 0 2px #fff; }
 .selection-active .msg-actions { display:none !important; }
 .selection-active .msg-reactions { display:none !important; }
 .multi-bar.show ~ .chat-composer { border-top-color:var(--chat-primary); }
@@ -355,7 +355,7 @@
 .msg-deleted-notice { text-align:center; font-size:11px; color:var(--chat-muted); padding:6px; font-style:italic; }
 
 /* ---- PHASE 39: UNREAD BADGE (thread list) ---- */
-.thread-unread-badge { margin-left:6px; background:#2563eb; color:white; border-radius:999px; padding:2px 7px; font-size:11px; font-weight:950; flex-shrink:0; }
+.thread-unread-badge { margin-left:6px; background:#FE2C55; color:white; border-radius:999px; padding:2px 7px; font-size:11px; font-weight:950; flex-shrink:0; }
 
 /* ---- PHASE 39: PRESENCE DOT (thread list, enhanced) ---- */
 .thread-online-dot { position:absolute; bottom:2px; right:2px; width:12px; height:12px; border-radius:50%; border:2px solid var(--chat-surface, #0d0d1d); }
@@ -462,7 +462,7 @@
     width:8px;height:8px;border-radius:50%;display:inline-block;
 }
 .call-quality-dot.excellent { background:#22c55e; }
-.call-quality-dot.weak { background:#f59e0b; }
+.call-quality-dot.weak { background:#FCAF45; }
 .call-quality-dot.poor { background:#ef4444; }
 
 /* Call History Section */
@@ -492,7 +492,7 @@
     text-align:center;z-index:250;display:none;
     box-shadow:0 4px 20px rgba(0,0,0,0.3);
 }
-#weak-network-banner { background:#f59e0b;color:#000; }
+#weak-network-banner { background:#FCAF45;color:#000; }
 #call-failed-banner { background:#ef4444;color:#fff; }
 
 /* Call Ended/Missed/Declined notification in call overlay */
@@ -873,7 +873,7 @@
 .hd-badge {
   display: inline-flex; align-items: center; gap: 2px;
   padding: 1px 6px; border-radius: 4px; font-size: 9px; font-weight: 700;
-  background: linear-gradient(135deg,#f59e0b,#ef4444); color: #fff;
+  background: linear-gradient(135deg,#FCAF45,#FE2C55); color: #fff;
   text-transform: uppercase; letter-spacing: 0.5px;
 }
 .hd-selector {
@@ -985,7 +985,7 @@
   display: inline-flex; margin-top: 6px; padding: 3px 9px; border-radius: 999px;
   background: rgba(34,197,94,0.16); color: #22c55e; font-size: 11px; font-weight: 700;
 }
-.phase54-network-quality[data-quality="weak"] { background: rgba(245,158,11,0.18); color: #f59e0b; }
+.phase54-network-quality[data-quality="weak"] { background: rgba(252,175,69,0.18); color: #FCAF45; }
 .phase54-network-quality[data-quality="reconnecting"],
 .phase54-network-quality[data-quality="failed"] { background: rgba(239,68,68,0.18); color: #ef4444; }
 .phase54-mini-call {

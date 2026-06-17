@@ -1,0 +1,83 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Reels Manager</h2>
+    {% if viewer and viewer.id == profile.id %}
+    <a href="/reels/upload" class="profile-btn primary"><i class="fas fa-plus"></i> Upload Reel</a>
+    {% endif %}
+  </div>
+  <div class="manager-toolbar">
+    <div class="manager-filters">
+      <a href="?filter=own" class="filter-chip {% if request.args.get('filter', 'own') == 'own' %}active{% endif %}">My Reels</a>
+      <a href="?filter=saved" class="filter-chip {% if request.args.get('filter') == 'saved' %}active{% endif %}">Saved</a>
+      <a href="?filter=liked" class="filter-chip {% if request.args.get('filter') == 'liked' %}active{% endif %}">Liked</a>
+      <a href="?filter=tagged" class="filter-chip {% if request.args.get('filter') == 'tagged' %}active{% endif %}">Tagged</a>
+      <a href="?filter=following" class="filter-chip {% if request.args.get('filter') == 'following' %}active{% endif %}">Following</a>
+      <a href="?filter=friends" class="filter-chip {% if request.args.get('filter') == 'friends' %}active{% endif %}">Friends</a>
+      <a href="?filter=creators" class="filter-chip {% if request.args.get('filter') == 'creators' %}active{% endif %}">Creators</a>
+    </div>
+    <span class="manager-count">{{ pagination.total if pagination else 0 }} reels</span>
+  </div>
+  {% if reels %}
+  <div class="manager-grid reels-grid">
+    {% for reel in reels %}
+    <article class="manager-card" data-reel-id="{{ reel.id }}">
+      <div class="manager-card-media reel-media">
+        {% if reel.video_url %}
+        <video src="{{ reel.video_url }}" preload="metadata"></video>
+        {% elif reel.thumbnail_url %}
+        <img src="{{ reel.thumbnail_url }}" alt="{{ reel.caption or 'Reel' }}">
+        {% else %}
+        <div class="manager-card-text"><i class="fas fa-film"></i></div>
+        {% endif %}
+        {% if reel.views_count is defined %}
+        <div class="reel-badge"><i class="fas fa-play"></i> {{ reel.views_count }}</div>
+        {% endif %}
+      </div>
+      <div class="manager-card-body">
+        <h3>{{ (reel.caption or 'Untitled')|truncate(60) }}</h3>
+        <div class="manager-card-meta">
+          <span><i class="fas fa-play"></i> {{ reel.views_count or 0 }}</span>
+          <span><i class="fas fa-heart"></i> {{ reel.likes_count or 0 }}</span>
+          <span><i class="fas fa-comment"></i> {{ reel.comments_count or 0 }}</span>
+        </div>
+        <div class="manager-card-tags">
+          <span class="tag tag-{{ reel.visibility or 'public' }}">{{ reel.visibility or 'public' }}</span>
+          {% if reel.is_pinned %}<span class="tag tag-pinned">pinned</span>{% endif %}
+          {% if reel.is_archived %}<span class="tag tag-muted">archived</span>{% endif %}
+          {% if reel.allow_comments == false %}<span class="tag tag-muted">comments off</span>{% endif %}
+        </div>
+      </div>
+      {% if viewer and viewer.id == profile.id %}
+      <div class="manager-card-actions">
+        <button type="button" class="action-btn" title="Visibility" onclick="Phase85.showVisibilityModal('{{ reel.id }}', 'reel', '{{ reel.visibility or 'public' }}')"><i class="fas fa-globe"></i></button>
+        <button type="button" class="action-btn" title="Toggle comments" onclick="toggleReelComments('{{ reel.id }}')"><i class="fas fa-comment-slash"></i></button>
+        <button type="button" class="action-btn" title="Pin" onclick="togglePin('{{ reel.id }}', 'reel')"><i class="fas fa-thumbtack"></i></button>
+        <button type="button" class="action-btn" title="Archive" onclick="toggleArchive('{{ reel.id }}', 'reel')"><i class="fas fa-box-archive"></i></button>
+        <button type="button" class="action-btn" title="Analytics" onclick="showReelAnalytics('{{ reel.id }}')"><i class="fas fa-chart-simple"></i></button>
+        <button type="button" class="action-btn danger" title="Delete" onclick="confirmDelete('{{ reel.id }}', 'reel')"><i class="fas fa-trash"></i></button>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% if pagination and pagination.total > pagination.per_page %}
+  <nav class="manager-pagination">
+    {% if request.args.get('cursor') %}<a href="?cursor={{ request.args.get('cursor') }}&filter={{ request.args.get('filter', 'own') }}">&laquo; Prev</a>{% endif %}
+    {% if reels|length >= (pagination.per_page or 20) %}<a href="?cursor={{ reels[-1].id }}&filter={{ request.args.get('filter', 'own') }}">Next &raquo;</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-film"></i>
+    <h3>{% if request.args.get('filter') == 'saved' %}No saved reels yet{% elif request.args.get('filter') == 'liked' %}No liked reels yet{% elif request.args.get('filter') == 'tagged' %}No tagged reels yet{% elif request.args.get('filter') == 'following' %}No reels from following yet{% elif request.args.get('filter') == 'friends' %}No friends&rsquo; reels yet{% elif request.args.get('filter') == 'creators' %}No creator reels yet{% else %}No reels yet{% endif %}</h3>
+    <p>{% if request.args.get('filter') == 'saved' %}Reels you save will appear here.{% elif request.args.get('filter') == 'liked' %}Reels you like will appear here.{% elif request.args.get('filter') == 'tagged' %}Reels you&rsquo;re tagged in will appear here.{% elif request.args.get('filter') == 'following' %}Reels from profiles you follow will appear here.{% elif request.args.get('filter') == 'friends' %}Reels from your friends will appear here.{% elif request.args.get('filter') == 'creators' %}Reels from verified creators will appear here.{% else %}Short videos you upload will appear here.{% endif %}</p>
+    {% if viewer and viewer.id == profile.id and request.args.get('filter', 'own') == 'own' %}
+    <a href="/reels/upload" class="profile-btn primary">Upload Reel</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

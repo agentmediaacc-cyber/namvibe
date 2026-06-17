@@ -7,11 +7,11 @@
   --chain-home-gold: var(--chain-gold);
   --chain-home-blue: var(--chain-cyan);
   --chain-home-red: var(--chain-primary);
-  --chain-home-green: #12B886;
+  --chain-home-green: #16a34a;
   --chain-home-text: var(--chain-text);
   --chain-home-muted: var(--chain-muted);
   --chain-home-border: var(--chain-border);
-  --chain-home-gold-border: rgba(247, 183, 51, 0.38);
+  --chain-home-gold-border: rgba(252, 175, 69, 0.35);
   --chain-home-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
   --chain-home-shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.4);
 }
@@ -1560,14 +1560,8 @@
     height: 36px;
   }
 
-  .chain-home__menu-btn {
-    display: none;
-  }
-
   .chain-home__top-search {
-    min-width: 0;
-    min-height: 40px;
-    padding: 0 11px;
+    display: none;
   }
 
   .chain-home__top-search input::placeholder {

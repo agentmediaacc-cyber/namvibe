@@ -18,6 +18,7 @@ from services import message_feature_service as phase29_messages
 from services.thread_security_service import can_access_thread
 from services import group_feature_service as phase29_groups
 from services.relationship_gate_service import can_message, can_call, is_mutual_follow, relationship_status
+from services.friendship_service import require_friendship_or_403
 from services.socketio_service import emit_to_profile
 
 message_bp = Blueprint("messages", __name__, url_prefix="/messages")
@@ -132,7 +133,11 @@ def api_send():
         (thread_id, profile_id), default=[]
     )
     if other_member:
-        gate = relationship_status(profile_id, other_member[0]["profile_id"])
+        other_id = other_member[0]["profile_id"]
+        _, friends = require_friendship_or_403(profile_id, other_id, "message")
+        if not friends:
+            return jsonify({"ok": False, "error": "friendship_required", "message": "You must be friends before you can message, call, video call, send funds, or send gifts."}), 403
+        gate = relationship_status(profile_id, other_id)
         if not gate.get("can_message"):
             return jsonify({"error": gate.get("error", "Cannot send message")}), 403
 
@@ -604,6 +609,11 @@ def start_direct_message_from_profile(profile_id):
     if viewer_id == target_id:
         flash("You cannot message yourself.", "info")
         return redirect("/messages/")
+
+    _, friends = require_friendship_or_403(viewer_id, target_id, "message")
+    if not friends:
+        flash("You must be friends before you can message.", "error")
+        return redirect(request.referrer or "/messages/")
 
     # Make sure target exists
     target_rows = fast_query(
@@ -1113,6 +1123,9 @@ def api_get_or_create_thread(profile_id):
         return jsonify({"error": "unauthorized"}), 401
     if current_id == profile_id:
         return jsonify({"error": "Cannot start thread with yourself"}), 400
+    _, friends = require_friendship_or_403(current_id, profile_id, "message")
+    if not friends:
+        return jsonify({"ok": False, "error": "friendship_required", "message": "You must be friends before you can message, call, video call, send funds, or send gifts."}), 403
     gate = relationship_status(current_id, profile_id)
     if not gate.get("can_message"):
         return jsonify({"error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403
@@ -1135,6 +1148,9 @@ def api_start_thread():
         return jsonify({"error": "profile_id required"}), 400
     if current_id == target_profile_id:
         return jsonify({"error": "Cannot start thread with yourself"}), 400
+    _, friends = require_friendship_or_403(current_id, target_profile_id, "message")
+    if not friends:
+        return jsonify({"ok": False, "error": "friendship_required", "message": "You must be friends before you can message, call, video call, send funds, or send gifts."}), 403
     gate = relationship_status(current_id, target_profile_id)
     if not gate.get("can_message"):
         return jsonify({"error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403
@@ -1149,6 +1165,28 @@ def api_start_thread():
     if thread_id:
         return jsonify({"thread_id": thread_id}), 200
     return jsonify({"error": "Could not create thread"}), 500
+
+
+@message_bp.route("/api/friend-requests")
+@login_required
+def api_friend_requests_in_messages():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    requests = fast_query(
+        """
+        SELECT fr.id, fr.sender_profile_id, fr.status, fr.message, fr.created_at,
+               p.username, p.full_name, p.avatar_url, p.is_verified
+        FROM chain_friend_requests fr
+        JOIN chain_profiles p ON fr.sender_profile_id = p.id
+        WHERE fr.recipient_profile_id = %s AND fr.status = 'pending'
+        ORDER BY fr.created_at DESC
+        LIMIT 50
+        """,
+        (profile_id,), default=[]
+    )
+    return jsonify({"ok": True, "requests": requests}), 200
 
 
 @message_bp.route("/api/friends")

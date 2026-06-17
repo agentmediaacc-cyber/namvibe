@@ -1983,6 +1983,351 @@ body.profile-theme-royal-purple .profile-mobile-actionbar button { background: #
   .floating-profile-action { display: inline-flex; }
 }
 
+/* ----- Clickable stat cards ----- */
+.profile-stats a.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  padding: 8px 12px;
+  border-radius: 16px;
+  transition: background 0.2s, transform 0.15s;
+  cursor: pointer;
+  min-height: 60px;
+  justify-content: center;
+}
+.profile-stats a.stat-card:hover {
+  background: rgba(37, 99, 235, 0.08);
+  transform: translateY(-2px);
+}
+.profile-stats a.stat-card:active {
+  transform: scale(0.96);
+}
+.profile-stats .stat-card.static {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+/* ----- Manager pages (Posts, Reels, Followers, Following, Friends) ----- */
+.profile-manager-shell {
+  max-width: 1060px;
+  margin: 18px auto 0;
+  padding: 0 16px 40px;
+}
+.manager-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.manager-head h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 900;
+  flex: 1;
+}
+.back-link {
+  color: var(--profile-ink-soft);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.back-link:hover { background: rgba(15,23,42,0.06); }
+.manager-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.manager-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.filter-chip {
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: var(--profile-surface-soft);
+  color: var(--profile-ink-soft);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 13px;
+  border: 1px solid var(--profile-line);
+  transition: all 0.2s;
+}
+.filter-chip:hover { background: rgba(37,99,235,0.08); }
+.filter-chip.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.manager-count {
+  color: var(--profile-ink-soft);
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.manager-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.manager-card {
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--profile-shadow);
+  transition: box-shadow 0.2s;
+}
+.manager-card:hover { box-shadow: var(--profile-shadow-hover); }
+.manager-card-media {
+  position: relative;
+  aspect-ratio: 16/10;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+.manager-card-media img,
+.manager-card-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.manager-card-media.reel-media { aspect-ratio: 9/16; }
+.manager-card-text {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: #94a3b8;
+  font-size: 32px;
+}
+.reel-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.manager-card-body {
+  padding: 12px;
+}
+.manager-card-body h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.manager-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--profile-ink-soft);
+  margin-bottom: 8px;
+}
+.manager-card-meta span { display: flex; align-items: center; gap: 4px; }
+.manager-card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.tag-public { background: #dbeafe; color: #1e40af; }
+.tag-followers { background: #d1fae5; color: #065f46; }
+.tag-friends { background: #fef3c7; color: #92400e; }
+.tag-private { background: #fee2e2; color: #991b1b; }
+.tag-pinned { background: #f3e8ff; color: #6b21a8; }
+.tag-muted { background: #f1f5f9; color: #64748b; }
+.manager-card-actions {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--profile-line);
+  flex-wrap: wrap;
+}
+.action-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--profile-surface-soft);
+  color: var(--profile-ink-soft);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  font-size: 14px;
+}
+.action-btn:hover { background: rgba(37,99,235,0.1); color: #2563eb; }
+.action-btn.danger:hover { background: #fee2e2; color: #dc2626; }
+.action-btn.primary:hover { background: #dbeafe; color: #2563eb; }
+.manager-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 12px;
+}
+.manager-pagination a {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: var(--profile-surface-soft);
+  color: var(--profile-ink);
+  text-decoration: none;
+  font-weight: 700;
+  border: 1px solid var(--profile-line);
+  transition: background 0.2s;
+}
+.manager-pagination a:hover { background: #2563eb; color: #fff; }
+.manager-pagination span { color: var(--profile-ink-soft); font-size: 14px; }
+.manager-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--profile-ink-soft);
+}
+.manager-empty i { font-size: 48px; margin-bottom: 16px; color: #94a3b8; }
+.manager-empty h3 { margin: 0 0 8px; font-size: 20px; }
+.manager-empty p { margin: 0 0 20px; }
+
+/* ----- People list (followers, following, friends) ----- */
+.people-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.people-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--profile-surface);
+  border: 1px solid var(--profile-line);
+  border-radius: 16px;
+  box-shadow: var(--profile-shadow);
+  transition: box-shadow 0.2s;
+}
+.people-card:hover { box-shadow: var(--profile-shadow-hover); }
+.people-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 18px;
+  color: #475569;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.people-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.people-info {
+  flex: 1;
+  min-width: 0;
+}
+.people-info strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+}
+.people-info span {
+  display: block;
+  font-size: 13px;
+  color: var(--profile-ink-soft);
+}
+.people-info small {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.people-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.following-group {
+  margin-bottom: 24px;
+}
+.friends-section {
+  margin-bottom: 24px;
+}
+.group-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.group-title .badge {
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+/* ----- QRs, modals for visibility ----- */
+.visibility-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  animation: platformFadeUp .2s ease;
+}
+.visibility-modal {
+  background: #fff;
+  border-radius: 24px;
+  padding: 24px;
+  max-width: 360px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.visibility-modal h3 { margin: 0 0 16px; font-size: 18px; }
+.visibility-modal select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+.visibility-modal .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.visibility-modal .modal-actions button {
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  font-weight: 800;
+  cursor: pointer;
+}
+.visibility-modal .modal-actions .btn-save { background: #111827; color: #fff; }
+.visibility-modal .modal-actions .btn-cancel { background: #f1f5f9; color: #0f172a; }
+
 /* ----- Animations ----- */
 @keyframes platformFadeUp {
   from { opacity: 0; transform: translateY(12px); }

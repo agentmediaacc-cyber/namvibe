@@ -5,17 +5,21 @@ except ImportError:
     pass
 
 import os
+import hmac
 import threading
 import time
 import uuid
 from datetime import datetime, timezone, timedelta
-from flask import Flask, g, jsonify, redirect, render_template, request, session, send_from_directory, url_for
-from flask_wtf.csrf import CSRFProtect
+from flask import Flask, g, jsonify, make_response, redirect, render_template, request, session, send_from_directory, url_for
+from flask_wtf.csrf import CSRFError, CSRFProtect
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.exceptions import HTTPException
 from engines.cache_engine import init_cache
 from engines.performance_engine import timed
 from engines.scheduler_engine import init_scheduler
-from dotenv import load_dotenv
+from services.env_service import get_env, load_project_env
+
+load_project_env()
 
 from api_routes.auth_routes import auth_bp
 from api_routes.profile_routes import profile_bp
@@ -33,6 +37,7 @@ from api_routes.activity_routes import activity_bp
 from api_routes.search_routes import search_api_bp, search_bp
 from api_routes.moderation_routes import moderation_bp
 from api_routes.status_routes import status_bp
+from api_routes.stories_v2_routes import stories_bp as stories_v2_bp
 from api_routes.live_media_routes import live_media_bp
 from api_routes.realtime_routes import realtime_bp
 from api_routes.reels_routes import reels_bp
@@ -48,6 +53,7 @@ from api_routes.mobile_api_routes import mobile_api_bp
 from api_routes.engagement_routes import engagement_bp
 from api_routes.marketplace_routes import marketplace_bp
 from api_routes.creator_routes import creator_bp
+from api_routes.social_routes import social_bp
 from api_routes.post_routes import post_bp, media_bp
 from api_routes.metrics_routes import metrics_bp
 from api_routes.push_routes import push_bp
@@ -61,9 +67,12 @@ from api_routes.notification_center_routes import notification_center_bp
 from api_routes.ai_routes import ai_bp
 from api_routes.performance_routes import performance_bp
 from api_routes.dev_diagnostics_routes import dev_bp as dev_diagnostics_bp
+from api_routes.explore_routes import explore_bp
+from api_routes.comments_routes import comments_bp
+from api_routes.friend_routes import friend_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
-from services.homepage_service import get_homepage_data, build_homepage_payload
+from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
 from services.homepage_warmup_service import warm_homepage_cache
 from services.content_service import hashtag_links
 from services.profile_service import get_current_profile, get_profile_by_username
@@ -74,12 +83,11 @@ from services.neon_service import get_neon_health, get_pool_status, prime_neon_r
 from services.live_service import prime_live_rooms_public_cache
 from utils.supabase_client import SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL, get_supabase, get_supabase_admin
 
-load_dotenv(dotenv_path=".env")
 _SUPABASE_HEALTH_CACHE = {"expires_at": 0.0, "payload": None}
 
 
 def _is_production_env():
-    return os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
+    return get_env("FLASK_ENV") == "production" or get_env("ENV") == "production"
 
 
 if not _is_production_env():
@@ -90,6 +98,24 @@ if not _is_production_env():
 
 def _flag_enabled(name):
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _is_apk_request():
+    ua = (request.headers.get("User-Agent") or "").lower()
+    return any(token in ua for token in ("android", "capacitor", " wv", "namvibe"))
+
+
+def _apply_local_session_cookie_config(app):
+    app.config["SESSION_COOKIE_SECURE"] = False
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_DOMAIN"] = None
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+
+
+def _is_local_debug_request():
+    host = (request.host or "").split(":", 1)[0]
+    return host in {"127.0.0.1", "localhost", "192.168.179.30"} or _is_apk_request()
 
 from services.request_cache import cache_clear
 from services.logging_service import log_error, log_warning
@@ -165,9 +191,63 @@ def format_datetime_filter(value):
 from utils.observability_utils import start_request_timer, log_request_performance
 from utils.security_utils import check_ip_reputation
 
+
+APK_CSRF_MAX_AGE_SECONDS = 4 * 60 * 60
+
+
+def _apk_csrf_salt(path):
+    return f"namvibe-apk-csrf:{path}"
+
+
+def _make_apk_csrf_token(app, path):
+    serializer = URLSafeTimedSerializer(app.secret_key, salt=_apk_csrf_salt(path))
+    return serializer.dumps({"path": path, "nonce": uuid.uuid4().hex})
+
+
+def _valid_apk_csrf_token(app, path, token):
+    if not token:
+        return False
+    serializer = URLSafeTimedSerializer(app.secret_key, salt=_apk_csrf_salt(path))
+    try:
+        payload = serializer.loads(token, max_age=APK_CSRF_MAX_AGE_SECONDS)
+    except (BadSignature, SignatureExpired):
+        return False
+    return hmac.compare_digest(str(payload.get("path") or ""), path)
+
 def create_app():
     app = Flask(__name__)
     csrf = CSRFProtect(app)
+    
+    @app.errorhandler(CSRFError)
+    def _csrf_friendly_error(e):
+        if request.path == "/auth/register" and request.method == "POST":
+            apk_token = request.form.get("apk_csrf_token") or request.headers.get("X-NamVibe-Apk-CSRF")
+            if _valid_apk_csrf_token(app, "/auth/register", apk_token):
+                request.environ["namvibe_csrf_valid"] = True
+                from api_routes.auth_routes import register_post
+                return register_post()
+            resp = make_response(render_template("auth/register.html", error="Your session expired. Please try again.", form=request.form))
+        elif request.path == "/auth/register":
+            resp = make_response(render_template("auth/register.html", error="Your session expired. Please try again.", form=request.form))
+        elif request.path == "/auth/login" and request.method == "POST":
+            apk_token = request.form.get("apk_csrf_token") or request.headers.get("X-NamVibe-Apk-CSRF")
+            if _valid_apk_csrf_token(app, "/auth/login", apk_token):
+                request.environ["namvibe_csrf_valid"] = True
+                from api_routes.auth_routes import login
+                return login()
+            resp = make_response(render_template("auth/login.html", error="Your session expired. Please try again.", oauth_error=None, success_message=None, next_path=session.get("auth_next")))
+        elif request.path == "/auth/login":
+            resp = make_response(render_template("auth/login.html", error="Your session expired. Please try again.", oauth_error=None, success_message=None, next_path=session.get("auth_next")))
+        elif request.path == "/auth/forgot-password":
+            resp = make_response(render_template("auth/forgot_password.html", error="Your session expired. Please try again.", success=None))
+        elif request.path == "/auth/reset-password":
+            resp = make_response(render_template("auth/reset_password.html", error="Your session expired. Please try again.", success=None))
+        else:
+            resp = make_response(render_template("auth/login.html", error="Your session expired. Please try again.", oauth_error=None, success_message=None, next_path=session.get("auth_next")))
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp, 200
     
     # Phase 13 Performance: Schema Registry Warming
     if os.getenv("CHAIN_WARM_SCHEMA", "0") == "1":
@@ -193,14 +273,16 @@ def create_app():
     if is_prod and not secret_key:
         raise RuntimeError("SECRET_KEY environment variable is required in production.")
     
-    app.secret_key = secret_key or "chain-premium-default-secret"
+    if not secret_key and not is_prod:
+        secret_key = "namvibe-local-dev-secret-change-before-production"
+    app.secret_key = secret_key
     
     # Production Security Settings
     app.config.update(
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
-        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
         SLOW_REQUEST_MS_LOCAL=500,
         SLOW_REQUEST_MS_PROD=1000
     )
@@ -241,11 +323,27 @@ def create_app():
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=is_prod,
-        PERMANENT_SESSION_LIFETIME=timedelta(days=7),
+        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+        SESSION_COOKIE_DOMAIN=None,
     )
+    if not is_prod:
+        app.config["WTF_CSRF_TIME_LIMIT"] = None
+        app.config["WTF_CSRF_SSL_STRICT"] = False
+    else:
+        app.config.setdefault("WTF_CSRF_TIME_LIMIT", None)
+
+    app.config["SESSION_COOKIE_SECURE"] = is_prod
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_DOMAIN"] = None
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+    if not is_prod:
+        _apply_local_session_cookie_config(app)
 
     @app.before_request
     def manage_session():
+        if _is_apk_request() or not is_prod:
+            _apply_local_session_cookie_config(app)
         # Skip for static files
         if request.path.startswith("/static"):
             return
@@ -267,6 +365,7 @@ def create_app():
             is_logged_in=is_logged_in(),
             APP_NAME=app.config.get("APP_NAME", "NamVibe"),
             APP_DOMAIN=app.config.get("APP_DOMAIN", "namvibe.com"),
+            apk_csrf_token=lambda path=None: _make_apk_csrf_token(app, path or request.path),
         )
 
     app.register_blueprint(auth_bp)
@@ -340,9 +439,17 @@ def create_app():
     app.register_blueprint(search_api_bp)
     app.register_blueprint(marketplace_bp)
     app.register_blueprint(status_bp)
+    app.register_blueprint(stories_v2_bp)
     app.register_blueprint(live_media_bp)
     app.register_blueprint(realtime_bp)
     app.register_blueprint(reels_bp)
+    csrf.exempt("api_routes.reels_routes.api_view")
+    csrf.exempt("api_routes.reels_routes.api_like")
+    csrf.exempt("api_routes.reels_routes.api_comment")
+    csrf.exempt("api_routes.reels_routes.api_save")
+    csrf.exempt("api_routes.reels_routes.api_share")
+    csrf.exempt("api_routes.reels_routes.api_delete")
+    csrf.exempt("api_routes.reels_routes.api_event")
     app.register_blueprint(presence_bp)
     app.register_blueprint(safety_bp)
     app.register_blueprint(admin_safety_bp)
@@ -357,6 +464,7 @@ def create_app():
     app.register_blueprint(media_bp)
     app.register_blueprint(homepage_api_bp)
     app.register_blueprint(creator_bp)
+    app.register_blueprint(social_bp, url_prefix="/social")
     app.register_blueprint(push_bp)
     app.register_blueprint(security_bp)
     app.register_blueprint(privacy_api_bp)
@@ -366,6 +474,9 @@ def create_app():
     app.register_blueprint(notification_center_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(performance_bp)
+    app.register_blueprint(explore_bp)
+    app.register_blueprint(comments_bp)
+    app.register_blueprint(friend_bp)
 
     try:
         from services.content_service import ensure_content_schema
@@ -376,6 +487,21 @@ def create_app():
 
     for bp in api_v1_blueprints:
         app.register_blueprint(bp, url_prefix=f"/api/v1{bp.url_prefix}")
+
+    @app.get("/debug/session")
+    def debug_session_app():
+        if _is_production_env() and not _is_local_debug_request():
+            from flask import abort
+            abort(404)
+        from api_routes.auth_routes import _debug_session_payload
+        return jsonify(_debug_session_payload())
+
+    auth_audit_paths = {"/auth/register", "/auth/login", "/auth/debug-session", "/profile/"}
+    print("[route-audit] active auth/profile routes")
+    for rule in sorted(app.url_map.iter_rules(), key=lambda item: item.rule):
+        if rule.rule in auth_audit_paths:
+            methods = ",".join(sorted(rule.methods - {"HEAD", "OPTIONS"}))
+            print(f"[route-audit] {methods:8s} {rule.rule} -> {rule.endpoint}")
 
     @app.after_request
     def after_request_cleanup(response):
@@ -494,12 +620,18 @@ def create_app():
             "session": session,
             "safe_link": safe_link,
             "route_exists": route_exists,
+            "get_world_countries": __import__("services.country_service", fromlist=["get_world_countries"]).get_world_countries,
         }
 
     @app.route("/stories")
     @app.route("/stories/")
-    def stories_root_redirect():
-        return redirect("/status/", code=302)
+    def stories_root():
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        from services.status_service import list_active_statuses
+        stories = list_active_statuses(viewer_profile_id=viewer_id)
+        import json
+        return render_template("stories.html", stories=stories, profile=profile, current=profile, stories_json=json.dumps(stories or [], default=str))
 
     @app.route("/live/create")
     def live_create_root_redirect():
@@ -508,6 +640,67 @@ def create_app():
     @app.route("/dating")
     def dating_root_redirect():
         return redirect("/dating/discover", code=302)
+
+    @app.route("/api/stories/<story_id>/react", methods=["POST"])
+    def api_story_react(story_id):
+        from services.stories_service import react_to_story
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        if not viewer_id:
+            return jsonify({"error": "Not authenticated"}), 401
+        data = request.get_json(silent=True) or {}
+        react_to_story(story_id, viewer_id, data.get("reaction", "like"))
+        return jsonify({"success": True}), 200
+
+    @app.route("/api/stories/<story_id>/reply", methods=["POST"])
+    def api_story_reply(story_id):
+        from services.stories_service import reply_to_story
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        if not viewer_id:
+            return jsonify({"error": "Not authenticated"}), 401
+        data = request.get_json(silent=True) or {}
+        reply_to_story(story_id, viewer_id, data.get("reply_text", ""))
+        return jsonify({"success": True}), 200
+
+    @app.route("/api/stories/create", methods=["POST"])
+    @login_required
+    def api_stories_create():
+        from services.status_service import create_status
+        from services.content_service import get_session_profile_id
+        profile_id = get_session_profile_id()
+        if not profile_id:
+            return jsonify({"error": "Unauthorized"}), 401
+        caption = request.form.get("caption")
+        media_file = request.files.get("media")
+        visibility = request.form.get("visibility", "public")
+        media_type = request.form.get("media_type", "image")
+        status = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+        if status:
+            return jsonify({"success": True, "status_id": status["id"]}), 201
+        return jsonify({"error": "Failed to create"}), 400
+
+    @app.route("/stories/create", methods=["GET", "POST"])
+    @login_required
+    def stories_create_page():
+        from services.status_service import create_status
+        from services.content_service import get_session_profile_id, session_profile_stub
+        from services.profile_service import get_current_profile
+        if request.method == "POST":
+            pid = get_session_profile_id()
+            if not pid:
+                return redirect(url_for("auth.login"))
+            caption = request.form.get("caption")
+            media_file = request.files.get("media")
+            visibility = request.form.get("visibility") or "public"
+            media_type = request.form.get("media_type", "image")
+            result = create_status(pid, caption, media_file, visibility=visibility, media_type=media_type)
+            if result:
+                flash("Story posted!", "success")
+                return redirect("/stories")
+            flash("Could not post story.", "error")
+        profile = get_current_profile() or (session_profile_stub() if get_session_profile_id() else None)
+        return render_template("status/create.html", profile=profile)
 
     @app.route("/settings")
     def settings_root_redirect():
@@ -529,8 +722,43 @@ def create_app():
 
     @app.route("/")
     def home():
+        from flask import request
+        town = request.args.get("town", "")
+        region = request.args.get("region", "")
+        params = {"town": town, "region": region}
         with timed("home"):
-            return render_template("chain_home.html", **get_homepage_data())
+            data = get_homepage_data(**params)
+            tiktok = build_tiktok_home_payload()
+            data["reels_feed"] = tiktok.get("reels_feed", [])
+            data["suggested_creators"] = tiktok.get("suggested_creators", [])
+            avail = {rule.rule for rule in app.url_map.iter_rules()}
+            is_in = bool(session.get("profile_id") or session.get("auth_user_id"))
+            routes = {
+                "home_route": "/",
+                "discover_route": "/discover/" if "/discover/" in avail else "/",
+                "live_route": "/live/" if "/live/" in avail else "/",
+                "reel_route": "/reels/" if "/reels/" in avail else "/discover/",
+                "reel_create": "/reels/upload" if "/reels/upload" in avail else "/features/upload-reel",
+                "story_create": "/status/create" if "/status/create" in avail else "/profile/",
+                "composer_fallback": "/features/create-post" if "/features/create-post" in avail else "/posts/create",
+                "upload_video_route": "/features/upload-video" if "/features/upload-video" in avail else "/upload/video",
+                "dating_route": "/dating/discover" if "/dating/discover" in avail else "/discover/",
+                "friends_route": "/friends/" if "/friends/" in avail else "/discover/",
+                "login_route": "/auth/login",
+                "register_route": "/auth/register",
+                "drawer_profile": "/profile/" if is_in else "/auth/login",
+                "drawer_messages": "/messages/" if is_in and "/messages/" in avail else ("/auth/login" if not is_in else "/"),
+                "drawer_notifications": "/notifications/" if is_in and "/notifications/" in avail else ("/auth/login" if not is_in else "/profile/"),
+                "drawer_wallet": "/wallet/" if is_in and "/wallet/" in avail else ("/auth/login" if not is_in else "/"),
+                "drawer_settings": "/profile/settings" if "/profile/settings" in avail else "/discover/",
+                "reel_available": "/reels/" in avail or "/reels/upload" in avail,
+                "story_available": True,
+                "live_available": "/live/" in avail,
+                "upload_video_available": "/features/upload-video" in avail,
+                "post_available": True,
+            }
+            data.update(routes)
+            return render_template("chain_home.html", **data)
 
     @app.route("/login")
     def legacy_login():
@@ -590,6 +818,24 @@ def create_app():
             "async_mode": socketio.async_mode
         }
         return jsonify(health), 200
+
+    @app.route("/system/socketio-status")
+    def system_socketio_status():
+        """Health/debug endpoint for Socket.IO status."""
+        from services.redis_service import redis_available, _REDIS_URL
+        from services.socketio_service import socketio
+        async_mode = getattr(socketio, 'async_mode', None) or 'unknown'
+        websocket_supported = async_mode == 'gevent'
+        transports = ['websocket', 'polling'] if websocket_supported else ['polling']
+        return jsonify({
+            "ok": True,
+            "async_mode": async_mode,
+            "websocket_supported": websocket_supported,
+            "transports": transports,
+            "redis_manager_enabled": bool(_REDIS_URL),
+            "redis_available": redis_available(),
+            "server_ready": getattr(socketio, 'server', None) is not None,
+        })
 
     @app.route("/health/supabase")
     def health_supabase():

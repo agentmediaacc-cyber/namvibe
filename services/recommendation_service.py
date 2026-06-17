@@ -12,12 +12,38 @@ def _utcnow_iso():
 
 def calculate_trending_scores():
     """
-    Background logic (simplified):
-    Iterate over rooms, profiles, posts and calculate a score.
-    Score = (Reactions * 2) + (Comments * 5) + (Follows * 10) + (Gifts * 20) / (Hours since creation ^ 1.5)
+    Calculate trending scores for profiles based on engagement and recency.
+    Score = (likes * 2) + (comments * 5) + (followers * 10) + (reels * 8) / (days since creation ^ 0.5)
+    Updates chain_profiles.trending_score for ordering.
     """
-    # For now, we'll just mock this or do a simple select
-    pass
+    try:
+        sql = """
+            WITH profile_engagement AS (
+                SELECT
+                    p.id,
+                    p.created_at,
+                    COALESCE(SUM(po.likes_count), 0) AS total_likes,
+                    COALESCE(SUM(po.comments_count), 0) AS total_comments,
+                    COALESCE(fc.follower_count, 0) AS follower_count,
+                    COALESCE(rc.reel_count, 0) AS reel_count
+                FROM chain_profiles p
+                LEFT JOIN chain_posts po ON po.profile_id = p.id AND po.deleted_at IS NULL
+                LEFT JOIN (SELECT following_profile_id, COUNT(*) AS follower_count FROM chain_follows WHERE deleted_at IS NULL GROUP BY following_profile_id) fc ON fc.following_profile_id = p.id
+                LEFT JOIN (SELECT profile_id, COUNT(*) AS reel_count FROM chain_reels WHERE deleted_at IS NULL GROUP BY profile_id) rc ON rc.profile_id = p.id
+                WHERE p.deleted_at IS NULL
+                GROUP BY p.id, p.created_at, fc.follower_count, rc.reel_count
+            )
+            UPDATE chain_profiles cp
+            SET trending_score = ROUND(
+                (total_likes * 2.0 + total_comments * 5.0 + follower_count * 10.0 + reel_count * 8.0)
+                / GREATEST(POWER(EXTRACT(EPOCH FROM (now() - pe.created_at)) / 86400.0, 0.5), 1.0)::numeric, 4
+            )::double precision
+            FROM profile_engagement pe
+            WHERE cp.id = pe.id
+        """
+        write_query(sql)
+    except Exception:
+        pass
 
 def get_trending_profiles(limit=10):
     # For now, return verified profiles with high activity

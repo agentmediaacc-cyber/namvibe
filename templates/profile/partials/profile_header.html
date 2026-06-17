@@ -1,3 +1,4 @@
+{% set public_stats = public_stats|default({}) %}
 {% set own_profile = viewer and profile and viewer.id == profile.id %}
 {% set stats_data = stats or {} %}
 {% set content_data = content or {} %}
@@ -111,11 +112,28 @@
             {% if own_profile %}
             <a href="/profile/edit" class="profile-btn primary"><i class="fas fa-pen-to-square"></i>Edit Profile</a>
             {% else %}
-            <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+                {% set pa = action_policy or {} %}
+                {% if pa.primary_action == 'friend_request' or pa.primary_action == 'follow' %}
+                    {% if pa.primary_action == 'follow' %}
+                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+                    {% else %}
+                    <button class="profile-btn primary" type="button" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="{% if is_friend %}friends{% elif friend_request_status == 'pending_sent' %}pending_sent{% elif friend_request_status == 'pending_received' %}pending_received{% else %}none{% endif %}" data-request-id="{{ friend_request_id or '' }}"><i class="fas fa-user-plus"></i><span class="btn-text">{% if is_friend %}Friends{% elif friend_request_status == 'pending_sent' %}Request Pending{% elif friend_request_status == 'pending_received' %}Respond{% else %}Add Friend{% endif %}</span></button>
+                    {% endif %}
+                {% elif pa.primary_action == 'message' %}
+                    <a href="/messages/start/{{ profile.id }}" class="profile-btn primary"><i class="fas fa-comment"></i>Message</a>
+                {% elif pa.primary_action == 'request_sent' %}
+                    <span class="profile-btn primary" style="opacity:0.7;"><i class="fas fa-check"></i>Request Sent</span>
+                {% elif pa.primary_action == 'accept_request' %}
+                    <a href="/friends" class="profile-btn primary"><i class="fas fa-user-check"></i>Respond</a>
+                {% else %}
+                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+                {% endif %}
             {% endif %}
+            {% if not own_profile and action_policy and action_policy.can_chat %}
             <a href="/messages/start/{{ profile.id }}" class="profile-btn"><i class="fas fa-comment"></i>Message</a>
             <a href="/calls/start/{{ profile.id }}/audio" class="profile-btn"><i class="fas fa-phone-volume"></i>Audio</a>
             <a href="/calls/start/{{ profile.id }}/video" class="profile-btn"><i class="fas fa-video"></i>Video</a>
+            {% endif %}
             <button type="button" class="profile-btn" data-share-profile><i class="fas fa-share-alt"></i>Share</button>
             <button type="button" class="profile-btn" data-profile-qr data-profile-url="{{ public_url }}"><i class="fas fa-qrcode"></i>QR</button>
             <button type="button" class="profile-btn" aria-label="More profile actions"><i class="fas fa-ellipsis"></i>More</button>
@@ -124,15 +142,15 @@
 </section>
 
 <section class="profile-stats" aria-label="Profile stats">
-    <div><strong data-count-up="{{ posts_count }}">{{ posts_count }}</strong><span>Posts</span></div>
-    <div><strong data-count-up="{{ reels_count }}">{{ reels_count }}</strong><span>Reels</span></div>
-    <div><strong data-count-up="{{ followers_count }}">{{ followers_count }}</strong><span>Followers</span></div>
-    <div><strong data-count-up="{{ following_count }}">{{ following_count }}</strong><span>Following</span></div>
-    <div><strong data-count-up="{{ friends_count }}">{{ friends_count }}</strong><span>Friends</span></div>
-    <div><strong data-count-up="{{ likes_count }}">{{ likes_count }}</strong><span>Likes</span></div>
-    <div><strong data-count-up="{{ views_count }}">{{ views_count }}</strong><span>Profile Views</span></div>
-    <div><strong data-count-up="{{ visitors_week }}">{{ visitors_week }}</strong><span>Visitors This Week</span></div>
-    <div><strong data-count-up="{{ score_total }}">{{ score_total }}</strong><span>NamVibe Score</span></div>
+    <a href="{{ url_for('profile.view_posts', username=profile.username) if profile.username else '#' }}" class="stat-card"><strong data-count-up="{{ posts_count }}">{{ posts_count }}</strong><span>Posts</span></a>
+    <a href="{{ url_for('profile.view_reels', username=profile.username) if profile.username else '#' }}" class="stat-card"><strong data-count-up="{{ reels_count }}">{{ reels_count }}</strong><span>Reels</span></a>
+    <a href="{{ url_for('social.view_user_followers', username=profile.username) if profile.username else url_for('social.view_followers') }}" class="stat-card"><strong data-count-up="{{ followers_count }}">{{ followers_count }}</strong><span>Followers</span></a>
+    <a href="{{ url_for('social.view_user_following', username=profile.username) if profile.username else url_for('social.view_following') }}" class="stat-card"><strong data-count-up="{{ following_count }}">{{ following_count }}</strong><span>Following</span></a>
+    <a href="{{ url_for('social.view_user_friends', username=profile.username) if profile.username else url_for('social.view_friends') }}" class="stat-card"><strong data-count-up="{{ friends_count }}">{{ friends_count }}</strong><span>Friends</span></a>
+    <div class="stat-card static"><strong data-count-up="{{ likes_count }}">{{ likes_count }}</strong><span>Likes</span></div>
+    <div class="stat-card static"><strong data-count-up="{{ views_count }}">{{ views_count }}</strong><span>Profile Views</span></div>
+    <div class="stat-card static"><strong data-count-up="{{ visitors_week }}">{{ visitors_week }}</strong><span>Visitors This Week</span></div>
+    <div class="stat-card static"><strong data-count-up="{{ score_total }}">{{ score_total }}</strong><span>NamVibe Score</span></div>
 </section>
 
 <div class="profile-top-grid">

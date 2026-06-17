@@ -565,3 +565,55 @@ def api_stats():
     total_viewers = sum(r.get("viewer_count", 0) or 0 for r in rooms)
     total_gifts = sum(r.get("gift_total", 0) or 0 for r in rooms)
     return jsonify({"total_viewers": total_viewers, "total_rooms": len(rooms), "total_gifts": total_gifts})
+
+
+# ─── Studio API aliases (called by live/studio.html inline JS) ───
+
+@live_bp.route("/api/rooms/start", methods=["POST"])
+@login_required
+def api_rooms_start():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"ok": False, "error": "not_authenticated"}), 401
+    data = request.get_json(silent=True) or {}
+    title = data.get("title") or request.form.get("title", "Live Stream")
+    room_result = phase29_live.start_live(profile["id"], title, host_name=profile.get("full_name") or profile.get("username"))
+    room = room_result.get("room") if room_result.get("ok") else create_live_room(request.form, request.files)
+    if not room:
+        return jsonify({"ok": False, "error": "room_creation_failed"}), 500
+    add_participant(room["id"], profile["id"], "host")
+    return jsonify({"ok": True, "room": room})
+
+@live_bp.route("/api/rooms/<room_id>/end", methods=["POST"])
+@login_required
+def api_rooms_end(room_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"ok": False, "error": "not_authenticated"}), 401
+    result = phase29_live.end_live(room_id)
+    if result.get("ok"):
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "end_failed"}), 400
+
+@live_bp.route("/api/rooms/<room_id>/info")
+def api_rooms_info(room_id):
+    room = get_room(room_id)
+    if not room:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    return jsonify({"ok": True, "room": room})
+
+@live_bp.route("/api/rooms/<room_id>/viewers")
+def api_rooms_viewers(room_id):
+    participants = get_room_participants(room_id)
+    return jsonify({"ok": True, "viewers": participants})
+
+@live_bp.route("/api/rooms/<room_id>/settings", methods=["GET", "POST"])
+@login_required
+def api_rooms_settings(room_id):
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        from services.supabase_safe import safe_update
+        result = safe_update("chain_live_rooms", data, eq={"id": room_id})
+        return jsonify({"ok": bool(result)})
+    room = get_room(room_id)
+    return jsonify({"ok": bool(room), "room": room})

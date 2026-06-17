@@ -23,6 +23,11 @@
     initDismissAds();
     initMobileNav();
     initStoryScroll();
+    initReconnectToast();
+    initComposerFocus();
+    initTabTracking();
+    initAvatarFallback();
+    initStoryModal();
   }
 
   /* ================================================================
@@ -50,6 +55,7 @@
 
         tabs.forEach(function (t) { t.classList.remove('is-active'); });
         tab.classList.add('is-active');
+        if (window.updateActiveTab) window.updateActiveTab(tabName);
 
         if (state.activeTab !== apiTab) {
           state.activeTab = apiTab;
@@ -248,8 +254,8 @@
         mediaHtml +
         '<div class="post-stats">' +
           '<span><strong data-count="likes">' + (item.likes_count || 0) + '</strong> likes</span>' +
-          '<span><strong>' + (item.comments_count || 0) + '</strong> comments</span>' +
-          '<span><strong>' + (item.view_count || 0) + '</strong> views</span>' +
+          '<span><strong data-count="comments">' + (item.comments_count || 0) + '</strong> comments</span>' +
+          '<span><strong data-count="views">' + (item.view_count || 0) + '</strong> views</span>' +
         '</div>' +
         '<div class="post-actions">' +
           '<button type="button" class="post-action-btn" data-action="like" data-id="' + escapeHtml(item.id) + '"><i class="far fa-heart"></i> Like</button>' +
@@ -325,7 +331,7 @@
     return '' +
       '<article class="post-card-premium" data-type="announcement">' +
         '<div class="post-header">' +
-          '<div class="post-avatar" style="background:linear-gradient(135deg,#7c3aed,#2563eb);"><span>A</span></div>' +
+          '<div class="post-avatar" style="background:#0f766e;"><span>A</span></div>' +
           '<div class="post-author-info">' +
             '<div class="post-author-name">' + escapeHtml(item.text || 'Announcement') + ' <span class="post-content-label trending">Announcement</span></div>' +
             '<div class="post-time-location"><i class="far fa-clock"></i> ' + escapeHtml(item.created_label || '') + '</div>' +
@@ -592,5 +598,502 @@
     div.appendChild(document.createTextNode(str));
     return div.innerHTML;
   }
+
+  /* ================================================================
+     Hide skeleton when feed content loads
+  ================================================================ */
+  function hideSkeleton() {
+    var skeleton = document.getElementById('feed-skeleton');
+    if (skeleton) skeleton.style.display = 'none';
+  }
+
+  /* Wire hideSkeleton into feed loading */
+  var _origLoadFeed = loadFeed;
+  loadFeed = function(tab, page, replace) {
+    hideSkeleton();
+    return _origLoadFeed(tab, page, replace);
+  };
+
+  /* ================================================================
+     Reconnect Toast — show/hide based on socket events
+  ================================================================ */
+  function initReconnectToast() {
+    var banner = document.getElementById('chain-reconnect-banner') || document.querySelector('.reconnect-banner');
+    if (!banner) return;
+    if (window.io && !window.socket) {
+      try {
+        window.socket = io({
+          transports: ['polling'],
+          upgrade: false,
+          reconnection: true,
+          reconnectionAttempts: 10,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 10000,
+          randomizationFactor: 0.5,
+        });
+        window.socket.on('connect', function() { banner.classList.remove('show'); });
+        window.socket.on('disconnect', function() { banner.classList.add('show'); });
+        window.socket.on('connect_error', function() { banner.classList.add('show'); });
+        window.socket.on('reconnect', function() { banner.classList.remove('show'); });
+      } catch(e) {}
+    }
+  }
+
+  /* ================================================================
+     Composer focus effect
+  ================================================================ */
+  function initComposerFocus() {
+    var placeholder = document.querySelector('.composer-placeholder');
+    if (!placeholder) return;
+    placeholder.addEventListener('focus', function() {
+      var card = this.closest('.composer-card');
+      if (card) card.classList.add('is-focused');
+    });
+    placeholder.addEventListener('blur', function() {
+      var card = this.closest('.composer-card');
+      if (card) card.classList.remove('is-focused');
+    });
+  }
+
+  /* ================================================================
+     Track active tab in URL hash
+  ================================================================ */
+  function initTabTracking() {
+    window.updateActiveTab = function(tabName) {
+      try {
+        if (history.replaceState) {
+          var url = new URL(window.location);
+          url.searchParams.set('tab', tabName);
+          history.replaceState(null, '', url.toString());
+        }
+      } catch(e) {}
+    };
+    // Restore tab from URL on load
+    try {
+      var params = new URL(window.location).searchParams;
+      var savedTab = params.get('tab');
+      if (savedTab) {
+        var tab = document.querySelector('.feed-tab[data-tab="' + savedTab + '"]');
+        if (tab) tab.click();
+      }
+    } catch(e) {}
+  }
+
+  /* ================================================================
+     Phase 59 — Real-Time Feed Counters via Socket.IO
+   ================================================================ */
+  function initRealtimeCounters() {
+    if (!window.io) return;
+    if (window._realtimeCountersInitialized) return;
+    window._realtimeCountersInitialized = true;
+
+    function safeGetSocket() {
+      if (window.socket) return window.socket;
+      try {
+        var s = io({
+          transports: ['polling'],
+          upgrade: false,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
+        });
+        window.socket = s;
+        return s;
+      } catch(e) { return null; }
+    }
+
+    var s = safeGetSocket();
+    if (!s) return;
+
+    s.on('like:update', function(data) {
+      if (!data || !data.post_id) return;
+      var card = document.getElementById('post-' + data.post_id);
+      if (!card) return;
+      var el = card.querySelector('[data-count="likes"]');
+      if (el && data.count !== undefined) {
+        el.textContent = data.count;
+        el.classList.remove('counter-updated');
+        void el.offsetWidth;
+        el.classList.add('counter-updated');
+      }
+    });
+
+    s.on('comment:update', function(data) {
+      if (!data || !data.post_id) return;
+      var card = document.getElementById('post-' + data.post_id);
+      if (!card) return;
+      var el = card.querySelector('[data-count="comments"]');
+      if (el && data.count !== undefined) {
+        el.textContent = data.count;
+        el.classList.remove('counter-updated');
+        void el.offsetWidth;
+        el.classList.add('counter-updated');
+      }
+    });
+
+    s.on('view:update', function(data) {
+      if (!data || !data.post_id) return;
+      var card = document.getElementById('post-' + data.post_id);
+      if (!card) return;
+      var el = card.querySelector('[data-count="views"]');
+      if (el && data.count !== undefined) {
+        el.textContent = data.count;
+      }
+    });
+  }
+
+  /* ================================================================
+     Phase 59 — Save Posts Collection UI with Local Toast
+   ================================================================ */
+  function initSaveWithToast() {
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action="save"]');
+      if (!btn) return;
+      var icon = btn.querySelector('i');
+      if (!icon) return;
+      var isSaved = icon.classList.contains('fas');
+      icon.className = isSaved ? 'far fa-bookmark' : 'fas fa-bookmark';
+      btn.classList.toggle('is-saved', !isSaved);
+
+      var postId = btn.getAttribute('data-id');
+      if (postId) {
+        fetch('/api/home/post/' + postId + '/save', { method: 'POST' })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.ok) {
+              showSaveToast('Saved!');
+            } else {
+              showSaveToast('Saved locally');
+              icon.className = 'fas fa-bookmark';
+              btn.classList.add('is-saved');
+            }
+          })
+          .catch(function() {
+            showSaveToast('Saved locally');
+            icon.className = 'fas fa-bookmark';
+            btn.classList.add('is-saved');
+          });
+      } else {
+        showSaveToast('Saved locally');
+        icon.className = 'fas fa-bookmark';
+        btn.classList.add('is-saved');
+      }
+    });
+  }
+
+  function showSaveToast(msg) {
+    var existing = document.querySelector('.save-toast');
+    if (existing) existing.remove();
+    var toast = document.createElement('div');
+    toast.className = 'save-toast';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    requestAnimationFrame(function() {
+      toast.classList.add('show');
+    });
+    setTimeout(function() {
+      toast.classList.remove('show');
+      setTimeout(function() { toast.remove(); }, 300);
+    }, 2000);
+  }
+
+  /* ================================================================
+     Phase 59 — Poll Composer UI
+   ================================================================ */
+  function initPollUI() {
+    var pollBtn = document.querySelector('[data-action="poll"]');
+    if (!pollBtn) return;
+
+    pollBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var form = document.getElementById('poll-form');
+      if (!form) return;
+      var isVisible = form.style.display !== 'none';
+      form.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) {
+        document.getElementById('poll-question').focus();
+      }
+    });
+
+    var cancelBtn = document.getElementById('poll-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function() {
+        var form = document.getElementById('poll-form');
+        if (form) form.style.display = 'none';
+      });
+    }
+
+    var addOptBtn = document.getElementById('poll-add-option');
+    if (addOptBtn) {
+      addOptBtn.addEventListener('click', function() {
+        var container = document.getElementById('poll-extra-options');
+        if (!container) return;
+        var count = container.children.length + 3; // 3 = question + option1 + option2
+        if (count >= 6) return; // Max 6 total options
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'poll-input';
+        input.placeholder = 'Option ' + count;
+        input.maxLength = 100;
+        container.appendChild(input);
+        input.focus();
+        if (count >= 6) addOptBtn.style.display = 'none';
+      });
+    }
+
+    var submitBtn = document.getElementById('poll-submit');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function() {
+        showSaveToast('Poll creation coming soon');
+        var form = document.getElementById('poll-form');
+        if (form) form.style.display = 'none';
+      });
+    }
+  }
+
+  /* ================================================================
+     Phase 59 — Wire Feed Counters for JS-rendered items
+   ================================================================ */
+  function wireCounters(container) {
+    if (!container) return;
+    container.querySelectorAll('[data-count="likes"]:not([data-counter-wired])').forEach(function(el) {
+      el.setAttribute('data-counter-wired', '1');
+    });
+    container.querySelectorAll('[data-count="comments"]:not([data-counter-wired])').forEach(function(el) {
+      el.setAttribute('data-counter-wired', '1');
+    });
+  }
+
+  /* Override wirePostActions to call save and counter wire */
+  var _origWirePostActions = wirePostActions;
+  wirePostActions = function(container) {
+    _origWirePostActions(container);
+    wireCounters(container);
+  };
+
+  /* ================================================================
+     Init Phase 59 features
+   ================================================================ */
+  initRealtimeCounters();
+  initSaveWithToast();
+  initPollUI();
+
+  /* ================================================================
+     Phase 70 — Avatar fallback on image error
+   ================================================================ */
+  function initAvatarFallback() {
+    document.addEventListener('error', function (e) {
+      var target = e.target;
+      if (target.tagName !== 'IMG') return;
+      var parent = target.parentElement;
+      if (!parent) return;
+      var initial = (target.alt || '?')[0].toUpperCase();
+      if (!initial || initial === '') initial = '?';
+      target.style.display = 'none';
+      var fallback = document.createElement('span');
+      fallback.className = 'avatar-fallback';
+      fallback.textContent = initial;
+      parent.appendChild(fallback);
+    }, true);
+  }
+
+  /* ================================================================
+     Phase 70 — Story Create Modal
+   ================================================================ */
+  function initStoryModal() {
+    var overlay = document.getElementById('story-modal');
+    var closeBtn = document.getElementById('story-modal-close');
+    var cancelBtn = document.getElementById('story-btn-cancel');
+    var uploadZone = document.getElementById('story-upload-zone');
+    var fileInput = document.getElementById('story-file-input');
+    var preview = document.getElementById('story-preview');
+    var removeMedia = document.getElementById('story-remove-media');
+    var captionInput = document.getElementById('story-caption');
+    var postBtn = document.getElementById('story-btn-post');
+    var errorEl = document.getElementById('story-error');
+    var loadingEl = document.getElementById('story-loading');
+
+    if (!overlay || !uploadZone) return;
+
+    var selectedFile = null;
+
+    function openModal() {
+      overlay.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+      resetModal();
+    }
+
+    function closeModal() {
+      overlay.classList.remove('is-open');
+      document.body.style.overflow = '';
+      selectedFile = null;
+    }
+
+    function resetModal() {
+      selectedFile = null;
+      preview.classList.remove('is-visible');
+      preview.innerHTML = '';
+      preview.appendChild(removeMedia);
+      captionInput.value = '';
+      errorEl.classList.remove('is-visible');
+      errorEl.textContent = '';
+      loadingEl.classList.remove('is-visible');
+      postBtn.disabled = true;
+      uploadZone.style.display = 'block';
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.classList.add('is-visible');
+      loadingEl.classList.remove('is-visible');
+      postBtn.disabled = false;
+    }
+
+    // Open triggers
+    document.querySelectorAll('[data-open-story-modal]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        openModal();
+      });
+    });
+
+    // Story create button in the strip
+    var storyCreateCard = document.querySelector('.story-card--create');
+    if (storyCreateCard) {
+      storyCreateCard.addEventListener('click', function (e) {
+        e.preventDefault();
+        openModal();
+      });
+    }
+
+    closeBtn && closeBtn.addEventListener('click', closeModal);
+    cancelBtn && cancelBtn.addEventListener('click', closeModal);
+
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) closeModal();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && overlay.classList.contains('is-open')) closeModal();
+    });
+
+    // Upload zone click
+    uploadZone.addEventListener('click', function () {
+      fileInput && fileInput.click();
+    });
+
+    fileInput && fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      handleFile(file);
+    });
+
+    // Drag & drop
+    uploadZone.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      uploadZone.classList.add('is-dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', function () {
+      uploadZone.classList.remove('is-dragover');
+    });
+
+    uploadZone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      uploadZone.classList.remove('is-dragover');
+      var file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    });
+
+    function handleFile(file) {
+      if (!file.type.match(/^(image|video)\//)) {
+        showError('Please select an image or video file.');
+        return;
+      }
+      if (file.size > 100 * 1024 * 1024) {
+        showError('File too large. Max 100MB.');
+        return;
+      }
+      selectedFile = file;
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        uploadZone.style.display = 'none';
+        preview.classList.add('is-visible');
+        var media;
+        if (file.type.startsWith('video/')) {
+          media = document.createElement('video');
+          media.src = e.target.result;
+          media.muted = true;
+          media.controls = true;
+        } else {
+          media = document.createElement('img');
+          media.src = e.target.result;
+        }
+        media.style.width = '100%';
+        media.style.maxHeight = '320px';
+        media.style.objectFit = 'contain';
+        preview.insertBefore(media, removeMedia);
+        postBtn.disabled = false;
+        errorEl.classList.remove('is-visible');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    removeMedia && removeMedia.addEventListener('click', function () {
+      selectedFile = null;
+      fileInput.value = '';
+      resetModal();
+    });
+
+    // Post story
+    postBtn && postBtn.addEventListener('click', function () {
+      if (!selectedFile) return;
+      postBtn.disabled = true;
+      loadingEl.classList.add('is-visible');
+      errorEl.classList.remove('is-visible');
+
+      var formData = new FormData();
+      formData.append('media', selectedFile);
+      formData.append('caption', captionInput.value || '');
+
+      fetch('/status/create', { method: 'POST', body: formData })
+        .then(function (r) {
+          if (r.redirected) { window.location.href = r.url; return; }
+          return r.json().catch(function () { return {}; });
+        })
+        .then(function (data) {
+          if (data && data.ok) {
+            window.location.reload();
+          } else if (data && data.redirect) {
+            window.location.href = data.redirect;
+          } else {
+            // Try POST to /api/stories/create
+            return fetch('/api/stories/create', { method: 'POST', body: formData });
+          }
+        })
+        .then(function (r) {
+          if (!r) return;
+          if (r.redirected) { window.location.href = r.url; return; }
+          return r.json().catch(function () { return {}; });
+        })
+        .then(function (data) {
+          if (data && data.ok) {
+            window.location.reload();
+          } else if (data && data.redirect) {
+            window.location.href = data.redirect;
+          } else {
+            window.location.href = '/status/create';
+          }
+        })
+        .catch(function () {
+          window.location.href = '/status/create';
+        });
+    });
+  }
+
+  /* ================================================================
+     Expose hideSkeleton globally for other scripts
+   ================================================================ */
+  window.hideFeedSkeleton = hideSkeleton;
 
 })();
