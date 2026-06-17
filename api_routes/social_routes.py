@@ -25,20 +25,31 @@ def api_friends():
 @login_required
 def api_follow(profile_id):
     profile = get_current_profile()
-    from services.engagement_service import follow_profile, is_following, unfollow_profile
+    from services.engagement_service import is_following, unfollow_profile
+    from services.follow_request_service import send_follow_request
     
-    # Toggle logic if needed, but here we just follow
-    # If the user is already following, we might want to unfollow (toggle)
+    # Toggle logic: if already following, unfollow.
     if is_following(profile["id"], profile_id):
         res = unfollow_profile(profile["id"], profile_id)
         following = False
+        status = "none"
     else:
-        res = follow_profile(profile["id"], profile_id)
-        following = True
+        # Use follow_request_service to handle private accounts
+        res = send_follow_request(profile["id"], profile_id)
+        if not res.get("ok"):
+            return jsonify({"status": "error", "error": res.get("error")}), 400
+        
+        status = res.get("status")
+        following = (status == "following")
         
     invalidate_profile_cache(profile["id"])
     invalidate_profile_cache(profile_id)
-    return jsonify({"status": "ok", "following": following})
+    return jsonify({
+        "status": "ok", 
+        "following": following, 
+        "requested": (status == "request_pending"),
+        "follow_status": status
+    })
 
 @social_bp.route("/block/<profile_id>", methods=["POST"])
 @login_required
@@ -277,31 +288,50 @@ def api_action_policy(profile_id):
 @login_required
 def api_privacy_settings_get():
     from services.profile_service import get_current_profile, get_profile_privacy
+    from services.security_service import get_privacy_settings
     profile = get_current_profile()
-    privacy = get_profile_privacy(profile["id"])
-    return jsonify({"ok": True, "settings": privacy})
+    settings = get_privacy_settings(profile["id"])
+    rel_privacy = get_profile_privacy(profile["id"])
+    settings.update(rel_privacy)
+    return jsonify({"ok": True, "settings": settings})
 
 @social_bp.route("/api/privacy/settings", methods=["POST"])
 @login_required
 def api_privacy_settings_post():
-    from services.profile_service import get_current_profile, update_profile_privacy
+    from services.profile_service import get_current_profile, update_profile_privacy, get_profile_privacy
+    from services.security_service import upsert_privacy_settings, get_privacy_settings
     profile = get_current_profile()
-    body = request.get_json(silent=True) or {}
-    if not body:
-        return jsonify({"ok": False, "error": "No data provided"}), 400
-    allowed = (
-        "who_can_follow", "who_can_message", "who_can_call",
-        "who_can_see_posts", "who_can_see_reels", "who_can_see_stories",
-        "who_can_see_followers", "who_can_see_following",
-        "who_can_send_friend_requests", "who_can_follow_me", "who_can_message_me",
-        "profile_visibility", "visibility",
-        "require_coins_to_follow", "premium_only_follow",
-    )
-    data = {k: v for k, v in body.items() if k in allowed}
-    if not data:
-        return jsonify({"ok": False, "error": "No valid fields provided"}), 400
-    ok = update_profile_privacy(profile["id"], data)
-    if ok:
-        return jsonify({"ok": True, "message": "Privacy settings updated."})
-    return jsonify({"ok": False, "error": "Update failed"}), 500
+    data = request.json or request.form or {}
+    
+    bool_keys = [
+        "show_online_status", "show_last_seen", "show_read_receipts",
+        "show_typing_indicator", "show_profile_photo", "allow_calls", "allow_group_invites",
+    ]
+    
+    rel_keys = [
+        "profile_visibility", "who_can_see_posts", "who_can_see_reels", "who_can_see_stories",
+        "who_can_see_followers", "who_can_see_following", "who_can_send_friend_requests",
+        "who_can_follow_me", "who_can_message_me"
+    ]
+
+    settings = {}
+    for key in bool_keys:
+        if key in data:
+            settings[key] = str(data[key]).lower() in ("true", "1", "yes", "on")
+    
+    if settings:
+        upsert_privacy_settings(profile["id"], settings)
+    
+    rel_payload = {}
+    for key in rel_keys:
+        if key in data:
+            rel_payload[key] = str(data[key])
+    
+    if rel_payload:
+        update_profile_privacy(profile["id"], rel_payload)
+        
+    updated = get_privacy_settings(profile["id"])
+    updated.update(get_profile_privacy(profile["id"]))
+    
+    return jsonify({"ok": True, "settings": updated})
 

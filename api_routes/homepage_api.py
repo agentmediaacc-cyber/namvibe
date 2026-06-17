@@ -68,7 +68,8 @@ def api_follow(profile_id):
         return _json_error("Not authenticated", 401)
     if str(profile["id"]) == str(profile_id):
         return _json_error("Cannot follow yourself")
-    result = follow_profile(str(profile["id"]), str(profile_id))
+    from services.follow_request_service import send_follow_request
+    result = send_follow_request(str(profile["id"]), str(profile_id))
     return _json_ok({"result": result})
 
 

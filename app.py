@@ -70,6 +70,7 @@ from api_routes.dev_diagnostics_routes import dev_bp as dev_diagnostics_bp
 from api_routes.explore_routes import explore_bp
 from api_routes.comments_routes import comments_bp
 from api_routes.friend_routes import friend_bp
+from api_routes.follow_request_routes import follow_request_api_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
@@ -477,6 +478,8 @@ def create_app():
     app.register_blueprint(explore_bp)
     app.register_blueprint(comments_bp)
     app.register_blueprint(friend_bp)
+    app.register_blueprint(follow_request_api_bp)
+    csrf.exempt(follow_request_api_bp)
 
     try:
         from services.content_service import ensure_content_schema

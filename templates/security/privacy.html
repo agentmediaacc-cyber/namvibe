@@ -41,6 +41,102 @@
 
   <form id="privacyForm">
     <div class="privacy-card">
+      <div class="card-title">Account Visibility</div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Profile Visibility</strong>
+          <span>Control who can see your profile page.</span>
+        </div>
+        <select class="select-control" name="profile_visibility" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="public" {% if privacy.profile_visibility == 'public' %}selected{% endif %}>Public</option>
+          <option value="friends_only" {% if privacy.profile_visibility == 'friends_only' %}selected{% endif %}>Friends Only</option>
+          <option value="followers_only" {% if privacy.profile_visibility == 'followers_only' %}selected{% endif %}>Followers Only</option>
+          <option value="private" {% if privacy.profile_visibility == 'private' %}selected{% endif %}>Private</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="privacy-card">
+      <div class="card-title">Content Privacy</div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can see posts</strong></div>
+        <select class="select-control" name="who_can_see_posts" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="public" {% if privacy.who_can_see_posts == 'public' %}selected{% endif %}>Public</option>
+          <option value="friends_only" {% if privacy.who_can_see_posts == 'friends_only' %}selected{% endif %}>Friends Only</option>
+          <option value="followers_only" {% if privacy.who_can_see_posts == 'followers_only' %}selected{% endif %}>Followers Only</option>
+          <option value="private" {% if privacy.who_can_see_posts == 'private' %}selected{% endif %}>Private</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can see reels</strong></div>
+        <select class="select-control" name="who_can_see_reels" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="public" {% if privacy.who_can_see_reels == 'public' %}selected{% endif %}>Public</option>
+          <option value="friends_only" {% if privacy.who_can_see_reels == 'friends_only' %}selected{% endif %}>Friends Only</option>
+          <option value="followers_only" {% if privacy.who_can_see_reels == 'followers_only' %}selected{% endif %}>Followers Only</option>
+          <option value="private" {% if privacy.who_can_see_reels == 'private' %}selected{% endif %}>Private</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can see stories</strong></div>
+        <select class="select-control" name="who_can_see_stories" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="public" {% if privacy.who_can_see_stories == 'public' %}selected{% endif %}>Public</option>
+          <option value="friends_only" {% if privacy.who_can_see_stories == 'friends_only' %}selected{% endif %}>Friends Only</option>
+          <option value="followers_only" {% if privacy.who_can_see_stories == 'followers_only' %}selected{% endif %}>Followers Only</option>
+          <option value="private" {% if privacy.who_can_see_stories == 'private' %}selected{% endif %}>Private</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can see followers</strong></div>
+        <select class="select-control" name="who_can_see_followers" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="public" {% if privacy.who_can_see_followers == 'public' %}selected{% endif %}>Public</option>
+          <option value="friends_only" {% if privacy.who_can_see_followers == 'friends_only' %}selected{% endif %}>Friends Only</option>
+          <option value="followers_only" {% if privacy.who_can_see_followers == 'followers_only' %}selected{% endif %}>Followers Only</option>
+          <option value="private" {% if privacy.who_can_see_followers == 'private' %}selected{% endif %}>Private</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can see following</strong></div>
+        <select class="select-control" name="who_can_see_following" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="public" {% if privacy.who_can_see_following == 'public' %}selected{% endif %}>Public</option>
+          <option value="friends_only" {% if privacy.who_can_see_following == 'friends_only' %}selected{% endif %}>Friends Only</option>
+          <option value="followers_only" {% if privacy.who_can_see_following == 'followers_only' %}selected{% endif %}>Followers Only</option>
+          <option value="private" {% if privacy.who_can_see_following == 'private' %}selected{% endif %}>Private</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="privacy-card">
+      <div class="card-title">Interactions</div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can send friend requests</strong></div>
+        <select class="select-control" name="who_can_send_friend_requests" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="everyone" {% if privacy.who_can_send_friend_requests == 'everyone' %}selected{% endif %}>Everyone</option>
+          <option value="friends" {% if privacy.who_can_send_friend_requests == 'friends' %}selected{% endif %}>Friends</option>
+          <option value="followers" {% if privacy.who_can_send_friend_requests == 'followers' %}selected{% endif %}>Followers</option>
+          <option value="no_one" {% if privacy.who_can_send_friend_requests == 'no_one' %}selected{% endif %}>No One</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can follow me</strong></div>
+        <select class="select-control" name="who_can_follow_me" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="everyone" {% if privacy.who_can_follow_me == 'everyone' %}selected{% endif %}>Everyone</option>
+          <option value="friends" {% if privacy.who_can_follow_me == 'friends' %}selected{% endif %}>Friends</option>
+          <option value="followers" {% if privacy.who_can_follow_me == 'followers' %}selected{% endif %}>Followers</option>
+          <option value="no_one" {% if privacy.who_can_follow_me == 'no_one' %}selected{% endif %}>No One</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-text"><strong>Who can message me</strong></div>
+        <select class="select-control" name="who_can_message_me" style="width:180px;padding:8px;border-radius:12px;font-weight:700;">
+          <option value="everyone" {% if privacy.who_can_message_me == 'everyone' %}selected{% endif %}>Everyone</option>
+          <option value="friends" {% if privacy.who_can_message_me == 'friends' %}selected{% endif %}>Friends</option>
+          <option value="followers" {% if privacy.who_can_message_me == 'followers' %}selected{% endif %}>Followers</option>
+          <option value="no_one" {% if privacy.who_can_message_me == 'no_one' %}selected{% endif %}>No One</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="privacy-card">
       <div class="card-title">Online & Presence</div>
       <div class="setting-row">
         <div class="setting-text">
@@ -193,6 +289,9 @@ document.getElementById('privacyForm').addEventListener('submit', async function
   const data = {};
   this.querySelectorAll('input[type="checkbox"]').forEach(cb => {
     data[cb.name] = cb.checked;
+  });
+  this.querySelectorAll('select').forEach(sel => {
+    data[sel.name] = sel.value;
   });
   const resp = await fetch('/privacy/api/settings', {
     method: 'POST',

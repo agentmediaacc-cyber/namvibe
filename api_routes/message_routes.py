@@ -1189,6 +1189,40 @@ def api_friend_requests_in_messages():
     return jsonify({"ok": True, "requests": requests}), 200
 
 
+@message_bp.route("/api/requests")
+@login_required
+def api_all_requests():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+        
+    # Friend Requests
+    friend_requests = fast_query(
+        """
+        SELECT fr.id, fr.sender_profile_id, fr.status, fr.message, fr.created_at,
+               p.username, p.full_name, p.avatar_url, p.is_verified
+        FROM chain_friend_requests fr
+        JOIN chain_profiles p ON fr.sender_profile_id = p.id
+        WHERE fr.recipient_profile_id = %s AND fr.status = 'pending'
+        ORDER BY fr.created_at DESC
+        LIMIT 50
+        """,
+        (profile_id,), default=[]
+    )
+    
+    # Follow Requests
+    from services.follow_request_service import list_incoming_follow_requests
+    follow_requests = list_incoming_follow_requests(profile_id)
+    
+    return jsonify({
+        "ok": True,
+        "friend_requests": friend_requests,
+        "follow_requests": follow_requests,
+        "total_count": len(friend_requests) + len(follow_requests)
+    })
+
+
 @message_bp.route("/api/friends")
 @login_required
 def api_friends():

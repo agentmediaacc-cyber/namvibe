@@ -166,7 +166,7 @@ check("get_full_policy has can_send_friend_request", "can_send_friend_request" i
 check("get_full_policy has can_follow", "can_follow" in fp)
 check("get_full_policy has can_message", "can_message" in fp)
 check("get_full_policy has reason", "reason" in fp)
-check("get_full_policy 11 keys", len(fp) == 11)
+check("get_full_policy 12 keys", len(fp) == 12)
 
 # Public profile for other is allowed
 check("public profile allowed for other", fp.get("can_view_profile") == True)

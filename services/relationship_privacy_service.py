@@ -89,22 +89,37 @@ def _is_self(viewer_id, owner_id):
     return str(viewer_id) == str(owner_id)
 
 
+def is_approved_follower(viewer_id, owner_id):
+    """Alias for is_follower since chain_follows now only contains approved follows."""
+    return is_follower(viewer_id, owner_id)
+
+
+def has_pending_follow_request(viewer_id, owner_id):
+    if not viewer_id or not owner_id:
+        return False
+    rows = fast_query(
+        "SELECT 1 FROM chain_follow_requests WHERE requester_profile_id = %s AND target_profile_id = %s AND status = 'pending' LIMIT 1",
+        [viewer_id, owner_id], timeout_ms=1000, default=[]
+    )
+    return bool(rows)
+
+
 def can_view_by_rule(viewer_id, owner_id, rule):
     if not owner_id:
         return False
+    rule = normalize_visibility(rule)
     if not viewer_id:
         return rule == "public"
     if is_blocked_any(viewer_id, owner_id):
         return False
     if _is_self(viewer_id, owner_id):
         return True
-    rule = normalize_visibility(rule)
     if rule == "public":
         return True
     if rule == "friends_only":
         return are_friends(viewer_id, owner_id)
     if rule == "followers_only":
-        return are_friends(viewer_id, owner_id) or is_follower(viewer_id, owner_id)
+        return are_friends(viewer_id, owner_id) or is_approved_follower(viewer_id, owner_id)
     if rule == "private":
         return False
     return True

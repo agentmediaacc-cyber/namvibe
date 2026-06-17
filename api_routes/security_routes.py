@@ -92,7 +92,10 @@ def devices_page():
 def privacy_page():
     profile = get_current_profile()
     from services.security_service import get_privacy_settings
+    from services.profile_service import get_profile_privacy
     privacy = get_privacy_settings(profile["id"])
+    rel_privacy = get_profile_privacy(profile["id"])
+    privacy.update(rel_privacy)
     return render_template("security/privacy.html", profile=profile, privacy=privacy)
 
 

@@ -223,17 +223,17 @@
   }
 
   function buildActions(item) {
-    if (item.event_type === 'friend_request' && item.entity_id) {
+    if ((item.event_type === 'friend_request' || item.event_type === 'follow_request') && item.entity_id) {
       return (
         '<div class="nv-notif-actions">' +
-          '<button class="nv-notif-action-btn nv-action-accept" data-nv-action="accept" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-check"></i> Accept</button>' +
-          '<button class="nv-notif-action-btn nv-action-decline" data-nv-action="decline" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-times"></i> Decline</button>' +
+          '<button class="nv-notif-action-btn nv-action-accept" data-nv-action="accept" data-nv-type="' + item.event_type + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-check"></i> Approve</button>' +
+          '<button class="nv-notif-action-btn nv-action-decline" data-nv-action="decline" data-nv-type="' + item.event_type + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-times"></i> Decline</button>' +
           '<a href="/profile/@' + esc(item.actor_username || '') + '" class="nv-notif-action-btn nv-action-profile"><i class="fas fa-user"></i> Profile</a>' +
         '</div>'
       );
     }
 
-    if (item.event_type === 'friend_request_accepted' || item.event_type === 'friend_accepted') {
+    if (item.event_type === 'friend_request_accepted' || item.event_type === 'friend_accepted' || item.event_type === 'follow_request_approved') {
       return (
         '<div class="nv-notif-actions">' +
           '<a href="/messages/" class="nv-notif-action-btn nv-action-message"><i class="fas fa-comment"></i> Message</a>' +
@@ -247,13 +247,15 @@
 
   function handleAction(btn, item, card) {
     var action = btn.dataset.nvAction;
+    var type = btn.dataset.nvType || 'friend_request';
     var requestId = btn.dataset.requestId;
     var notifId = btn.dataset.notifId || item.id;
 
     if (action === 'accept' && requestId) {
       btn.disabled = true;
       btn.textContent = '...';
-      fetch('/api/friends/accept/' + encodeURIComponent(requestId), {
+      var url = type === 'follow_request' ? '/api/follow/approve/' : '/api/friends/accept/';
+      fetch(url + encodeURIComponent(requestId), {
         method: 'POST', credentials: 'same-origin',
       })
         .then(function (r) { return r.json(); })
@@ -261,24 +263,24 @@
           if (data.ok) {
             card.querySelector('.nv-notif-actions').innerHTML =
               '<div class="nv-notif-actions">' +
-                '<span style="font-size:13px;color:#2ecc71;font-weight:600"><i class="fas fa-check-circle"></i> Friends now</span>' +
+                '<span style="font-size:13px;color:#2ecc71;font-weight:600"><i class="fas fa-check-circle"></i> Approved</span>' +
               '</div>';
             var dot = card.querySelector('.nv-notif-unread-dot');
             if (dot) dot.remove();
             card.classList.remove('unread');
             card.classList.add('read');
             markRead(notifId, card);
-            showToast('Friend request accepted!');
+            showToast(type === 'follow_request' ? 'Follow request approved!' : 'Friend request accepted!');
             fetchUnreadCount();
           } else {
             btn.disabled = false;
-            btn.textContent = 'Accept';
-            showToast(data.error || 'Failed to accept');
+            btn.textContent = 'Approve';
+            showToast(data.error || 'Failed to approve');
           }
         })
         .catch(function () {
           btn.disabled = false;
-          btn.textContent = 'Accept';
+          btn.textContent = 'Approve';
           showToast('Network error');
         });
       return;
@@ -287,14 +289,15 @@
     if (action === 'decline' && requestId) {
       btn.disabled = true;
       btn.textContent = '...';
-      fetch('/api/friends/decline/' + encodeURIComponent(requestId), {
+      var url = type === 'follow_request' ? '/api/follow/decline/' : '/api/friends/decline/';
+      fetch(url + encodeURIComponent(requestId), {
         method: 'POST', credentials: 'same-origin',
       })
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.ok) {
             card.remove();
-            showToast('Friend request declined');
+            showToast(type === 'follow_request' ? 'Follow request declined' : 'Friend request declined');
             fetchUnreadCount();
           } else {
             btn.disabled = false;

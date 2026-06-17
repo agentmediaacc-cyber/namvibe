@@ -344,9 +344,17 @@
             {% elif pa.primary_action == 'accept_request' %}
             <a href="/friends"><i class="fas fa-user-check"></i><span>Respond</span></a>
             {% endif %}
-        {% elif pa.primary_action == 'follow' or pa.primary_action == 'message' %}
-            {% if pa.primary_action == 'follow' %}
-            <button type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+        {% elif pa.primary_action == 'follow' or pa.primary_action == 'message' or pa.primary_action == 'requested' or pa.primary_action == 'approve_follow' or pa.primary_action == 'request_follow' or pa.primary_action == 'following' %}
+            {% if pa.primary_action == 'requested' %}
+            <span><i class="fas fa-clock"></i><span>Requested</span></span>
+            {% elif pa.primary_action == 'approve_follow' %}
+            <a href="/friends"><i class="fas fa-user-check"></i><span>Approve</span></a>
+            {% elif pa.primary_action == 'request_follow' %}
+            <button type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-plus"></i><span>Request</span></button>
+            {% elif pa.primary_action == 'following' %}
+            <button type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="true"><i class="fas fa-user-check"></i><span>Following</span></button>
+            {% elif pa.primary_action == 'follow' %}
+            <button type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-plus"></i><span>Follow</span></button>
             {% else %}
             <a href="/messages/start/{{ profile.id }}"><i class="fas fa-comment"></i><span>Message</span></a>
             {% endif %}

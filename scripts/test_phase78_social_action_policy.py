@@ -227,11 +227,11 @@ check("self reason is self", self_result.get("reason") == "self")
 
 public_result = can_view_profile(UID_B, profile_person)
 check("public profile visible", public_result.get("can_view_full_profile"))
-check("public reason is public", public_result.get("reason") == "public")
+check("public reason is privacy_allowed", public_result.get("reason") == "privacy_allowed")
 
-private_result = can_view_profile(UID_B, profile_private)
+private_result = can_view_profile(UID_A, profile_private)
 check("private profile hidden for non-follower", not private_result.get("can_view_full_profile"))
-check("private reason is private", private_result.get("reason") == "private")
+check("private reason is privacy_restricted", private_result.get("reason") == "privacy_restricted")
 
 private_v2_result = can_view_profile(UID_B, profile_private_v2)
 check("private profile (profile_visibility) hidden", not private_v2_result.get("can_view_full_profile"))

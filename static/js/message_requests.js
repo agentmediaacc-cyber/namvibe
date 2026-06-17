@@ -2,68 +2,179 @@
   'use strict';
 
   function loadFriendRequests() {
-    var list = document.getElementById('friendRequestsList');
+    var fList = document.getElementById('friendRequestsList');
+    var fwList = document.getElementById('followRequestsList');
     var empty = document.getElementById('friendRequestsEmpty');
-    if (!list) return;
+    if (!fList) return;
 
-    list.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    fList.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    if (fwList) fwList.innerHTML = '';
     if (empty) empty.style.display = 'none';
 
-    fetch('/messages/api/friend-requests', { credentials: 'same-origin' })
+    fetch('/messages/api/requests', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (!data.ok || !data.requests || data.requests.length === 0) {
-          list.innerHTML = '';
+        if (!data.ok) throw new Error('API failed');
+        
+        var fCount = (data.friend_requests || []).length;
+        var fwCount = (data.follow_requests || []).length;
+        var total = fCount + fwCount;
+
+        if (total === 0) {
+          fList.innerHTML = '';
+          if (fwList) fwList.innerHTML = '';
           if (empty) empty.style.display = '';
           updateBadge(0);
           return;
         }
-        list.innerHTML = '';
-        data.requests.forEach(function (req) {
-          list.appendChild(createRequestCard(req));
-        });
-        updateBadge(data.requests.length);
+
+        fList.innerHTML = '';
+        if (fCount > 0) {
+          data.friend_requests.forEach(function (req) {
+            fList.appendChild(createRequestCard(req, 'friend'));
+          });
+        } else {
+          fList.innerHTML = '<p style="padding:10px;color:#777;font-size:13px;">No friend requests</p>';
+        }
+
+        if (fwList) {
+          fwList.innerHTML = '';
+          if (fwCount > 0) {
+            data.follow_requests.forEach(function (req) {
+              fwList.appendChild(createRequestCard(req, 'follow'));
+            });
+          } else {
+            fwList.innerHTML = '<p style="padding:10px;color:#777;font-size:13px;">No follow requests</p>';
+          }
+        }
+        
+        updateBadge(total);
       })
-      .catch(function () {
-        list.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa">Failed to load requests</div>';
+      .catch(function (err) {
+        console.error('Requests load error:', err);
+        fList.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa">Failed to load requests</div>';
       });
   }
 
-  function createRequestCard(req) {
+  function createRequestCard(req, type) {
     var card = document.createElement('div');
-    card.className = 'friend-request-card';
+    card.className = (type === 'friend' ? 'friend-request-card' : 'follow-request-card');
+    card.style.cssText = type === 'follow' ? 'display:flex;gap:12px;padding:12px;border-bottom:1px solid rgba(255,255,255,.05);' : '';
     card.dataset.requestId = req.id;
 
     var avatarHtml = req.avatar_url
-      ? '<img src="' + esc(req.avatar_url) + '" alt="' + esc(req.username || '') + '">'
-      : '<i class="fas fa-user"></i>';
+      ? '<img src="' + esc(req.avatar_url) + '" alt="' + esc(req.username || '') + '" style="width:48px;height:48px;border-radius:12px;object-fit:cover;">'
+      : '<i class="fas fa-user" style="font-size:24px;color:#555;"></i>';
 
     var verifiedBadge = req.is_verified ? '<i class="fas fa-check-circle" style="color:#1d9bf0;font-size:14px"></i>' : '';
 
-    card.innerHTML =
-      '<div class="fr-avatar">' + avatarHtml + '</div>' +
-      '<div class="fr-body">' +
-        '<div class="fr-name">' + esc(req.full_name || req.username || 'Unknown') + ' ' + verifiedBadge + '</div>' +
-        '<div class="fr-username">@' + esc(req.username || '') + '</div>' +
-        (req.message ? '<div class="fr-message">' + esc(req.message) + '</div>' : '') +
-        '<div class="fr-time">' + timeAgo(req.created_at) + '</div>' +
-        '<div class="fr-actions">' +
-          '<button class="fr-btn fr-accept" data-request-id="' + esc(req.id) + '"><i class="fas fa-check"></i> Accept</button>' +
-          '<button class="fr-btn fr-decline" data-request-id="' + esc(req.id) + '"><i class="fas fa-times"></i> Decline</button>' +
-          '<a href="/profile/@' + esc(req.username || '') + '" class="fr-btn fr-profile"><i class="fas fa-user"></i> Profile</a>' +
-        '</div>' +
-      '</div>';
+    if (type === 'friend') {
+      card.innerHTML =
+        '<div class="fr-avatar">' + avatarHtml + '</div>' +
+        '<div class="fr-body">' +
+          '<div class="fr-name">' + esc(req.full_name || req.display_name || req.username || 'Unknown') + ' ' + verifiedBadge + '</div>' +
+          '<div class="fr-username">@' + esc(req.username || '') + '</div>' +
+          (req.message ? '<div class="fr-message">' + esc(req.message) + '</div>' : '') +
+          '<div class="fr-time">' + timeAgo(req.created_at) + '</div>' +
+          '<div class="fr-actions">' +
+            '<button class="fr-btn fr-accept" data-request-id="' + esc(req.id) + '"><i class="fas fa-check"></i> Accept</button>' +
+            '<button class="fr-btn fr-decline" data-request-id="' + esc(req.id) + '"><i class="fas fa-times"></i> Decline</button>' +
+            '<a href="/profile/@' + esc(req.username || '') + '" class="fr-btn fr-profile"><i class="fas fa-user"></i> Profile</a>' +
+          '</div>' +
+        '</div>';
+    } else {
+      card.innerHTML =
+        '<div class="fr-avatar" style="width:48px;height:48px;border-radius:12px;background:rgba(255,255,255,.1);display:grid;place-items:center;overflow:hidden;flex-shrink:0;">' + avatarHtml + '</div>' +
+        '<div class="fr-body" style="flex:1;min-width:0;">' +
+          '<div class="fr-name" style="font-weight:900;font-size:14px;">' + esc(req.display_name || req.full_name || req.username || 'Unknown') + ' ' + verifiedBadge + '</div>' +
+          '<div class="fr-username" style="color:#aaa;font-size:12px;">@' + esc(req.username || '') + ' wants to follow you</div>' +
+          '<div class="fr-time" style="color:#777;font-size:10px;margin-top:2px;">' + timeAgo(req.created_at) + '</div>' +
+          '<div class="fr-actions" style="display:flex;gap:8px;margin-top:8px;">' +
+            '<button class="fr-btn fr-accept follow-approve-btn" data-request-id="' + esc(req.id) + '" style="padding:6px 12px;font-size:12px;"><i class="fas fa-check"></i> Approve</button>' +
+            '<button class="fr-btn fr-decline follow-decline-btn" data-request-id="' + esc(req.id) + '" style="padding:6px 12px;font-size:12px;"><i class="fas fa-times"></i> Decline</button>' +
+          '</div>' +
+        '</div>';
+    }
 
-    card.querySelector('.fr-accept').addEventListener('click', function (e) {
-      e.stopPropagation();
-      acceptRequest(req.id, card);
-    });
-    card.querySelector('.fr-decline').addEventListener('click', function (e) {
-      e.stopPropagation();
-      declineRequest(req.id, card);
-    });
+    if (type === 'friend') {
+      card.querySelector('.fr-accept').addEventListener('click', function (e) {
+        e.stopPropagation();
+        acceptRequest(req.id, card);
+      });
+      card.querySelector('.fr-decline').addEventListener('click', function (e) {
+        e.stopPropagation();
+        declineRequest(req.id, card);
+      });
+    } else {
+      card.querySelector('.follow-approve-btn').addEventListener('click', function (e) {
+        e.stopPropagation();
+        approveFollowRequest(req.id, card);
+      });
+      card.querySelector('.follow-decline-btn').addEventListener('click', function (e) {
+        e.stopPropagation();
+        declineFollowRequest(req.id, card);
+      });
+    }
 
     return card;
+  }
+
+  function approveFollowRequest(requestId, card) {
+    var btn = card.querySelector('.follow-approve-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    fetch('/api/follow/approve/' + encodeURIComponent(requestId), {
+      method: 'POST', credentials: 'same-origin',
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          card.querySelector('.fr-actions').innerHTML =
+            '<span style="font-size:12px;color:#2ecc71;font-weight:600"><i class="fas fa-check-circle"></i> Approved</span>';
+          card.style.opacity = '0.6';
+          showToast('Follow request approved!');
+          updateBadgeDecrement();
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check"></i> Approve';
+          showToast(data.error || 'Failed to approve');
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Approve';
+        showToast('Network error');
+      });
+  }
+
+  function declineFollowRequest(requestId, card) {
+    var btn = card.querySelector('.follow-decline-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    fetch('/api/follow/decline/' + encodeURIComponent(requestId), {
+      method: 'POST', credentials: 'same-origin',
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          card.remove();
+          showToast('Request declined');
+          updateBadgeDecrement();
+          var list = document.getElementById('followRequestsList');
+          if (list && list.children.length === 0) {
+            list.innerHTML = '<p style="padding:10px;color:#777;font-size:13px;">No follow requests</p>';
+          }
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-times"></i> Decline';
+          showToast(data.error || 'Failed to decline');
+        }
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-times"></i> Decline';
+        showToast('Network error');
+      });
   }
 
   function acceptRequest(requestId, card) {

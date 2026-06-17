@@ -74,7 +74,9 @@ def api_follow(profile_id):
     current_id = _current_id()
     if not current_id:
         return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
-    return _response(follow_profile(current_id, profile_id))
+    from services.follow_request_service import send_follow_request
+    res = send_follow_request(current_id, profile_id)
+    return jsonify(res)
 
 
 @engagement_bp.route("/api/social/profiles/<profile_id>/unfollow", methods=["POST"])
@@ -95,7 +97,9 @@ def api_profile_follow(profile_id):
         return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
     if request.method == "DELETE":
         return _response(unfollow_profile(current_id, profile_id))
-    return _response(follow_profile(current_id, profile_id))
+    from services.follow_request_service import send_follow_request
+    res = send_follow_request(current_id, profile_id)
+    return jsonify(res)
 
 
 @engagement_bp.route("/api/social/<item_type>/<item_id>/save", methods=["POST"])

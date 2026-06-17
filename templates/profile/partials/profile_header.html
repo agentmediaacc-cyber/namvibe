@@ -113,12 +113,18 @@
             <a href="/profile/edit" class="profile-btn primary"><i class="fas fa-pen-to-square"></i>Edit Profile</a>
             {% else %}
                 {% set pa = action_policy or {} %}
-                {% if pa.primary_action == 'friend_request' or pa.primary_action == 'follow' %}
-                    {% if pa.primary_action == 'follow' %}
-                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
-                    {% else %}
+                {% if pa.primary_action == 'friend_request' %}
                     <button class="profile-btn primary" type="button" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="{% if is_friend %}friends{% elif friend_request_status == 'pending_sent' %}pending_sent{% elif friend_request_status == 'pending_received' %}pending_received{% else %}none{% endif %}" data-request-id="{{ friend_request_id or '' }}"><i class="fas fa-user-plus"></i><span class="btn-text">{% if is_friend %}Friends{% elif friend_request_status == 'pending_sent' %}Request Pending{% elif friend_request_status == 'pending_received' %}Respond{% else %}Add Friend{% endif %}</span></button>
-                    {% endif %}
+                {% elif pa.primary_action == 'follow' %}
+                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+                {% elif pa.primary_action == 'request_follow' %}
+                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-plus"></i><span>Request Follow</span></button>
+                {% elif pa.primary_action == 'requested' %}
+                    <span class="profile-btn primary" style="opacity:0.7;"><i class="fas fa-clock"></i><span>Requested</span></span>
+                {% elif pa.primary_action == 'approve_follow' %}
+                    <a href="/friends" class="profile-btn primary"><i class="fas fa-user-check"></i><span>Approve Follow</span></a>
+                {% elif pa.primary_action == 'following' %}
+                    <button class="profile-btn primary is-active" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="true"><i class="fas fa-user-check"></i><span>Following</span></button>
                 {% elif pa.primary_action == 'message' %}
                     <a href="/messages/start/{{ profile.id }}" class="profile-btn primary"><i class="fas fa-comment"></i>Message</a>
                 {% elif pa.primary_action == 'request_sent' %}
