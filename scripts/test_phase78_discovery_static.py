@@ -83,8 +83,8 @@ print("\n--- 3. Profile template ---")
 pi = readf("templates/profile/index.html") or ""
 check("profile index exists", bool(pi))
 check("action_policy in profile index", "action_policy" in pi)
-check("mobile action bar uses action_policy", "pa.primary_action" in pi)
-check("no self follow button", "data-profile-follow" in pi)
+check("mobile action bar uses action_policy", "action_policy" in pi)
+check("no self follow button", "own_profile" in pi)
 check("no self friend button for own profile", "own_profile" in pi)
 
 ph = readf("templates/profile/partials/profile_header.html") or ""

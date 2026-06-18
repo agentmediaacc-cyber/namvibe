@@ -1,6 +1,6 @@
+from services.profile_completion_service import calculate_profile_completion
 from services.profile_service import (
     get_profile_bundle,
-    get_profile_completion,
 )
 from services.supabase_safe import safe_count, safe_select, table_exists
 
@@ -67,19 +67,7 @@ def _achievement_cards(profile, stats, marketplace, creator):
 
 
 def _completion_payload(profile):
-    missing = []
-    checks = {
-        "banner": bool(profile.get("cover_url")),
-        "DOB": bool(profile.get("date_of_birth") or profile.get("age")),
-        "skills": bool(profile.get("skills")),
-        "portfolio": bool(profile.get("portfolio_url") or profile.get("portfolio_projects")),
-        "website": bool(profile.get("website")),
-        "bio": bool(profile.get("bio")),
-    }
-    for label, present in checks.items():
-        if not present:
-            missing.append(label)
-    return {"percentage": get_profile_completion(profile), "missing_fields": missing}
+    return calculate_profile_completion(profile)
 
 
 def build_profile_dashboard(profile=None, viewer=None, bundle=None):

@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ profile.display_name or profile.full_name or profile.username }} | NamVibe{% endblock %}
+{% block extra_css %}
+{{ super() }}
+<link rel="stylesheet" href="/static/css/profile_command_center.css">
+{% endblock %}
+{% block extra_js %}
+{{ super() }}
+<script src="/static/js/profile_command_center.js"></script>
+{% endblock %}
 {% block content %}
 <main class="profile-shell private-profile">
     <section class="profile-hero">
@@ -49,7 +57,13 @@
                     <button class="profile-btn primary" type="button" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="none">Add Friend</button>
                     {% elif action_policy.primary_action == 'follow' %}
                     <button class="profile-btn primary" type="button" data-follow-profile="{{ profile.id }}">Follow</button>
-                    {% elif action_policy.primary_action == 'message' %}
+                    {% elif action_policy.primary_action == 'request_follow' %}
+                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false">Request Follow</button>
+                    {% elif action_policy.primary_action == 'requested' %}
+                    <span class="profile-btn" style="opacity:0.7;">Requested</span>
+                    {% elif action_policy.primary_action == 'following' %}
+                    <span class="profile-btn" style="opacity:0.7;">Following</span>
+                    {% elif action_policy.primary_action == 'message' and action_policy.can_chat %}
                     <a href="/messages/start/{{ profile.id }}" class="profile-btn primary">Message</a>
                     {% elif action_policy.primary_action == 'request_sent' %}
                     <span class="profile-btn" style="opacity:0.7;">Request Sent</span>

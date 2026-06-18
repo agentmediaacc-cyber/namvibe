@@ -244,7 +244,7 @@ check("not logged in can view public", not_logged_public.get("can_view_full_prof
 
 # ─── 9. get_primary_action (static) ───
 print("\n--- 9. get_primary_action ---")
-check("self -> none", get_primary_action(UID_A, profile_self) == "none")
+check("self -> self", get_primary_action(UID_A, profile_self) == "self")
 check("person -> friend_request", get_primary_action(UID_B, profile_person) == "friend_request")
 check("page -> follow", get_primary_action(UID_B, profile_page) == "follow")
 check("creator -> follow", get_primary_action(UID_B, profile_creator) == "follow")

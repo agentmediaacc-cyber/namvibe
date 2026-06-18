@@ -1,336 +1,253 @@
-(function () {
-  window.Phase85 = window.Phase85 || {};
+/**
+ * NamVibe Profile Command Center JS
+ * Handles tab switching, social actions, and owner-only interactions.
+ */
 
-  const API = {
-    async post(url, body) {
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      return r.json();
-    },
+document.addEventListener('DOMContentLoaded', () => {
+    initTabSwitching();
+    initCopyProfileUrl();
+    initShareProfile();
+    initQrFallback();
+    initCreateDropdown();
+    initCompletionCta();
+    initSocialActions();
+});
 
-    async del(url) {
-      const r = await fetch(url, { method: 'DELETE' });
-      return r.json();
-    },
+function initTabSwitching() {
+    const tabs = document.querySelectorAll('.command-tab');
+    const panes = document.querySelectorAll('.tab-pane');
 
-    async get(url) {
-      const r = await fetch(url);
-      return r.json();
-    },
-  };
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetId = tab.getAttribute('data-tab-target');
+            
+            // Update tabs
+            tabs.forEach(t => t.classList.remove('is-active'));
+            tab.classList.add('is-active');
 
-  /* ── Post / Reel Management ─────────────────────────────── */
-
-  Phase85.toggleComments = async function (postId) {
-    try {
-      const d = await API.post(`/profile/api/posts/${postId}/comments-toggle`);
-      if (d.status === 'ok') alert(d.comments_enabled ? 'Comments enabled' : 'Comments disabled');
-      else alert('Failed to toggle comments');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.toggleSharing = async function (postId) {
-    try {
-      const d = await API.post(`/profile/api/posts/${postId}/share-toggle`);
-      if (d.status === 'ok') alert(d.sharing_enabled ? 'Sharing enabled' : 'Sharing disabled');
-      else alert('Failed to toggle sharing');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.togglePin = async function (itemId, type) {
-    try {
-      const endpoint = type === 'reel'
-        ? `/profile/api/reels/${itemId}/pin`
-        : `/profile/api/posts/${itemId}/pin`;
-      const d = await API.post(endpoint);
-      if (d.status === 'ok') alert(d.pinned ? 'Pinned' : 'Unpinned');
-      else alert('Failed to toggle pin');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.toggleArchive = async function (itemId, type) {
-    try {
-      const endpoint = type === 'reel'
-        ? `/profile/api/reels/${itemId}/archive`
-        : `/profile/api/posts/${itemId}/archive`;
-      const d = await API.post(endpoint);
-      if (d.status === 'ok') alert(d.archived ? 'Archived' : 'Unarchived');
-      else alert('Failed to toggle archive');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.deleteItem = async function (itemId, type) {
-    if (!confirm(`Delete this ${type}?`)) return;
-    try {
-      const endpoint = type === 'reel'
-        ? `/profile/api/reels/${itemId}`
-        : `/profile/api/posts/${itemId}`;
-      const d = await API.del(endpoint);
-      if (d.status === 'ok') {
-        const card = document.querySelector(`[data-${type}-id="${itemId}"]`);
-        if (card) card.remove();
-        alert(`${type} deleted`);
-      } else alert('Failed to delete');
-    } catch { alert('Request failed'); }
-  };
-
-  /* ── Visibility ─────────────────────────────────────────── */
-
-  Phase85.showVisibilityModal = function (itemId, type, currentVis) {
-    const overlay = document.createElement('div');
-    overlay.className = 'visibility-modal-overlay';
-    overlay.innerHTML = `
-      <div class="visibility-modal">
-        <h3>Change Visibility</h3>
-        <select id="vis-select">
-          <option value="public" ${currentVis === 'public' ? 'selected' : ''}>Public</option>
-          <option value="followers" ${currentVis === 'followers' ? 'selected' : ''}>Followers</option>
-          <option value="friends" ${currentVis === 'friends' ? 'selected' : ''}>Friends</option>
-          <option value="private" ${currentVis === 'private' ? 'selected' : ''}>Private</option>
-        </select>
-        <div class="modal-actions">
-          <button class="btn-cancel" onclick="this.closest('.visibility-modal-overlay').remove()">Cancel</button>
-          <button class="btn-save" onclick="Phase85.saveVisibility('${itemId}', '${type}')">Save</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-  };
-
-  Phase85.saveVisibility = async function (itemId, type) {
-    const select = document.getElementById('vis-select');
-    if (!select) return;
-    const visibility = select.value;
-    const endpoint = type === 'reel'
-      ? `/profile/api/reels/${itemId}/visibility`
-      : `/profile/api/posts/${itemId}/visibility`;
-    try {
-      const d = await API.post(endpoint, { visibility });
-      if (d.status === 'ok') {
-        alert('Visibility updated');
-        const overlay = document.querySelector('.visibility-modal-overlay');
-        if (overlay) overlay.remove();
-        location.reload();
-      } else alert('Failed to update visibility');
-    } catch { alert('Request failed'); }
-  };
-
-  /* ── Reel Analytics ─────────────────────────────────────── */
-
-  Phase85.showReelAnalytics = async function (reelId) {
-    try {
-      const d = await API.get(`/profile/api/reels/analytics/${reelId}`);
-      alert(`Views: ${d.views || 0}\nLikes: ${d.likes || 0}\nComments: ${d.comments || 0}`);
-    } catch { alert('Failed to load analytics'); }
-  };
-
-  /* ── Friend / Follow / Block / Mute ─────────────────────── */
-
-  Phase85.sendFriendRequest = async function (profileId) {
-    try {
-      const d = await API.post('/social/friends/request', { receiver_profile_id: profileId });
-      if (d.status === 'ok' || d.success) alert('Friend request sent');
-      else alert(d.error || 'Failed to send request');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.acceptFriendRequest = async function (requestId) {
-    try {
-      const d = await API.post('/social/friends/accept', { request_id: requestId });
-      if (d.status === 'ok' || d.success) { alert('Friend request accepted'); location.reload(); }
-      else alert('Failed to accept');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.declineFriendRequest = async function (requestId) {
-    if (!confirm('Decline friend request?')) return;
-    try {
-      const r = await fetch('/social/friends/decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request_id: requestId }) });
-      if (r.ok) { alert('Declined'); location.reload(); }
-      else alert('Failed to decline');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.removeFriend = async function (profileId) {
-    if (!confirm('Remove this friend?')) return;
-    try {
-      const d = await API.post('/social/friends/remove', { friend_id: profileId });
-      if (d.status === 'ok' || d.success) { alert('Friend removed'); location.reload(); }
-      else alert('Failed to remove');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.followUser = async function (profileId, btn) {
-    try {
-      const r = await fetch(`/social/follow/${profileId}`, {
-        method: 'POST',
-        headers: { Accept: 'application/json' },
-      });
-      const d = await r.json();
-      if (d.status === 'ok') {
-        if (btn) {
-          btn.innerHTML = '<i class="fas fa-user-check"></i><span>Following</span>';
-          btn.dataset.following = 'true';
-        }
-        alert('Following');
-      }
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.unfollowUser = async function (profileId) {
-    if (!confirm('Unfollow?')) return;
-    try {
-      const d = await API.post(`/social/following/remove/${profileId}`);
-      if (d.status === 'ok') { alert('Unfollowed'); location.reload(); }
-      else alert('Failed to unfollow');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.removeFollower = async function (profileId) {
-    if (!confirm('Remove this follower?')) return;
-    try {
-      const d = await API.post(`/social/followers/remove/${profileId}`);
-      if (d.status === 'ok') { alert('Follower removed'); location.reload(); }
-      else alert('Failed to remove follower');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.blockUser = async function (profileId) {
-    if (!confirm('Block this user?')) return;
-    try {
-      const r = await fetch(`/social/block/${profileId}`, { method: 'POST' });
-      const d = await r.json();
-      if (d.status === 'ok' || d.ok) { alert('Blocked'); location.reload(); }
-      else alert('Failed to block');
-    } catch { alert('Request failed'); }
-  };
-
-  Phase85.muteUser = async function (profileId) {
-    const type = prompt('Mute type: posts, reels, stories, or all', 'posts');
-    if (!type) return;
-    try {
-      const d = await API.post('/profile/api/mute', { profile_id: profileId, mute_type: type });
-      if (d.status === 'ok') alert('Muted');
-      else alert('Failed to mute');
-    } catch { alert('Request failed'); }
-  };
-
-  /* ── Lazy Tab Loading ───────────────────────────────────── */
-
-  Phase85.loadTab = async function (tabName) {
-    const container = document.getElementById(`${tabName}-content`);
-    if (!container || container.dataset.loaded) return;
-    container.dataset.loaded = 'true';
-    container.innerHTML = '<div class="tab-lazy-placeholder">Loading…</div>';
-    try {
-      const r = await fetch(`/profile/tab/${tabName}`);
-      if (!r.ok) throw new Error('Tab load failed');
-      const html = await r.text();
-      container.innerHTML = html;
-    } catch {
-      container.innerHTML = '<div class="manager-empty"><i class="fas fa-exclamation-triangle"></i><p>Failed to load</p></div>';
-    }
-  };
-
-  /* ── Init ────────────────────────────────────────────────── */
-
-  Phase85.init = function () {
-    document.querySelectorAll('[data-toggle-comments]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.toggleComments(el.dataset.toggleComments));
-    });
-
-    document.querySelectorAll('[data-toggle-sharing]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.toggleSharing(el.dataset.toggleSharing));
-    });
-
-    document.querySelectorAll('[data-toggle-pin]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.togglePin(el.dataset.togglePin, el.dataset.type || 'post'));
-    });
-
-    document.querySelectorAll('[data-toggle-archive]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.toggleArchive(el.dataset.toggleArchive, el.dataset.type || 'post'));
-    });
-
-    document.querySelectorAll('[data-delete-item]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.deleteItem(el.dataset.deleteItem, el.dataset.type || 'post'));
-    });
-
-    document.querySelectorAll('[data-visibility]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.showVisibilityModal(el.dataset.visibility, el.dataset.type || 'post', el.dataset.currentVis || 'public'));
-    });
-
-    document.querySelectorAll('[data-reel-analytics]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.showReelAnalytics(el.dataset.reelAnalytics));
-    });
-
-    document.querySelectorAll('[data-send-friend-request]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.sendFriendRequest(el.dataset.sendFriendRequest));
-    });
-
-    document.querySelectorAll('[data-accept-friend]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.acceptFriendRequest(el.dataset.acceptFriend));
-    });
-
-    document.querySelectorAll('[data-decline-friend]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.declineFriendRequest(el.dataset.declineFriend));
-    });
-
-    document.querySelectorAll('[data-remove-friend]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.removeFriend(el.dataset.removeFriend));
-    });
-
-    document.querySelectorAll('[data-follow-user]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.followUser(el.dataset.followUser, el));
-    });
-
-    document.querySelectorAll('[data-unfollow-user]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.unfollowUser(el.dataset.unfollowUser));
-    });
-
-    document.querySelectorAll('[data-remove-follower]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.removeFollower(el.dataset.removeFollower));
-    });
-
-    document.querySelectorAll('[data-block-user]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.blockUser(el.dataset.blockUser));
-    });
-
-    document.querySelectorAll('[data-mute-user]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.muteUser(el.dataset.muteUser));
-    });
-
-    document.querySelectorAll('[data-lazy-tab]').forEach((el) => {
-      el.addEventListener('click', () => Phase85.loadTab(el.dataset.lazyTab));
-    });
-
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const tab = entry.target.dataset.lazyTabObserve;
-          if (tab) Phase85.loadTab(tab);
-          observer.unobserve(entry.target);
+            // Update panes
+            panes.forEach(pane => {
+                pane.classList.remove('is-active');
+                if (pane.id === `${targetId}-tab`) {
+                    pane.classList.add('is-active');
+                }
+            });
+            
+            // If reels tab, maybe play video or something
+            if (targetId === 'reels') {
+                const videos = document.querySelectorAll('#reels-tab video');
+                videos.forEach(v => {
+                    v.muted = true;
+                    // v.play().catch(() => {});
+                });
+            }
         });
-      }, { rootMargin: '200px' });
-
-      document.querySelectorAll('[data-lazy-tab-observe]').forEach((el) => observer.observe(el));
-    }
-
-    document.querySelectorAll('.command-tab').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.command-tab').forEach((t) => t.classList.remove('is-active'));
-        tab.classList.add('is-active');
-        const target = tab.dataset.tabTarget;
-        if (target) Phase85.loadTab(target);
-      });
     });
-  };
+}
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', Phase85.init);
-  } else {
-    Phase85.init();
-  }
-})();
+function initCopyProfileUrl() {
+    const copyBtns = document.querySelectorAll('[data-copy-profile]');
+    copyBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const url = btn.getAttribute('data-copy-profile');
+            if (url) {
+                const fullUrl = window.location.origin + url;
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(fullUrl);
+                    } else {
+                        const input = document.createElement('input');
+                        input.value = fullUrl;
+                        document.body.appendChild(input);
+                        input.select();
+                        document.execCommand('copy');
+                        input.remove();
+                    }
+                    showToast('Profile URL copied!');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                    }, 2000);
+                } catch (err) {
+                    showToast(fullUrl);
+                }
+            }
+        });
+    });
+}
+
+function initShareProfile() {
+    document.querySelectorAll('[data-share-profile]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const path = btn.getAttribute('data-profile-url') || window.location.pathname;
+            const url = path.startsWith('http') ? path : window.location.origin + path;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: document.title || 'NamVibe profile', url });
+                    return;
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return;
+                }
+            }
+            copyText(url);
+            showToast('Profile link ready to share');
+        });
+    });
+}
+
+function initQrFallback() {
+    document.querySelectorAll('[data-profile-qr]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const path = btn.getAttribute('data-profile-url') || window.location.pathname;
+            const url = path.startsWith('http') ? path : window.location.origin + path;
+            copyText(url);
+            showToast('QR fallback: profile link copied');
+        });
+    });
+}
+
+function initCreateDropdown() {
+    const trigger = document.querySelector('.hero-actions [data-create-dropdown-trigger]');
+    const dropdown = document.getElementById('create-dropdown');
+
+    if (trigger && dropdown) {
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.hidden = !dropdown.hidden;
+        });
+
+        document.addEventListener('click', () => {
+            dropdown.hidden = true;
+        });
+    }
+}
+
+function initCompletionCta() {
+    document.querySelectorAll('.completion-card .btn-card.primary').forEach(link => {
+        link.addEventListener('click', () => showToast('Opening profile improvements'));
+    });
+}
+
+function initSocialActions() {
+    // Follow / Unfollow
+    const followBtns = document.querySelectorAll('[data-profile-follow], [data-follow-profile]');
+    followBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const profileId = btn.getAttribute('data-profile-id') || btn.getAttribute('data-follow-profile');
+            const isFollowing = btn.getAttribute('data-following') === 'true';
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+
+            try {
+                const response = await fetch(`/social/follow/${profileId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.status === 'ok' || data.ok) {
+                    const status = data.follow_status || (data.following ? 'following' : 'none');
+                    
+                    if (status === 'following') {
+                        btn.innerHTML = '<i class="fas fa-user-check"></i> Following';
+                        btn.classList.add('secondary');
+                        btn.classList.remove('primary');
+                        btn.setAttribute('data-following', 'true');
+                    } else if (status === 'request_pending') {
+                        btn.innerHTML = '<i class="fas fa-user-clock"></i> Requested';
+                        btn.classList.add('secondary');
+                        btn.classList.remove('primary');
+                        btn.disabled = true;
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-user-plus"></i> Follow';
+                        btn.classList.remove('secondary');
+                        btn.classList.add('primary');
+                        btn.setAttribute('data-following', 'false');
+                    }
+                } else {
+                    showToast('Action failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Network error');
+            } finally {
+                if (btn.textContent.trim() !== 'Requested') btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        });
+    });
+
+    // Friend Request (delegated if needed, but here's direct)
+    const friendBtns = document.querySelectorAll('[data-friend-action]');
+    friendBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const profileId = btn.getAttribute('data-target-id');
+            const status = btn.getAttribute('data-friend-status');
+
+            if (status === 'none') {
+                btn.disabled = true;
+                try {
+                    const response = await fetch('/social/friends/request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ recipient_id: profileId })
+                    });
+                    const data = await response.json();
+                    if (data.success || data.ok) {
+                        btn.innerHTML = '<i class="fas fa-check"></i> Request Sent';
+                        btn.setAttribute('data-friend-status', 'pending_sent');
+                        btn.style.opacity = '0.7';
+                    } else {
+                        showToast(data.error || 'Could not send request');
+                    }
+                } catch (err) {
+                    showToast('Failed to send request');
+                } finally {
+                    btn.disabled = false;
+                }
+            }
+        });
+    });
+}
+
+function copyText(value) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).catch(() => {});
+        return;
+    }
+    const input = document.createElement('input');
+    input.value = value;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    input.remove();
+}
+
+function showToast(message) {
+    const existing = document.querySelector('.profile-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = 'profile-toast';
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 20px;
+        z-index: 9999;
+        font-size: 14px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.5s';
+        setTimeout(() => toast.remove(), 500);
+    }, 2000);
+}

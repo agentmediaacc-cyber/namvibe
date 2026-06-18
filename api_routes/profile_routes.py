@@ -201,7 +201,10 @@ def _with_profile_defaults(profile):
 
 
 def _profile_fallback_context():
+    from services.profile_completion_service import calculate_profile_completion
+    from services.social_action_policy import get_action_policy
     viewer = _session_profile_stub()
+    action_policy = get_action_policy(viewer.get("id"), viewer)
     return {
         "unread_count": 0,
         "viewer": viewer,
@@ -219,10 +222,11 @@ def _profile_fallback_context():
         "is_following": False,
         "is_page_liked": False,
         "public_stats": {"posts": 0, "followers": 0, "reels": 0, "likes": 0},
-        "completion": {"percentage": 0, "missing_fields": []},
+        "action_policy": action_policy,
+        "completion": calculate_profile_completion(viewer),
         "level": {"title": "New Member", "score": 0, "next_target": 10, "progress_pct": 0},
-        "permissions": {"can_message": True, "can_call": True, "can_contact_email": bool(viewer.get("email"))},
-        "contact": {"message": True, "call": True, "email": bool(viewer.get("email")), "whatsapp": False},
+        "permissions": {"can_message": False, "can_call": False, "can_contact_email": bool(viewer.get("email") if viewer else False)},
+        "contact": {"message": False, "call": False, "email": bool(viewer.get("email") if viewer else False), "whatsapp": False},
         "creator": {},
         "marketplace": {"items": [], "featured_products": []},
         "dating": {},
@@ -266,6 +270,13 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         fallback = _profile_fallback_context()
         fallback["profile"] = _with_profile_defaults(profile)
         fallback["viewer"] = _with_profile_defaults(viewer or profile)
+        fallback["action_policy"] = action_policy
+        if not fallback.get("action_policy"):
+            from services.social_action_policy import get_action_policy
+            viewer_id = fallback["viewer"].get("id") if fallback.get("viewer") else None
+            fallback["action_policy"] = get_action_policy(viewer_id, fallback["profile"])
+        from services.profile_completion_service import calculate_profile_completion
+        fallback["completion"] = calculate_profile_completion(fallback["profile"])
         try:
             from services.profile_service import get_profile_content, get_profile_stats
             fallback["content"] = get_profile_content(profile.get("id"))
@@ -365,6 +376,8 @@ def my_profile():
                 context = _profile_fallback_context()
                 context["profile"] = viewer
                 context["viewer"] = viewer
+                from services.social_action_policy import get_action_policy
+                context["action_policy"] = get_action_policy(viewer.get("id"), viewer)
                 try:
                     context["content"] = get_profile_content(viewer.get("id"))
                     context["stats"] = get_profile_stats(viewer.get("id"))
@@ -384,6 +397,8 @@ def my_profile():
             context = _profile_fallback_context()
             context["profile"] = viewer
             context["viewer"] = viewer
+            from services.social_action_policy import get_action_policy
+            context["action_policy"] = get_action_policy(viewer.get("id"), viewer)
             try:
                 context["content"] = get_profile_content(viewer.get("id"))
                 context["stats"] = get_profile_stats(viewer.get("id"))
@@ -420,6 +435,8 @@ def my_profile():
             context = _profile_fallback_context()
             context["profile"] = viewer
             context["viewer"] = viewer
+            from services.social_action_policy import get_action_policy
+            context["action_policy"] = get_action_policy(viewer.get("id"), viewer)
             try:
                 context["content"] = get_profile_content(viewer.get("id"))
                 context["stats"] = get_profile_stats(viewer.get("id"))

@@ -5,6 +5,10 @@ from services.neon_service import fast_query
 from services.privacy_service import is_blocked
 from services.relationship_privacy_service import (
     can_view_profile as rp_can_view_profile,
+    can_view_posts as rp_can_view_posts,
+    can_view_reels as rp_can_view_reels,
+    can_view_followers as rp_can_view_followers,
+    can_view_following as rp_can_view_following,
     can_follow as rp_can_follow,
     can_send_friend_request as rp_can_send_friend_request,
     can_message as rp_can_message,
@@ -189,7 +193,7 @@ def get_primary_action(current_profile_id, target_profile):
         return "none"
 
     if is_self(current_profile_id, target_id):
-        return "none"
+        return "self"
 
     relationship = get_relationship(current_profile_id, target_id)
     if relationship == "blocked":
@@ -237,7 +241,16 @@ def get_action_policy(current_profile_id, target_profile):
             "can_follow": False,
             "can_send_friend_request": False,
             "can_chat": False,
+            "can_call": False,
+            "can_message_self": False,
+            "can_call_self": False,
             "can_like": False,
+            "can_view_posts": False,
+            "can_view_reels": False,
+            "can_view_media": False,
+            "can_view_followers": False,
+            "can_view_following": False,
+            "can_view_friends": False,
             "relationship": "none",
             "follow_status": "none",
             "requires_follow_approval": False,
@@ -247,9 +260,48 @@ def get_action_policy(current_profile_id, target_profile):
 
     self_check = is_self(current_profile_id, target_id)
     kind = get_account_kind(target_profile)
+
+    if self_check:
+        return {
+            "is_self": True,
+            "account_kind": kind,
+            "can_view_full_profile": True,
+            "can_follow": False,
+            "can_send_friend_request": False,
+            "can_chat": False,
+            "can_call": False,
+            "can_message_self": False,
+            "can_call_self": False,
+            "can_like": False,
+            "can_view_posts": True,
+            "can_view_reels": True,
+            "can_view_media": True,
+            "can_view_followers": True,
+            "can_view_following": True,
+            "can_view_friends": True,
+            "relationship": "self",
+            "follow_status": "self",
+            "requires_follow_approval": False,
+            "primary_action": "self",
+            "reason": "self",
+        }
+
     full = get_full_policy(current_profile_id, target_profile) or {}
     relationship = get_relationship(current_profile_id, target_id)
     follow_status = get_follow_status(current_profile_id, target_id)
+    chat_allowed = can_chat(current_profile_id, target_id, target_profile=target_profile)
+    can_view_posts = full.get("can_view_posts")
+    if can_view_posts is None:
+        can_view_posts = rp_can_view_posts(current_profile_id, target_profile)
+    can_view_reels = full.get("can_view_reels")
+    if can_view_reels is None:
+        can_view_reels = rp_can_view_reels(current_profile_id, target_profile)
+    can_view_followers = full.get("can_view_followers")
+    if can_view_followers is None:
+        can_view_followers = rp_can_view_followers(current_profile_id, target_profile)
+    can_view_following = full.get("can_view_following")
+    if can_view_following is None:
+        can_view_following = rp_can_view_following(current_profile_id, target_profile)
 
     return {
         "is_self": self_check,
@@ -257,8 +309,17 @@ def get_action_policy(current_profile_id, target_profile):
         "can_view_full_profile": can_view_profile(current_profile_id, target_profile).get("can_view_full_profile", False),
         "can_follow": can_follow(current_profile_id, target_profile),
         "can_send_friend_request": can_send_friend_request(current_profile_id, target_profile),
-        "can_chat": can_chat(current_profile_id, target_id, target_profile=target_profile),
+        "can_chat": chat_allowed,
+        "can_call": chat_allowed,
+        "can_message_self": False,
+        "can_call_self": False,
         "can_like": not self_check,
+        "can_view_posts": bool(can_view_posts),
+        "can_view_reels": bool(can_view_reels),
+        "can_view_media": bool(can_view_posts or can_view_reels),
+        "can_view_followers": bool(can_view_followers),
+        "can_view_following": bool(can_view_following),
+        "can_view_friends": relationship == "friend" or bool(can_view_followers),
         "relationship": relationship,
         "follow_status": follow_status,
         "requires_follow_approval": is_private_follow_required(current_profile_id, target_profile),

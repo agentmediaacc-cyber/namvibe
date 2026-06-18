@@ -1,12 +1,13 @@
 {% set public_stats = public_stats|default({}) %}
 {% set own_profile = viewer and profile and viewer.id == profile.id %}
+{% set pa = action_policy or profile.action_policy or {} %}
 {% set stats_data = stats or {} %}
 {% set content_data = content or {} %}
 {% set wallet_data = wallet or {} %}
 {% set creator_data = creator or {} %}
 {% set marketplace_data = marketplace or {} %}
 {% set dating_data = dating or {} %}
-{% set completion_data = completion or {'percentage': 0, 'missing_fields': []} %}
+{% set completion_data = completion or {'percent': 0, 'missing': []} %}
 {% set level_data = level or {'title': 'New Member', 'score': 0} %}
 {% set pinned_data = pinned or {'posts': [], 'reels': [], 'products': []} %}
 {% set stories = content_data.get('stories', []) %}
@@ -15,9 +16,10 @@
 {% set profile_rank = profile.rank or level_data.title or 'New Member' %}
 {% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
 {% set last_seen = presence.last_seen|datetime if presence and presence.last_seen else (profile.last_login_at|datetime if profile.last_login_at else 'recently') %}
-{% set public_url = '/profile/@' ~ (profile.username or '') %}
+{% set public_url = '/profile/@' ~ (profile.username or profile.id or '') %}
 {% set score_total = profile.chain_score or level_data.score or 0 %}
 {% set xp_progress = level_data.progress_pct or 0 %}
+
 {% set posts_count = stats_data.posts or stats_data.posts_count or public_stats.posts or 0 %}
 {% set reels_count = stats_data.reels or stats_data.reels_count or public_stats.reels or 0 %}
 {% set followers_count = stats_data.followers or stats_data.followers_count or public_stats.followers or profile.followers_count or 0 %}
@@ -25,229 +27,201 @@
 {% set friends_count = stats_data.friends or stats_data.friends_count or profile.friends_count or 0 %}
 {% set likes_count = stats_data.likes or stats_data.likes_count or public_stats.likes or profile.total_likes or 0 %}
 {% set views_count = stats_data.views or stats_data.views_count or profile.profile_views or 0 %}
-{% set visitor_count = stats_data.visitors or stats_data.unique_visitors or stats_data.profile_visitors or views_count %}
-{% set visitors_week = stats_data.visitors_this_week or stats_data.visitors_week or stats_data.weekly_visitors or visitor_count %}
 
 <div class="profile-mini-header" data-mini-profile>
-    <div class="mini-avatar">{{ (display_name or 'C')[0]|upper }}</div>
-    <div>
-        <strong>{{ display_name }}</strong>
-        <span>@{{ profile.username or 'chain' }}</span>
+    <div class="mini-avatar">
+        {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" alt="{{ display_name }}">{% else %}{{ (display_name or 'C')[0]|upper }}{% endif %}
     </div>
-    {% if own_profile %}
-    <a href="/profile/edit" class="mini-action" aria-label="Edit profile"><i class="fas fa-pen"></i></a>
-    {% else %}
-    <a href="/messages/start/{{ profile.id }}" class="mini-action" aria-label="Message"><i class="fas fa-comment"></i></a>
-    {% endif %}
+    <div class="mini-info">
+        <strong>{{ display_name }}</strong>
+        <span>@{{ profile.username or 'member' }}</span>
+    </div>
+    <div class="mini-actions">
+        {% if own_profile %}
+        <a href="/profile/edit" class="mini-action"><i class="fas fa-pen"></i></a>
+        {% else %}
+            {% if pa.can_chat %}
+            <a href="/messages/start/{{ profile.id }}" class="mini-action"><i class="fas fa-comment"></i></a>
+            {% endif %}
+        {% endif %}
+    </div>
 </div>
 
-<section class="profile-hero" data-profile-hero>
-    <div class="profile-cover">
+<section class="profile-hero-premium" data-profile-hero>
+    <div class="hero-cover">
         {% if profile.cover_url %}
-        <img src="{{ profile.cover_url }}" alt="{{ display_name }} cover">
+        <img src="{{ profile.cover_url }}" alt="{{ display_name }} cover" class="cover-img">
         {% else %}
-        <div class="profile-cover-fallback"></div>
+        <div class="cover-fallback"></div>
         {% endif %}
-        <div class="profile-cover-shade"></div>
+        <div class="cover-overlay"></div>
+        
         {% if own_profile %}
-        <button class="profile-cover-edit" type="button" data-file-trigger="cover-input"><i class="fas fa-camera"></i><span>Edit cover</span></button>
+        <button class="btn-edit-cover" type="button" data-file-trigger="cover-input">
+            <i class="fas fa-camera"></i>
+            <span>Update Cover</span>
+        </button>
         <form id="cover-form" action="/profile/cover" method="POST" enctype="multipart/form-data" hidden>
             <input type="file" id="cover-input" name="cover" accept="image/*" data-auto-submit>
         </form>
         {% endif %}
     </div>
 
-    <div class="profile-hero-body">
-        <div class="profile-avatar-wrap">
-            <div class="profile-avatar {% if presence and presence.status == 'online' %}is-online{% endif %}">
+    <div class="hero-content">
+        <div class="hero-avatar-area">
+            <div class="avatar-container {% if presence and presence.status == 'online' %}is-online{% endif %}">
                 {% if profile.avatar_url %}
-                <img src="{{ profile.avatar_url }}" alt="{{ display_name }}">
+                <img src="{{ profile.avatar_url }}" alt="{{ display_name }}" class="avatar-img">
                 {% else %}
-                <span>{{ (display_name or 'C')[0]|upper }}</span>
+                <div class="avatar-placeholder">{{ (display_name or 'C')[0]|upper }}</div>
+                {% endif %}
+                
+                {% if own_profile %}
+                <button class="avatar-edit-overlay" type="button" data-file-trigger="avatar-input-header">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <form id="avatar-form-header" action="/profile/avatar" method="POST" enctype="multipart/form-data" hidden>
+                    <input type="file" id="avatar-input-header" name="avatar" accept="image/*" data-auto-submit>
+                </form>
                 {% endif %}
             </div>
-            {% if own_profile %}
-            <button class="profile-avatar-edit" type="button" data-file-trigger="avatar-input-header" aria-label="Edit avatar"><i class="fas fa-plus"></i></button>
-            <form id="avatar-form-header" action="/profile/avatar" method="POST" enctype="multipart/form-data" hidden>
-                <input type="file" id="avatar-input-header" name="avatar" accept="image/*" data-auto-submit>
-            </form>
-            {% endif %}
         </div>
 
-        <div class="profile-identity">
-            <div class="profile-name-row">
-                <h1>{{ display_name }}</h1>
-                {% if profile.is_verified or profile.verified %}
-                <span class="profile-badge verified"><i class="fas fa-circle-check"></i>Verified</span>
-                {% endif %}
-                <span class="profile-badge rank"><i class="fas fa-ranking-star"></i>{{ profile_rank }}</span>
+        <div class="hero-info-area">
+            <div class="info-top">
+                <div class="name-block">
+                    <h1>{{ display_name }}</h1>
+                    {% if profile.is_verified or profile.verified %}
+                    <i class="fas fa-check-circle verified-icon" title="Verified Account"></i>
+                    {% endif %}
+                    
+                    <span class="badge-account-type">
+                    {% set kind = pa.account_kind or profile.account_kind or 'person' %}
+                        {% if kind == 'creator' %}<i class="fas fa-clapperboard"></i>Creator
+                        {% elif kind == 'business' %}<i class="fas fa-briefcase"></i>Business
+                        {% elif kind == 'premium' %}<i class="fas fa-crown"></i>Premium
+                        {% elif kind == 'government' %}<i class="fas fa-building-columns"></i>Official
+                        {% elif kind == 'page' %}<i class="fas fa-flag"></i>Page
+                        {% else %}<i class="fas fa-user"></i>Member{% endif %}
+                    </span>
+                </div>
+                
+                <div class="handle-block">
+                    <span class="handle">@{{ profile.username or 'member' }}</span>
+                    {% set privacy = profile.profile_visibility or profile.visibility or 'public' %}
+                    <span class="privacy-tag {{ privacy }}">
+                        {% if privacy == 'private' %}<i class="fas fa-lock"></i>Private
+                        {% elif privacy == 'friends_only' %}<i class="fas fa-user-group"></i>Friends Only
+                        {% elif privacy == 'followers_only' %}<i class="fas fa-users"></i>Followers Only
+                        {% else %}<i class="fas fa-globe"></i>Public{% endif %}
+                    </span>
+                </div>
             </div>
-            <p class="profile-handle">@{{ profile.username or 'chain' }}</p>
-            {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
-            <div class="profile-meta">
+
+            {% if profile.bio %}
+            <p class="hero-bio">{{ profile.bio }}</p>
+            {% endif %}
+
+            <div class="hero-meta">
                 {% if profile_location %}
                 <span><i class="fas fa-location-dot"></i>{{ profile_location }}</span>
                 {% endif %}
-                <span><i class="fas fa-calendar-alt"></i>{{ member_since }}</span>
+                <span><i class="fas fa-calendar-alt"></i>Joined {{ member_since }}</span>
                 {% if presence and presence.status == 'online' %}
-                <span class="online"><i class="fas fa-circle"></i>Online now</span>
+                <span class="status-online"><i class="fas fa-circle"></i>Online Now</span>
                 {% else %}
-                <span><i class="far fa-clock"></i>Last active {{ last_seen }}</span>
+                <span class="status-last-seen"><i class="far fa-clock"></i>Active {{ last_seen }}</span>
                 {% endif %}
             </div>
-            <div class="profile-link-copy">
-                <span><i class="fas fa-link"></i>{{ public_url }}</span>
-                <button type="button" data-copy-profile="{{ public_url }}"><i class="fas fa-copy"></i>Copy</button>
-            </div>
-            <div class="profile-xp-bar" aria-label="Creator level progress">
-                <div>
-                    <span>Creator Level XP</span>
-                    <strong>{{ profile_rank }}</strong>
-                </div>
-                <div class="profile-xp-track"><span style="width: {{ xp_progress }}%"></span></div>
-            </div>
-        </div>
 
-        <div class="profile-main-actions">
-            {% if own_profile %}
-            <a href="/profile/edit" class="profile-btn primary"><i class="fas fa-pen-to-square"></i>Edit Profile</a>
-            {% else %}
-                {% set pa = action_policy or {} %}
-                {% if pa.primary_action == 'friend_request' %}
-                    <button class="profile-btn primary" type="button" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="{% if is_friend %}friends{% elif friend_request_status == 'pending_sent' %}pending_sent{% elif friend_request_status == 'pending_received' %}pending_received{% else %}none{% endif %}" data-request-id="{{ friend_request_id or '' }}"><i class="fas fa-user-plus"></i><span class="btn-text">{% if is_friend %}Friends{% elif friend_request_status == 'pending_sent' %}Request Pending{% elif friend_request_status == 'pending_received' %}Respond{% else %}Add Friend{% endif %}</span></button>
-                {% elif pa.primary_action == 'follow' %}
-                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
-                {% elif pa.primary_action == 'request_follow' %}
-                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-plus"></i><span>Request Follow</span></button>
-                {% elif pa.primary_action == 'requested' %}
-                    <span class="profile-btn primary" style="opacity:0.7;"><i class="fas fa-clock"></i><span>Requested</span></span>
-                {% elif pa.primary_action == 'approve_follow' %}
-                    <a href="/friends" class="profile-btn primary"><i class="fas fa-user-check"></i><span>Approve Follow</span></a>
-                {% elif pa.primary_action == 'following' %}
-                    <button class="profile-btn primary is-active" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="true"><i class="fas fa-user-check"></i><span>Following</span></button>
-                {% elif pa.primary_action == 'message' %}
-                    <a href="/messages/start/{{ profile.id }}" class="profile-btn primary"><i class="fas fa-comment"></i>Message</a>
-                {% elif pa.primary_action == 'request_sent' %}
-                    <span class="profile-btn primary" style="opacity:0.7;"><i class="fas fa-check"></i>Request Sent</span>
-                {% elif pa.primary_action == 'accept_request' %}
-                    <a href="/friends" class="profile-btn primary"><i class="fas fa-user-check"></i>Respond</a>
+            <div class="hero-actions">
+                {% if own_profile %}
+                    <a href="/profile/edit" class="btn-hero primary"><i class="fas fa-user-pen"></i>Edit Profile</a>
+                    <div class="btn-group">
+                        <button class="btn-hero" type="button" data-create-dropdown-trigger><i class="fas fa-plus"></i>Create</button>
+                        <div class="hero-dropdown" id="create-dropdown" hidden>
+                            <a href="/status/create"><i class="fas fa-circle-plus"></i>Add Story</a>
+                            <a href="/posts/create"><i class="fas fa-pen-to-square"></i>Create Post</a>
+                            <a href="/reels/upload"><i class="fas fa-clapperboard"></i>Upload Reel</a>
+                            <a href="/live/studio"><i class="fas fa-tower-broadcast"></i>Go Live</a>
+                        </div>
+                    </div>
+                    <a href="/status/create" class="btn-hero"><i class="fas fa-circle-plus"></i>Add Story</a>
+                    <a href="/posts/create" class="btn-hero"><i class="fas fa-pen-to-square"></i>Create Post</a>
+                    <a href="/reels/upload" class="btn-hero"><i class="fas fa-clapperboard"></i>Upload Reel</a>
+                    <a href="/live/studio" class="btn-hero"><i class="fas fa-tower-broadcast"></i>Go Live</a>
+                    <a href="/wallet" class="btn-hero"><i class="fas fa-wallet"></i>Wallet</a>
+                    <a href="/security/privacy" class="btn-hero"><i class="fas fa-user-shield"></i>Privacy</a>
+                    <a href="/security" class="btn-hero"><i class="fas fa-gear"></i>Settings</a>
                 {% else %}
-                    <button class="profile-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="{{ 'true' if is_following else 'false' }}"><i class="fas {{ 'fa-user-check' if is_following else 'fa-user-plus' }}"></i><span>{{ 'Following' if is_following else 'Follow' }}</span></button>
+                    {% if pa.primary_action == 'friend_request' %}
+                        <button class="btn-hero primary" type="button" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="none"><i class="fas fa-user-plus"></i>Add Friend</button>
+                    {% elif pa.primary_action == 'follow' %}
+                        <button class="btn-hero primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-plus"></i>Follow</button>
+                    {% elif pa.primary_action == 'request_follow' %}
+                        <button class="btn-hero primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-clock"></i>Request Follow</button>
+                    {% elif pa.primary_action == 'requested' %}
+                        <button class="btn-hero secondary" disabled><i class="fas fa-clock"></i>Requested</button>
+                    {% elif pa.primary_action == 'following' %}
+                        <button class="btn-hero secondary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="true"><i class="fas fa-user-check"></i>Following</button>
+                    {% elif pa.primary_action == 'message' or pa.can_chat %}
+                        <a href="/messages/start/{{ profile.id }}" class="btn-hero primary"><i class="fas fa-comment"></i>Message</a>
+                    {% elif pa.primary_action == 'request_sent' %}
+                        <button class="btn-hero secondary" disabled><i class="fas fa-check"></i>Request Sent</button>
+                    {% elif pa.primary_action == 'accept_request' %}
+                        <a href="/friends" class="btn-hero primary"><i class="fas fa-user-check"></i>Accept Request</a>
+                    {% endif %}
+                    
+                    {% if pa.can_call %}
+                    <a href="/calls/start/{{ profile.id }}/audio" class="btn-hero" title="Audio Call"><i class="fas fa-phone"></i></a>
+                    <a href="/calls/start/{{ profile.id }}/video" class="btn-hero" title="Video Call"><i class="fas fa-video"></i></a>
+                    {% endif %}
                 {% endif %}
-            {% endif %}
-            {% if not own_profile and action_policy and action_policy.can_chat %}
-            <a href="/messages/start/{{ profile.id }}" class="profile-btn"><i class="fas fa-comment"></i>Message</a>
-            <a href="/calls/start/{{ profile.id }}/audio" class="profile-btn"><i class="fas fa-phone-volume"></i>Audio</a>
-            <a href="/calls/start/{{ profile.id }}/video" class="profile-btn"><i class="fas fa-video"></i>Video</a>
-            {% endif %}
-            <button type="button" class="profile-btn" data-share-profile><i class="fas fa-share-alt"></i>Share</button>
-            <button type="button" class="profile-btn" data-profile-qr data-profile-url="{{ public_url }}"><i class="fas fa-qrcode"></i>QR</button>
-            <button type="button" class="profile-btn" aria-label="More profile actions"><i class="fas fa-ellipsis"></i>More</button>
+                
+                <button class="btn-hero" type="button" data-copy-profile="{{ public_url }}" title="Copy profile URL"><i class="fas fa-link"></i>Copy Link</button>
+                <button class="btn-hero" type="button" data-share-profile data-profile-url="{{ public_url }}" title="Share Profile"><i class="fas fa-share-nodes"></i>Share</button>
+                <button class="btn-hero" type="button" data-profile-qr data-profile-url="{{ public_url }}" title="Show QR"><i class="fas fa-qrcode"></i>QR</button>
+                <button class="btn-hero" type="button" aria-label="More actions"><i class="fas fa-ellipsis"></i>More</button>
+            </div>
         </div>
     </div>
 </section>
 
-<section class="profile-stats" aria-label="Profile stats">
-    <a href="{{ url_for('profile.view_posts', username=profile.username) if profile.username else '#' }}" class="stat-card"><strong data-count-up="{{ posts_count }}">{{ posts_count }}</strong><span>Posts</span></a>
-    <a href="{{ url_for('profile.view_reels', username=profile.username) if profile.username else '#' }}" class="stat-card"><strong data-count-up="{{ reels_count }}">{{ reels_count }}</strong><span>Reels</span></a>
-    <a href="{{ url_for('social.view_user_followers', username=profile.username) if profile.username else url_for('social.view_followers') }}" class="stat-card"><strong data-count-up="{{ followers_count }}">{{ followers_count }}</strong><span>Followers</span></a>
-    <a href="{{ url_for('social.view_user_following', username=profile.username) if profile.username else url_for('social.view_following') }}" class="stat-card"><strong data-count-up="{{ following_count }}">{{ following_count }}</strong><span>Following</span></a>
-    <a href="{{ url_for('social.view_user_friends', username=profile.username) if profile.username else url_for('social.view_friends') }}" class="stat-card"><strong data-count-up="{{ friends_count }}">{{ friends_count }}</strong><span>Friends</span></a>
-    <div class="stat-card static"><strong data-count-up="{{ likes_count }}">{{ likes_count }}</strong><span>Likes</span></div>
-    <div class="stat-card static"><strong data-count-up="{{ views_count }}">{{ views_count }}</strong><span>Profile Views</span></div>
-    <div class="stat-card static"><strong data-count-up="{{ visitors_week }}">{{ visitors_week }}</strong><span>Visitors This Week</span></div>
-    <div class="stat-card static"><strong data-count-up="{{ score_total }}">{{ score_total }}</strong><span>NamVibe Score</span></div>
-</section>
-
-<div class="profile-top-grid">
-    <section class="profile-card completion-card">
-        <div class="profile-card-head">
-            <div><span>Profile completion</span><h2>{{ completion_data.percentage or 0 }}% complete</h2></div>
-            {% if own_profile %}<a href="/profile/edit">Improve profile</a>{% endif %}
-        </div>
-        <div class="profile-progress"><span style="width: {{ completion_data.percentage or 0 }}%"></span></div>
-        <div class="chip-row">
-            {% for field in completion_data.missing_fields[:5] %}
-            <span>{{ field }}</span>
-            {% else %}
-            <span>Profile basics complete</span>
-            {% endfor %}
-        </div>
-    </section>
-
-    <section class="profile-card trust-banner {{ 'is-verified' if profile.is_verified or profile.verified else 'needs-verification' }}">
-        <i class="fas fa-shield-halved"></i>
-        <div>
-            {% if profile.is_verified or profile.verified %}
-            <span>Trusted NamVibe identity</span>
-            <h2>Verified profile</h2>
-            {% else %}
-            <span>Verification recommended</span>
-            <h2>Verify your account</h2>
-            <p>Unlock trust badge, wallet withdrawals, creator monetization, marketplace selling, and dating trust.</p>
-            {% endif %}
-        </div>
-        {% if own_profile and not (profile.is_verified or profile.verified) %}
-            {% if profile.email %}
-            <form action="/auth/resend-confirmation" method="POST">
-                <input type="hidden" name="email" value="{{ profile.email }}">
-                <button type="submit">Resend confirmation</button>
-            </form>
-            {% else %}
-            <a href="/profile/edit">Verify email</a>
-            {% endif %}
-        {% endif %}
-    </section>
-</div>
-
-<section class="profile-highlight-row" aria-label="Profile stories and highlights">
-    {% for story in stories[:5] %}
-    <button type="button" class="profile-highlight has-image">
-        <span>{% if story.media_url %}<img src="{{ story.media_url }}" alt="{{ story.caption or 'Story' }}">{% else %}<i class="fas fa-circle-play"></i>{% endif %}</span>
-        <strong>{{ story.caption or 'Story' }}</strong>
-    </button>
-    {% else %}
-        {% if not own_profile %}
-        <div class="profile-highlight-empty">No public stories yet.</div>
-        {% endif %}
-    {% endfor %}
-    {% if own_profile %}
-    <a href="{{ '/status/create' if own_profile else '#posts' }}" class="profile-highlight add-highlight">
-        <span><i class="fas fa-plus"></i></span>
-        <strong>Add Story</strong>
+<section class="profile-stats-bar">
+    <div class="stat-item">
+        <strong>{{ posts_count }}</strong>
+        <span>Posts</span>
+    </div>
+    <div class="stat-item">
+        <strong>{{ reels_count }}</strong>
+        <span>Reels</span>
+    </div>
+    {% if own_profile or pa.can_view_followers %}
+    <a href="{{ url_for('social.view_user_followers', username=profile.username) if profile.username else url_for('social.view_followers') }}" class="stat-item clickable">
+        <strong>{{ followers_count }}</strong>
+        <span>Followers</span>
     </a>
     {% endif %}
-</section>
-
-<div class="profile-qr-popover" data-profile-qr-popover hidden>
-    <div class="profile-qr-card">
-        <button type="button" data-profile-qr-close aria-label="Close QR"><i class="fas fa-xmark"></i></button>
-        <div class="profile-qr-code" data-profile-qr-code></div>
-        <strong>{{ display_name }}</strong>
-        <span>{{ public_url }}</span>
+    {% if own_profile or pa.can_view_following %}
+    <a href="{{ url_for('social.view_user_following', username=profile.username) if profile.username else url_for('social.view_following') }}" class="stat-item clickable">
+        <strong>{{ following_count }}</strong>
+        <span>Following</span>
+    </a>
+    {% endif %}
+    {% if friends_count > 0 and (own_profile or pa.can_view_friends) %}
+    <a href="{{ url_for('social.view_user_friends', username=profile.username) if profile.username else url_for('social.view_friends') }}" class="stat-item clickable">
+        <strong>{{ friends_count }}</strong>
+        <span>Friends</span>
+    </a>
+    {% endif %}
+    <div class="stat-item">
+        <strong>{{ likes_count }}</strong>
+        <span>Likes</span>
     </div>
-</div>
-
-<section class="profile-featured profile-section">
-    <div class="profile-section-head">
-        <span>Featured</span>
-        <h2>Pinned on NamVibe</h2>
+    {% if own_profile %}
+    <div class="stat-item">
+        <strong>{{ views_count }}</strong>
+        <span>Views</span>
     </div>
-    <div class="profile-featured-grid">
-        <article class="profile-card featured-card">
-            <i class="fas fa-thumbtack"></i>
-            <h3>Pinned Post</h3>
-            {% if pinned_data.posts %}<p>{{ pinned_data.posts[0].caption or pinned_data.posts[0].body or 'Featured post' }}</p>{% elif own_profile %}<a href="/posts/create">Pin your first post</a>{% else %}<p>No pinned post yet.</p>{% endif %}
-        </article>
-        <article class="profile-card featured-card">
-            <i class="fas fa-film"></i>
-            <h3>Pinned Reel</h3>
-            {% if pinned_data.reels %}<p>{{ pinned_data.reels[0].caption or 'Featured reel' }}</p>{% elif own_profile %}<a href="/reels/upload">Upload reel</a>{% else %}<p>No pinned reel yet.</p>{% endif %}
-        </article>
-        <article class="profile-card featured-card">
-            <i class="fas fa-bag-shopping"></i>
-            <h3>Pinned Product</h3>
-            {% if pinned_data.products %}<p>{{ pinned_data.products[0].title or 'Featured product' }}</p>{% elif own_profile %}<a href="/marketplace/create">Add product</a>{% else %}<p>No pinned product yet.</p>{% endif %}
-        </article>
-    </div>
+    {% endif %}
 </section>
