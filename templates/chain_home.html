@@ -9,6 +9,8 @@
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/namvibe_2026_home.css">
 <link rel="stylesheet" href="/static/css/home_modern_clean.css">
+<link rel="stylesheet" href="/static/css/smart_suggestions.css">
+<link rel="stylesheet" href="/static/css/home_feed_mobile.css">
 {% endblock %}
 
 {% block content %}
@@ -95,13 +97,19 @@
         <div class="nv-feed-scroll">
           {% if reels_feed %}
           {% for reel in reels_feed %}
-          <div class="nv-reel-card" data-reel-id="{{ reel.id }}" data-index="{{ loop.index0 }}">
+          <div class="nv-reel-card" data-reel-id="{{ reel.id }}" data-creator-id="{{ reel.profile_id }}" data-index="{{ loop.index0 }}">
             {% if reel.thumbnail_url %}
             <img class="nv-reel-thumbnail" src="{{ reel.thumbnail_url }}" alt="" loading="lazy">
             {% endif %}
             <div class="nv-reel-loader"><div class="spinner"></div></div>
             {% if reel.video_url %}
             <video class="nv-reel-video" src="{{ reel.video_url }}" muted playsinline preload="metadata" poster="{{ reel.thumbnail_url }}"></video>
+            <div class="nv-video-progress" aria-hidden="true"><span></span></div>
+            {% else %}
+            <div class="nv-video-fallback">
+              <i class="fas fa-film"></i>
+              <span>Video unavailable</span>
+            </div>
             {% endif %}
             <div class="nv-like-heart"><i class="fas fa-heart"></i></div>
 
@@ -216,9 +224,10 @@
           <span>Suggested Creators</span>
           <a href="{{ discover_route }}">See all</a>
         </div>
-        {% if suggested_creators %}
-        {% for profile in suggested_creators[:5] %}
-        <div class="nv-creator-row">
+        {% if smart_suggestions or suggested_creators %}
+        {% set rail_suggestions = smart_suggestions or suggested_creators %}
+        {% for profile in rail_suggestions[:5] %}
+        <div class="nv-creator-row smart-suggestion-row" data-suggestion-id="{{ profile.profile_id or profile.id }}">
           <div class="nv-avatar nv-avatar-sm">
             {% if profile.avatar_url %}
             <img src="{{ profile.avatar_url }}" alt="{{ profile.display_name }}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
@@ -230,11 +239,14 @@
           <div class="nv-creator-info">
             <div class="nv-creator-name">{{ profile.display_name or 'Creator' }}{% if profile.is_verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}</div>
             <div class="nv-creator-username">@{{ profile.username or 'creator' }}</div>
+            {% if profile.reason %}
+            <div class="nv-creator-meta suggestion-reason">{{ profile.reason }}{% if profile.mutual_count %} · {{ profile.mutual_count }} mutual{% endif %}</div>
+            {% endif %}
             {% if profile.followers_count %}
             <div class="nv-creator-meta">{{ profile.followers_count }} followers</div>
             {% endif %}
           </div>
-          <button type="button" class="nv-follow-btn" data-profile-id="{{ profile.id }}">Follow</button>
+          <button type="button" class="nv-follow-btn" data-profile-id="{{ profile.profile_id or profile.id }}" data-action-type="{{ profile.action_type or 'follow' }}">{{ 'Add' if profile.action_type == 'add_friend' else 'Follow' }}</button>
         </div>
         {% endfor %}
         {% elif suggested_people %}
@@ -330,6 +342,30 @@
     </aside>
 
   </div>{# /.nv-home-grid #}
+
+  <div class="smart-popout-feed" data-smart-popouts>
+    {% for card in recommendation_cards or [] %}
+    <article class="smart-popout-card" data-card-id="{{ card.id }}">
+      <button type="button" class="smart-popout-dismiss" data-dismiss-card="{{ card.id }}" aria-label="Dismiss">&times;</button>
+      <span class="smart-popout-kicker">{{ card.type|title }}</span>
+      <h3>{{ card.title }}</h3>
+      <p>{{ card.subtitle }}</p>
+      {% if card.items %}
+      <div class="smart-popout-items">
+        {% for item in card.items[:3] %}
+        <a href="/profile/@{{ item.username }}" class="smart-popout-person">
+          <span>{{ (item.display_name or item.username or '?')[0]|upper }}</span>
+          <strong>{{ item.display_name or item.username }}</strong>
+          <small>{{ item.reason }}</small>
+        </a>
+        {% endfor %}
+      </div>
+      {% elif card.action_url %}
+      <a href="{{ card.action_url }}" class="smart-popout-action">Open</a>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
 
   {# MOBILE TOPBAR #}
   <div class="nv-mobile-topbar">
@@ -472,4 +508,8 @@
 <script src="/static/js/chain_home.js"></script>
 <script src="/static/js/namvibe_2026_home.js"></script>
 <script src="/static/js/home_real_actions.js"></script>
+<script src="/static/js/smart_suggestions.js"></script>
+<script src="/static/js/reels_autoplay_engine.js"></script>
+<script src="/static/js/status_autoplay_engine.js"></script>
+<script src="/static/js/home_feed_mobile.js"></script>
 {% endblock %}

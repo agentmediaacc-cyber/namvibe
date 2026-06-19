@@ -81,7 +81,7 @@
         <div class="lp-modal">
           <div class="lp-modal-head"><h3>Create Goal</h3><button class="lp-modal-close">&times;</button></div>
           <div class="lp-modal-body">
-            <input class="lp-input" id="lpGoalTitle" placeholder="Goal title" value="Reach 1000 gift coins">
+            <input class="lp-input" id="lpGoalTitle" placeholder="Goal title" value="Reach a gift goal">
             <input class="lp-input" id="lpGoalTarget" type="number" placeholder="Target amount" value="1000">
             <select class="lp-input" id="lpGoalType"><option value="gifts">Gifts</option><option value="followers">Followers</option><option value="viewers">Viewers</option><option value="tips">Tips</option></select>
             <select class="lp-input" id="lpGoalRoom"><option value="">Select a live room...</option>{% for r in stats.recent_rooms %}<option value="{{ r.id }}">{{ r.title }}</option>{% endfor %}</select>

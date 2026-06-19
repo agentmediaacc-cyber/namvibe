@@ -538,7 +538,7 @@ interest }}</span>
                     </div>
                     <div class="glass-card p-6">
                         <h3 class="font-black mb-3">FAQ</h3>
-                        <div class="space-y-2 text-sm">Coming soon...</div>
+                        <div class="space-y-2 text-sm">No FAQs yet.</div>
                     </div>
                 </div>
             </div>
@@ -676,7 +676,7 @@ data.suggestions.join('<br>');
 data.captions.join('<br>');
     }
     
-    function enhanceProfilePic() { alert('AI enhancement coming soon!'); }
+    function enhanceProfilePic() { window.location.href = '/profile/edit'; }
     
     // AI Fab toggle
     const aiFab = document.getElementById('aiFab');
@@ -712,9 +712,9 @@ alert('Privacy settings saved'); });
     
     function messageUser() { window.location.href = '/messages/new?user={{ profile.id }}'; }
     function startVideoCall() { window.location.href = '/calls/start/{{ profile.id }}'; }
-    function subscribeUser() { alert('Subscription feature coming soon!'); }
+    function subscribeUser() { window.location.href = '/creator/dashboard'; }
     function withdrawFunds() { window.location.href = '/wallet/'; }
-    function promoteContent() { alert('Promotion tools coming soon.'); }
+    function promoteContent() { window.location.href = '/creator/dashboard'; }
     function addStoryHighlight() { alert('Add story highlight'); }
     function reportUser() { alert('Report user'); }
     function blockUser() { alert('Block user'); }

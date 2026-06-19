@@ -2397,6 +2397,11 @@ def build_tiktok_home_payload(exclude_test_content=True):
             reels = filter_content(reels)
         current = payload["current"]
         profile_id = current.get("id") if current else None
+        try:
+            from services.video_interest_service import rank_reels_for_viewer
+            reels = rank_reels_for_viewer(profile_id, reels=reels, limit=30)
+        except Exception:
+            pass
 
         follow_map = {}
         if profile_id and reels:
@@ -2436,10 +2441,17 @@ def build_tiktok_home_payload(exclude_test_content=True):
         payload["stats"]["reels"] = len(items)
 
         # Suggested creators
-        suggested = _suggested_people(current_user=current, limit=5)
-        if exclude_test_content:
-            suggested = filter_profiles(suggested)
+        try:
+            from services.smart_suggestion_service import get_smart_suggestions, build_recommendation_cards
+            suggested = get_smart_suggestions(profile_id, limit=5)
+            payload["recommendation_cards"] = build_recommendation_cards(profile_id, limit=3)
+        except Exception:
+            suggested = _suggested_people(current_user=current, limit=5)
+            if exclude_test_content:
+                suggested = filter_profiles(suggested)
+            payload["recommendation_cards"] = []
         payload["suggested_creators"] = suggested
+        payload["smart_suggestions"] = suggested
         payload["stats"]["suggested"] = len(suggested)
 
         # Trending hashtags from reels captions

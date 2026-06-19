@@ -464,7 +464,7 @@
 
         <div class="content-body page-fade-in">
             <div id="error-retry-banner" style="display: none; background: #ff3b30; color: white; padding: 10px 20px; text-align: center; position: sticky; top: 80px; z-index: 100;">
-                <i class="fas fa-exclamation-circle mr-2"></i> Connection lost. <a href="#" onclick="location.reload()" style="color: white; text-decoration: underline; font-weight: bold;">Retry</a>
+                <i class="fas fa-exclamation-circle mr-2"></i> Connection lost. <button type="button" onclick="location.reload()" style="color: white; text-decoration: underline; font-weight: bold; background: transparent; border: 0; padding: 0; cursor: pointer;">Retry</button>
             </div>
             {% block content %}{% endblock %}
         </div>

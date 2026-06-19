@@ -80,6 +80,10 @@ CHAIN_STATIC_COLUMNS = {
         "title", "body", "entity_type", "entity_id", "action_url",
         "is_read", "deleted_at", "created_at", "updated_at"
     },
+    "chain_video_events": {
+        "id", "viewer_profile_id", "video_type", "video_id", "creator_profile_id",
+        "event_type", "watch_ms", "created_at"
+    },
     "chain_ip_reputation": {
         "ip_address", "is_blocked", "created_at", "updated_at"
     },

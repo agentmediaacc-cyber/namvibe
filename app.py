@@ -736,6 +736,8 @@ def create_app():
             tiktok = build_tiktok_home_payload()
             data["reels_feed"] = tiktok.get("reels_feed", [])
             data["suggested_creators"] = tiktok.get("suggested_creators", [])
+            data["smart_suggestions"] = tiktok.get("smart_suggestions", [])
+            data["recommendation_cards"] = tiktok.get("recommendation_cards", [])
             avail = {rule.rule for rule in app.url_map.iter_rules()}
             is_in = bool(session.get("profile_id") or session.get("auth_user_id"))
             routes = {

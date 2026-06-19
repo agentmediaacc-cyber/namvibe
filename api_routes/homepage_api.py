@@ -28,6 +28,46 @@ def _json_error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
 
 
+@homepage_api_bp.route("/api/suggestions/smart")
+def api_smart_suggestions():
+    profile = _current_profile()
+    profile_id = profile.get("id") if profile else None
+    try:
+        limit = min(max(int(request.args.get("limit", 10)), 1), 20)
+    except (TypeError, ValueError):
+        limit = 10
+    try:
+        from services.smart_suggestion_service import get_smart_suggestions, build_recommendation_cards
+        suggestions = get_smart_suggestions(profile_id, limit=limit)
+        cards = build_recommendation_cards(profile_id, limit=3)
+        return _json_ok({"suggestions": suggestions, "cards": cards})
+    except Exception as error:
+        return _json_error(str(error), 500)
+
+
+@homepage_api_bp.route("/api/video-events", methods=["POST"])
+@login_required
+def api_video_events():
+    profile = _current_profile()
+    if not profile or not profile.get("id"):
+        return _json_error("Not authenticated", 401)
+    data = request.get_json(silent=True) or {}
+    try:
+        from services.video_interest_service import record_video_event
+        result = record_video_event(
+            viewer_profile_id=profile["id"],
+            video_type=data.get("video_type") or data.get("type") or "reel",
+            video_id=data.get("video_id") or data.get("id"),
+            creator_profile_id=data.get("creator_profile_id"),
+            event_type=data.get("event_type") or "view",
+            watch_ms=data.get("watch_ms") or 0,
+        )
+        status = 200 if result.get("ok") else 202
+        return _json_ok({"result": result}, status=status)
+    except Exception as error:
+        return _json_error(str(error), 500)
+
+
 # ================================================================
 # GET /api/home/feed — Tab-filtered feed with pagination
 # ================================================================
