@@ -113,6 +113,9 @@ def accept_friend_request(profile_id, request_id):
 
 def _invalidate_friend_cache(p1, p2):
     """Clears all friend-related caches for two profiles."""
+    from services.relationship_cache_service import invalidate_relationship_state
+    invalidate_relationship_state(p1, p2)
+    invalidate_relationship_state(p2, p1)
     for pid in [p1, p2]:
         cache_delete(f"friends_list:{pid}:20:first")
         cache_delete(f"friends:{pid}")

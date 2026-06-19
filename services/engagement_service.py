@@ -334,7 +334,10 @@ def follow_profile(follower_id, following_id, toggle=True):
     from services.social_service import _invalidate_social_cache
     _invalidate_social_cache(following_id)
     _invalidate_social_cache(follower_id)
-    
+
+    from services.relationship_cache_service import invalidate_relationship_state
+    invalidate_relationship_state(follower_id, following_id)
+
     return {"success": True, "following": following, "followers_count": followers_count, "following_count": following_count}
 
 
@@ -352,7 +355,10 @@ def unfollow_profile(follower_id, following_id):
     from services.social_service import _invalidate_social_cache
     _invalidate_social_cache(following_id)
     _invalidate_social_cache(follower_id)
-    
+
+    from services.relationship_cache_service import invalidate_relationship_state
+    invalidate_relationship_state(follower_id, following_id)
+
     return {"success": True, "following": False, "followers_count": followers_count, "following_count": following_count}
 
 

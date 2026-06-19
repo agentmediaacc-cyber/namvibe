@@ -157,7 +157,7 @@ class Phase87Validation(unittest.TestCase):
             seen.add(r)
         
         # Also check for semantic overlaps
-        social_routes = ["/friends", "/followers", "/following", "/api/friends"]
+        social_routes = ["/social/friends", "/social/followers", "/social/following", "/social/api/friends"]
         for sr in social_routes:
             matches = [r for r in rules if r.startswith(sr)]
             if len(matches) > 1:

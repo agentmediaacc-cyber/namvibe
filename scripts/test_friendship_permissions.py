@@ -15,6 +15,7 @@ os.environ["FLASK_ENV"] = "production"
 
 from services.neon_service import fast_query, write_query, prime_neon_runtime
 from services.friendship_service import are_friends, require_friendship_or_403
+from services.relationship_cache_service import invalidate_relationship_state
 
 
 PASS = 0
@@ -109,6 +110,8 @@ def main():
         "INSERT INTO chain_friends (profile_id_1, profile_id_2, status) VALUES (%s, %s, 'friend') ON CONFLICT DO NOTHING",
         [moon_id, namvibe_id]
     )
+    invalidate_relationship_state(moon_id, namvibe_id)
+    invalidate_relationship_state(namvibe_id, moon_id)
     check("friends_setup_success", are_friends(moon_id, namvibe_id), "moon and namvibe are now friends")
 
     # Test 3: If they are friends, should pass

@@ -9,6 +9,7 @@ from engines.cache_engine import cache_key, get_cache, set_cache
 from services.homepage_real_data_guard import public_profile_sql
 from services.neon_service import fast_query
 from services.production_content_guard import is_fake_content
+from services.relationship_cache_service import get_many_relationship_states
 from services.relationship_privacy_service import is_blocked_any
 from services.social_action_policy import get_account_kind, get_primary_action
 
@@ -173,6 +174,10 @@ def get_smart_suggestions(viewer_profile_id=None, limit: int = 10) -> List[Dict]
     suggestions = []
     seen = set()
 
+    # Batch relationship states
+    candidate_ids = [str(row.get("id") or "") for row in candidates]
+    rel_states = get_many_relationship_states(viewer_profile_id, candidate_ids) if viewer_profile_id else {}
+
     for row in candidates:
         pid = str(row.get("id") or "")
         if not pid or pid in seen or pid in excluded:
@@ -182,6 +187,7 @@ def get_smart_suggestions(viewer_profile_id=None, limit: int = 10) -> List[Dict]
         if viewer_profile_id and is_blocked_any(viewer_profile_id, pid):
             continue
         account_kind = get_account_kind(row)
+        state = rel_states.get(pid, {})
         action_type = get_primary_action(viewer_profile_id, row)
         if action_type in {"self", "message", "request_sent", "requested", "following", "none", "blocked"}:
             continue

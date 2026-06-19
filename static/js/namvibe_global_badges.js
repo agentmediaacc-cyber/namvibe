@@ -1,15 +1,26 @@
 (function () {
   'use strict';
 
-  var POLL_INTERVAL = 20000;
+  var POLL_INTERVAL = 60000;
   var pollTimer = null;
   var socket = null;
+  var timerGuard = false;
 
   function init() {
+    if (timerGuard) return;
+    timerGuard = true;
     poll();
     pollTimer = setInterval(poll, POLL_INTERVAL);
     listenSocket();
     listenEvents();
+  }
+
+  function refreshBadge() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+    }
+    poll();
+    pollTimer = setInterval(poll, POLL_INTERVAL);
   }
 
   function poll() {
@@ -39,26 +50,26 @@
     try {
       socket = io();
       socket.on('notification:new', function () {
-        poll();
+        refreshBadge();
       });
       socket.on('friend_request:new', function () {
-        poll();
+        refreshBadge();
       });
       socket.on('friend_request:accepted', function () {
-        poll();
+        refreshBadge();
       });
     } catch (e) {}
   }
 
   function listenEvents() {
     document.addEventListener('notifications:read', function () {
-      poll();
+      refreshBadge();
     });
     document.addEventListener('friend_request:accepted', function () {
-      poll();
+      refreshBadge();
     });
     document.addEventListener('friend_request:declined', function () {
-      poll();
+      refreshBadge();
     });
   }
 

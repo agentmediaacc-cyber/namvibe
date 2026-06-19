@@ -16,6 +16,7 @@ from psycopg2 import errors as pg_errors
 from services.circuit_breaker import CircuitBreaker
 from services.env_service import get_env, load_project_env
 from services.logging_service import log_error, log_warning, log_info, log_metric
+from services.log_rate_limit_service import sql_fingerprint, should_log
 
 # CHAIN_STATIC_SCHEMA_CACHE
 # Avoid slow pg_attribute/pg_class schema checks during hot requests.
@@ -444,7 +445,9 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                 
                 latency = (time.perf_counter() - start_time) * 1000
                 if latency > 500:
-                    log_warning("neon_slow_query", sql=sql_text[:200], latency_ms=latency)
+                    fp = sql_fingerprint(sql_text)
+                    if should_log(fp):
+                        log_warning("neon_slow_query", sql=sql_text[:200], latency_ms=latency)
                 
                 # Automatically fetch if RETURNING is present, or if explicitly requested
                 is_returning = "RETURNING" in sql_text.upper()

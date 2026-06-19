@@ -6,8 +6,8 @@ following, and messaging.
 """
 
 from services.neon_service import fast_query
-from services.friend_service import are_friends
-from services.privacy_service import is_blocked
+from services.relationship_cache_service import get_relationship_state
+from services.blocking_service import is_blocked_any as _bs_is_blocked_any
 
 ALLOWED_VISIBILITY = {"public", "friends_only", "followers_only", "private"}
 ALLOWED_INTERACTION = {"everyone", "friends", "followers", "no_one"}
@@ -30,37 +30,26 @@ def normalize_interaction(value, default="everyone"):
 def is_friend(viewer_id, owner_id):
     if not viewer_id or not owner_id:
         return False
-    return are_friends(viewer_id, owner_id)
+    state = get_relationship_state(viewer_id, owner_id)
+    return state.get("is_friend", False)
 
 
 def is_follower(viewer_id, owner_id):
     if not viewer_id or not owner_id:
         return False
-    rows = fast_query(
-        "SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
-        [viewer_id, owner_id], timeout_ms=1500, default=[]
-    )
-    return bool(rows)
+    state = get_relationship_state(viewer_id, owner_id)
+    return state.get("is_following", False)
 
 
 def is_following(viewer_id, owner_id):
     if not viewer_id or not owner_id:
         return False
-    rows = fast_query(
-        "SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
-        [owner_id, viewer_id], timeout_ms=1500, default=[]
-    )
-    return bool(rows)
+    state = get_relationship_state(owner_id, viewer_id)
+    return state.get("is_following", False)
 
 
 def is_blocked_any(viewer_id, owner_id):
-    if not viewer_id or not owner_id:
-        return False
-    if is_blocked(viewer_id, owner_id):
-        return True
-    if is_blocked(owner_id, viewer_id):
-        return True
-    return False
+    return _bs_is_blocked_any(viewer_id, owner_id)
 
 
 def get_relationship(viewer_id, owner_id):
@@ -70,10 +59,15 @@ def get_relationship(viewer_id, owner_id):
         return "self"
     if is_blocked_any(viewer_id, owner_id):
         return "blocked"
-    if are_friends(viewer_id, owner_id):
+    state = get_relationship_state(viewer_id, owner_id)
+    if state.get("is_friend"):
         return "friend"
-    viewer_follows = is_follower(viewer_id, owner_id)
-    owner_follows = is_following(viewer_id, owner_id)
+    if state.get("is_following"):
+        viewer_follows = True
+    else:
+        viewer_follows = False
+    owner_state = get_relationship_state(owner_id, viewer_id) if not viewer_follows else {"is_following": False}
+    owner_follows = owner_state.get("is_following", False)
     if viewer_follows and owner_follows:
         return "mutual_follow"
     if viewer_follows:
@@ -97,11 +91,8 @@ def is_approved_follower(viewer_id, owner_id):
 def has_pending_follow_request(viewer_id, owner_id):
     if not viewer_id or not owner_id:
         return False
-    rows = fast_query(
-        "SELECT 1 FROM chain_follow_requests WHERE requester_profile_id = %s AND target_profile_id = %s AND status = 'pending' LIMIT 1",
-        [viewer_id, owner_id], timeout_ms=1000, default=[]
-    )
-    return bool(rows)
+    state = get_relationship_state(viewer_id, owner_id)
+    return state.get("follow_request_sent", False)
 
 
 def can_view_by_rule(viewer_id, owner_id, rule):
@@ -117,9 +108,9 @@ def can_view_by_rule(viewer_id, owner_id, rule):
     if rule == "public":
         return True
     if rule == "friends_only":
-        return are_friends(viewer_id, owner_id)
+        return is_friend(viewer_id, owner_id)
     if rule == "followers_only" or rule == "private":
-        return are_friends(viewer_id, owner_id) or is_approved_follower(viewer_id, owner_id)
+        return is_friend(viewer_id, owner_id) or is_approved_follower(viewer_id, owner_id)
     return True
 
 
@@ -212,7 +203,7 @@ def can_send_friend_request(viewer_id, profile):
     if rule == "no_one":
         return False
     if rule == "friends":
-        return are_friends(viewer_id, owner_id)
+        return is_friend(viewer_id, owner_id)
     if rule == "followers":
         return is_follower(viewer_id, owner_id)
     return True
@@ -232,7 +223,7 @@ def can_follow(viewer_id, profile):
     if rule == "no_one":
         return False
     if rule == "friends":
-        return are_friends(viewer_id, owner_id)
+        return is_friend(viewer_id, owner_id)
     if rule == "followers":
         return is_follower(viewer_id, owner_id)
     return True
@@ -252,7 +243,7 @@ def can_message(viewer_id, profile):
     if rule == "no_one":
         return False
     if rule == "friends":
-        return are_friends(viewer_id, owner_id)
+        return is_friend(viewer_id, owner_id)
     if rule == "followers":
         return is_follower(viewer_id, owner_id)
     return True

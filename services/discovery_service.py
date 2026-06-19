@@ -4,6 +4,7 @@ from services.profile_service import normalize_profile
 from services.recommendation_service import get_recommended_posts, get_recommended_profiles
 from services.request_cache import get_or_set
 from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, public_profile_sql, public_profile_subquery
+from services.relationship_cache_service import get_many_relationship_states
 from services.social_action_policy import get_action_policy, is_self
 from services.relationship_privacy_service import get_full_policy, is_blocked_any
 
@@ -159,9 +160,13 @@ def get_discovery_data(section, viewer_id=None, limit=50):
             data = _load_profiles(limit=limit)
 
         enriched = []
+        # Batch relationship states for all profiles
+        profile_ids = [item.get("id") for item in data if isinstance(item, dict) and item.get("id")]
+        rel_states = get_many_relationship_states(viewer_id, profile_ids) if viewer_id and profile_ids else {}
         for item in data:
             if isinstance(item, dict) and "username" in item:
-                if viewer_id and is_blocked_any(viewer_id, item.get("id")):
+                pid = item.get("id")
+                if viewer_id and pid and is_blocked_any(viewer_id, pid):
                     continue
 
                 full_policy = get_full_policy(viewer_id, item) if viewer_id else None
@@ -170,7 +175,7 @@ def get_discovery_data(section, viewer_id=None, limit=50):
                     "can_follow": False, "can_send_friend_request": False, "can_chat": False,
                     "can_like": False, "relationship": "none", "primary_action": "none",
                 }
-                if viewer_id and is_self(viewer_id, item.get("id")):
+                if viewer_id and is_self(viewer_id, pid):
                     policy["primary_action"] = "self"
                 item["account_kind"] = policy["account_kind"]
                 item["relationship"] = policy["relationship"]

@@ -2,7 +2,8 @@
 Friendship Service — Helper functions for the NamVibe friendship system.
 """
 from services.neon_service import fast_query, write_query
-from services.friend_service import are_friends as _are_friends, send_friend_request as _send_fr, accept_friend_request as _accept_fr, decline_friend_request as _decline_fr, cancel_friend_request as _cancel_fr
+from services.friend_service import send_friend_request as _send_fr, accept_friend_request as _accept_fr, decline_friend_request as _decline_fr, cancel_friend_request as _cancel_fr
+from services.relationship_cache_service import get_relationship_state, invalidate_relationship_state
 from services.notification_engine import create_notification
 from services.socketio_service import emit_to_profile
 from services.redis_service import cache_delete
@@ -18,7 +19,10 @@ def normalize_pair(a, b):
 
 
 def are_friends(profile_id, other_id):
-    return _are_friends(profile_id, other_id)
+    if not profile_id or not other_id:
+        return False
+    state = get_relationship_state(profile_id, other_id)
+    return state.get("is_friend", False)
 
 
 def get_friendship_status(profile_id, other_id):
@@ -26,20 +30,13 @@ def get_friendship_status(profile_id, other_id):
         return {"status": "unknown", "friendship": None}
     if profile_id == other_id:
         return {"status": "self", "friendship": None}
-    if _are_friends(profile_id, other_id):
+    state = get_relationship_state(profile_id, other_id)
+    if state.get("is_friend"):
         return {"status": "friends", "friendship": "friends"}
-    sent = fast_query(
-        "SELECT id, status FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending' LIMIT 1",
-        [profile_id, other_id]
-    )
-    if sent:
-        return {"status": "pending_sent", "friendship": "pending", "request_id": sent[0]['id']}
-    received = fast_query(
-        "SELECT id, status FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending' LIMIT 1",
-        [other_id, profile_id]
-    )
-    if received:
-        return {"status": "pending_received", "friendship": "pending", "request_id": received[0]['id']}
+    if state.get("friend_request_sent"):
+        return {"status": "pending_sent", "friendship": "pending"}
+    if state.get("friend_request_received"):
+        return {"status": "pending_received", "friendship": "pending"}
     return {"status": "none", "friendship": None}
 
 
@@ -56,7 +53,7 @@ def send_friend_request(sender_id, receiver_id, message=None):
             actor_profile_id=sender_id,
             entity_type="friend_request",
             entity_id=result.get("request_id"),
-            action_url="/friends/requests"
+            action_url="/social/friend-requests"
         )
         emit_to_profile(receiver_id, "friend_request:new", {
             "request_id": result.get("request_id"),
@@ -122,6 +119,6 @@ def require_friendship_or_403(current_id, other_id, feature_name):
         return None, False
     if current_id == other_id:
         return None, True
-    if not _are_friends(current_id, other_id):
+    if not are_friends(current_id, other_id):
         return None, False
     return None, True

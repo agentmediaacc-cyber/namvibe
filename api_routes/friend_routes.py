@@ -1,5 +1,8 @@
 """
 Friend Routes — Friendship system API endpoints.
+
+# LEGACY COMPATIBILITY API — do not use for new UI.
+# New UI should use /social/friends/* endpoints in social_routes.py.
 """
 from flask import Blueprint, jsonify, request, render_template
 from api_routes.profile_routes import login_required

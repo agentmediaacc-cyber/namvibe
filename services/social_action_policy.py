@@ -1,8 +1,8 @@
 """Social action policy engine — determines allowed actions between profiles."""
 
-from services.friend_service import are_friends
 from services.neon_service import fast_query
-from services.privacy_service import is_blocked
+from services.blocking_service import is_blocked_any
+from services.relationship_cache_service import get_relationship_state
 from services.relationship_privacy_service import (
     can_view_profile as rp_can_view_profile,
     can_view_posts as rp_can_view_posts,
@@ -14,7 +14,7 @@ from services.relationship_privacy_service import (
     can_message as rp_can_message,
     get_full_policy,
 )
-from services.follow_request_service import get_follow_status, is_private_follow_required
+from services.follow_request_service import is_private_follow_required
 
 
 def get_account_kind(profile_row):
@@ -68,16 +68,10 @@ def can_send_friend_request(current_profile_id, target_profile):
         return False
     if is_page_like_account(target_profile):
         return False
-    if are_friends(current_profile_id, target_id):
+    state = get_relationship_state(current_profile_id, target_id)
+    if state.get("is_friend"):
         return False
-    existing = fast_query(
-        """SELECT 1 FROM chain_friend_requests
-           WHERE ((sender_profile_id = %s AND recipient_profile_id = %s)
-              OR (sender_profile_id = %s AND recipient_profile_id = %s))
-             AND status = 'pending'""",
-        [current_profile_id, target_id, target_id, current_profile_id],
-    )
-    if existing:
+    if state.get("friend_request_sent") or state.get("friend_request_received"):
         return False
     if not rp_can_send_friend_request(current_profile_id, target_profile):
         return False
@@ -102,9 +96,7 @@ def can_chat(current_profile_id, target_profile_id, target_profile=None):
         return False
     if is_self(current_profile_id, target_profile_id):
         return False
-    if is_blocked(current_profile_id, target_profile_id):
-        return False
-    if is_blocked(target_profile_id, current_profile_id):
+    if is_blocked_any(current_profile_id, target_profile_id):
         return False
     if target_profile:
         if not rp_can_message(current_profile_id, target_profile):
@@ -120,9 +112,7 @@ def can_like_post(current_profile_id, post):
         return False
     if is_self(current_profile_id, owner_id):
         return False
-    if is_blocked(current_profile_id, owner_id):
-        return False
-    if is_blocked(owner_id, current_profile_id):
+    if is_blocked_any(current_profile_id, owner_id):
         return False
     return True
 
@@ -137,10 +127,8 @@ def can_view_profile(current_profile_id, target_profile, viewer_profile=None):
     if viewer_id and is_self(viewer_id, target_id):
         return {"can_view_full_profile": True, "reason": "self"}
 
-    if viewer_id and is_blocked(viewer_id, target_id):
+    if viewer_id and is_blocked_any(viewer_id, target_id):
         return {"can_view_full_profile": False, "reason": "blocked"}
-    if viewer_id and is_blocked(target_id, viewer_id):
-        return {"can_view_full_profile": False, "reason": "blocked_by_target"}
 
     if not viewer_id:
         visibility = target_profile.get("profile_visibility") or target_profile.get("visibility") or "public"
@@ -159,30 +147,8 @@ def get_relationship(current_profile_id, target_id):
         return "none"
     if is_self(current_profile_id, target_id):
         return "self"
-
-    if is_blocked(current_profile_id, target_id):
-        return "blocked"
-    if is_blocked(target_id, current_profile_id):
-        return "blocked"
-
-    if are_friends(current_profile_id, target_id):
-        return "friend"
-
-    sent = fast_query(
-        "SELECT 1 FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending'",
-        [current_profile_id, target_id],
-    )
-    if sent:
-        return "pending_sent"
-
-    received = fast_query(
-        "SELECT 1 FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending'",
-        [target_id, current_profile_id],
-    )
-    if received:
-        return "pending_received"
-
-    return "none"
+    state = get_relationship_state(current_profile_id, target_id)
+    return state.get("relationship", "none")
 
 
 def get_primary_action(current_profile_id, target_profile):
@@ -195,7 +161,8 @@ def get_primary_action(current_profile_id, target_profile):
     if is_self(current_profile_id, target_id):
         return "self"
 
-    relationship = get_relationship(current_profile_id, target_id)
+    state = get_relationship_state(current_profile_id, target_id)
+    relationship = state.get("relationship", "none")
     if relationship == "blocked":
         return "none"
     if relationship == "friend":
@@ -205,12 +172,11 @@ def get_primary_action(current_profile_id, target_profile):
     if relationship == "pending_received":
         return "accept_request"
 
-    follow_status = get_follow_status(current_profile_id, target_id)
-    if follow_status == "following":
+    if state.get("is_following"):
         return "following"
-    if follow_status == "request_pending":
+    if state.get("follow_request_sent"):
         return "requested"
-    if follow_status == "request_received":
+    if state.get("follow_request_received"):
         return "approve_follow"
 
     if is_page_like_account(target_profile):
@@ -287,8 +253,9 @@ def get_action_policy(current_profile_id, target_profile):
         }
 
     full = get_full_policy(current_profile_id, target_profile) or {}
-    relationship = get_relationship(current_profile_id, target_id)
-    follow_status = get_follow_status(current_profile_id, target_id)
+    state = get_relationship_state(current_profile_id, target_id)
+    relationship = state.get("relationship", "none")
+    follow_status = "following" if state.get("is_following") else ("request_pending" if state.get("follow_request_sent") else ("request_received" if state.get("follow_request_received") else "none"))
     chat_allowed = can_chat(current_profile_id, target_id, target_profile=target_profile)
     can_view_posts = full.get("can_view_posts")
     if can_view_posts is None:

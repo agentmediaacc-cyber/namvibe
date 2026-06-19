@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 from services.neon_service import fast_query, write_query
-from services.relationship_privacy_service import are_friends, is_follower
+from services.relationship_cache_service import get_relationship_state
 from services.logging_service import log_info, log_error
 from services.socketio_service import emit_to_profile
 from services.notification_engine import create_notification
@@ -19,29 +19,17 @@ def get_follow_status(viewer_id, target_id):
     """
     if not viewer_id or not target_id:
         return "none"
-        
+
     if str(viewer_id) == str(target_id):
         return "self"
 
-    if is_follower(viewer_id, target_id):
+    state = get_relationship_state(viewer_id, target_id)
+    if state.get("is_following"):
         return "following"
-        
-    # Check pending requests
-    rows = fast_query(
-        "SELECT id, requester_profile_id FROM chain_follow_requests "
-        "WHERE ((requester_profile_id = %s AND target_profile_id = %s) "
-        "OR (requester_profile_id = %s AND target_profile_id = %s)) "
-        "AND status = 'pending' LIMIT 2",
-        (viewer_id, target_id, target_id, viewer_id),
-        default=[]
-    )
-    
-    for row in rows:
-        if str(row["requester_profile_id"]) == str(viewer_id):
-            return "request_pending"
-        else:
-            return "request_received"
-            
+    if state.get("follow_request_sent"):
+        return "request_pending"
+    if state.get("follow_request_received"):
+        return "request_received"
     return "none"
 
 def cancel_follow_request(request_id, requester_profile_id):
@@ -59,18 +47,20 @@ def is_private_follow_required(viewer_id, target_profile):
     """True if the target profile requires a follow request to see followers-only content."""
     if not target_profile:
         return False
-    
+
     owner_id = target_profile.get("id")
     if not owner_id:
         return False
-        
+
     if viewer_id and str(viewer_id) == str(owner_id):
         return False
-        
+
     # Check friends first (friends always bypass)
-    if viewer_id and are_friends(viewer_id, owner_id):
-        return False
-        
+    if viewer_id:
+        state = get_relationship_state(viewer_id, owner_id)
+        if state.get("is_friend"):
+            return False
+
     visibility = target_profile.get("profile_visibility", "public")
     if visibility == "private":
         return True
