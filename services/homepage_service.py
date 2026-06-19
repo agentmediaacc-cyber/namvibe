@@ -32,7 +32,7 @@ from services.logging_service import log_info
 from services.profile_service import get_current_profile
 from services.wallet_service import ensure_wallet
 from services.content_service import local_content, active_local_stories
-from services.homepage_real_data_guard import public_profile_sql, public_profile_subquery
+from services.homepage_real_data_guard import filter_content, filter_profiles, public_profile_sql, public_profile_subquery
 
 
 _CACHE_TTL_SECONDS = HOMEPAGE_TTL_SECONDS
@@ -921,12 +921,12 @@ def _safe_current_profile():
                 except Exception:
                     base["wallet_balance"] = 0
                 try:
-                    cache_key_n = cache_key("notif_unread", profile_id)
+                    cache_key_n = f"notif:unread:{profile_id}"
                     notif_count = get_cache(cache_key_n)
                     if notif_count is None:
                         from services.notification_engine import unread_count
                         notif_count = unread_count(profile_id)
-                        set_cache(cache_key_n, notif_count, ttl=15)
+                        set_cache(cache_key_n, notif_count, ttl=60)
                     base["unread_notifications"] = notif_count
                 except Exception:
                     base["unread_notifications"] = 0
@@ -2379,7 +2379,7 @@ def get_profile_avatar_url(profile):
 # Phase 71 — TikTok-style Reel Feed Payload
 # ================================================================
 
-def build_tiktok_home_payload():
+def build_tiktok_home_payload(exclude_test_content=True):
     """Return lightweight TikTok-style homepage payload with reels feed."""
     payload = {
         "current": _safe_current_profile(),
@@ -2393,6 +2393,8 @@ def build_tiktok_home_payload():
     try:
         from services.reels_service import get_reel_feed, is_following_creator
         reels = get_reel_feed(limit=30)
+        if exclude_test_content:
+            reels = filter_content(reels)
         current = payload["current"]
         profile_id = current.get("id") if current else None
 
@@ -2435,6 +2437,8 @@ def build_tiktok_home_payload():
 
         # Suggested creators
         suggested = _suggested_people(current_user=current, limit=5)
+        if exclude_test_content:
+            suggested = filter_profiles(suggested)
         payload["suggested_creators"] = suggested
         payload["stats"]["suggested"] = len(suggested)
 

@@ -8,6 +8,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/namvibe_2026_home.css">
+<link rel="stylesheet" href="/static/css/home_modern_clean.css">
 {% endblock %}
 
 {% block content %}
@@ -18,8 +19,10 @@
 {% set drawer_profile = safe_link('profile', is_logged_in) %}
 {% set drawer_wallet = safe_link('wallet', is_logged_in) %}
 {% set drawer_messages = safe_link('messages', is_logged_in) %}
+{% set drawer_calls = drawer_calls|default(safe_link('calls', is_logged_in)) %}
 {% set drawer_notifications = safe_link('notifications', is_logged_in) %}
 {% set drawer_settings = safe_link('settings', is_logged_in) %}
+{% set drawer_security = drawer_security|default(safe_link('security', is_logged_in)) %}
 {% set login_route = safe_link('login', is_logged_in) %}
 {% set register_route = safe_link('register', is_logged_in) %}
 {% set composer_fallback = safe_link('create_post', is_logged_in) %}
@@ -68,6 +71,7 @@
         <div class="nv-left-nav-section">Social</div>
         <a href="{{ story_create }}" class="nv-left-nav-item{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-notch"></i> Stories</a>
         <a href="{{ drawer_messages }}" class="nv-left-nav-item"><i class="fas fa-comment"></i> Messages</a>
+        <a href="{{ drawer_calls }}" class="nv-left-nav-item"><i class="fas fa-phone"></i> Calls</a>
         <a href="{{ drawer_notifications }}" class="nv-left-nav-item"><i class="fas fa-bell"></i> Notifications</a>
         <a href="{{ drawer_wallet }}" class="nv-left-nav-item"><i class="fas fa-wallet"></i> Wallet</a>
         <a href="{{ dating_route }}" class="nv-left-nav-item"><i class="fas fa-heart"></i> Dating</a>
@@ -75,6 +79,7 @@
         <div class="nv-left-nav-section">More</div>
         <a href="{{ drawer_profile }}" class="nv-left-nav-item"><i class="fas fa-user-circle"></i> Profile</a>
         <a href="{{ drawer_settings }}" class="nv-left-nav-item"><i class="fas fa-cog"></i> Settings</a>
+        <a href="{{ drawer_security }}" class="nv-left-nav-item"><i class="fas fa-shield-alt"></i> Security</a>
         {% if is_logged_in %}
         <a href="/auth/logout" class="nv-left-nav-item"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
         {% else %}
@@ -378,6 +383,7 @@
       <a href="{{ reel_route }}" class="nv-drawer-item{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-film"></i> Reels</a>
       <a href="{{ story_create }}" class="nv-drawer-item{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-notch"></i> Stories</a>
       <a href="{{ drawer_messages }}" class="nv-drawer-item"><i class="fas fa-comment"></i> Messages</a>
+      <a href="{{ drawer_calls }}" class="nv-drawer-item"><i class="fas fa-phone"></i> Calls</a>
       <div class="nv-drawer-divider"></div>
       <a href="{{ drawer_wallet }}" class="nv-drawer-item"><i class="fas fa-wallet"></i> Wallet</a>
       <a href="{{ drawer_notifications }}" class="nv-drawer-item"><i class="fas fa-bell"></i> Notifications</a>
@@ -385,6 +391,7 @@
       <a href="{{ friends_route }}" class="nv-drawer-item"><i class="fas fa-user-friends"></i> Friends</a>
       <a href="{{ drawer_profile }}" class="nv-drawer-item"><i class="fas fa-user-circle"></i> Profile</a>
       <a href="{{ drawer_settings }}" class="nv-drawer-item"><i class="fas fa-cog"></i> Settings</a>
+      <a href="{{ drawer_security }}" class="nv-drawer-item"><i class="fas fa-shield-alt"></i> Security</a>
       <div class="nv-drawer-divider"></div>
       {% if is_logged_in %}
       <a href="/auth/logout" class="nv-drawer-item"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
@@ -464,4 +471,5 @@
 {% block extra_js %}
 <script src="/static/js/chain_home.js"></script>
 <script src="/static/js/namvibe_2026_home.js"></script>
+<script src="/static/js/home_real_actions.js"></script>
 {% endblock %}

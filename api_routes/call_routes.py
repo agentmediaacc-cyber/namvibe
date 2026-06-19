@@ -35,6 +35,11 @@ from services.friendship_service import require_friendship_or_403
 
 call_bp = Blueprint("calls_v2", __name__, url_prefix="/calls")
 
+@call_bp.route("/")
+@login_required
+def calls_index():
+    return redirect(url_for("calls_v2.recent_calls"), code=302)
+
 @call_bp.route("/recent")
 @login_required
 def recent_calls():

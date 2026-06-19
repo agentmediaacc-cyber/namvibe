@@ -547,6 +547,7 @@ def create_app():
             "discover": ["/discover/"],
             "live": ["/live/"],
             "messages": ["/messages/"],
+            "calls": ["/calls/", "/calls/recent"],
             "wallet": ["/wallet/"],
             "profile": ["/profile/"],
             "login": ["/auth/login"],
@@ -561,6 +562,7 @@ def create_app():
             "upload_video": ["/features/upload-video", "/upload/video", "/media/upload"],
             "go_live": ["/live/studio", "/live/"],
             "settings": ["/profile/settings", "/discover/"],
+            "security": ["/security/privacy", "/security"],
             "help": ["/discover/"],
         }
 
@@ -751,9 +753,11 @@ def create_app():
                 "register_route": "/auth/register",
                 "drawer_profile": "/profile/" if is_in else "/auth/login",
                 "drawer_messages": "/messages/" if is_in and "/messages/" in avail else ("/auth/login" if not is_in else "/"),
+                "drawer_calls": "/calls/" if is_in and "/calls/" in avail else ("/auth/login" if not is_in else "/calls/recent"),
                 "drawer_notifications": "/notifications/" if is_in and "/notifications/" in avail else ("/auth/login" if not is_in else "/profile/"),
                 "drawer_wallet": "/wallet/" if is_in and "/wallet/" in avail else ("/auth/login" if not is_in else "/"),
                 "drawer_settings": "/profile/settings" if "/profile/settings" in avail else "/discover/",
+                "drawer_security": "/security/privacy" if "/security/privacy" in avail else "/security",
                 "reel_available": "/reels/" in avail or "/reels/upload" in avail,
                 "story_available": True,
                 "live_available": "/live/" in avail,

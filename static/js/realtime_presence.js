@@ -4,9 +4,15 @@
   var socket = null;
 
   function init() {
+    if (window.chainRealtimeOptional === false) return;
+    if (window.chainSocket) {
+      socket = window.chainSocket;
+      attachListeners();
+      return;
+    }
     if (typeof io === 'undefined') return;
     try {
-      socket = io();
+      socket = io({ transports: ['websocket', 'polling'], reconnection: true });
       attachListeners();
     } catch (e) {}
   }

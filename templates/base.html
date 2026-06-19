@@ -126,9 +126,14 @@
             box-shadow: 0 6px 24px rgba(231, 76, 60, 0.35);
             white-space: nowrap;
             transition: transform .35s cubic-bezier(.22,1,.36,1);
-            pointer-events: none;
+            pointer-events: auto;
         }
         .reconnect-banner.show { transform: translateX(-50%) translateY(0); }
+        .reconnect-banner button {
+            margin-left: 10px; border: 0; border-radius: 999px;
+            padding: 3px 8px; background: rgba(255,255,255,.22); color: #fff;
+            font-weight: 700; cursor: pointer;
+        }
         @media (max-width: 480px) {
             .reconnect-banner { font-size: 12px; padding: 6px 14px; white-space: normal; }
         }
@@ -488,12 +493,6 @@
     {% endif %}
     {% endblock %}
     {% if not is_auth_surface %}
-    <a href="/posts/create" class="app-floating-create" aria-label="Create post">
-        <i class="fas fa-plus"></i>
-    </a>
-    {% endif %}
-
-    {% if not is_auth_surface %}
     <script src="/static/js/chain_theme_audit.js"></script>
     <script src="/static/js/main.js"></script>
     <script>
@@ -590,142 +589,126 @@
     {% block extra_js %}{% endblock %}
 
 {% if not is_auth_surface %}
-<script id="CHAIN_CALL_SOUND_PATCH">
+<script id="NAMVIBE_CALL_AUDIO_GUARD">
 (function(){
-  let ringCtx = null;
-  let ringTimer = null;
+  var ctx = null;
+  var timer = null;
+  var unlocked = false;
+  var muted = false;
+  var dismissed = {};
+  var currentProfileId = "{{ session.get('profile_id') or session.get('user_id') or '' }}";
 
-  function beep(freq, duration, volume){
-    try {
-      ringCtx = ringCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ringCtx.createOscillator();
-      const gain = ringCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.value = volume || 0.08;
-      osc.connect(gain);
-      gain.connect(ringCtx.destination);
-      osc.start();
-      setTimeout(() => { try { osc.stop(); } catch(e){} }, duration || 250);
-    } catch(e) {}
+  function normalizeId(value) {
+    return value === undefined || value === null ? "" : String(value);
   }
 
-  window.chainStartOutgoingRing = function(){
-    window.chainStopRing();
-    ringTimer = setInterval(() => {
-      beep(420, 180, 0.07);
-      setTimeout(() => beep(520, 180, 0.06), 260);
-    }, 1300);
-  };
-
-  window.chainStartIncomingRing = function(){
-    window.chainStopRing();
-    ringTimer = setInterval(() => {
-      beep(880, 220, 0.09);
-      setTimeout(() => beep(660, 220, 0.09), 300);
-      setTimeout(() => beep(880, 220, 0.09), 600);
-    }, 1500);
-  };
-
-  window.chainStopRing = function(){
-    if (ringTimer) clearInterval(ringTimer);
-    ringTimer = null;
-  };
-
-  document.addEventListener("click", function(){
-    try {
-      ringCtx = ringCtx || new (window.AudioContext || window.webkitAudioContext)();
-      if (ringCtx.state === "suspended") ringCtx.resume();
-    } catch(e) {}
-  }, {once:false});
-
-  window.addEventListener("beforeunload", window.chainStopRing);
-})();
-</script>
-
-
-
-
-
-
-
-
-<script id="CHAIN_REAL_RINGTONE_ENGINE">
-(function(){
-  let ctx = null, timer = null, unlocked = false;
-
   function getCtx(){
+    if (!window.AudioContext && !window.webkitAudioContext) return null;
     ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
     return ctx;
   }
 
-  async function unlock(){
-    try {
-      const c = getCtx();
-      if (c.state === "suspended") await c.resume();
-      unlocked = true;
-      localStorage.setItem("chain_sound_enabled", "1");
-      const btn = document.getElementById("chainSoundUnlockBtn");
-      if (btn) btn.style.display = "none";
-      beep(700,120,.08);
-      setTimeout(()=>beep(900,120,.08),160);
-    } catch(e){ console.warn("sound unlock failed", e); }
-  }
-
-  function beep(freq,dur,vol){
-    try{
-      const c = getCtx();
-      const o = c.createOscillator();
-      const g = c.createGain();
-      o.type = "sine"; o.frequency.value = freq;
-      g.gain.value = vol || .08;
-      o.connect(g); g.connect(c.destination);
-      o.start();
-      setTimeout(()=>{try{o.stop()}catch(e){}}, dur || 180);
-    }catch(e){}
-  }
-
-  window.chainStopRing = function(){
-    if(timer) clearInterval(timer);
+  function stopAll(){
+    if (timer) clearInterval(timer);
     timer = null;
-  };
+  }
 
-  window.chainStartOutgoingRing = async function(){
-    await unlock();
-    window.chainStopRing();
-    beep(420,180,.08); setTimeout(()=>beep(520,180,.07),260);
-    timer = setInterval(()=>{ beep(420,180,.08); setTimeout(()=>beep(520,180,.07),260); }, 1300);
-  };
-
-  window.chainStartIncomingRing = async function(){
-    await unlock();
-    window.chainStopRing();
-    beep(880,220,.11); setTimeout(()=>beep(660,220,.11),280); setTimeout(()=>beep(880,220,.11),560);
-    timer = setInterval(()=>{ beep(880,220,.11); setTimeout(()=>beep(660,220,.11),280); setTimeout(()=>beep(880,220,.11),560); }, 1500);
-  };
-
-  window.chainTestRing = function(){ window.chainStartIncomingRing(); setTimeout(window.chainStopRing, 3500); };
-
-  function addUnlockButton(){
-    if (document.getElementById("chainSoundUnlockBtn")) return;
-    var path = window.location.pathname;
-    if (!path.startsWith("/admin") && !path.startsWith("/developer")) return;
-    const btn = document.createElement("button");
-    btn.id = "chainSoundUnlockBtn";
-    btn.type = "button";
-    btn.innerHTML = "🔊 Enable call sound";
-    btn.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:99999;border:0;border-radius:999px;padding:12px 16px;background:#111;color:#fff;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.25)";
-    btn.onclick = unlock;
-    document.body.appendChild(btn);
-    if(localStorage.getItem("chain_sound_enabled")==="1"){
-      btn.innerHTML = "🔊 Test call sound";
-      btn.onclick = window.chainTestRing;
+  function unlock(){
+    try {
+      var c = getCtx();
+      if (!c) return Promise.resolve(false);
+      var ready = c.state === "suspended" ? c.resume() : Promise.resolve();
+      return Promise.resolve(ready).then(function(){
+        unlocked = true;
+        return true;
+      }).catch(function(){ return false; });
+    } catch(e) {
+      return Promise.resolve(false);
     }
   }
 
-  document.addEventListener("DOMContentLoaded", addUnlockButton);
-  document.addEventListener("click", function(){ if(localStorage.getItem("chain_sound_enabled")==="1") unlock(); }, {once:true});
-  window.addEventListener("beforeunload", window.chainStopRing);
+  function beep(freq, dur, vol){
+    try{
+      var c = getCtx();
+      if (!c || c.state !== "running") return;
+      var o = c.createOscillator();
+      var g = c.createGain();
+      o.type = "sine";
+      o.frequency.value = freq;
+      g.gain.value = vol || .08;
+      o.connect(g);
+      g.connect(c.destination);
+      o.start();
+      setTimeout(function(){ try{o.stop();}catch(e){} }, dur || 180);
+    }catch(e){}
+  }
+
+  function ringIncoming(){
+    stopAll();
+    beep(880,220,.09);
+    setTimeout(function(){ beep(660,220,.09); },280);
+    setTimeout(function(){ beep(880,220,.09); },560);
+    timer = setInterval(function(){
+      beep(880,220,.09);
+      setTimeout(function(){ beep(660,220,.09); },280);
+      setTimeout(function(){ beep(880,220,.09); },560);
+    }, 1500);
+  }
+
+  function ringOutgoing(){
+    stopAll();
+    beep(420,180,.07);
+    setTimeout(function(){ beep(520,180,.06); },260);
+    timer = setInterval(function(){
+      beep(420,180,.07);
+      setTimeout(function(){ beep(520,180,.06); },260);
+    }, 1300);
+  }
+
+  function canRingIncoming(payload){
+    payload = payload || {};
+    var callId = normalizeId(payload.call_id || payload.id);
+    var callerId = normalizeId(payload.caller_profile_id || payload.caller_id || payload.from_profile_id || payload.profile_id);
+    if (!callId || muted || dismissed[callId]) return false;
+    if (callerId && currentProfileId && callerId === currentProfileId) return false;
+    return true;
+  }
+
+  window.NamVibeCallAudio = {
+    unlock: unlock,
+    stopAll: stopAll,
+    mute: function(){ muted = true; stopAll(); },
+    unmute: function(){ muted = false; },
+    dismiss: function(callId){ if (callId) dismissed[normalizeId(callId)] = true; stopAll(); },
+    playIncoming: function(payload){
+      if (!canRingIncoming(payload)) return false;
+      if (!unlocked) return false;
+      ringIncoming();
+      return true;
+    },
+    playOutgoing: function(payload){
+      payload = payload || {};
+      if (!payload.call_id && !payload.id) return false;
+      if (!unlocked) return false;
+      ringOutgoing();
+      return true;
+    }
+  };
+
+  window.chainStopRing = stopAll;
+  window.chainStartIncomingRing = function(payload){ return window.NamVibeCallAudio.playIncoming(payload || {}); };
+  window.chainStartOutgoingRing = function(payload){ return window.NamVibeCallAudio.playOutgoing(payload || {call_id:"legacy-outgoing"}); };
+
+  ["pointerdown","keydown","touchstart"].forEach(function(eventName){
+    document.addEventListener(eventName, function(){ unlock(); }, {once:true, passive:true});
+  });
+  ["pagehide","beforeunload","popstate","hashchange"].forEach(function(eventName){
+    window.addEventListener(eventName, stopAll);
+  });
+  document.addEventListener("visibilitychange", function(){ if (document.hidden) stopAll(); });
+  document.addEventListener("click", function(event){
+    if (event.target && event.target.closest && event.target.closest('a[href*="/logout"],a[href*="/auth/logout"]')) stopAll();
+  });
 })();
 </script>
 
@@ -733,14 +716,18 @@
 (function(){
     var reconnectTimer = null;
     var initialConnectDone = false;
+    var reconnectDismissed = false;
 
     function showReconnect() {
       var b = document.getElementById("chain-reconnect-banner");
       if (!b) return;
-      if (!initialConnectDone) return;
+      if (!initialConnectDone || reconnectDismissed) return;
       if (reconnectTimer) return;
       reconnectTimer = setTimeout(function() {
-        b.classList.add("show");
+        fetch("/system/socketio-status", {credentials:"same-origin"})
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(data){ if (!data || data.ok === false) b.classList.add("show"); })
+          .catch(function(){ b.classList.add("show"); });
         reconnectTimer = null;
       }, 3000);
     }
@@ -751,6 +738,13 @@
       if (b) b.classList.remove("show");
     }
 
+    document.addEventListener("click", function(event){
+      if (event.target && event.target.matches("[data-reconnect-close]")) {
+        reconnectDismissed = true;
+        hideReconnect();
+      }
+    });
+
     function attach(){
       if (!window.io || window.chainIncomingCallListenerAttached) return;
       window.chainIncomingCallListenerAttached = true;
@@ -760,24 +754,31 @@
       });
       window.socket = s;
       s.on("connect", function(){ initialConnectDone = true; hideReconnect(); });
-      s.on("disconnect", showReconnect);
+      s.on("disconnect", function(){ if(window.NamVibeCallAudio) window.NamVibeCallAudio.stopAll(); showReconnect(); });
       s.on("connect_error", showReconnect);
       s.on("reconnect", function(){ hideReconnect(); });
       s.on("reconnect_attempt", function(){ hideReconnect(); });
 
     s.on("call:incoming", function(data){
-      if(window.chainStartIncomingRing) window.chainStartIncomingRing();
+      data = data || {};
       const callId = data.call_id || data.id;
+      if (!callId) return;
+      if(window.NamVibeCallAudio) window.NamVibeCallAudio.playIncoming(data);
       setTimeout(function(){
         if(confirm("Incoming " + (data.call_type || "call") + ". Answer now?")){
-          if(window.chainStopRing) window.chainStopRing();
+          if(window.NamVibeCallAudio) window.NamVibeCallAudio.stopAll();
           location.href = "/calls/" + callId + "/view";
+        } else if(window.NamVibeCallAudio) {
+          window.NamVibeCallAudio.dismiss(callId);
         }
       }, 500);
     });
 
     ["call:answered","call:rejected","call:ended","call:missed","call:no-answer"].forEach(ev=>{
-      s.on(ev, function(){ if(window.chainStopRing) window.chainStopRing(); });
+      s.on(ev, function(data){
+        if(window.NamVibeCallAudio) window.NamVibeCallAudio.dismiss(data && (data.call_id || data.id));
+        else if(window.chainStopRing) window.chainStopRing();
+      });
     });
   }
   document.addEventListener("DOMContentLoaded", attach);
@@ -788,7 +789,7 @@
 <script src="/static/js/friendship_controls.js"></script>
 <script src="/static/js/namvibe_global_badges.js"></script>
 <script src="/static/js/realtime_presence.js"></script>
-<div id="chain-reconnect-banner" class="reconnect-banner">⚠ Reconnecting…</div>
+<div id="chain-reconnect-banner" class="reconnect-banner" data-reconnect-banner aria-hidden="true">Reconnecting... <button type="button" data-reconnect-close>Close</button></div>
 {% endif %}
 </body>
 </html>

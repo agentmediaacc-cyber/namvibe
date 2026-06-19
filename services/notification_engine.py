@@ -57,6 +57,19 @@ _NOTIF_ICONS = {
     "message_reaction": "fa-reply",
 }
 
+
+def _unread_cache_keys(profile_id):
+    return [
+        f"notif:unread:{profile_id}",
+        f"notif_unread_{profile_id}",
+        f"chain:notif:unread:{profile_id}",
+    ]
+
+
+def invalidate_unread_count(profile_id):
+    for key in _unread_cache_keys(profile_id):
+        cache_delete(key)
+
 def _notif_category(event_type):
     return _NOTIF_TYPE_CATEGORIES.get(event_type, "activity")
 
@@ -123,7 +136,7 @@ def create_notification(
         res = write_query(sql, params)
         if res:
             cache_set(dedup_key, True, ttl=10)
-            cache_delete(f"notif_unread_{recipient_profile_id}")
+            invalidate_unread_count(recipient_profile_id)
             enriched = _enrich_with_profiles(res)
             broadcast_notification(recipient_profile_id, enriched[0] if enriched else res[0])
             publish(f"notifications:{recipient_profile_id}", {"event": "notification:new", "payload": enriched[0] if enriched else res[0]})
@@ -208,7 +221,7 @@ def unread_count(profile_id):
     if os.getenv("FLASK_TESTING") == "1" or (os.getenv("CHAIN_FAST_LOCAL") == "1" and os.getenv("FLASK_ENV", "development") != "production"):
         return 0
     
-    cache_key = f"notif_unread_{profile_id}"
+    cache_key = f"notif:unread:{profile_id}"
     
     cached = cache_get(cache_key)
     if cached is not None:
@@ -243,7 +256,7 @@ def mark_read(notification_id, profile_id):
     sql = "UPDATE chain_notifications SET is_read = TRUE, read_at = now() WHERE id = %s AND recipient_profile_id = %s"
     try:
         write_query(sql, (notification_id, profile_id))
-        cache_delete(f"notif_unread_{profile_id}")
+        invalidate_unread_count(profile_id)
         return True
     except Exception as e:
         log_error("notification_mark_read_failed", error=e, id=notification_id)
@@ -254,7 +267,7 @@ def mark_all_read(profile_id):
     sql = "UPDATE chain_notifications SET is_read = TRUE, read_at = now() WHERE recipient_profile_id = %s AND is_read = FALSE"
     try:
         write_query(sql, (profile_id,))
-        cache_delete(f"notif_unread_{profile_id}")
+        invalidate_unread_count(profile_id)
         return True
     except Exception as e:
         log_error("notification_mark_all_read_failed", error=e, profile_id=profile_id)
@@ -265,7 +278,7 @@ def delete_notification(notification_id, profile_id):
     sql = "UPDATE chain_notifications SET deleted_at = now() WHERE id = %s AND recipient_profile_id = %s"
     try:
         write_query(sql, (notification_id, profile_id))
-        cache_delete(f"notif_unread_{profile_id}")
+        invalidate_unread_count(profile_id)
         return True
     except Exception as e:
         log_error("notification_delete_failed", error=e, id=notification_id)
@@ -280,7 +293,7 @@ def delete_selected_notifications(notification_ids, profile_id):
     try:
         params = tuple(notification_ids) + (profile_id,)
         write_query(sql, params)
-        cache_delete(f"notif_unread_{profile_id}")
+        invalidate_unread_count(profile_id)
         return True
     except Exception as e:
         log_error("notifications_delete_selected_failed", error=e, count=len(notification_ids))

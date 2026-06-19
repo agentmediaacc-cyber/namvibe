@@ -536,7 +536,7 @@ input:focus, select:focus, textarea:focus {
   width: 56px;
   height: 56px;
   border-radius: 20px;
-  display: none;
+  display: none !important;
   place-items: center;
   background: var(--chain-gradient);
   color: #fff;
@@ -551,7 +551,7 @@ input:focus, select:focus, textarea:focus {
 @media (max-width: 1024px) {
   .sidebar { display: none; }
   .mobile-nav { display: flex; }
-  .app-floating-create { display: grid; }
+  .app-floating-create { display: none !important; }
 }
 
 @media (max-width: 760px) {

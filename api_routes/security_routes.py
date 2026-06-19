@@ -1,6 +1,6 @@
 import os
 import hashlib
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from services.profile_service import get_current_profile
 from services.security_service import (
     create_device_session, get_device_sessions, get_device_session,
@@ -11,6 +11,13 @@ from services.security_service import (
 from api_routes.profile_routes import login_required
 
 security_bp = Blueprint("security", __name__, url_prefix="/security")
+
+
+@security_bp.route("/")
+@security_bp.route("")
+@login_required
+def security_index():
+    return redirect(url_for("security.privacy_page"), code=302)
 
 
 @security_bp.route("/api/devices")

@@ -844,7 +844,7 @@
     var submitBtn = document.getElementById('poll-submit');
     if (submitBtn) {
       submitBtn.addEventListener('click', function() {
-        showSaveToast('Poll creation coming soon');
+        showSaveToast('Poll drafts are not available on this page yet.');
         var form = document.getElementById('poll-form');
         if (form) form.style.display = 'none';
       });

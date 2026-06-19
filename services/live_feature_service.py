@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 import json
 
-from services.neon_service import fast_query, get_pool_status, write_query
+from services.neon_service import fast_query, get_cached_table_columns, get_pool_status, write_query
 from services.socketio_service import emit_to_live_room
 
 _ROOMS = {}
@@ -71,9 +71,27 @@ def start_live(profile_id, title, host_name=None, allow_comments=True, allow_gif
         "created_at": _now(),
     }
     try:
+        columns = set(get_cached_table_columns("chain_live_rooms") or [])
+        owner_columns = [col for col in ("profile_id", "host_profile_id") if col in columns]
+        if columns and not owner_columns:
+            return {"ok": False, "error": "live_rooms_missing_owner_column", "room": None}
+
+        insert_payload = {}
+        for key, value in room.items():
+            if not columns or key in columns:
+                insert_payload[key] = value
+        if "profile_id" in columns:
+            insert_payload["profile_id"] = profile_id
+        if "host_profile_id" in columns:
+            insert_payload["host_profile_id"] = profile_id
+        if "host_name" in columns:
+            insert_payload["host_name"] = room["host_name"]
+
+        insert_columns = list(insert_payload.keys())
+        placeholders = ", ".join(["%s"] * len(insert_columns))
         rows = _write(
-            "INSERT INTO chain_live_rooms (id, profile_id, host_profile_id, title, host_name, status, is_live, viewer_count, allow_comments, allow_gifts) VALUES (%s, %s, %s, %s, %s, 'live', TRUE, 0, %s, %s) RETURNING *",
-            (room_id, profile_id, profile_id, room["title"], room["host_name"], room["allow_comments"], room["allow_gifts"]),
+            f"INSERT INTO chain_live_rooms ({', '.join(insert_columns)}) VALUES ({placeholders}) RETURNING *",
+            tuple(insert_payload[col] for col in insert_columns),
         )
         room = rows[0] if rows else room
     except Exception:

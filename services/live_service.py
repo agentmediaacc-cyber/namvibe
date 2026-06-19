@@ -302,21 +302,23 @@ def create_live_room(form, files=None):
             "created_at": _utcnow_iso(),
         }
 
-        payloads = [
-            {
-                **base_payload,
-                "host_profile_id": (current or {}).get("id"),
-            },
-            {
-                **base_payload,
-                "profile_id": (current or {}).get("id"),
-            },
-            {
-                key: value
-                for key, value in base_payload.items()
-                if key not in {"category", "youtube_video_id", "mp3_filename", "status"}
-            },
-        ]
+        try:
+            from services.neon_service import get_cached_table_columns
+            live_columns = set(get_cached_table_columns("chain_live_rooms") or [])
+        except Exception:
+            live_columns = set()
+
+        dynamic_payload = dict(base_payload)
+        if not live_columns or "profile_id" in live_columns:
+            dynamic_payload["profile_id"] = (current or {}).get("id")
+        if "host_profile_id" in live_columns:
+            dynamic_payload["host_profile_id"] = (current or {}).get("id")
+        if live_columns:
+            dynamic_payload = {key: value for key, value in dynamic_payload.items() if key in live_columns}
+            if "profile_id" not in dynamic_payload and "host_profile_id" not in dynamic_payload:
+                return None
+
+        payloads = [dynamic_payload]
 
         for payload in payloads:
             inserted = safe_insert("chain_live_rooms", payload)

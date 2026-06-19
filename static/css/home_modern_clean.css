@@ -1,0 +1,61 @@
+/* Phase 83: homepage polish and safety layer for production surfaces. */
+
+.app-floating-create,
+.chain-home-page .app-floating-create {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.nv-home-shell {
+  overflow-x: clip;
+}
+
+.nv-reconnect {
+  pointer-events: none;
+}
+
+.nv-reconnect.is-open,
+.nv-reconnect.show {
+  pointer-events: auto;
+}
+
+.nv-empty,
+.nv-empty-state,
+.nv-section-empty {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  min-height: 110px;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.62);
+  color: rgba(248, 250, 252, 0.88);
+}
+
+.nv-reel-video:not([src]),
+.nv-reel-video[src=""] {
+  display: none;
+}
+
+.nv-action-rail button[disabled],
+.nv-home-shell button[disabled] {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.nv-toast {
+  max-width: min(420px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .nv-home-shell {
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+
+  .nv-left-rail,
+  .nv-right-rail {
+    max-width: 100vw;
+  }
+}
