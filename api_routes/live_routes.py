@@ -604,7 +604,7 @@ def api_rooms_info(room_id):
 
 @live_bp.route("/api/rooms/<room_id>/viewers")
 def api_rooms_viewers(room_id):
-    participants = get_room_participants(room_id)
+    participants = get_participants(room_id)
     return jsonify({"ok": True, "viewers": participants})
 
 @live_bp.route("/api/rooms/<room_id>/settings", methods=["GET", "POST"])

@@ -1,7 +1,6 @@
 (function () {
   'use strict';
 
-  var POLL_INTERVAL = 60000;
   var pollTimer = null;
   var socket = null;
   var timerGuard = false;
@@ -10,9 +9,16 @@
     if (timerGuard) return;
     timerGuard = true;
     poll();
-    pollTimer = setInterval(poll, POLL_INTERVAL);
     listenSocket();
     listenEvents();
+    // No standalone polling timer — rely on main.js and socket events.
+    // Listen for a custom event dispatched by main.js after its poll completes.
+    document.addEventListener('notif:badge-update', function (e) {
+      updateAll(e.detail ? e.detail.count : 0);
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) poll();
+    });
   }
 
   function refreshBadge() {
@@ -20,7 +26,6 @@
       clearInterval(pollTimer);
     }
     poll();
-    pollTimer = setInterval(poll, POLL_INTERVAL);
   }
 
   function poll() {
@@ -58,17 +63,14 @@
       socket.on('friend_request:accepted', function () {
         refreshBadge();
       });
+      socket.on('notifications:unread-count', function (data) {
+        updateAll((data && data.count) || 0);
+      });
     } catch (e) {}
   }
 
   function listenEvents() {
-    document.addEventListener('notifications:read', function () {
-      refreshBadge();
-    });
-    document.addEventListener('friend_request:accepted', function () {
-      refreshBadge();
-    });
-    document.addEventListener('friend_request:declined', function () {
+    document.addEventListener('notif:refresh', function () {
       refreshBadge();
     });
   }

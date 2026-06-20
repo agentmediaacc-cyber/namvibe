@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List, Optional
 
 from engines.cache_engine import cache_key, get_cache, set_cache
 from services.homepage_real_data_guard import public_profile_sql
-from services.neon_service import fast_query
+from services.neon_service import fast_query, get_cached_table_columns
 from services.production_content_guard import is_fake_content
 from services.relationship_cache_service import get_many_relationship_states
 from services.relationship_privacy_service import is_blocked_any
@@ -126,17 +126,26 @@ def _candidate_rows(viewer: Dict, limit: int) -> List[Dict]:
         params.append(country)
     score_parts.append("CASE WHEN is_creator = TRUE OR profile_type IN ('creator','business','page','premium') THEN 8 ELSE 0 END")
     score_parts.append("CASE WHEN created_at > now() - interval '30 days' THEN 10 ELSE 0 END")
+    try:
+        profile_cols = set(get_cached_table_columns("chain_profiles", timeout_ms=2000) or [])
+    except Exception:
+        profile_cols = set()
+    has_discovery = "allow_profile_discovery" in profile_cols
     columns = """
         id, username, display_name, full_name, avatar_url, thumbnail_url, town, region,
         country, current_country, current_location, bio, is_verified, verified,
         is_creator, creator_category, is_premium, profile_type, profile_visibility,
-        followers_count, created_at, allow_profile_discovery
+        followers_count, created_at
     """
+    if has_discovery:
+        columns += ", allow_profile_discovery"
+    where_clause = " AND ".join(where)
+    if has_discovery:
+        where_clause += " AND COALESCE(allow_profile_discovery, TRUE) = TRUE"
     sql = f"""
         SELECT {columns}, ({' + '.join(score_parts)}) AS base_score
         FROM chain_profiles
-        WHERE {' AND '.join(where)}
-          AND COALESCE(allow_profile_discovery, TRUE) = TRUE
+        WHERE {where_clause}
         ORDER BY base_score DESC, created_at DESC NULLS LAST
         LIMIT %s
     """

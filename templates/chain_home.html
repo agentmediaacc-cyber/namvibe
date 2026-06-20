@@ -350,9 +350,9 @@
       <span class="smart-popout-kicker">{{ card.type|title }}</span>
       <h3>{{ card.title }}</h3>
       <p>{{ card.subtitle }}</p>
-      {% if card.items %}
+      {% if card["items"] %}
       <div class="smart-popout-items">
-        {% for item in card.items[:3] %}
+        {% for item in card["items"][:3] %}
         <a href="/profile/@{{ item.username }}" class="smart-popout-person">
           <span>{{ (item.display_name or item.username or '?')[0]|upper }}</span>
           <strong>{{ item.display_name or item.username }}</strong>

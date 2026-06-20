@@ -123,7 +123,7 @@
   async function followProfile(button, profileId) {
     setBusy(button, true);
     try {
-      var data = await requestJson('/api/profile/' + encodeURIComponent(profileId) + '/follow', { method: 'POST' });
+      var data = await requestJson('/social/follow/' + encodeURIComponent(profileId), { method: 'POST' });
       if (!data) return;
       var following = Boolean(data.following || data.is_following || data.follow_status === 'following' || data.success || data.ok);
       button.classList.toggle('is-following', following);

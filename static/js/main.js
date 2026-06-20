@@ -138,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const data = await response.json();
             updateNotifCount(data.count || 0);
+            document.dispatchEvent(new CustomEvent('notif:badge-update', { detail: { count: data.count || 0 } }));
             logNotificationPolling('completed', { count: data.count || 0, source });
         } catch (error) {
             logNotificationPolling('skipped', { reason: error?.message || 'request failed', source });

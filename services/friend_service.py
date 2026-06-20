@@ -180,13 +180,10 @@ def remove_friend(profile_id, friend_id):
         return {"success": False, "error": str(e)}
 
 def are_friends(profile_id, other_id):
-    """Checks if two profiles are friends."""
-    p1, p2 = _get_ordered_pair(profile_id, other_id)
-    res = fast_query(
-        "SELECT 1 FROM chain_friends WHERE profile_id_1 = %s AND profile_id_2 = %s LIMIT 1",
-        [p1, p2]
-    )
-    return bool(res)
+    """Checks if two profiles are friends using relationship cache."""
+    from services.relationship_cache_service import get_relationship_state
+    state = get_relationship_state(profile_id, other_id)
+    return state.get("is_friend", False)
 
 def list_friends(profile_id, limit=20, cursor=None):
     """Lists friends for a profile with cursor pagination and Redis caching."""

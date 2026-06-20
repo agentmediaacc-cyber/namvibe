@@ -245,6 +245,11 @@
     return '';
   }
 
+  function getCsrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
   function handleAction(btn, item, card) {
     var action = btn.dataset.nvAction;
     var type = btn.dataset.nvType || 'friend_request';
@@ -254,13 +259,18 @@
     if (action === 'accept' && requestId) {
       btn.disabled = true;
       btn.textContent = '...';
-      var url = type === 'follow_request' ? '/api/follow/approve/' : '/api/friends/accept/';
-      fetch(url + encodeURIComponent(requestId), {
-        method: 'POST', credentials: 'same-origin',
-      })
+      var url, fetchOpts;
+      if (type === 'follow_request') {
+        url = '/api/follow/approve/' + encodeURIComponent(requestId);
+        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCsrfToken() } };
+      } else {
+        url = '/social/friends/accept';
+        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify({request_id: requestId}) };
+      }
+      fetch(url, fetchOpts)
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (data.ok) {
+          if (data.ok || data.success) {
             card.querySelector('.nv-notif-actions').innerHTML =
               '<div class="nv-notif-actions">' +
                 '<span style="font-size:13px;color:#2ecc71;font-weight:600"><i class="fas fa-check-circle"></i> Approved</span>' +
@@ -289,13 +299,18 @@
     if (action === 'decline' && requestId) {
       btn.disabled = true;
       btn.textContent = '...';
-      var url = type === 'follow_request' ? '/api/follow/decline/' : '/api/friends/decline/';
-      fetch(url + encodeURIComponent(requestId), {
-        method: 'POST', credentials: 'same-origin',
-      })
+      var url, fetchOpts;
+      if (type === 'follow_request') {
+        url = '/api/follow/decline/' + encodeURIComponent(requestId);
+        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCsrfToken() } };
+      } else {
+        url = '/social/friends/decline';
+        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify({request_id: requestId}) };
+      }
+      fetch(url, fetchOpts)
         .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (data.ok) {
+          if (data.ok || data.success) {
             card.remove();
             showToast(type === 'follow_request' ? 'Follow request declined' : 'Friend request declined');
             fetchUnreadCount();

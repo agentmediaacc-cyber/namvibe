@@ -579,8 +579,11 @@ def normalize_profile(profile):
     normalized["avatar_url"] = normalized.get("avatar_url") or normalized.get("profile_photo")
     normalized["cover_url"] = normalized.get("cover_url") or normalized.get("cover_photo")
     normalized["profile_video_url"] = normalized.get("profile_video_url") or normalized.get("video_intro_url")
-    normalized["location"] = normalized.get("location") or normalized.get("current_location") or normalized.get("town") or normalized.get("region") or normalized.get("country_origin") or ""
-    normalized["current_location"] = normalized.get("current_location") or normalized["location"]
+    parts = [normalized.get("town"), normalized.get("region"), normalized.get("country_origin")]
+    parts = [p for p in parts if p]
+    assembled = ", ".join(parts) if parts else ""
+    normalized["location"] = normalized.get("location") or normalized.get("current_location") or assembled
+    normalized["current_location"] = normalized.get("current_location") or normalized.get("location") or assembled
     normalized["website"] = normalized.get("website") or normalized.get("portfolio_url") or ""
     normalized["created_at"] = created_at
     normalized["last_login_at"] = normalized.get("last_login_at") or normalized.get("last_active") or normalized.get("updated_at") or created_at
@@ -2395,27 +2398,13 @@ def get_sent_friend_requests(profile_id, status="pending"):
 
 def get_friend_status(profile_id, other_profile_id):
     try:
-        if profile_id == other_profile_id:
-            return "none"
-        p1 = min(profile_id, other_profile_id)
-        p2 = max(profile_id, other_profile_id)
-        friend = fast_query(
-            "SELECT 1 FROM chain_friends WHERE profile_id_1 = %s AND profile_id_2 = %s LIMIT 1",
-            [p1, p2]
-        )
-        if friend:
+        from services.relationship_cache_service import get_relationship_state
+        state = get_relationship_state(profile_id, other_profile_id)
+        if state.get("is_friend"):
             return "friends"
-        sent = fast_query(
-            "SELECT 1 FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending' LIMIT 1",
-            [profile_id, other_profile_id]
-        )
-        if sent:
+        if state.get("friend_request_sent"):
             return "request_sent"
-        received = fast_query(
-            "SELECT 1 FROM chain_friend_requests WHERE sender_profile_id = %s AND recipient_profile_id = %s AND status = 'pending' LIMIT 1",
-            [other_profile_id, profile_id]
-        )
-        if received:
+        if state.get("friend_request_received"):
             return "request_received"
         return "none"
     except Exception as error:
@@ -2425,13 +2414,9 @@ def get_friend_status(profile_id, other_profile_id):
 
 def are_friends(profile_id_a, profile_id_b):
     try:
-        p1 = min(profile_id_a, profile_id_b)
-        p2 = max(profile_id_a, profile_id_b)
-        friend = fast_query(
-            "SELECT 1 FROM chain_friends WHERE profile_id_1 = %s AND profile_id_2 = %s LIMIT 1",
-            [p1, p2]
-        )
-        return bool(friend)
+        from services.relationship_cache_service import get_relationship_state
+        state = get_relationship_state(profile_id_a, profile_id_b)
+        return state.get("is_friend", False)
     except Exception as error:
         print(f"[profile_service] are_friends failed: {error}")
         return False

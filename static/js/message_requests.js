@@ -119,12 +119,18 @@
     return card;
   }
 
+  function getCsrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
   function approveFollowRequest(requestId, card) {
     var btn = card.querySelector('.follow-approve-btn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     fetch('/api/follow/approve/' + encodeURIComponent(requestId), {
       method: 'POST', credentials: 'same-origin',
+      headers: { 'X-CSRFToken': getCsrfToken() },
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -153,6 +159,7 @@
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     fetch('/api/follow/decline/' + encodeURIComponent(requestId), {
       method: 'POST', credentials: 'same-origin',
+      headers: { 'X-CSRFToken': getCsrfToken() },
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -181,12 +188,14 @@
     var acceptBtn = card.querySelector('.fr-accept');
     acceptBtn.disabled = true;
     acceptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    fetch('/api/friends/accept/' + encodeURIComponent(requestId), {
+    fetch('/social/friends/accept', {
       method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({request_id: requestId}),
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data.ok) {
+        if (data.success || data.ok) {
           card.querySelector('.fr-actions').innerHTML =
             '<span style="font-size:13px;color:#2ecc71;font-weight:600"><i class="fas fa-check-circle"></i> Friends now</span>';
           card.style.opacity = '0.6';
@@ -196,7 +205,7 @@
         } else {
           acceptBtn.disabled = false;
           acceptBtn.innerHTML = '<i class="fas fa-check"></i> Accept';
-          showToast(data.error || 'Failed to accept');
+          showToast(data.error || data.msg || 'Failed to accept');
         }
       })
       .catch(function () {
@@ -210,12 +219,14 @@
     var declineBtn = card.querySelector('.fr-decline');
     declineBtn.disabled = true;
     declineBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    fetch('/api/friends/decline/' + encodeURIComponent(requestId), {
+    fetch('/social/friends/decline', {
       method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({request_id: requestId}),
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data.ok) {
+        if (data.success || data.ok) {
           card.remove();
           showToast('Request declined');
           dispatchEvent(new CustomEvent('friend_request:accepted'));
@@ -228,7 +239,7 @@
         } else {
           declineBtn.disabled = false;
           declineBtn.innerHTML = '<i class="fas fa-times"></i> Decline';
-          showToast(data.error || 'Failed to decline');
+          showToast(data.error || data.msg || 'Failed to decline');
         }
       })
       .catch(function () {

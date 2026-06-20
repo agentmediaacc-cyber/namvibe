@@ -161,9 +161,11 @@ document.querySelectorAll('[data-friend-action]').forEach((button) => {
         if (!targetId) return;
         button.disabled = true;
         try {
-            const response = await fetch('/api/friends/request', {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            const response = await fetch('/social/friends/request', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
                 body: JSON.stringify({recipient_id: targetId})
             });
             if (response.redirected) { window.location.href = response.url; return; }

@@ -2379,8 +2379,15 @@ def get_profile_avatar_url(profile):
 # Phase 71 — TikTok-style Reel Feed Payload
 # ================================================================
 
+def _time_budget(deadline):
+    return time.perf_counter() < deadline
+
+
 def build_tiktok_home_payload(exclude_test_content=True):
     """Return lightweight TikTok-style homepage payload with reels feed."""
+    start = time.perf_counter()
+    budget_800 = start + 0.8
+    budget_1000 = start + 1.0
     payload = {
         "current": _safe_current_profile(),
         "reels_feed": [],
@@ -2391,78 +2398,93 @@ def build_tiktok_home_payload(exclude_test_content=True):
         "stats": {"reels": 0, "suggested": 0},
     }
     try:
-        from services.reels_service import get_reel_feed, is_following_creator
-        reels = get_reel_feed(limit=30)
-        if exclude_test_content:
-            reels = filter_content(reels)
         current = payload["current"]
         profile_id = current.get("id") if current else None
-        try:
-            from services.video_interest_service import rank_reels_for_viewer
-            reels = rank_reels_for_viewer(profile_id, reels=reels, limit=30)
-        except Exception:
-            pass
+        reels = []
 
-        follow_map = {}
-        if profile_id and reels:
+        if _time_budget(budget_1000):
+            from services.reels_service import get_reel_feed, is_following_creator
+            reels = get_reel_feed(limit=30) if _time_budget(budget_1000) else reels
+            if exclude_test_content and reels:
+                reels = filter_content(reels)
+            if _time_budget(budget_1000):
+                try:
+                    from services.video_interest_service import rank_reels_for_viewer
+                    reels = rank_reels_for_viewer(profile_id, reels=reels, limit=30)
+                except Exception:
+                    pass
+
+            follow_map = {}
+            if profile_id and reels:
+                for r in reels:
+                    pid = r.get("profile_id")
+                    if pid and pid != profile_id:
+                        if pid not in follow_map:
+                            follow_map[pid] = is_following_creator(profile_id, pid)
+
+            items = []
             for r in reels:
                 pid = r.get("profile_id")
-                if pid and pid != profile_id:
-                    if pid not in follow_map:
-                        follow_map[pid] = is_following_creator(profile_id, pid)
+                items.append({
+                    "id": r.get("id"),
+                    "video_url": r.get("video_url") or "",
+                    "thumbnail_url": r.get("thumbnail_url") or r.get("media_url") or "",
+                    "caption": (r.get("caption") or "")[:200],
+                    "music_title": r.get("music_title") or "",
+                    "hashtags": _extract_hashtags(r.get("caption") or ""),
+                    "duration_seconds": r.get("duration_seconds") or 0,
+                    "profile_id": pid,
+                    "username": r.get("username") or "",
+                    "display_name": r.get("display_name") or r.get("username") or "Creator",
+                    "avatar_url": get_profile_avatar_url(r) or "",
+                    "is_verified": bool(r.get("is_verified") or r.get("verified")),
+                    "likes_count": r.get("likes_count") or 0,
+                    "comments_count": r.get("comments_count") or 0,
+                    "views_count": r.get("views_count") or 0,
+                    "shares_count": r.get("shares_count") or 0,
+                    "is_followed": follow_map.get(pid, False),
+                    "is_liked": False,
+                    "is_saved": False,
+                })
 
-        items = []
-        for r in reels:
-            pid = r.get("profile_id")
-            items.append({
-                "id": r.get("id"),
-                "video_url": r.get("video_url") or "",
-                "thumbnail_url": r.get("thumbnail_url") or r.get("media_url") or "",
-                "caption": (r.get("caption") or "")[:200],
-                "music_title": r.get("music_title") or "",
-                "hashtags": _extract_hashtags(r.get("caption") or ""),
-                "duration_seconds": r.get("duration_seconds") or 0,
-                "profile_id": pid,
-                "username": r.get("username") or "",
-                "display_name": r.get("display_name") or r.get("username") or "Creator",
-                "avatar_url": get_profile_avatar_url(r) or "",
-                "is_verified": bool(r.get("is_verified") or r.get("verified")),
-                "likes_count": r.get("likes_count") or 0,
-                "comments_count": r.get("comments_count") or 0,
-                "views_count": r.get("views_count") or 0,
-                "shares_count": r.get("shares_count") or 0,
-                "is_followed": follow_map.get(pid, False),
-                "is_liked": False,
-                "is_saved": False,
-            })
-
-        payload["reels_feed"] = items
-        payload["following_map"] = follow_map
-        payload["stats"]["reels"] = len(items)
+            payload["reels_feed"] = items
+            payload["following_map"] = follow_map
+            payload["stats"]["reels"] = len(items)
 
         # Suggested creators
-        try:
-            from services.smart_suggestion_service import get_smart_suggestions, build_recommendation_cards
-            suggested = get_smart_suggestions(profile_id, limit=5)
-            payload["recommendation_cards"] = build_recommendation_cards(profile_id, limit=3)
-        except Exception:
-            suggested = _suggested_people(current_user=current, limit=5)
-            if exclude_test_content:
-                suggested = filter_profiles(suggested)
-            payload["recommendation_cards"] = []
-        payload["suggested_creators"] = suggested
-        payload["smart_suggestions"] = suggested
-        payload["stats"]["suggested"] = len(suggested)
+        if _time_budget(budget_800):
+            try:
+                from services.smart_suggestion_service import get_smart_suggestions, build_recommendation_cards
+                suggested = get_smart_suggestions(profile_id, limit=5)
+                payload["recommendation_cards"] = build_recommendation_cards(profile_id, limit=3)
+            except Exception:
+                suggested = _suggested_people(current_user=current, limit=5)
+                if exclude_test_content:
+                    suggested = filter_profiles(suggested)
+                payload["recommendation_cards"] = []
+            payload["suggested_creators"] = suggested
+            payload["smart_suggestions"] = suggested
+            payload["stats"]["suggested"] = len(suggested)
 
         # Trending hashtags from reels captions
-        payload["trending_hashtags"] = _trending_hashtags(reels, limit=8)
+        if _time_budget(budget_1000) and reels:
+            payload["trending_hashtags"] = _trending_hashtags(reels, limit=8)
 
-        # Popular towns
-        payload["popular_towns"] = fetch_popular_towns(limit=6)
+        # Popular towns — cached 10 minutes
+        if _time_budget(budget_800):
+            from engines.cache_engine import get_cache, set_cache, cache_key
+            towns = get_cache(cache_key("homepage", "popular_towns"))
+            if towns is None:
+                towns = fetch_popular_towns(limit=6)
+                set_cache(cache_key("homepage", "popular_towns"), towns, ttl=600)
+            payload["popular_towns"] = towns
 
     except Exception as e:
         _log(f"build_tiktok_home_payload error: {e}")
 
+    elapsed = (time.perf_counter() - start) * 1000
+    if elapsed > 3000:
+        _log(f"build_tiktok_home_payload slow: {elapsed:.0f}ms")
     return payload
 
 

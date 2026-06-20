@@ -267,10 +267,17 @@ def api_friend_suggestions():
 @login_required
 def api_social_status(target_id):
     profile = get_current_profile()
-    status = "none"
-    if are_friends(profile["id"], target_id):
-        status = "friend"
-    return jsonify({"status": status})
+    from services.friendship_service import get_friendship_status
+    from services.friend_service import list_friend_requests
+    status_data = get_friendship_status(profile["id"], target_id)
+    request_id = None
+    if status_data.get("status") == "pending_received":
+        received = list_friend_requests(profile["id"], direction="received", limit=5)
+        for r in received.get("requests", []):
+            if str(r.get("sender_profile_id")) == str(target_id):
+                request_id = str(r.get("id") or r.get("request_id"))
+                break
+    return jsonify({"ok": True, **status_data, "request_id": request_id})
 
 @social_bp.route("/api/social/action-policy/<profile_id>")
 def api_action_policy(profile_id):

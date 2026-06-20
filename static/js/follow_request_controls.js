@@ -16,9 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
         followBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
             const response = await fetch(`/social/follow/${profileId}`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             });
             
             if (response.redirected) {
@@ -70,9 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = btn.closest('.request-actions') || btn.parentElement;
 
         try {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
             const response = await fetch(`/api/follow/${action}/${requestId}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
             });
             const data = await response.json();
 

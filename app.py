@@ -730,43 +730,54 @@ def create_app():
         from flask import request
         town = request.args.get("town", "")
         region = request.args.get("region", "")
-        params = {"town": town, "region": region}
+        avail = {rule.rule for rule in app.url_map.iter_rules()}
+        is_in = bool(session.get("profile_id") or session.get("auth_user_id"))
+        base_routes = {
+            "home_route": "/",
+            "discover_route": "/discover/" if "/discover/" in avail else "/",
+            "live_route": "/live/" if "/live/" in avail else "/",
+            "reel_route": "/reels/" if "/reels/" in avail else "/discover/",
+            "reel_create": "/reels/upload" if "/reels/upload" in avail else "/features/upload-reel",
+            "story_create": "/status/create" if "/status/create" in avail else "/profile/",
+            "composer_fallback": "/features/create-post" if "/features/create-post" in avail else "/posts/create",
+            "upload_video_route": "/features/upload-video" if "/features/upload-video" in avail else "/upload/video",
+            "dating_route": "/dating/discover" if "/dating/discover" in avail else "/discover/",
+            "friends_route": "/social/friend-requests" if "/social/friend-requests" in avail else "/discover/",
+            "login_route": "/auth/login",
+            "register_route": "/auth/register",
+            "drawer_profile": "/profile/" if is_in else "/auth/login",
+            "drawer_messages": "/messages/" if is_in and "/messages/" in avail else ("/auth/login" if not is_in else "/"),
+            "drawer_calls": "/calls/" if is_in and "/calls/" in avail else ("/auth/login" if not is_in else "/calls/recent"),
+            "drawer_notifications": "/notifications/" if is_in and "/notifications/" in avail else ("/auth/login" if not is_in else "/profile/"),
+            "drawer_wallet": "/wallet/" if is_in and "/wallet/" in avail else ("/auth/login" if not is_in else "/"),
+            "drawer_settings": "/profile/settings" if "/profile/settings" in avail else "/discover/",
+            "drawer_security": "/security/privacy" if "/security/privacy" in avail else "/security",
+            "reel_available": "/reels/" in avail or "/reels/upload" in avail,
+            "story_available": True,
+            "live_available": "/live/" in avail,
+            "upload_video_available": "/features/upload-video" in avail,
+            "post_available": True,
+        }
+        shell = {
+            "reels_feed": [], "suggested_creators": [], "smart_suggestions": [],
+            "recommendation_cards": [], "trending_hashtags": [], "popular_towns": [],
+            "live_rooms": [], "stories": [], "posts": [], "current": None,
+            **base_routes,
+        }
         with timed("home"):
-            data = get_homepage_data(**params)
-            tiktok = build_tiktok_home_payload()
-            data["reels_feed"] = tiktok.get("reels_feed", [])
-            data["suggested_creators"] = tiktok.get("suggested_creators", [])
-            data["smart_suggestions"] = tiktok.get("smart_suggestions", [])
-            data["recommendation_cards"] = tiktok.get("recommendation_cards", [])
-            avail = {rule.rule for rule in app.url_map.iter_rules()}
-            is_in = bool(session.get("profile_id") or session.get("auth_user_id"))
-            routes = {
-                "home_route": "/",
-                "discover_route": "/discover/" if "/discover/" in avail else "/",
-                "live_route": "/live/" if "/live/" in avail else "/",
-                "reel_route": "/reels/" if "/reels/" in avail else "/discover/",
-                "reel_create": "/reels/upload" if "/reels/upload" in avail else "/features/upload-reel",
-                "story_create": "/status/create" if "/status/create" in avail else "/profile/",
-                "composer_fallback": "/features/create-post" if "/features/create-post" in avail else "/posts/create",
-                "upload_video_route": "/features/upload-video" if "/features/upload-video" in avail else "/upload/video",
-                "dating_route": "/dating/discover" if "/dating/discover" in avail else "/discover/",
-                "friends_route": "/social/friend-requests" if "/social/friend-requests" in avail else "/discover/",
-                "login_route": "/auth/login",
-                "register_route": "/auth/register",
-                "drawer_profile": "/profile/" if is_in else "/auth/login",
-                "drawer_messages": "/messages/" if is_in and "/messages/" in avail else ("/auth/login" if not is_in else "/"),
-                "drawer_calls": "/calls/" if is_in and "/calls/" in avail else ("/auth/login" if not is_in else "/calls/recent"),
-                "drawer_notifications": "/notifications/" if is_in and "/notifications/" in avail else ("/auth/login" if not is_in else "/profile/"),
-                "drawer_wallet": "/wallet/" if is_in and "/wallet/" in avail else ("/auth/login" if not is_in else "/"),
-                "drawer_settings": "/profile/settings" if "/profile/settings" in avail else "/discover/",
-                "drawer_security": "/security/privacy" if "/security/privacy" in avail else "/security",
-                "reel_available": "/reels/" in avail or "/reels/upload" in avail,
-                "story_available": True,
-                "live_available": "/live/" in avail,
-                "upload_video_available": "/features/upload-video" in avail,
-                "post_available": True,
-            }
-            data.update(routes)
+            try:
+                data = get_homepage_data(**params)
+            except Exception:
+                data = dict(shell)
+            try:
+                tiktok = build_tiktok_home_payload()
+                data["reels_feed"] = tiktok.get("reels_feed", [])
+                data["suggested_creators"] = tiktok.get("suggested_creators", [])
+                data["smart_suggestions"] = tiktok.get("smart_suggestions", [])
+                data["recommendation_cards"] = tiktok.get("recommendation_cards", [])
+            except Exception:
+                pass
+            data.update(base_routes)
             return render_template("chain_home.html", **data)
 
     @app.route("/login")

@@ -13,7 +13,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
 from engines.performance_engine import clean_email, make_unique_username, normalize_username, profile_completion_score
-from services.neon_service import write_query, fast_query, is_circuit_open, get_cached_table_columns
+from services.neon_service import write_query, fast_query, is_circuit_open, get_cached_table_columns, table_exists as neon_table_exists
 from services.supabase_safe import column_safe_payload, safe_count, safe_insert, safe_select, safe_update, table_exists
 from services.logging_service import log_info, log_warning
 from utils.supabase_client import get_supabase, get_supabase_admin
@@ -70,6 +70,9 @@ LOGIN_PROFILE_FIELD_CANDIDATES = (
     "normalized_email",
     "password_hash",
     "password",
+    "password_digest",
+    "hashed_password",
+    "legacy_password_hash",
     "is_active",
     "is_blocked",
     "login_allowed",
@@ -502,13 +505,18 @@ def _find_login_profile(login_id, columns=None):
     """
     Robust profile lookup for login.
     Handles email, username, and handles with/without @.
+    Cached 30s to avoid repeated slow lookups.
     """
     raw_login_id = (login_id or "").strip()
     normalized_login_id = raw_login_id.lower()
     if not normalized_login_id:
         return None
-    
-    # Remove @ from handle for consistent lookup
+
+    cache_key_str = f"login_profile_lookup:{normalized_login_id}"
+    cached = get_cache(cache_key_str)
+    if cached is not None:
+        return cached
+
     lookup_id = normalized_login_id[1:] if normalized_login_id.startswith("@") else normalized_login_id
     normalized_username = normalize_username(lookup_id)
     is_email = "@" in normalized_login_id
@@ -581,6 +589,7 @@ def _find_login_profile(login_id, columns=None):
     if profile:
         reason = "profile_found"
         auth_user_found = bool(profile.get("auth_user_id"))
+        set_cache(cache_key_str, profile, ttl=30)
     elif is_email:
         try:
             auth_user_found = bool(get_auth_user_by_email(normalized_login_id))
@@ -1614,6 +1623,42 @@ def _dev_credential_profile(credential):
     return None
 
 
+def _get_local_auth_credential(profile):
+    if not profile or not profile.get("id"):
+        return None
+    try:
+        if not neon_table_exists("chain_local_auth_credentials"):
+            return None
+        rows = fast_query(
+            """
+            SELECT profile_id, username, email, password_hash
+            FROM chain_local_auth_credentials
+            WHERE profile_id = %s
+            LIMIT 1
+            """,
+            (profile.get("id"),),
+            timeout_ms=1000,
+            default=[],
+        )
+        return rows[0] if rows else None
+    except Exception as error:
+        log_warning("local_auth_credential_lookup_failed", profile_id=profile.get("id"), error=str(error))
+        return None
+
+
+def _mark_local_auth_used(profile_id):
+    if not profile_id:
+        return
+    try:
+        write_query(
+            "UPDATE chain_local_auth_credentials SET last_used_at = now(), updated_at = now() WHERE profile_id = %s",
+            (profile_id,),
+            timeout_ms=1000,
+        )
+    except Exception as error:
+        log_warning("local_auth_last_used_update_failed", profile_id=profile_id, error=str(error))
+
+
 def login_chain_user(email, password=None, remember=False):
     if isinstance(email, dict):
         payload = email
@@ -1638,6 +1683,9 @@ def login_chain_user(email, password=None, remember=False):
         "local_fallback_attempted": False,
         "success": False,
         "redirect_to": None,
+        "local_auth_table_checked": False,
+        "local_auth_found": False,
+        "local_auth_success": False,
     }
 
     # --- 1. Account lookup ---
@@ -1664,17 +1712,52 @@ def login_chain_user(email, password=None, remember=False):
             print(f"[login_result_debug] {login_result_debug}")
             return False, "Account not found."
 
-    login_result_debug["profile_found"] = bool(login_profile)
+    # --- 2. Check local password hash (all possible columns) ---
+    def _get_password_hash(profile):
+        for col in ("password_hash", "password", "password_digest", "hashed_password", "legacy_password_hash"):
+            val = profile.get(col)
+            if val:
+                return val
+        return None
 
-    # --- 2. Check local password_hash from profile ---
+    login_result_debug["profile_found"] = bool(login_profile)
     login_result_debug["password_checked"] = True
-    password_hash = login_profile.get("password_hash") or login_profile.get("password")
+    password_hash = _get_password_hash(login_profile) if login_profile else None
+    login_result_debug["verifier_available"] = bool(password_hash)
+
     if password_hash and check_password_hash(password_hash, password):
         _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"))
         login_result_debug["state"] = "login_success"
         login_result_debug["success"] = True
         login_result_debug["redirect_to"] = "/profile/"
         print(f"[login_result_debug] {login_result_debug}")
+        return True, "/profile/"
+
+    local_auth_credential = None
+
+    def _check_local_auth_table():
+        nonlocal local_auth_credential
+        if not login_profile or password_hash:
+            return None
+        login_result_debug["local_auth_table_checked"] = True
+        if local_auth_credential is None:
+            local_auth_credential = _get_local_auth_credential(login_profile)
+        login_result_debug["local_auth_found"] = bool(local_auth_credential)
+        local_hash = (local_auth_credential or {}).get("password_hash") or ""
+        if local_hash and check_password_hash(local_hash, password):
+            _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"))
+            _mark_local_auth_used(login_profile.get("id"))
+            login_result_debug["local_auth_success"] = True
+            login_result_debug["state"] = "login_success"
+            login_result_debug["success"] = True
+            login_result_debug["redirect_to"] = "/profile/"
+            print(f"[login_result_debug] {login_result_debug}")
+            return True
+        login_result_debug["local_auth_success"] = False
+        return False if local_auth_credential else None
+
+    local_auth_result = _check_local_auth_table()
+    if local_auth_result is True:
         return True, "/profile/"
 
     # --- 3. Check dev credential (in-memory) before Supabase ---
@@ -1759,9 +1842,21 @@ def login_chain_user(email, password=None, remember=False):
                     return True, "/profile/"
             if login_profile is None and "@" in login_id:
                 login_profile = _find_login_profile(resolved_email)
+            local_auth_result = _check_local_auth_table()
+            if local_auth_result is True:
+                return True, "/profile/"
             login_result_debug["state"] = "password_invalid"
             print(f"[login_result_debug] {login_result_debug}")
-            return False, "Password is incorrect, or this account needs password reset." if login_profile else "Account not found."
+            if login_profile and not _get_password_hash(login_profile):
+                if local_auth_result is None:
+                    login_result_debug["state"] = "password_reset_required"
+                    print(f"[login_result_debug] {login_result_debug}")
+                    return False, "This account needs password reset."
+                else:
+                    login_result_debug["state"] = "password_invalid"
+                    print(f"[login_result_debug] {login_result_debug}")
+                    return False, "Password is incorrect."
+            return False, "Password is incorrect." if login_profile else "Account not found."
 
         # --- 5b. Email not confirmed ---
         if "email not confirmed" in err_msg:
@@ -1796,6 +1891,13 @@ def login_chain_user(email, password=None, remember=False):
                 login_result_debug["redirect_to"] = "/profile/"
                 print(f"[login_result_debug] {login_result_debug}")
                 return True, "/profile/"
+        local_auth_result = _check_local_auth_table()
+        if local_auth_result is True:
+            return True, "/profile/"
+        if local_auth_result is None and login_profile and not _get_password_hash(login_profile):
+            login_result_debug["state"] = "password_reset_required"
+            print(f"[login_result_debug] {login_result_debug}")
+            return False, "This account needs password reset."
         login_result_debug["state"] = "password_invalid" if login_profile else "account_not_found"
         print(f"[login_result_debug] {login_result_debug}")
         return False, "Password is incorrect, or this account needs password reset." if login_profile else "Account not found."

@@ -4,7 +4,7 @@
 (function () {
     'use strict';
 
-    const FR_API = '/api/friends';
+    const SOCIAL_API = '/social';
 
     function getCsrfToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
@@ -104,28 +104,28 @@
 
     async function sendFriendRequest(targetId, btn) {
         if (!targetId) return;
-        const result = await apiPost(`${FR_API}/request/${targetId}`);
-        if (result.ok) {
+        const result = await apiPost(`/social/friends/request`, {recipient_id: targetId});
+        if (result.success || result.ok) {
             showToast('Friend request sent!', 'success');
             updateFriendButton(btn, 'pending_sent');
         } else {
-            showToast(result.error || 'Failed to send request', 'error');
+            showToast(result.error || result.msg || 'Failed to send request', 'error');
         }
     }
 
     async function acceptFriendRequest(requestId) {
-        const result = await apiPost(`${FR_API}/accept/${requestId}`);
-        if (result.ok) {
+        const result = await apiPost(`/social/friends/accept`, {request_id: requestId});
+        if (result.success || result.ok) {
             showToast('Friend request accepted!', 'success');
             return true;
         }
-        showToast(result.error || 'Failed to accept', 'error');
+        showToast(result.error || result.msg || 'Failed to accept', 'error');
         return false;
     }
 
     async function declineFriendRequest(requestId) {
-        const result = await apiPost(`${FR_API}/decline/${requestId}`);
-        if (result.ok) {
+        const result = await apiPost(`/social/friends/decline`, {request_id: requestId});
+        if (result.success || result.ok) {
             showToast('Friend request declined', 'info');
             return true;
         }
@@ -133,8 +133,8 @@
     }
 
     async function cancelFriendRequest(requestId) {
-        const result = await apiPost(`${FR_API}/cancel/${requestId}`);
-        if (result.ok) {
+        const result = await apiPost(`/social/friends/cancel`, {request_id: requestId});
+        if (result.success || result.ok) {
             showToast('Friend request cancelled', 'info');
             return true;
         }
@@ -216,9 +216,9 @@
                 return;
             }
 
-            apiGet(`${FR_API}/status/${profileId}`).then(function (data) {
-                if (data.ok) {
-                    updateFriendButton(btn, data.status, data.request_id);
+            apiGet(`/social/api/status/${profileId}`).then(function (data) {
+                if (data.ok || data.status) {
+                    updateFriendButton(btn, data.status, data.request_id || data.requestId);
                 }
             });
         });

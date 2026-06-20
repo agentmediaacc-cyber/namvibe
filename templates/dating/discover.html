@@ -98,8 +98,8 @@
                 <div class="compat-badge">{{ profile.compatibility_score }}% Match</div>
             </div>
             <div class="card-info">
-                <h2 style="margin:0;">{{ profile.full_name }}, {{ profile.age or '24' }}</h2>
-                <p style="color:var(--chain-muted); margin-top:5px;"><i class="fas fa-map-marker-alt"></i> {{ profile.current_location or 'Windhoek' }} · {{ profile.distance_km or (loop.index * 3) }} km away</p>
+                <h2 style="margin:0;">{{ profile.full_name }}{% if profile.age %}, {{ profile.age }}{% endif %}</h2>
+                <p style="color:var(--chain-muted); margin-top:5px;"><i class="fas fa-map-marker-alt"></i> {{ profile.current_location or profile.location or profile.town or profile.region or 'Remote' }} {% if profile.distance_km %}· {{ profile.distance_km }} km away{% endif %}</p>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;">
                     <span style="height:48px;border-radius:12px;background:var(--chain-bg-soft);display:grid;place-items:center;"><i class="fas fa-image"></i></span>
                     <span style="height:48px;border-radius:12px;background:var(--chain-bg-soft);display:grid;place-items:center;"><i class="fas fa-camera"></i></span>
@@ -141,11 +141,37 @@
 <script>
     let currentCard = 0;
     const cards = document.querySelectorAll('.swipe-card');
+    const cardData = {{ items | tojson | safe }};
 
-    function swipe(direction) {
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    async function swipe(direction) {
         if (currentCard >= cards.length) return;
         
+        const profile = cardData[currentCard];
         const card = cards[currentCard];
+        
+        let apiUrl, body;
+        if (direction === 'right') {
+            apiUrl = '/dating/api/like';
+            body = { target_id: profile.id };
+        } else if (direction === 'up') {
+            apiUrl = '/dating/api/super-like';
+            body = { target_id: profile.id };
+        } else {
+            apiUrl = '/dating/api/pass';
+            body = { target_id: profile.id };
+        }
+
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify(body),
+        }).then(r => r.json()).catch(() => {});
+
         if (direction === 'left') {
             card.style.transform = 'translateX(-1000px) rotate(-30deg)';
         } else if (direction === 'right') {
@@ -157,7 +183,5 @@
         card.style.opacity = '0';
         currentCard++;
     }
-
-    // Swipe card interaction logic (Tinder style) would go here
 </script>
 {% endblock %}
