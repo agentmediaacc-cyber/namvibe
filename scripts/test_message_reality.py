@@ -14,6 +14,21 @@ import json
 import traceback
 from datetime import datetime
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+# Load .env so DATABASE_URL is available
+env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
+if os.path.exists(env_path):
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                k = k.strip()
+                v = v.strip().strip("'\"")
+                if v:
+                    os.environ[k] = v
+
 try:
     import psycopg2
     import psycopg2.extras
@@ -21,7 +36,6 @@ except Exception as e:
     print('FAIL: missing psycopg2 ->', e)
     sys.exit(2)
 
-# Load env must be done by caller (we assume DATABASE_URL is in environment)
 DSN = os.environ.get('DATABASE_URL')
 if not DSN:
     print('FAIL: DATABASE_URL not set in environment')
