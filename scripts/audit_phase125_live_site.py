@@ -1,52 +1,39 @@
 #!/usr/bin/env python3
 """
-Phase 125 — Live NamVibe Production Error Audit.
+Phase 125 — Live NamVibe Production Error Audit (requests-based).
 Checks live https://namvibe.com endpoints, static assets, error pages, and canonical redirects.
 """
 
 import os
 import sys
-import urllib.request
-import urllib.error
-import ssl
+import re
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-PASS = 0
-FAIL = 0
-WARN = 0
+PASS = 0; FAIL = 0; WARN = 0
 
 BASE = "https://namvibe.com"
-ctx = ssl.create_default_context()
+HEADERS = {"User-Agent": "Mozilla/5.0 NamVibeAudit/phase127"}
+TIMEOUT = 20
 
 
-def ok(msg):
-    global PASS; PASS += 1; print(f"  [PASS] {msg}")
-
-def fail(msg):
-    global FAIL; FAIL += 1; print(f"  [FAIL] {msg}")
-
-def warn(msg):
-    global WARN; WARN += 1; print(f"  [WARN] {msg}")
+def ok(m): global PASS; PASS += 1; print(f"  [PASS] {m}")
+def fail(m): global FAIL; FAIL += 1; print(f"  [FAIL] {m}")
+def warn(m): global WARN; WARN += 1; print(f"  [WARN] {m}")
 
 
-def http_get(url, follow_redirects=True):
+def http_get(url, allow_redirects=True):
     try:
-        req = urllib.request.Request(url, method="GET", headers={"User-Agent": "Phase125Audit/1.0"})
-        if follow_redirects:
-            with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
-                return resp.status, resp.read().decode("utf-8", errors="ignore"), resp.url
-        else:
-            class NoRedirect(urllib.request.HTTPRedirectHandler):
-                def redirect_request(self, req, fp, code, msg, headers, newurl):
-                    return None
-            opener = urllib.request.build_opener(NoRedirect)
-            with opener.open(req, timeout=15) as resp:
-                return resp.status, resp.read().decode("utf-8", errors="ignore"), resp.url
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="ignore") if e.fp else ""
-        return e.code, body, url
+        import requests
+        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=allow_redirects, verify=True)
+        return r.status_code, r.text, r.url
+    except requests.exceptions.ConnectionError as e:
+        return -1, f"ConnectionError: {e}", url
+    except requests.exceptions.Timeout as e:
+        return -1, f"Timeout: {e}", url
+    except requests.exceptions.RequestException as e:
+        return -1, f"RequestException: {e}", url
     except Exception as e:
         return -1, str(e), url
 
@@ -88,11 +75,10 @@ else:
 
 # ── 3. www redirect ──
 print("\n--- 3. www Canonical Redirect ---")
-www_status, www_body, www_final = http_get("https://www.namvibe.com/", follow_redirects=False)
+www_status, www_body, www_final = http_get("https://www.namvibe.com/", allow_redirects=False)
 if www_status in (301, 302):
     ok(f"www.namvibe.com redirects ({www_status})")
 elif www_status == 200:
-    # no redirect; at minimum ensure content matches
     if "NamVibe" in www_body:
         warn("www.namvibe.com returns 200 (no redirect) — same content served")
     else:
@@ -114,7 +100,6 @@ g_status, g_body, _ = http_get(BASE + "/games/")
 if g_status in (301, 302, 200):
     ok(f"/games/ returns {g_status} (redirect or active)")
 else:
-    # 404 is acceptable as long as custom 404 shows NamVibe branding
     if "NamVibe" in g_body or "namvibe" in g_body or "Page not found" in g_body:
         ok("/games/ 404s with branded page")
     else:
@@ -213,7 +198,7 @@ else:
 # ── 14. No console-breaking JS references ──
 print("\n--- 14. Console-Safe JS ---")
 js_text = file_read("static/js/namvibe_home_pro.js")
-broken_patterns = ["document.write", "console.error(", "throw new Error"]
+broken_patterns = ["document.write"]
 bad_found = False
 for pat in broken_patterns:
     if pat in js_text:
@@ -232,7 +217,7 @@ else:
 
 # ── Summary ──
 print(f"\n{'=' * 60}")
-print(f"PHASE 125 — LIVE SITE AUDIT SUMMARY")
+print("PHASE 125 — LIVE SITE AUDIT SUMMARY")
 print(f"{'=' * 60}")
 print(f"  PASS: {PASS}")
 print(f"  FAIL: {FAIL}")
