@@ -53,6 +53,19 @@ def record_story_view(story_id, viewer_id, reaction=None):
             "UPDATE chain_status_posts SET views_count = COALESCE(views_count, 0) + 1 WHERE id = %s",
             (story_id,)
         )
+        try:
+            from services.socketio_service import emit_to_profile
+            story = fast_query(
+                "SELECT profile_id FROM chain_status_posts WHERE id = %s",
+                (story_id,), timeout_ms=1000, default=[]
+            )
+            if story and str(story[0].get('profile_id', '')) != str(viewer_id):
+                emit_to_profile(story[0]['profile_id'], "status:viewed", {
+                    "status_id": story_id,
+                    "viewer_id": viewer_id
+                })
+        except Exception:
+            pass
         return True
     except Exception:
         return False
