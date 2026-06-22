@@ -161,6 +161,7 @@ _COLUMN_CACHE = {}
 _TABLE_EXISTS_CACHE = {}
 _COLUMN_CACHE_TTL = 3600 * 24 # 24 hours
 _TABLE_EXISTS_CACHE_TTL = 3600 * 24
+_HEALTH_CACHE = {"payload": None, "expires_at": 0.0}
 
 def get_table_columns(table_name: str, timeout_ms=10000):
     """Retrieves column names for a table, prioritizing static cache."""
