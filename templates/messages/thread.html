@@ -283,6 +283,39 @@
 
     /* Voice recording — handled by chat.css .voice-overlay classes */
     
+    .nv-scroll-bottom {
+        position: absolute;
+        bottom: 80px;
+        right: 20px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: 1px solid var(--chain-border);
+        background: var(--chain-bg-panel);
+        color: var(--chain-primary);
+        cursor: pointer;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        transition: opacity 0.2s, transform 0.2s;
+        padding: 0;
+        line-height: 1;
+    }
+    .nv-scroll-bottom:hover {
+        background: var(--chain-bg-panel-strong);
+        transform: scale(1.05);
+    }
+    .nv-scroll-bottom:focus-visible {
+        outline: 2px solid var(--chain-primary);
+        outline-offset: 2px;
+    }
+    .nv-scroll-bottom[hidden] {
+        opacity: 0;
+        pointer-events: none;
+    }
+
     @media(max-width:480px) {
         .composer-textarea { font-size: 16px !important; }
         .chat-composer { padding: 6px 8px; padding-bottom: calc(6px + var(--safe-bottom, 0px)); gap: 4px; }
@@ -458,6 +491,10 @@
                 </div>
             </div>
         {% endfor %}
+        <!-- Scroll-to-bottom button -->
+        <button type="button" class="nv-scroll-bottom" id="nv-scroll-bottom" data-scroll-bottom aria-label="Scroll to latest messages" hidden>
+            <i class="fas fa-chevron-down"></i>
+        </button>
     </div>
 
     <!-- Phase 53: Plus Menu (replaces old media panel) -->

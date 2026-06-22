@@ -523,6 +523,33 @@ def api_calls_answer():
     return jsonify({"ok": False, "error": "call_id required"}), 400
 
 
+@api_calls_bp.route("/reject", methods=["POST"])
+@login_required
+def api_calls_reject_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_webrtc_reject(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
+@api_calls_bp.route("/cancel", methods=["POST"])
+@login_required
+def api_calls_cancel_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_webrtc_cancel(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
+@api_calls_bp.route("/end", methods=["POST"])
+@login_required
+def api_calls_end_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_webrtc_end(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
 @api_calls_bp.route("/<call_id>/answer", methods=["POST"])
 @login_required
 def api_calls_answer_id(call_id):
@@ -577,16 +604,43 @@ def api_calls_ice():
     return api_webrtc_ice_servers()
 
 
+@api_calls_bp.route("/mute", methods=["POST"])
+@login_required
+def api_calls_mute_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_webrtc_mute(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
 @api_calls_bp.route("/<call_id>/mute", methods=["POST"])
 @login_required
 def api_calls_mute(call_id):
     return api_webrtc_mute(call_id)
 
 
+@api_calls_bp.route("/camera", methods=["POST"])
+@login_required
+def api_calls_camera_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_webrtc_camera(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
 @api_calls_bp.route("/<call_id>/camera", methods=["POST"])
 @login_required
 def api_calls_camera(call_id):
     return api_webrtc_camera(call_id)
+
+
+@api_calls_bp.route("/speaker", methods=["POST"])
+@login_required
+def api_calls_speaker_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_webrtc_speaker(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
 
 
 @api_calls_bp.route("/<call_id>/speaker", methods=["POST"])
@@ -601,16 +655,43 @@ def api_calls_diagnostics():
     return api_call_diagnostics()
 
 
+@api_calls_bp.route("/invite", methods=["POST"])
+@login_required
+def api_calls_invite_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_phase41_invite(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
 @api_calls_bp.route("/<call_id>/invite", methods=["POST"])
 @login_required
 def api_calls_invite(call_id):
     return api_phase41_invite(call_id)
 
 
+@api_calls_bp.route("/leave", methods=["POST"])
+@login_required
+def api_calls_leave_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_phase41_leave(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
 @api_calls_bp.route("/<call_id>/leave", methods=["POST"])
 @login_required
 def api_calls_leave(call_id):
     return api_phase41_leave(call_id)
+
+
+@api_calls_bp.route("/reconnect", methods=["POST"])
+@login_required
+def api_calls_reconnect_body():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_phase41_reconnect(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
 
 
 @api_calls_bp.route("/<call_id>/reconnect", methods=["POST"])
@@ -705,6 +786,7 @@ def msg_api_call_ice_servers():
 @call_bp.route("/api/<call_id>/invite", methods=["POST"])
 @login_required
 def api_phase41_invite(call_id):
+    # Phase 132 legacy compatibility wrapper
     profile = get_current_profile()
     if not profile or not profile.get("id"):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
@@ -731,6 +813,7 @@ def api_phase41_leave(call_id):
 @call_bp.route("/api/<call_id>/reconnect", methods=["POST"])
 @login_required
 def api_phase41_reconnect(call_id):
+    # Phase 132 legacy compatibility wrapper
     profile = get_current_profile()
     if not profile or not profile.get("id"):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
@@ -755,6 +838,7 @@ def api_phase41_failed(call_id):
 @call_bp.route("/api/logs")
 @login_required
 def api_phase41_logs():
+    # Phase 132 legacy compatibility wrapper
     profile = get_current_profile()
     if not profile or not profile.get("id"):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
@@ -766,6 +850,7 @@ def api_phase41_logs():
 @call_bp.route("/api/missed-count")
 @login_required
 def api_phase41_missed_count():
+    # Phase 132 legacy compatibility wrapper
     profile = get_current_profile()
     if not profile or not profile.get("id"):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
@@ -811,6 +896,7 @@ def api_phase41_participants(call_id):
 @call_bp.route("/api/diagnostics")
 @login_required
 def api_call_diagnostics():
+    # Phase 132 legacy compatibility wrapper
     profile = get_current_profile()
     if not profile or not profile.get("id"):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
@@ -826,6 +912,7 @@ def api_call_diagnostics():
 @call_bp.route("/api/contacts/search", methods=["GET"])
 @login_required
 def api_contacts_search():
+    # Phase 132 legacy compatibility wrapper
     profile = get_current_profile()
     if not profile or not profile.get("id"):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
@@ -852,6 +939,7 @@ def api_contacts_search():
 @call_bp.route("/api/safety/check", methods=["POST"])
 @login_required
 def api_safety_check():
+    # Phase 132 legacy compatibility wrapper
     profile = get_current_profile()
     if not profile or not profile.get("id"):
         return jsonify({"ok": False, "error": "unauthorized"}), 401

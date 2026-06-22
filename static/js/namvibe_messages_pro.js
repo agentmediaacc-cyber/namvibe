@@ -560,7 +560,7 @@
 
   // ── Draft Autosave ──
   function wireDraftAutosave() {
-    const input = $("message-input") || qs("[data-message-input]");
+    const input = $("message-input") || $("msg-input") || qs("[data-message-input]") || qs("[data-message-composer]") || qs(".composer-textarea");
     if (!input || !state.threadId) return;
     const draftKey = "namvibe_draft_" + state.threadId;
     const saved = localStorage.getItem(draftKey);
@@ -585,26 +585,52 @@
 
   // ── Scroll-to-Bottom Button ──
   function wireScrollToBottom() {
-    const container = $("message-container") || qs(".messages-area, [data-message-container]");
-    const btn = $("scroll-to-bottom") || qs("[data-scroll-bottom]");
+    const container = $("message-list") || $("message-container") || qs(".message-list, .messages-area, [data-message-container]");
     if (!container) return;
+    let btn = $("nv-scroll-bottom") || $("scroll-to-bottom") || qs("[data-scroll-bottom]");
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "nv-scroll-bottom";
+      btn.id = "nv-scroll-bottom";
+      btn.setAttribute("data-scroll-bottom", "true");
+      btn.setAttribute("aria-label", "Scroll to latest messages");
+      btn.textContent = "↓";
+      container.appendChild(btn);
+    }
+    btn.setAttribute("data-scroll-bottom", "true");
+
     const checkScroll = () => {
       const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
-      if (btn) btn.hidden = atBottom;
+      btn.hidden = atBottom;
     };
     container.addEventListener("scroll", checkScroll, { passive: true });
-    if (btn) {
-      btn.addEventListener("click", () => {
-        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-        btn.hidden = true;
-      });
-    }
+    btn.addEventListener("click", () => {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      btn.hidden = true;
+    });
+    const observer = new MutationObserver(checkScroll);
+    observer.observe(container, { childList: true, subtree: true });
+    window.addEventListener("resize", checkScroll);
+    checkScroll();
   }
 
   // ── PiP Support ──
+  function minimizeCall() {
+    const overlay = $("call-overlay") || qs("[data-call-overlay]");
+    if (overlay) overlay.classList.add("nv-call-minimized");
+    document.body.classList.add("nv-call-minimized");
+  }
+
+  function restoreCall() {
+    const overlay = $("call-overlay") || qs("[data-call-overlay]");
+    if (overlay) overlay.classList.remove("nv-call-minimized");
+    document.body.classList.remove("nv-call-minimized");
+  }
+
   function wirePiP() {
     const videoEl = $("call-remote-video");
-    const pipBtn = $("pip-btn") || qs("[data-pip-btn]");
+    const pipBtn = $("pip-btn") || qs("[data-pip-btn]") || qs("[data-minimize-call]");
     if (!videoEl || !pipBtn) return;
     pipBtn.hidden = false;
     pipBtn.addEventListener("click", async () => {
@@ -612,14 +638,20 @@
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
           pipBtn.textContent = "PiP";
+          restoreCall();
         } else if (videoEl.requestPictureInPicture) {
           await videoEl.requestPictureInPicture();
           pipBtn.textContent = "Exit PiP";
+        } else {
+          minimizeCall();
         }
-      } catch (_) { /* PiP not supported */ }
+      } catch (_) {
+        minimizeCall();
+      }
     });
     videoEl.addEventListener("enterpictureinpicture", () => { pipBtn.textContent = "Exit PiP"; });
-    videoEl.addEventListener("leavepictureinpicture", () => { pipBtn.textContent = "PiP"; });
+    videoEl.addEventListener("leavepictureinpicture", () => { pipBtn.textContent = "PiP"; restoreCall(); });
+    qs("[data-restore-call]")?.addEventListener("click", restoreCall);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -637,5 +669,5 @@
     flushOfflineQueue();
   });
 
-  window.NamVibeMessagesPro = { flushOfflineQueue, queueMessage, sendPayload };
+  window.NamVibeMessagesPro = { flushOfflineQueue, queueMessage, sendPayload, minimizeCall, restoreCall };
 })();

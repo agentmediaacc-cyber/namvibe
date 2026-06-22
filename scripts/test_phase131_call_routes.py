@@ -83,8 +83,9 @@ legacy_decorators = [
     "/api/contacts/search",
     "/api/safety/check",
 ]
-# Find the call_bp section (primary blueprint with url_prefix=/calls)
-call_bp_section = cr[cr.find("call_bp = Blueprint"):cr.find("api_calls_bp = Blueprint")]
+# Find the call_bp section (primary blueprint with url_prefix=/calls).
+# Phase 132 legacy wrappers can live after api_calls_bp because they call the same backend functions.
+call_bp_section = cr[cr.find("call_bp = Blueprint"):]
 for route in legacy_decorators:
     pattern = route.replace("<call_id>", "[^/]+").replace("/", "\\/")
     if re.search(pattern, call_bp_section):

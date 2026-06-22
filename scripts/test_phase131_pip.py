@@ -17,6 +17,7 @@ def read_file(path):
     with open(full, encoding="utf-8", errors="ignore") as f: return f.read()
 
 js = read_file("static/js/calls.js")
+messages_js = read_file("static/js/namvibe_messages_pro.js")
 calls_js = read_file("static/js/namvibe_calls_pro.js")
 webrtc_js = read_file("static/js/webrtc_calls.js")
 co = read_file("templates/calls/call_overlay.html")
@@ -26,7 +27,7 @@ print("=" * 60)
 print("PHASE 131 — PICTURE-IN-PICTURE TEST")
 print("=" * 60)
 
-all_js = js + calls_js + webrtc_js
+all_js = js + messages_js + calls_js + webrtc_js
 
 print("\n--- 1. Desktop PiP ---")
 ok("document.pictureInPicture") if "pictureInPicture" in all_js or "PictureInPicture" in all_js else warn("document.pictureInPicture API")
