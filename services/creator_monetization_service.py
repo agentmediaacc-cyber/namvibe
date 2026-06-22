@@ -46,9 +46,9 @@ def _record_creator_earning(creator_profile_id, source_profile_id, earning_type,
     try:
         write_query(
             """INSERT INTO chain_creator_earnings
-               (id, creator_profile_id, source_profile_id, earning_type, gross_amount_cents, platform_fee_cents, net_amount_cents, reference_type, reference_id)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (str(uuid4()), creator_profile_id, source_profile_id, earning_type, gross_amount_cents, platform_fee_cents, net_amount_cents, reference_type, reference_id)
+               (id, creator_profile_id, source_type, source_id, amount, currency, status, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (str(uuid4()), creator_profile_id, earning_type, source_profile_id, gross_amount_cents, 'NAD', 'available', _utcnow().isoformat())
         )
         return {"ok": True}
     except Exception as e:
@@ -422,15 +422,11 @@ def get_creator_earnings(creator_profile_id, limit=50, offset=0):
         result.append({
             "id": str(r["id"]),
             "creator_profile_id": str(r["creator_profile_id"]),
-            "source_profile_id": str(r["source_profile_id"]) if r.get("source_profile_id") else None,
-            "earning_type": r["earning_type"],
-            "gross_amount_cents": int(r["gross_amount_cents"]),
-            "platform_fee_cents": int(r["platform_fee_cents"]),
-            "net_amount_cents": int(r["net_amount_cents"]),
+            "source_type": r.get("source_type"),
+            "source_id": str(r["source_id"]) if r.get("source_id") else None,
+            "amount_cents": int(r["amount"]),
             "currency": r.get("currency", "NAD"),
             "status": r.get("status", "available"),
-            "reference_type": r.get("reference_type"),
-            "reference_id": str(r["reference_id"]) if r.get("reference_id") else None,
             "created_at": r["created_at"].isoformat() if r.get("created_at") else None,
         })
     return result
@@ -455,20 +451,18 @@ def get_creator_dashboard(creator_profile_id):
     if not _db_available():
         return result
     earnings_rows = fast_query(
-        "SELECT COALESCE(SUM(gross_amount_cents), 0) AS gross, COALESCE(SUM(platform_fee_cents), 0) AS fees, COALESCE(SUM(net_amount_cents), 0) AS net FROM chain_creator_earnings WHERE creator_profile_id = %s",
-        (creator_profile_id,), default=[{"gross": 0, "fees": 0, "net": 0}]
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM chain_creator_earnings WHERE creator_profile_id = %s",
+        (creator_profile_id,), default=[{"total": 0}]
     )
     if earnings_rows:
-        result["total_earnings_cents"] = int(earnings_rows[0]["gross"])
-        result["total_fees_cents"] = int(earnings_rows[0]["fees"])
-        result["total_net_cents"] = int(earnings_rows[0]["net"])
+        result["total_earnings_cents"] = int(earnings_rows[0]["total"])
     counts = fast_query(
-        "SELECT earning_type, COUNT(*) AS cnt FROM chain_creator_earnings WHERE creator_profile_id = %s GROUP BY earning_type",
+        "SELECT source_type, COUNT(*) AS cnt FROM chain_creator_earnings WHERE creator_profile_id = %s GROUP BY source_type",
         (creator_profile_id,), default=[]
     )
     if counts:
         for c in counts:
-            t = c["earning_type"]
+            t = c["source_type"]
             n = int(c["cnt"])
             if t == "tip":
                 result["tip_count"] = n

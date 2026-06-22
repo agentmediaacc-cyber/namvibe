@@ -228,7 +228,7 @@ def _get_profile_basics(profile_id):
     try:
         if _db_available():
             rows = fast_query(
-                """SELECT id, username, full_name, display_name, profile_photo, cover_photo,
+                """SELECT id, username, full_name, display_name, profile_photo, cover_url AS cover_photo,
                           is_verified, verified, creator_level, total_views, total_earnings_cents,
                           total_followers, total_subscribers, total_tips_cents, total_gifts_cents,
                           supporter_count, verified_badge, earnings_badge, is_creator, creator_category
