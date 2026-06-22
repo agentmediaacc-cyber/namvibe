@@ -157,7 +157,7 @@
       }
       html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '">';
       html += '<div class="nvpro-post-head">';
-      html += '<a href="/profile/@" + escapeHtml(username) + '" class="nvpro-post-avatar">';
+      html += '<a href="/profile/@"' + escapeHtml(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
         html += '<img src="' + escapeHtml(avatar) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
         html += '<span class="nvpro-avatar-initials" style="display:none">' + initial + "</span>";
@@ -166,7 +166,7 @@
       }
       html += "</a>";
       html += '<div class="nvpro-post-meta">';
-      html += '<a href="/profile/@" + escapeHtml(username) + '" class="nvpro-post-author">' + escapeHtml(displayName) + verified + "</a>";
+      html += '<a href="/profile/@"' + escapeHtml(username) + '" class="nvpro-post-author">' + escapeHtml(displayName) + verified + "</a>";
       html += '<span class="nvpro-post-time">' + (item.created_label || "Just now") + "</span>";
       html += "</div>";
       if (item.profile_id) {
