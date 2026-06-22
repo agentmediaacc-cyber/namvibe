@@ -504,6 +504,127 @@ def api_webrtc_ice_servers():
     return jsonify(config)
 
 
+# =========== Standardized /api/calls/* redirects ===========
+api_calls_bp = Blueprint("api_calls_v2", __name__, url_prefix="/api/calls")
+
+
+@api_calls_bp.route("/start", methods=["POST"])
+@login_required
+def api_calls_start():
+    return api_webrtc_start()
+
+
+@api_calls_bp.route("/answer", methods=["POST"])
+@login_required
+def api_calls_answer():
+    call_id = (request.get_json(silent=True) or {}).get("call_id")
+    if call_id:
+        return api_webrtc_accept(call_id)
+    return jsonify({"ok": False, "error": "call_id required"}), 400
+
+
+@api_calls_bp.route("/<call_id>/answer", methods=["POST"])
+@login_required
+def api_calls_answer_id(call_id):
+    return api_webrtc_accept(call_id)
+
+
+@api_calls_bp.route("/<call_id>/reject", methods=["POST"])
+@login_required
+def api_calls_reject(call_id):
+    return api_webrtc_reject(call_id)
+
+
+@api_calls_bp.route("/<call_id>/cancel", methods=["POST"])
+@login_required
+def api_calls_cancel(call_id):
+    return api_webrtc_cancel(call_id)
+
+
+@api_calls_bp.route("/<call_id>/end", methods=["POST"])
+@login_required
+def api_calls_end(call_id):
+    return api_webrtc_end(call_id)
+
+
+@api_calls_bp.route("/history")
+@login_required
+def api_calls_history():
+    return api_webrtc_history()
+
+
+@api_calls_bp.route("/missed")
+@login_required
+def api_calls_missed():
+    return api_phase41_missed_count()
+
+
+@api_calls_bp.route("/group", methods=["POST"])
+@login_required
+def api_calls_group():
+    return api_group_call()
+
+
+@api_calls_bp.route("/active")
+@login_required
+def api_calls_active():
+    return api_webrtc_active()
+
+
+@api_calls_bp.route("/ice-servers")
+@login_required
+def api_calls_ice():
+    return api_webrtc_ice_servers()
+
+
+@api_calls_bp.route("/<call_id>/mute", methods=["POST"])
+@login_required
+def api_calls_mute(call_id):
+    return api_webrtc_mute(call_id)
+
+
+@api_calls_bp.route("/<call_id>/camera", methods=["POST"])
+@login_required
+def api_calls_camera(call_id):
+    return api_webrtc_camera(call_id)
+
+
+@api_calls_bp.route("/<call_id>/speaker", methods=["POST"])
+@login_required
+def api_calls_speaker(call_id):
+    return api_webrtc_speaker(call_id)
+
+
+@api_calls_bp.route("/diagnostics")
+@login_required
+def api_calls_diagnostics():
+    return api_call_diagnostics()
+
+
+@api_calls_bp.route("/<call_id>/invite", methods=["POST"])
+@login_required
+def api_calls_invite(call_id):
+    return api_phase41_invite(call_id)
+
+
+@api_calls_bp.route("/<call_id>/leave", methods=["POST"])
+@login_required
+def api_calls_leave(call_id):
+    return api_phase41_leave(call_id)
+
+
+@api_calls_bp.route("/<call_id>/reconnect", methods=["POST"])
+@login_required
+def api_calls_reconnect(call_id):
+    return api_phase41_reconnect(call_id)
+
+
+@api_calls_bp.route("/safety/check", methods=["POST"])
+@login_required
+def api_calls_safety():
+    return api_safety_check()
+
+
 # =========== Compat aliases under /messages/api/calls ===========
 messages_call_bp = Blueprint("messages_calls_v2", __name__, url_prefix="/messages/api/calls")
 

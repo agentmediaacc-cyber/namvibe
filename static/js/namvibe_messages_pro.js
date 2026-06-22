@@ -253,34 +253,150 @@
     toast._timer = setTimeout(() => { toast.hidden = true; }, 3200);
   }
 
+  let _voiceStream = null;
+  let _voicePreviewCleanup = null;
+
+  function generateWaveformBars(count) {
+    const bars = [];
+    for (let i = 0; i < count; i++) {
+      bars.push(Math.floor(Math.random() * 60) + 10);
+    }
+    return bars;
+  }
+
+  function renderWaveform(container, bars, active) {
+    container.innerHTML = "";
+    const maxBar = 40;
+    bars.forEach((h) => {
+      const span = document.createElement("span");
+      const pct = Math.min((h / 100) * maxBar, maxBar);
+      span.style.height = Math.max(pct, 4) + "px";
+      if (active) span.classList.add("active");
+      container.appendChild(span);
+    });
+  }
+
+  function showVoiceOverlay(recording, duration) {
+    const overlay = $("voice-overlay");
+    if (!overlay) return;
+    overlay.classList.remove("hidden");
+    overlay.hidden = false;
+    const timer = $("vo-timer");
+    const wave = $("vo-wave");
+    const slideCancel = $("vo-slide-cancel");
+    const bars = generateWaveformBars(32);
+
+    if (wave) renderWaveform(wave, bars, true);
+
+    let startX = 0;
+    let cancelThreshold = 80;
+
+    const updateTimer = () => {
+      if (timer) {
+        const sec = Math.floor((Date.now() - state.recordingStartedAt) / 1000);
+        const m = String(Math.floor(sec / 60)).padStart(2, "0");
+        const s = String(sec % 60).padStart(2, "0");
+        timer.textContent = `${m}:${s}`;
+      }
+    };
+    state._voiceTimer = setInterval(updateTimer, 200);
+    updateTimer();
+
+    const onMove = (e) => {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const dx = startX - clientX;
+      if (dx > cancelThreshold) {
+        if (slideCancel) slideCancel.classList.add("active");
+      } else {
+        if (slideCancel) slideCancel.classList.remove("active");
+      }
+    };
+    const onEnd = (e) => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onEnd);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+      const dx = startX - clientX;
+      if (dx > cancelThreshold) {
+        cancelVoiceRecording();
+      } else if (state.mediaRecorder && state.mediaRecorder.state !== "inactive") {
+        state.mediaRecorder.stop();
+      }
+      if (slideCancel) slideCancel.classList.remove("active");
+      clearInterval(state._voiceTimer);
+    };
+
+    const captureStart = (e) => {
+      startX = e.touches ? e.touches[0].clientX : e.clientX;
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onEnd);
+      document.addEventListener("touchmove", onMove, { passive: false });
+      document.addEventListener("touchend", onEnd);
+    };
+    captureStart({ clientX: 0 });
+  }
+
+  function hideVoiceOverlay() {
+    const overlay = $("voice-overlay");
+    if (overlay) { overlay.classList.add("hidden"); overlay.hidden = true; }
+    clearInterval(state._voiceTimer);
+    if (_voiceStream) {
+      _voiceStream.getTracks().forEach((t) => t.stop());
+      _voiceStream = null;
+    }
+  }
+
+  function cancelVoiceRecording() {
+    if (state.mediaRecorder && state.mediaRecorder.state !== "inactive") {
+      state.mediaRecorder.ondataavailable = null;
+      state.mediaRecorder.onstop = null;
+      state.mediaRecorder.stop();
+    }
+    state.voiceChunks = [];
+    hideVoiceOverlay();
+    const btn = $("mic-btn") || qs("[data-voice-record-button]");
+    if (btn) btn.classList.remove("recording");
+    showToast("Recording cancelled");
+  }
+
   function wireVoice() {
     const button = $("mic-btn") || qs("[data-voice-record]") || qs("[data-voice-record-button]");
     if (!button || !navigator.mediaDevices) return;
     button.setAttribute("data-voice-record-button", "true");
+
     const start = async (event) => {
       event.preventDefault();
+      if (state.mediaRecorder && state.mediaRecorder.state === "recording") return;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        _voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         state.voiceChunks = [];
-        state.mediaRecorder = new MediaRecorder(stream);
+        state.mediaRecorder = new MediaRecorder(_voiceStream);
         state.recordingStartedAt = Date.now();
         state.mediaRecorder.ondataavailable = (e) => e.data.size && state.voiceChunks.push(e.data);
         state.mediaRecorder.onstop = () => {
-          stream.getTracks().forEach((track) => track.stop());
+          if (state.voiceChunks.length === 0) { hideVoiceOverlay(); return; }
           const blob = new Blob(state.voiceChunks, { type: "audio/webm" });
-          showVoicePreview(blob, Math.round((Date.now() - state.recordingStartedAt) / 1000));
+          const dur = Math.round((Date.now() - state.recordingStartedAt) / 1000);
+          hideVoiceOverlay();
+          showVoicePreview(blob, Math.max(dur, 1));
         };
         state.mediaRecorder.start();
         button.classList.add("recording");
+        showVoiceOverlay(true);
       } catch (_) {
         showToast("Microphone permission is blocked.");
       }
     };
+
     const stop = (event) => {
       event.preventDefault();
-      if (state.mediaRecorder && state.mediaRecorder.state !== "inactive") state.mediaRecorder.stop();
+      if (state.mediaRecorder && state.mediaRecorder.state !== "inactive") {
+        state.mediaRecorder.stop();
+      }
       button.classList.remove("recording");
     };
+
     button.addEventListener("mousedown", start);
     button.addEventListener("touchstart", start, { passive: false });
     button.addEventListener("mouseup", stop);
@@ -291,14 +407,219 @@
   function showVoicePreview(blob, duration) {
     const preview = $("voice-note-preview");
     const audio = $("voice-note-audio");
-    if (audio) audio.src = URL.createObjectURL(blob);
-    if (preview) preview.hidden = false;
-    $("voice-preview-send")?.addEventListener("click", async () => {
+    if (!preview) return;
+    preview.hidden = false;
+
+    if (audio) {
+      audio.src = URL.createObjectURL(blob);
+      audio.loop = false;
+    }
+
+    const playBtn = $("vp-play");
+    const waveEl = $("vp-wave");
+    const durEl = $("vp-duration");
+    const speedBtn = $("vp-speed");
+    const deleteBtn = $("vp-delete");
+    const sendBtn = $("vp-send");
+    const progressBar = $("vp-progress");
+    const progressText = $("vp-progress-text");
+    const cancelBtn = $("vp-cancel");
+    const retryBtn = $("vp-retry");
+
+    let isPlaying = false;
+    let playbackSpeed = 1;
+    let uploadCancelled = false;
+
+    if (durEl) durEl.textContent = `${String(Math.floor(duration / 60)).padStart(2, "0")}:${String(duration % 60).padStart(2, "0")}`;
+
+    const bars = generateWaveformBars(24);
+    if (waveEl) renderWaveform(waveEl, bars, false);
+
+    if (playBtn) {
+      playBtn.onclick = () => {
+        if (!audio) return;
+        if (isPlaying) {
+          audio.pause();
+          playBtn.textContent = "▶";
+          isPlaying = false;
+        } else {
+          audio.playbackRate = playbackSpeed;
+          audio.play();
+          playBtn.textContent = "⏸";
+          isPlaying = true;
+          audio.onended = () => { playBtn.textContent = "▶"; isPlaying = false; };
+        }
+      };
+    }
+
+    if (speedBtn) {
+      speedBtn.textContent = "1x";
+      speedBtn.onclick = () => {
+        const speeds = [1, 1.5, 2];
+        const idx = speeds.indexOf(playbackSpeed);
+        playbackSpeed = speeds[(idx + 1) % speeds.length];
+        speedBtn.textContent = playbackSpeed + "x";
+        if (audio) audio.playbackRate = playbackSpeed;
+      };
+    }
+
+    let _uploadXHR = null;
+
+    const doUpload = () => {
+      uploadCancelled = false;
       const file = new File([blob], "voice-note.webm", { type: "audio/webm" });
-      await sendPayload({ thread_id: state.threadId, body: "", media_type: "voice", duration_seconds: duration, client_temp_id: uuid() }, file);
-      if (preview) preview.hidden = true;
-    }, { once: true });
-    $("voice-preview-delete")?.addEventListener("click", () => { if (preview) preview.hidden = true; }, { once: true });
+      _uploadXHR = new XMLHttpRequest();
+      _uploadXHR.upload.onprogress = (e) => {
+        if (uploadCancelled || !progressBar) return;
+        const pct = e.lengthComputable ? Math.round((e.loaded / e.total) * 100) : 0;
+        progressBar.style.width = pct + "%";
+        progressBar.textContent = pct + "%";
+        if (progressText) progressText.textContent = `Uploading ${pct}%`;
+      };
+      _uploadXHR.onload = () => {
+        if (progressText) progressText.textContent = "Upload complete!";
+        if (progressBar) progressBar.style.width = "100%";
+        setTimeout(() => {
+          if (preview) preview.hidden = true;
+          if (progressText) progressText.textContent = "";
+        }, 800);
+      };
+      _uploadXHR.onerror = () => {
+        if (progressText) progressText.textContent = "Upload failed";
+        if (retryBtn) retryBtn.hidden = false;
+      };
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("thread_id", state.threadId || "");
+      formData.append("body", "");
+      formData.append("media_type", "voice");
+      formData.append("duration_seconds", String(duration));
+      formData.append("client_temp_id", uuid());
+      _uploadXHR.open("POST", "/messages/api/send");
+      _uploadXHR.send(formData);
+    };
+
+    if (sendBtn) {
+      sendBtn.onclick = () => {
+        sendBtn.disabled = true;
+        if (cancelBtn) cancelBtn.hidden = false;
+        doUpload();
+      };
+    }
+
+    if (cancelBtn) {
+      cancelBtn.onclick = () => {
+        uploadCancelled = true;
+        if (_uploadXHR) _uploadXHR.abort();
+        if (progressText) progressText.textContent = "Upload cancelled";
+        if (progressBar) progressBar.style.width = "0%";
+        if (cancelBtn) cancelBtn.hidden = true;
+        if (retryBtn) retryBtn.hidden = false;
+        sendBtn.disabled = false;
+      };
+    }
+
+    if (retryBtn) {
+      retryBtn.hidden = true;
+      retryBtn.onclick = () => {
+        retryBtn.hidden = true;
+        sendBtn.disabled = true;
+        if (cancelBtn) cancelBtn.hidden = false;
+        if (progressText) progressText.textContent = "";
+        doUpload();
+      };
+    }
+
+    if (deleteBtn) {
+      deleteBtn.onclick = () => {
+        if (_voicePreviewCleanup) _voicePreviewCleanup();
+        if (audio) { audio.pause(); audio.src = ""; }
+        preview.hidden = true;
+      };
+    }
+  }
+
+  // ── Keyboard Support ──
+  function wireKeyboardSupport() {
+    if (window.visualViewport) {
+      const composer = $("chat-composer") || qs(".chat-composer");
+      if (!composer) return;
+      window.visualViewport.addEventListener("resize", () => {
+        const vh = window.visualViewport.height;
+        const diff = window.innerHeight - vh;
+        if (diff > 100) {
+          composer.style.bottom = diff + "px";
+          composer.style.paddingBottom = "env(safe-area-inset-bottom, 0px)";
+        } else {
+          composer.style.bottom = "0";
+        }
+      });
+    }
+  }
+
+  // ── Draft Autosave ──
+  function wireDraftAutosave() {
+    const input = $("message-input") || qs("[data-message-input]");
+    if (!input || !state.threadId) return;
+    const draftKey = "namvibe_draft_" + state.threadId;
+    const saved = localStorage.getItem(draftKey);
+    if (saved && !input.value) {
+      input.value = saved;
+      input.dispatchEvent(new Event("input"));
+    }
+    let _draftTimer = null;
+    input.addEventListener("input", () => {
+      clearTimeout(_draftTimer);
+      _draftTimer = setTimeout(() => {
+        if (input.value.trim()) {
+          localStorage.setItem(draftKey, input.value);
+        } else {
+          localStorage.removeItem(draftKey);
+        }
+      }, 500);
+    });
+    const sendHandler = () => setTimeout(() => localStorage.removeItem(draftKey), 100);
+    (qs("[data-send-btn]") || $("send-btn"))?.addEventListener("click", sendHandler);
+  }
+
+  // ── Scroll-to-Bottom Button ──
+  function wireScrollToBottom() {
+    const container = $("message-container") || qs(".messages-area, [data-message-container]");
+    const btn = $("scroll-to-bottom") || qs("[data-scroll-bottom]");
+    if (!container) return;
+    const checkScroll = () => {
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+      if (btn) btn.hidden = atBottom;
+    };
+    container.addEventListener("scroll", checkScroll, { passive: true });
+    if (btn) {
+      btn.addEventListener("click", () => {
+        container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+        btn.hidden = true;
+      });
+    }
+  }
+
+  // ── PiP Support ──
+  function wirePiP() {
+    const videoEl = $("call-remote-video");
+    const pipBtn = $("pip-btn") || qs("[data-pip-btn]");
+    if (!videoEl || !pipBtn) return;
+    pipBtn.hidden = false;
+    pipBtn.addEventListener("click", async () => {
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+          pipBtn.textContent = "PiP";
+        } else if (videoEl.requestPictureInPicture) {
+          await videoEl.requestPictureInPicture();
+          pipBtn.textContent = "Exit PiP";
+        }
+      } catch (_) { /* PiP not supported */ }
+    });
+    videoEl.addEventListener("enterpictureinpicture", () => { pipBtn.textContent = "Exit PiP"; });
+    videoEl.addEventListener("leavepictureinpicture", () => { pipBtn.textContent = "PiP"; });
   }
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -309,6 +630,10 @@
     wireComposer();
     wireSocket();
     wireVoice();
+    wireKeyboardSupport();
+    wireDraftAutosave();
+    wireScrollToBottom();
+    wirePiP();
     flushOfflineQueue();
   });
 

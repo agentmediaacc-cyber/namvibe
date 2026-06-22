@@ -31,6 +31,13 @@ _NOTIF_TYPE_CATEGORIES = {
     "system_announcement": "system",
     "new_message": "messages",
     "message_reaction": "messages",
+    "group_update": "messages",
+    "admin_promoted": "messages",
+    "admin_demoted": "messages",
+    "member_removed": "messages",
+    "incoming_call": "messages",
+    "missed_call": "messages",
+    "voice_note_received": "messages",
 }
 
 _NOTIF_ICONS = {
@@ -55,6 +62,13 @@ _NOTIF_ICONS = {
     "system_announcement": "fa-bullhorn",
     "new_message": "fa-envelope",
     "message_reaction": "fa-reply",
+    "group_update": "fa-users",
+    "admin_promoted": "fa-user-shield",
+    "admin_demoted": "fa-user-minus",
+    "member_removed": "fa-user-slash",
+    "incoming_call": "fa-phone",
+    "missed_call": "fa-phone-slash",
+    "voice_note_received": "fa-microphone",
 }
 
 

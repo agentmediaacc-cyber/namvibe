@@ -109,13 +109,49 @@ def add_group_member(thread_id, actor_profile_id, member_id):
     return {"ok": True, "thread_id": thread_id, "member_id": member_id}
 
 
+def _is_admin_or_owner(thread_id, profile_id):
+    rows = fast_query(
+        "SELECT role FROM chain_thread_members WHERE thread_id = %s AND profile_id = %s",
+        (thread_id, profile_id),
+        default=[],
+    )
+    return bool(rows and rows[0].get("role") in ("admin", "owner"))
+
+
+def _notify_group_members(thread_id, event_type, actor_id, title, body, entity_id=None):
+    from services.notification_engine import create_notification
+    members = fast_query(
+        "SELECT profile_id FROM chain_thread_members WHERE thread_id = %s",
+        (thread_id,),
+        default=[],
+    )
+    for m in members:
+        pid = m["profile_id"]
+        if pid == actor_id:
+            continue
+        create_notification(
+            recipient_profile_id=pid,
+            event_type=event_type,
+            title=title,
+            body=body,
+            actor_profile_id=actor_id,
+            entity_type="thread",
+            entity_id=entity_id or thread_id,
+        )
+
+
 def remove_group_member(thread_id, actor_profile_id, member_id):
     if not can_access_thread(actor_profile_id, thread_id):
         return {"ok": False, "error": "thread_not_found"}
+    if not _is_admin_or_owner(thread_id, actor_profile_id):
+        return {"ok": False, "error": "not_admin"}
     write_query(
         "DELETE FROM chain_thread_members WHERE thread_id = %s AND profile_id = %s",
         (thread_id, member_id),
     )
+    _notify_group_members(thread_id, "member_removed", actor_profile_id,
+                          "Member removed", f"A member was removed from the group",
+                          entity_id=thread_id)
     return {"ok": True, "thread_id": thread_id, "member_id": member_id}
 
 
@@ -125,3 +161,66 @@ def leave_group(thread_id, profile_id):
         (thread_id, profile_id),
     )
     return {"ok": True, "thread_id": thread_id}
+
+
+def rename_group(thread_id, actor_profile_id, new_title):
+    if not can_access_thread(actor_profile_id, thread_id):
+        return {"ok": False, "error": "thread_not_found"}
+    if not _is_admin_or_owner(thread_id, actor_profile_id):
+        return {"ok": False, "error": "not_admin"}
+    new_title = (new_title or "").strip()[:120]
+    if not new_title:
+        return {"ok": False, "error": "title_required"}
+    write_query(
+        "UPDATE chain_message_threads SET title = %s, updated_at = now() WHERE id = %s",
+        (new_title, thread_id),
+    )
+    _notify_group_members(thread_id, "group_update", actor_profile_id,
+                          "Group renamed", f"Group renamed to \"{new_title}\"",
+                          entity_id=thread_id)
+    return {"ok": True, "thread_id": thread_id, "title": new_title}
+
+
+def update_group_avatar(thread_id, actor_profile_id, avatar_url):
+    if not can_access_thread(actor_profile_id, thread_id):
+        return {"ok": False, "error": "thread_not_found"}
+    if not _is_admin_or_owner(thread_id, actor_profile_id):
+        return {"ok": False, "error": "not_admin"}
+    write_query(
+        "UPDATE chain_message_threads SET avatar_url = %s, updated_at = now() WHERE id = %s",
+        (avatar_url, thread_id),
+    )
+    _notify_group_members(thread_id, "group_update", actor_profile_id,
+                          "Group avatar changed", "Group avatar was updated",
+                          entity_id=thread_id)
+    return {"ok": True, "thread_id": thread_id, "avatar_url": avatar_url}
+
+
+def promote_admin(thread_id, actor_profile_id, member_id):
+    if not can_access_thread(actor_profile_id, thread_id):
+        return {"ok": False, "error": "thread_not_found"}
+    if not _is_admin_or_owner(thread_id, actor_profile_id):
+        return {"ok": False, "error": "not_admin"}
+    write_query(
+        "UPDATE chain_thread_members SET role = 'admin' WHERE thread_id = %s AND profile_id = %s",
+        (thread_id, member_id),
+    )
+    _notify_group_members(thread_id, "admin_promoted", actor_profile_id,
+                          "Admin promoted", "A member was promoted to admin",
+                          entity_id=thread_id)
+    return {"ok": True, "thread_id": thread_id, "member_id": member_id, "role": "admin"}
+
+
+def demote_admin(thread_id, actor_profile_id, member_id):
+    if not can_access_thread(actor_profile_id, thread_id):
+        return {"ok": False, "error": "thread_not_found"}
+    if not _is_admin_or_owner(thread_id, actor_profile_id):
+        return {"ok": False, "error": "not_admin"}
+    write_query(
+        "UPDATE chain_thread_members SET role = 'member' WHERE thread_id = %s AND profile_id = %s",
+        (thread_id, member_id),
+    )
+    _notify_group_members(thread_id, "admin_demoted", actor_profile_id,
+                          "Admin demoted", "An admin was demoted to member",
+                          entity_id=thread_id)
+    return {"ok": True, "thread_id": thread_id, "member_id": member_id, "role": "member"}

@@ -18,6 +18,14 @@ from services.messaging_engine import (
     archive_thread,
     mute_thread
 )
+from services.message_thread_service import (
+    rename_group,
+    update_group_avatar,
+    promote_admin,
+    demote_admin,
+    remove_group_member,
+    leave_group,
+)
 from services.push_notification_service import queue_push_event
 from services.presence_service import heartbeat, set_offline, set_online, set_typing
 from services.profile_service import get_current_profile
@@ -2193,6 +2201,120 @@ def handle_ai_suggest(data):
     result = mfs.ai_suggest_reply(thread_id, profile_id, context)
     emit_to_profile(profile_id, "chat:suggestions", result)
     return {"ok": True}
+
+
+# ── Group Management Socket Events ──
+
+@socketio.on("group:rename")
+def handle_group_rename(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"error": "auth_required"}
+    thread_id = data.get("thread_id")
+    new_title = data.get("title")
+    if not thread_id or not new_title:
+        return {"error": "thread_id and title required"}
+    result = rename_group(thread_id, profile_id, new_title)
+    if result.get("ok"):
+        emit_to_thread(thread_id, "group:name-updated", {
+            "thread_id": thread_id,
+            "title": result["title"],
+            "updated_by": profile_id,
+        })
+    return result
+
+
+@socketio.on("group:avatar")
+def handle_group_avatar(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"error": "auth_required"}
+    thread_id = data.get("thread_id")
+    avatar_url = data.get("avatar_url")
+    if not thread_id or not avatar_url:
+        return {"error": "thread_id and avatar_url required"}
+    result = update_group_avatar(thread_id, profile_id, avatar_url)
+    if result.get("ok"):
+        emit_to_thread(thread_id, "group:avatar-updated", {
+            "thread_id": thread_id,
+            "avatar_url": result["avatar_url"],
+            "updated_by": profile_id,
+        })
+    return result
+
+
+@socketio.on("group:promote")
+def handle_group_promote(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"error": "auth_required"}
+    thread_id = data.get("thread_id")
+    member_id = data.get("member_id")
+    if not thread_id or not member_id:
+        return {"error": "thread_id and member_id required"}
+    result = promote_admin(thread_id, profile_id, member_id)
+    if result.get("ok"):
+        emit_to_thread(thread_id, "group:admin-promoted", {
+            "thread_id": thread_id,
+            "member_id": member_id,
+            "promoted_by": profile_id,
+        })
+    return result
+
+
+@socketio.on("group:demote")
+def handle_group_demote(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"error": "auth_required"}
+    thread_id = data.get("thread_id")
+    member_id = data.get("member_id")
+    if not thread_id or not member_id:
+        return {"error": "thread_id and member_id required"}
+    result = demote_admin(thread_id, profile_id, member_id)
+    if result.get("ok"):
+        emit_to_thread(thread_id, "group:admin-demoted", {
+            "thread_id": thread_id,
+            "member_id": member_id,
+            "demoted_by": profile_id,
+        })
+    return result
+
+
+@socketio.on("group:remove-member")
+def handle_group_remove_member(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"error": "auth_required"}
+    thread_id = data.get("thread_id")
+    member_id = data.get("member_id")
+    if not thread_id or not member_id:
+        return {"error": "thread_id and member_id required"}
+    result = remove_group_member(thread_id, profile_id, member_id)
+    if result.get("ok"):
+        emit_to_thread(thread_id, "group:member-removed", {
+            "thread_id": thread_id,
+            "member_id": member_id,
+            "removed_by": profile_id,
+        })
+    return result
+
+
+@socketio.on("group:leave")
+def handle_group_leave(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"error": "auth_required"}
+    thread_id = data.get("thread_id")
+    if not thread_id:
+        return {"error": "thread_id required"}
+    result = leave_group(thread_id, profile_id)
+    if result.get("ok"):
+        emit_to_thread(thread_id, "group:member-left", {
+            "thread_id": thread_id,
+            "member_id": profile_id,
+        })
+    return result
 
 
 @socketio.on_error_default

@@ -29,7 +29,7 @@ from api_routes.matching_routes import matching_bp
 from api_routes.dating_routes import dating_bp
 from api_routes.message_routes import message_bp
 from api_routes.messaging_routes import messaging_api_bp
-from api_routes.call_routes import call_bp, messages_call_bp
+from api_routes.call_routes import call_bp, messages_call_bp, api_calls_bp
 from api_routes.notification_routes import notification_engine_bp
 from api_routes.live_routes import live_bp
 from api_routes.wallet_routes import wallet_bp
@@ -479,6 +479,7 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(developer_bp)
     app.register_blueprint(messages_call_bp)
+    app.register_blueprint(api_calls_bp)
     app.register_blueprint(discovery_bp)
     app.register_blueprint(activity_bp)
     app.register_blueprint(search_bp)
