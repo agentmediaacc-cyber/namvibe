@@ -1,17 +1,12 @@
-/* ── Phase 120 — Premium Homepage ── */
-
 (function () {
   "use strict";
 
-  // ── State ──
-  var activeTab = "for_you";
   var csrfToken = function () {
     var m = document.querySelector('meta[name="csrf-token"]');
     return m ? m.getAttribute("content") : "";
   };
   var toastEl = document.getElementById("nvpro-toast");
 
-  // ── Toast ──
   function showToast(msg) {
     if (!toastEl) return;
     toastEl.textContent = msg;
@@ -19,7 +14,6 @@
     setTimeout(function () { toastEl.classList.remove("is-visible"); }, 2500);
   }
 
-  // ── CSRF fetch helper ──
   function apiFetch(url, opts) {
     opts = opts || {};
     var headers = opts.headers || {};
@@ -36,24 +30,87 @@
     });
   }
 
-  // ── Tab switching ──
-  var tabs = document.querySelectorAll(".nvpro-tab");
-  var feedEl = document.getElementById("nvpro-feed");
-
-  function switchTab(tab) {
-    if (tab === activeTab) return;
-    activeTab = tab;
-    tabs.forEach(function (t) { t.classList.toggle("is-active", t.dataset.tab === tab); });
-    showSkeleton();
-    fetchFeed(tab);
+  function escapeHtml(str) {
+    if (!str) return "";
+    var d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
   }
 
-  tabs.forEach(function (t) {
-    t.addEventListener("click", function () { switchTab(t.dataset.tab); });
-  });
+  /* ── SVG ICONS ── */
+  var ICONS = {
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>',
+    discover: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>',
+    live: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>',
+    reels: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
+    stories: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>',
+    inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>',
+    contacts: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-8-12a4 4 0 010 7.75"/></svg>',
+    calls: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>',
+    dating: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    wallet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><circle cx="18" cy="14" r="1"/></svg>',
+    profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+    signout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+    signin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>',
+    like: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>',
+    comment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+    share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+    save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>',
+    more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
+    follow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
+    image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>',
+    envelope: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
+    heart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>',
+    shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    feedback: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+    film: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    newpost: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m-7-7h14"/></svg>',
+  };
 
-  // ── Skeleton ──
-  function showSkeleton() {
+  function icon(name) { return ICONS[name] || ""; }
+
+  function setIcon(el, name) {
+    if (!el) return;
+    el.innerHTML = icon(name);
+  }
+
+  /* ── Replace all FontAwesome with SVG icons ── */
+  function replaceFaIcons() {
+    var map = {
+      "fa-home": "home", "fa-compass": "discover", "fa-video": "live", "fa-film": "film",
+      "fa-circle-notch": "stories", "fa-inbox": "inbox", "fa-address-book": "contacts",
+      "fa-phone": "calls", "fa-heart": "heart", "fa-wallet": "wallet", "fa-user-circle": "profile",
+      "fa-user": "profile", "fa-sign-out-alt": "signout", "fa-sign-in-alt": "signin",
+      "fa-search": "search", "fa-bell": "bell", "fa-envelope": "envelope",
+      "fa-plus": "plus", "fa-newspaper": "newpost", "fa-shield-alt": "shield",
+      "fa-comment-dots": "feedback", "fa-play": "play", "fa-pause": "pause",
+      "fa-heart": "like", "fa-comment": "comment", "fa-share-square": "share",
+      "fa-bookmark": "save", "fa-ellipsis-h": "more", "fa-times": "close",
+      "fa-check": "check", "fa-exclamation-circle": "alert",
+    };
+    document.querySelectorAll("i[class]").forEach(function (el) {
+      var cls = Array.from(el.classList).find(function (c) { return map[c]; });
+      if (cls) {
+        var name = map[cls];
+        el.outerHTML = '<span class="nv-icon-wrap">' + icon(name) + "</span>";
+      }
+    });
+  }
+
+  /* ── Skeleton ── */
+  function showSkeleton(feedEl) {
     if (!feedEl) return;
     var html = "";
     for (var i = 0; i < 3; i++) {
@@ -62,122 +119,485 @@
     feedEl.innerHTML = html;
   }
 
-  // ── Fetch feed ──
-  function fetchFeed(tab) {
-    apiFetch("/api/homepage/feed?tab=" + encodeURIComponent(tab) + "&limit=20")
-      .then(function (data) {
-        if (data.ok && data.payload && data.payload.feed_items) {
-          renderFeed(data.payload.feed_items);
-        } else {
-          renderEmpty();
-        }
-      })
-      .catch(function () {
-        renderEmpty();
-      });
+  function renderEmpty(feedEl) {
+    if (!feedEl) return;
+    feedEl.innerHTML =
+      '<div class="nvpro-empty-card">' +
+      icon("newpost") +
+      '<h3>Your NamVibe feed is ready</h3>' +
+      '<p>Follow creators, watch reels, join live rooms, or share your first post.</p>' +
+      '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">' +
+      '<a href="/discover/" class="nvpro-btn nvpro-btn-primary">' + icon("discover") + ' Discover Creators</a>' +
+      '<a href="/reels/" class="nvpro-btn nvpro-btn-outline">' + icon("film") + ' Watch Reels</a>' +
+      "</div></div>";
   }
 
-  function renderFeed(items) {
+  function renderFeedItems(feedEl, items) {
     if (!feedEl) return;
-    if (!items || items.length === 0) { renderEmpty(); return; }
+    if (!items || items.length === 0) { renderEmpty(feedEl); return; }
     var html = "";
     items.forEach(function (item) {
-      var text = item.text || "";
+      var text = item.text || item.caption || "";
       var mediaUrl = item.media_url || "";
       var videoUrl = item.video_url || "";
+      var thumbnail = item.thumbnail_url || item.media_url || "";
       var avatar = item.avatar_url || "";
       var displayName = item.display_name || item.username || "Creator";
       var username = item.username || "";
       var initial = displayName.charAt(0).toUpperCase();
-      var verified = item.verified ? '<i class="fas fa-circle-check nvpro-verified"></i>' : "";
+      var verified = item.verified ? '<svg class="nv-icon-sm nvpro-verified" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' : "";
       var vAttr = item.type || "post";
-
+      var vidHtml = "";
+      if (videoUrl) {
+        vidHtml = '<div class="nvpro-post-media" data-nv-video="' + escapeHtml(videoUrl) + '" data-nv-thumb="' + escapeHtml(thumbnail) + '">' +
+          '<div class="nvpro-loading-skeleton"></div>' +
+          '<div class="nvpro-video-overlay"><div class="nvpro-video-play-icon">' + icon("play") + "</div></div></div>";
+      } else if (mediaUrl) {
+        vidHtml = '<div class="nvpro-post-media"><img src="' + escapeHtml(mediaUrl) + '" alt="" loading="lazy"></div>';
+      }
       html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '">';
       html += '<div class="nvpro-post-head">';
-      html += '<a href="/profile/@" + username + '" class="nvpro-post-avatar">';
+      html += '<a href="/profile/@" + escapeHtml(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
-        html += '<img src="' + avatar + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
-        html += '<span class="nvpro-avatar-initials" style="display:none">' + initial + '</span>';
+        html += '<img src="' + escapeHtml(avatar) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+        html += '<span class="nvpro-avatar-initials" style="display:none">' + initial + "</span>";
       } else {
-        html += '<span class="nvpro-avatar-initials">' + initial + '</span>';
+        html += '<span class="nvpro-avatar-initials">' + initial + "</span>";
       }
-      html += '</a>';
+      html += "</a>";
       html += '<div class="nvpro-post-meta">';
-      html += '<a href="/profile/@" + username + '" class="nvpro-post-author">' + displayName + verified + '</a>';
-      html += '<span class="nvpro-post-time">' + (item.created_label || "Just now") + '</span>';
-      html += '</div>';
+      html += '<a href="/profile/@" + escapeHtml(username) + '" class="nvpro-post-author">' + escapeHtml(displayName) + verified + "</a>";
+      html += '<span class="nvpro-post-time">' + (item.created_label || "Just now") + "</span>";
+      html += "</div>";
       if (item.profile_id) {
         html += '<button type="button" class="nvpro-follow-pill" data-follow-id="' + item.profile_id + '">Follow</button>';
       }
-      html += '</div>';
-      if (text) html += '<div class="nvpro-post-body">' + escapeHtml(text) + '</div>';
-      if (mediaUrl) html += '<div class="nvpro-post-media"><img src="' + mediaUrl + '" alt="" loading="lazy"></div>';
-      if (videoUrl) html += '<div class="nvpro-post-media"><video src="' + videoUrl + '" muted playsinline preload="metadata" class="nvpro-video-preview"></video></div>';
+      html += "</div>";
+      if (text) html += '<div class="nvpro-post-body">' + escapeHtml(text) + "</div>";
+      html += vidHtml;
       html += '<div class="nvpro-post-actions">';
-      html += '<button type="button" class="nvpro-action-btn" data-action="like" data-id="' + (item.id || "") + '" data-type="' + vAttr + '"><i class="far fa-heart"></i> <span>' + (item.likes_count || 0) + '</span></button>';
-      html += '<button type="button" class="nvpro-action-btn" data-action="comment" data-id="' + (item.id || "") + '"><i class="far fa-comment"></i> <span>' + (item.comments_count || 0) + '</span></button>';
-      html += '<button type="button" class="nvpro-action-btn" data-action="share" data-id="' + (item.id || "") + '"><i class="far fa-share-square"></i> <span>Share</span></button>';
-      html += '<button type="button" class="nvpro-action-btn" data-action="save" data-id="' + (item.id || "") + '" data-type="' + vAttr + '"><i class="far fa-bookmark"></i></button>';
-      html += '</div>';
-      html += '</article>';
+      html += '<button type="button" class="nvpro-action-btn" data-action="like" data-id="' + (item.id || "") + '" data-type="' + vAttr + '">' + icon("heart") + " <span>" + (item.likes_count || 0) + "</span></button>";
+      html += '<button type="button" class="nvpro-action-btn" data-action="comment" data-id="' + (item.id || "") + '">' + icon("comment") + " <span>" + (item.comments_count || 0) + "</span></button>";
+      html += '<button type="button" class="nvpro-action-btn" data-action="share" data-id="' + (item.id || "") + '">' + icon("share") + " <span>Share</span></button>";
+      html += '<button type="button" class="nvpro-action-btn" data-action="save" data-id="' + (item.id || "") + '" data-type="' + vAttr + '">' + icon("save") + "</button>";
+      html += "</div>";
+      html += "</article>";
     });
     feedEl.innerHTML = html;
+    // Lazy-load videos after rendering
+    lazyLoadVideos();
   }
 
-  function renderEmpty() {
-    if (!feedEl) return;
-    feedEl.innerHTML =
-      '<div class="nvpro-empty">' +
-      '<div class="nvpro-empty-icon"><i class="fas fa-newspaper"></i></div>' +
-      '<h3>Your NamVibe feed is ready</h3>' +
-      '<p>Follow creators, watch reels, join live rooms, or share your first post.</p>' +
-      '<div class="nvpro-empty-actions">' +
-      '<a href="/discover/" class="nvpro-btn nvpro-btn-primary">Discover Creators</a>' +
-      '<a href="/posts/create" class="nvpro-btn nvpro-btn-outline">Create Post</a>' +
-      '<a href="/reels/" class="nvpro-btn nvpro-btn-outline">Watch Reels</a>' +
-      '</div></div>';
+  /* ── Tab switching ── */
+  var tabs = document.querySelectorAll(".nvpro-tab");
+  var feedEl = document.getElementById("nvpro-feed");
+  var activeTab = "for_you";
+
+  function switchTab(tab) {
+    if (tab === activeTab) return;
+    activeTab = tab;
+    tabs.forEach(function (t) { t.classList.toggle("is-active", t.dataset.tab === tab); });
+    showSkeleton(feedEl);
+    fetchFeed(tab);
   }
 
-  function escapeHtml(str) {
-    if (!str) return "";
-    var d = document.createElement("div");
-    d.textContent = str;
-    return d.innerHTML;
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () { switchTab(t.dataset.tab); });
+  });
+
+  function fetchFeed(tab) {
+    apiFetch("/api/homepage/feed?tab=" + encodeURIComponent(tab) + "&limit=20")
+      .then(function (data) {
+        if (data.ok && data.payload && data.payload.feed_items) {
+          renderFeedItems(feedEl, data.payload.feed_items);
+        } else {
+          renderEmpty(feedEl);
+        }
+      })
+      .catch(function () { renderEmpty(feedEl); });
   }
 
-  // ── Video autoplay ──
+  /* ── INTERSECTION OBSERVER — REELS / VIDEO AUTOPLAY ── */
   var videoObserver = null;
+
   function setupVideoObserver() {
     if (!window.IntersectionObserver) return;
     videoObserver = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
-        var vid = entry.target;
-        if (entry.isIntersecting) {
+        var el = entry.target;
+        var vid = el.tagName === "VIDEO" ? el : el.querySelector("video");
+        if (!vid) return;
+        if (entry.intersectionRatio >= 0.65) {
+          // Pause all other videos
+          document.querySelectorAll("video[data-nv-video-active]").forEach(function (v) {
+            if (v !== vid) {
+              v.pause();
+              v.removeAttribute("data-nv-video-active");
+              var parent = v.closest("[data-nv-video]") || v.parentElement;
+              if (parent) {
+                var overlay = parent.querySelector(".nvpro-video-overlay");
+                if (overlay) overlay.classList.remove("is-hidden");
+              }
+            }
+          });
+          vid.muted = true;
+          vid.playsInline = true;
+          vid.setAttribute("data-nv-video-active", "1");
           vid.play().catch(function () {});
+          var overlay = el.querySelector(".nvpro-video-overlay");
+          if (overlay) overlay.classList.add("is-hidden");
         } else {
           vid.pause();
+          vid.removeAttribute("data-nv-video-active");
+          var overlay = el.querySelector(".nvpro-video-overlay");
+          if (overlay && !vid.played.length) overlay.classList.remove("is-hidden");
         }
       });
-    }, { threshold: 0.5 });
-    document.querySelectorAll(".nvpro-video-preview").forEach(function (v) { videoObserver.observe(v); });
+    }, { threshold: [0.65] });
+
+    // Observe all video containers
+    document.querySelectorAll("[data-nv-video]").forEach(function (el) {
+      videoObserver.observe(el);
+      el.setAttribute("data-nv-obs", "1");
+    });
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    setupVideoObserver();
-  });
-
-  // Watch for new videos added via JS
+  // Watch for new video elements added dynamically
   var mutationObserver = new MutationObserver(function () {
     if (videoObserver) {
-      document.querySelectorAll(".nvpro-video-preview:not([data-video-obs])").forEach(function (v) {
-        v.setAttribute("data-video-obs", "1");
-        videoObserver.observe(v);
+      document.querySelectorAll("[data-nv-video]:not([data-nv-obs])").forEach(function (el) {
+        el.setAttribute("data-nv-obs", "1");
+        videoObserver.observe(el);
       });
     }
   });
   if (document.body) mutationObserver.observe(document.body, { childList: true, subtree: true });
 
-  // ── Like action ──
+  /* ── Lazy-load videos — replace skeleton with actual video ── */
+  function lazyLoadVideos() {
+    document.querySelectorAll("[data-nv-video]:not([data-nv-loaded])").forEach(function (el) {
+      var src = el.dataset.nvVideo;
+      var thumb = el.dataset.nvThumb || "";
+      if (!src) return;
+      el.setAttribute("data-nv-loaded", "1");
+      var skeleton = el.querySelector(".nvpro-loading-skeleton");
+      var video = document.createElement("video");
+      video.src = src;
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+      video.className = "nvpro-video-preview";
+      video.setAttribute("data-nv-video-active", "");
+      video.style.width = "100%";
+      video.style.display = "block";
+      if (thumb) video.poster = thumb;
+      video.addEventListener("loadedmetadata", function () {
+        if (skeleton) skeleton.remove();
+      });
+      video.addEventListener("error", function () {
+        if (skeleton) {
+          skeleton.outerHTML = '<div class="nvpro-post-media" style="padding:20px;text-align:center;color:var(--nvpro-muted)">Video unavailable</div>';
+        }
+      });
+      el.insertBefore(video, skeleton);
+      // Show play overlay initially
+      var overlay = el.querySelector(".nvpro-video-overlay");
+      if (overlay) overlay.classList.remove("is-hidden");
+    });
+  }
+
+  /* ── Video tap to toggle play/pause ── */
+  document.addEventListener("click", function (e) {
+    var media = e.target.closest("[data-nv-video]");
+    if (!media) return;
+    var vid = media.querySelector("video");
+    if (!vid) return;
+    if (vid.paused) {
+      vid.play().catch(function () {});
+      var overlay = media.querySelector(".nvpro-video-overlay");
+      if (overlay) overlay.classList.add("is-hidden");
+    } else {
+      vid.pause();
+      var overlay = media.querySelector(".nvpro-video-overlay");
+      if (overlay) overlay.classList.remove("is-hidden");
+    }
+  });
+
+  /* ── Double-tap like on videos ── */
+  var lastVideoTap = 0;
+  document.addEventListener("click", function (e) {
+    var media = e.target.closest("[data-nv-video]");
+    if (!media) return;
+    var now = Date.now();
+    if (now - lastVideoTap < 400) {
+      // Double tap
+      var heart = document.createElement("span");
+      heart.className = "nvpro-double-tap-heart";
+      heart.innerHTML = icon("heart");
+      media.appendChild(heart);
+      setTimeout(function () { heart.remove(); }, 700);
+    }
+    lastVideoTap = now;
+  });
+
+  /* ── Upload Modal ── */
+  function initUploadModal() {
+    var overlay = document.getElementById("nvpro-upload-modal");
+    var openBtns = document.querySelectorAll("[data-open-upload]");
+    var closeBtn = overlay ? overlay.querySelector(".nvpro-modal-close") : null;
+    if (!overlay) return;
+
+    openBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        overlay.classList.add("is-open");
+        var tab = btn.dataset.openUpload || "post";
+        switchUploadTab(tab);
+      });
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function () { overlay.classList.remove("is-open"); });
+    }
+
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) overlay.classList.remove("is-open");
+    });
+
+    // Tab switching
+    var tabBtns = overlay.querySelectorAll(".nvpro-modal-tab");
+    var tabPanes = {
+      post: document.getElementById("nvpro-upload-post"),
+      reel: document.getElementById("nvpro-upload-reel"),
+      story: document.getElementById("nvpro-upload-story"),
+    };
+
+    function switchUploadTab(tab) {
+      tabBtns.forEach(function (t) { t.classList.toggle("is-active", t.dataset.uploadTab === tab); });
+      Object.keys(tabPanes).forEach(function (k) {
+        if (tabPanes[k]) tabPanes[k].style.display = k === tab ? "flex" : "none";
+      });
+      // Reset file previews
+      resetPreview(tab);
+    }
+
+    window.switchUploadTab = switchUploadTab;
+
+    tabBtns.forEach(function (t) {
+      t.addEventListener("click", function () { switchUploadTab(t.dataset.uploadTab); });
+    });
+
+    // File drop zones
+    ["post", "reel", "story"].forEach(function (type) {
+      initDropZone(type);
+    });
+
+    // Cancel buttons
+    overlay.querySelectorAll("[data-cancel-upload]").forEach(function (btn) {
+      btn.addEventListener("click", function () { overlay.classList.remove("is-open"); });
+    });
+  }
+
+  var UPLOAD_RULES = {
+    post: { maxDuration: 600, maxSize: 700, accept: "video/mp4,video/webm,video/mov,image/jpeg,image/jpg,image/png,image/webp", label: "Post", types: ["video", "image"] },
+    reel: { maxDuration: 90, maxSize: 250, accept: "video/mp4,video/webm,video/mov", label: "Reel", types: ["video"] },
+    story: { maxDuration: 60, maxSize: 100, accept: "video/mp4,video/webm,video/mov,image/jpeg,image/jpg,image/png,image/webp", label: "Story", types: ["video", "image"] },
+  };
+
+  function initDropZone(type) {
+    var rules = UPLOAD_RULES[type];
+    if (!rules) return;
+    var zone = document.getElementById("nvpro-drop-" + type);
+    var input = document.getElementById("nvpro-file-" + type);
+    var preview = document.getElementById("nvpro-preview-" + type);
+    var result = document.getElementById("nvpro-result-" + type);
+    var progress = document.getElementById("nvpro-progress-" + type);
+    var submitBtn = document.getElementById("nvpro-submit-" + type);
+    if (!zone || !input) return;
+
+    function resetPreview() {
+      if (preview) { preview.innerHTML = ""; preview.style.display = "none"; }
+      if (result) { result.classList.remove("is-visible", "is-success", "is-error"); result.style.display = "none"; }
+      if (progress) { progress.classList.remove("is-active"); var fill = progress.querySelector(".nvpro-progress-fill"); if (fill) fill.style.width = "0%"; }
+      if (submitBtn) submitBtn.disabled = false;
+      zone.style.display = "block";
+    }
+
+    window.resetPreview = resetPreview;
+
+    function showError(msg) {
+      if (result) {
+        result.className = "nvpro-upload-result is-visible is-error";
+        result.style.display = "flex";
+        result.innerHTML =
+          icon("alert") +
+          '<h3>Upload failed</h3>' +
+          "<p>" + escapeHtml(msg) + "</p>" +
+          '<button type="button" class="nvpro-btn nvpro-btn-outline nvpro-btn-sm" onclick="resetPreview(\'' + type + '\')">Try again</button>';
+      }
+    }
+
+    function showSuccess(url) {
+      if (result) {
+        result.className = "nvpro-upload-result is-visible is-success";
+        result.style.display = "flex";
+        result.innerHTML =
+          icon("check") +
+          '<h3>' + rules.label + ' uploaded!</h3>' +
+          '<p>Your ' + rules.label.toLowerCase() + ' is now live.</p>' +
+          '<a href="' + escapeHtml(url || "/") + '" class="nvpro-btn nvpro-btn-primary">View</a>';
+      }
+    }
+
+    function validateFile(file) {
+      var ext = file.name.split(".").pop().toLowerCase();
+      var validExts = ["mp4", "webm", "mov", "jpg", "jpeg", "png", "webp"];
+      if (!validExts.includes(ext)) {
+        showError("Unsupported file format. Use mp4, webm, mov, jpg, png, or webp.");
+        return false;
+      }
+      var isVideo = file.type.startsWith("video/");
+      var maxSize = rules.maxSize * 1024 * 1024;
+      if (file.size > maxSize) {
+        showError(rules.label + " must be under " + rules.maxSize + "MB.");
+        return false;
+      }
+      if (isVideo && rules.maxDuration < 600) {
+        // Validate video duration via metadata
+        var videoEl = document.createElement("video");
+        videoEl.preload = "metadata";
+        var url = URL.createObjectURL(file);
+        videoEl.src = url;
+        return new Promise(function (resolve) {
+          videoEl.onloadedmetadata = function () {
+            URL.revokeObjectURL(url);
+            var dur = videoEl.duration;
+            if (dur > rules.maxDuration) {
+              var msg = rules.label + "s must be " + rules.maxDuration + " seconds or less.";
+              showError(msg);
+              resolve(false);
+            } else {
+              resolve(true);
+            }
+          };
+          videoEl.onerror = function () { URL.revokeObjectURL(url); resolve(true); };
+          setTimeout(function () { resolve(true); }, 3000);
+        });
+      }
+      return true;
+    }
+
+    function previewFile(file) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        if (!preview) return;
+        preview.style.display = "block";
+        preview.innerHTML = "";
+        var isVideo = file.type.startsWith("video/");
+        var el = isVideo
+          ? '<video src="' + e.target.result + '" muted playsinline preload="metadata" style="width:100%;max-height:200px;border-radius:8px"></video>'
+          : '<img src="' + e.target.result + '" alt="" style="width:100%;max-height:200px;border-radius:8px;object-fit:contain">';
+        preview.innerHTML = el +
+          '<button type="button" class="nvpro-preview-remove" onclick="var z=document.getElementById(\'nvpro-drop-' + type + '\');var inp=document.getElementById(\'nvpro-file-' + type + '\');inp.value=\'\';z.style.display=\'block\';this.parentElement.style.display=\'none\'">' +
+          icon("close") + "</button>";
+        zone.style.display = "none";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Click to open file picker
+    zone.addEventListener("click", function () { input.click(); });
+    zone.addEventListener("dragover", function (e) { e.preventDefault(); zone.classList.add("is-dragover"); });
+    zone.addEventListener("dragleave", function () { zone.classList.remove("is-dragover"); });
+    zone.addEventListener("drop", function (e) {
+      e.preventDefault();
+      zone.classList.remove("is-dragover");
+      if (e.dataTransfer.files.length) {
+        input.files = e.dataTransfer.files;
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    input.addEventListener("change", function () {
+      if (input.files.length) handleFile(input.files[0]);
+    });
+
+    function handleFile(file) {
+      if (!file) return;
+      var validation = validateFile(file);
+      if (validation && validation.then) {
+        validation.then(function (ok) {
+          if (ok) previewFile(file);
+        });
+      } else if (validation) {
+        previewFile(file);
+      }
+    }
+
+    // Submit form
+    if (submitBtn) {
+      submitBtn.addEventListener("click", function () {
+        if (!input.files.length) { showError("Please select a file to upload."); return; }
+        submitBtn.disabled = true;
+        if (progress) progress.classList.add("is-active");
+
+        var fd = new FormData();
+        fd.append("media", input.files[0]);
+        fd.append("caption", (document.getElementById("nvpro-caption-" + type) || {}).value || "");
+        var fileType = input.files[0].type.startsWith("video/") ? "video" : "image";
+        fd.append("media_type", fileType);
+        var visibility = (document.getElementById("nvpro-visibility-" + type) || {}).value || "public";
+        fd.append("visibility", visibility);
+        if (fileType === "video") fd.append("video", input.files[0]);
+
+        var uploadUrl = type === "post" ? "/posts/create" : type === "reel" ? "/reels/upload" : "/api/status/create";
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", uploadUrl, true);
+        xhr.setRequestHeader("X-CSRFToken", csrfToken());
+
+        xhr.upload.onprogress = function (e) {
+          if (e.lengthComputable && progress) {
+            var pct = Math.round((e.loaded / e.total) * 100);
+            var fill = progress.querySelector(".nvpro-progress-fill");
+            var text = progress.querySelector(".nvpro-progress-text");
+            if (fill) fill.style.width = pct + "%";
+            if (text) text.textContent = pct + "%";
+          }
+        };
+
+        xhr.onload = function () {
+          if (progress) progress.classList.remove("is-active");
+          submitBtn.disabled = false;
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              var resp = JSON.parse(xhr.responseText);
+              if (resp.ok || resp.id || resp.url) {
+                showSuccess(resp.url || resp.redirect || "/");
+                return;
+              }
+            } catch (e) {}
+            showSuccess("/");
+          } else {
+            try {
+              var err = JSON.parse(xhr.responseText);
+              showError(err.error || err.message || "Upload failed. Try again.");
+            } catch (e) {
+              showError("Upload failed. Try again.");
+            }
+          }
+        };
+
+        xhr.onerror = function () {
+          if (progress) progress.classList.remove("is-active");
+          submitBtn.disabled = false;
+          showError("Network error. Check your connection.");
+        };
+
+        xhr.send(fd);
+      });
+    }
+  }
+
+  /* ── Like action ── */
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-action=like]");
     if (!btn) return;
@@ -197,12 +617,10 @@
           showToast(btn.classList.contains("is-liked") ? "Liked" : "Unliked");
         }
       })
-      .catch(function () {
-        showToast("Could not like. Try again.");
-      });
+      .catch(function () { showToast("Could not like. Try again."); });
   });
 
-  // ── Save action ──
+  /* ── Save action ── */
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-action=save]");
     if (!btn) return;
@@ -217,12 +635,10 @@
           showToast(btn.classList.contains("is-saved") ? "Saved" : "Unsaved");
         }
       })
-      .catch(function () {
-        showToast("Could not save. Try again.");
-      });
+      .catch(function () { showToast("Could not save. Try again."); });
   });
 
-  // ── Share action ──
+  /* ── Share action ── */
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-action=share]");
     if (!btn) return;
@@ -231,15 +647,11 @@
     if (navigator.share) {
       navigator.share({ title: "NamVibe", url: url }).catch(function () {});
     } else {
-      navigator.clipboard.writeText(url).then(function () {
-        showToast("Link copied!");
-      }).catch(function () {
-        showToast("Could not share. Try again.");
-      });
+      navigator.clipboard.writeText(url).then(function () { showToast("Link copied!"); }).catch(function () { showToast("Could not share."); });
     }
   });
 
-  // ── Comment action ──
+  /* ── Comment action ── */
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-action=comment]");
     if (!btn) return;
@@ -247,7 +659,7 @@
     if (id) window.location.href = "/posts/" + id;
   });
 
-  // ── Follow action ──
+  /* ── Follow action ── */
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-follow-id]");
     if (!btn) return;
@@ -262,9 +674,20 @@
           showToast(btn.classList.contains("is-following") ? "Followed" : "Unfollowed");
         }
       })
-      .catch(function () {
-        showToast("Could not follow. Try again.");
-      });
+      .catch(function () { showToast("Could not follow. Try again."); });
   });
 
+  /* ── Init ── */
+  document.addEventListener("DOMContentLoaded", function () {
+    replaceFaIcons();
+    initUploadModal();
+    setupVideoObserver();
+    // Lazy-load initial videos
+    setTimeout(lazyLoadVideos, 100);
+    // Handle tab-based upload opening
+    if (window.location.hash === "#upload") {
+      var modal = document.getElementById("nvpro-upload-modal");
+      if (modal) modal.classList.add("is-open");
+    }
+  });
 })();

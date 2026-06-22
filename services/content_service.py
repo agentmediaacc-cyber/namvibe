@@ -133,7 +133,7 @@ def _file_size(file_obj):
     return size
 
 
-def validate_media(file_obj, media_kind=None):
+def validate_media(file_obj, media_kind=None, max_duration_seconds=None):
     if not file_obj or not getattr(file_obj, "filename", ""):
         return False, "No media file selected.", None
     ext = _extension(file_obj.filename)
@@ -151,11 +151,23 @@ def validate_media(file_obj, media_kind=None):
     limit_mb = MAX_VIDEO_MB if is_video else MAX_IMAGE_MB
     if size > limit_mb * 1024 * 1024:
         return False, f"File is too large. Maximum size is {limit_mb}MB.", None
+
+    if is_video and max_duration_seconds:
+        try:
+            from services.media_pipeline import extract_video_duration
+            dur_info = extract_video_duration(file_obj)
+            duration = dur_info.get("duration_seconds")
+            if duration is not None and duration > max_duration_seconds:
+                label = "Stories" if max_duration_seconds <= 60 else "Reels" if max_duration_seconds <= 90 else "Posts"
+                return False, f"{label} must be {max_duration_seconds} seconds or less.", None
+        except Exception:
+            pass
+
     return True, None, {"kind": "video" if is_video else "image", "ext": ext, "size": size, "content_type": content_type}
 
 
-def save_media_file(file_obj, upload_type, media_kind=None, profile_id=None):
-    valid, error, info = validate_media(file_obj, media_kind=media_kind)
+def save_media_file(file_obj, upload_type, media_kind=None, profile_id=None, max_duration_seconds=None):
+    valid, error, info = validate_media(file_obj, media_kind=media_kind, max_duration_seconds=max_duration_seconds)
     if not valid:
         return None, error
     from services.supabase_storage_router import upload_file
