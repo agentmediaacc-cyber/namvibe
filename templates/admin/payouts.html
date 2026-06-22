@@ -1,0 +1,117 @@
+{% extends "admin/dashboard.html" %}
+{% block title %}Payout Queue — Admin{% endblock %}
+{% block admin_content %}
+<div class="admin-section">
+  <div class="admin-section-header">
+    <h2>Payout Queue</h2>
+    <div class="admin-filter-bar">
+      <form method="GET" class="admin-filter-form">
+        <select name="status" onchange="this.form.submit()">
+          <option value="">All Status</option>
+          <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+          <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+          <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid</option>
+          <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+        </select>
+      </form>
+    </div>
+  </div>
+
+  {% if payouts %}
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Profile</th>
+          <th>Amount</th>
+          <th>Method</th>
+          <th>Status</th>
+          <th>Requested</th>
+          <th>Admin Note</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payouts %}
+        <tr>
+          <td><code>{{ p.creator_profile_id[:8] if p.creator_profile_id else '—' }}…</code></td>
+          <td><strong>N$ {{ "%.2f"|format(p.amount_cents / 100) }}</strong></td>
+          <td>{{ p.payout_method or '—' }}</td>
+          <td>
+            <span class="admin-badge admin-badge-{{ p.status }}">
+              {{ p.status }}
+            </span>
+          </td>
+          <td>{{ p.requested_at[:10] if p.requested_at else '—' }}</td>
+          <td class="admin-note-cell">{{ p.admin_note or '' }}</td>
+          <td class="admin-action-cell">
+            {% if p.status == 'pending' %}
+            <form method="POST" action="/admin/payouts/{{ p.id }}/approve" style="display:inline">
+              <button class="admin-btn admin-btn-sm admin-btn-success">Approve</button>
+            </form>
+            <form method="POST" action="/admin/payouts/{{ p.id }}/reject" style="display:inline">
+              <button class="admin-btn admin-btn-sm admin-btn-danger">Reject</button>
+            </form>
+            {% elif p.status == 'approved' %}
+            <form method="POST" action="/admin/payouts/{{ p.id }}/mark-paid" style="display:inline">
+              <button class="admin-btn admin-btn-sm admin-btn-success">Mark Paid</button>
+            </form>
+            <form method="POST" action="/admin/payouts/{{ p.id }}/mark-failed" style="display:inline">
+              <button class="admin-btn admin-btn-sm admin-btn-danger">Mark Failed</button>
+            </form>
+            {% else %}
+            <span class="admin-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="admin-empty">
+    <i class="fas fa-inbox"></i>
+    <p>No payout requests found.</p>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.admin-section { padding: 24px; }
+.admin-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.admin-section-header h2 { margin: 0; font-size: 22px; }
+.admin-filter-form select { padding: 8px 14px; border-radius: 10px; border: 1px solid #2a2a45; background: #1a1a2e; color: #f0f0f5; font-size: 13px; }
+.admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th { text-align: left; padding: 10px 12px; font-weight: 600; color: #8888a0; border-bottom: 1px solid #2a2a45; white-space: nowrap; }
+.admin-table td { padding: 10px 12px; border-bottom: 1px solid #2a2a45; }
+.admin-table tr:hover td { background: rgba(255,255,255,0.03); }
+.admin-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+.admin-badge-pending { background: rgba(255,193,7,0.15); color: #ffc107; }
+.admin-badge-approved { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.admin-badge-rejected { background: rgba(239,68,68,0.15); color: #ef4444; }
+.admin-badge-paid { background: rgba(34,197,94,0.15); color: #22c55e; }
+.admin-badge-failed { background: rgba(239,68,68,0.15); color: #ef4444; }
+.admin-badge-cancelled { background: rgba(136,136,160,0.15); color: #8888a0; }
+.admin-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.admin-btn-sm { padding: 4px 10px; font-size: 11px; min-height: 44px; }
+.admin-btn-success { background: rgba(34,197,94,0.15); color: #22c55e; }
+.admin-btn-success:hover { background: #22c55e; color: #000; }
+.admin-btn-danger { background: rgba(239,68,68,0.15); color: #ef4444; }
+.admin-btn-danger:hover { background: #ef4444; color: #fff; }
+.admin-note-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8888a0; font-size: 12px; }
+.admin-action-cell { min-width: 160px; }
+.admin-muted { color: #666; font-size: 12px; }
+.admin-empty { text-align: center; padding: 60px 20px; color: #666; }
+.admin-empty i { font-size: 40px; display: block; margin-bottom: 12px; opacity: 0.4; }
+.admin-empty p { margin: 0; font-size: 14px; }
+code { font-size: 11px; color: #8888a0; }
+@media (max-width: 768px) {
+  .admin-section { padding: 16px 10px; }
+  .admin-section-header { flex-direction: column; align-items: flex-start; }
+  .admin-table td, .admin-table th { padding: 8px; font-size: 12px; }
+  .admin-action-cell { min-width: 120px; }
+}
+</style>
+{% endblock %}

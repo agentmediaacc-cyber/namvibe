@@ -1,0 +1,77 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell" data-page="contacts">
+  <div class="manager-head">
+    <a href="{{ url_for('profile.view_profile', username=profile.username) }}" class="back-link">&larr; Back to Profile</a>
+    <h2>Contacts</h2>
+    <span class="manager-count" id="contactsCount">0 contacts</span>
+  </div>
+  <div style="padding:12px 0;position:relative">
+    <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#aaa;z-index:1;"></i>
+    <input type="text" id="contactsSearch" placeholder="Search contacts..." style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:12px 12px 12px 40px;color:white;outline:none;">
+  </div>
+  <section class="following-group">
+    <div class="people-list" id="contactsList"></div>
+    <div class="manager-empty" id="contactsEmpty" style="display:none;">
+      <i class="fas fa-address-book"></i>
+      <h3>No contacts yet</h3>
+      <p>Connect with people on NamVibe to build your contacts.</p>
+      <a href="/discover/"><i class="fas fa-search"></i> Discover People</a>
+    </div>
+    <div id="contactsLoading" style="text-align:center;padding:40px;color:#aaa;"><i class="fas fa-spinner fa-spin"></i> Loading contacts...</div>
+  </section>
+</div>
+<script>
+function loadContacts(q){
+  const list = document.getElementById('contactsList');
+  const empty = document.getElementById('contactsEmpty');
+  const loading = document.getElementById('contactsLoading');
+  const count = document.getElementById('contactsCount');
+  list.innerHTML = '';
+  const url = q ? `/api/contacts/search?q=${encodeURIComponent(q)}` : '/api/contacts/';
+  loading.style.display = 'block';
+  empty.style.display = 'none';
+  fetch(url).then(r=>r.json()).then(data=>{
+    loading.style.display = 'none';
+    const contacts = data.contacts || [];
+    count.textContent = contacts.length + ' contact' + (contacts.length !== 1 ? 's' : '');
+    if (!contacts.length){ empty.style.display = 'block'; return; }
+    contacts.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'people-card';
+      div.innerHTML = `
+        <div class="people-avatar">
+          ${c.avatar_url ? `<img src="${c.avatar_url}" alt="" loading="lazy">` : `<span>${(c.display_name||'U')[0].toUpperCase()}</span>`}
+        </div>
+        <div class="people-info">
+          <strong>${c.display_name}</strong>
+          <span>@${c.username}</span>
+          ${c.is_online ? '<small style="color:#34c759;">● Online</small>' : ''}
+        </div>
+        <div class="people-actions">
+          <a href="${c.profile_url}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+          <a href="${c.message_url}" class="action-btn" title="Message"><i class="fas fa-comment"></i></a>
+          <a href="${c.audio_call_url}" class="action-btn" title="Audio Call"><i class="fas fa-phone"></i></a>
+          <a href="${c.video_call_url}" class="action-btn" title="Video Call"><i class="fas fa-video"></i></a>
+          <button class="action-btn danger" title="Remove" data-action="remove-contact" data-id="${c.profile_id}"><i class="fas fa-user-slash"></i></button>
+        </div>`;
+      list.appendChild(div);
+    });
+  }).catch(()=>{ loading.style.display='none'; empty.style.display='block'; });
+}
+document.addEventListener('DOMContentLoaded', function(){ loadContacts(); });
+document.getElementById('contactsSearch').addEventListener('input', function(){
+  const q = this.value.trim();
+  if (q.length >= 2) loadContacts(q);
+  else if (q.length === 0) loadContacts();
+});
+document.getElementById('contactsList').addEventListener('click', function(e){
+  const btn = e.target.closest('[data-action="remove-contact"]');
+  if (!btn) return;
+  if (!confirm('Remove this contact?')) return;
+  const pid = btn.dataset.id;
+  fetch('/api/contacts/' + pid + '/remove', {method:'POST'})
+    .then(r=>r.json()).then(d=>{ if(d.ok) loadContacts(); else alert(d.error||'Failed'); });
+});
+</script>
+{% endblock %}

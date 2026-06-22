@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Inbox | NamVibe{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile_premium.css') }}">
+<style>
+:root{--inbox-radius:20px;--inbox-bg:#0c0c0e;--inbox-border:rgba(255,255,255,0.08);--inbox-hover:rgba(255,255,255,0.06);--inbox-accent:#2563eb;--inbox-accent2:#00f2ea;--inbox-text:#f0f0f0;--inbox-text2:#a0a0a8;--inbox-text3:#6b6b76}
+.inbox-shell{max-width:1040px;margin:0 auto;padding:0 20px 100px}
+.section-head{margin-bottom:16px}
+.section-head p{font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--inbox-text3);text-transform:uppercase;margin:0 0 4px}
+.section-head h2{font-size:28px;font-weight:900;margin:0;background:linear-gradient(135deg,var(--inbox-accent2),var(--inbox-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.inbox-container{display:grid;grid-template-columns:340px 1fr;min-height:calc(100vh - 240px);background:var(--inbox-bg);border:1px solid var(--inbox-border);border-radius:var(--inbox-radius);overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.3)}
+.inbox-sidebar{border-right:1px solid var(--inbox-border);overflow-y:auto;display:flex;flex-direction:column}
+.inbox-tabs{display:flex;gap:6px;padding:16px 16px 12px;border-bottom:1px solid var(--inbox-border);overflow-x:auto;flex-shrink:0}
+.inbox-tab{color:var(--inbox-text2);text-decoration:none;border:0;padding:8px 16px;background:rgba(255,255,255,.06);border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap;cursor:pointer;transition:all .2s ease;letter-spacing:.2px}
+.inbox-tab:hover{background:rgba(255,255,255,.12);color:var(--inbox-text)}
+.inbox-tab.active{color:#050505;background:linear-gradient(135deg,var(--inbox-accent2),var(--inbox-accent));font-weight:900}
+.inbox-tab .badge{background:#ef4444;color:#fff;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:800;margin-left:4px;vertical-align:middle}
+.inbox-search{padding:12px 16px;position:relative;flex-shrink:0}
+.inbox-search i{position:absolute;left:28px;top:50%;transform:translateY(-50%);color:var(--inbox-text3);z-index:1;font-size:14px}
+.inbox-search input{width:100%;background:rgba(255,255,255,.07);border:1px solid var(--inbox-border);border-radius:12px;padding:11px 12px 11px 38px;color:var(--inbox-text);outline:none;font-size:14px;font-weight:500;transition:border-color .2s}
+.inbox-search input:focus{border-color:var(--inbox-accent);background:rgba(37,99,235,.08)}
+.inbox-search input::placeholder{color:var(--inbox-text3)}
+.inbox-list{flex:1;overflow-y:auto}
+.inbox-item{display:flex;align-items:center;gap:14px;padding:14px 18px;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.03);transition:all .15s ease;cursor:pointer}
+.inbox-item:hover{background:var(--inbox-hover)}
+.inbox-item.active{background:rgba(37,99,235,.12);border-left:3px solid var(--inbox-accent);padding-left:15px}
+.inbox-item-avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,var(--inbox-accent),var(--inbox-accent2));display:grid;place-items:center;overflow:hidden;flex-shrink:0;position:relative;color:#050505;font-weight:900;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.inbox-item-avatar img{width:100%;height:100%;object-fit:cover}
+.inbox-item-body{flex:1;min-width:0}
+.inbox-item-name{font-weight:800;font-size:15px;color:var(--inbox-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
+.inbox-item-preview{font-size:13px;color:var(--inbox-text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px;font-weight:400;line-height:1.3}
+.inbox-item-time{font-size:11px;color:var(--inbox-text3);white-space:nowrap;flex-shrink:0;font-weight:600}
+.inbox-item-unread{width:8px;height:8px;border-radius:50%;background:var(--inbox-accent);flex-shrink:0;box-shadow:0 0 6px rgba(37,99,235,.4)}
+.inbox-main{display:grid;place-items:center;background:radial-gradient(ellipse at center, rgba(37,99,235,.06) 0%, transparent 70%)}
+.inbox-main-content{text-align:center;padding:40px;max-width:460px}
+.inbox-main-icon{width:80px;height:80px;border-radius:24px;margin:0 auto 20px;display:grid;place-items:center;font-size:32px;background:linear-gradient(135deg,rgba(0,242,234,.12),rgba(37,99,235,.12));border:1px solid rgba(255,255,255,.06);color:var(--inbox-accent2)}
+.inbox-main-content h3{margin:0 0 8px;font-size:22px;font-weight:800;color:var(--inbox-text)}
+.inbox-main-content p{margin:0;color:var(--inbox-text2);font-size:14px;line-height:1.5}
+.contact-card{display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;background:rgba(255,255,255,.05);margin-bottom:8px;cursor:pointer;transition:all .15s;border:1px solid transparent}
+.contact-card:hover{background:rgba(37,99,235,.1);border-color:rgba(37,99,235,.2)}
+.contact-card-avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,var(--inbox-accent),var(--inbox-accent2));display:grid;place-items:center;overflow:hidden;flex-shrink:0;color:#050505;font-weight:900;font-size:16px}
+.contact-card-avatar img{width:100%;height:100%;object-fit:cover}
+.contact-card-body{flex:1;min-width:0}
+.contact-card-name{font-weight:700;font-size:15px;color:var(--inbox-text)}
+.contact-card-username{font-size:13px;color:var(--inbox-text3);margin-top:1px}
+@media(max-width:860px){
+  .inbox-shell{padding:0 12px 90px}
+  .inbox-container{grid-template-columns:1fr;min-height:auto;border-radius:16px}
+  .inbox-main{min-height:300px;display:none}
+  .inbox-tabs{padding:12px 12px 10px;gap:4px}
+  .inbox-tab{font-size:12px;padding:6px 12px}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <p>MESSAGING</p>
+  <h2>Inbox</h2>
+</section>
+
+<div class="inbox-shell">
+<div class="inbox-container">
+  <aside class="inbox-sidebar">
+    <div class="inbox-tabs">
+      <a href="/inbox/" class="inbox-tab {{ 'active' if active_tab == 'inbox' else '' }}"><i class="fas fa-inbox"></i> Inbox</a>
+      <a href="/inbox/new" class="inbox-tab {{ 'active' if active_tab == 'new' else '' }}"><i class="fas fa-pen"></i> New</a>
+      <a href="/inbox/sent" class="inbox-tab {{ 'active' if active_tab == 'sent' else '' }}"><i class="fas fa-paper-plane"></i> Sent</a>
+      <a href="/inbox/blocked" class="inbox-tab {{ 'active' if active_tab == 'blocked' else '' }}"><i class="fas fa-ban"></i> Blocked</a>
+    </div>
+
+    <div class="inbox-search">
+      <i class="fas fa-search"></i>
+      <input type="text" id="inboxSearch" placeholder="Search messages...">
+    </div>
+
+    <div class="inbox-list" id="inboxList">
+      {% if conversations %}
+        {% for c in conversations %}
+        <div class="inbox-item" data-thread-id="{{ c.id }}" onclick="window.location='/messages/?thread={{ c.id }}'">
+          <div class="inbox-item-avatar">
+            {% if c.avatar_url %}<img src="{{ c.avatar_url }}" alt="">{% else %}{{ (c.display_name or '?')[0]|upper }}{% endif %}
+          </div>
+          <div class="inbox-item-body">
+            <div class="inbox-item-name">{{ c.display_name or 'Conversation' }}</div>
+            <div class="inbox-item-preview">{{ c.last_message or 'No messages yet' }}</div>
+          </div>
+          {% if c.unread %}<div class="inbox-item-unread"></div>{% endif %}
+          <div class="inbox-item-time">{{ c.last_message_at[:10] if c.last_message_at else '' }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="padding:50px;text-align:center;">
+          <i class="fas fa-inbox fa-2x" style="margin-bottom:14px;color:var(--inbox-text3);opacity:.3"></i>
+          <p style="color:var(--inbox-text3);font-size:14px;margin:0">No conversations</p>
+        </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  <main class="inbox-main">
+    <div class="inbox-main-content">
+      {% if active_tab == 'inbox' %}
+        <div class="inbox-main-icon"><i class="fas fa-comments"></i></div>
+        <h3>Select a conversation</h3>
+        <p>Pick a conversation from the left to read your messages, or start a new one.</p>
+      {% elif active_tab == 'new' %}
+        <div class="inbox-main-icon"><i class="fas fa-pen"></i></div>
+        <h3>New Message</h3>
+        <p style="margin-bottom:20px;">Search your contacts to start a conversation</p>
+        <div style="text-align:left;">
+          <div style="position:relative;margin-bottom:14px;">
+            <i class="fas fa-search" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--inbox-text3);z-index:1;font-size:14px;"></i>
+            <input type="text" id="newMsgSearch" placeholder="Search contacts..." style="width:100%;background:rgba(255,255,255,.07);border:1px solid var(--inbox-border);border-radius:12px;padding:12px 12px 12px 42px;color:var(--inbox-text);outline:none;font-size:14px;">
+          </div>
+          <div id="newMsgContactList" style="max-height:400px;overflow:auto;"></div>
+        </div>
+        <script>
+        document.addEventListener('DOMContentLoaded', function(){
+          const input = document.getElementById('newMsgSearch');
+          const list = document.getElementById('newMsgContactList');
+          if(!input||!list) return;
+          function search(q){
+            if(!q||q.length<2){ list.innerHTML='<div style="padding:24px;text-align:center;color:var(--inbox-text3);font-size:13px;">Type to search contacts</div>'; return; }
+            fetch('/api/contacts/search?q='+encodeURIComponent(q)).then(r=>r.json()).then(d=>{
+              const items = (d.contacts||[]).map(c => `
+                <div class="contact-card" onclick="window.location='/messages/start/${c.profile_id}'">
+                  <div class="contact-card-avatar">${c.avatar_url ? '<img src="'+c.avatar_url+'" alt="">' : (c.display_name||'U')[0].toUpperCase()}</div>
+                  <div class="contact-card-body">
+                    <div class="contact-card-name">${c.display_name}</div>
+                    <div class="contact-card-username">@${c.username}</div>
+                  </div>
+                  <i class="fas fa-chevron-right" style="color:var(--inbox-text3);font-size:12px"></i>
+                </div>`).join('');
+              list.innerHTML = items || '<div style="padding:24px;text-align:center;color:var(--inbox-text3);font-size:13px;">No contacts found</div>';
+            }).catch(()=>{ list.innerHTML = '<div style="padding:24px;text-align:center;color:#ef4444;font-size:13px;">Search failed</div>'; });
+          }
+          input.addEventListener('input', function(){ search(this.value.trim()); });
+        });
+        </script>
+      {% elif active_tab == 'sent' %}
+        <div class="inbox-main-icon"><i class="fas fa-paper-plane"></i></div>
+        <h3>Sent Messages</h3>
+        <p>Messages you've sent across your conversations</p>
+      {% elif active_tab == 'blocked' %}
+        <div class="inbox-main-icon"><i class="fas fa-ban"></i></div>
+        <h3>Blocked</h3>
+        <p>Users you've blocked. Unblock them to resume messaging.</p>
+      {% endif %}
+    </div>
+  </main>
+</div>
+</div>
+{% endblock %}

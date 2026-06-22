@@ -1,0 +1,257 @@
+:root {
+  --call-bg: #0f0f0f;
+  --call-overlay: rgba(0, 0, 0, 0.85);
+  --call-control-bg: rgba(255, 255, 255, 0.1);
+  --call-control-hover: rgba(255, 255, 255, 0.2);
+  --call-danger: #ef4444;
+  --call-success: #22c55e;
+  --call-primary: #3b82f6;
+  --call-text: #ffffff;
+  --call-text-secondary: rgba(255, 255, 255, 0.7);
+  --call-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --call-safe-top: env(safe-area-inset-top, 0px);
+}
+
+.call-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 99998;
+  background: var(--call-overlay);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--call-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding-top: var(--call-safe-top);
+  padding-bottom: var(--call-safe-bottom);
+}
+
+.call-overlay.active {
+  display: flex;
+}
+
+.call-video-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+.call-video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.call-local-video {
+  position: absolute;
+  bottom: calc(100px + var(--call-safe-bottom));
+  right: 16px;
+  width: 120px;
+  height: 160px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: #222;
+  z-index: 2;
+}
+
+.call-local-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.call-info {
+  text-align: center;
+  z-index: 1;
+  padding: 20px;
+}
+
+.call-info h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.call-info p {
+  font-size: 15px;
+  color: var(--call-text-secondary);
+  margin: 0;
+}
+
+.call-timer {
+  font-size: 15px;
+  color: var(--call-text-secondary);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.call-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 20px;
+  padding-bottom: calc(20px + var(--call-safe-bottom));
+  z-index: 1;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.call-control-btn {
+  width: 54px;
+  height: 54px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--call-control-bg);
+  color: var(--call-text);
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.call-control-btn:active {
+  background: var(--call-control-hover);
+}
+
+.call-control-btn.danger {
+  background: var(--call-danger);
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+}
+
+.call-control-btn.success {
+  background: var(--call-success);
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+}
+
+.call-control-btn[data-muted="true"] {
+  background: var(--call-danger);
+}
+
+.call-control-btn[data-camera-enabled="false"] {
+  background: var(--call-danger);
+}
+
+.call-control-btn[data-speaker-enabled="true"] {
+  background: var(--call-primary);
+}
+
+.call-incoming-info {
+  text-align: center;
+  z-index: 1;
+  padding: 20px;
+}
+
+.call-incoming-actions {
+  display: flex;
+  gap: 40px;
+  margin-top: 30px;
+  z-index: 1;
+}
+
+.call-reconnecting-text {
+  font-size: 16px;
+  color: var(--call-text-secondary);
+  text-align: center;
+  z-index: 1;
+}
+
+.call-ringtone-unlock {
+  position: fixed;
+  bottom: calc(100px + var(--call-safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  background: #1f2937;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.call-ringtone-unlock button {
+  background: var(--call-primary);
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+@media (min-width: 768px) {
+  .call-local-video {
+    width: 180px;
+    height: 240px;
+  }
+
+  .call-control-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+  }
+
+  .call-control-btn.danger,
+  .call-control-btn.success {
+    width: 72px;
+    height: 72px;
+    font-size: 28px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .call-local-video {
+    width: 80px;
+    height: 100px;
+    bottom: calc(80px + var(--call-safe-bottom));
+  }
+
+  .call-controls {
+    padding: 10px;
+    gap: 12px;
+  }
+
+  .call-control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .call-control-btn.danger,
+  .call-control-btn.success {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  .call-info h2 {
+    font-size: 18px;
+  }
+}

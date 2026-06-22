@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Incoming Call | NamVibe{% endblock %}
+{% block extra_css %}
+<style>
+.call-fallback-shell{max-width:500px;margin:60px auto;padding:20px;text-align:center}
+.call-fallback-card{background:var(--card-bg);border:1px solid var(--border);border-radius:32px;padding:40px 24px}
+.call-fallback-avatar{width:100px;height:100px;border-radius:50%;margin:0 auto 16px;background:linear-gradient(135deg,#2563eb,#00f2ea);display:grid;place-items:center;overflow:hidden;font-size:40px;color:#050505}
+.call-fallback-avatar img{width:100%;height:100%;object-fit:cover}
+.call-fallback-name{font-size:24px;font-weight:900;margin:0 0 4px;color:#fff}
+.call-fallback-type{color:#aaa;margin:0 0 24px;font-size:14px}
+.call-fallback-actions{display:flex;gap:24px;justify-content:center}
+.call-fallback-btn{width:72px;height:72px;border-radius:50%;border:none;font-size:30px;cursor:pointer;transition:transform .2s;display:grid;place-items:center}
+.call-fallback-btn:hover{transform:scale(1.08)}
+.call-fallback-btn.accept{background:#34c759;color:#fff;box-shadow:0 0 30px rgba(52,199,89,.3)}
+.call-fallback-btn.reject{background:#ff3b30;color:#fff;box-shadow:0 0 30px rgba(255,59,48,.3)}
+.call-fallback-label{font-size:12px;margin-top:8px;color:#aaa}
+.call-fallback-end{margin-top:30px}
+.call-fallback-end a{color:#9ca3af;font-size:13px;text-decoration:none}
+.call-missed-badge{display:inline-block;padding:6px 16px;border-radius:999px;background:rgba(239,68,68,.15);color:#ef4444;font-size:13px;font-weight:700;margin-bottom:16px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="call-fallback-shell">
+  <div class="call-fallback-card">
+    {% if call.call_status == 'missed' or call.call_status == 'ended' %}
+      <div class="call-missed-badge"><i class="fas fa-phone-slash"></i> Missed Call</div>
+    {% endif %}
+    <div class="call-fallback-avatar">
+      {% if target_avatar %}<img src="{{ target_avatar }}" alt="">{% else %}<i class="fas fa-user"></i>{% endif %}
+    </div>
+    <h2 class="call-fallback-name">{{ target_name or 'Caller' }}</h2>
+    <p class="call-fallback-type">{{ call.call_type|title }} Call {% if call.call_status == 'ringing' %}· Incoming{% elif call.call_status == 'answered' %}· Connected{% elif call.call_status == 'missed' %}· Missed{% endif %}</p>
+    {% if call.call_status == 'ringing' %}
+    <div class="call-fallback-actions">
+      <div>
+        <form action="/calls/{{ call.id }}/answer" method="POST">
+          <button type="submit" class="call-fallback-btn accept"><i class="fas fa-phone"></i></button>
+        </form>
+        <div class="call-fallback-label">Accept</div>
+      </div>
+      <div>
+        <form action="/calls/{{ call.id }}/end" method="POST">
+          <button type="submit" class="call-fallback-btn reject"><i class="fas fa-phone-slash"></i></button>
+        </form>
+        <div class="call-fallback-label">Decline</div>
+      </div>
+    </div>
+    {% elif call.call_status == 'missed' %}
+    <div class="call-fallback-actions">
+      <div>
+        <form action="/calls/start/{{ target_id }}/audio" method="GET">
+          <button type="submit" class="call-fallback-btn accept"><i class="fas fa-phone"></i></button>
+        </form>
+        <div class="call-fallback-label">Call Back</div>
+      </div>
+      <div>
+        <a href="/messages/start/{{ target_id }}" class="call-fallback-btn reject" style="display:grid;place-items:center;background:rgba(255,255,255,.1);color:#fff;text-decoration:none"><i class="fas fa-comment"></i></a>
+        <div class="call-fallback-label">Message</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="call-fallback-end">
+      <a href="/calls/recent">&larr; Back to Recent Calls</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

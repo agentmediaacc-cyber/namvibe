@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Stories - NamVibe{% endblock %}
+{% block head %}
+<style>
+.story-tray-wrapper { padding: 16px; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.story-tray { display: flex; gap: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; padding: 8px 0; }
+.story-tray::-webkit-scrollbar { display: none; }
+.story-ring { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; min-width: 72px; flex-shrink: 0; }
+.story-ring.unviewed .story-avatar { border: 2px solid #3b82f6; padding: 2px; }
+.story-avatar { width: 64px; height: 64px; min-width: 44px; min-height: 44px; border-radius: 50%; object-fit: cover; background: #e9ecef; }
+.story-avatar-fallback { display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; color: #fff; background: #3b82f6; }
+.story-username { font-size: 11px; color: #6c757d; text-align: center; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.story-tray-empty { text-align: center; padding: 40px; color: #6c757d; }
+.story-viewer { position: fixed; inset: 0; z-index: 1000; background: #000; display: none; flex-direction: column; color: #fff; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.story-viewer.open { display: flex; }
+.story-viewer-header { display: flex; align-items: center; padding: 12px 16px; gap: 10px; position: absolute; top: 0; left: 0; right: 0; z-index: 10; background: linear-gradient(transparent 0%, rgba(0,0,0,0.3)); }
+.story-viewer-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; min-width: 32px; min-height: 32px; }
+.story-viewer-name { font-weight: 600; font-size: 14px; flex: 1; }
+.story-viewer-time { font-size: 12px; opacity: 0.7; }
+.story-close-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border: none; background: transparent; color: #fff; font-size: 24px; cursor: pointer; }
+.story-delete-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border: none; background: transparent; color: #ef4444; font-size: 18px; cursor: pointer; }
+.story-progress { display: flex; gap: 4px; padding: 8px 16px; position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
+.story-progress-bar { height: 3px; background: rgba(255,255,255,0.8); border-radius: 2px; transition: width 0.1s linear; }
+.story-viewer-media { flex: 1; display: flex; align-items: center; justify-content: center; }
+.story-viewer-media img, .story-viewer-media video { width: 100%; height: 100%; object-fit: contain; }
+.story-viewer-left, .story-viewer-right { position: absolute; top: 60px; bottom: 80px; width: 40%; z-index: 5; }
+.story-viewer-left { left: 0; }
+.story-viewer-right { right: 0; }
+.story-viewer-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.story-reactions { display: flex; gap: 12px; justify-content: center; margin-bottom: 12px; }
+.story-reaction-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 50%; border: none; background: rgba(255,255,255,0.15); font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.story-reply-row { display: flex; gap: 8px; }
+.story-reply-input { flex: 1; min-height: 44px; padding: 10px 14px; border-radius: 22px; border: none; background: rgba(255,255,255,0.15); color: #fff; font-size: 14px; }
+.story-reply-input::placeholder { color: rgba(255,255,255,0.5); }
+.story-reply-send { min-width: 44px; min-height: 44px; border-radius: 50%; border: none; background: #3b82f6; color: #fff; font-size: 18px; cursor: pointer; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="story-tray-wrapper">
+  <div class="story-tray" id="story-tray"></div>
+</div>
+
+<div class="story-viewer" id="story-viewer">
+  <div class="story-progress"><div class="story-progress-bar" style="width:0%"></div></div>
+  <div class="story-viewer-header">
+    <button class="story-close-btn">&times;</button>
+    <span class="story-viewer-name"></span>
+    <span class="story-viewer-time"></span>
+    <button class="story-delete-btn">🗑</button>
+  </div>
+  <div class="story-viewer-left"></div>
+  <div class="story-viewer-right"></div>
+  <div class="story-viewer-media"></div>
+  <div class="story-viewer-footer">
+    <div class="story-reactions">
+      <button class="story-reaction-btn" data-reaction="❤️">❤️</button>
+      <button class="story-reaction-btn" data-reaction="😂">😂</button>
+      <button class="story-reaction-btn" data-reaction="😮">😮</button>
+      <button class="story-reaction-btn" data-reaction="😢">😢</button>
+      <button class="story-reaction-btn" data-reaction="🔥">🔥</button>
+    </div>
+    <div class="story-reply-row">
+      <input class="story-reply-input" placeholder="Send a reply..." maxlength="200">
+      <button class="story-reply-send" onclick="var i=document.querySelector('.story-reply-input');if(i&&i.value.trim()){(function(id){fetch('/api/stories/'+id+'/reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({body:i.value.trim()})}).then(function(r){return r.json()}).then(function(d){if(d.ok)i.value=''}).catch(function(){})})(document.querySelector('#story-viewer').dataset.storyId);}">➤</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/namvibe_stories_pro.js?v=phase93"></script>
+{% endblock %}
