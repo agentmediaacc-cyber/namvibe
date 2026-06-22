@@ -109,24 +109,33 @@
                 {% if viewer_id %}
                     {% if profile.primary_action == 'self' %}
                     <span class="px-btn" style="width:100%;display:block;text-align:center;opacity:0.7;">You</span>
-                    {% elif profile.primary_action == 'friend_request' %}
-                    <button type="button" class="px-btn" style="width:100%;" data-friend-action data-target-id="{{ profile.id }}" data-friend-status="none">Add Friend</button>
-                    {% elif profile.primary_action == 'requested' %}
-                    <span class="px-btn" style="width:100%;display:block;text-align:center;opacity:0.7;"><i class="fas fa-clock"></i> Requested</span>
-                    {% elif profile.primary_action == 'approve_follow' %}
-                    <a href="/social/friend-requests" class="px-btn" style="width:100%;display:block;text-align:center;">Approve Follow</a>
-                    {% elif profile.primary_action == 'following' %}
-                    <button type="button" class="px-btn is-active" style="width:100%;" data-follow-profile="{{ profile.id }}"><i class="fas fa-user-check"></i> Following</button>
-                    {% elif profile.primary_action == 'message' %}
-                    <a href="/messages/start/{{ profile.id }}" class="px-btn" style="width:100%;display:block;text-align:center;">Message</a>
-                    {% elif profile.primary_action == 'request_sent' %}
-                    <span class="px-btn" style="width:100%;display:block;text-align:center;opacity:0.7;">Request Sent</span>
-                    {% elif profile.primary_action == 'accept_request' %}
-                    <button type="button" class="px-btn" style="width:100%;" data-friend-response data-target-id="{{ profile.id }}">Respond</button>
-                    {% elif profile.primary_action == 'request_follow' %}
-                    <button type="button" class="px-btn" style="width:100%;" data-follow-profile="{{ profile.id }}">Request Follow</button>
                     {% else %}
-                    <button type="button" class="px-btn" style="width:100%;" data-follow-profile="{{ profile.id }}">Follow</button>
+                    <div class="discover-social-actions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px;">
+                        {% if profile.relationship == 'blocked' %}
+                        <button type="button" class="px-btn" style="width:100%;opacity:.7;" data-social-state="blocked" disabled><i class="fas fa-ban"></i> Blocked</button>
+                        {% elif profile.relationship == 'friend' or profile.primary_action == 'message' %}
+                        <button type="button" class="px-btn is-active" style="width:100%;" data-social-action="unfriend" data-profile-id="{{ profile.id }}" data-social-state="friends"><i class="fas fa-user-check"></i> Friends</button>
+                        <button type="button" class="px-btn" style="width:100%;" data-social-action="{{ 'unfollow' if profile.follow_status == 'following' else 'follow' }}" data-profile-id="{{ profile.id }}" data-social-state="{{ profile.follow_status or 'none' }}"><i class="fas fa-user-plus"></i> {{ 'Following' if profile.follow_status == 'following' else 'Follow' }}</button>
+                        {% elif profile.primary_action == 'request_sent' %}
+                        <button type="button" class="px-btn is-active" style="width:100%;opacity:.8;" data-social-state="friend_requested" disabled><i class="fas fa-clock"></i> Friend Requested</button>
+                        {% elif profile.primary_action == 'accept_request' %}
+                        <a href="/social/friend-requests" class="px-btn" style="width:100%;display:block;text-align:center;">Respond</a>
+                        {% elif profile.primary_action == 'requested' %}
+                        <button type="button" class="px-btn is-active" style="width:100%;opacity:.8;" data-social-state="requested" disabled><i class="fas fa-clock"></i> Requested</button>
+                        {% elif profile.primary_action == 'approve_follow' %}
+                        <a href="/social/friend-requests" class="px-btn" style="width:100%;display:block;text-align:center;">Approve Follow</a>
+                        {% else %}
+                            {% if profile.can_follow %}
+                            <button type="button" class="px-btn {% if profile.primary_action == 'following' %}is-active{% endif %}" style="width:100%;" data-social-action="{{ 'unfollow' if profile.primary_action == 'following' else 'follow' }}" data-profile-id="{{ profile.id }}" data-social-state="{{ 'following' if profile.primary_action == 'following' else 'none' }}"><i class="fas fa-user-plus"></i> {{ 'Following' if profile.primary_action == 'following' else 'Follow' }}</button>
+                            {% endif %}
+                            {% if profile.can_send_friend_request %}
+                            <button type="button" class="px-btn" style="width:100%;" data-social-action="friend-request" data-profile-id="{{ profile.id }}" data-social-state="none"><i class="fas fa-user-friends"></i> Add Friend</button>
+                            {% endif %}
+                            {% if not profile.can_follow and not profile.can_send_friend_request %}
+                            <button type="button" class="px-btn" style="width:100%;opacity:.7;" disabled>Unavailable</button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
                     {% endif %}
                 {% else %}
                 <a href="/auth/login" class="px-btn" style="width:100%;display:block;text-align:center;">Follow</a>
@@ -155,35 +164,76 @@
 
 <script src="/static/js/follow_request_controls.js"></script>
 <script>
-document.querySelectorAll('[data-friend-action]').forEach((button) => {
-...    button.addEventListener('click', async () => {
-        const targetId = button.dataset.targetId;
-        if (!targetId) return;
-        button.disabled = true;
-        try {
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-            const response = await fetch('/social/friends/request', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-                body: JSON.stringify({recipient_id: targetId})
-            });
-            if (response.redirected) { window.location.href = response.url; return; }
-            const data = await response.json();
-            if (data.success) {
-                button.textContent = 'Request Sent';
-                button.disabled = true;
-            } else {
-                alert(data.error || 'Failed to send request');
-            }
-        } finally { button.disabled = false; }
-    });
-});
+(() => {
+    const labels = {
+        none: { text: 'Follow', icon: 'fa-user-plus' },
+        following: { text: 'Following', icon: 'fa-user-check' },
+        requested: { text: 'Requested', icon: 'fa-clock' },
+        friend_requested: { text: 'Friend Requested', icon: 'fa-clock' },
+        friends: { text: 'Friends', icon: 'fa-user-check' },
+        blocked: { text: 'Blocked', icon: 'fa-ban' }
+    };
 
-document.querySelectorAll('[data-friend-response]').forEach((button) => {
-    button.addEventListener('click', async () => {
-        window.location.href = '/social/friend-requests';
+    const csrfToken = () => {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    };
+
+    const setButton = (button, state, action) => {
+        const label = labels[state] || labels.none;
+        button.innerHTML = `<i class="fas ${label.icon}"></i> ${label.text}`;
+        button.dataset.socialState = state;
+        button.classList.toggle('is-active', ['following', 'requested', 'friend_requested', 'friends'].includes(state));
+        button.disabled = ['requested', 'friend_requested', 'blocked'].includes(state);
+        if (state === 'following') button.dataset.socialAction = 'unfollow';
+        if (state === 'friends') button.dataset.socialAction = 'unfriend';
+        if (state === 'none' && action !== 'friend-request') button.dataset.socialAction = 'follow';
+    };
+
+    document.body.addEventListener('click', async (event) => {
+        const button = event.target.closest('[data-social-action]');
+        if (!button) return;
+        event.preventDefault();
+
+        const profileId = button.dataset.profileId;
+        const action = button.dataset.socialAction;
+        if (!profileId || !action) return;
+
+        const urls = {
+            follow: `/api/social/follow/${profileId}`,
+            unfollow: `/api/social/unfollow/${profileId}`,
+            'friend-request': `/api/social/friend-request/${profileId}`,
+            unfriend: `/api/social/unfriend/${profileId}`
+        };
+        const url = urls[action];
+        if (!url) return;
+
+        const original = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading';
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                credentials: 'same-origin'
+            });
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+            const data = await response.json().catch(() => ({ ok: false, message: 'Invalid server response.' }));
+            if (!response.ok || !data.ok) {
+                throw new Error(data.message || data.error || 'Social action failed.');
+            }
+            setButton(button, data.state || 'none', action);
+        } catch (error) {
+            button.innerHTML = original;
+            button.disabled = false;
+            console.error('Discovery social action failed:', error);
+            alert(error.message || 'Social action failed.');
+        }
     });
-});
+})();
 </script>
 {% endblock %}

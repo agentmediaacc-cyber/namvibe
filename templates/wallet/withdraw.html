@@ -1,23 +1,77 @@
 {% extends "base.html" %}
 
-{% block title %}Withdraw Coins | NamVibe{% endblock %}
-{% block body_class %}chain-wallpaper-wallet{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="/static/css/chain_portal.css">{% endblock %}
+{% block title %}Withdraw | NamVibe Wallet{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="/static/css/wallet_premium.css">
+<link rel="stylesheet" href="/static/css/namvibe_wallet_pro.css">
+{% endblock %}
 
 {% block content %}
-<section class="chain-portal-shell chain-portal-shell--narrow">
-    <form method="POST" class="chain-form-card chain-form-grid">
-        <h1>Withdraw from your wallet</h1>
-        <p class="chain-portal-copy">Withdrawals reduce your available balance immediately and move those coins into pending review until admin approves.</p>
-        <label><span>Coins to withdraw</span><input type="number" min="1" max="{{ wallet.available_balance or wallet.coin_balance or 0 }}" name="coins" required></label>
-        <label><span>Payout method</span>
-            <select name="destination_method">
-                <option value="MTC Maris">MTC Maris</option>
-                <option value="FNB bank transfer">FNB bank transfer</option>
-            </select>
-        </label>
-        <label><span>Account or payout reference</span><input type="text" name="destination_reference" required placeholder="Phone number or bank reference"></label>
-        <button type="submit" class="primary">Submit withdrawal request</button>
-    </form>
-</section>
+<main class="wp-dashboard wd-withdraw">
+  <div class="wp-header"><a href="/wallet/" class="back-link">&larr; Wallet</a><h2>Withdraw Funds</h2></div>
+
+  <div class="wd-balance-card">
+    <span class="wd-balance-label">Withdrawable Balance</span>
+    <strong class="wd-balance-amount">
+      N$ {{ "%.2f"|format((wallet.withdrawable_balance_cents or wallet.balance_cents or 0) / 100) }}
+    </strong>
+  </div>
+
+  <form class="wd-form" id="wdForm" method="POST" action="/wallet/api/payouts/request">
+    <div class="wd-field">
+      <label>Amount (cents)</label>
+      <input class="wp-input" type="number" name="amount_cents" id="wdAmount" min="1"
+        max="{{ wallet.withdrawable_balance_cents or wallet.balance_cents or 0 }}" required
+        placeholder="Enter amount in cents">
+    </div>
+    <div class="wd-field">
+      <label>Payout Method</label>
+      <select class="wp-input" name="payout_method_id" id="wdMethod">
+        <option value="">Bank Transfer</option>
+        <option value="">Mobile Wallet</option>
+        <option value="">PayPal</option>
+      </select>
+    </div>
+    <div class="wd-field">
+      <label>Notes (optional)</label>
+      <input class="wp-input" type="text" name="notes" id="wdNotes" placeholder="Any notes for admin">
+    </div>
+    <button type="submit" class="wp-btn wp-btn-primary" id="wdSubmit">Submit Withdrawal Request</button>
+  </form>
+
+  <div class="wd-info">
+    <p><i class="fas fa-info-circle"></i> Withdrawals are reviewed by admin before processing. A hold is placed on your withdrawable balance when you submit a request.</p>
+  </div>
+</main>
+
+<script>
+document.getElementById('wdForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  var btn = document.getElementById('wdSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+  var data = {
+    amount_cents: parseInt(document.getElementById('wdAmount').value) || 0,
+    payout_method_id: document.getElementById('wdMethod').value || null,
+    notes: (document.getElementById('wdNotes').value || '').trim(),
+  };
+  fetch('/wallet/api/payouts/request', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    btn.disabled = false;
+    btn.textContent = 'Submit Withdrawal Request';
+    if (res.ok) {
+      alert('Withdrawal request submitted for review.');
+      window.location.href = '/wallet/';
+    } else {
+      alert(res.error || 'Withdrawal failed');
+    }
+  }).catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Submit Withdrawal Request';
+    alert('Network error');
+  });
+});
+</script>
 {% endblock %}

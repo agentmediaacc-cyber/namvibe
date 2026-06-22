@@ -2403,7 +2403,7 @@ def build_tiktok_home_payload(exclude_test_content=True):
         reels = []
 
         if _time_budget(budget_1000):
-            from services.reels_service import get_reel_feed, is_following_creator
+            from services.reels_service import get_reel_feed
             reels = get_reel_feed(limit=30) if _time_budget(budget_1000) else reels
             if exclude_test_content and reels:
                 reels = filter_content(reels)
@@ -2416,11 +2416,11 @@ def build_tiktok_home_payload(exclude_test_content=True):
 
             follow_map = {}
             if profile_id and reels:
-                for r in reels:
-                    pid = r.get("profile_id")
-                    if pid and pid != profile_id:
-                        if pid not in follow_map:
-                            follow_map[pid] = is_following_creator(profile_id, pid)
+                creator_ids = {r.get("profile_id") for r in reels if r.get("profile_id") and r.get("profile_id") != profile_id}
+                if creator_ids:
+                    from services.reels_service import batch_is_following
+                    following = batch_is_following(profile_id, creator_ids)
+                    follow_map = {pid: pid in following for pid in creator_ids}
 
             items = []
             for r in reels:

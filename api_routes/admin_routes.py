@@ -34,6 +34,10 @@ from services.wallet_action_service import (
     reject_withdrawal,
 )
 
+from services import appeal_service
+from services import moderation_log_service
+from services import restriction_service
+
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
@@ -401,6 +405,18 @@ def unfeature_marketplace_route(item_id):
     return redirect("/admin/marketplace")
 
 
+@admin_bp.route("/payouts")
+@require_admin
+def admin_payouts():
+    from services.payout_service import get_payout_requests
+    context = _dashboard_context("payouts")
+    status_filter = request.args.get("status")
+    payouts = get_payout_requests(status=status_filter, limit=100)
+    context["payouts"] = payouts
+    context["status_filter"] = status_filter
+    return render_template("admin/payouts.html", **context)
+
+
 @admin_bp.route("/verifications")
 @require_admin
 def admin_verifications():
@@ -500,6 +516,87 @@ def admin_moderation_action():
         write_query("UPDATE chain_spam_reports SET status = 'resolved' WHERE id = %s", (report_id,))
 
     return redirect("/admin/moderation")
+
+@admin_bp.route("/moderation/reports")
+@require_admin
+def admin_moderation_reports():
+    from services.moderation_service import get_reports
+    context = _dashboard_context("moderation")
+    status = request.args.get("status")
+    reports = get_reports(status=status)
+    context["status_filter"] = status
+    return render_template("admin/moderation.html", **context, reports=reports, active_tab="reports")
+
+
+@admin_bp.route("/moderation/reports/<report_id>/action", methods=["POST"])
+@require_admin
+def admin_moderation_report_action(report_id):
+    from services.moderation_service import resolve_report
+    admin = current_admin()
+    action = request.form.get("action", "dismiss")
+    note = request.form.get("note", "")
+    if action == "escalate":
+        resolve_report(report_id, moderator_profile_id=admin["id"], status="escalated", resolution_note=note)
+    elif action == "resolve":
+        resolve_report(report_id, moderator_profile_id=admin["id"], status="resolved", resolution_note=note)
+    else:
+        resolve_report(report_id, moderator_profile_id=admin["id"], status="dismissed", resolution_note=note)
+    log_admin_action(admin["id"], f"moderation_report_{action}", "report", report_id, {"note": note})
+    return redirect("/admin/moderation/reports")
+
+
+@admin_bp.route("/moderation/appeals")
+@require_admin
+def admin_moderation_appeals():
+    context = _dashboard_context("moderation")
+    appeals = appeal_service.get_pending_appeals()
+    return render_template("admin/moderation.html", **context, appeals=appeals, active_tab="appeals")
+
+
+@admin_bp.route("/moderation/appeals/<appeal_id>/review", methods=["POST"])
+@require_admin
+def admin_moderation_appeal_review(appeal_id):
+    admin = current_admin()
+    status = request.form.get("status", "rejected")
+    note = request.form.get("note", "")
+    appeal_service.review_appeal(appeal_id, reviewer_id=admin["id"], status=status, resolution_note=note)
+    log_admin_action(admin["id"], f"appeal_{status}", "appeal", appeal_id, {"note": note})
+    return redirect("/admin/moderation/appeals")
+
+
+@admin_bp.route("/moderation/restrictions")
+@require_admin
+def admin_moderation_restrictions():
+    from services.neon_service import fast_query
+    context = _dashboard_context("moderation")
+    restrictions = fast_query(
+        "SELECT r.*, p.username FROM chain_restrictions r LEFT JOIN chain_profiles p ON r.profile_id = p.id WHERE r.status='active' ORDER BY r.created_at DESC LIMIT 50",
+        default=[],
+    )
+    return render_template("admin/moderation.html", **context, restrictions=restrictions, active_tab="restrictions")
+
+
+@admin_bp.route("/moderation/restrictions/<restriction_id>/revoke", methods=["POST"])
+@require_admin
+def admin_moderation_restriction_revoke(restriction_id):
+    from services.neon_service import write_query, fast_query
+    admin = current_admin()
+    row = fast_query("SELECT profile_id FROM chain_restrictions WHERE id=%s", (restriction_id,), default=[])
+    profile_id = row[0]["profile_id"] if row else None
+    if profile_id:
+        restriction_service.unrestrict_user(profile_id)
+        write_query("UPDATE chain_restrictions SET status='removed', updated_at=now() WHERE id=%s", (restriction_id,))
+    log_admin_action(admin["id"], "revoke_restriction", "restriction", restriction_id, {})
+    return redirect("/admin/moderation/restrictions")
+
+
+@admin_bp.route("/moderation/logs")
+@require_admin
+def admin_moderation_logs():
+    context = _dashboard_context("moderation")
+    logs = moderation_log_service.get_moderation_logs()
+    return render_template("admin/moderation.html", **context, logs=logs, active_tab="logs")
+
 
 @admin_bp.route("/verification")
 @require_admin

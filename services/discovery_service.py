@@ -1,12 +1,13 @@
+import time
+
 from engines.cache_engine import cache_key, get_cache, set_cache
 from services.neon_service import fast_query, is_circuit_open
 from services.profile_service import normalize_profile
-from services.recommendation_service import get_recommended_posts, get_recommended_profiles
+from services.recommendation_service import get_recommended_posts
 from services.request_cache import get_or_set
-from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, public_profile_sql, public_profile_subquery
+from services.homepage_real_data_guard import filter_feed_posts, public_profile_sql, public_profile_subquery
 from services.relationship_cache_service import get_many_relationship_states
-from services.social_action_policy import get_action_policy, is_self
-from services.relationship_privacy_service import get_full_policy, is_blocked_any
+from services.logging_service import log_info
 
 
 DISCOVERY_PROFILE_COLUMNS = [
@@ -26,6 +27,79 @@ DISCOVERY_PROFILE_COLUMNS = [
 ]
 
 
+def _ms(start):
+    return round((time.perf_counter() - start) * 1000, 2)
+
+
+def _account_kind(profile):
+    account_type = str(profile.get("account_type") or "").lower()
+    profile_type = str(profile.get("profile_type") or "").lower()
+    if account_type == "business" or profile_type == "seller":
+        return "business"
+    if profile.get("is_creator") or profile_type in {"creator", "host"}:
+        return "creator"
+    if profile.get("is_premium"):
+        return "premium"
+    return "person"
+
+
+def _visibility(profile):
+    return str(profile.get("profile_visibility") or profile.get("visibility") or "public").lower()
+
+
+def _can_view_profile_from_state(viewer_id, profile, state):
+    if not viewer_id:
+        return _visibility(profile) == "public"
+    if state.get("is_self"):
+        return True
+    if state.get("blocked"):
+        return False
+    rule = _visibility(profile)
+    if rule == "public":
+        return True
+    if rule == "friends_only":
+        return bool(state.get("is_friend"))
+    if rule in {"followers_only", "private"}:
+        return bool(state.get("is_friend") or state.get("is_following"))
+    return True
+
+
+def _primary_action_from_state(viewer_id, profile, state):
+    if not viewer_id:
+        return "none"
+    if state.get("is_self"):
+        return "self"
+    if state.get("blocked"):
+        return "none"
+    if state.get("is_friend"):
+        return "message"
+    if state.get("friend_request_sent"):
+        return "request_sent"
+    if state.get("friend_request_received"):
+        return "accept_request"
+    if state.get("is_following"):
+        return "following"
+    if state.get("follow_request_sent"):
+        return "requested"
+    if state.get("follow_request_received"):
+        return "approve_follow"
+    if _account_kind(profile) == "person":
+        return "friend_request"
+    return "request_follow" if _visibility(profile) == "private" else "follow"
+
+
+def _follow_status_from_state(state):
+    if state.get("is_self"):
+        return "self"
+    if state.get("is_following"):
+        return "following"
+    if state.get("follow_request_sent"):
+        return "requested"
+    if state.get("follow_request_received"):
+        return "request_received"
+    return "none"
+
+
 def _discovery_cache_key(section, viewer_id=None):
     if viewer_id:
         return None
@@ -34,22 +108,8 @@ def _discovery_cache_key(section, viewer_id=None):
 
 def _load_profiles(where_clause="", params=None, limit=20, timeout_ms=1000):
     query = f"""
-        SELECT {", ".join("chain_profiles." + column for column in DISCOVERY_PROFILE_COLUMNS)},
-               COALESCE(reel_counts.reel_count, 0) AS reel_count,
-               COALESCE(live_counts.live_count, 0) AS live_count
+        SELECT {", ".join("chain_profiles." + column for column in DISCOVERY_PROFILE_COLUMNS)}
         FROM chain_profiles
-        LEFT JOIN (
-            SELECT profile_id, COUNT(*) AS reel_count
-            FROM chain_reels
-            WHERE deleted_at IS NULL
-            GROUP BY profile_id
-        ) reel_counts ON reel_counts.profile_id = chain_profiles.id
-        LEFT JOIN (
-            SELECT profile_id, COUNT(*) AS live_count
-            FROM chain_live_rooms
-            WHERE deleted_at IS NULL
-            GROUP BY profile_id
-        ) live_counts ON live_counts.profile_id = chain_profiles.id
         WHERE deleted_at IS NULL
           AND COALESCE(is_public, TRUE) = TRUE
           AND {public_profile_sql("chain_profiles")}
@@ -108,10 +168,12 @@ def _strip_private_data(item):
 
 
 def get_discovery_data(section, viewer_id=None, limit=50):
+    total_start = time.perf_counter()
     try:
         key = _discovery_cache_key(section, viewer_id=viewer_id)
         cached_data = get_cache(key)
         if cached_data is not None and not viewer_id:
+            log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="cache_hit", duration_ms=_ms(total_start))
             return cached_data
 
         data = []
@@ -123,6 +185,7 @@ def get_discovery_data(section, viewer_id=None, limit=50):
                 set_cache(key, result, ttl=30)
             return result
 
+        load_start = time.perf_counter()
         if section == "dating":
             profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=limit, timeout_ms=1000)
             viewer_profile = {}
@@ -147,8 +210,7 @@ def get_discovery_data(section, viewer_id=None, limit=50):
             data = _load_live(limit=limit)
             title = "Live Now"
         elif section == "members" or section == "recommended":
-            recommended = get_recommended_profiles(viewer_id, limit=limit)
-            data = filter_profiles([normalize_profile(profile) for profile in recommended]) if recommended else _load_profiles(limit=limit)
+            data = _load_profiles(limit=limit)
             title = "Recommended Members"
         elif section == "trending":
             data = filter_feed_posts(get_recommended_posts(viewer_id, limit=limit) or _load_trending(limit=limit))
@@ -158,35 +220,36 @@ def get_discovery_data(section, viewer_id=None, limit=50):
             title = "Nearby Members"
         else:
             data = _load_profiles(limit=limit)
+        log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="load_items", item_count=len(data or []), duration_ms=_ms(load_start))
 
         enriched = []
-        # Batch relationship states for all profiles
         profile_ids = [item.get("id") for item in data if isinstance(item, dict) and item.get("id")]
+        rel_start = time.perf_counter()
         rel_states = get_many_relationship_states(viewer_id, profile_ids) if viewer_id and profile_ids else {}
+        log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="load_relationships", item_count=len(profile_ids), duration_ms=_ms(rel_start))
+
+        enrich_start = time.perf_counter()
         for item in data:
             if isinstance(item, dict) and "username" in item:
                 pid = item.get("id")
-                if viewer_id and pid and is_blocked_any(viewer_id, pid):
+                state = rel_states.get(str(pid), {}) if viewer_id and pid else {}
+                if state.get("blocked"):
                     continue
 
-                full_policy = get_full_policy(viewer_id, item) if viewer_id else None
-                policy = get_action_policy(viewer_id, item) if viewer_id else {
-                    "is_self": False, "account_kind": "person", "can_view_full_profile": False,
-                    "can_follow": False, "can_send_friend_request": False, "can_chat": False,
-                    "can_like": False, "relationship": "none", "primary_action": "none",
-                }
-                if viewer_id and is_self(viewer_id, pid):
-                    policy["primary_action"] = "self"
-                item["account_kind"] = policy["account_kind"]
-                item["relationship"] = policy["relationship"]
-                item["primary_action"] = policy["primary_action"]
-                item["can_send_friend_request"] = policy["can_send_friend_request"]
-                item["can_follow"] = policy["can_follow"]
+                account_kind = _account_kind(item)
+                primary_action = _primary_action_from_state(viewer_id, item, state)
+                item["account_kind"] = account_kind
+                item["relationship"] = state.get("relationship", "none")
+                item["follow_status"] = _follow_status_from_state(state)
+                item["primary_action"] = primary_action
+                item["can_send_friend_request"] = bool(viewer_id and account_kind == "person" and primary_action == "friend_request")
+                item["can_follow"] = bool(viewer_id and primary_action in {"follow", "request_follow", "following"})
 
-                can_view = full_policy.get("can_view_profile", False) if full_policy else True
+                can_view = _can_view_profile_from_state(viewer_id, item, state)
                 if not can_view:
                     item = _strip_private_data(item)
             enriched.append(item)
+        log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="enrich_items", item_count=len(enriched), duration_ms=_ms(enrich_start))
 
         result = {
             "title": title,
@@ -195,6 +258,7 @@ def get_discovery_data(section, viewer_id=None, limit=50):
         }
         if key:
             set_cache(key, result, ttl=30)
+        log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="total", item_count=len(enriched), duration_ms=_ms(total_start))
         return result
     except Exception as error:
         print(f"[discovery_service] get_discovery_data failed: {error}")

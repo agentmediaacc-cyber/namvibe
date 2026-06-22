@@ -29,9 +29,11 @@ def get_creator_stats(profile_id):
     sql_earnings = "SELECT SUM(amount) as total_coins FROM chain_wallet_transactions WHERE profile_id = %s AND tx_type = 'gift_received' AND status = 'completed'"
     earnings_res = fast_query(sql_earnings, (profile_id,))
 
+    total_views = int((reels_res[0].get("total_views") if reels_res else 0) or 0)
+    total_likes = int((reels_res[0].get("total_likes") if reels_res else 0) or 0)
     stats = {
-        "total_reel_views": reels_res[0]['total_views'] if reels_res else 0,
-        "total_reel_likes": reels_res[0]['total_likes'] if reels_res else 0,
+        "total_reel_views": total_views,
+        "total_reel_likes": total_likes,
         "total_live_earnings": float(earnings_res[0]['total_coins'] or 0) if earnings_res else 0,
         "followers_count": 0, # To be implemented with follows table
         "engagement_rate": 0

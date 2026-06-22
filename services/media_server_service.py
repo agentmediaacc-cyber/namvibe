@@ -1,5 +1,11 @@
-import os
+import base64
+import hashlib
+import hmac
+import json
 import logging
+import os
+import time
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -106,3 +112,89 @@ def get_livekit_config():
         "api_key": LIVEKIT_API_KEY,
         "api_secret": bool(LIVEKIT_API_SECRET),
     }
+
+
+def get_livekit_health():
+    if not LIVEKIT_URL:
+        return {
+            "status": "missing",
+            "livekit_url": bool(LIVEKIT_URL),
+            "livekit_api_key": bool(LIVEKIT_API_KEY),
+            "livekit_api_secret": bool(LIVEKIT_API_SECRET),
+        }
+    missing = []
+    if not LIVEKIT_API_KEY:
+        missing.append("LIVEKIT_API_KEY")
+    if not LIVEKIT_API_SECRET:
+        missing.append("LIVEKIT_API_SECRET")
+    return {
+        "status": "partial" if missing else "ready",
+        "livekit_url": bool(LIVEKIT_URL),
+        "livekit_api_key": bool(LIVEKIT_API_KEY),
+        "livekit_api_secret": bool(LIVEKIT_API_SECRET),
+        "missing_env_vars": missing,
+        "detail": f"Missing: {', '.join(missing)}" if missing else None,
+    }
+
+
+def livekit_configured():
+    return bool(LIVEKIT_URL) and bool(LIVEKIT_API_KEY) and bool(LIVEKIT_API_SECRET)
+
+
+def _b64_encode(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def _livekit_jwt(payload):
+    header = _b64_encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    body = _b64_encode(json.dumps(payload, separators=(",", ":")).encode())
+    sig = hmac.new(LIVEKIT_API_SECRET.encode(), f"{header}.{body}".encode(), hashlib.sha256).digest()
+    return f"{header}.{body}.{_b64_encode(sig)}"
+
+
+def generate_livekit_token(identity, room_name, participant_name=None, metadata=None, can_publish=True, can_subscribe=True):
+    if not livekit_configured():
+        return None
+    now = int(time.time())
+    video_grants = {
+        "roomCreate": False,
+        "roomJoin": True,
+        "canPublish": can_publish,
+        "canSubscribe": can_subscribe,
+        "canPublishData": can_publish,
+        "room": room_name,
+    }
+    payload = {
+        "exp": now + 3600,
+        "iat": now,
+        "nbf": now,
+        "iss": LIVEKIT_API_KEY,
+        "sub": identity,
+        "jti": str(uuid.uuid4()),
+        "video": video_grants,
+        "name": participant_name or identity,
+        "identity": identity,
+    }
+    if metadata:
+        payload["metadata"] = json.dumps(metadata) if isinstance(metadata, dict) else metadata
+    return _livekit_jwt(payload)
+
+
+def create_livekit_creator_token(profile_id, room_name, display_name=None):
+    return generate_livekit_token(
+        identity=str(profile_id),
+        room_name=room_name,
+        participant_name=display_name or str(profile_id),
+        can_publish=True,
+        can_subscribe=True,
+    )
+
+
+def create_livekit_viewer_token(profile_id, room_name, display_name=None):
+    return generate_livekit_token(
+        identity=str(profile_id),
+        room_name=room_name,
+        participant_name=display_name or str(profile_id),
+        can_publish=False,
+        can_subscribe=True,
+    )

@@ -65,7 +65,7 @@ def _check_blocked(caller_id, receiver_id):
         rows = fast_query(
             "SELECT id FROM chain_blocks WHERE (blocker_profile_id = %s AND blocked_profile_id = %s AND deleted_at IS NULL) OR (blocker_profile_id = %s AND blocked_profile_id = %s AND deleted_at IS NULL) LIMIT 1",
             (receiver_id, caller_id, caller_id, receiver_id),
-            timeout_ms=300, default=[],
+            timeout_ms=5000, default=[],
         )
         if rows:
             return {"ok": False, "error": "blocked"}
@@ -79,7 +79,7 @@ def _check_muted(caller_id, receiver_id):
         rows = fast_query(
             "SELECT id FROM chain_muted_users WHERE muter_profile_id = %s AND muted_profile_id = %s LIMIT 1",
             (receiver_id, caller_id),
-            timeout_ms=300, default=[],
+            timeout_ms=5000, default=[],
         )
         if rows:
             return {"ok": False, "error": "muted"}
@@ -149,7 +149,7 @@ def get_active_call(profile_id):
             plan = fast_query("EXPLAIN ANALYZE " + sql, (profile_id, profile_id), timeout_ms=3000, default=[])
             if plan:
                 log_info("explain_analyze_active_call", plan="\n".join(r["QUERY PLAN"] for r in plan), profile_id=profile_id)
-        rows = fast_query(sql, (profile_id, profile_id), timeout_ms=500, default=[])
+        rows = fast_query(sql, (profile_id, profile_id), timeout_ms=5000, default=[])
         if rows:
             return _call_dict(rows[0])
     return None
@@ -160,7 +160,7 @@ def get_call(call_id):
     if _db_available():
         rows = fast_query(
             f"SELECT {_ACTIVE_CALL_COLUMNS} FROM chain_calls WHERE id = %s LIMIT 1",
-            (call_id,), timeout_ms=500, default=[],
+            (call_id,), timeout_ms=5000, default=[],
         )
         if rows:
             return _call_dict(rows[0])
@@ -237,7 +237,23 @@ def create_call(caller_profile_id, receiver_profile_id, thread_id=None, call_typ
     except Exception:
         pass
 
-    call = get_call(call_id)
+    now_str = _now()
+    call = {
+        "id": call_id,
+        "caller_profile_id": str(caller_profile_id),
+        "receiver_profile_id": str(receiver_profile_id),
+        "thread_id": str(thread_id) if thread_id else None,
+        "call_type": call_type,
+        "call_mode": call_type,
+        "status": "ringing",
+        "started_at": now_str,
+        "accepted_at": None,
+        "ended_at": None,
+        "duration_seconds": 0,
+        "end_reason": None,
+        "created_at": now_str,
+        "updated_at": now_str,
+    }
     return {"ok": True, "call": call}
 
 

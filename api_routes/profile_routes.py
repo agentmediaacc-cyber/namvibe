@@ -74,8 +74,9 @@ from services.profile_service import (
     verify_profile_age,
 )
 from services.profile_dashboard_service import build_profile_dashboard
+from services.profile_view_service import build_profile_view_model
 from services.storage_service import upload_avatar, upload_cover, upload_verification_file
-from services.logging_service import log_error, log_warning
+from services.logging_service import log_error, log_warning, log_info
 from services.friend_service import list_friends, list_friend_requests, are_friends, get_mutual_friends, suggest_friends
 from services.creator_service import get_creator_dashboard_data, get_creator_analytics
 from services.wallet_service import get_or_create_wallet
@@ -205,7 +206,7 @@ def _profile_fallback_context():
     from services.social_action_policy import get_action_policy
     viewer = _session_profile_stub()
     action_policy = get_action_policy(viewer.get("id"), viewer)
-    return {
+    context = {
         "unread_count": 0,
         "viewer": viewer,
         "profile": viewer,
@@ -239,6 +240,18 @@ def _profile_fallback_context():
         "theme_options": ["Namibia Gold", "Ocean Blue", "Emerald Green", "Royal Purple", "Dark Premium"],
         "pinned": {"posts": [], "reels": [], "products": []},
     }
+    context["profile_view"] = build_profile_view_model(
+        viewer,
+        viewer=viewer,
+        stats=context["stats"],
+        content=context["content"],
+        wallet=context["wallet"],
+        creator=context["creator"],
+        marketplace=context["marketplace"],
+        presence=context["presence"],
+        action_policy=context["action_policy"],
+    )
+    return context
 
 
 def _apply_profile_session(profile, fallback_email=None):
@@ -283,6 +296,17 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
             fallback["stats"] = get_profile_stats(profile.get("id"))
         except Exception:
             pass
+        fallback["profile_view"] = build_profile_view_model(
+            fallback["profile"],
+            viewer=fallback["viewer"],
+            stats=fallback.get("stats"),
+            content=fallback.get("content"),
+            wallet=fallback.get("wallet"),
+            creator=fallback.get("creator"),
+            marketplace=fallback.get("marketplace"),
+            presence=fallback.get("presence"),
+            action_policy=fallback.get("action_policy"),
+        )
         return render_template("profile/index.html", **fallback), status_code
     try:
         dashboard = build_profile_dashboard(profile=profile, viewer=viewer, bundle=bundle)
@@ -307,10 +331,22 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         from services.social_action_policy import get_action_policy
         viewer_id = viewer.get("id") if viewer else None
         context["action_policy"] = get_action_policy(viewer_id, render_profile)
+    context["profile_view"] = build_profile_view_model(
+        context["profile"],
+        viewer=context.get("viewer"),
+        stats=context.get("stats"),
+        content=context.get("content"),
+        wallet=context.get("wallet"),
+        creator=context.get("creator") or context.get("creator_tools"),
+        marketplace=context.get("marketplace"),
+        presence=context.get("presence"),
+        action_policy=context.get("action_policy"),
+    )
     return render_template("profile/index.html", **context), status_code
 
 
 def _resolve_profile_route(username=None, user_id=None):
+    start = time.perf_counter()
     viewer = get_current_profile() if is_logged_in() else None
     profile = None
     if username:
@@ -321,6 +357,7 @@ def _resolve_profile_route(username=None, user_id=None):
 
     if not profile:
         log_warning("public_profile_missing", username=username, user_id=user_id)
+        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False)
         return render_template("profile/not_found.html", username=username or user_id or ''), 404
 
     if viewer and viewer.get("id") != profile.get("id"):
@@ -342,9 +379,12 @@ def _resolve_profile_route(username=None, user_id=None):
             if isinstance(profile.get("created_at"), datetime)
             else datetime.now(timezone.utc).year,
         }
+        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="private")
         return render_template("profile/private_profile.html", **context), 200
 
-    return _render_profile_index(profile, viewer=viewer, action_policy=action_policy)
+    response = _render_profile_index(profile, viewer=viewer, action_policy=action_policy)
+    log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public")
+    return response
 
 
 
@@ -352,6 +392,7 @@ def _resolve_profile_route(username=None, user_id=None):
 @profile_bp.route("/")
 @login_required
 def my_profile():
+    start = time.perf_counter()
     try:
         if not _is_production_env() and (session.get("profile_id") or session.get("auth_user_id")):
             session["age_verified"] = True
@@ -460,6 +501,8 @@ def my_profile():
     except Exception as error:
         log_error("profile_route_failed", route="/profile/", error=str(error))
         return render_template("auth/profile_error.html", error_detail="Profile could not be loaded right now."), 500
+    finally:
+        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), route="/profile/")
 
 
 @profile_bp.route("/age-check", methods=["GET", "POST"])

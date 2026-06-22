@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify
 from services.profile_service import get_current_profile
 from services.comments_service import (
-    get_comments, get_replies, add_comment,
+    get_comments, get_replies_for_comments, add_comment,
     react_to_comment, pin_comment, edit_comment, delete_comment
 )
 
@@ -12,9 +12,10 @@ comments_bp = Blueprint("comments", __name__, url_prefix="/api/comments")
 def api_list(content_type, content_id):
     limit = request.args.get("limit", 30, type=int)
     comments = get_comments(content_type, content_id, limit=limit)
+    replies_by_parent = get_replies_for_comments([c["id"] for c in comments], limit_per_comment=5)
     result = []
     for c in comments:
-        replies = get_replies(c["id"], limit=5)
+        replies = replies_by_parent.get(str(c["id"]), [])
         result.append({
             "id": c["id"],
             "body": c["body"],

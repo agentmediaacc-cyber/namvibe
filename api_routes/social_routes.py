@@ -12,6 +12,19 @@ from services.profile_service import get_current_profile, get_profile_by_usernam
 from api_routes.profile_routes import login_required, invalidate_profile_cache
 
 social_bp = Blueprint("social", __name__)
+social_api_bp = Blueprint("social_api", __name__, url_prefix="/api/social")
+
+
+def _json_result(result):
+    status = int(result.pop("status", 200) or 200)
+    return jsonify(result), status
+
+
+def _current_profile_or_401():
+    profile = get_current_profile()
+    if not profile:
+        return None
+    return profile
 
 @social_bp.route("/api/friends")
 @login_required
@@ -25,31 +38,27 @@ def api_friends():
 @login_required
 def api_follow(profile_id):
     profile = get_current_profile()
-    from services.engagement_service import is_following, unfollow_profile
-    from services.follow_request_service import send_follow_request
-    
-    # Toggle logic: if already following, unfollow.
-    if is_following(profile["id"], profile_id):
-        res = unfollow_profile(profile["id"], profile_id)
-        following = False
-        status = "none"
+    from services.social_relationship_service import follow, unfollow, relationship_summary
+
+    current = relationship_summary(profile["id"], profile_id)
+    if current.get("state") == "following":
+        res = unfollow(profile["id"], profile_id)
     else:
-        # Use follow_request_service to handle private accounts
-        res = send_follow_request(profile["id"], profile_id)
-        if not res.get("ok"):
-            return jsonify({"status": "error", "error": res.get("error")}), 400
-        
-        status = res.get("status")
-        following = (status == "following")
-        
+        res = follow(profile["id"], profile_id)
+
     invalidate_profile_cache(profile["id"])
     invalidate_profile_cache(profile_id)
+    state = res.get("state", "none")
     return jsonify({
-        "status": "ok", 
-        "following": following, 
-        "requested": (status == "request_pending"),
-        "follow_status": status
-    })
+        "status": "ok" if res.get("ok") else "error",
+        "ok": bool(res.get("ok")),
+        "message": res.get("message"),
+        "following": state == "following",
+        "requested": state in ("requested", "friend_requested"),
+        "follow_status": "request_pending" if state == "requested" else state,
+        "state": state,
+        "request_id": res.get("request_id"),
+    }), (200 if res.get("ok") else int(res.get("status", 400)))
 
 @social_bp.route("/block/<profile_id>", methods=["POST"])
 @login_required
@@ -94,51 +103,146 @@ def api_unblock(target_id):
 @login_required
 def api_send_request():
     profile = get_current_profile()
-    recipient_id = request.form.get("recipient_id") or request.json.get("recipient_id") or request.json.get("receiver_profile_id")
+    payload = request.get_json(silent=True) or {}
+    recipient_id = request.form.get("recipient_id") or payload.get("recipient_id") or payload.get("receiver_profile_id")
     if not recipient_id:
         return jsonify({"success": False, "error": "Recipient ID is required."}), 400
-    res = send_friend_request(profile['id'], recipient_id)
-    if res.get("success"):
+    from services.social_relationship_service import send_friend_request as send_unified_friend_request
+    res = send_unified_friend_request(profile['id'], recipient_id)
+    if res.get("ok"):
         invalidate_profile_cache(profile["id"])
-    return jsonify(res)
+    return jsonify({
+        **res,
+        "success": bool(res.get("ok")),
+        "error": None if res.get("ok") else res.get("message"),
+    }), (200 if res.get("ok") else int(res.get("status", 400)))
 
 @social_bp.route("/friends/accept", methods=["POST"])
 @login_required
 def api_accept_request():
     profile = get_current_profile()
-    request_id = request.form.get("request_id") or request.json.get("request_id")
+    payload = request.get_json(silent=True) or {}
+    request_id = request.form.get("request_id") or payload.get("request_id")
     if not request_id:
         return jsonify({"success": False, "error": "Request ID is required."}), 400
-    res = accept_friend_request(profile['id'], request_id)
-    if res.get("success"):
+    from services.social_relationship_service import accept_friend_request as accept_unified_friend_request
+    res = accept_unified_friend_request(profile['id'], request_id)
+    if res.get("ok"):
         invalidate_profile_cache(profile["id"])
-    return jsonify(res)
+    return jsonify({**res, "success": bool(res.get("ok")), "error": None if res.get("ok") else res.get("message")}), (200 if res.get("ok") else int(res.get("status", 400)))
 
 @social_bp.route("/friends/decline", methods=["POST"])
 @login_required
 def api_decline_request():
     profile = get_current_profile()
-    request_id = request.form.get("request_id") or request.json.get("request_id")
-    res = decline_friend_request(profile['id'], request_id)
-    return jsonify(res)
+    payload = request.get_json(silent=True) or {}
+    request_id = request.form.get("request_id") or payload.get("request_id")
+    from services.social_relationship_service import decline_friend_request as decline_unified_friend_request
+    res = decline_unified_friend_request(profile['id'], request_id)
+    return jsonify({**res, "success": bool(res.get("ok")), "error": None if res.get("ok") else res.get("message")}), (200 if res.get("ok") else int(res.get("status", 400)))
 
 @social_bp.route("/friends/cancel", methods=["POST"])
 @login_required
 def api_cancel_request():
     profile = get_current_profile()
-    request_id = request.form.get("request_id") or request.json.get("request_id")
-    res = cancel_friend_request(profile['id'], request_id)
-    return jsonify(res)
+    payload = request.get_json(silent=True) or {}
+    request_id = request.form.get("request_id") or payload.get("request_id")
+    from services.social_relationship_service import cancel_friend_request as cancel_unified_friend_request
+    res = cancel_unified_friend_request(profile['id'], request_id)
+    return jsonify({**res, "success": bool(res.get("ok")), "error": None if res.get("ok") else res.get("message")}), (200 if res.get("ok") else int(res.get("status", 400)))
 
 @social_bp.route("/friends/remove", methods=["POST"])
 @login_required
 def api_remove_friend():
     profile = get_current_profile()
-    friend_id = request.form.get("friend_id") or request.json.get("friend_id")
-    res = remove_friend(profile['id'], friend_id)
-    if res.get("success"):
+    payload = request.get_json(silent=True) or {}
+    friend_id = request.form.get("friend_id") or payload.get("friend_id")
+    from services.social_relationship_service import unfriend as unfriend_unified
+    res = unfriend_unified(profile['id'], friend_id)
+    if res.get("ok"):
         invalidate_profile_cache(profile["id"])
-    return jsonify(res)
+    return jsonify({**res, "success": bool(res.get("ok")), "error": None if res.get("ok") else res.get("message")}), (200 if res.get("ok") else int(res.get("status", 400)))
+
+
+@social_api_bp.route("/relationship-summary")
+@login_required
+def api_social_relationship_summary():
+    profile = _current_profile_or_401()
+    target_id = request.args.get("profile_id") or request.args.get("target_id")
+    from services.social_relationship_service import relationship_summary
+    return _json_result(relationship_summary(profile["id"], target_id))
+
+
+@social_api_bp.route("/follow/<profile_id>", methods=["POST"])
+@login_required
+def api_social_follow(profile_id):
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import follow
+    return _json_result(follow(profile["id"], profile_id))
+
+
+@social_api_bp.route("/unfollow/<profile_id>", methods=["POST"])
+@login_required
+def api_social_unfollow(profile_id):
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import unfollow
+    return _json_result(unfollow(profile["id"], profile_id))
+
+
+@social_api_bp.route("/friend-request/<profile_id>", methods=["POST"])
+@login_required
+def api_social_friend_request(profile_id):
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import send_friend_request as send_unified_friend_request
+    return _json_result(send_unified_friend_request(profile["id"], profile_id))
+
+
+@social_api_bp.route("/friend-request/<request_id>/accept", methods=["POST"])
+@login_required
+def api_social_friend_request_accept(request_id):
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import accept_friend_request as accept_unified_friend_request
+    return _json_result(accept_unified_friend_request(profile["id"], request_id))
+
+
+@social_api_bp.route("/friend-request/<request_id>/decline", methods=["POST"])
+@login_required
+def api_social_friend_request_decline(request_id):
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import decline_friend_request as decline_unified_friend_request
+    return _json_result(decline_unified_friend_request(profile["id"], request_id))
+
+
+@social_api_bp.route("/friend-request/<request_id>/cancel", methods=["POST"])
+@login_required
+def api_social_friend_request_cancel(request_id):
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import cancel_friend_request as cancel_unified_friend_request
+    return _json_result(cancel_unified_friend_request(profile["id"], request_id))
+
+
+@social_api_bp.route("/unfriend/<profile_id>", methods=["POST"])
+@login_required
+def api_social_unfriend(profile_id):
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import unfriend
+    return _json_result(unfriend(profile["id"], profile_id))
+
+
+@social_api_bp.route("/friend-requests")
+@login_required
+def api_social_friend_requests():
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import list_friend_requests as list_unified_friend_requests
+    return _json_result(list_unified_friend_requests(profile["id"]))
+
+
+@social_api_bp.route("/friends")
+@login_required
+def api_social_friends():
+    profile = _current_profile_or_401()
+    from services.social_relationship_service import list_friends as list_unified_friends
+    return _json_result(list_unified_friends(profile["id"]))
 
 @social_bp.route("/friends")
 @login_required
@@ -341,4 +445,3 @@ def api_privacy_settings_post():
     updated.update(get_profile_privacy(profile["id"]))
     
     return jsonify({"ok": True, "settings": updated})
-

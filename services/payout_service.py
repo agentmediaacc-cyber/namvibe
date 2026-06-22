@@ -156,7 +156,7 @@ def approve_payout(payout_id, admin_note=None):
                 "UPDATE chain_payout_requests SET status = 'approved', reviewed_at = now() WHERE id = %s AND status = 'pending'",
                 (payout_id,)
             )
-        log_wallet_event("payout_approved", payout_id=payout_id, creator=creator_pid, amount_cents=row["amount_cents"])
+        log_wallet_event("payout_approved", payout_id=payout_id, creator=creator_pid, amount_cents=payout["amount_cents"])
         emit_to_profile(creator_pid, "wallet:payout-updated", {"payout_id": payout_id, "status": "approved"})
         try:
             create_notification(
@@ -192,7 +192,7 @@ def reject_payout(payout_id, admin_note=None):
             "UPDATE chain_payout_requests SET status = 'rejected', admin_note = %s, reviewed_at = now() WHERE id = %s AND status = 'pending'",
             (note, payout_id)
         )
-        log_wallet_event("payout_rejected", payout_id=payout_id, creator=creator_pid, amount_cents=row["amount_cents"])
+        log_wallet_event("payout_rejected", payout_id=payout_id, creator=creator_pid, amount_cents=payout["amount_cents"])
         emit_to_profile(creator_pid, "wallet:payout-updated", {"payout_id": payout_id, "status": "rejected"})
         try:
             create_notification(

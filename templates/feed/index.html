@@ -1,33 +1,26 @@
 {% extends "base.html" %}
+{% block title %}Feed - NamVibe{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/css/namvibe_feed_pro.css?v=phase93">
+{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <h2 class="mb-4">Your Feed</h2>
-            
-            {% if feed %}
-                {% for item in feed %}
-                    <div class="card mb-4 shadow-sm">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                {% if item.type == 'reel' %}
-                                    <span class="badge bg-primary">Reel</span>
-                                {% elif item.type == 'live_room' %}
-                                    <span class="badge bg-danger">Live</span>
-                                {% endif %}
-                                {{ item.title }}
-                            </h5>
-                            <p class="text-muted small">Posted by User ID: {{ item.profile_id }} on {{ item.created_at }}</p>
-                            <a href="/{{ item.type }}s/{{ item.id }}" class="btn btn-outline-primary btn-sm">View {{ item.type|replace('_', ' ') }}</a>
-                        </div>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <div class="text-center py-5">
-                    <p class="text-muted">No content in your feed yet. Start following creators!</p>
-                </div>
-            {% endif %}
-        </div>
-    </div>
+<div class="feed-tabs" id="feed-tabs">
+  <button class="feed-tab active" data-tab="forYou">For You</button>
+  <button class="feed-tab" data-tab="following">Following</button>
+  <button class="feed-tab" data-tab="trending">Trending</button>
+  <button class="feed-tab" data-tab="nearby">Nearby</button>
 </div>
+
+<div class="feed-container">
+  <div id="feed-container"></div>
+  <div id="feed-loading" class="feed-loading" style="display:none">Loading...</div>
+  <div id="feed-end" class="feed-end" style="display:none">You're all caught up</div>
+  <div id="feed-error" class="feed-error" style="display:none"></div>
+  <div id="feed-sentinel" style="height:1px"></div>
+</div>
+
+{% if profile %}
+<script id="feed-profile-data" type="application/json">{{ profile | tojson | safe }}</script>
+{% endif %}
+<script src="/static/js/namvibe_feed_pro.js?v=phase93"></script>
 {% endblock %}

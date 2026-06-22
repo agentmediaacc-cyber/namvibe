@@ -456,6 +456,16 @@ def index():
     return render_template('wallet/index.html', profile=profile, wallet=wallet, transactions=txs, summary=summary, breakdown=breakdown, payout_methods=payout_methods)
 
 
+@wallet_bp.route('/withdraw')
+@login_required
+def withdraw_page():
+    profile = get_current_profile()
+    wallet = get_wallet(profile.get('id')) if profile else None
+    if not wallet:
+        wallet = get_or_create_wallet(profile['id']) if profile and profile.get('id') else None
+    return render_template('wallet/withdraw.html', profile=profile, wallet=wallet)
+
+
 @wallet_bp.route('/transactions')
 @login_required
 def transactions_page():

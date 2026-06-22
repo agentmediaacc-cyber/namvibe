@@ -59,11 +59,19 @@ def api_voice(thread_id):
     if not profile:
         return jsonify({"ok": False, "error": "Login required"}), 401
     seconds = request.form.get("seconds") or "0"
+    audio_file = request.files.get("audio")
+    media_url = None
+    if audio_file and audio_file.filename:
+        from services.media_storage_service import upload_media_file
+        result, error = upload_media_file(audio_file, bucket_name="chain-messages", profile_id=profile["id"], upload_type="voice_note")
+        if result and not error:
+            media_url = result.get("public_url")
     msg = send_message(
         thread_id=thread_id,
         sender_profile_id=profile["id"],
         body=f"🎙 Voice note • {seconds}s",
         message_type="voice_note",
+        media_url=media_url,
         voice_duration_seconds=int(float(seconds or 0))
     )
     return jsonify({"ok": True, "message": msg})

@@ -12,6 +12,7 @@ def get_reels():
     return api_response(data=reels, meta={"count": len(reels)})
 
 @reels_api_bp.route('/<reel_id>', methods=['GET'])
+@optional_api_user
 def get_single_reel(reel_id):
     reel = get_reel(reel_id)
     if not reel:

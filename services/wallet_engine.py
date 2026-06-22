@@ -332,6 +332,44 @@ def request_payout(profile_id, amount, idempotency_key=None):
         return False, "setup_required"
 
 
+def deduct_coins(profile_id, amount, tx_type="deduct", ref_id=None, idempotency_key=None):
+    """Simple coin deduction with idempotency key support.
+
+    Returns (ok, error_or_balance).
+    """
+    try:
+        amount = _coerce_amount(amount)
+    except Exception:
+        return False, "invalid_amount"
+
+    idempotency_key = idempotency_key or _wallet_tx_id(tx_type, profile_id, ref_id or "none", int(amount), _minute_bucket())
+
+    def _callback(cursor):
+        if _transaction_exists(cursor, idempotency_key):
+            return {"status": "duplicate"}
+        balance = _apply_wallet_delta(cursor, profile_id, -amount)
+        tx_id = _insert_transaction(
+            cursor, profile_id, -amount, tx_type,
+            f"{tx_type} of {int(amount)} coins",
+            entity_id=ref_id,
+            idempotency_key=idempotency_key,
+            balance_after=balance,
+        )
+        return {"status": "ok", "transaction_id": tx_id, "coin_balance": balance}
+
+    try:
+        result = transaction_query(_callback, timeout_ms=1500)
+        if result.get("status") == "duplicate":
+            return True, "already_processed"
+        if result.get("status") == "ok":
+            return True, result.get("coin_balance", 0)
+        return False, "transaction_failed"
+    except Exception as error:
+        if "insufficient_balance" in str(error):
+            return False, "Insufficient balance"
+        return False, str(error)
+
+
 def add_creator_earning(profile_id, amount, source_profile_id=None, entity_type=None, entity_id=None, idempotency_key=None):
     try:
         amount = _coerce_amount(amount)

@@ -1,4 +1,5 @@
 import os
+import ssl
 import time
 from collections import deque
 
@@ -12,6 +13,13 @@ _DEFAULT_LOCAL_REDIS_URL = "redis://localhost:6379/0"
 
 
 load_project_env()
+_SSL_CERT_REQS_MAP = {
+    "none": ssl.CERT_NONE,
+    "optional": ssl.CERT_OPTIONAL,
+    "required": ssl.CERT_REQUIRED,
+}
+_RAW_SSL_REQS = (get_env("REDIS_SSL_CERT_REQS") or "").strip().lower()
+_REDIS_SSL_CERT_REQS = _SSL_CERT_REQS_MAP.get(_RAW_SSL_REQS)
 
 
 def _testing():
@@ -52,12 +60,14 @@ def get_redis_client():
             url = _DEFAULT_LOCAL_REDIS_URL
         if not url:
             return None
-        _CLIENT = redis.Redis.from_url(
-            url,
+        kwargs = dict(
             socket_connect_timeout=float(os.getenv("CHAIN_REDIS_CONNECT_TIMEOUT", "0.25")),
             socket_timeout=float(os.getenv("CHAIN_REDIS_SOCKET_TIMEOUT", "0.25")),
             decode_responses=True,
         )
+        if _REDIS_SSL_CERT_REQS is not None:
+            kwargs["ssl_cert_reqs"] = _REDIS_SSL_CERT_REQS
+        _CLIENT = redis.Redis.from_url(url, **kwargs)
         _CLIENT.ping()
         _record_success()
         return _CLIENT
@@ -145,6 +155,14 @@ def safe_redis_subscribe_health():
 
 def get_redis_health():
     available = redis_available()
+    scheme = ""
+    ssl_reqs_label = None
+    url = get_env("REDIS_URL") or get_env("CHAIN_REDIS_URL") or ""
+    if url:
+        scheme = url.split("://", 1)[0]
+    if _REDIS_SSL_CERT_REQS is not None:
+        ssl_reqs_label = _RAW_SSL_REQS if _RAW_SSL_REQS else "none"
+
     return {
         "ok": True,
         "available": available,
@@ -155,4 +173,6 @@ def get_redis_health():
         "failures": int(_CIRCUIT.get("failures") or 0),
         "last_error": _CIRCUIT.get("last_error"),
         "backend": "redis" if available else "memory",
+        "redis_url_scheme": scheme,
+        "ssl_cert_reqs": ssl_reqs_label,
     }

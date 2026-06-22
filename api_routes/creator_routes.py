@@ -1,3 +1,5 @@
+import time
+
 from flask import Blueprint, render_template, g, jsonify, request
 from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile
@@ -25,6 +27,7 @@ from services.creator_service import (
     get_creator_profile_upgrade,
     upgrade_creator_level,
 )
+from services.logging_service import log_info
 
 creator_bp = Blueprint('creator', __name__, url_prefix='/creator')
 
@@ -32,9 +35,12 @@ creator_bp = Blueprint('creator', __name__, url_prefix='/creator')
 @creator_bp.route('/dashboard')
 @login_required
 def dashboard():
+    start = time.perf_counter()
     profile = get_current_profile()
     stats = {**creator_dashboard(profile["id"]), **get_creator_stats(profile['id'])}
-    return render_template('creator/dashboard.html', stats=stats, profile=profile)
+    response = render_template('creator/dashboard.html', stats=stats, profile=profile)
+    log_info("creator_dashboard_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"))
+    return response
 
 
 @creator_bp.route('/api/dashboard')

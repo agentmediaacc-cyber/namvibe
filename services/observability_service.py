@@ -48,3 +48,16 @@ def log_error(error, context=None):
 def track_timing(name, ms, tags=None):
     """Tracks timing data for performance monitoring."""
     log_event("timing", {"name": name, "ms": ms, "tags": tags})
+
+# ==== PHASE96A Structured Logging Utility ====
+def log_phase96a(event: str, thread_id=None, message_id=None, sender_id=None, receiver_id=None, extra=None):
+    payload = {
+        "event": event,
+        "thread_id": thread_id,
+        "message_id": message_id,
+        "sender_id": sender_id,
+        "receiver_id": receiver_id
+    }
+    if extra:
+        payload.update(extra)
+    log_event(f"PHASE96A_{event}", payload)

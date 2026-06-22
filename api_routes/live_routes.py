@@ -1,3 +1,5 @@
+import time
+
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 from services.live_service import (
     create_live_room,
@@ -53,6 +55,7 @@ from services.live_streaming_service import (
     get_premium_rooms,
     get_room_metadata,
 )
+from services.logging_service import log_info
 
 live_bp = Blueprint("live", __name__, url_prefix="/live")
 
@@ -60,9 +63,12 @@ live_bp = Blueprint("live", __name__, url_prefix="/live")
 
 @live_bp.route("/")
 def live_channels():
+    start = time.perf_counter()
     profile = get_current_profile()
     rooms = phase29_live.list_live_rooms(limit=8) or get_live_rooms_public(limit=8, allow_query=False)
-    return render_template("live/channels.html", rooms=rooms, profile=profile)
+    response = render_template("live/channels.html", rooms=rooms, profile=profile)
+    log_info("live_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), room_count=len(rooms or []), page="channels")
+    return response
 
 @live_bp.route("/dashboard")
 def live_dashboard():
@@ -98,9 +104,11 @@ def studio():
 
 @live_bp.route("/room/<room_id>")
 def watch_room(room_id):
+    start = time.perf_counter()
     profile = get_current_profile()
     room = get_room(room_id)
     if not room:
+        log_info("live_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), room_id=room_id, page="room", found=False)
         return "Live room not found", 404
 
     phase29_live.join_live(room_id, profile.get("id") if profile else None, request.args.get("name"))
@@ -110,7 +118,13 @@ def watch_room(room_id):
     gift_catalog = safe_select("chain_gift_catalog", filters={"is_active": True}, limit=8, order_by="coin_price", desc=False)
     metadata = get_room_metadata(room_id)
     goals = get_active_goals(room_id)
-    return render_template("live/watch.html", room=room, activity=room_activity(room_id), gift_catalog=gift_catalog, profile=profile, metadata=metadata, goals=goals)
+    activity = room_activity(room_id)
+    from services.media_server_service import livekit_configured, LIVEKIT_URL
+    _livekit_configured = livekit_configured()
+    livekit_room_url = LIVEKIT_URL if _livekit_configured else None
+    response = render_template("live/watch.html", room=room, activity=activity, gift_catalog=gift_catalog, profile=profile, metadata=metadata, goals=goals, livekit_configured=_livekit_configured, livekit_url=livekit_room_url)
+    log_info("live_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), room_id=room_id, page="room", found=True)
+    return response
 
 @live_bp.route("/room/<room_id>/activity")
 def activity(room_id):
@@ -582,7 +596,9 @@ def api_rooms_start():
     if not room:
         return jsonify({"ok": False, "error": "room_creation_failed"}), 500
     add_participant(room["id"], profile["id"], "host")
-    return jsonify({"ok": True, "room": room})
+    from services.media_server_service import create_livekit_creator_token
+    creator_token = create_livekit_creator_token(profile["id"], room["id"], profile.get("full_name") or profile.get("username"))
+    return jsonify({"ok": True, "room": room, "livekit_token": creator_token, "livekit_configured": creator_token is not None})
 
 @live_bp.route("/api/rooms/<room_id>/end", methods=["POST"])
 @login_required
@@ -594,6 +610,21 @@ def api_rooms_end(room_id):
     if result.get("ok"):
         return jsonify({"ok": True})
     return jsonify({"ok": False, "error": "end_failed"}), 400
+
+@live_bp.route("/api/rooms/<room_id>/join-token")
+@login_required
+def api_rooms_join_token(room_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"ok": False, "error": "not_authenticated"}), 401
+    from services.media_server_service import create_livekit_viewer_token
+    viewer_token = create_livekit_viewer_token(profile["id"], room_id, profile.get("full_name") or profile.get("username"))
+    return jsonify({
+        "ok": True,
+        "livekit_token": viewer_token,
+        "livekit_configured": viewer_token is not None,
+    })
+
 
 @live_bp.route("/api/rooms/<room_id>/info")
 def api_rooms_info(room_id):

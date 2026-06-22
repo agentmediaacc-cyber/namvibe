@@ -5,6 +5,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_messages_pro.css') }}">
 <style>
     :root {
         --chat-mine-bg: var(--chain-primary);
@@ -667,11 +668,11 @@
         <input type="file" id="file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" hidden>
 
         <div class="composer-input-wrap">
-            <textarea id="msg-input" class="composer-textarea" placeholder="Message..." rows="1" data-draft-input="{{ thread.id }}" aria-label="Message input"></textarea>
+            <textarea id="msg-input" class="composer-textarea" placeholder="Message..." rows="1" data-draft-input="{{ thread.id }}" data-message-composer="true" aria-label="Message input"></textarea>
         </div>
 
         <div class="composer-actions">
-            <button type="button" class="composer-btn composer-mic" id="mic-btn" data-voice-record data-thread-id="{{ thread.id }}" title="Voice message" aria-label="Voice message"><i class="fas fa-microphone"></i></button>
+            <button type="button" class="composer-btn composer-mic" id="mic-btn" data-voice-record data-voice-record-button="true" data-thread-id="{{ thread.id }}" title="Voice message" aria-label="Voice message"><i class="fas fa-microphone"></i></button>
             <button type="button" class="composer-btn" id="d-timer-btn" onclick="showDTimerMenu()" title="Disappearing messages" aria-label="Disappearing messages"><i class="fas fa-hourglass-half"></i></button>
             <button type="submit" class="composer-send" id="send-btn" disabled title="Send" aria-label="Send message"><i class="fas fa-paper-plane"></i></button>
         </div>
@@ -919,6 +920,7 @@
 <script src="{{ url_for('static', filename='js/group_calls.js') }}"></script>
 <script src="{{ url_for('static', filename='js/message_composer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/message_premium_features.js') }}"></script>
+<script src="{{ url_for('static', filename='js/namvibe_messages_pro.js') }}" defer></script>
 <script>
     const threadId = "{{ thread.id }}";
     const myId = "{{ profile.id }}";

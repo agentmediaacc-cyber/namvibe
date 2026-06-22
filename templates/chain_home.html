@@ -72,7 +72,8 @@
         <a href="{{ reel_route }}" class="nv-left-nav-item{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-film"></i> Reels</a>
         <div class="nv-left-nav-section">Social</div>
         <a href="{{ story_create }}" class="nv-left-nav-item{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-notch"></i> Stories</a>
-        <a href="{{ drawer_messages }}" class="nv-left-nav-item"><i class="fas fa-comment"></i> Messages</a>
+        <a href="/inbox/" class="nv-left-nav-item"><i class="fas fa-inbox"></i> Inbox</a>
+        <a href="/contacts/" class="nv-left-nav-item"><i class="fas fa-address-book"></i> Contacts</a>
         <a href="{{ drawer_calls }}" class="nv-left-nav-item"><i class="fas fa-phone"></i> Calls</a>
         <a href="{{ drawer_notifications }}" class="nv-left-nav-item"><i class="fas fa-bell"></i> Notifications</a>
         <a href="{{ drawer_wallet }}" class="nv-left-nav-item"><i class="fas fa-wallet"></i> Wallet</a>
@@ -374,7 +375,7 @@
     <input type="text" class="nv-mobile-topbar-search" placeholder="Search NamVibe..." aria-label="Search" onkeydown="if(event.key==='Enter'){window.location='/search?q='+encodeURIComponent(this.value);}">
     <div class="nv-mobile-topbar-icons">
       <a href="{{ drawer_notifications }}" class="nv-mobile-topbar-icon" aria-label="Notifications"><i class="fas fa-bell"></i></a>
-      <a href="{{ drawer_messages }}" class="nv-mobile-topbar-icon" aria-label="Messages"><i class="fas fa-comment"></i></a>
+      <a href="/inbox/" class="nv-mobile-topbar-icon" aria-label="Inbox"><i class="fas fa-inbox"></i></a>
     </div>
   </div>
 
@@ -418,7 +419,8 @@
       <a href="{{ live_route }}" class="nv-drawer-item{% if not live_available %} is-disabled{% endif %}"><i class="fas fa-video"></i> Live</a>
       <a href="{{ reel_route }}" class="nv-drawer-item{% if not reel_available %} is-disabled{% endif %}"><i class="fas fa-film"></i> Reels</a>
       <a href="{{ story_create }}" class="nv-drawer-item{% if not story_available %} is-disabled{% endif %}"><i class="fas fa-circle-notch"></i> Stories</a>
-      <a href="{{ drawer_messages }}" class="nv-drawer-item"><i class="fas fa-comment"></i> Messages</a>
+      <a href="/inbox/" class="nv-drawer-item"><i class="fas fa-inbox"></i> Inbox</a>
+      <a href="/contacts/" class="nv-drawer-item"><i class="fas fa-address-book"></i> Contacts</a>
       <a href="{{ drawer_calls }}" class="nv-drawer-item"><i class="fas fa-phone"></i> Calls</a>
       <div class="nv-drawer-divider"></div>
       <a href="{{ drawer_wallet }}" class="nv-drawer-item"><i class="fas fa-wallet"></i> Wallet</a>

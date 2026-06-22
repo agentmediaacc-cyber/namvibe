@@ -3,14 +3,16 @@ import os
 
 # Gunicorn configuration for CHAIN Production
 
-bind = "127.0.0.1:5055"
-workers = multiprocessing.cpu_count() * 2 + 1
+port = os.environ.get("PORT", "8080")
+bind = f"0.0.0.0:{port}"
 timeout = 60
 keepalive = 5
 
+worker_class = "geventwebsocket.gunicorn.workers.GeventWebSocketWorker"
+
 # Logging
-accesslog = "-" # Stdout
-errorlog = "-"  # Stderr
+accesslog = "-"
+errorlog = "-"
 loglevel = "info"
 
 # Security
@@ -20,7 +22,4 @@ limit_request_field_size = 8190
 
 # Performance
 worker_connections = 1000
-
-# Overrides for Realtime mode (can be passed via CLI)
-# -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker
-# -w 1
+workers = 1  # Single worker required for WebSocket to work correctly

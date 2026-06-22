@@ -4,6 +4,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/message_requests.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_messages_pro.css') }}">
 <style>
 body.chain-message-mode header,
 body.chain-message-mode nav,
@@ -867,6 +868,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 <script src="/static/js/notification_badge.js"></script>
 <script src="{{ url_for('static', filename='js/message_premium_features.js') }}"></script>
 <script src="{{ url_for('static', filename='js/message_requests.js') }}"></script>
+<script src="{{ url_for('static', filename='js/namvibe_messages_pro.js') }}" defer></script>
 <script>
 (function(){
     if (window._chainMessagesInit) return;
@@ -1825,7 +1827,11 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         updateSendState();
     });
 
-    function startVoiceHold(){
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let recordedBlob = null;
+
+    async function startVoiceHold(){
         if(!currentThreadId){
             alert('Open a chat first.');
             return;
@@ -1833,9 +1839,31 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         if(isRecording) return;
         isRecording = true;
         recordSeconds = 0;
+        audioChunks = [];
+        recordedBlob = null;
         $('voiceBtn')?.classList.add('recording');
         $('voiceBtn').innerHTML = '<i class="fas fa-stop"></i>';
         $('voicePreview')?.classList.remove('active');
+        $('deleteVoicePreview').style.display = '';
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4' });
+            mediaRecorder.ondataavailable = e => { if(e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                stream.getTracks().forEach(t => t.stop());
+                if(audioChunks.length) {
+                    recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                }
+            };
+            mediaRecorder.start(250);
+        } catch(e) {
+            isRecording = false;
+            $('voiceBtn')?.classList.remove('recording');
+            $('voiceBtn').innerHTML = '<i class="fas fa-microphone"></i>';
+            return;
+        }
+
         recordTimer = setInterval(()=>{
             recordSeconds++;
             if($('voicePreviewTime')) $('voicePreviewTime').textContent = recordSeconds + 's';
@@ -1846,34 +1874,49 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         if(!isRecording) return;
         isRecording = false;
         clearInterval(recordTimer);
+        if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
         $('voiceBtn')?.classList.remove('recording');
         $('voiceBtn').innerHTML = '<i class="fas fa-microphone"></i>';
         if(recordSeconds < 1) recordSeconds = 1;
         $('voicePreviewTime').textContent = recordSeconds + 's';
-        $('voicePreview')?.classList.add('active');
+        if(recordedBlob) {
+            $('voicePreview')?.classList.add('active');
+        }
+    }
+
+    function cancelVoiceDraft(){
+        recordedBlob = null;
+        audioChunks = [];
+        recordSeconds = 0;
+        $('voicePreview')?.classList.remove('active');
     }
 
     const voiceBtn = $('voiceBtn');
-    voiceBtn?.addEventListener('mousedown', startVoiceHold);
-    voiceBtn?.addEventListener('mouseup', stopVoiceHold);
-    voiceBtn?.addEventListener('mouseleave', stopVoiceHold);
+    voiceBtn?.addEventListener('pointerdown', startVoiceHold);
+    voiceBtn?.addEventListener('pointerup', stopVoiceHold);
+    voiceBtn?.addEventListener('pointerleave', stopVoiceHold);
     voiceBtn?.addEventListener('touchstart', e=>{e.preventDefault();startVoiceHold();});
     voiceBtn?.addEventListener('touchend', e=>{e.preventDefault();stopVoiceHold();});
 
-    $('deleteVoicePreview')?.addEventListener('click',()=>{
-        recordSeconds = 0;
-        $('voicePreview')?.classList.remove('active');
-    });
+    $('deleteVoicePreview')?.addEventListener('click', cancelVoiceDraft);
 
     $('sendVoicePreview')?.addEventListener('click', async ()=>{
         if(!currentThreadId || recordSeconds < 1) return;
         const form = new FormData();
         form.append('seconds', String(recordSeconds));
         form.append('playback_speed', document.querySelector('.voice-speed-btn.active')?.dataset.speed || '1');
+        if(recordedBlob) {
+            const ext = recordedBlob.type === 'audio/webm' ? 'webm' : 'mp4';
+            form.append('audio', recordedBlob, `voice_${Date.now()}.${ext}`);
+        }
         await fetch('/messages/api/thread/' + encodeURIComponent(currentThreadId) + '/voice-note', {
             method:'POST',
             body:form
         });
+        recordedBlob = null;
+        audioChunks = [];
         $('voicePreview')?.classList.remove('active');
         recordSeconds = 0;
         openThread(currentThreadId,currentThreadName,currentThreadType);

@@ -14,6 +14,7 @@ from flask import Flask, g, jsonify, make_response, redirect, render_template, r
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 from engines.cache_engine import init_cache
 from engines.performance_engine import timed
 from engines.scheduler_engine import init_scheduler
@@ -27,6 +28,7 @@ from api_routes.dashboard_routes import dashboard_bp
 from api_routes.matching_routes import matching_bp
 from api_routes.dating_routes import dating_bp
 from api_routes.message_routes import message_bp
+from api_routes.messaging_routes import messaging_api_bp
 from api_routes.call_routes import call_bp, messages_call_bp
 from api_routes.notification_routes import notification_engine_bp
 from api_routes.live_routes import live_bp
@@ -53,7 +55,7 @@ from api_routes.mobile_api_routes import mobile_api_bp
 from api_routes.engagement_routes import engagement_bp
 from api_routes.marketplace_routes import marketplace_bp
 from api_routes.creator_routes import creator_bp
-from api_routes.social_routes import social_bp
+from api_routes.social_routes import social_api_bp, social_bp
 from api_routes.post_routes import post_bp, media_bp
 from api_routes.metrics_routes import metrics_bp
 from api_routes.push_routes import push_bp
@@ -70,6 +72,8 @@ from api_routes.dev_diagnostics_routes import dev_bp as dev_diagnostics_bp
 from api_routes.explore_routes import explore_bp
 from api_routes.comments_routes import comments_bp
 from api_routes.friend_routes import friend_bp
+from api_routes.contacts_routes import contacts_bp, contacts_api_bp
+from api_routes.inbox_routes import inbox_bp
 from api_routes.follow_request_routes import follow_request_api_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
@@ -119,7 +123,7 @@ def _is_local_debug_request():
     return host in {"127.0.0.1", "localhost", "192.168.179.30"} or _is_apk_request()
 
 from services.request_cache import cache_clear
-from services.logging_service import log_error, log_warning
+from services.logging_service import log_error, log_warning, log_info
 from services.metrics_service import increment, observe_route
 
 from services.socketio_service import init_socketio
@@ -217,11 +221,14 @@ def _valid_apk_csrf_token(app, path, token):
 
 def create_app():
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
     csrf = CSRFProtect(app)
     
     @app.errorhandler(CSRFError)
     def _csrf_friendly_error(e):
-        if request.path == "/auth/register" and request.method == "POST":
+        if request.path.startswith("/api/"):
+            resp = make_response(jsonify({"error": "csrf_failed", "message": "CSRF token missing or invalid"}), 400)
+        elif request.path == "/auth/register" and request.method == "POST":
             apk_token = request.form.get("apk_csrf_token") or request.headers.get("X-NamVibe-Apk-CSRF")
             if _valid_apk_csrf_token(app, "/auth/register", apk_token):
                 request.environ["namvibe_csrf_valid"] = True
@@ -285,7 +292,8 @@ def create_app():
         SESSION_COOKIE_SAMESITE='Lax',
         PERMANENT_SESSION_LIFETIME=timedelta(days=30),
         SLOW_REQUEST_MS_LOCAL=500,
-        SLOW_REQUEST_MS_PROD=1000
+        SLOW_REQUEST_MS_PROD=1000,
+        MAX_CONTENT_LENGTH=100 * 1024 * 1024
     )
     
     init_cache(app)
@@ -332,6 +340,7 @@ def create_app():
         app.config["WTF_CSRF_SSL_STRICT"] = False
     else:
         app.config.setdefault("WTF_CSRF_TIME_LIMIT", None)
+        app.config["PREFERRED_URL_SCHEME"] = "https"
 
     app.config["SESSION_COOKIE_SECURE"] = is_prod
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -350,7 +359,7 @@ def create_app():
             return
             
         # Lightweight session restore only for protected routes
-        protected_blueprints = {"profile", "message", "wallet", "admin", "creator", "dating", "call", "notifications"}
+        protected_blueprints = {"profile", "message", "messaging_api", "wallet", "admin", "creator", "dating", "call", "notifications"}
         
         # Check if current endpoint is in a protected blueprint
         if request.blueprint in protected_blueprints:
@@ -378,6 +387,42 @@ def create_app():
     def api_profile_current_alias():
         from api_routes.profile_routes import api_current_profile
         return api_current_profile()
+
+    @app.get("/api/profile/<username>/summary")
+    def api_public_profile_summary(username):
+        from flask import jsonify
+        from services.profile_service import get_profile_by_username, get_profile_stats
+        profile = get_profile_by_username(username[1:] if username.startswith("@") else username)
+        if not profile:
+            return jsonify({"error": "Profile not found"}), 404
+        stats = get_profile_stats(profile.get("id")) if profile.get("id") else {}
+        return jsonify({
+            "id": profile.get("id"),
+            "username": profile.get("username"),
+            "display_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
+            "avatar_url": profile.get("avatar_url"),
+            "cover_url": profile.get("cover_url"),
+            "bio": profile.get("bio"),
+            "location": profile.get("location") or profile.get("current_location") or profile.get("town"),
+            "stats": stats,
+        })
+
+    @app.get("/api/profile/me/completion")
+    def api_my_profile_completion():
+        from flask import jsonify
+        from services.profile_service import get_current_profile, get_profile_stats
+        from services.profile_completion_service import calculate_profile_completion
+        profile = get_current_profile()
+        if not profile:
+            return jsonify({"error": "Authentication required"}), 401
+        stats = get_profile_stats(profile.get("id")) if profile.get("id") else {}
+        completion_profile = {
+            **profile,
+            "posts_count": stats.get("posts", profile.get("posts_count")),
+            "reels_count": stats.get("reels", profile.get("reels_count")),
+            "stories_count": stats.get("stories", profile.get("stories_count")),
+        }
+        return jsonify(calculate_profile_completion(completion_profile))
 
     if os.getenv("FLASK_ENV", "development") != "production":
         @app.get("/dev/profile-debug")
@@ -426,6 +471,7 @@ def create_app():
     app.register_blueprint(matching_bp)
     app.register_blueprint(dating_bp)
     app.register_blueprint(message_bp)
+    app.register_blueprint(messaging_api_bp)
     app.register_blueprint(call_bp)
     app.register_blueprint(notification_engine_bp)
     app.register_blueprint(live_bp)
@@ -466,6 +512,7 @@ def create_app():
     app.register_blueprint(homepage_api_bp)
     app.register_blueprint(creator_bp)
     app.register_blueprint(social_bp, url_prefix="/social")
+    app.register_blueprint(social_api_bp)
     app.register_blueprint(push_bp)
     app.register_blueprint(security_bp)
     app.register_blueprint(privacy_api_bp)
@@ -480,6 +527,9 @@ def create_app():
     app.register_blueprint(friend_bp)
     app.register_blueprint(follow_request_api_bp)
     csrf.exempt(follow_request_api_bp)
+    app.register_blueprint(contacts_bp)
+    app.register_blueprint(contacts_api_bp)
+    app.register_blueprint(inbox_bp)
 
     try:
         from services.content_service import ensure_content_schema
@@ -596,17 +646,22 @@ def create_app():
             }
         
         fast_local = _flag_enabled("CHAIN_FAST_LOCAL") and not _is_production_env()
+        fast_public_page = request.method == "GET" and (
+            request.path == "/"
+            or request.path.startswith("/discover/")
+            or request.path in {"/reels/", "/reels", "/live/"}
+        )
 
         # Priority: auth_user_id in session
         if "auth_user_id" in session:
-            if fast_local or session.get("profile_warning") or session.get("age_check_required"):
+            if fast_local or fast_public_page or session.get("profile_warning") or session.get("age_check_required"):
                 current_profile = session_profile_stub()
             else:
                 current_profile = get_current_profile()
                 if not current_profile:
                     current_profile = session_profile_stub()
 
-        if current_profile and current_profile.get("id") and not fast_local:
+        if current_profile and current_profile.get("id") and not fast_local and not fast_public_page:
             from services.notification_engine import unread_count
             unread_count = unread_count(current_profile["id"])
             
@@ -628,12 +683,26 @@ def create_app():
             "get_world_countries": __import__("services.country_service", fromlist=["get_world_countries"]).get_world_countries,
         }
 
+    @app.route("/feed")
+    def feed_page():
+        from flask import render_template
+        from services.profile_service import get_current_profile
+        profile = get_current_profile()
+        return render_template("feed/index.html", profile=profile)
+
+    @app.route("/reels")
+    def reels_page():
+        return redirect(url_for("reels.index"))
+
     @app.route("/stories")
     @app.route("/stories/")
     def stories_root():
         profile = get_current_profile()
         viewer_id = (profile or {}).get("id")
         from services.status_service import list_active_statuses
+        use_new = request.args.get("v2", "") == "1"
+        if use_new:
+            return render_template("stories/tray.html", profile=profile)
         stories = list_active_statuses(viewer_profile_id=viewer_id)
         import json
         return render_template("stories.html", stories=stories, profile=profile, current=profile, stories_json=json.dumps(stories or [], default=str))
@@ -667,6 +736,66 @@ def create_app():
         data = request.get_json(silent=True) or {}
         reply_to_story(story_id, viewer_id, data.get("reply_text", ""))
         return jsonify({"success": True}), 200
+
+    @app.route("/api/stories/<story_id>", methods=["DELETE"])
+    @login_required
+    def api_story_delete(story_id):
+        from services.story_engagement_service import delete_story
+        from services.content_service import get_session_profile_id
+        profile_id = get_session_profile_id()
+        if not profile_id:
+            return jsonify({"error": "Unauthorized"}), 401
+        result = delete_story(story_id, profile_id)
+        if result.get("ok"):
+            return jsonify({"ok": True})
+        return jsonify({"error": result.get("error", "delete_failed")}), 403
+
+    @app.route("/api/reels/<reel_id>/comments", methods=["POST"])
+    @login_required
+    def api_reel_comments_create(reel_id):
+        from services.engagement_service import add_comment
+        from services.content_service import get_session_profile_id
+        profile_id = get_session_profile_id()
+        if not profile_id:
+            return jsonify({"error": "Unauthorized"}), 401
+        data = request.get_json(silent=True) or {}
+        body = data.get("body") or request.form.get("body", "")
+        if not body.strip():
+            return jsonify({"error": "Comment body is required"}), 400
+        result = add_comment(profile_id, "reel", reel_id, body.strip())
+        if result.get("success"):
+            return jsonify(result), 201
+        return jsonify({"error": result.get("error", "comment_failed")}), 400
+
+    @app.route("/api/reels/comments/<comment_id>/reply", methods=["POST"])
+    @login_required
+    def api_reel_comment_reply(comment_id):
+        from services.comments_service import add_comment as reply_to_comment
+        from services.content_service import get_session_profile_id
+        profile_id = get_session_profile_id()
+        if not profile_id:
+            return jsonify({"error": "Unauthorized"}), 401
+        data = request.get_json(silent=True) or {}
+        body = data.get("body") or request.form.get("body", "")
+        if not body.strip():
+            return jsonify({"error": "Reply body is required"}), 400
+        comment_id_result = reply_to_comment("reel", None, profile_id, body.strip(), parent_id=comment_id)
+        if comment_id_result:
+            return jsonify({"ok": True, "comment_id": comment_id_result}), 201
+        return jsonify({"error": "Failed to reply"}), 400
+
+    @app.route("/api/reels/comments/<comment_id>", methods=["DELETE"])
+    @login_required
+    def api_reel_comment_delete(comment_id):
+        from services.engagement_service import delete_comment
+        from services.content_service import get_session_profile_id
+        profile_id = get_session_profile_id()
+        if not profile_id:
+            return jsonify({"error": "Unauthorized"}), 401
+        result = delete_comment(profile_id, "reel", comment_id)
+        if result.get("success"):
+            return jsonify({"ok": True})
+        return jsonify({"error": result.get("error", "delete_failed")}), 400
 
     @app.route("/api/stories/create", methods=["POST"])
     @login_required
@@ -764,7 +893,9 @@ def create_app():
             "live_rooms": [], "stories": [], "posts": [], "current": None,
             **base_routes,
         }
+        params = {"town": town, "region": region}
         with timed("home"):
+            home_start = time.perf_counter()
             try:
                 data = get_homepage_data(**params)
             except Exception:
@@ -778,7 +909,9 @@ def create_app():
             except Exception:
                 pass
             data.update(base_routes)
-            return render_template("chain_home.html", **data)
+            response = render_template("chain_home.html", **data)
+            log_info("homepage_route_total", duration_ms=round((time.perf_counter() - home_start) * 1000, 2))
+            return response
 
     @app.route("/login")
     def legacy_login():
@@ -957,10 +1090,15 @@ def create_app():
         response.headers.setdefault("Vary", "Accept-Encoding, Cookie")
         if request.path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=86400"
-        elif request.method == "GET" and (request.path.startswith(("/discover/", "/feed/")) or request.path in {"/", "/search", "/reels/", "/status/", "/dating/discover", "/live/"}):
+        elif request.method == "GET" and (request.path.startswith(("/discover/", "/feed/", "/feed")) or request.path in {"/", "/search", "/reels/", "/reels", "/status/", "/dating/discover", "/live/"}):
             response.headers["Cache-Control"] = "public, max-age=30"
         elif request.method == "GET" and request.path.startswith(("/auth/", "/profile/", "/chat/", "/wallet/", "/notifications/")):
             response.headers["Cache-Control"] = "no-store"
+
+        if _is_production_env():
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+            response.headers.setdefault("X-Content-Type-Options", "nosniff")
+            response.headers.setdefault("X-Frame-Options", "DENY")
         return response
 
     return app
@@ -978,7 +1116,6 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
     schedule_delayed_homepage_prewarm(app, debug=not is_production)
     
-    if is_production:
-        app.run(host="0.0.0.0", port=port, debug=False)
-    else:
-        socketio.run(app, host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    # Use socketio.run in all environments to enable WebSocket support
+    # In production, use gunicorn with GeventWebSocketWorker (gunicorn.conf.py)
+    socketio.run(app, host="0.0.0.0", port=port, debug=not is_production, use_reloader=False)

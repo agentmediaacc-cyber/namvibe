@@ -12,6 +12,7 @@ def get_live_rooms_api():
     return api_response(data=rooms, meta={"count": len(rooms)})
 
 @live_api_bp.route('/rooms/<room_id>', methods=['GET'])
+@optional_api_user
 def get_single_room_api(room_id):
     room = get_room(room_id)
     if not room:

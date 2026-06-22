@@ -488,6 +488,11 @@ def ensure_content_schema():
     CREATE INDEX IF NOT EXISTS idx_chain_saved_items_profile ON chain_saved_items(profile_id);
     CREATE INDEX IF NOT EXISTS idx_chain_notifications_recipient ON chain_notifications(recipient_profile_id, is_read, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_chain_messages_conversation ON chain_messages(conversation_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_chain_messages_thread_created ON chain_messages(thread_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_chain_thread_members_thread_profile ON chain_thread_members(thread_id, profile_id);
+    CREATE INDEX IF NOT EXISTS idx_chain_message_reactions_message ON chain_message_reactions(message_id);
+    CREATE INDEX IF NOT EXISTS idx_chain_message_reads_message_profile ON chain_message_reads(message_id, profile_id);
+    CREATE INDEX IF NOT EXISTS idx_chain_notifications_unread ON chain_notifications(recipient_profile_id, is_read, created_at DESC);
     """
     try:
         write_query(sql, timeout_ms=10000)

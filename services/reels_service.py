@@ -60,7 +60,7 @@ def is_following_creator(follower_id, creator_id):
     if not follower_id or not creator_id:
         return False
     rows = fast_query(
-        "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s",
+        "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s AND deleted_at IS NULL",
         (follower_id, creator_id), timeout_ms=2000, default=[]
     )
     return bool(rows)
@@ -69,7 +69,7 @@ def batch_is_following(follower_id, creator_ids):
     if not follower_id or not creator_ids:
         return set()
     rows = fast_query(
-        "SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = ANY(%s)",
+        "SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = ANY(%s) AND deleted_at IS NULL",
         (follower_id, list(creator_ids)), timeout_ms=500, default=[]
     )
     return {r["following_profile_id"] for r in rows}

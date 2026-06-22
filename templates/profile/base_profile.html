@@ -3,26 +3,17 @@
 {% block title %}{{ profile.full_name if profile else 'Profile' }} | {{ APP_NAME }} Premium{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/profile_premium.css">
-<link rel="stylesheet" href="/static/css/chain_profile.css">
-<link rel="stylesheet" href="/static/css/profile_command_center.css">
-<link rel="stylesheet" href="/static/css/profile_systems.css">
+<link rel="stylesheet" href="/static/css/namvibe_profile_pro.css">
 {% endblock %}
 
 {% block extra_js %}
 {{ super() }}
-<script src="/static/js/profile_premium.js"></script>
-<script src="/static/js/profile_command_center.js"></script>
-<script src="/static/js/profile_systems.js"></script>
 <script src="/static/js/follow_request_controls.js"></script>
+<script src="/static/js/namvibe_profile_pro.js"></script>
 {% endblock %}
 
 {% block content %}
 <div class="premium-profile-shell">
-    {% include "profile/partials/profile_header.html" %}
-    {% if not profile_fallback %}
-    {% include "profile/partials/profile_tabs.html" %}
-    {% endif %}
     {% block profile_body %}{% endblock %}
 </div>
 {% endblock %}

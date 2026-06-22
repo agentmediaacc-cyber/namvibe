@@ -367,7 +367,8 @@
             <a href="/status/" class="sidebar-link"><i class="fas fa-circle-notch"></i> Stories</a>
             
             {% if g_current %}
-            <a href="/messages/" class="sidebar-link"><i class="fas fa-comment"></i> Messages</a>
+            <a href="/inbox/" class="sidebar-link"><i class="fas fa-inbox"></i> Inbox</a>
+            <a href="/contacts/" class="sidebar-link"><i class="fas fa-address-book"></i> Contacts</a>
             <a href="/wallet/" class="sidebar-link"><i class="fas fa-wallet"></i> Wallet</a>
             <a href="/dating/discover" class="sidebar-link"><i class="fas fa-heart"></i> Dating</a>
             <a href="/notifications/" class="sidebar-link"><i class="fas fa-bell"></i> Notifications</a>
@@ -396,7 +397,8 @@
             <a href="/live/"><i class="fas fa-video"></i>Live</a>
             <a href="/reels/"><i class="fas fa-film"></i>Reels</a>
             <a href="/status/"><i class="fas fa-circle-notch"></i>Stories</a>
-            <a href="/messages/"><i class="fas fa-comment"></i>Messages</a>
+            <a href="/inbox/"><i class="fas fa-inbox"></i>Inbox</a>
+            <a href="/contacts/"><i class="fas fa-address-book"></i>Contacts</a>
             <a href="/calls/recent"><i class="fas fa-phone"></i>Calls</a>
             <a href="/dating/discover"><i class="fas fa-heart"></i>Dating</a>
             <a href="/wallet/"><i class="fas fa-wallet"></i>Wallet</a>
@@ -726,10 +728,18 @@
       reconnectTimer = setTimeout(function() {
         fetch("/system/socketio-status", {credentials:"same-origin"})
           .then(function(r){ return r.ok ? r.json() : null; })
-          .then(function(data){ if (!data || data.ok === false) b.classList.add("show"); })
-          .catch(function(){ b.classList.add("show"); });
+          .then(function(data){
+            if (!data || data.ok === false) {
+              b.textContent = "Connection lost. Trying to reconnect...";
+              b.classList.add("show");
+            }
+          })
+          .catch(function(){
+            b.textContent = "Connection lost. Trying to reconnect...";
+            b.classList.add("show");
+          });
         reconnectTimer = null;
-      }, 3000);
+      }, 5000);
     }
 
     function hideReconnect() {
@@ -789,7 +799,7 @@
 <script src="/static/js/friendship_controls.js"></script>
 <script src="/static/js/namvibe_global_badges.js"></script>
 <script src="/static/js/realtime_presence.js"></script>
-<div id="chain-reconnect-banner" class="reconnect-banner" data-reconnect-banner aria-hidden="true">Reconnecting... <button type="button" data-reconnect-close>Close</button></div>
+<div id="chain-reconnect-banner" class="reconnect-banner" data-reconnect-banner aria-hidden="true"></div>
 {% endif %}
 </body>
 </html>

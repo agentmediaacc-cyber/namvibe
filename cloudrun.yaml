@@ -1,6 +1,6 @@
 # cloudrun.yaml
 # Safe deployment template. Never commit real secrets in this file.
-# Replace REGION_PLACEHOLDER and IMAGE_PLACEHOLDER for your deployment target.
+# Replace region and image values for your deployment target.
 # Secret values must come from Google Secret Manager via valueFrom.secretKeyRef.
 
 apiVersion: serving.knative.dev/v1
@@ -8,7 +8,7 @@ kind: Service
 metadata:
   name: chain-app
   labels:
-    cloud.googleapis.com/location: REGION_PLACEHOLDER
+    cloud.googleapis.com/location: us-central1
 spec:
   template:
     metadata:
@@ -17,7 +17,7 @@ spec:
         autoscaling.knative.dev/maxScale: "5"
     spec:
       containers:
-      - image: IMAGE_PLACEHOLDER
+      - image: chain-app:latest  # Override with --image on deploy
         resources:
           limits:
             cpu: "1"
@@ -61,6 +61,41 @@ spec:
           valueFrom:
             secretKeyRef:
               name: chain-app-base-url
+              key: latest
+        - name: LIVEKIT_URL
+          valueFrom:
+            secretKeyRef:
+              name: chain-livekit-url
+              key: latest
+        - name: LIVEKIT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: chain-livekit-api-key
+              key: latest
+        - name: LIVEKIT_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: chain-livekit-api-secret
+              key: latest
+        - name: TURN_SERVER_URL
+          valueFrom:
+            secretKeyRef:
+              name: chain-turn-server-url
+              key: latest
+        - name: TURN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chain-turn-username
+              key: latest
+        - name: TURN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chain-turn-password
+              key: latest
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: chain-sentry-dsn
               key: latest
         ports:
         - containerPort: 8080

@@ -9,7 +9,9 @@ from typing import List, Optional
 
 import re
 
-from services.neon_service import fast_query, write_query
+from functools import lru_cache
+
+from services.neon_service import fast_query, get_table_columns, table_exists, write_query
 
 _UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
@@ -18,35 +20,25 @@ def is_uuid(s):
     return bool(_UUID_RE.match(str(s))) if s else False
 
 
+@lru_cache(maxsize=1)
 def _blocks_table() -> str:
     """Detect available block table. Returns table name or empty string."""
-    for table in ("chain_blocks",):
-        try:
-            rows = fast_query(
-                "SELECT 1 FROM information_schema.tables WHERE table_name = %s AND table_schema = 'public' LIMIT 1",
-                (table,), timeout_ms=500, default=[]
-            )
-            if rows:
-                rows2 = fast_query(
-                    "SELECT column_name FROM information_schema.columns WHERE table_name = %s AND table_schema = 'public'",
-                    (table,), timeout_ms=500, default=[]
-                )
-                cols = [r["column_name"] for r in (rows2 or []) if r.get("column_name")]
-                required = {"blocker_profile_id", "blocked_profile_id"}
-                if required.issubset(cols):
-                    return table
-        except Exception:
-            continue
+    table = "chain_blocks"
+    try:
+        if not table_exists(table):
+            return ""
+        cols = set(get_table_columns(table) or [])
+        if {"blocker_profile_id", "blocked_profile_id"}.issubset(cols):
+            return table
+    except Exception:
+        return ""
     return ""
 
 
+@lru_cache(maxsize=8)
 def _has_deleted_at(table: str) -> bool:
     try:
-        rows = fast_query(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = %s AND column_name = 'deleted_at' LIMIT 1",
-            (table,), timeout_ms=500, default=[]
-        )
-        return bool(rows)
+        return "deleted_at" in set(get_table_columns(table) or [])
     except Exception:
         return False
 
@@ -62,12 +54,12 @@ def is_blocked(profile_id, target_profile_id) -> bool:
         if _has_deleted_at(table):
             rows = fast_query(
                 f"SELECT 1 FROM {table} WHERE blocker_profile_id = %s AND blocked_profile_id = %s AND deleted_at IS NULL LIMIT 1",
-                (profile_id, target_profile_id), timeout_ms=1000, default=[]
+                (profile_id, target_profile_id), timeout_ms=5000, default=[]
             )
         else:
             rows = fast_query(
                 f"SELECT 1 FROM {table} WHERE blocker_profile_id = %s AND blocked_profile_id = %s LIMIT 1",
-                (profile_id, target_profile_id), timeout_ms=1000, default=[]
+                (profile_id, target_profile_id), timeout_ms=5000, default=[]
             )
         return bool(rows)
     except Exception:
@@ -85,12 +77,12 @@ def is_blocked_any(profile_id, target_profile_id) -> bool:
         if _has_deleted_at(table):
             rows = fast_query(
                 f"SELECT 1 FROM {table} WHERE ((blocker_profile_id = %s AND blocked_profile_id = %s) OR (blocker_profile_id = %s AND blocked_profile_id = %s)) AND deleted_at IS NULL LIMIT 1",
-                (profile_id, target_profile_id, target_profile_id, profile_id), timeout_ms=1000, default=[]
+                (profile_id, target_profile_id, target_profile_id, profile_id), timeout_ms=5000, default=[]
             )
         else:
             rows = fast_query(
                 f"SELECT 1 FROM {table} WHERE (blocker_profile_id = %s AND blocked_profile_id = %s) OR (blocker_profile_id = %s AND blocked_profile_id = %s) LIMIT 1",
-                (profile_id, target_profile_id, target_profile_id, profile_id), timeout_ms=1000, default=[]
+                (profile_id, target_profile_id, target_profile_id, profile_id), timeout_ms=5000, default=[]
             )
         return bool(rows)
     except Exception:
@@ -108,12 +100,12 @@ def get_blocked_ids(profile_id: str) -> List[str]:
         if _has_deleted_at(table):
             rows = fast_query(
                 f"SELECT blocked_profile_id FROM {table} WHERE blocker_profile_id = %s AND deleted_at IS NULL",
-                (profile_id,), timeout_ms=1000, default=[]
+                (profile_id,), timeout_ms=5000, default=[]
             )
         else:
             rows = fast_query(
                 f"SELECT blocked_profile_id FROM {table} WHERE blocker_profile_id = %s",
-                (profile_id,), timeout_ms=1000, default=[]
+                (profile_id,), timeout_ms=5000, default=[]
             )
         return [str(r["blocked_profile_id"]) for r in rows if r.get("blocked_profile_id")]
     except Exception:

@@ -1,12 +1,18 @@
+import time
+
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
 from services.profile_service import get_current_profile
 from services.reels_engine import list_reels, get_reel, create_reel, record_reel_view, share_reel, delete_reel
-from services.reels_service import track_reel_event, get_reel_comments, get_reel_feed, is_following_creator, toggle_reel_save, toggle_reel_like
+from services.reels_service import track_reel_event, get_reel_comments, get_reel_feed, batch_is_following, toggle_reel_save, toggle_reel_like
 from services.engagement_service import add_comment, toggle_like, toggle_save
 from api_routes.profile_routes import login_required
 from services.rate_limit_service import limiter, user_or_ip_key
+from services.reel_watch_service import record_watch_event as rwe_record_watch
+from services.feed_cursor_service import encode_cursor as rwe_encode_cursor
 from services.content_service import get_session_profile_id, session_profile_stub
 from services.profile_context_service import build_profile_template_context
+from services.comments_service import add_comment as reply_to_comment
+from services.logging_service import log_info
 
 from services.content_manager_service import get_managed_reels, update_content_status as update_reel_status
 
@@ -49,6 +55,7 @@ def _render_upload(profile, **extra):
 
 @reels_bp.route("/")
 def index():
+    start = time.perf_counter()
     profile = get_current_profile()
     reels = get_reel_feed(limit=30)
     if not reels:
@@ -56,11 +63,12 @@ def index():
     profile_id = (profile or {}).get("id")
     follow_map = {}
     if profile_id and reels:
-        for r in reels:
-            pid = r.get("profile_id")
-            if pid:
-                follow_map[pid] = is_following_creator(profile_id, pid)
-    return render_template("reels.html", reels=reels, profile=profile, current=profile, follow_map=follow_map)
+        creator_ids = {r.get("profile_id") for r in reels if r.get("profile_id")}
+        following = batch_is_following(profile_id, creator_ids)
+        follow_map = {pid: pid in following for pid in creator_ids}
+    response = render_template("reels.html", reels=reels, profile=profile, current=profile, follow_map=follow_map)
+    log_info("reels_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), reel_count=len(reels or []))
+    return response
 
 @reels_bp.route("/upload", methods=["GET", "POST"])
 @login_required
@@ -180,3 +188,41 @@ def api_comments(reel_id):
             "created_at": str(c.get("created_at") or ""),
         })
     return jsonify({"comments": comments_list}), 200
+
+
+# =========== PHASE 93: Reel Watch & Feed ===========
+
+@reels_bp.route("/api/reels/<reel_id>/watch", methods=["POST"])
+def api_reel_watch(reel_id):
+    try:
+        data = request.get_json(silent=True) or {}
+        profile = get_current_profile()
+        user_id = (profile or {}).get("id")
+        rwe_record_watch(
+            reel_id=reel_id,
+            user_id=user_id,
+            session_id=data.get("session_id"),
+            watch_seconds=float(data.get("watch_seconds", 0)),
+            completion_percent=float(data.get("completion_percent", 0)),
+            replay_count=int(data.get("replay_count", 0)),
+        )
+        return jsonify({"ok": True}), 200
+    except Exception:
+        return jsonify({"ok": False, "error": "watch_tracking_skipped"}), 200
+
+
+@reels_bp.route("/api/reels/feed", methods=["GET"])
+def api_reels_feed():
+    from services.reels_service import get_reel_feed as _grf
+    cursor = request.args.get("cursor")
+    limit = min(int(request.args.get("limit", 20)), 50)
+    reels = _grf(limit=limit + 1)
+    next_cursor = None
+    if len(reels) > limit:
+        next_cursor = reels[-1].get("id")
+        reels = reels[:limit]
+    return jsonify({
+        "reels": reels,
+        "next_cursor": rwe_encode_cursor(next_cursor) if next_cursor else None,
+        "has_more": bool(next_cursor),
+    })

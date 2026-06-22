@@ -1,391 +1,308 @@
 {% extends "profile/base_profile.html" %}
 
 {% block profile_body %}
-{% set own_profile = viewer and profile and viewer.id == profile.id %}
+{% set pv = profile_view or {} %}
+{% set own_profile = pv.own_profile %}
 {% set pa = action_policy or profile.action_policy or {} %}
-{% set stats_data = stats or {} %}
 {% set content_data = content or {} %}
 {% set wallet_data = wallet or {} %}
-{% set creator_data = creator or {} %}
-{% set marketplace_data = marketplace or {} %}
-{% set dating_data = dating or {} %}
-{% set portfolio_data = portfolio or {} %}
-{% set ai_data = ai or {} %}
-{% set live_data = live or {} %}
-{% set reputation_data = reputation or {} %}
-{% set completion_data = completion or {'percent': 0, 'missing': []} %}
-{% set level_data = level or {'title': 'New Member', 'score': 0} %}
+{% set creator_data = creator or creator_tools or {} %}
+{% set completion_data = pv.completion or completion or {'percent': 0, 'checklist': [], 'missing': []} %}
 {% set posts = content_data.get('posts', []) %}
 {% set reels = content_data.get('reels', []) %}
 {% set rooms = content_data.get('rooms', []) %}
-{% set products = marketplace_data.get('items', []) %}
-{% set display_name = profile.display_name or profile.full_name or profile.username or 'NamVibe Member' %}
-{% set is_private = (profile.profile_visibility or profile.visibility) == 'private' %}
-{% set can_view = own_profile or pa.can_view_full_profile %}
-{% set can_view_posts = own_profile or pa.can_view_posts %}
-{% set can_view_reels = own_profile or pa.can_view_reels %}
-{% set can_view_media = own_profile or pa.can_view_media %}
-{% set member_since = profile.created_at|datetime if profile.created_at else 'Recently joined' %}
-{% set privacy_state = profile.profile_visibility or profile.visibility or 'public' %}
+{% set stories = content_data.get('stories', []) %}
+{% set products = pv.products or [] %}
+{% set bio = profile.bio or '' %}
+{% set can_view = own_profile or pa.can_view_full_profile is not sameas false %}
+{% set can_view_posts = own_profile or pa.can_view_posts is not sameas false %}
+{% set can_view_reels = own_profile or pa.can_view_reels is not sameas false %}
 
-<main class="command-center-shell">
-    {% if own_profile %}
-    <div class="command-tabs">
-        <button class="command-tab is-active" data-tab-target="dashboard"><i class="fas fa-gauge-high"></i>Dashboard</button>
-        <button class="command-tab" data-tab-target="posts"><i class="fas fa-grid-2"></i>Posts</button>
-        <button class="command-tab" data-tab-target="reels"><i class="fas fa-film"></i>Reels</button>
-        <button class="command-tab" data-tab-target="media"><i class="fas fa-images"></i>Media</button>
-        <button class="command-tab" data-tab-target="live"><i class="fas fa-tower-broadcast"></i>Live</button>
-        <button class="command-tab" data-tab-target="shop"><i class="fas fa-bag-shopping"></i>Shop</button>
-        <button class="command-tab" data-tab-target="saved"><i class="fas fa-bookmark"></i>Saved</button>
-        <button class="command-tab" data-tab-target="liked"><i class="fas fa-heart"></i>Liked</button>
-        <button class="command-tab" data-tab-target="about"><i class="fas fa-circle-info"></i>About</button>
+<main class="nv-profile-pro" data-namvibe-profile-pro>
+  <section class="nv-profile-hero">
+    <div class="nv-cover" data-cover-fallback="{{ '0' if pv.cover_url else '1' }}">
+      {% if pv.cover_url %}
+      <img src="{{ pv.cover_url }}" alt="{{ pv.display_name }} cover" loading="eager">
+      {% else %}
+      <div class="nv-cover-fallback" aria-hidden="true"></div>
+      {% endif %}
+      {% if own_profile %}
+      <button class="nv-cover-action" type="button" data-file-trigger="cover-input">
+        <i class="fas fa-camera"></i><span>Update Cover</span>
+      </button>
+      <form action="/profile/cover" method="POST" enctype="multipart/form-data" hidden>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input id="cover-input" type="file" name="cover" accept="image/*" data-auto-submit>
+      </form>
+      {% endif %}
     </div>
-    {% else %}
-    <div class="command-tabs">
-        <button class="command-tab is-active" data-tab-target="posts"><i class="fas fa-grid-2"></i>Posts</button>
-        {% if can_view_reels %}<button class="command-tab" data-tab-target="reels"><i class="fas fa-film"></i>Reels</button>{% endif %}
-        {% if can_view_media %}<button class="command-tab" data-tab-target="media"><i class="fas fa-images"></i>Media</button>{% endif %}
-        {% if rooms or own_profile %}<button class="command-tab" data-tab-target="live"><i class="fas fa-tower-broadcast"></i>Live</button>{% endif %}
-        {% if products or own_profile %}<button class="command-tab" data-tab-target="shop"><i class="fas fa-bag-shopping"></i>Shop</button>{% endif %}
-        {% if can_view %}<button class="command-tab" data-tab-target="about"><i class="fas fa-circle-info"></i>About</button>{% endif %}
+
+    <div class="nv-identity-row">
+      <div class="nv-avatar-wrap">
+        {% if pv.avatar_url %}
+        <img class="nv-avatar" src="{{ pv.avatar_url }}" alt="{{ pv.display_name }}">
+        {% else %}
+        <div class="nv-avatar nv-avatar-fallback" data-avatar-fallback="initials">{{ pv.initials }}</div>
+        {% endif %}
+        {% if pv.active and pv.active.online %}<span class="nv-online-dot" aria-label="Active now"></span>{% endif %}
+        {% if own_profile %}
+        <button class="nv-avatar-action" type="button" data-file-trigger="avatar-input" aria-label="Update profile photo"><i class="fas fa-camera"></i></button>
+        <form action="/profile/avatar" method="POST" enctype="multipart/form-data" hidden>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input id="avatar-input" type="file" name="avatar" accept="image/*" data-auto-submit>
+        </form>
+        {% endif %}
+      </div>
+
+      <div class="nv-title-block">
+        <div class="nv-name-line">
+          <h1>{{ pv.display_name }}</h1>
+          {% if profile.is_verified or profile.verified or profile.identity_verified %}
+          <span class="nv-verified-badge" title="Verified"><i class="fas fa-check"></i></span>
+          {% endif %}
+          <span class="nv-member-badge">{{ pv.member_badge }}</span>
+        </div>
+        <div class="nv-handle-line">
+          <span>@{{ pv.username }}</span>
+          <span>{{ pv.privacy|replace('_', ' ')|title }}</span>
+          {% if pv.location %}<span><i class="fas fa-location-dot"></i>{{ pv.location }}</span>{% endif %}
+          <span><i class="fas fa-calendar"></i>Joined {{ pv.joined }}</span>
+          <span class="{{ 'is-online' if pv.active.online else '' }}"><i class="fas fa-circle"></i>{{ pv.active.label }}</span>
+        </div>
+        {% if bio %}
+        <p class="nv-hero-bio">{{ bio }}</p>
+        {% elif own_profile %}
+        <p class="nv-hero-bio is-muted">Add a short bio so people know what you create and care about.</p>
+        {% endif %}
+      </div>
+
+      <div class="nv-action-stack">
+        {% if own_profile %}
+        <a class="nv-btn primary" href="/profile/edit"><i class="fas fa-user-pen"></i>Edit Profile</a>
+        <a class="nv-btn" href="/posts/create"><i class="fas fa-plus"></i>Create</a>
+        <a class="nv-btn" href="/wallet"><i class="fas fa-wallet"></i>Wallet</a>
+        <a class="nv-btn" href="/security/privacy"><i class="fas fa-shield-halved"></i>Privacy</a>
+        {% else %}
+          {% if pa.primary_action == 'request_follow' %}
+          <button class="nv-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-clock"></i>Request Follow</button>
+          {% elif pa.primary_action == 'requested' %}
+          <button class="nv-btn primary" type="button" disabled><i class="fas fa-clock"></i>Requested</button>
+          {% elif pa.primary_action == 'following' or is_following %}
+          <button class="nv-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="true"><i class="fas fa-user-check"></i>Following</button>
+          {% else %}
+          <button class="nv-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-plus"></i>Follow</button>
+          {% endif %}
+          {% if pa.can_chat or pv.can_message %}
+          <a class="nv-btn" href="/messages/start/{{ profile.id }}"><i class="fas fa-message"></i>Message</a>
+          {% else %}
+          <button class="nv-btn disabled" type="button" disabled title="Messaging is not available for this profile"><i class="fas fa-message"></i>Message</button>
+          {% endif %}
+          {% if pa.can_call or pv.can_call %}
+          <a class="nv-icon-btn" href="/calls/start/{{ profile.id }}/audio" title="Audio call"><i class="fas fa-phone"></i></a>
+          {% else %}
+          <button class="nv-icon-btn disabled" type="button" disabled title="Audio calls are not available"><i class="fas fa-phone"></i></button>
+          {% endif %}
+          {% if pa.can_video_call or pv.can_video_call %}
+          <a class="nv-icon-btn" href="/calls/start/{{ profile.id }}/video" title="Video call"><i class="fas fa-video"></i></a>
+          {% else %}
+          <button class="nv-icon-btn disabled" type="button" disabled title="Video calls are not available"><i class="fas fa-video"></i></button>
+          {% endif %}
+          <a class="nv-btn" href="/wallet/gift?to={{ profile.id }}"><i class="fas fa-gift"></i>Send Gift</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="nv-stat-strip" data-profile-stats>
+      {% for item in pv.stats %}
+      <div class="nv-stat">
+        <strong>{{ item.value }}</strong>
+        <span>{{ item.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% if pv.all_stats_zero %}
+    <div class="nv-onboarding-note">Your profile is ready. Post your first update to start growing.</div>
+    {% endif %}
+  </section>
+
+  {% if pv.highlights %}
+  <section class="nv-highlights" aria-label="Story highlights">
+    {% for item in pv.highlights %}
+    <a class="nv-highlight {{ 'is-empty' if item.empty else '' }}" href="{{ item.url or '#' }}">
+      {% if item.cover_url %}<img src="{{ item.cover_url }}" alt="{{ item.label }}">{% else %}<i class="fas {{ item.icon or 'fa-circle-play' }}"></i>{% endif %}
+      <span>{{ item.label or item.title }}</span>
+    </a>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <nav class="nv-profile-tabs" data-profile-tabbar aria-label="Profile sections">
+    {% for tab in pv.tabs %}
+    <button class="nv-tab {{ 'is-active' if loop.first else '' }}" type="button" data-tab-target="{{ tab.key }}">
+      <i class="fas {{ tab.icon }}"></i><span>{{ tab.label }}</span>
+    </button>
+    {% endfor %}
+  </nav>
+
+  <section class="nv-tab-panels">
+    <div class="nv-tab-panel is-active" id="posts-panel" data-tab-panel="posts">
+      {% if can_view_posts %}
+      <div class="nv-content-grid">
+        {% for post in posts %}
+        <article class="nv-content-tile">
+          {% if post.media_url or post.video_url %}<img src="{{ post.media_url or post.video_url }}" alt="Post media" loading="lazy">{% endif %}
+          <p>{{ post.caption or post.body or post.content or '' }}</p>
+        </article>
+        {% else %}
+        <div class="nv-empty">{% if own_profile %}<h3>No posts yet</h3><p>Create your first update to start growing.</p><a class="nv-btn primary" href="/posts/create">Create Post</a>{% else %}<h3>No public posts yet</h3>{% endif %}</div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="nv-empty"><h3>Private posts</h3><p>This profile keeps posts private.</p></div>
+      {% endif %}
+    </div>
+
+    <div class="nv-tab-panel" id="reels-panel" data-tab-panel="reels">
+      {% if can_view_reels %}
+      <div class="nv-reels-grid">
+        {% for reel in reels %}
+        <article class="nv-reel-tile">
+          {% if reel.thumbnail_url %}<img src="{{ reel.thumbnail_url }}" alt="Reel thumbnail" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-play"></i></div>{% endif %}
+          <span><i class="fas fa-play"></i>{{ reel.views_count or 0 }}</span>
+        </article>
+        {% else %}
+        <div class="nv-empty">{% if own_profile %}<h3>No reels yet</h3><p>Upload a reel to reach more people.</p><a class="nv-btn primary" href="/reels/upload">Upload Reel</a>{% else %}<h3>No public reels yet</h3>{% endif %}</div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="nv-empty"><h3>Private reels</h3><p>This profile keeps reels private.</p></div>
+      {% endif %}
+    </div>
+
+    <div class="nv-tab-panel" id="media-panel" data-tab-panel="media">
+      <div class="nv-content-grid">
+        {% for post in posts if post.media_url %}
+        <article class="nv-content-tile"><img src="{{ post.media_url }}" alt="Media" loading="lazy"></article>
+        {% endfor %}
+        {% for reel in reels %}
+        <article class="nv-content-tile">{% if reel.thumbnail_url %}<img src="{{ reel.thumbnail_url }}" alt="Reel media" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-film"></i></div>{% endif %}</article>
+        {% endfor %}
+        {% if not posts and not reels %}<div class="nv-empty"><h3>No media yet</h3><p>{{ 'Add photos or reels to build your profile.' if own_profile else 'No public media yet.' }}</p></div>{% endif %}
+      </div>
+    </div>
+
+    <div class="nv-tab-panel" id="live-panel" data-tab-panel="live">
+      <div class="nv-card-grid">
+        {% for room in rooms %}
+        <article class="nv-card"><strong>{{ room.title }}</strong><span>{{ room.status or 'Live room' }}</span></article>
+        {% else %}
+        <div class="nv-empty">{% if own_profile %}<h3>No live rooms yet</h3><p>Go live when you are ready to connect with your audience.</p><a class="nv-btn primary" href="/live/studio">Go Live</a>{% else %}<h3>No active live sessions</h3>{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="nv-tab-panel" id="about-panel" data-tab-panel="about">
+      <div class="nv-about-grid">
+        <article class="nv-card nv-about-card">
+          <h2>About</h2>
+          {% if bio %}<p>{{ bio }}</p>{% elif own_profile %}<p class="muted">Complete your About section.</p>{% endif %}
+          <dl>
+            {% if pv.location %}<div><dt>Location</dt><dd>{{ pv.location }}</dd></div>{% endif %}
+            <div><dt>Joined</dt><dd>{{ pv.joined }}</dd></div>
+            {% if profile.creator_category %}<div><dt>Creator category</dt><dd>{{ profile.creator_category }}</dd></div>{% endif %}
+            {% if profile.website %}<div><dt>Website</dt><dd><a href="{{ profile.website }}" target="_blank" rel="noopener">{{ profile.website }}</a></dd></div>{% endif %}
+            {% if profile.interests %}<div><dt>Interests</dt><dd>{{ profile.interests|join(', ') if profile.interests is sequence and profile.interests is not string else profile.interests }}</dd></div>{% endif %}
+          </dl>
+        </article>
+
+        {% if own_profile %}
+        <article class="nv-card nv-completion-card" data-profile-completion-card>
+          <div class="nv-card-head"><h2>Profile Completion</h2><strong>{{ completion_data.percent }}%</strong></div>
+          <div class="nv-progress"><span style="width: {{ completion_data.percent }}%"></span></div>
+          {% if completion_data.next_best_action %}<p>Next: {{ completion_data.next_best_action.label }}</p>{% endif %}
+          <ul class="nv-checklist">
+            {% for task in completion_data.checklist %}
+            <li class="{{ 'done' if task.complete else '' }}"><i class="fas {{ 'fa-check' if task.complete else 'fa-plus' }}"></i>{{ task.label }}</li>
+            {% endfor %}
+          </ul>
+        </article>
+        {% endif %}
+
+        <article class="nv-card nv-trust-card">
+          <h2>Verification & Trust</h2>
+          {% for item in pv.verification %}
+          <div class="nv-trust-row {{ item.state }}">
+            <i class="fas {{ 'fa-check-circle' if item.state == 'verified' else ('fa-clock' if item.state == 'pending' else 'fa-circle') }}"></i>
+            <span>{{ item.label }}</span>
+            <small>{{ item.state|replace('_', ' ')|title }}</small>
+          </div>
+          {% endfor %}
+        </article>
+      </div>
+    </div>
+
+    {% if own_profile %}
+    <div class="nv-tab-panel" id="saved-panel" data-tab-panel="saved"><div class="nv-empty"><h3>No saved items yet</h3><p>Saved posts, reels, and products will appear here.</p></div></div>
+    <div class="nv-tab-panel" id="liked-panel" data-tab-panel="liked"><div class="nv-empty"><h3>No liked content yet</h3><p>Content you like will appear here.</p></div></div>
+    {% endif %}
+
+    {% if pv.show_dashboard_tab %}
+    <div class="nv-tab-panel" id="dashboard-panel" data-tab-panel="dashboard">
+      <div class="nv-dashboard-grid">
+        {% if own_profile %}
+        <article class="nv-card">
+          <h2>Creator Tools</h2>
+          <div class="nv-tool-grid">
+            <a href="/reels/upload"><i class="fas fa-clapperboard"></i>Upload Reel</a>
+            <a href="/live/studio"><i class="fas fa-tower-broadcast"></i>Go Live</a>
+            <a href="/status/create"><i class="fas fa-circle-plus"></i>Create Story</a>
+            <a href="/posts/create"><i class="fas fa-pen"></i>Create Post</a>
+            <a href="/creator/dashboard"><i class="fas fa-chart-line"></i>Creator Dashboard</a>
+            <a href="/creator/monetization"><i class="fas fa-coins"></i>Monetization Setup</a>
+          </div>
+          {% if not wallet_data.gift_earnings %}<p class="muted">Start earning by uploading reels, going live, and receiving gifts.</p>{% endif %}
+        </article>
+        <article class="nv-card">
+          <h2>Wallet Snapshot</h2>
+          <div class="nv-wallet-metrics">
+            <div><span>Balance</span><strong>N$ {{ '%.2f'|format(wallet_data.coin_balance or 0) }}</strong></div>
+            <div><span>Earnings</span><strong>N$ {{ '%.2f'|format(wallet_data.gift_earnings or 0) }}</strong></div>
+            <div><span>Payouts</span><strong>N$ {{ '%.2f'|format(wallet_data.pending_withdrawal or 0) }}</strong></div>
+            <div><span>Gifts</span><strong>{{ creator_data.gifts_received or 0 }}</strong></div>
+          </div>
+          <div class="nv-inline-actions">
+            <a class="nv-btn" href="/wallet">Send Funds</a>
+            <a class="nv-btn {{ 'disabled' if not pv.withdrawal_ready else '' }}" href="{{ '/wallet/withdraw' if pv.withdrawal_ready else '#' }}">Withdraw</a>
+            <a class="nv-btn" href="/wallet/pin">Wallet Settings</a>
+          </div>
+          {% if not pv.withdrawal_ready %}<p class="muted">{{ pv.withdrawal_reason }}</p>{% endif %}
+        </article>
+        <article class="nv-card">
+          <h2>Privacy & Safety</h2>
+          <dl>
+            <div><dt>Visibility</dt><dd>{{ pv.privacy|replace('_', ' ')|title }}</dd></div>
+            <div><dt>Messages</dt><dd>{{ (profile.who_can_message or profile.who_can_message_me or 'friends')|replace('_', ' ')|title }}</dd></div>
+          </dl>
+          <div class="nv-inline-actions">
+            <a class="nv-btn" href="/security/privacy">Privacy Settings</a>
+            <a class="nv-btn" href="/security/blocked">Blocked Users</a>
+            <a class="nv-btn" href="/security">Manage Security</a>
+          </div>
+        </article>
+        {% endif %}
+      </div>
     </div>
     {% endif %}
 
-    <div class="tab-container">
-        {% if own_profile %}
-        <!-- 1. DASHBOARD / COMMAND CENTER -->
-        <div id="dashboard-tab" class="tab-pane is-active">
-            <div class="command-grid">
-                <!-- Profile Completion -->
-                <article class="command-card completion-card">
-                    <div class="card-head">
-                        <h3>Complete Your Profile</h3>
-                        <span class="completion-ring" style="--completion: {{ completion_data.percent }};"><span>{{ completion_data.percent }}%</span></span>
-                    </div>
-                    <div class="progress-bar"><span style="width: {{ completion_data.percent }}%"></span></div>
-                    {% if completion_data.next_best_action %}
-                    <p class="next-action">Next: <strong>{{ completion_data.next_best_action.label }}</strong></p>
-                    <a href="{{ completion_data.next_best_action.action_url }}" class="btn-card primary">Improve profile</a>
-                    {% endif %}
-                    <div class="missing-tasks">
-                        {% for task in completion_data.missing[:3] %}
-                        <a href="{{ task.action_url }}"><i class="fas fa-plus-circle"></i>{{ task.label }}</a>
-                        {% endfor %}
-                    </div>
-                </article>
-
-                <!-- Verification & Trust -->
-                <article class="command-card trust-card">
-                    <h3>Verification & Trust</h3>
-                    <div class="trust-list">
-                        <div class="trust-item {{ 'verified' if profile.email_verified else 'pending' }}">
-                            <i class="fas {{ 'fa-check-circle' if profile.email_verified else 'fa-circle-xmark' }}"></i>
-                            <span>Email Verified</span>
-                        </div>
-                        <div class="trust-item {{ 'verified' if profile.phone_verified else 'pending' }}">
-                            <i class="fas {{ 'fa-check-circle' if profile.phone_verified else 'fa-circle-xmark' }}"></i>
-                            <span>Phone Verified</span>
-                        </div>
-                        <div class="trust-item {{ 'verified' if profile.is_verified else 'pending' }}">
-                            <i class="fas {{ 'fa-shield-check' if profile.is_verified else 'fa-shield' }}"></i>
-                            <span>Identity Verified</span>
-                        </div>
-                        <div class="trust-item {{ 'verified' if profile.creator_verified else 'pending' }}">
-                            <i class="fas fa-badge-check"></i>
-                            <span>Creator Verification</span>
-                        </div>
-                        <div class="trust-item {{ 'verified' if wallet_data.withdrawal_ready else 'pending' }}">
-                            <i class="fas fa-wallet"></i>
-                            <span>Withdrawal Ready</span>
-                        </div>
-                    </div>
-                    <a href="/security" class="btn-card">Manage Security</a>
-                </article>
-
-                <!-- Creator Tools -->
-                <article class="command-card creator-card">
-                    <h3>Creator Tools</h3>
-                    <div class="creator-actions">
-                        <a href="/reels/upload"><i class="fas fa-clapperboard"></i>Upload Reel</a>
-                        <a href="/live/studio"><i class="fas fa-tower-broadcast"></i>Go Live</a>
-                        <a href="/status/create"><i class="fas fa-circle-plus"></i>Create Story</a>
-                    </div>
-                    <div class="creator-stats">
-                        <div><span>Monetization</span><strong>{{ creator_data.monetization_status or 'Setup needed' }}</strong></div>
-                        <div><span>XP</span><strong>{{ level_data.score }}</strong></div>
-                        <div><span>Level</span><strong>{{ level_data.title }}</strong></div>
-                    </div>
-                    <a href="/creator/dashboard" class="btn-card">Creator Dashboard</a>
-                </article>
-
-                <!-- Wallet Snapshot -->
-                <article class="command-card wallet-card">
-                    <h3>Wallet Snapshot</h3>
-                    <div class="wallet-balance">
-                        <span>Balance</span>
-                        <strong>N$ {{ "%.2f"|format(wallet_data.coin_balance or 0) }}</strong>
-                    </div>
-                    <div class="wallet-metrics">
-                        <div><span>Earnings</span><strong>N$ {{ "%.2f"|format(wallet_data.gift_earnings or 0) }}</strong></div>
-                        <div><span>Payouts</span><strong>N$ {{ "%.2f"|format(wallet_data.pending_withdrawal or 0) }}</strong></div>
-                        <div><span>Gifts</span><strong>{{ creator_data.gifts_received or 0 }}</strong></div>
-                    </div>
-                    <div class="wallet-btns">
-                        <a href="/wallet" class="btn-card primary">Send Funds</a>
-                        <a href="/wallet/withdraw" class="btn-card">Withdraw</a>
-                    </div>
-                </article>
-
-                <!-- Privacy & Safety -->
-                <article class="command-card privacy-card">
-                    <h3>Privacy & Safety</h3>
-                    <div class="privacy-info">
-                        <div><span>Visibility</span><strong>{{ privacy_state|replace('_', ' ')|title }}</strong></div>
-                        <div><span>Messages</span><strong>{{ (profile.who_can_message_me or profile.who_can_message or 'friends')|replace('_', ' ')|title }}</strong></div>
-                    </div>
-                    <div class="privacy-links">
-                        <a href="/security/privacy"><i class="fas fa-user-shield"></i>Privacy Settings</a>
-                        <a href="/security/blocked"><i class="fas fa-user-slash"></i>Blocked Users</a>
-                    </div>
-                </article>
-
-                <!-- Social Growth -->
-                <article class="command-card growth-card">
-                    <h3>Social Growth</h3>
-                    <div class="growth-stats">
-                        <div class="stat"><strong>{{ stats_data.followers or 0 }}</strong><span>Followers</span></div>
-                        <div class="stat"><strong>{{ stats_data.following or 0 }}</strong><span>Following</span></div>
-                        <div class="stat"><strong>{{ stats_data.friends or 0 }}</strong><span>Friends</span></div>
-                        <div class="stat"><strong>{{ stats_data.views or 0 }}</strong><span>Profile Views</span></div>
-                        <div class="stat"><strong>{{ stats_data.likes or 0 }}</strong><span>Likes</span></div>
-                        <div class="stat"><strong>{{ level_data.score or 0 }}</strong><span>NamVibe Score</span></div>
-                    </div>
-                    <div class="visitor-trend">
-                        <span>Visitors this week</span>
-                        <strong>{{ stats_data.visitors_this_week or 0 }}</strong>
-                    </div>
-                </article>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- 2. POSTS -->
-        <div id="posts-tab" class="tab-pane {{ 'is-active' if not own_profile }}">
-            {% if can_view_posts %}
-                <div class="content-grid">
-                    {% for post in posts %}
-                        <div class="post-card">
-                            {% if post.media_url %}
-                                <img src="{{ post.media_url }}" alt="Post" loading="lazy">
-                            {% else %}
-                                <div class="post-text-preview">{{ post.body|truncate(100) }}</div>
-                            {% endif %}
-                            <div class="post-overlay">
-                                <span><i class="fas fa-heart"></i> {{ post.likes_count or 0 }}</span>
-                                <span><i class="fas fa-comment"></i> {{ post.comments_count or 0 }}</span>
-                            </div>
-                        </div>
-                    {% else %}
-                        <div class="empty-state">
-                            <i class="fas fa-newspaper"></i>
-                            {% if own_profile %}
-                                <p>No posts yet</p>
-                                <a href="/posts/create" class="btn-cta">Create Post</a>
-                            {% else %}
-                                <p>No public posts yet</p>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="private-lock">
-                    <i class="fas fa-lock"></i>
-                    <p>This account keeps posts private.</p>
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- 3. REELS -->
-        <div id="reels-tab" class="tab-pane">
-            {% if can_view_reels %}
-                <div class="reels-grid">
-                    {% for reel in reels %}
-                        <div class="reel-card">
-                            <video src="{{ reel.video_url }}" preload="metadata"></video>
-                            <div class="reel-overlay">
-                                <span><i class="fas fa-play"></i> {{ reel.views_count or 0 }}</span>
-                            </div>
-                        </div>
-                    {% else %}
-                        <div class="empty-state">
-                            <i class="fas fa-film"></i>
-                            {% if own_profile %}
-                                <p>No reels yet</p>
-                                <a href="/reels/upload" class="btn-cta">Upload Reel</a>
-                            {% else %}
-                                <p>No public reels yet</p>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="private-lock"><i class="fas fa-lock"></i><p>This account keeps reels private.</p></div>
-            {% endif %}
-        </div>
-
-        <!-- 4. MEDIA -->
-        <div id="media-tab" class="tab-pane">
-            {% if can_view_media %}
-                <div class="content-grid">
-                    <!-- Mix of photos and videos from posts/reels -->
-                    {% for post in posts if post.media_url %}
-                        <div class="media-item"><img src="{{ post.media_url }}" loading="lazy"></div>
-                    {% endfor %}
-                    {% for reel in reels %}<div class="media-item"><video src="{{ reel.video_url }}"></video></div>{% endfor %}
-                    {% if not posts and not reels %}
-                    <div class="empty-state">
-                        <i class="fas fa-images"></i>
-                        <p>No media yet</p>
-                    </div>
-                    {% endif %}
-                </div>
-            {% else %}
-                <div class="private-lock"><i class="fas fa-lock"></i><p>This account keeps media private.</p></div>
-            {% endif %}
-        </div>
-
-        <!-- 5. LIVE -->
-        <div id="live-tab" class="tab-pane">
-            {% if can_view %}
-                <div class="live-grid">
-                    {% for room in rooms %}
-                        <div class="live-card">
-                            <div class="live-badge">LIVE</div>
-                            <h3>{{ room.title }}</h3>
-                        </div>
-                    {% else %}
-                        <div class="empty-state">
-                            <i class="fas fa-tower-broadcast"></i>
-                            {% if own_profile %}
-                                <p>No live rooms yet</p>
-                                <a href="/live/studio" class="btn-cta">Go Live</a>
-                            {% else %}
-                                <p>No active live sessions or public replays</p>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- 6. SHOP -->
-        <div id="shop-tab" class="tab-pane">
-            {% if can_view %}
-                <div class="shop-grid">
-                    {% for item in products %}
-                        <div class="product-card">
-                            <img src="{{ item.image_url }}" alt="{{ item.title }}">
-                            <h4>{{ item.title }}</h4>
-                            <strong>N$ {{ item.price }}</strong>
-                        </div>
-                    {% else %}
-                        <div class="empty-state">
-                            <i class="fas fa-bag-shopping"></i>
-                            {% if own_profile %}
-                                <p>No products yet</p>
-                                <a href="/marketplace/create" class="btn-cta">Add Product</a>
-                            {% else %}
-                                <p>No products yet</p>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- 7. SAVED (Owner Only) -->
-        {% if own_profile %}
-        <div id="saved-tab" class="tab-pane">
-            <div class="empty-state">
-                <i class="fas fa-bookmark"></i>
-                <p>No saved items yet</p>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- 8. LIKED (Owner Only) -->
-        {% if own_profile %}
-        <div id="liked-tab" class="tab-pane">
-            <div class="empty-state">
-                <i class="fas fa-heart"></i>
-                <p>No liked content yet</p>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- 9. ABOUT -->
-        <div id="about-tab" class="tab-pane">
-            {% if can_view or (profile.profile_visibility or 'public') == 'public' %}
-            <div class="about-grid">
-                <article class="about-card">
-                    <h3>About {{ display_name }}</h3>
-                    <p class="bio">{{ profile.bio or 'No bio added.' }}</p>
-                    <div class="about-meta">
-                        {% if profile.location %}<div><i class="fas fa-location-dot"></i> {{ profile.location }}</div>{% endif %}
-                        {% if profile.website %}<div><i class="fas fa-link"></i> <a href="{{ profile.website }}" target="_blank">{{ profile.website }}</a></div>{% endif %}
-                        {% if profile.skills %}
-                        <div><i class="fas fa-sparkles"></i> {{ profile.skills|join(', ') }}</div>
-                        {% endif %}
-                        {% if profile.languages %}
-                        <div><i class="fas fa-language"></i> {{ profile.languages|join(', ') }}</div>
-                        {% endif %}
-                        {% if own_profile or profile.show_relationship_status %}
-                        <div><i class="fas fa-heart"></i> {{ profile.relationship_status or 'Relationship status not shared' }}</div>
-                        {% endif %}
-                        <div><i class="fas fa-calendar-days"></i> Joined {{ member_since }}</div>
-                        <div><i class="fas fa-user-tag"></i> {{ (pa.account_kind or profile.account_kind or 'Member')|title }}</div>
-                        <div><i class="fas fa-shield-halved"></i> {{ 'Verified' if profile.is_verified or profile.verified else 'Not verified yet' }}</div>
-                        <div><i class="fas fa-lock"></i> {{ privacy_state|replace('_', ' ')|title }}</div>
-                    </div>
-                </article>
-
-                {% if not own_profile %}
-                <article class="about-card social-preview-card">
-                    <h3>Social Preview</h3>
-                    {% if pa.can_view_followers or pa.can_view_friends %}
-                    <div class="growth-stats">
-                        {% if pa.can_view_followers %}<div class="stat"><strong>{{ stats_data.followers or profile.followers_count or 0 }}</strong><span>Followers</span></div>{% endif %}
-                        {% if pa.can_view_following %}<div class="stat"><strong>{{ stats_data.following or profile.following_count or 0 }}</strong><span>Following</span></div>{% endif %}
-                        {% if pa.can_view_friends %}<div class="stat"><strong>{{ stats_data.friends or profile.friends_count or 0 }}</strong><span>Friends</span></div>{% endif %}
-                    </div>
-                    {% else %}
-                    <div class="empty-state compact"><i class="fas fa-user-lock"></i><p>Social previews are private.</p></div>
-                    {% endif %}
-                </article>
-                {% endif %}
-                
-                {% if own_profile %}
-                <article class="about-card edit-cta">
-                    <p>Want to update your info?</p>
-                    <a href="/profile/edit" class="btn-card">Edit Profile</a>
-                </article>
-                {% endif %}
-            </div>
-            {% else %}
-                <div class="private-lock">
-                    <i class="fas fa-lock"></i>
-                    <p>Follow to see full about section.</p>
-                </div>
-            {% endif %}
-        </div>
+    {% if pv.has_shop %}
+    <div class="nv-tab-panel" id="shop-panel" data-tab-panel="shop">
+      <div class="nv-card-grid">
+        {% for item in products %}
+        <article class="nv-card">{% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.title }}" loading="lazy">{% endif %}<strong>{{ item.title }}</strong><span>N$ {{ item.price or 0 }}</span></article>
+        {% endfor %}
+      </div>
     </div>
+    {% endif %}
+  </section>
 </main>
-
-{% if own_profile %}
-<div class="mobile-create-fab">
-    <button type="button" class="fab-main" data-create-dropdown-trigger><i class="fas fa-plus"></i></button>
-</div>
-{% endif %}
-
 {% endblock %}

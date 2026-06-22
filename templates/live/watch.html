@@ -474,14 +474,31 @@ button { font-family: inherit; }
     <!-- Stage -->
     <section class="stage-wrap">
       <div class="stage">
-        {% if room.youtube_embed_url %}
+        {% if livekit_configured %}
+        <div id="livekit-stage" style="width:100%;height:100vh;position:relative;background:#000;">
+          <video id="livekit-video" autoplay playsinline style="width:100%;height:100%;object-fit:contain;display:none;"></video>
+          <div id="livekit-fallback" class="stage-fallback" style="display:flex;">
+            <div>
+              <div class="chain-disc">NamVibe</div>
+              <h1>{{ room.title }}</h1>
+              <p>Click "Join Stream" to connect to the live video.</p>
+            </div>
+          </div>
+        </div>
+        {% elif room.youtube_embed_url %}
         <iframe src="{{ room.youtube_embed_url }}?autoplay=1&mute=0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         {% else %}
         <div class="stage-fallback">
           <div>
             <div class="chain-disc">NamVibe</div>
             <h1>{{ room.title }}</h1>
-            <p>{{ room.welcome_message or "This live room is connected and ready. Add a YouTube source or MP3 layer from the studio when you want media playback." }}</p>
+            <p>{{ room.welcome_message or "This live room is connected and ready. Chat and gifts are live." }}</p>
+            {% if not livekit_configured %}
+            <p style="margin-top:20px;padding:16px;border-radius:14px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);color:#fbbf24;">
+              <i class="fas fa-info-circle"></i>
+              Video streaming not configured yet. Set LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET to enable live video.
+            </p>
+            {% endif %}
           </div>
         </div>
         {% endif %}
@@ -502,6 +519,12 @@ button { font-family: inherit; }
       </div>
 
       <div class="actions">
+        {% if livekit_configured %}
+        <button class="action-btn" id="livekit-join-btn" title="Join Stream" onclick="joinLiveKitStream()"><i class="fas fa-video"></i></button>
+        <button class="action-btn" id="livekit-cam-btn" title="Toggle Camera" onclick="toggleLiveKitCamera()" style="display:none;"><i class="fas fa-camera"></i></button>
+        <button class="action-btn" id="livekit-mic-btn" title="Toggle Mic" onclick="toggleLiveKitMic()" style="display:none;"><i class="fas fa-microphone"></i></button>
+        <button class="action-btn" id="livekit-leave-btn" title="Leave Stream" onclick="leaveLiveKitStream()" style="display:none;"><i class="fas fa-phone-slash" style="color:#ef4444;"></i></button>
+        {% endif %}
         <button class="action-btn" title="Refresh activity" onclick="fetchActivity()"><i class="fas fa-rotate"></i></button>
         <button class="action-btn" title="Like" onclick="sendReaction('heart')"><i class="fas fa-heart" style="color:#2563eb;"></i></button>
         <button class="action-btn" title="Request co-host" onclick="requestCohost()"><i class="fas fa-user-plus"></i></button>
@@ -668,9 +691,80 @@ button { font-family: inherit; }
     </aside>
   </div>
 
+  {% if livekit_configured %}
+  <script src="https://cdn.jsdelivr.net/npm/@livekit/components-standalone@1.1.0/dist/web/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.0.3/dist/livekit-client.umd.min.js"></script>
+  {% endif %}
+
   <script>
     const roomId = "{{ room.id }}";
     const hasProfile = {{ "true" if g_current else "false" }};
+    const livekitConfigured = {{ "true" if livekit_configured else "false" }};
+    const livekitUrl = "{{ livekit_url or '' }}";
+
+    {% if livekit_configured %}
+    // ─── LiveKit Integration ───
+    let livekitRoom = null;
+
+    async function joinLiveKitStream() {
+      const tokenUrl = hasProfile ? `/live/api/rooms/${roomId}/join-token` : null;
+      if (!tokenUrl) {
+        alert('Please log in to join the stream.');
+        return;
+      }
+      try {
+        const resp = await fetch(tokenUrl);
+        if (!resp.ok) { alert('Failed to get stream token'); return; }
+        const data = await resp.json();
+        if (!data.livekit_token) { alert('Streaming not available'); return; }
+
+        livekitRoom = new LivekitRoom(livekitUrl, { token: data.livekit_token });
+        await livekitRoom.connect();
+
+        const videoEl = document.getElementById('livekit-video');
+        const fallbackEl = document.getElementById('livekit-fallback');
+        if (videoEl) { videoEl.style.display = 'block'; }
+        if (fallbackEl) { fallbackEl.style.display = 'none'; }
+
+        document.getElementById('livekit-join-btn').style.display = 'none';
+        document.getElementById('livekit-cam-btn').style.display = '';
+        document.getElementById('livekit-mic-btn').style.display = '';
+        document.getElementById('livekit-leave-btn').style.display = '';
+
+        console.log('[LiveKit] Connected to stream');
+      } catch (e) {
+        console.error('[LiveKit] Connection failed:', e);
+        alert('Could not connect to the live stream.');
+      }
+    }
+
+    function toggleLiveKitCamera() {
+      if (livekitRoom) {
+        livekitRoom.toggleCamera();
+      }
+    }
+
+    function toggleLiveKitMic() {
+      if (livekitRoom) {
+        livekitRoom.toggleMic();
+      }
+    }
+
+    function leaveLiveKitStream() {
+      if (livekitRoom) {
+        livekitRoom.disconnect();
+        livekitRoom = null;
+      }
+      const videoEl = document.getElementById('livekit-video');
+      const fallbackEl = document.getElementById('livekit-fallback');
+      if (videoEl) { videoEl.style.display = 'none'; }
+      if (fallbackEl) { fallbackEl.style.display = 'flex'; }
+      document.getElementById('livekit-join-btn').style.display = '';
+      document.getElementById('livekit-cam-btn').style.display = 'none';
+      document.getElementById('livekit-mic-btn').style.display = 'none';
+      document.getElementById('livekit-leave-btn').style.display = 'none';
+    }
+    {% endif %}
 
     // ─── Render Lists ───
     function renderList(targetId, items, emptyHtml) {

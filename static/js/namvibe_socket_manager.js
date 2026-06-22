@@ -46,12 +46,13 @@
           showBanner();
         })
         .catch(showBanner);
-    }, 2500);
+    }, 5000);
   }
 
   function showBanner() {
     var b = getBanner();
     if (!b) return;
+    b.textContent = 'Connection lost. Trying to reconnect...';
     b.classList.add('show');
     b.setAttribute('aria-hidden', 'false');
   }
@@ -62,24 +63,13 @@
     if (b) {
       b.classList.remove('show');
       b.setAttribute('aria-hidden', 'true');
+      b.textContent = '';
     }
   }
 
   function getBanner() {
     if (reconnectBanner) return reconnectBanner;
     reconnectBanner = document.querySelector('[data-reconnect-banner]');
-    if (reconnectBanner && !reconnectBanner.querySelector('[data-reconnect-close]')) {
-      var close = document.createElement('button');
-      close.type = 'button';
-      close.setAttribute('data-reconnect-close', '1');
-      close.setAttribute('aria-label', 'Hide reconnecting banner');
-      close.textContent = 'Close';
-      close.addEventListener('click', function () {
-        closedByUser = true;
-        hideBanner();
-      });
-      reconnectBanner.appendChild(close);
-    }
     return reconnectBanner;
   }
 

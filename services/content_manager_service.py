@@ -5,19 +5,20 @@ Handles tabs (Newest, Oldest, Drafts, Scheduled, Archived, Pinned) and visibilit
 from services.neon_service import fast_query, write_query
 from services.logging_service import log_info, log_error
 
-from services.request_cache import request_memoize
+CONTENT_COLUMNS = {
+    "posts": [
+        "id", "profile_id", "body", "media_url", "visibility", "status",
+        "is_archived", "is_pinned", "scheduled_at", "created_at", "updated_at",
+    ],
+    "reels": [
+        "id", "profile_id", "caption", "video_url", "thumbnail_url", "visibility",
+        "status", "is_archived", "is_pinned", "created_at", "updated_at",
+    ],
+}
 
 def _ensure_content_columns():
-    """Detects available columns in content tables to prevent runtime errors."""
-    def _fetch():
-        try:
-            post_cols = [r['column_name'] for r in fast_query("SELECT column_name FROM information_schema.columns WHERE table_name = 'chain_posts'", timeout_ms=2000, default=[])]
-            reel_cols = [r['column_name'] for r in fast_query("SELECT column_name FROM information_schema.columns WHERE table_name = 'chain_reels'", timeout_ms=2000, default=[])]
-            return {"posts": post_cols, "reels": reel_cols}
-        except Exception:
-            return {"posts": [], "reels": []}
-    
-    return request_memoize("content_schema_check", _fetch)
+    """Return the production content columns without schema reads in request paths."""
+    return CONTENT_COLUMNS
 
 def get_managed_posts(profile_id, tab='newest', limit=20, cursor=None):
     """Lists posts for management with tab-based filtering and cursor pagination."""

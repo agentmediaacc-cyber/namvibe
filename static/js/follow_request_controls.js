@@ -18,9 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
-            const response = await fetch(`/social/follow/${profileId}`, { 
+            const currentState = followBtn.dataset.socialState || followBtn.dataset.following;
+            const endpoint = currentState === 'following' || currentState === 'true'
+                ? `/api/social/unfollow/${profileId}`
+                : `/api/social/follow/${profileId}`;
+            const response = await fetch(endpoint, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken }
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                credentials: 'same-origin'
             });
             
             if (response.redirected) {
@@ -28,24 +33,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const data = await response.json();
-            if (data.status === 'ok') {
-                if (data.follow_status === 'following') {
+            const data = await response.json().catch(() => ({ ok: false, message: 'Invalid server response.' }));
+            if (response.ok && (data.ok || data.status === 'ok')) {
+                const state = data.state || data.follow_status;
+                if (state === 'following') {
                     followBtn.innerHTML = '<i class="fas fa-user-check"></i><span>Following</span>';
                     followBtn.classList.add('is-active');
                     followBtn.dataset.following = 'true';
-                } else if (data.follow_status === 'request_pending') {
+                    followBtn.dataset.socialState = 'following';
+                } else if (state === 'requested' || state === 'request_pending') {
                     followBtn.innerHTML = '<i class="fas fa-clock"></i><span>Requested</span>';
                     followBtn.disabled = true;
                     followBtn.style.opacity = '0.7';
-                } else if (data.follow_status === 'none') {
+                    followBtn.dataset.socialState = 'requested';
+                } else if (state === 'none') {
                     followBtn.innerHTML = '<i class="fas fa-user-plus"></i><span>Follow</span>';
                     followBtn.classList.remove('is-active');
                     followBtn.dataset.following = 'false';
+                    followBtn.dataset.socialState = 'none';
                     followBtn.disabled = false;
                 }
             } else {
-                console.error('Follow action failed:', data.error);
+                console.error('Follow action failed:', data.message || data.error);
                 followBtn.innerHTML = originalText;
                 followBtn.disabled = false;
             }

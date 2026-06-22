@@ -1,5 +1,7 @@
 import json
 import os
+import re
+import ssl
 import time
 from datetime import datetime, timezone
 
@@ -13,7 +15,22 @@ from services.logging_service import log_warning
 load_project_env()
 _DEFAULT_LOCAL_REDIS_URL = "redis://localhost:6379/0"
 _ENV = get_env("FLASK_ENV", "development")
-_REDIS_URL = (get_env("REDIS_URL") or (_DEFAULT_LOCAL_REDIS_URL if _ENV != "production" else "")).strip()
+_REDIS_URL_RAW = (get_env("REDIS_URL") or (_DEFAULT_LOCAL_REDIS_URL if _ENV != "production" else "")).strip()
+_REDIS_URL = _REDIS_URL_RAW
+
+_REDIS_URL_MASKED = re.sub(r'(redis{s,}?://[^:]+:)[^@]+(@)', r'\1****\2', _REDIS_URL) if _REDIS_URL else ""
+
+def mask_redis_url(url):
+    return re.sub(r'(redis[s]?://[^:]+:)[^@]+(@)', r'\1****\2', url) if url else ""
+
+_SSL_CERT_REQS_MAP = {
+    "none": ssl.CERT_NONE,
+    "optional": ssl.CERT_OPTIONAL,
+    "required": ssl.CERT_REQUIRED,
+}
+_RAW_SSL_REQS = (get_env("REDIS_SSL_CERT_REQS") or "").strip().lower()
+_REDIS_SSL_CERT_REQS = _SSL_CERT_REQS_MAP.get(_RAW_SSL_REQS)
+
 _LOG_THROTTLE = {}
 _MEMORY_FALLBACK = {}
 _SET_FALLBACK = {}
@@ -88,7 +105,10 @@ class RedisManager:
         if not self.breaker.allow():
             return None
         try:
-            self.client = redis.from_url(self.url, decode_responses=True, socket_timeout=2, socket_connect_timeout=2)
+            kwargs = dict(decode_responses=True, socket_timeout=10, socket_connect_timeout=10, retry_on_timeout=True, health_check_interval=15)
+            if _REDIS_SSL_CERT_REQS is not None:
+                kwargs["ssl_cert_reqs"] = _REDIS_SSL_CERT_REQS
+            self.client = redis.from_url(self.url, **kwargs)
             self.client.ping()
             self._remember_success()
             return self.client
@@ -301,6 +321,13 @@ class RedisManager:
                 self.client = None
                 self._remember_failure(exc)
                 error = self.last_error
+        scheme = ""
+        ssl_reqs_label = None
+        if self.url:
+            scheme = mask_redis_url(self.url).split("://", 1)[0] + "://[masked]"
+        if _REDIS_SSL_CERT_REQS is not None:
+            ssl_reqs_label = _RAW_SSL_REQS if _RAW_SSL_REQS else "none"
+
         payload = {
             "status": "ok" if connected else "degraded",
             "connected": connected,
@@ -310,6 +337,8 @@ class RedisManager:
             "last_connected_at": self.last_connected_at,
             "last_failure_at": self.last_failure_at,
             "circuit_state": self.breaker.get_state(),
+            "redis_url_scheme": scheme,
+            "ssl_cert_reqs": ssl_reqs_label,
         }
         self.health_cache["payload"] = dict(payload)
         self.health_cache["expires_at"] = now + 30

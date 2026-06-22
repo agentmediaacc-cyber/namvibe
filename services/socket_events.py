@@ -178,6 +178,11 @@ def handle_join_profile(data):
     return {"joined": True, "room": room_name}
 
 
+@socketio.on("join:user")
+def handle_join_user(data):
+    return handle_join_profile(data)
+
+
 @socketio.on("disconnect")
 def handle_disconnect(*args):
     profile_id = _get_profile_id()
@@ -241,6 +246,24 @@ def handle_join_thread(data):
         emit("thread:joined", {"thread_id": thread_id, "room": room_name})
         return {"thread_id": thread_id, "room": room_name, "joined": True}
     return {"joined": False}
+
+
+@socketio.on("join:thread")
+def handle_join_thread_alias(data):
+    return handle_join_thread(data)
+
+
+@socketio.on("leave:thread")
+def handle_leave_thread_alias(data):
+    thread_id = (data or {}).get("thread_id")
+    profile_id = _get_profile_id()
+    if not thread_id:
+        return {"left": False}
+    room_name = thread_room(thread_id)
+    leave_room(room_name)
+    if profile_id:
+        _track_left_room(profile_id, room_name)
+    return {"left": True, "thread_id": thread_id}
 
 
 @socketio.on("leave_thread")
@@ -364,7 +387,13 @@ def handle_typing_stop(data):
 @socketio.on("message:send")
 @socketio.on("send_message")
 def handle_message_send(data):
+    from services.observability_service import log_phase96a
+
     profile_id = _get_profile_id()
+    payload = data or {}
+    thread_id = payload.get("thread_id")
+    # PHASE96A LOG: MESSAGE_RECEIVED
+    log_phase96a("MESSAGE_RECEIVED", thread_id=thread_id, sender_id=profile_id, message_id=payload.get("client_event_id") or payload.get("client_message_id"))
     if _socket_rate_limit(f"msg_send:{profile_id}", 30):
         return {"success": False, "error": "rate_limited"}
     payload = data or {}
@@ -414,7 +443,12 @@ def handle_message_send(data):
         contact=payload.get("contact"),
         parent_message_id=payload.get("parent_message_id")
     )
+    # PHASE96A LOG: MESSAGE_SAVED
+    if result and result.get("message_id"):
+        log_phase96a("MESSAGE_SAVED", thread_id=thread_id, sender_id=profile_id, message_id=result.get("message_id"))
     if result and not result.get("error"):
+        # PHASE96A LOG: MESSAGE_EMITTED
+        log_phase96a("MESSAGE_EMITTED", thread_id=thread_id, sender_id=profile_id, message_id=result.get("message_id"), receiver_id=None) # receiver_id may be filled if needed
         emit("message:ack", result)
         sender_profile = get_current_profile()
         sender_name = (sender_profile or {}).get("display_name") or (sender_profile or {}).get("username") or "Someone"
@@ -443,10 +477,14 @@ def handle_message_send(data):
 @socketio.on("message:delivered")
 @socketio.on("delivered")
 def handle_message_delivered(data):
+    from services.observability_service import log_phase96a
+
     profile_id = _get_profile_id()
     message_id = (data or {}).get("message_id")
     thread_id = (data or {}).get("thread_id")
     if profile_id and message_id:
+        # PHASE96A LOG: MESSAGE_DELIVERED
+        log_phase96a("MESSAGE_DELIVERED", thread_id=thread_id, message_id=message_id, sender_id=None, receiver_id=profile_id)
         ack_payload = acknowledge_delivery(message_id, profile_id)
         if thread_id:
             emit_to_thread(thread_id, "message:delivered", ack_payload)
@@ -458,9 +496,13 @@ def handle_message_delivered(data):
 @socketio.on("message_seen")
 @socketio.on("seen")
 def handle_message_seen(data):
+    from services.observability_service import log_phase96a
+
     profile_id = _get_profile_id()
     thread_id = (data or {}).get("thread_id")
     if profile_id and thread_id:
+        # PHASE96A LOG: MESSAGE_SEEN
+        log_phase96a("MESSAGE_SEEN", thread_id=thread_id, message_id=(data or {}).get("message_id"), sender_id=None, receiver_id=profile_id)
         mark_thread_seen(thread_id, profile_id)
         mds_mark_thread_seen(thread_id, profile_id)
         profile = get_current_profile() or {}
@@ -1219,6 +1261,69 @@ def handle_webrtc_call_speaker(data):
         if target_id:
             emit_to_profile(target_id, "call:speaker_state", {"call_id": call_id, "profile_id": profile_id, "enabled": enabled})
     return {"ok": True}
+
+
+# =========== PHASE 92: Call Lifecycle Event Aliases ===========
+
+@socketio.on("call:mute-state")
+def handle_phase92_call_mute_state(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"ok": False}
+    call_id = (data or {}).get("call_id")
+    muted = bool((data or {}).get("muted", True))
+    if call_id:
+        w_update_participant_state(call_id, profile_id, muted=muted)
+        w_add_call_event(call_id, profile_id, "mute", {"muted": muted})
+        other = _get_other_participant_in_call(call_id, profile_id)
+        if other:
+            emit_to_profile(other, "call:mute-state", {"call_id": call_id, "profile_id": profile_id, "muted": muted})
+    return {"ok": True}
+
+
+@socketio.on("call:camera-state")
+def handle_phase92_call_camera_state(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"ok": False}
+    call_id = (data or {}).get("call_id")
+    enabled = bool((data or {}).get("camera_enabled", True))
+    if call_id:
+        w_update_participant_state(call_id, profile_id, camera_enabled=enabled)
+        w_add_call_event(call_id, profile_id, "camera_toggle", {"enabled": enabled})
+        other = _get_other_participant_in_call(call_id, profile_id)
+        if other:
+            emit_to_profile(other, "call:camera-state", {"call_id": call_id, "profile_id": profile_id, "camera_enabled": enabled})
+    return {"ok": True}
+
+
+@socketio.on("call:switch-camera")
+def handle_phase92_call_switch_camera(data):
+    profile_id = _get_profile_id()
+    if not profile_id:
+        return {"ok": False}
+    call_id = (data or {}).get("call_id")
+    facing_mode = (data or {}).get("facingMode", "environment")
+    if call_id:
+        other = _get_other_participant_in_call(call_id, profile_id)
+        if other:
+            emit_to_profile(other, "call:camera-state", {"call_id": call_id, "profile_id": profile_id, "camera_enabled": True, "facing_mode": facing_mode})
+        w_add_call_event(call_id, profile_id, "switch_camera", {"facing_mode": facing_mode})
+    return {"ok": True}
+
+
+def _get_other_participant_in_call(call_id, profile_id):
+    from services.webrtc_call_service import get_call as _w_get_call
+    call = _w_get_call(call_id)
+    if not call:
+        return None
+    caller = call.get("caller_profile_id")
+    receiver = call.get("receiver_profile_id")
+    if caller and str(caller) != str(profile_id):
+        return caller
+    if receiver and str(receiver) != str(profile_id):
+        return receiver
+    return None
 
 
 # =========== PHASE 41: Mobile Call Reliability Events ===========

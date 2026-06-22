@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, flash, redirect, render_template, request, url_for, jsonify, session
 from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile, get_profile_by_id, get_lightweight_profile
@@ -32,6 +33,7 @@ from services.webrtc_call_service import (
 )
 from services.webrtc_turn_service import get_webrtc_ice_config
 from services.friendship_service import require_friendship_or_403
+from services.call_history_service import get_call_history as chs_get_history, delete_call_log as chs_delete_log
 
 call_bp = Blueprint("calls_v2", __name__, url_prefix="/calls")
 
@@ -108,7 +110,23 @@ def call_view(call_id):
     
     call = call_rows[0]
     role = 'caller' if call['caller_profile_id'] == profile['id'] else 'receiver'
-    return render_template("calls/video.html", call=call, profile=profile, role=role)
+
+    # For ringing/active calls, show the WebRTC video page
+    if call['call_status'] in ('ringing', 'answered', 'connecting', 'connected'):
+        return render_template("calls/video.html", call=call, profile=profile, role=role)
+
+    # For missed/ended/rejected calls, show the fallback notification page with Accept/Reject/Call Back
+    caller_id = call.get('caller_profile_id')
+    receiver_id = call.get('receiver_profile_id')
+    target_id = receiver_id if role == 'caller' else caller_id
+    target_rows = safe_select("chain_profiles", filters={"id": target_id}, limit=1)
+    target_name = 'Unknown'
+    target_avatar = ''
+    if target_rows:
+        target_name = target_rows[0].get('full_name') or target_rows[0].get('display_name') or target_rows[0].get('username') or 'User'
+        target_avatar = target_rows[0].get('avatar_url') or ''
+    return render_template("calls/notification_fallback.html", call=call, profile=profile, role=role,
+                           target_id=target_id, target_name=target_name, target_avatar=target_avatar)
 
 @call_bp.route("/<call_id>/end", methods=["POST"])
 @login_required
@@ -769,3 +787,39 @@ def group_call_view(call_id):
     participants = get_participants_with_profiles(call_id)
     role = "host" if call["host_profile_id"] == profile["id"] else "participant"
     return render_template("calls/group_call.html", call=call, profile=profile, role=role, participants=participants)
+
+
+# =========== PHASE 92: Call History Page & Log Management ===========
+
+@call_bp.route("/history")
+@login_required
+def phase92_call_history():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return redirect("/auth/login")
+    calls = chs_get_history(profile["id"], limit=100)
+    return render_template("calls/history.html", calls=calls, profile=profile)
+
+
+@call_bp.route("/api/logs/<log_id>", methods=["DELETE"])
+@login_required
+def phase92_delete_call_log(log_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    result = chs_delete_log(log_id, profile["id"])
+    if result.get("ok"):
+        return jsonify({"ok": True}), 200
+    return jsonify({"ok": False, "error": result.get("error", "delete_failed")}), 404
+
+
+@call_bp.route("/api/webrtc-config")
+def phase92_webrtc_config():
+    config = get_webrtc_ice_config()
+    return jsonify({
+        "iceServers": config.get("iceServers", []),
+        "stun_url": os.environ.get("STUN_SERVER_URL", "stun:stun.l.google.com:19302"),
+        "turn_url": os.environ.get("TURN_SERVER_URL", ""),
+        "turn_configured": bool(os.environ.get("TURN_SERVER_URL", "")),
+        "ring_timeout": int(os.environ.get("CALL_RING_TIMEOUT_SECONDS", "15")),
+    })

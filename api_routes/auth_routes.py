@@ -356,99 +356,108 @@ def register():
 )
 def register_post():
     error = None
-    password = request.form.get("password") or ""
-    confirm_password = request.form.get("confirm_password") or ""
-    raw_email = request.form.get("email")
-    email = clean_email(raw_email)
-    username = (request.form.get("username") or request.form.get("display_name") or request.form.get("full_name") or "").strip()
-    full_name = (request.form.get("full_name") or request.form.get("display_name") or request.form.get("name") or username or "").strip()
-    phone = (request.form.get("phone") or "").strip()
-    country_origin = (request.form.get("country_origin") or "").strip()
-    date_of_birth = (request.form.get("date_of_birth") or "").strip()
-    gender = (request.form.get("gender") or "").strip()
-    csrf_valid = bool(request.environ.get("namvibe_csrf_valid", True))
-    log_warning(
-        "auth_register_apk_route_input",
-        user_agent=request.headers.get("User-Agent", ""),
-        host=request.host,
-        form_email_received=str(raw_email or "").strip(),
-        normalized_email=email,
-        csrf_valid=csrf_valid,
-        auth_provider_used="pending",
-    )
-    if not (username or "").strip():
-        return _no_cache_headers(render_template("auth/register.html", error="Enter a name or username.", form=request.form))
-    if not _email_valid(email):
-        return _no_cache_headers(render_template("auth/register.html", error="Enter a valid email address.", form=request.form))
-    if not password:
-        return _no_cache_headers(render_template("auth/register.html", error="Password is required.", form=request.form))
-    if len(password) < 8:
-        return _no_cache_headers(render_template("auth/register.html", error="Password must be at least 8 characters.", form=request.form))
-    if password != confirm_password:
-        error = "Passwords do not match."
-        return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
-    if not request.form.get("terms"):
-        return _no_cache_headers(render_template("auth/register.html", error="You must accept the terms before creating your account.", form=request.form))
-
-    result = register_chain_user(
-        email,
-        password,
-        username,
-        full_name,
-        extra={
-            "phone": phone,
-            "phone_code": (request.form.get("phone_code") or "").strip(),
-            "gender": gender,
-            "date_of_birth": date_of_birth,
-            "country_origin": country_origin,
-            "current_country": country_origin,
-            "country": country_origin,
-            "profile_type": request.form.get("profile_type") or "member",
-            "signup_method": "email",
-            "terms_accepted": True,
-            "profile_completed": False,
-            "csrf_valid": csrf_valid,
-        },
-    )
-    log_warning(
-        "auth_register_apk_route_result",
-        user_agent=request.headers.get("User-Agent", ""),
-        host=request.host,
-        form_email_received=str(raw_email or "").strip(),
-        normalized_email=email,
-        csrf_valid=csrf_valid,
-        auth_provider_used=result.get("auth_provider") or ("local_fallback" if result.get("dev_fallback") else "supabase"),
-        ok=bool(result.get("ok")),
-        error=result.get("error"),
-    )
-    if result.get("ok"):
-        _apply_registration_session(result)
-        redirect_to = "/profile/"
-        _log_registration_route_state(result, redirect_to=redirect_to)
-        flash("Account created. Complete your profile when you are ready.", "success")
-        response = redirect(redirect_to)
-        current_app.session_interface.save_session(current_app, session, response)
+    try:
+        password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
+        raw_email = request.form.get("email")
+        email = clean_email(raw_email)
+        username = (request.form.get("username") or request.form.get("display_name") or request.form.get("full_name") or "").strip()
+        full_name = (request.form.get("full_name") or request.form.get("display_name") or request.form.get("name") or username or "").strip()
+        phone = (request.form.get("phone") or "").strip()
+        country_origin = (request.form.get("country_origin") or "").strip()
+        date_of_birth = (request.form.get("date_of_birth") or "").strip()
+        gender = (request.form.get("gender") or "").strip()
+        csrf_valid = bool(request.environ.get("namvibe_csrf_valid", True))
         log_warning(
-            "auth_register_session_redirect",
-            route=request.path,
+            "auth_register_apk_route_input",
             user_agent=request.headers.get("User-Agent", ""),
-            result_ok=True,
-            redirect_to=redirect_to,
-            session_keys_present=_registration_session_keys_present(),
-            set_cookie_exists=bool(response.headers.get("Set-Cookie")),
-            profile_id_in_session=bool(session.get("profile_id")),
+            host=request.host,
+            form_email_received=str(raw_email or "").strip(),
+            normalized_email=email,
+            csrf_valid=csrf_valid,
+            auth_provider_used="pending",
         )
-        return response
+        if not (username or "").strip():
+            return _no_cache_headers(render_template("auth/register.html", error="Enter a name or username.", form=request.form))
+        if not _email_valid(email):
+            return _no_cache_headers(render_template("auth/register.html", error="Enter a valid email address.", form=request.form))
+        if not password:
+            return _no_cache_headers(render_template("auth/register.html", error="Password is required.", form=request.form))
+        if len(password) < 8:
+            return _no_cache_headers(render_template("auth/register.html", error="Password must be at least 8 characters.", form=request.form))
+        if password != confirm_password:
+            error = "Passwords do not match."
+            return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
+        if not request.form.get("terms"):
+            return _no_cache_headers(render_template("auth/register.html", error="You must accept the terms before creating your account.", form=request.form))
 
-    if result.get("error") == "EMAIL_EXISTS":
-        error = {
-            "message": "This email already has a NamVibe account.",
-            "email": request.form.get("email"),
-            "exists": True
-        }
-    else:
-        error = result.get("error") or "Registration failed. Please try again."
-    return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
+        result = register_chain_user(
+            email,
+            password,
+            username,
+            full_name,
+            extra={
+                "phone": phone,
+                "phone_code": (request.form.get("phone_code") or "").strip(),
+                "gender": gender,
+                "date_of_birth": date_of_birth,
+                "country_origin": country_origin,
+                "current_country": country_origin,
+                "country": country_origin,
+                "profile_type": request.form.get("profile_type") or "member",
+                "signup_method": "email",
+                "terms_accepted": True,
+                "profile_completed": False,
+                "csrf_valid": csrf_valid,
+            },
+        )
+        log_warning(
+            "auth_register_apk_route_result",
+            user_agent=request.headers.get("User-Agent", ""),
+            host=request.host,
+            form_email_received=str(raw_email or "").strip(),
+            normalized_email=email,
+            csrf_valid=csrf_valid,
+            auth_provider_used=result.get("auth_provider") or ("local_fallback" if result.get("dev_fallback") else "supabase"),
+            ok=bool(result.get("ok")),
+            error=result.get("error"),
+        )
+        if result.get("ok"):
+            _apply_registration_session(result)
+            redirect_to = "/profile/"
+            _log_registration_route_state(result, redirect_to=redirect_to)
+            if result.get("dev_fallback"):
+                flash("Account created. Email verification skipped for local testing.", "success")
+            else:
+                flash("Account created. Complete your profile when you are ready.", "success")
+            response = redirect(redirect_to)
+            current_app.session_interface.save_session(current_app, session, response)
+            log_warning(
+                "auth_register_session_redirect",
+                route=request.path,
+                user_agent=request.headers.get("User-Agent", ""),
+                result_ok=True,
+                redirect_to=redirect_to,
+                session_keys_present=_registration_session_keys_present(),
+                set_cookie_exists=bool(response.headers.get("Set-Cookie")),
+                profile_id_in_session=bool(session.get("profile_id")),
+            )
+            return response
+
+        if result.get("error") == "EMAIL_EXISTS":
+            error = {
+                "message": "This email already has a NamVibe account.",
+                "email": request.form.get("email"),
+                "exists": True
+            }
+        else:
+            error = result.get("error") or "Registration failed. Please try again."
+        return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
+    except Exception as _route_err:
+        log_warning("auth_register_route_unexpected_error", error=str(_route_err)[:240])
+        return _no_cache_headers(
+            render_template("auth/register.html", error="Registration is temporarily unavailable. Please try again later.", form=request.form)
+        )
 
 
 @auth_bp.get("/api/prewarm-register")

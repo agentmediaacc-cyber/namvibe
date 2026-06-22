@@ -44,3 +44,14 @@ logs
 .DS_Store
 *.swp
 *.swo
+test_*.py
+test_env.py
+test_login.py
+test_supabase.py
+scripts/audit_phase*.py
+scripts/check_phase*.py
+scripts/apply_phase*.py
+scripts/security_audit.py
+scripts/migrate_neon.py
+scripts/test_neon_connection.py
+backups/

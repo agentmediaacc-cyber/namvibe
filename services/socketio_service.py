@@ -15,7 +15,7 @@ import time
 import random
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from services.circuit_breaker import CircuitBreaker
-from services.redis_service import _REDIS_URL, redis_available, get_redis, log_redis_warning
+from services.redis_service import _REDIS_URL, _REDIS_URL_MASKED, redis_available, get_redis, log_redis_warning
 
 logger = logging.getLogger(__name__)
 
@@ -52,16 +52,17 @@ def init_socketio(app):
     """Initializes Socket.IO with Redis and optimized settings."""
     mgr = None
     redis_url = os.environ.get("REDIS_URL") or os.environ.get("REDIS_TLS_URL") or _REDIS_URL
+    use_redis_mgr = os.environ.get("CHAIN_SOCKETIO_REDIS_MANAGER", "1") == "1"
     
-    # Disable queue during testing as SocketIOTestClient doesn't support it
-    if not app.config.get("TESTING") and redis_url:
+    if not use_redis_mgr:
+        print("[socketio] CHAIN_SOCKETIO_REDIS_MANAGER=0 — using in-process Socket.IO (no Redis message queue)")
+    elif app.config.get("TESTING"):
+        print("[socketio] Test mode: Skipping Redis manager")
+    elif redis_url:
         mgr = redis_url
-        print(f"[socketio] SCALABLE PRODUCTION MODE: Using Redis manager at {redis_url[:20]}...")
+        print(f"[socketio] SCALABLE PRODUCTION MODE: Using Redis manager at {_REDIS_URL_MASKED}")
     else:
-        if app.config.get("TESTING"):
-            print("[socketio] Test mode: Skipping Redis manager")
-        else:
-            log_redis_warning("redis_socketio_fallback", "[socketio] WARNING: Running in SINGLE-NODE mode. For production with multiple users, configure REDIS_URL and restart.")
+        log_redis_warning("redis_socketio_fallback", "[socketio] WARNING: Running in SINGLE-NODE mode. For production with multiple users, configure REDIS_URL and restart.")
 
     # Determine async_mode: prefer gevent when gevent-websocket is available
     # (fixes Android APK websocket crash vs threading fallback)
@@ -81,6 +82,8 @@ def init_socketio(app):
         async_mode=async_mode,
         ping_timeout=20,
         ping_interval=10,
+        max_http_buffer_size=5 * 1024 * 1024,
+        http_compression=True,
         engineio_logger=False
     )
     return socketio

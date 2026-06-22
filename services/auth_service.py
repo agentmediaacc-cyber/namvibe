@@ -1209,6 +1209,8 @@ def _local_registration_network_fallback(email, password, username, full_name, p
 def _allow_local_registration_fallback():
     if os.getenv("CHAIN_FAST_LOCAL") == "1":
         return True
+    if os.getenv("CHAIN_AUTH_EMAIL_OPTIONAL") == "1":
+        return True
     if os.getenv("FLASK_ENV") != "production":
         return True
     if has_request_context():
@@ -1315,10 +1317,16 @@ def register_chain_user(email, password, username, full_name, extra=None):
         return _registration_result(error=taken_result)
 
     final_username = username
+    _auth_timings = {}
+    _supabase_start = time.time()
+    registration_result_debug["supabase_attempted"] = True
+    auth_res = None
+    # --- Supabase sign_up with 10s timeout ---
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeout
+    _supa_exec = ThreadPoolExecutor(max_workers=1)
     try:
-        _start = time.time()
-        registration_result_debug["supabase_attempted"] = True
-        auth_res = get_supabase().auth.sign_up(
+        _supa_future = _supa_exec.submit(
+            get_supabase().auth.sign_up,
             {
                 "email": email,
                 "password": password,
@@ -1330,7 +1338,41 @@ def register_chain_user(email, password, username, full_name, extra=None):
                 },
             }
         )
-        _log_timing("register_chain_user.supabase_sign_up", time.time() - _start)
+        auth_res = _supa_future.result(timeout=10)
+        _auth_timings["supabase_ms"] = round((time.time() - _supabase_start) * 1000, 1)
+        print(f"[auth_service.register] supabase sign_up completed in {_auth_timings['supabase_ms']}ms")
+    except _FutureTimeout:
+        _auth_timings["supabase_ms"] = round((time.time() - _supabase_start) * 1000, 1)
+        _supa_future.cancel()
+        print(f"[auth_service.register] supabase sign_up TIMED OUT after {_auth_timings['supabase_ms']}ms")
+        if local_email_valid and _allow_local_registration_fallback():
+            return _finish_local_registration("supabase_handshake_timeout")
+        return _registration_result(error="Registration service is temporarily unreachable. Please try again.")
+    except Exception as _supa_err:
+        _auth_timings["supabase_ms"] = round((time.time() - _supabase_start) * 1000, 1)
+        _err_msg = str(_supa_err).lower()
+        print(f"[auth_service.register] supabase sign_up FAILED after {_auth_timings['supabase_ms']}ms: {_err_msg[:120]}")
+        if "rate limit" in _err_msg or "rate_limit" in _err_msg:
+            if local_email_valid and _allow_local_registration_fallback():
+                return _finish_local_registration("supabase_rate_limited")
+            return _registration_result(error="Registration email service is temporarily rate limited. Please try again later.")
+        if "user_already_exists" in _err_msg or "already registered" in _err_msg:
+            if local_email_valid and _allow_local_registration_fallback():
+                return _finish_local_registration("supabase_failed_already_exists")
+            return _registration_result(error="EMAIL_EXISTS")
+        if "email invalid" in _err_msg or ("email" in _err_msg and "invalid" in _err_msg):
+            if local_email_valid and _allow_local_registration_fallback():
+                return _finish_local_registration("supabase_failed_email_invalid")
+            return _registration_result(error="Registration service is temporarily unavailable. Please try again later.")
+        if local_email_valid and _allow_local_registration_fallback():
+            return _finish_local_registration("supabase_async_failed")
+        return _registration_result(error=f"Registration failed: {_supa_err}")
+    finally:
+        _supa_exec.shutdown(wait=False)
+    _log_timing("register_chain_user.supabase_sign_up", _auth_timings.get("supabase_ms", 0) / 1000.0)
+
+    try:
+        _start = time.time()
         user = getattr(auth_res, "user", None)
         auth_session = getattr(auth_res, "session", None)
         

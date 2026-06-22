@@ -1,49 +1,111 @@
-from datetime import datetime, timezone
-from services.supabase_safe import safe_select, safe_insert, safe_update
-from utils.supabase_client import get_supabase_admin
+"""Trending hashtags and locations."""
 
-def _utcnow_iso():
-    return datetime.now(timezone.utc).isoformat()
+from services.neon_service import fast_query, write_query
 
-def calculate_trending_scores():
-    """
-    Background job logic to update trending scores.
-    For now, we simulate by picking active/popular items.
-    """
-    supabase = get_supabase_admin()
-    
-    # Trending Live Rooms (by viewer count)
-    rooms = safe_select("chain_live_rooms", filters={"is_live": True}, limit=20, order_by="viewer_count", desc=True)
-    for i, room in enumerate(rooms):
-        score = room.get("viewer_count", 0) * 10 + (room.get("reaction_count", 0) * 2)
-        _update_trending_score('live_room', room['id'], score)
-        
-    # Trending Posts (by reaction count)
-    # Note: Requires a way to count reactions. For now, we take recent posts.
-    posts = safe_select("chain_posts", limit=20, order_by="created_at", desc=True)
-    for post in posts:
-        # In a real app, count from chain_post_reactions
-        _update_trending_score('post', post['id'], 50) 
-        
-    # Trending Creators
-    profiles = safe_select("chain_profiles", filters={"is_verified": True}, limit=10)
-    for profile in profiles:
-        _update_trending_score('profile', profile['id'], 100)
 
-def _update_trending_score(entity_type, entity_id, score):
-    supabase = get_supabase_admin()
-    payload = {
-        "entity_type": entity_type,
-        "entity_id": entity_id,
-        "score": score,
-        "updated_at": _utcnow_iso()
-    }
-    # Simple upsert logic
-    existing = safe_select("chain_trending_scores", filters={"entity_type": entity_type, "entity_id": entity_id}, limit=1)
-    if existing:
-        safe_update("chain_trending_scores", payload, eq={"id": existing[0]['id']})
-    else:
-        safe_insert("chain_trending_scores", payload)
+def get_trending_hashtags(limit=20):
+    rows = fast_query(
+        """SELECT hashtag, usage_count, engagement_score, last_used_at
+           FROM chain_hashtag_stats
+           ORDER BY engagement_score DESC, usage_count DESC
+           LIMIT %s""",
+        (limit,), default=[],
+    )
+    return [
+        {
+            "hashtag": r["hashtag"],
+            "usage_count": r.get("usage_count", 0) or 0,
+            "engagement_score": r.get("engagement_score", 0) or 0,
+            "last_used_at": r["last_used_at"].isoformat() if r.get("last_used_at") else None,
+        }
+        for r in rows
+    ]
 
-def get_trending_items(entity_type, limit=10):
-    return safe_select("chain_trending_scores", filters={"entity_type": entity_type}, limit=limit, order_by="score", desc=True)
+
+def get_trending_locations(limit=20):
+    namibia_towns = [
+        "Windhoek", "Swakopmund", "Walvis Bay", "Rundu", "Ongwediva",
+        "Katima Mulilo", "Keetmanshoop", "Oshakati", "Otjiwarongo", "Tsumeb",
+        "Grootfontein", "Mariental", "Rehoboth", "Lüderitz", "Outapi",
+    ]
+
+    rows = fast_query(
+        """SELECT location, COUNT(*) AS profile_count
+           FROM chain_profiles
+           WHERE location IS NOT NULL
+             AND location != ''
+             AND deleted_at IS NULL
+           GROUP BY location
+           ORDER BY profile_count DESC LIMIT 30""",
+        default=[],
+    )
+
+    location_counts = {}
+    for r in rows:
+        loc = (r["location"] or "").strip().lower()
+        if loc:
+            location_counts[loc] = r["profile_count"]
+
+    result = []
+    seen = set()
+    for town in namibia_towns:
+        key = town.lower()
+        count = location_counts.get(key, 0)
+        if count > 0:
+            result.append({"location": town, "profile_count": count})
+            seen.add(key)
+
+    for loc, count in sorted(location_counts.items(), key=lambda x: -x[1]):
+        if loc not in seen and len(result) < limit:
+            result.append({"location": loc.title(), "profile_count": count})
+            seen.add(loc)
+
+    return result[:limit]
+
+
+def track_hashtag_usage(hashtag, content_type="post", location=None):
+    hashtag = hashtag.strip().lower()
+    if not hashtag:
+        return
+    try:
+        existing = fast_query(
+            "SELECT id, usage_count FROM chain_hashtag_stats WHERE hashtag = %s AND content_type = %s",
+            (hashtag, content_type), default=[],
+        )
+        if existing:
+            write_query(
+                """UPDATE chain_hashtag_stats
+                   SET usage_count = usage_count + 1, last_used_at = now(), updated_at = now()
+                   WHERE id = %s""",
+                (existing[0]["id"],),
+            )
+        else:
+            write_query(
+                """INSERT INTO chain_hashtag_stats (hashtag, content_type, usage_count, location, last_used_at)
+                   VALUES (%s, %s, 1, %s, now())""",
+                (hashtag, content_type, location),
+            )
+    except Exception:
+        pass
+
+
+def extract_and_track_hashtags(caption, content_type="post", location=None):
+    if not caption:
+        return
+    import re
+    tags = re.findall(r"#(\w+)", caption)
+    for tag in tags[:10]:
+        track_hashtag_usage(tag, content_type, location)
+
+def get_trending_items(item_type="hashtag", limit=20, *args, **kwargs):
+    """Backward-compatible trending helper used by feed_service."""
+    try:
+        if item_type in ("hashtag", "hashtags"):
+            return get_trending_hashtags(limit=limit)
+        if item_type in ("location", "locations"):
+            return get_trending_locations(limit=limit)
+
+        # Unknown types like live_room should return safe empty list
+        return []
+    except Exception:
+        return []

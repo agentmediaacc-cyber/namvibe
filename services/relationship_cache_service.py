@@ -10,7 +10,6 @@ TTL: 60 seconds
 import re
 from typing import Dict, List
 
-from services.blocking_service import is_blocked_any
 from services.neon_service import fast_query
 from services.redis_service import cache_get, cache_set, cache_delete
 
@@ -53,12 +52,7 @@ def get_relationship_state(viewer_id: str, target_id: str) -> Dict:
     if not is_uuid(viewer_id) or not is_uuid(target_id):
         return _empty_state()
     states = get_many_relationship_states(viewer_id, [target_id])
-    state = states.get(str(target_id), _empty_state())
-    if state.get("is_self"):
-        return state
-    if is_blocked_any(viewer_id, target_id):
-        return dict(state, blocked=True, relationship="blocked")
-    return state
+    return states.get(str(target_id), _empty_state())
 
 
 def get_many_relationship_states(viewer_id: str, target_ids: List[str]) -> Dict[str, Dict]:
@@ -88,79 +82,81 @@ def get_many_relationship_states(viewer_id: str, target_ids: List[str]) -> Dict[
     str_ids = [str(i) for i in uncached_ids]
     id_set = set(str_ids)
 
-    # Batch friends
     friend_set = set()
-    for chunk in _chunks(str_ids, 50):
-        placeholders = ", ".join(["%s"] * len(chunk))
-        fr_rows = fast_query(
-            f"SELECT profile_id_1, profile_id_2 FROM chain_friends "
-            f"WHERE (profile_id_1 = %s OR profile_id_2 = %s) "
-            f"AND (profile_id_1 IN ({placeholders}) OR profile_id_2 IN ({placeholders})) "
-            f"AND status = 'friend'",
-            (str_viewer, str_viewer, *chunk, *chunk),
-            timeout_ms=5000, default=[]
-        )
-        for r in fr_rows:
-            other = str(r["profile_id_2"]) if str(r["profile_id_1"]) == str_viewer else str(r["profile_id_1"])
-            if other in id_set:
-                friend_set.add(other)
-
-    # Batch friend requests (pending)
     fr_sent = set()
     fr_received = set()
-    for chunk in _chunks(str_ids, 50):
-        placeholders = ", ".join(["%s"] * len(chunk))
-        req_rows = fast_query(
-            f"SELECT sender_profile_id, recipient_profile_id FROM chain_friend_requests "
-            f"WHERE ((sender_profile_id = %s AND recipient_profile_id IN ({placeholders})) "
-            f"OR (sender_profile_id IN ({placeholders}) AND recipient_profile_id = %s)) "
-            f"AND status = 'pending'",
-            (str_viewer, *chunk, *chunk, str_viewer),
-            timeout_ms=5000, default=[]
-        )
-        for r in req_rows:
-            other = str(r["recipient_profile_id"]) if str(r["sender_profile_id"]) == str_viewer else str(r["sender_profile_id"])
-            if other not in id_set:
-                continue
-            if str(r["sender_profile_id"]) == str_viewer:
-                fr_sent.add(other)
-            else:
-                fr_received.add(other)
-
-    # Batch follows
     following_set = set()
-    for chunk in _chunks(str_ids, 50):
-        placeholders = ", ".join(["%s"] * len(chunk))
-        fol_rows = fast_query(
-            f"SELECT following_profile_id FROM chain_follows "
-            f"WHERE follower_profile_id = %s AND following_profile_id IN ({placeholders})",
-            (str_viewer, *chunk),
-            timeout_ms=5000, default=[]
-        )
-        for r in fol_rows:
-            following_set.add(str(r["following_profile_id"]))
-
-    # Batch follow requests
     fol_req_sent = set()
     fol_req_received = set()
+    blocked_set = set()
+
     for chunk in _chunks(str_ids, 50):
-        placeholders = ", ".join(["%s"] * len(chunk))
-        fol_req_rows = fast_query(
-            f"SELECT requester_profile_id, target_profile_id FROM chain_follow_requests "
-            f"WHERE ((requester_profile_id = %s AND target_profile_id IN ({placeholders})) "
-            f"OR (requester_profile_id IN ({placeholders}) AND target_profile_id = %s)) "
-            f"AND status = 'pending'",
-            (str_viewer, *chunk, *chunk, str_viewer),
+        values = ", ".join(["(%s::uuid)"] * len(chunk))
+        rows = fast_query(
+            f"""
+            WITH targets(id) AS (VALUES {values})
+            SELECT 'friend' AS kind, t.id::text AS other_id
+            FROM targets t
+            JOIN chain_friends f
+              ON ((f.profile_id_1 = %s::uuid AND f.profile_id_2 = t.id)
+                  OR (f.profile_id_2 = %s::uuid AND f.profile_id_1 = t.id))
+             AND f.status = 'friend'
+             AND f.deleted_at IS NULL
+            UNION ALL
+            SELECT 'friend_request_sent' AS kind, r.recipient_profile_id::text AS other_id
+            FROM chain_friend_requests r
+            JOIN targets t ON t.id = r.recipient_profile_id
+            WHERE r.sender_profile_id = %s::uuid AND r.status = 'pending'
+            UNION ALL
+            SELECT 'friend_request_received' AS kind, r.sender_profile_id::text AS other_id
+            FROM chain_friend_requests r
+            JOIN targets t ON t.id = r.sender_profile_id
+            WHERE r.recipient_profile_id = %s::uuid AND r.status = 'pending'
+            UNION ALL
+            SELECT 'following' AS kind, f.following_profile_id::text AS other_id
+            FROM chain_follows f
+            JOIN targets t ON t.id = f.following_profile_id
+            WHERE f.follower_profile_id = %s::uuid AND f.deleted_at IS NULL
+            UNION ALL
+            SELECT 'follow_request_sent' AS kind, r.target_profile_id::text AS other_id
+            FROM chain_follow_requests r
+            JOIN targets t ON t.id = r.target_profile_id
+            WHERE r.requester_profile_id = %s::uuid AND r.status = 'pending'
+            UNION ALL
+            SELECT 'follow_request_received' AS kind, r.requester_profile_id::text AS other_id
+            FROM chain_follow_requests r
+            JOIN targets t ON t.id = r.requester_profile_id
+            WHERE r.target_profile_id = %s::uuid AND r.status = 'pending'
+            UNION ALL
+            SELECT 'blocked' AS kind,
+                   CASE WHEN b.blocker_profile_id = %s::uuid THEN b.blocked_profile_id::text ELSE b.blocker_profile_id::text END AS other_id
+            FROM chain_blocks b
+            JOIN targets t ON t.id = CASE WHEN b.blocker_profile_id = %s::uuid THEN b.blocked_profile_id ELSE b.blocker_profile_id END
+            WHERE (b.blocker_profile_id = %s::uuid OR b.blocked_profile_id = %s::uuid)
+              AND b.deleted_at IS NULL
+            """,
+            (*chunk, str_viewer, str_viewer, str_viewer, str_viewer, str_viewer, str_viewer, str_viewer, str_viewer, str_viewer, str_viewer, str_viewer),
             timeout_ms=5000, default=[]
         )
-        for r in fol_req_rows:
-            other = str(r["target_profile_id"]) if str(r["requester_profile_id"]) == str_viewer else str(r["requester_profile_id"])
+        for r in rows:
+            other = str(r.get("other_id"))
             if other not in id_set:
                 continue
-            if str(r["requester_profile_id"]) == str_viewer:
+            kind = r.get("kind")
+            if kind == "friend":
+                friend_set.add(other)
+            elif kind == "friend_request_sent":
+                fr_sent.add(other)
+            elif kind == "friend_request_received":
+                fr_received.add(other)
+            elif kind == "following":
+                following_set.add(other)
+            elif kind == "follow_request_sent":
                 fol_req_sent.add(other)
-            else:
+            elif kind == "follow_request_received":
                 fol_req_received.add(other)
+            elif kind == "blocked":
+                blocked_set.add(other)
 
     for tid in uncached_ids:
         tid_s = str(tid)
@@ -179,8 +175,11 @@ def get_many_relationship_states(viewer_id: str, target_ids: List[str]) -> Dict[
             is_following = tid_s in following_set
             fol_req_s = tid_s in fol_req_sent
             fol_req_r = tid_s in fol_req_received
+            blocked = tid_s in blocked_set
 
-            if is_friend:
+            if blocked:
+                rel = "blocked"
+            elif is_friend:
                 rel = "friend"
             elif f_req_sent:
                 rel = "pending_sent"
@@ -203,7 +202,7 @@ def get_many_relationship_states(viewer_id: str, target_ids: List[str]) -> Dict[
                 "is_following": is_following,
                 "follow_request_sent": fol_req_s,
                 "follow_request_received": fol_req_r,
-                "blocked": False,
+                "blocked": blocked,
                 "relationship": rel,
             }
 

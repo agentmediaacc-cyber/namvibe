@@ -39,7 +39,8 @@ try:
     redis_ok = bool(redis_url) or redis_available()
     check("Redis configured", redis_ok, detail="REDIS_URL env not set or Redis unavailable")
     if redis_url:
-        print(f"  [INFO] Redis URL configured: {redis_url[:20]}...")
+        from services.redis_service import mask_redis_url
+        print(f"  [INFO] Redis URL configured: {mask_redis_url(redis_url)}")
     else:
         print("  [WARN] Redis not configured — Socket.IO will use single-node mode")
 except Exception as e:

@@ -131,6 +131,36 @@ def api_cancel_job(job_id):
     return jsonify(cancel_job(job_id)), 200
 
 
+@system_bp.route("/system/api/auth-health")
+def api_auth_health():
+    from services.env_service import get_env
+    from flask import current_app
+    # Return masked/safe auth diagnostics — no secrets ever
+    try:
+        supabase_url = get_env("SUPABASE_URL") or ""
+        db_url = get_env("DATABASE_URL") or ""
+        supabase_configured = bool(supabase_url and supabase_url.startswith("https://"))
+        database_configured = bool(db_url and "://" in db_url)
+    except Exception:
+        supabase_configured = False
+        database_configured = False
+    try:
+        csrf_enabled = current_app.extensions.get("csrf") is not None
+    except Exception:
+        csrf_enabled = False
+    return jsonify({
+        "ok": True,
+        "app_base_url": get_env("APP_BASE_URL", ""),
+        "preferred_url_scheme": current_app.config.get("PREFERRED_URL_SCHEME", "http"),
+        "session_cookie_secure": bool(current_app.config.get("SESSION_COOKIE_SECURE", False)),
+        "session_cookie_samesite": current_app.config.get("SESSION_COOKIE_SAMESITE", "Lax"),
+        "csrf_enabled": csrf_enabled,
+        "proxy_fix_enabled": True,
+        "supabase_configured": supabase_configured,
+        "database_configured": database_configured,
+    }), 200
+
+
 @system_bp.route("/system/api/realtime-health")
 @require_admin
 def api_realtime_health():
@@ -166,6 +196,33 @@ def api_realtime_health():
         "message_routes": message_routes,
         "call_routes": call_routes,
         "notification_routes": notification_routes,
+    })
+
+
+@system_bp.route("/system/api/webrtc-health")
+@require_admin
+def api_webrtc_health():
+    from services.webrtc_turn_service import get_turn_diagnostics, get_webrtc_ice_config
+    config = get_webrtc_ice_config()
+    diag = get_turn_diagnostics()
+    return jsonify({
+        "ok": True,
+        "turn": diag,
+        "ice_servers_count": len(config.get("iceServers", [])),
+        "turn_ready": diag.get("turn_configured") == "ready",
+        "stun_ready": diag.get("stun_configured") == "ready",
+    })
+
+
+@system_bp.route("/system/api/livekit-health")
+@require_admin
+def api_livekit_health():
+    from services.media_server_service import get_livekit_health
+    health = get_livekit_health()
+    return jsonify({
+        "ok": health.get("status") in ("ready", "partial"),
+        "livekit": health,
+        "livekit_ready": health.get("status") == "ready",
     })
 
 

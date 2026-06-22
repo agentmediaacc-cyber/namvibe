@@ -227,27 +227,21 @@ def unread_count(profile_id):
     if cached is not None:
         return int(cached)
 
-    req_key = f"req_unread_{profile_id}"
+    sql = """
+        SELECT COUNT(*) as count 
+        FROM chain_notifications 
+        WHERE recipient_profile_id = %s 
+          AND is_read = FALSE 
+          AND deleted_at IS NULL
+    """
+    count = 0
+    try:
+        res = fast_query(sql, (profile_id,), timeout_ms=500, default=[])
+        count = res[0]['count'] if res else 0
+    except Exception:
+        pass
     
-    def _fetch_count():
-        sql = """
-            SELECT COUNT(*) as count 
-            FROM chain_notifications 
-            WHERE recipient_profile_id = %s 
-              AND is_read = FALSE 
-              AND deleted_at IS NULL
-        """
-        local_fast = os.getenv("CHAIN_FAST_LOCAL") == "1" and os.getenv("FLASK_ENV", "development") != "production"
-        timeout_ms = 250 if local_fast else 1000
-        try:
-            res = fast_query(sql, (profile_id,), timeout_ms=timeout_ms, default=[])
-            return res[0]['count'] if res else 0
-        except Exception:
-            return 0
-
-    count = request_memoize(req_key, _fetch_count)
-    
-    cache_set(cache_key, count, ttl=60)
+    cache_set(cache_key, count, ttl=30)
     
     return count
 

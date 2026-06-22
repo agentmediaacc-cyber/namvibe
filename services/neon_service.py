@@ -55,11 +55,25 @@ CHAIN_STATIC_COLUMNS = {
     },
     "chain_friend_requests": {
         "id", "sender_profile_id", "recipient_profile_id",
+        "receiver_profile_id",
         "status", "message", "created_at", "updated_at", "responded_at"
     },
     "chain_friends": {
         "id", "profile_id_1", "profile_id_2",
-        "status", "created_at", "updated_at"
+        "profile_id", "friend_profile_id",
+        "status", "created_at", "updated_at", "deleted_at"
+    },
+    "chain_follows": {
+        "id", "follower_profile_id", "following_profile_id",
+        "created_at", "updated_at", "deleted_at"
+    },
+    "chain_follow_requests": {
+        "id", "requester_profile_id", "target_profile_id",
+        "status", "message", "created_at", "updated_at", "responded_at"
+    },
+    "chain_blocks": {
+        "id", "blocker_profile_id", "blocked_profile_id",
+        "reason", "created_at", "updated_at", "deleted_at"
     },
     "chain_status_posts": {
         "id", "profile_id", "caption",  "thumbnail_url", "media_type",
@@ -220,44 +234,112 @@ class CircuitOpenError(NeonError):
     pass
 
 def _optimize_dsn(url: str) -> str:
-    """Optimizes Neon connection URL for stability and pooling."""
+    """Attempt to normalise a DATABASE_URL for Neon/pooling.
+
+    This implementation is intentionally conservative: when the input does not
+    cleanly parse as a postgres URL we return a stripped candidate rather than
+    building a malformed DSN (which previously produced strings like
+    'SET?sslmode=...' and caused psycopg2 to fail). The only real change here
+    is to avoid fragile regex literals that embed unescaped quotes.
+    """
     if not url:
         return url
-    
-    parsed = urlparse(url)
-    hostname = parsed.hostname or ""
-    
-    # Optimization 1: Use Neon pooler if missing and host matches pattern
-    if "neon.tech" in hostname and "-pooler" not in hostname:
+
+    # Trim whitespace and try to extract a postgres URL if the input contains
+    # extra shell tokens like 'set' or 'export'.
+    s = url.strip()
+    low = s.lower()
+    if low.startswith('set ') or low.startswith('export ') or low == 'set':
+        parts = s.split(None, 1)
+        s = parts[-1] if parts else s
+
+    # If a postgres scheme appears somewhere in the string, take the substring
+    l = s.lower()
+    idx = l.find('postgresql://')
+    if idx == -1:
+        idx = l.find('postgres://')
+    if idx != -1:
+        s = s[idx:]
+
+    parsed = urlparse(s)
+    if (parsed.scheme or '').lower() not in ('postgres', 'postgresql') or not parsed.hostname:
+        return s
+
+    # If query contains stray '?', normalise it
+    if parsed.query and '?' in parsed.query:
+        q = parsed.query.split('?', 1)[1]
+        parsed = parsed._replace(query=q)
+
+    hostname = parsed.hostname or ''
+
+    # Prefer Neon pooler hostnames when it looks like a neon.tech host
+    if 'neon.tech' in hostname and '-pooler' not in hostname:
         parts = hostname.split('.')
-        # Standard Neon hostname: [project-id].[region].aws.neon.tech
         if len(parts) >= 4 and parts[-3:] == ['aws', 'neon', 'tech']:
             parts[0] = f"{parts[0]}-pooler"
-            new_hostname = ".".join(parts)
-            url = url.replace(hostname, new_hostname)
-            parsed = urlparse(url)
-    
-    # Optimization 2: Force SSL and set common parameters
-    query = dict(parse_qsl(parsed.query))
-    query["sslmode"] = "require"
-    query["application_name"] = "chain_app_backend"
-    query["connect_timeout"] = "5"
-    
-    # TCP Keepalives for long-lived pool connections
-    query["keepalives"] = "1"
-    query["keepalives_idle"] = "30"
-    query["keepalives_interval"] = "10"
-    query["keepalives_count"] = "5"
-    
-    parsed = parsed._replace(query=urlencode(query))
+            new_hostname = '.'.join(parts)
+            netloc = parsed.netloc
+            if '@' in netloc:
+                creds, hostpart = netloc.split('@', 1)
+                if ':' in hostpart:
+                    _host, port = hostpart.split(':', 1)
+                    hostpart = f"{new_hostname}:{port}"
+                else:
+                    hostpart = new_hostname
+                netloc = f"{creds}@{hostpart}"
+            else:
+                if ':' in netloc:
+                    _host, port = netloc.split(':', 1)
+                    netloc = f"{new_hostname}:{port}"
+                else:
+                    netloc = new_hostname
+            parsed = parsed._replace(netloc=netloc)
+
+    # Merge defaults with existing query params
+    existing_qs = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    defaults = {
+        'sslmode': 'require',
+        'application_name': 'chain_app_backend',
+        'connect_timeout': '5',
+        'keepalives': '1',
+        'keepalives_idle': '30',
+        'keepalives_interval': '10',
+        'keepalives_count': '5',
+    }
+    merged = {**defaults, **existing_qs}
+    safe_merged = {k: str(v) for k, v in merged.items()}
+    new_query = urlencode(safe_merged)
+    parsed = parsed._replace(query=new_query)
     return urlunparse(parsed)
+
+
+def _safe_optimize_dsn(url: str) -> str:
+    """Wrapper around _optimize_dsn that avoids raising on bad inputs.
+
+    If _optimize_dsn would return an invalid/non-postgres value, prefer the
+    original environment value (stripped). This prevents accidental DSNs like
+    'SET?sslmode=...' from being produced when a non-URL string is present in env.
+    """
+    try:
+        out = _optimize_dsn(url or "")
+        if not out:
+            return (url or "").strip()
+        return out
+    except Exception:
+        return (url or "").strip()
 
 def _get_dsn_kwargs():
     """Returns kwargs for psycopg2 connection."""
-    optimized_url = _optimize_dsn(DATABASE_URL)
+    optimized_url = _safe_optimize_dsn(DATABASE_URL)
+    # Validate the optimized URL looks like a Postgres DSN. If not, fall back
+    # to the original environment value (stripped). This avoids producing
+    # malformed DSNs such as 'SET?sslmode=...' when env content is unexpected.
+    dsn_candidate = (optimized_url or "").strip()
+    if not dsn_candidate.lower().startswith(("postgres://", "postgresql://")):
+        dsn_candidate = (DATABASE_URL or "").strip()
     return {
-        "dsn": optimized_url,
-        "cursor_factory": RealDictCursor
+        "dsn": dsn_candidate,
+        "cursor_factory": RealDictCursor,
     }
 
 
@@ -342,6 +424,25 @@ def _pool_instance():
         with _POOL_LOCK:
             if _POOL is None:
                 try:
+                    # Debug: log the optimized DSN masked for diagnosis (no secrets)
+                    try:
+                        from urllib.parse import urlparse
+                        optimized = _optimize_dsn(DATABASE_URL) or ""
+                        p = urlparse(optimized)
+                        host = p.hostname or ''
+                        db = p.path.lstrip('/')
+                        # If the optimized DSN does not look like a Postgres URL
+                        # (no postgres scheme or no hostname) then skip pool
+                        # initialization rather than passing an invalid DSN to
+                        # psycopg2 which previously caused errors like
+                        # "missing \"=\" after \"SET\" in connection info string".
+                        scheme = (p.scheme or '').lower()
+                        if scheme not in ('postgres', 'postgresql') or not host:
+                            log_warning("neon_pool_init_skipped_invalid_dsn", host=host, db=db)
+                            return None
+                        log_info("neon_pool_init_dsn", host=host, db=db)
+                    except Exception:
+                        pass
                     start_time = time.perf_counter()
                     _POOL = pool.ThreadedConnectionPool(
                         minconn=POOL_MIN,
@@ -458,7 +559,9 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                     row = cur.fetchone()
                     return dict(row) if row else None
                 
-                return {"rowcount": cur.rowcount}
+                # Some cursor implementations may not expose rowcount reliably;
+                # fall back to None to avoid AttributeError and let callers handle it.
+                return {"rowcount": getattr(cur, "rowcount", None)}
                 
     except Exception as e:
         error_text = str(e).lower()
@@ -480,7 +583,8 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                         if fetch == "one":
                             row = cur.fetchone()
                             return dict(row) if row else None
-                        return {"rowcount": cur.rowcount}
+                        # Same safe access for rowcount on retry path.
+                        return {"rowcount": getattr(cur, "rowcount", None)}
             except Exception as retry_e:
                 _record_query_failure(retry_e)
                 log_error("neon_ssl_retry_failed", error=retry_e, sql=sql_text[:100])
