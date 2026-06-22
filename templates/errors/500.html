@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>500 — NamVibe</title>
+  <style>
+    *,::after,::before{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#0a0a0f;color:#f0f0f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    .nv-err{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}
+    .nv-err-code{font-size:120px;font-weight:800;line-height:1;background:linear-gradient(135deg,#a78bfa,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+    .nv-err-title{font-size:28px;font-weight:700;margin-bottom:12px;color:#f0f0f5}
+    .nv-err-msg{font-size:16px;color:#9496a8;max-width:420px;line-height:1.6;margin-bottom:32px}
+    .nv-err-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+    .nv-err-btn{padding:12px 28px;border-radius:999px;font-size:15px;font-weight:600;text-decoration:none;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+    .nv-err-btn-primary{background:#7c3aed;color:#fff}
+    .nv-err-btn-primary:hover{background:#6d28d9;transform:translateY(-1px)}
+    .nv-err-btn-secondary{background:rgba(255,255,255,.08);color:#f0f0f5}
+    .nv-err-btn-secondary:hover{background:rgba(255,255,255,.14)}
+    .nv-err-home{position:fixed;top:20px;left:24px;font-size:20px;font-weight:700;color:#f0f0f5;text-decoration:none;display:flex;align-items:center;gap:8px}
+    .nv-err-home svg{width:24px;height:24px;fill:currentColor}
+    @media(max-width:480px){.nv-err-code{font-size:80px}.nv-err-title{font-size:22px}.nv-err-btn{padding:10px 20px;font-size:14px}}
+  </style>
+</head>
+<body>
+  <a href="/" class="nv-err-home">
+    <svg viewBox="0 0 24 24"><path d="M9 3L3 7v13l6-4V3zm6 0l6 4v13l-6-4V3zm-6 4l6-4v14l-6 4V7z"/></svg>
+    NamVibe
+  </a>
+  <div class="nv-err">
+    <div class="nv-err-code">500</div>
+    <h1 class="nv-err-title">Something went wrong</h1>
+    <p class="nv-err-msg">Our servers hit a snag. The team has been notified. Try again in a moment or explore other parts of NamVibe.</p>
+    <div class="nv-err-actions">
+      <a href="/" class="nv-err-btn nv-err-btn-primary">Home</a>
+      <a href="/reels/" class="nv-err-btn nv-err-btn-secondary">Reels</a>
+      <a href="/discover/" class="nv-err-btn nv-err-btn-secondary">Discover</a>
+    </div>
+  </div>
+</body>
+</html>

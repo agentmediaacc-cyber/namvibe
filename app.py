@@ -579,6 +579,13 @@ def create_app():
         return jsonify({"error": "Database error", "type": e.__class__.__name__}), 500
 
     @app.before_request
+    def redirect_www_to_canonical():
+        host = request.host.lower()
+        if host.startswith("www."):
+            canonical = host.removeprefix("www.")
+            return redirect(f"{request.scheme}://{canonical}{request.full_path}", 301)
+
+    @app.before_request
     def track_request_start():
         g.request_started_at = time.perf_counter()
         g.request_id = str(uuid.uuid4())
@@ -1045,6 +1052,10 @@ def create_app():
     def feature_upload_video():
         return redirect(url_for("marketplace.marketplace_create"))
 
+    @app.route("/games/")
+    def games_redirect():
+        return redirect(url_for("discovery.section"), 302)
+
     @app.route("/favicon.ico")
     def favicon():
         favicon_path = os.path.join(app.static_folder or "static", "img", "favicon.ico")
@@ -1054,7 +1065,14 @@ def create_app():
 
     @app.errorhandler(404)
     def page_not_found(e):
-        return render_template("dashboard/feature_page.html", title="404 - Not Found", section="error"), 404
+        return render_template("errors/404.html"), 404
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        log_error("internal_server_error", error=e)
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "internal_error", "request_id": getattr(g, "request_id", None)}), 500
+        return render_template("errors/500.html"), 500
 
     @app.errorhandler(Exception)
     def page_error(error):
@@ -1063,7 +1081,7 @@ def create_app():
         log_error("request_error", error=error, status_code=500)
         if request.path.startswith("/api/"):
             return jsonify({"error": "internal_error", "request_id": getattr(g, "request_id", None)}), 500
-        return render_template("dashboard/feature_page.html", title="Error", section="error"), 500
+        return render_template("errors/500.html"), 500
 
     @app.after_request
     def apply_performance_headers(response):
