@@ -11,12 +11,6 @@ from services.feed_cursor_service import encode_cursor
 feed_bp = Blueprint("feed", __name__)
 
 
-@feed_bp.route("/")
-def index():
-    profile = get_current_profile()
-    return render_template("feed/index.html", profile=profile)
-
-
 @feed_bp.route("/feed/")
 def index_legacy():
     profile = get_current_profile()
