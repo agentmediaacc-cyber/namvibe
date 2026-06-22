@@ -80,17 +80,12 @@ def main():
     fail = 0
     for name, ddl in INDEXES:
         try:
-            fast_query(ddl, default=[])
+            write_query(ddl)
             print(f"  OK  {name}")
             ok += 1
         except Exception as e:
-            try:
-                write_query(ddl)
-                print(f"  OK  {name}")
-                ok += 1
-            except Exception as e2:
-                print(f"  FAIL {name}: {e2}")
-                fail += 1
+            print(f"  FAIL {name}: {e}")
+            fail += 1
     print(f"\nResult: {ok}/{len(INDEXES)} OK, {fail} FAIL")
     return 0 if fail == 0 else 1
 
