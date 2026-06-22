@@ -170,6 +170,56 @@ class RedisManager:
             self._remember_failure(error)
             return self._memory_set(namespaced, value, ttl=ttl)
 
+    def mget_json(self, keys, default=None):
+        """Bulk get multiple pre-namespaced keys. Returns {key: parsed_value or default}."""
+        client = self.get_client()
+        namespaced_map = {k: namespaced_key(k) for k in keys}
+        if not client:
+            return {k: (self._memory_get(nk) if self._memory_get(nk) is not None else default)
+                    for k, nk in namespaced_map.items()}
+        try:
+            raw_values = client.mget(list(namespaced_map.values()))
+            result = {}
+            for k, raw in zip(keys, raw_values):
+                if raw is not None:
+                    try:
+                        result[k] = json.loads(raw)
+                    except (json.JSONDecodeError, TypeError):
+                        result[k] = default
+                else:
+                    result[k] = default
+            self._remember_success()
+            return result
+        except Exception as error:
+            self.client = None
+            self._remember_failure(error)
+            return {k: (self._memory_get(nk) if self._memory_get(nk) is not None else default)
+                    for k, nk in namespaced_map.items()}
+
+    def set_json_bulk(self, items, ttl=60):
+        """Bulk set using pipeline. items is [(pre_namespaced_key, value)]."""
+        client = self.get_client()
+        if not client:
+            for key, value in items:
+                self._memory_set(namespaced_key(key), value, ttl=ttl)
+            return True
+        try:
+            pipe = client.pipeline()
+            for key, value in items:
+                nk = namespaced_key(key)
+                raw = self._safe_json(value)
+                pipe.setex(nk, int(ttl), raw)
+                self._memory_set(nk, value, ttl=ttl)
+            pipe.execute()
+            self._remember_success()
+            return True
+        except Exception as error:
+            self.client = None
+            self._remember_failure(error)
+            for key, value in items:
+                self._memory_set(namespaced_key(key), value, ttl=ttl)
+            return True
+
     def delete(self, key):
         client = self.get_client()
         namespaced = namespaced_key(key)
@@ -431,6 +481,18 @@ def cache_get(key):
 
 def cache_set(key, value, ttl=60):
     return redis_manager.set_json(cache_key(key), value, ttl=ttl)
+
+
+def cache_mget(keys):
+    """Bulk get multiple cache keys. keys is list of raw keys (without cache: prefix).
+    Returns dict mapping each raw key to its parsed value or None."""
+    return redis_manager.mget_json([cache_key(k) for k in keys], default=None)
+
+
+def cache_set_bulk(items, ttl=60):
+    """Bulk set multiple cache keys via pipeline.
+    items is [(raw_key, value)] — raw keys without cache: prefix."""
+    return redis_manager.set_json_bulk([(cache_key(k), v) for k, v in items], ttl=ttl)
 
 
 def cache_delete(key):
