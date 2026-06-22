@@ -1,8 +1,9 @@
-"""Phase 59 — Real Feed API + Follow + Like/Save/Share actions."""
+"""Phase 59 — Real Feed API + Follow + Like/Save/Share actions.
+   Phase 120 — Premium Homepage JSON endpoints."""
 
 from flask import Blueprint, jsonify, request, session
 from services.profile_service import get_current_profile
-from services.homepage_service import get_feed_tab
+from services.homepage_service import get_feed_tab, get_homepage_payload
 from services.engagement_service import follow_profile, unfollow_profile, toggle_like, toggle_save
 from services.neon_service import fast_query, is_circuit_open
 from api_routes.profile_routes import login_required
@@ -176,5 +177,63 @@ def api_share_post(post_id):
         from services.supabase_safe import safe_update
         safe_update("chain_posts", {"shares_count": new_count}, {"id": str(post_id)})
         return _json_ok({"shares_count": new_count})
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+# ================================================================
+# Phase 120 — Premium Homepage JSON Endpoints
+# ================================================================
+
+@homepage_api_bp.route("/api/homepage/feed")
+def api_homepage_feed():
+    profile = _current_profile()
+    profile_id = profile.get("id") if profile else None
+    tab = request.args.get("tab", "for_you")
+    try:
+        limit = min(max(int(request.args.get("limit", 20)), 1), 50)
+    except (TypeError, ValueError):
+        limit = 20
+    try:
+        payload = get_homepage_payload(profile_id=profile_id, tab=tab, limit=limit)
+        return _json_ok({"payload": payload})
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+@homepage_api_bp.route("/api/homepage/sidebar")
+def api_homepage_sidebar():
+    profile = _current_profile()
+    profile_id = profile.get("id") if profile else None
+    try:
+        payload = get_homepage_payload(profile_id=profile_id, tab="for_you", limit=1)
+        return _json_ok({
+            "suggested_creators": payload.get("suggested_creators", []),
+            "trending_hashtags": payload.get("trending_hashtags", []),
+            "live_rooms": payload.get("live_rooms", []),
+            "wallet": payload.get("wallet", {"coin_balance": 0, "label_balance": "0"}),
+        })
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+@homepage_api_bp.route("/api/homepage/stories")
+def api_homepage_stories():
+    profile = _current_profile()
+    profile_id = profile.get("id") if profile else None
+    try:
+        payload = get_homepage_payload(profile_id=profile_id, tab="for_you", limit=1)
+        return _json_ok({"stories": payload.get("stories", [])})
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+@homepage_api_bp.route("/api/homepage/reels")
+def api_homepage_reels():
+    profile = _current_profile()
+    profile_id = profile.get("id") if profile else None
+    try:
+        payload = get_homepage_payload(profile_id=profile_id, tab="for_you", limit=1)
+        return _json_ok({"reels": payload.get("reels", [])})
     except Exception as e:
         return _json_error(str(e), 500)

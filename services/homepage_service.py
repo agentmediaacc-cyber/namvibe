@@ -2494,3 +2494,135 @@ def _extract_hashtags(text):
         return []
     import re
     return re.findall(r"#(\w+)", text)
+
+
+# ================================================================
+# Phase 120 — Premium Homepage Payload
+# ================================================================
+
+def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
+    """
+    Return a structured homepage payload for the premium Phase 120 template.
+
+    Returns:
+        dict with keys: profile, stories, feed_items, reels, live_rooms,
+                        suggested_creators, trending_hashtags, wallet,
+                        unread_counts, empty_states
+    """
+    started = time.perf_counter()
+    payload = {
+        "profile": None,
+        "stories": [],
+        "feed_items": [],
+        "reels": [],
+        "live_rooms": [],
+        "suggested_creators": [],
+        "trending_hashtags": [],
+        "wallet": {"coin_balance": 0, "label_balance": "0"},
+        "unread_counts": {"notifications": 0, "messages": 0},
+        "empty_states": {},
+    }
+
+    try:
+        current = _safe_current_profile() if not profile_id else None
+        pid = profile_id or (current.get("id") if current else None)
+
+        # ── Profile summary ──
+        if current:
+            payload["profile"] = {
+                "id": current.get("id"),
+                "username": current.get("username", ""),
+                "display_name": current.get("display_name") or current.get("full_name") or current.get("username") or "",
+                "avatar_url": current.get("avatar_url") or "",
+                "is_verified": bool(current.get("is_verified") or current.get("verified")),
+            }
+
+        # ── Stories (active, non-expired) ──
+        story_rows, _ = _fetch_stories()
+        if story_rows:
+            pids = {r.get("profile_id") for r in story_rows if r.get("profile_id")}
+            pmap = _load_profile_map(list(pids)) if pids else {}
+            payload["stories"] = [_normalize_story(r, pmap) for r in story_rows if r.get("id")]
+            payload["stories"] = [s for s in payload["stories"] if s.get("id")]
+
+        if not payload["stories"]:
+            payload["empty_states"]["stories"] = True
+
+        # ── Feed items by tab ──
+        items, _ = get_feed_tab(profile_id=pid, tab=tab, page=1, limit=limit)
+        payload["feed_items"] = items if items else []
+
+        if not payload["feed_items"]:
+            payload["empty_states"]["feed"] = True
+
+        # ── Reels preview ──
+        reel_rows, _ = _fetch_reels()
+        if reel_rows:
+            rpids = {r.get("profile_id") for r in reel_rows if r.get("profile_id")}
+            rpmap = _load_profile_map(list(rpids)) if rpids else {}
+            raw = [_normalize_post(r, rpmap) for r in reel_rows if r.get("id")]
+            payload["reels"] = [r for r in raw if r.get("id")][:8]
+
+        if not payload["reels"]:
+            payload["empty_states"]["reels"] = True
+
+        # ── Live rooms ──
+        live_rows, _ = _fetch_live_rooms()
+        if live_rows:
+            lpids = {r.get("profile_id") for r in live_rows if r.get("profile_id")}
+            lpmap = _load_profile_map(list(lpids)) if lpids else {}
+            payload["live_rooms"] = [_normalize_live_room(r, lpmap) for r in live_rows if r.get("id")]
+
+        if not payload["live_rooms"]:
+            payload["empty_states"]["live"] = True
+
+        # ── Suggested creators ──
+        from services.homepage_real_data_guard import filter_profiles
+        suggested = _suggested_people(current_user=current, limit=5)
+        payload["suggested_creators"] = filter_profiles(suggested) if suggested else []
+
+        if not payload["suggested_creators"]:
+            payload["empty_states"]["suggested"] = True
+
+        # ── Trending hashtags ──
+        all_posts = payload["feed_items"] + [_normalize_post(r, {}) for r in reel_rows[:20] if r.get("id")]
+        payload["trending_hashtags"] = _trending_hashtags(all_posts, limit=8)
+
+        if not payload["trending_hashtags"]:
+            payload["empty_states"]["hashtags"] = True
+
+        # ── Wallet ──
+        if current:
+            wallet = _wallet_snapshot(current)
+            payload["wallet"] = wallet
+
+        # ── Unread counts (best-effort) ──
+        if pid:
+            try:
+                cache_key_n = f"notif:unread:{pid}"
+                notif_count = get_cache(cache_key_n)
+                if notif_count is None:
+                    from services.notification_engine import unread_count
+                    notif_count = unread_count(pid)
+                    set_cache(cache_key_n, notif_count, ttl=60)
+                payload["unread_counts"]["notifications"] = notif_count or 0
+            except Exception:
+                pass
+            try:
+                msg_key = f"msg:unread:{pid}"
+                msg_count = get_cache(msg_key)
+                if msg_count is None:
+                    from services.message_delivery_service import get_unread_message_count
+                    msg_count = get_unread_message_count(pid)
+                    set_cache(msg_key, msg_count, ttl=60)
+                payload["unread_counts"]["messages"] = msg_count or 0
+            except Exception:
+                pass
+
+    except Exception as e:
+        _log(f"get_homepage_payload error: {e}")
+
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    if elapsed_ms > 3000:
+        _log(f"get_homepage_payload slow: {elapsed_ms:.0f}ms")
+    return payload
