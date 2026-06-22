@@ -43,11 +43,11 @@ _FAST_FALLBACK_MS = 800
 _SLOW_QUERY_MS = 100
 _WARM_CACHE_BUDGET_MS = 1000
 _HOMEPAGE_LIMITS = {
-    "stories": 20,
-    "reels": 20,
-    "trending_posts": 20,
+    "stories": 12,
+    "reels": 12,
+    "trending_posts": 12,
     "recommended_profiles": 10,
-    "live_rooms": 10,
+    "live_rooms": 5,
 }
 _HOMEPAGE_SECTION_TTLS = {
     "stories": 60,

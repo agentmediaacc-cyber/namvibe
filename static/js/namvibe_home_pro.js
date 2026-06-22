@@ -217,6 +217,59 @@
       .catch(function () { renderEmpty(feedEl); });
   }
 
+  /* ── VIEW TRACKING ── */
+  var viewedReels = {};
+  var viewTimers = {};
+  var viewBatchQueue = [];
+  var viewBatchTimer = null;
+
+  function trackReelView(reelId) {
+    if (!reelId) return;
+    if (viewedReels[reelId]) return;
+    viewedReels[reelId] = true;
+    viewBatchQueue.push(reelId);
+    scheduleViewFlush();
+  }
+
+  function scheduleViewFlush() {
+    if (viewBatchTimer) return;
+    viewBatchTimer = setTimeout(function () {
+      viewBatchTimer = null;
+      flushViewBatch();
+    }, 5000);
+  }
+
+  function flushViewBatch() {
+    var batch = viewBatchQueue.slice();
+    viewBatchQueue = [];
+    if (batch.length === 0) return;
+    var payload = JSON.stringify({ reel_ids: batch });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/reels/api/reels/view/batch", payload);
+    } else {
+      fetch("/reels/api/reels/view/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).catch(function () {});
+    }
+  }
+
+  function startViewTimer(reelId) {
+    if (!reelId) return;
+    if (viewTimers[reelId]) return;
+    viewTimers[reelId] = setTimeout(function () {
+      trackReelView(reelId);
+    }, 2000);
+  }
+
+  function cancelViewTimer(reelId) {
+    if (viewTimers[reelId]) {
+      clearTimeout(viewTimers[reelId]);
+      delete viewTimers[reelId];
+    }
+  }
+
   /* ── INTERSECTION OBSERVER — REELS / VIDEO AUTOPLAY ── */
   var videoObserver = null;
 
@@ -227,6 +280,7 @@
         var el = entry.target;
         var vid = el.tagName === "VIDEO" ? el : el.querySelector("video");
         if (!vid) return;
+        var reelId = el.dataset.reelId || el.closest("[data-item-id]") && el.closest("[data-item-id]").dataset.itemId;
         if (entry.intersectionRatio >= 0.65) {
           // Pause all other videos
           document.querySelectorAll("video[data-nv-video-active]").forEach(function (v) {
@@ -246,11 +300,15 @@
           vid.play().catch(function () {});
           var overlay = el.querySelector(".nvpro-video-overlay");
           if (overlay) overlay.classList.add("is-hidden");
+          // Start 2s view timer when video becomes visible
+          startViewTimer(reelId);
         } else {
           vid.pause();
           vid.removeAttribute("data-nv-video-active");
           var overlay = el.querySelector(".nvpro-video-overlay");
           if (overlay && !vid.played.length) overlay.classList.remove("is-hidden");
+          // Cancel view timer when video leaves viewport
+          cancelViewTimer(reelId);
         }
       });
     }, { threshold: [0.65] });

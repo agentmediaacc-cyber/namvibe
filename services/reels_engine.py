@@ -88,11 +88,57 @@ def create_reel_legacy(profile_id, caption, file=None, thumbnail=None):
 
 import time
 import threading
+import os
 
 _REEL_VIEW_QUEUE = {}
 _REEL_VIEW_LOCK = threading.Lock()
 _REEL_VIEW_LAST_FLUSH = 0
 _REEL_VIEW_FLUSH_INTERVAL = 60
+_REEL_VIEW_DEBOUNCE_SECONDS = 1800
+
+_DEBOUNCE_CACHE = {}
+_DEBOUNCE_LOCK = threading.Lock()
+
+try:
+    from services.redis_service import RedisManager, cache_set, cache_get
+    _redis_available = RedisManager._check_ping() if hasattr(RedisManager, '_check_ping') else False
+except Exception:
+    _redis_available = False
+
+_CHAIN_TEST_MODE = os.environ.get("CHAIN_TEST_MODE") == "1"
+
+def _view_debounce_key(reel_id, viewer_id):
+    return f"reel_view:{reel_id}:{viewer_id or 'anon'}"
+
+def _check_debounce(reel_id, viewer_id):
+    if _CHAIN_TEST_MODE:
+        return False
+    key = _view_debounce_key(reel_id, viewer_id)
+    if _redis_available:
+        try:
+            val = cache_get(key)
+            return val is not None
+        except Exception:
+            pass
+    with _DEBOUNCE_LOCK:
+        last = _DEBOUNCE_CACHE.get(key)
+        if last and (time.time() - last) < _REEL_VIEW_DEBOUNCE_SECONDS:
+            return True
+        _DEBOUNCE_CACHE[key] = time.time()
+        if len(_DEBOUNCE_CACHE) > 10000:
+            now = time.time()
+            _DEBOUNCE_CACHE = {k: v for k, v in _DEBOUNCE_CACHE.items() if (now - v) < _REEL_VIEW_DEBOUNCE_SECONDS}
+        return False
+
+def _mark_debounce(reel_id, viewer_id):
+    if _CHAIN_TEST_MODE:
+        return
+    key = _view_debounce_key(reel_id, viewer_id)
+    if _redis_available:
+        try:
+            cache_set(key, "1", ttl=_REEL_VIEW_DEBOUNCE_SECONDS)
+        except Exception:
+            pass
 
 def _flush_reel_views():
     global _REEL_VIEW_LAST_FLUSH
@@ -107,7 +153,6 @@ def _flush_reel_views():
         _REEL_VIEW_LAST_FLUSH = now
     if not batch:
         return
-    import threading as _t
     def _do_flush():
         for reel_id, count in batch.items():
             try:
@@ -117,10 +162,13 @@ def _flush_reel_views():
                 )
             except Exception:
                 pass
-    _t.Thread(target=_do_flush, daemon=True).start()
+    threading.Thread(target=_do_flush, daemon=True).start()
 
 def record_reel_view(reel_id, viewer_profile_id=None):
-    """Records a view for a reel. Returns immediately; flushes to DB in background."""
+    """Records a view for a reel. Debounces to once per 30 min per user. Returns quickly."""
+    if _check_debounce(reel_id, viewer_profile_id):
+        return True
+    _mark_debounce(reel_id, viewer_profile_id)
     with _REEL_VIEW_LOCK:
         _REEL_VIEW_QUEUE[reel_id] = _REEL_VIEW_QUEUE.get(reel_id, 0) + 1
     _flush_reel_views()

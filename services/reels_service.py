@@ -1,19 +1,41 @@
 """Reels service with watch-time tracking, events, comments, and save."""
+import os
+import time
 from datetime import datetime, timezone
 from services.neon_service import fast_query, write_query
 from services.reels_engine import list_reels, get_reel, create_reel, record_reel_view, like_reel, share_reel, delete_reel
 
+_REEL_EVENT_QUEUE = []
+_REEL_EVENT_LOCK = __import__("threading").Lock()
+_REEL_EVENT_FLUSH_INTERVAL = 30
+_REEL_EVENT_LAST_FLUSH = 0
+_REEL_EVENT_DEBOUNCE_SECONDS = 300
+
+_DEBOUNCE_EVENTS = {}
+_DEBOUNCE_EVENTS_LOCK = __import__("threading").Lock()
+
+try:
+    from services.redis_service import cache_get, cache_set
+    _redis_available = True
+except Exception:
+    _redis_available = False
+
+_CHAIN_TEST_MODE = os.environ.get("CHAIN_TEST_MODE") == "1"
+
+
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
 
+
 def get_reel_feed(limit=20, offset=0):
     rows = fast_query("""
-        SELECT r.*, p.username, p.avatar_url, p.is_verified,
+        SELECT r.id, r.profile_id, r.caption, r.video_url, r.thumbnail_url, r.media_url,
+               r.duration_seconds, r.music_title, r.created_at,
+               p.username, p.avatar_url, p.is_verified,
                COALESCE(r.views_count, 0) AS views_count,
                COALESCE(r.likes_count, 0) AS likes_count,
                COALESCE(r.comments_count, 0) AS comments_count,
-               COALESCE(r.shares_count, 0) AS shares_count,
-               r.duration_seconds, r.music_title, r.caption
+               COALESCE(r.shares_count, 0) AS shares_count
         FROM chain_reels r
         JOIN chain_profiles p ON r.profile_id = p.id
         WHERE r.status = 'published' AND r.visibility = 'public'
@@ -23,15 +45,80 @@ def get_reel_feed(limit=20, offset=0):
     """, (limit, offset), timeout_ms=2000, default=[])
     return rows or []
 
-def track_reel_event(reel_id, user_id, event_type, watch_ms=0):
-    try:
-        write_query(
-            "INSERT INTO chain_reel_events (reel_id, user_id, event_type, watch_ms) VALUES (%s, %s, %s, %s)",
-            (reel_id, user_id, event_type, watch_ms)
-        )
-        return True
-    except Exception:
+
+def _event_debounce_key(reel_id, user_id, event_type):
+    return f"reel_event:{reel_id}:{user_id or 'anon'}:{event_type}"
+
+
+def _check_event_debounce(reel_id, user_id, event_type):
+    if _CHAIN_TEST_MODE:
         return False
+    key = _event_debounce_key(reel_id, user_id, event_type)
+    if _redis_available:
+        try:
+            val = cache_get(key)
+            if val is not None:
+                return True
+        except Exception:
+            pass
+    with _DEBOUNCE_EVENTS_LOCK:
+        last = _DEBOUNCE_EVENTS.get(key)
+        now = time.time()
+        if last and (now - last) < _REEL_EVENT_DEBOUNCE_SECONDS:
+            return True
+        _DEBOUNCE_EVENTS[key] = now
+        if len(_DEBOUNCE_EVENTS) > 10000:
+            cutoff = now - _REEL_EVENT_DEBOUNCE_SECONDS
+            _DEBOUNCE_EVENTS = {k: v for k, v in _DEBOUNCE_EVENTS.items() if v > cutoff}
+        return False
+
+
+def _mark_event_debounce(reel_id, user_id, event_type):
+    if _CHAIN_TEST_MODE:
+        return
+    key = _event_debounce_key(reel_id, user_id, event_type)
+    if _redis_available:
+        try:
+            cache_set(key, "1", ttl=_REEL_EVENT_DEBOUNCE_SECONDS)
+        except Exception:
+            pass
+
+
+def _flush_reel_events():
+    global _REEL_EVENT_LAST_FLUSH
+    now = time.time()
+    if now - _REEL_EVENT_LAST_FLUSH < _REEL_EVENT_FLUSH_INTERVAL:
+        return
+    with _REEL_EVENT_LOCK:
+        if now - _REEL_EVENT_LAST_FLUSH < _REEL_EVENT_FLUSH_INTERVAL:
+            return
+        batch = list(_REEL_EVENT_QUEUE)
+        _REEL_EVENT_QUEUE.clear()
+        _REEL_EVENT_LAST_FLUSH = now
+    if not batch:
+        return
+    def _do_flush():
+        for row in batch:
+            try:
+                write_query(
+                    "INSERT INTO chain_reel_events (reel_id, user_id, event_type, watch_ms) VALUES (%s, %s, %s, %s)",
+                    (row[0], row[1], row[2], row[3]),
+                )
+            except Exception:
+                pass
+    __import__("threading").Thread(target=_do_flush, daemon=True).start()
+
+
+def track_reel_event(reel_id, user_id, event_type, watch_ms=0):
+    """Tracks a reel event with debounce and batched flush."""
+    if _check_event_debounce(reel_id, user_id, event_type):
+        return True
+    _mark_event_debounce(reel_id, user_id, event_type)
+    with _REEL_EVENT_LOCK:
+        _REEL_EVENT_QUEUE.append((reel_id, user_id, event_type, watch_ms))
+    _flush_reel_events()
+    return True
+
 
 def get_reel_comments(reel_id, limit=20):
     rows = fast_query("""
@@ -44,17 +131,21 @@ def get_reel_comments(reel_id, limit=20):
     """, (reel_id, limit), timeout_ms=2000, default=[])
     return rows or []
 
+
 def add_reel_comment(profile_id, reel_id, body):
     from services.engagement_service import add_comment
     return add_comment(profile_id, "reel", reel_id, body)
+
 
 def toggle_reel_like(profile_id, reel_id):
     from services.engagement_service import toggle_like
     return toggle_like(profile_id, "reel", reel_id)
 
+
 def toggle_reel_save(profile_id, reel_id):
     from services.engagement_service import toggle_save
     return toggle_save(profile_id, "reel", reel_id)
+
 
 def is_following_creator(follower_id, creator_id):
     if not follower_id or not creator_id:
@@ -64,6 +155,7 @@ def is_following_creator(follower_id, creator_id):
         (follower_id, creator_id), timeout_ms=2000, default=[]
     )
     return bool(rows)
+
 
 def batch_is_following(follower_id, creator_ids):
     if not follower_id or not creator_ids:
