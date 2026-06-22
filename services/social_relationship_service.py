@@ -25,6 +25,44 @@ def _ordered_pair(a, b):
     return (a, b) if a < b else (b, a)
 
 
+def _load_relationship_state(viewer_id, target_id):
+    """Single CTE returning all relationship state between two profiles."""
+    rows = fast_query(
+        """
+        WITH
+          v AS (SELECT %s::uuid AS id),
+          t AS (SELECT %s::uuid AS id)
+        SELECT
+          (SELECT 1 FROM chain_blocks b, v, t
+           WHERE ((b.blocker_profile_id=v.id AND b.blocked_profile_id=t.id)
+                OR (b.blocker_profile_id=t.id AND b.blocked_profile_id=v.id))
+             AND b.deleted_at IS NULL LIMIT 1) AS blocked,
+          (SELECT f.id FROM chain_friends f, v, t
+           WHERE ((f.profile_id_1=v.id AND f.profile_id_2=t.id)
+                OR (f.profile_id_1=t.id AND f.profile_id_2=v.id))
+             AND f.status='friend' AND f.deleted_at IS NULL LIMIT 1) AS friend_id,
+          (SELECT fr.id FROM chain_friend_requests fr, v, t
+           WHERE fr.sender_profile_id=v.id AND fr.recipient_profile_id=t.id
+             AND fr.status='pending' LIMIT 1) AS fr_sent_id,
+          (SELECT fr.id FROM chain_friend_requests fr, v, t
+           WHERE fr.sender_profile_id=t.id AND fr.recipient_profile_id=v.id
+             AND fr.status='pending' LIMIT 1) AS fr_received_id,
+          (SELECT f2.id FROM chain_follows f2, v, t
+           WHERE f2.follower_profile_id=v.id AND f2.following_profile_id=t.id
+             AND f2.deleted_at IS NULL LIMIT 1) AS follow_id,
+          (SELECT fr2.id FROM chain_follow_requests fr2, v, t
+           WHERE fr2.requester_profile_id=v.id AND fr2.target_profile_id=t.id
+             AND fr2.status='pending' LIMIT 1) AS fol_req_sent_id,
+          (SELECT fr2.id FROM chain_follow_requests fr2, v, t
+           WHERE fr2.requester_profile_id=t.id AND fr2.target_profile_id=v.id
+             AND fr2.status='pending' LIMIT 1) AS fol_req_received_id
+        FROM v, t
+        """,
+        (viewer_id, target_id), default=[]
+    )
+    return rows[0] if rows else {}
+
+
 def _active_follow(viewer_id, target_id):
     rows = fast_query(
         "SELECT id FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s AND deleted_at IS NULL LIMIT 1",
@@ -65,15 +103,18 @@ def _invalidate(a, b):
 
 def _refresh_follow_counts(follower_id, following_id):
     rows = fast_query(
-        "SELECT COUNT(*) AS count FROM chain_follows WHERE following_profile_id = %s AND deleted_at IS NULL",
-        (following_id,), default=[{"count": 0}]
+        """
+        SELECT
+          COUNT(*) FILTER (WHERE following_profile_id = %s) AS followers_count,
+          COUNT(*) FILTER (WHERE follower_profile_id = %s) AS following_count
+        FROM chain_follows
+        WHERE (following_profile_id = %s OR follower_profile_id = %s)
+          AND deleted_at IS NULL
+        """,
+        (following_id, follower_id, following_id, follower_id), default=[{"followers_count": 0, "following_count": 0}]
     )
-    followers_count = rows[0]["count"] if rows else 0
-    rows = fast_query(
-        "SELECT COUNT(*) AS count FROM chain_follows WHERE follower_profile_id = %s AND deleted_at IS NULL",
-        (follower_id,), default=[{"count": 0}]
-    )
-    following_count = rows[0]["count"] if rows else 0
+    followers_count = rows[0]["followers_count"] if rows else 0
+    following_count = rows[0]["following_count"] if rows else 0
     write_query("UPDATE chain_profiles SET followers_count = %s WHERE id = %s", (followers_count, following_id))
     write_query("UPDATE chain_profiles SET following_count = %s WHERE id = %s", (following_count, follower_id))
 
@@ -98,24 +139,21 @@ def _relationship_for(viewer_id, target_id):
         return _err("Authentication required.", status=401)
     if _same(viewer_id, target_id):
         return _ok("self", "This is your profile.")
-    if is_blocked_any(viewer_id, target_id):
+    state = _load_relationship_state(viewer_id, target_id)
+    if state.get("blocked"):
         return _ok("blocked", "This relationship is blocked.")
-    if _active_friendship(viewer_id, target_id):
+    if state.get("friend_id"):
         return _ok("friends", "You are friends.")
-    sent_friend = _pending_friend_request(viewer_id, target_id)
-    if sent_friend:
-        return _ok("friend_requested", "Friend request sent.", request_id=sent_friend["id"])
-    received_friend = _pending_friend_request(target_id, viewer_id)
-    if received_friend:
-        return _ok("friend_request_received", "Friend request received.", request_id=received_friend["id"])
-    if _active_follow(viewer_id, target_id):
+    if state.get("fr_sent_id"):
+        return _ok("friend_requested", "Friend request sent.", request_id=state["fr_sent_id"])
+    if state.get("fr_received_id"):
+        return _ok("friend_request_received", "Friend request received.", request_id=state["fr_received_id"])
+    if state.get("follow_id"):
         return _ok("following", "You are following this profile.")
-    sent_follow = _pending_follow_request(viewer_id, target_id)
-    if sent_follow:
-        return _ok("requested", "Follow request sent.", request_id=sent_follow["id"])
-    received_follow = _pending_follow_request(target_id, viewer_id)
-    if received_follow:
-        return _ok("follow_request_received", "Follow request received.", request_id=received_follow["id"])
+    if state.get("fol_req_sent_id"):
+        return _ok("requested", "Follow request sent.", request_id=state["fol_req_sent_id"])
+    if state.get("fol_req_received_id"):
+        return _ok("follow_request_received", "Follow request received.", request_id=state["fol_req_received_id"])
     return _ok("none", "No relationship.")
 
 
@@ -127,15 +165,19 @@ def follow(viewer_id, target_id):
     target = get_profile_by_id(target_id)
     if not target:
         return _err("Profile not found.", status=404)
-    if is_blocked_any(viewer_id, target_id):
+
+    state = _load_relationship_state(viewer_id, target_id)
+    if state.get("blocked"):
         return _err("Blocked users cannot follow each other.", state="blocked", status=403)
-    if _active_follow(viewer_id, target_id):
+    if state.get("follow_id"):
         return _ok("following", "Already following.")
 
-    if is_private_follow_required(viewer_id, target):
-        existing = _pending_follow_request(viewer_id, target_id)
-        if existing:
-            return _ok("requested", "Follow request already sent.", request_id=existing["id"])
+    visibility = target.get("profile_visibility", "public")
+    is_private = visibility == "private" and not state.get("friend_id")
+
+    if is_private:
+        if state.get("fol_req_sent_id"):
+            return _ok("requested", "Follow request already sent.", request_id=state["fol_req_sent_id"])
         rows = write_query(
             """
             INSERT INTO chain_follow_requests (requester_profile_id, target_profile_id, status, created_at)
@@ -190,18 +232,18 @@ def send_friend_request(viewer_id, target_id):
         return _err("You cannot send a friend request to yourself.", state="self")
     if not get_profile_by_id(target_id):
         return _err("Profile not found.", status=404)
-    if is_blocked_any(viewer_id, target_id):
+
+    state = _load_relationship_state(viewer_id, target_id)
+    if state.get("blocked"):
         return _err("Blocked users cannot send friend requests.", state="blocked", status=403)
-    if _active_friendship(viewer_id, target_id):
+    if state.get("friend_id"):
         return _ok("friends", "Already friends.")
 
-    reverse = _pending_friend_request(target_id, viewer_id)
-    if reverse:
-        return accept_friend_request(viewer_id, reverse["id"])
+    if state.get("fr_received_id"):
+        return accept_friend_request(viewer_id, state["fr_received_id"])
 
-    existing = _pending_friend_request(viewer_id, target_id)
-    if existing:
-        return _ok("friend_requested", "Friend request already sent.", request_id=existing["id"])
+    if state.get("fr_sent_id"):
+        return _ok("friend_requested", "Friend request already sent.", request_id=state["fr_sent_id"])
 
     rows = write_query(
         """

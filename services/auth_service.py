@@ -1207,18 +1207,33 @@ def _local_registration_network_fallback(email, password, username, full_name, p
 
 
 def _allow_local_registration_fallback():
+    is_prod = os.getenv("FLASK_ENV") == "production"
+    explicit_allow = os.getenv("ALLOW_LOCAL_AUTH_FALLBACK", "").lower() in ("1", "true", "yes")
+
+    if is_prod and not explicit_allow:
+        return False
+
+    if explicit_allow:
+        log_warning("auth_local_fallback", reason="explicit_allow", env=os.getenv("FLASK_ENV", "unknown"))
+        return True
+
     if os.getenv("CHAIN_FAST_LOCAL") == "1":
+        log_warning("auth_local_fallback", reason="chain_fast_local", env=os.getenv("FLASK_ENV", "unknown"))
         return True
     if os.getenv("CHAIN_AUTH_EMAIL_OPTIONAL") == "1":
+        log_warning("auth_local_fallback", reason="email_optional", env=os.getenv("FLASK_ENV", "unknown"))
         return True
-    if os.getenv("FLASK_ENV") != "production":
+    if not is_prod:
+        log_warning("auth_local_fallback", reason="non_production_env", env=os.getenv("FLASK_ENV", "unknown"))
         return True
     if has_request_context():
         ua = (request.headers.get("User-Agent") or "").lower()
         if any(x in ua for x in ("android", "capacitor", "wv", "namvibe")):
+            log_warning("auth_local_fallback", reason="client_ua", ua=ua[:60], env="production")
             return True
         host = request.host.split(":")[0]
         if host.startswith("127.0.0.1") or host.startswith("192.168."):
+            log_warning("auth_local_fallback", reason="local_host", host=host, env="production")
             return True
     return False
 

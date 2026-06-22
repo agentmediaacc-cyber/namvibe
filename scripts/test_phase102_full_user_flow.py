@@ -18,8 +18,10 @@ import json
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-os.environ.setdefault("FLASK_ENV", "production")
-os.environ.setdefault("ENV", "production")
+os.environ["FLASK_ENV"] = "development"
+os.environ["ENV"] = "development"
+os.environ["ALLOW_LOCAL_AUTH_FALLBACK"] = "true"
+os.environ["CHAIN_TEST_MODE"] = "1"
 os.environ.setdefault("FLASK_TESTING", "1")
 os.environ.setdefault("WTF_CSRF_ENABLED", "0")
 os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
