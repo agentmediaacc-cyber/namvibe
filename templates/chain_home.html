@@ -128,6 +128,25 @@
     {# CENTER FEED #}
     <main class="nvpro-center">
 
+      <section class="nvpro-home-hero" aria-label="NamVibe homepage overview">
+        <div class="nvpro-home-hero-copy">
+          <span class="nvpro-home-hero-kicker">Special homepage</span>
+          <h1>NamVibe</h1>
+          <p>Messages, calls, live rooms, reels, and creator tools in one place.</p>
+          <div class="nvpro-home-hero-meta">
+            <span class="nvpro-home-hero-chip">{{ live_rooms|length }} live now</span>
+            <span class="nvpro-home-hero-chip">{{ unread.get("messages") or 0 }} unread messages</span>
+            <span class="nvpro-home-hero-chip">{{ wallet_data.get("label_balance") or "0" }} coins</span>
+          </div>
+        </div>
+        <div class="nvpro-home-hero-actions">
+          <a href="/inbox/" class="nvpro-btn nvpro-btn-primary">Open inbox</a>
+          <a href="/live/" class="nvpro-btn nvpro-btn-outline">Watch live</a>
+          <a href="/discover/" class="nvpro-btn nvpro-btn-outline">Discover</a>
+          <button type="button" class="nvpro-btn nvpro-btn-outline" data-open-upload="post">Create post</button>
+        </div>
+      </section>
+
       {# STORIES TRAY #}
       <section class="nvpro-stories-tray">
         <div class="nvpro-stories-scroll">

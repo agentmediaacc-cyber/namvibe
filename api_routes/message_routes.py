@@ -109,8 +109,8 @@ def api_send():
     if client_message_id:
         from services.neon_service import fast_query
         existing = fast_query(
-            "SELECT id, delivery_status FROM chain_messages WHERE sender_profile_id = %s AND client_event_id = %s LIMIT 1",
-            (profile_id, client_message_id), default=[]
+            "SELECT id, delivery_status FROM chain_messages WHERE sender_profile_id = %s AND client_event_id = %s AND thread_id = %s LIMIT 1",
+            (profile_id, client_message_id, thread_id), default=[]
         )
         if existing:
             return jsonify({"success": True, "id": str(existing[0]["id"]), "delivery_status": existing[0].get("delivery_status", "sent"), "duplicate": True}), 200

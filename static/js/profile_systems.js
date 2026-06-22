@@ -7,12 +7,19 @@
 
   /* ── Helpers ─────────────────────────────────────────────── */
 
+  function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
   const API = {
     async get(url) { const r = await fetch(url); return r.json(); },
     async post(url, body) {
+      const headers = { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest' };
       const r = await fetch(url, {
         method: 'POST',
-        headers: body ? { 'Content-Type': 'application/json' } : {},
+        headers,
+        credentials: 'same-origin',
         body: body ? JSON.stringify(body) : undefined,
       });
       return r.json();

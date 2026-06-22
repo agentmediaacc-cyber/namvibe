@@ -37,6 +37,10 @@
     return d.innerHTML;
   }
 
+  function profileHref(username) {
+    return username ? "/profile/@" + encodeURIComponent(username) : "/profile/";
+  }
+
   /* ── SVG ICONS ── */
   var ICONS = {
     home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>',
@@ -157,7 +161,7 @@
       }
       html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '">';
       html += '<div class="nvpro-post-head">';
-      html += '<a href="/profile/@"' + escapeHtml(username) + '" class="nvpro-post-avatar">';
+      html += '<a href="' + profileHref(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
         html += '<img src="' + escapeHtml(avatar) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
         html += '<span class="nvpro-avatar-initials" style="display:none">' + initial + "</span>";
@@ -166,7 +170,7 @@
       }
       html += "</a>";
       html += '<div class="nvpro-post-meta">';
-      html += '<a href="/profile/@"' + escapeHtml(username) + '" class="nvpro-post-author">' + escapeHtml(displayName) + verified + "</a>";
+      html += '<a href="' + profileHref(username) + '" class="nvpro-post-author">' + escapeHtml(displayName) + verified + "</a>";
       html += '<span class="nvpro-post-time">' + (item.created_label || "Just now") + "</span>";
       html += "</div>";
       if (item.profile_id) {

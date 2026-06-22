@@ -149,7 +149,7 @@ def send_text_message(thread_id, sender_profile_id, body, **meta):
         }
         _MESSAGES.setdefault(thread_id, []).append(message)
     emit_to_thread(thread_id, "message:new", message)
-    # Create notifications for non-sender members
+    # Notify recipients in their profile rooms for realtime delivery
     try:
         member_rows = _safe_query(
             "SELECT tm.profile_id, tm.muted FROM chain_thread_members tm WHERE tm.thread_id = %s AND tm.profile_id != %s AND tm.deleted_at IS NULL",
@@ -159,6 +159,15 @@ def send_text_message(thread_id, sender_profile_id, body, **meta):
             if member.get("muted"):
                 continue
             recipient_id = str(member["profile_id"])
+            notify_payload = {
+                "message": message,
+                "thread_id": thread_id,
+                "sender_profile_id": sender_profile_id,
+                "message_id": message_id,
+                "preview": (body[:50] if body else "Sent a message"),
+                "created_at": message.get("created_at") or _now(),
+            }
+            emit_to_profile(recipient_id, "message:notify", notify_payload)
             from services.notification_engine import create_notification
             create_notification(
                 recipient_profile_id=recipient_id,
