@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.namvibe.gunicorn.plist — Launchd service for NamVibe Gunicorn
+
+  INSTALLATION:
+    cp ops/macos/com.namvibe.gunicorn.plist ~/Library/LaunchAgents/
+    # Edit ~/Library/LaunchAgents/com.namvibe.gunicorn.plist to update paths
+    launchctl load ~/Library/LaunchAgents/com.namvibe.gunicorn.plist
+
+  UNINSTALL:
+    launchctl unload ~/Library/LaunchAgents/com.namvibe.gunicorn.plist
+
+  REQUIREMENTS:
+    - Replace __PROJECT_ROOT__ with absolute path to project root
+      (e.g. /Users/admin/Desktop/chain_app)
+    - Virtual environment must exist at __PROJECT_ROOT__/venv
+    - gunicorn and gevent-websocket must be installed in venv
+
+  TROUBLESHOOTING:
+    Check logs: cat ~/Library/Logs/namvibe-gunicorn.log
+    View status: launchctl list com.namvibe.gunicorn
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.namvibe.gunicorn</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PROJECT_ROOT__/venv/bin/python3</string>
+        <string>-m</string>
+        <string>gunicorn</string>
+        <string>--bind</string>
+        <string>0.0.0.0:8080</string>
+        <string>--worker-class</string>
+        <string>geventwebsocket.gunicorn.workers.GeventWebSocketWorker</string>
+        <string>--workers</string>
+        <string>1</string>
+        <string>--timeout</string>
+        <string>120</string>
+        <string>--keep-alive</string>
+        <string>5</string>
+        <string>--access-logfile</string>
+        <string>__PROJECT_ROOT__/logs/gunicorn_launchd.log</string>
+        <string>--error-logfile</string>
+        <string>__PROJECT_ROOT__/logs/gunicorn_launchd.log</string>
+        <string>--log-level</string>
+        <string>info</string>
+        <string>--pid</string>
+        <string>__PROJECT_ROOT__/tmp/namvibe_gunicorn.pid</string>
+        <string>app:app</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_ROOT__</string>
+
+    <key>StandardOutPath</key>
+    <string>__PROJECT_ROOT__/logs/gunicorn_launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_ROOT__/logs/gunicorn_launchd.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FLASK_ENV</key>
+        <string>production</string>
+        <key>ENV</key>
+        <string>production</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+</dict>
+</plist>
