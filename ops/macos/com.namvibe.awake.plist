@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.namvibe.awake.plist — Launchd service to prevent Mac sleep during production.
+
+  INSTALLATION:
+    cp ops/macos/com.namvibe.awake.plist ~/Library/LaunchAgents/
+    # Edit __PROJECT_ROOT__ placeholder
+    launchctl load ~/Library/LaunchAgents/com.namvibe.awake.plist
+
+  UNINSTALL:
+    launchctl unload ~/Library/LaunchAgents/com.namvibe.awake.plist
+
+  REQUIREMENTS:
+    Replace __PROJECT_ROOT__ with absolute path to project root
+    e.g. /Users/admin/Desktop/chain_app
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.namvibe.awake</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PROJECT_ROOT__/venv/bin/python3</string>
+        <string>__PROJECT_ROOT__/scripts/start_phase129_awake_guard.py</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__PROJECT_ROOT__/logs/awake_guard_launchd.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_ROOT__/logs/awake_guard_launchd.log</string>
+</dict>
+</plist>

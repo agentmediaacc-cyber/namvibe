@@ -22,3 +22,26 @@ static/uploads/
 secrets/
 *.env
 .env.*
+
+# Production
+logs/
+tmp/
+*.pid
+*.log
+
+# Secrets / keys
+*.pem
+*.key
+*.crt
+*.p12
+
+# Databases
+*.sqlite
+*.db
+
+# Backups and generated
+*.bak
+*.json.bak
+
+# Cloudflare tunnel credentials
+.cloudflared/*.json
