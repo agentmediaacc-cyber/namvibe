@@ -1,0 +1,61 @@
+# render.yaml
+# Render Blueprint for chain-app deployment.
+# Secrets (SECRET_KEY, DATABASE_URL, etc.) must be set in the Render Dashboard
+# after the service is created — they are marked sync: false here.
+#
+# Usage:
+#   1. Push this repo to GitHub
+#   2. In Render Dashboard: New + Blueprint
+#   3. Connect your repo
+#   4. Fill in the sync: false env vars in the "Environment" tab
+#   5. Deploy
+
+services:
+  - type: web
+    name: chain-app
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      # Public env vars — set at deploy time
+      - key: FLASK_ENV
+        value: production
+      - key: ENV
+        value: production
+      - key: REDIS_SSL_CERT_REQS
+        value: required
+
+      # Secret env vars — value must be filled in the Dashboard
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+
+      # Optional secrets — only if using LiveKit / TURN / Sentry
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: TURN_SERVER_URL
+        sync: false
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_PASSWORD
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
