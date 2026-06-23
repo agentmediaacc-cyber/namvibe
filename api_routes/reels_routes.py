@@ -68,10 +68,11 @@ def index():
         return response
 
     profile = get_current_profile()
-    reels = get_reel_feed(limit=15)
+    profile_id = (profile or {}).get("id")
+    # Pass viewer_id for visibility filtering (public/followers/private)
+    reels = get_reel_feed(limit=15, viewer_id=profile_id)
     if not reels:
         reels = list_reels(limit=12)
-    profile_id = (profile or {}).get("id")
     follow_map = {}
     if profile_id and reels:
         creator_ids = {r.get("profile_id") for r in reels if r.get("profile_id")}
@@ -229,7 +230,10 @@ def api_reels_feed():
     from services.reels_service import get_reel_feed as _grf
     cursor = request.args.get("cursor")
     limit = min(int(request.args.get("limit", 20)), 50)
-    reels = _grf(limit=limit + 1)
+    profile = get_current_profile()
+    viewer_id = (profile or {}).get("id")
+    # Pass viewer_id for visibility filtering (public/followers/private)
+    reels = _grf(limit=limit + 1, viewer_id=viewer_id)
     next_cursor = None
     if len(reels) > limit:
         next_cursor = reels[-1].get("id")

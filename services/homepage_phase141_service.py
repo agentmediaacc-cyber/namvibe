@@ -181,54 +181,73 @@ def normalize_profile_v2(row):
     }
 
 
-def fetch_stories_v2(story_columns, timeout_ms=800, limit=20):
+def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
     """Phase 141: Fetch stories WITHOUT expensive profile JOIN.
-    
-    New pattern:
-    A. Query content only with LIMIT 20 and timeout_ms=800.
-    B. Collect all author/profile IDs.
-    C. Fetch profiles once in batch.
-    D. Merge profiles into content rows in Python.
+
+    Visibility rules:
+    - public: everyone can see
+    - followers: only followers can see
+    - private: only owner can see
     """
-    cache_key_str = cache_key("homepage:v1:public:stories")
+    cache_key_str = cache_key(f"homepage:v1:stories:viewer:{viewer_id or 'anon'}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached, True, None
-    
+
     if not story_columns:
         return [], False, "stories: unavailable"
-    
+
     try:
-        rows = fast_query(
-            f"SELECT {', '.join(story_columns)} FROM chain_stories WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT {limit}",
-            timeout_ms=timeout_ms,
-            default=[]
-        )
+        # Build visibility-aware query
+        profile_id_param = str(viewer_id) if viewer_id else None
+        base_query = f"SELECT {', '.join(story_columns)} FROM chain_status_posts WHERE expires_at > NOW() AND deleted_at IS NULL"
         
+        if profile_id_param:
+            # Show: owner's own stories (any visibility) + public stories + followers stories from followed users
+            query = base_query + """ AND (
+                profile_id = %s
+                OR visibility = 'public'
+                OR (visibility = 'followers' AND EXISTS (
+                    SELECT 1 FROM chain_follows 
+                    WHERE follower_profile_id = %s AND following_profile_id = profile_id
+                ))
+            ) ORDER BY created_at DESC LIMIT %s"""
+            rows = fast_query(query, [profile_id_param, profile_id_param, limit], timeout_ms=timeout_ms, default=[])
+        else:
+            # No viewer - only public stories
+            query = base_query + " AND visibility = 'public' ORDER BY created_at DESC LIMIT %s"
+            rows = fast_query(query, [limit], timeout_ms=timeout_ms, default=[])
+
         if not rows:
             return [], False, None
-        
+
         # Collect profile IDs
         profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
-        
+
         # Batch fetch profiles
         profile_map = fetch_profiles_batch(profile_ids, timeout_ms=500)
-        
+
         # Normalize with profile data
         normalized = [normalize_story_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
-        
+
         result = normalized[:limit]
-        set_cache(cache_key_str, result, ttl=60)
+        set_cache(cache_key_str, result, ttl=30)
         return result, False, None
-        
+
     except Exception as e:
         return [], False, f"stories: error {e}"
 
 
-def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20):
-    """Phase 141: Fetch reels WITHOUT expensive profile JOIN."""
-    cache_key_str = cache_key("homepage:v1:public:reels")
+def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
+    """Phase 141: Fetch reels WITHOUT expensive profile JOIN.
+    
+    Visibility rules:
+    - public: everyone can see
+    - followers: only followers can see
+    - private: only owner can see
+    """
+    cache_key_str = cache_key(f"homepage:v1:reels:viewer:{viewer_id or 'anon'}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached, True, None
@@ -237,11 +256,24 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20):
         return [], False, "reels: unavailable"
     
     try:
-        rows = fast_query(
-            f"SELECT {', '.join(reel_columns)} FROM chain_reels WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT {limit}",
-            timeout_ms=timeout_ms,
-            default=[]
-        )
+        profile_id_param = str(viewer_id) if viewer_id else None
+        base_query = f"SELECT {', '.join(reel_columns)} FROM chain_reels WHERE deleted_at IS NULL"
+        
+        if profile_id_param:
+            # Show: owner's own reels (any visibility) + public reels + followers reels from followed users
+            query = base_query + """ AND (
+                profile_id = %s
+                OR visibility = 'public'
+                OR (visibility = 'followers' AND EXISTS (
+                    SELECT 1 FROM chain_follows 
+                    WHERE follower_profile_id = %s AND following_profile_id = profile_id
+                ))
+            ) ORDER BY created_at DESC LIMIT %s"""
+            rows = fast_query(query, [profile_id_param, profile_id_param, limit], timeout_ms=timeout_ms, default=[])
+        else:
+            # No viewer - only public reels
+            query = base_query + " AND visibility = 'public' ORDER BY created_at DESC LIMIT %s"
+            rows = fast_query(query, [limit], timeout_ms=timeout_ms, default=[])
         
         if not rows:
             return [], False, None
@@ -253,16 +285,22 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20):
         normalized = [r for r in normalized if r.get("id")]
         
         result = normalized[:limit]
-        set_cache(cache_key_str, result, ttl=60)
+        set_cache(cache_key_str, result, ttl=30)
         return result, False, None
         
     except Exception as e:
         return [], False, f"reels: error {e}"
 
 
-def fetch_posts_v2(post_columns, timeout_ms=800, limit=20):
-    """Phase 141: Fetch posts WITHOUT expensive profile JOIN."""
-    cache_key_str = cache_key("homepage:v1:public:posts")
+def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
+    """Phase 141: Fetch posts WITHOUT expensive profile JOIN.
+    
+    Visibility rules:
+    - public: everyone can see
+    - followers: only followers can see
+    - private: only owner can see
+    """
+    cache_key_str = cache_key(f"homepage:v1:posts:viewer:{viewer_id or 'anon'}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached, True, None
@@ -271,11 +309,24 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20):
         return [], False, "posts: unavailable"
     
     try:
-        rows = fast_query(
-            f"SELECT {', '.join(post_columns)} FROM chain_posts WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT {limit}",
-            timeout_ms=timeout_ms,
-            default=[]
-        )
+        profile_id_param = str(viewer_id) if viewer_id else None
+        base_query = f"SELECT {', '.join(post_columns)} FROM chain_posts WHERE deleted_at IS NULL"
+        
+        if profile_id_param:
+            # Show: owner's own posts (any visibility) + public posts + followers posts from followed users
+            query = base_query + """ AND (
+                profile_id = %s
+                OR visibility = 'public'
+                OR (visibility = 'followers' AND EXISTS (
+                    SELECT 1 FROM chain_follows 
+                    WHERE follower_profile_id = %s AND following_profile_id = profile_id
+                ))
+            ) ORDER BY created_at DESC LIMIT %s"""
+            rows = fast_query(query, [profile_id_param, profile_id_param, limit], timeout_ms=timeout_ms, default=[])
+        else:
+            # No viewer - only public posts
+            query = base_query + " AND visibility = 'public' ORDER BY created_at DESC LIMIT %s"
+            rows = fast_query(query, [limit], timeout_ms=timeout_ms, default=[])
         
         if not rows:
             return [], False, None
@@ -287,7 +338,7 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20):
         normalized = [r for r in normalized if r.get("id")]
         
         result = normalized[:limit]
-        set_cache(cache_key_str, result, ttl=60)
+        set_cache(cache_key_str, result, ttl=30)
         return result, False, None
         
     except Exception as e:

@@ -27,8 +27,18 @@ def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def get_reel_feed(limit=20, offset=0):
-    rows = fast_query("""
+def get_reel_feed(limit=20, offset=0, viewer_id=None):
+    """Get reels feed with proper visibility filtering.
+    
+    Visibility rules:
+    - public: everyone can see
+    - followers: only followers can see
+    - private: only owner can see
+    """
+    profile_id_param = str(viewer_id) if viewer_id else None
+    
+    # Base query
+    query = """
         SELECT r.id, r.profile_id, r.caption, r.video_url, r.thumbnail_url, r.media_url,
                r.duration_seconds, r.music_title, r.created_at,
                p.username, p.avatar_url, p.is_verified,
@@ -38,12 +48,30 @@ def get_reel_feed(limit=20, offset=0):
                COALESCE(r.shares_count, 0) AS shares_count
         FROM chain_reels r
         JOIN chain_profiles p ON r.profile_id = p.id
-        WHERE r.status = 'published' AND r.visibility = 'public'
+        WHERE r.status = 'published'
           AND r.processing_status = 'ready' AND r.deleted_at IS NULL
-        ORDER BY r.created_at DESC
-        LIMIT %s OFFSET %s
-    """, (limit, offset), timeout_ms=2000, default=[])
-    return rows or []
+    """
+    params = [limit, offset]
+    
+    # Add visibility filter based on viewer
+    if profile_id_param:
+        # Show: owner's own reels (any visibility) + public reels + followers reels from followed users
+        query += """ AND (
+            r.profile_id = %s
+            OR r.visibility = 'public'
+            OR (r.visibility = 'followers' AND EXISTS (
+                SELECT 1 FROM chain_follows 
+                WHERE follower_profile_id = %s AND following_profile_id = r.profile_id
+            ))
+        )"""
+        params = [profile_id_param, profile_id_param] + params
+    else:
+        # No viewer - only public reels
+        query += " AND r.visibility = 'public'"
+        params = params[2:]  # Remove placeholder params
+    
+    query += " ORDER BY r.created_at DESC LIMIT %s OFFSET %s"
+    return fast_query(query, params, timeout_ms=2000, default=[]) or []
 
 
 def _event_debounce_key(reel_id, user_id, event_type):

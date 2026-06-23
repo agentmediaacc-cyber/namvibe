@@ -1,6 +1,7 @@
 """Phase 59 — Real Feed API + Follow + Like/Save/Share actions.
    Phase 120 — Premium Homepage JSON endpoints."""
 
+import os
 import time
 from flask import Blueprint, jsonify, request, session
 from services.profile_service import get_current_profile
@@ -64,7 +65,7 @@ def _minimal_feed_payload():
     }
 
 
-def _fast_homepage_feed_payload(limit=20):
+def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     started = time.perf_counter()
     budget_seconds = 1.8
     payload = _minimal_feed_payload()
@@ -77,6 +78,7 @@ def _fast_homepage_feed_payload(limit=20):
             ["id", "profile_id", "caption", "thumbnail_url", "created_at"],
             timeout_ms=350,
             limit=min(limit, 8),
+            viewer_id=viewer_id,
         )
         if budget_left() > 0:
             payload["stories"] = stories[: min(limit, 8)]
@@ -91,6 +93,7 @@ def _fast_homepage_feed_payload(limit=20):
             ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "created_at", "likes_count", "comments_count"],
             timeout_ms=400,
             limit=min(limit, 12),
+            viewer_id=viewer_id,
         )
         if budget_left() > 0:
             payload["feed_items"] = posts[: min(limit, 12)]
@@ -105,6 +108,7 @@ def _fast_homepage_feed_payload(limit=20):
             ["id", "profile_id", "caption", "thumbnail_url", "video_url", "created_at"],
             timeout_ms=350,
             limit=min(limit, 8),
+            viewer_id=viewer_id,
         )
         if budget_left() > 0:
             payload["reels"] = reels[: min(limit, 8)]
@@ -287,9 +291,11 @@ def api_homepage_feed():
             "degraded": True,
             "payload": _minimal_feed_payload(),
         })
+    profile = _current_profile()
+    viewer_id = profile.get("id") if profile else None
     try:
         started = time.perf_counter()
-        payload = _fast_homepage_feed_payload(limit=limit)
+        payload = _fast_homepage_feed_payload(limit=limit, viewer_id=viewer_id)
         elapsed = time.perf_counter() - started
         if elapsed > 2.0:
             payload = _safe_degraded_homepage_payload()

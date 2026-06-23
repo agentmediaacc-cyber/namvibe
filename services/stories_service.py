@@ -8,7 +8,17 @@ def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
 
 def get_stories_feed(viewer_id=None):
+    """Get stories feed with proper visibility filtering.
+    
+    Visibility rules:
+    - public: everyone can see
+    - followers: only followers can see
+    - private: only owner can see
+    """
     now = _utcnow_iso()
+    profile_id_param = str(viewer_id) if viewer_id else None
+    
+    # Base query for stories with visibility conditions
     query = """
         SELECT s.*, p.username, p.avatar_url, p.is_verified,
                COALESCE(s.likes_count, 0) AS likes_count,
@@ -18,11 +28,27 @@ def get_stories_feed(viewer_id=None):
         FROM chain_status_posts s
         JOIN chain_profiles p ON s.profile_id = p.id
         WHERE s.expires_at > %s AND s.deleted_at IS NULL
-          AND s.visibility = 'public'
-        ORDER BY s.created_at DESC
-        LIMIT 50
     """
-    return fast_query(query, (now,), timeout_ms=2000, default=[]) or []
+    params = [now]
+    
+    # Add visibility filter based on viewer
+    if profile_id_param:
+        # Show: owner's own stories (any visibility) + public stories + followers stories from followed users
+        query += """ AND (
+            s.profile_id = %s
+            OR s.visibility = 'public'
+            OR (s.visibility = 'followers' AND EXISTS (
+                SELECT 1 FROM chain_follows 
+                WHERE follower_profile_id = %s AND following_profile_id = s.profile_id
+            ))
+        )"""
+        params.extend([profile_id_param, profile_id_param])
+    else:
+        # No viewer - only public stories
+        query += " AND s.visibility = 'public'"
+    
+    query += " ORDER BY s.created_at DESC LIMIT 50"
+    return fast_query(query, params, timeout_ms=2000, default=[]) or []
 
 def get_story_with_views(story_id):
     story = get_status(story_id)
