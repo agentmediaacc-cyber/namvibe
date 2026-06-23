@@ -642,7 +642,7 @@ def start_direct_message_from_profile(profile_id):
     )
 
     if existing:
-        return redirect(f"/messages/{existing[0]['thread_id']}")
+        return redirect(f"/messages/?thread={existing[0]['thread_id']}")
 
     # Create new direct thread
     thread_id = str(uuid.uuid4())
@@ -666,7 +666,7 @@ def start_direct_message_from_profile(profile_id):
         (thread_id, viewer_id, thread_id, target_id)
     )
 
-    return redirect(f"/messages/{thread_id}")
+    return redirect(f"/messages/?thread={thread_id}")
 
 
 @message_bp.route("/@<username>", methods=["GET", "POST"])
