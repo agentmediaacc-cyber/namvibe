@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}NamVibe | Beta Feedback{% endblock %}
+{% block body_class %}nv-feedback-page{% endblock %}
+
+{% block content %}
+<main class="chain-page">
+  <section class="chain-panel" style="max-width: 600px; margin: 0 auto;">
+    <h1>Beta Feedback</h1>
+    <p style="color: var(--chain-muted, #8895a7); margin-bottom: 20px;">
+      Help us improve NamVibe! Share your feedback about the beta release.
+    </p>
+    
+    <form method="post" action="/api/feedback" id="feedback-form">
+      <div class="chain-form-group" style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+          Feedback Type
+        </label>
+        <select name="assistant_type" required style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--chain-border, rgba(255,255,255,.12)); background: var(--chain-bg-panel, #1a1a1a); color: inherit;">
+          <option value="">Select type...</option>
+          <option value="bug_report">Bug Report</option>
+          <option value="feature_request">Feature Request</option>
+          <option value="general">General Feedback</option>
+          <option value="performance">Performance</option>
+          <option value="ui_ux">UI/UX</option>
+        </select>
+      </div>
+      
+      <div class="chain-form-group" style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+          Rating (1-5)
+        </label>
+        <select name="rating" required style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--chain-border, rgba(255,255,255,.12)); background: var(--chain-bg-panel, #1a1a1a); color: inherit;">
+          <option value="">Select rating...</option>
+          <option value="5">5 - Excellent</option>
+          <option value="4">4 - Good</option>
+          <option value="3">3 - Average</option>
+          <option value="2">2 - Poor</option>
+          <option value="1">1 - Terrible</option>
+        </select>
+      </div>
+      
+      <div class="chain-form-group" style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+          Your Feedback
+        </label>
+        <textarea name="comment" rows="5" placeholder="Describe your experience, suggest improvements, or report issues..." required style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--chain-border, rgba(255,255,255,.12)); background: var(--chain-bg-panel, #1a1a1a); color: inherit; resize: vertical;"></textarea>
+      </div>
+      
+      <div style="display: flex; gap: 12px; margin-top: 20px;">
+        <button type="submit" class="chain-btn primary" style="flex: 1;">
+          Send Feedback
+        </button>
+        <a href="/" class="chain-btn outline" style="flex: 1; text-align: center;">
+          Back to Home
+        </a>
+      </div>
+    </form>
+  </section>
+</main>
+
+<script>
+document.getElementById('feedback-form')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const data = Object.fromEntries(formData);
+  
+  try {
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.ok) {
+      alert('Thank you for your feedback!');
+      this.reset();
+      this.innerHTML = '<div class="chain-panel" style="text-align: center; padding: 40px;"><h2>Thank you!</h2><p>Your feedback has been submitted successfully.</p><a href="/" class="chain-btn primary">Back to Home</a></div>';
+    } else {
+      alert('Failed to submit feedback. Please try again.');
+    }
+  } catch (err) {
+    alert('Network error. Please try again.');
+  }
+});
+</script>
+{% endblock %}

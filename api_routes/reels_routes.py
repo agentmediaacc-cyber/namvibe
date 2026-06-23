@@ -228,3 +228,35 @@ def api_reels_feed():
         "next_cursor": rwe_encode_cursor(next_cursor) if next_cursor else None,
         "has_more": bool(next_cursor),
     })
+
+
+# =========== PHASE 93: Batch View Tracking ===========
+
+@reels_bp.route("/api/reels/view/batch", methods=["POST"])
+def api_reels_view_batch():
+    """Batch endpoint for tracking reel views. Accepts either a list or {views: [...]} format."""
+    try:
+        data = request.get_json(silent=True) or {}
+        # Support both formats: direct list or {views: [...]}
+        views = data if isinstance(data, list) else data.get("views", [])
+        if not views:
+            return jsonify({"ok": True, "tracked": 0}), 200
+        
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        
+        tracked = 0
+        for view in views:
+            reel_id = view.get("reel_id") or view.get("id")
+            watch_ms = int(view.get("watch_ms") or view.get("watch_seconds", 0) or 0)
+            completed = view.get("completed", False)
+            if reel_id:
+                try:
+                    record_reel_view(reel_id, viewer_profile_id=viewer_id)
+                    tracked += 1
+                except Exception:
+                    pass
+        
+        return jsonify({"ok": True, "tracked": tracked}), 200
+    except Exception:
+        return jsonify({"ok": True, "tracked": 0}), 200

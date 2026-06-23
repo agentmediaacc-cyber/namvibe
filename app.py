@@ -25,6 +25,7 @@ load_project_env()
 from api_routes.auth_routes import auth_bp
 from api_routes.profile_routes import profile_bp
 from api_routes.dashboard_routes import dashboard_bp
+from api_routes.public_routes import public_bp
 from api_routes.matching_routes import matching_bp
 from api_routes.dating_routes import dating_bp
 from api_routes.message_routes import message_bp
@@ -380,6 +381,7 @@ def create_app():
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(public_bp)
     app.add_template_filter(format_datetime_filter, "datetime")
     app.add_template_filter(hashtag_links, "hashtag_links")
 
