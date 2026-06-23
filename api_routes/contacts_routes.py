@@ -30,6 +30,14 @@ def api_contacts():
     if not profile:
         return jsonify({"ok": False, "error": "Not logged in"}), 401
     pid = profile["id"]
+    
+    # Phase 130: Add caching to prevent slow database queries (Cloudflare tunnel fix)
+    from engines.cache_engine import cache_key, get_cache, set_cache
+    cache_key_str = cache_key("contacts", pid)
+    cached_contacts = get_cache(cache_key_str)
+    if cached_contacts is not None:
+        return jsonify({"ok": True, "contacts": cached_contacts})
+    
     rows = fast_query(
         """
         SELECT
@@ -60,8 +68,11 @@ def api_contacts():
             "message_url": f"/messages/start/{fid}",
             "audio_call_url": f"/calls/start/{fid}/audio",
             "video_call_url": f"/calls/start/{fid}/video",
-            "profile_url": f"/profile/{r['username']}",
+            "profile_url": f"/profile/{r.get('username')}",
         })
+    
+    # Cache for 60 seconds to reduce database load
+    set_cache(cache_key_str, contacts, ttl=60)
     return jsonify({"ok": True, "contacts": contacts})
 
 

@@ -1931,25 +1931,41 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
             log_warning(f"profile_bundle_{key}_failed", profile_id=profile.get("id"), error=str(e))
             return key, default
 
+    # Phase 130: Add timeout protection for parallel queries (Cloudflare tunnel fix)
+    # Each query gets a 1.5s timeout to prevent stream cancellation
+    from concurrent.futures import TimeoutError as FutureTimeoutError
+    QUERY_TIMEOUT_SECONDS = 1.5
+    
     with ThreadPoolExecutor(max_workers=10) as exe:
         futures = {
-            exe.submit(_safe, lambda pid=profile["id"]: get_profile_stats(pid) or {}, "stats", {}),
-            exe.submit(_safe, lambda pid=profile["id"]: get_profile_content(pid) or {}, "content", {}),
-            exe.submit(_safe, lambda pid=profile["id"]: get_profile_activity(pid) or {}, "activity", {}),
-            exe.submit(_safe, lambda pid=profile["id"]: get_wallet_snapshot(pid) or {}, "wallet", {}),
-            exe.submit(_safe, lambda pid=profile["id"]: get_creator_tools(pid) or {}, "creator_tools", {}),
-            exe.submit(_safe, lambda p=profile, v=viewer: get_profile_actions(p, viewer=v) or [], "actions", []),
-            exe.submit(_safe, lambda pid=profile["id"]: (safe_select("chain_presence", filters={"profile_id": pid}, limit=1) or [{"status": "offline", "last_seen": None}])[0], "presence", {"status": "offline", "last_seen": None}),
+            exe.submit(_safe, lambda pid=profile["id"]: get_profile_stats(pid) or {}, "stats", {}): "stats",
+            exe.submit(_safe, lambda pid=profile["id"]: get_profile_content(pid) or {}, "content", {}): "content",
+            exe.submit(_safe, lambda pid=profile["id"]: get_profile_activity(pid) or {}, "activity", {}): "activity",
+            exe.submit(_safe, lambda pid=profile["id"]: get_wallet_snapshot(pid) or {}, "wallet", {}): "wallet",
+            exe.submit(_safe, lambda pid=profile["id"]: get_creator_tools(pid) or {}, "creator_tools", {}): "creator_tools",
+            exe.submit(_safe, lambda p=profile, v=viewer: get_profile_actions(p, viewer=v) or [], "actions", []): "actions",
+            exe.submit(_safe, lambda pid=profile["id"]: (safe_select("chain_presence", filters={"profile_id": pid}, limit=1) or [{"status": "offline", "last_seen": None}])[0], "presence", {"status": "offline", "last_seen": None}): "presence",
         }
         if viewer:
-            futures.add(exe.submit(_safe, lambda v=viewer, pid=profile["id"]: bool(safe_select("chain_follows", filters={"follower_profile_id": v["id"], "following_profile_id": pid}, limit=1)), "is_following", False))
+            futures.update({
+                exe.submit(_safe, lambda v=viewer, pid=profile["id"]: bool(safe_select("chain_follows", filters={"follower_profile_id": v["id"], "following_profile_id": pid}, limit=1)), "is_following", False): "is_following",
+            })
             if profile.get('is_page'):
-                futures.add(exe.submit(_safe, lambda v=viewer, pid=profile["id"]: bool(safe_select("chain_page_likes", filters={"profile_id": v["id"], "page_id": pid}, limit=1)), "is_page_liked", False))
+                futures.update({
+                    exe.submit(_safe, lambda v=viewer, pid=profile["id"]: bool(safe_select("chain_page_likes", filters={"profile_id": v["id"], "page_id": pid}, limit=1)), "is_page_liked", False): "is_page_liked",
+                })
             if viewer.get("id") == profile.get("id"):
-                futures.add(exe.submit(_safe, lambda pid=profile["id"]: safe_select("chain_saved_items", filters={"profile_id": pid}, limit=20) or [], "saved_items", []))
-        for f in as_completed(futures):
-            key, value = f.result()
-            bundle_results[key] = value
+                futures.update({
+                    exe.submit(_safe, lambda pid=profile["id"]: safe_select("chain_saved_items", filters={"profile_id": pid}, limit=20) or [], "saved_items", []): "saved_items",
+                })
+        for future in futures:
+            try:
+                key, value = future.result(timeout=QUERY_TIMEOUT_SECONDS)
+                bundle_results[key] = value
+            except FutureTimeoutError:
+                log_warning("profile_bundle_query_timeout", key=futures[future], profile_id=profile.get("id"))
+            except Exception as e:
+                log_warning("profile_bundle_query_error", error=str(e), key=futures[future])
 
     stats = bundle_results["stats"]
     log_info("profile_bundle_stats_state", profile_id=profile.get("id"), stats_keys=sorted(list(stats.keys()))[:8], has_stats=bool(stats))

@@ -108,56 +108,79 @@ def get_thread(thread_id, profile_id):
     # Single query: verify membership, fetch thread, fetch peer simultaneously
     # We batch: membership check + thread metadata in one round trip
     from services.neon_service import fast_query as _fq
+    from concurrent.futures import TimeoutError as FutureTimeoutError
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    QUERY_TIMEOUT_MS = 1500  # 1.5 second timeout per query
 
-    # 1) Membership + thread + peer in one query group (parallel fetches)
-    memberships = _fq(
-        "SELECT muted, last_read_at FROM chain_thread_members WHERE thread_id = %s AND profile_id = %s",
-        (thread_id, profile_id), timeout_ms=1500, default=[]
-    )
+    # 1) Membership check
+    try:
+        memberships = _fq(
+            "SELECT muted, last_read_at FROM chain_thread_members WHERE thread_id = %s AND profile_id = %s",
+            (thread_id, profile_id), timeout_ms=QUERY_TIMEOUT_MS, default=[]
+        )
+    except Exception as e:
+        logger.warning(f"get_thread membership query failed: {e}")
+        memberships = []
+    
     if not memberships:
         return None
 
-    threads = _fq(
-        "SELECT id, thread_type, created_by_profile_id, created_at FROM chain_message_threads WHERE id = %s AND deleted_at IS NULL",
-        (thread_id,), timeout_ms=1500, default=[]
-    )
+    # 2) Thread metadata
+    try:
+        threads = _fq(
+            "SELECT id, thread_type, created_by_profile_id, created_at FROM chain_message_threads WHERE id = %s AND deleted_at IS NULL",
+            (thread_id,), timeout_ms=QUERY_TIMEOUT_MS, default=[]
+        )
+    except Exception as e:
+        logger.warning(f"get_thread thread query failed: {e}")
+        threads = []
+    
     if not threads:
         return None
 
     thread = threads[0]
     thread["membership"] = memberships[0]
 
-    # 2) Fetch peer for direct threads (or group display)
+    # 3) Fetch peer for direct threads (or group display)
     if thread.get("thread_type") == "group":
         thread["display_name"] = "Unnamed Group"
     else:
-        peers = _fq(
-            "SELECT p.id, p.username, p.full_name, p.avatar_url FROM chain_thread_members tm JOIN chain_profiles p ON tm.profile_id = p.id WHERE tm.thread_id = %s AND tm.profile_id != %s LIMIT 1",
-            (thread_id, profile_id), timeout_ms=500, default=[]
-        )
-        if peers:
-            thread["other_member"] = peers[0]
-            thread["display_name"] = peers[0].get("full_name") or peers[0].get("username")
-            thread["display_avatar"] = peers[0].get("avatar_url")
+        try:
+            peers = _fq(
+                "SELECT p.id, p.username, p.full_name, p.avatar_url FROM chain_thread_members tm JOIN chain_profiles p ON tm.profile_id = p.id WHERE tm.thread_id = %s AND tm.profile_id != %s LIMIT 1",
+                (thread_id, profile_id), timeout_ms=500, default=[]
+            )
+            if peers:
+                thread["other_member"] = peers[0]
+                thread["display_name"] = peers[0].get("full_name") or peers[0].get("username")
+                thread["display_avatar"] = peers[0].get("avatar_url")
+        except Exception as e:
+            logger.warning(f"get_thread peer query failed: {e}")
 
-    # 3) Fetch latest 50 messages + reactions in one batch
-    messages = _fq(
-        """SELECT m.id, m.thread_id, m.sender_profile_id, m.body, m.media_url,
-                  m.media_type, m.mime_type, m.size_bytes, m.sticker_id, m.gif_url,
-                  m.parent_message_id, m.is_forwarded, m.created_at, m.delivery_status,
-                  p.username AS sender_username, p.avatar_url AS sender_avatar
-           FROM chain_messages m
-           JOIN chain_profiles p ON m.sender_profile_id = p.id
-           WHERE m.thread_id = %s
-             AND m.deleted_at IS NULL
-             AND NOT EXISTS (
-               SELECT 1 FROM chain_message_deletions md
-               WHERE md.message_id = m.id AND md.profile_id = %s
-             )
-            ORDER BY m.created_at DESC
-            LIMIT 50""",
-        (thread_id, profile_id), timeout_ms=5000, default=[]
-    )
+    # 4) Fetch latest 50 messages + reactions in one batch
+    try:
+        messages = _fq(
+            """SELECT m.id, m.thread_id, m.sender_profile_id, m.body, m.media_url,
+                      m.media_type, m.mime_type, m.size_bytes, m.sticker_id, m.gif_url,
+                      m.parent_message_id, m.is_forwarded, m.created_at, m.delivery_status,
+                      p.username AS sender_username, p.avatar_url AS sender_avatar
+             FROM chain_messages m
+             JOIN chain_profiles p ON m.sender_profile_id = p.id
+             WHERE m.thread_id = %s
+               AND m.deleted_at IS NULL
+               AND NOT EXISTS (
+                     SELECT 1 FROM chain_message_deletions md
+                     WHERE md.message_id = m.id AND md.profile_id = %s
+                   )
+             ORDER BY m.created_at DESC
+             LIMIT 50""",
+            (thread_id, profile_id), timeout_ms=5000, default=[]
+        )
+    except Exception as e:
+        logger.warning(f"get_thread messages query failed: {e}")
+        messages = []
     # Reverse to chronological order
     messages.reverse()
 
