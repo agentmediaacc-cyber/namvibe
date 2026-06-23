@@ -100,13 +100,13 @@ def _follow_status_from_state(state):
     return "none"
 
 
-def _discovery_cache_key(section, viewer_id=None):
+def _discovery_cache_key(section, viewer_id=None, offset=0):
     if viewer_id:
         return None
-    return cache_key("discovery_v2", section)
+    return cache_key("discovery_v2", section, offset)
 
 
-def _load_profiles(where_clause="", params=None, limit=20, timeout_ms=5000):
+def _load_profiles(where_clause="", params=None, limit=20, offset=0, timeout_ms=5000):
     query = f"""
         SELECT {", ".join("chain_profiles." + column for column in DISCOVERY_PROFILE_COLUMNS)}
         FROM chain_profiles
@@ -115,11 +115,11 @@ def _load_profiles(where_clause="", params=None, limit=20, timeout_ms=5000):
           AND {public_profile_sql("chain_profiles")}
           {where_clause}
         ORDER BY COALESCE(is_premium, FALSE) DESC, created_at DESC
-        LIMIT %s
+        LIMIT %s OFFSET %s
     """
     rows = get_or_set(
-        f"discover_profiles:{where_clause}:{params}:{limit}",
-        lambda: fast_query(query, list(params or []) + [limit], timeout_ms=timeout_ms, default=[]),
+        f"discover_profiles:{where_clause}:{params}:{limit}:{offset}",
+        lambda: fast_query(query, list(params or []) + [limit, offset], timeout_ms=timeout_ms, default=[]),
     )
     return [normalize_profile(profile) for profile in rows]
 
@@ -167,10 +167,22 @@ def _strip_private_data(item):
     return stripped
 
 
-def get_discovery_data(section, viewer_id=None, limit=50):
+def get_discovery_data(section, viewer_id=None, limit=50, offset=0, q=""):
+    """Get discovery data for a section with pagination support.
+    
+    Args:
+        section: Discovery section (recommended, members, trending, etc.)
+        viewer_id: Optional viewer profile ID for personalization
+        limit: Number of items to return (default 50)
+        offset: Pagination offset (default 0)
+        q: Search term (default "")
+    
+    Returns:
+        Dict with title, section, items, has_more, query, offset
+    """
     total_start = time.perf_counter()
     try:
-        key = _discovery_cache_key(section, viewer_id=viewer_id)
+        key = _discovery_cache_key(section, viewer_id=viewer_id, offset=offset)
         cached_data = get_cache(key)
         if cached_data is not None and not viewer_id:
             log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="cache_hit", duration_ms=_ms(total_start))
@@ -180,14 +192,14 @@ def get_discovery_data(section, viewer_id=None, limit=50):
         title = section.replace("-", " ").title()
 
         if is_circuit_open():
-            result = {"title": title, "section": section, "items": []}
+            result = {"title": title, "section": section, "items": [], "has_more": False, "query": q, "offset": offset}
             if key:
                 set_cache(key, result, ttl=30)
             return result
 
         load_start = time.perf_counter()
         if section == "dating":
-            profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=limit, timeout_ms=5000)
+            profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=limit, offset=offset, timeout_ms=5000)
             viewer_profile = {}
             if viewer_id:
                 viewer_rows = fast_query(
@@ -210,16 +222,16 @@ def get_discovery_data(section, viewer_id=None, limit=50):
             data = _load_live(limit=limit)
             title = "Live Now"
         elif section == "members" or section == "recommended":
-            data = _load_profiles(limit=limit)
+            data = _load_profiles(limit=limit, offset=offset)
             title = "Recommended Members"
         elif section == "trending":
             data = filter_feed_posts(get_recommended_posts(viewer_id, limit=limit) or _load_trending(limit=limit))
             title = "Trending Feed"
         elif section == "nearby":
-            data = _load_profiles("AND current_location IS NOT NULL", limit=limit)
+            data = _load_profiles("AND current_location IS NOT NULL", limit=limit, offset=offset)
             title = "Nearby Members"
         else:
-            data = _load_profiles(limit=limit)
+            data = _load_profiles(limit=limit, offset=offset)
         log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="load_items", item_count=len(data or []), duration_ms=_ms(load_start))
 
         enriched = []
@@ -248,13 +260,16 @@ def get_discovery_data(section, viewer_id=None, limit=50):
                 can_view = _can_view_profile_from_state(viewer_id, item, state)
                 if not can_view:
                     item = _strip_private_data(item)
-            enriched.append(item)
+                enriched.append(item)
         log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="enrich_items", item_count=len(enriched), duration_ms=_ms(enrich_start))
 
         result = {
             "title": title,
             "section": section,
-            "items": enriched
+            "items": enriched,
+            "has_more": len(enriched) == limit,
+            "query": q,
+            "offset": offset + len(enriched)
         }
         if key:
             set_cache(key, result, ttl=30)
@@ -262,7 +277,7 @@ def get_discovery_data(section, viewer_id=None, limit=50):
         return result
     except Exception as error:
         print(f"[discovery_service] get_discovery_data failed: {error}")
-        return {"title": "Discovery", "section": section, "items": []}
+        return {"title": "Discovery", "section": section, "items": [], "has_more": False, "query": q, "offset": offset}
 
 def _calculate_compatibility(a, b):
     score = 50

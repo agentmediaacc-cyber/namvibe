@@ -532,8 +532,15 @@ def release_connection(conn):
             pool_inst.putconn(conn, close=True)
         except: pass
 
-def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms: int = 2000):
-    """Internal runner with connection management."""
+def _run_query(sql_text, params: Any = None, fetch: str = "all", timeout_ms: int = 2000):
+    """Internal runner with connection management.
+    
+    Args:
+        sql_text: SQL query string or psycopg2.sql.Composable object
+        params: Query parameters (tuple or list)
+        fetch: Fetch mode ("all", "one", "write", or "none")
+        timeout_ms: Query timeout in milliseconds
+    """
     global _LAST_SUCCESS_AT
     conn = None
     start_time = time.perf_counter()
@@ -547,12 +554,15 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                 
                 latency = (time.perf_counter() - start_time) * 1000
                 if latency > 500:
-                    fp = sql_fingerprint(sql_text)
+                    # Convert Composable to string for fingerprinting if needed
+                    sql_str = str(sql_text) if isinstance(sql_text, sql.Composable) else sql_text
+                    fp = sql_fingerprint(sql_str)
                     if should_log(fp):
-                        log_warning("neon_slow_query", sql=sql_text[:200], latency_ms=latency)
+                        log_warning("neon_slow_query", sql=sql_str[:200], latency_ms=latency)
                 
                 # Automatically fetch if RETURNING is present, or if explicitly requested
-                is_returning = "RETURNING" in sql_text.upper()
+                sql_str = str(sql_text) if isinstance(sql_text, sql.Composable) else sql_text
+                is_returning = "RETURNING" in sql_str.upper()
                 
                 if fetch == "all" or (fetch == "write" and is_returning):
                     return [dict(row) for row in cur.fetchall()]
@@ -570,7 +580,7 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
         if is_ssl_closed and conn:
             _discard_broken_connection(conn)
             conn = None  # prevent double-release
-            log_info("neon_ssl_closed_detected", sql=sql_text[:100])
+            log_info("neon_ssl_closed_detected", sql=str(sql_text)[:100])
             # Retry once with fresh connection
             try:
                 conn = get_connection(timeout_ms=timeout_ms)
@@ -579,7 +589,8 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                         cur.execute(sql_text, params)
                         _NEON_BREAKER.success()
                         _LAST_SUCCESS_AT = time.time()
-                        if fetch == "all" or (fetch == "write" and "RETURNING" in sql_text.upper()):
+                        sql_str = str(sql_text) if isinstance(sql_text, sql.Composable) else sql_text
+                        if fetch == "all" or (fetch == "write" and "RETURNING" in sql_str.upper()):
                             return [dict(row) for row in cur.fetchall()]
                         if fetch == "one":
                             row = cur.fetchone()
@@ -588,12 +599,12 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
                         return {"rowcount": getattr(cur, "rowcount", None)}
             except Exception as retry_e:
                 _record_query_failure(retry_e)
-                log_error("neon_ssl_retry_failed", error=retry_e, sql=sql_text[:100])
+                log_error("neon_ssl_retry_failed", error=retry_e, sql=str(sql_text)[:100])
                 if fetch == "write":
                     raise NeonWriteError(str(retry_e))
                 return [] if fetch == "all" else None
         _record_query_failure(e)
-        log_error("neon_query_error", error=e, sql=sql_text[:200])
+        log_error("neon_query_error", error=e, sql=str(sql_text)[:200])
         if fetch == "write":
             raise NeonWriteError(str(e))
         return [] if fetch == "all" else None
@@ -603,14 +614,22 @@ def _run_query(sql_text: str, params: Any = None, fetch: str = "all", timeout_ms
 
 _run = _run_query
 
-def fast_query(sql_text: str, params: Any = None, timeout_ms: int = 10000, default: Any = None):
-    """Route-safe query helper with strict timeout protection."""
+def fast_query(sql_text, params: Any = None, timeout_ms: int = 10000, default: Any = None):
+    """Route-safe query helper with strict timeout protection.
+    
+    Args:
+        sql_text: SQL query string or psycopg2.sql.Composable object
+        params: Query parameters (tuple or list)
+        timeout_ms: Query timeout in milliseconds
+        default: Default value to return on failure
+    """
     if not _NEON_BREAKER.allow():
         return default if default is not None else []
 
     # Early exit for simple health check pings in fast local mode
     if not _is_production_env() and _flag_enabled("CHAIN_FAST_LOCAL"):
-        if sql_text.strip().upper() == "SELECT 1":
+        sql_str = str(sql_text) if isinstance(sql_text, sql.Composable) else sql_text
+        if sql_str.strip().upper() == "SELECT 1":
             return [{"?column?": 1}] if default is None else default
 
     future = _DB_EXECUTOR.submit(_run, sql_text, params, "all", timeout_ms)
@@ -619,10 +638,11 @@ def fast_query(sql_text: str, params: Any = None, timeout_ms: int = 10000, defau
         return results if results is not None else (default if default is not None else [])
     except (FutureTimeoutError, Exception) as e:
         if isinstance(e, FutureTimeoutError):
-            log_warning("neon_wall_timeout", timeout_ms=timeout_ms, sql=sql_text[:100])
+            sql_str = str(sql_text) if isinstance(sql_text, sql.Composable) else sql_text
+            log_warning("neon_wall_timeout", timeout_ms=timeout_ms, sql=sql_str[:100])
         return default if default is not None else []
 
-def write_query(sql_text: str, params: Any = None, timeout_ms: int = 5000):
+def write_query(sql_text, params: Any = None, timeout_ms: int = 5000):
     """Transaction-safe write helper."""
     return _run_query(sql_text, params, fetch="write", timeout_ms=timeout_ms)
 
@@ -722,30 +742,9 @@ def get_table_columns(table_name: str, timeout_ms=5000):
     if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
         static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
         if static_cols:
+            log_info("schema_cache_static_hit", table=table_name, kind="columns")
             return set(static_cols)
-
-    cached = _COLUMN_CACHE.get(table_name)
-    now = time.time()
-    if cached is not None and now < cached["expires_at"]:
-        return cached["columns"]
-
-    log_info("schema_cache_miss", table=table_name, kind="columns")
-    query = """
-        SELECT a.attname as column_name
-        FROM pg_attribute a
-        JOIN pg_class c ON c.oid = a.attrelid
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE c.relname = %s AND n.nspname = 'public'
-        AND a.attnum > 0 AND NOT a.attisdropped
-    """
-    rows = fast_query(query, (table_name,), timeout_ms=timeout_ms)
-    columns = [r["column_name"] for r in rows] if rows else []
-    
-    _COLUMN_CACHE[table_name] = {
-        "columns": columns,
-        "expires_at": now + _COLUMN_CACHE_TTL
-    }
-    return columns
+    return get_table_columns(table_name, timeout_ms=timeout_ms)
 
 
 def table_exists(table_name: str, timeout_ms=2000):

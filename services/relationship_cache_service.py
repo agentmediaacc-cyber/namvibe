@@ -11,6 +11,7 @@ import os
 import re
 from typing import Dict, List
 
+from psycopg2 import sql
 from services.neon_service import fast_query
 from services.redis_service import cache_get, cache_set, cache_mget, cache_set_bulk, cache_delete
 
@@ -116,10 +117,13 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
     blocked_set = set()
 
     for chunk in _chunks(str_ids, 50):
+        # Use psycopg2.sql.SQL to properly adapt the UUID list to uuid[]
+        chunk_literal = sql.Literal(chunk)
+        
         following_rows = fast_query(
-            "SELECT following_profile_id FROM chain_follows "
-            "WHERE follower_profile_id = %s::uuid AND following_profile_id = ANY(%s::uuid[]) AND deleted_at IS NULL",
-            (str_viewer, chunk), timeout_ms=5000, default=[]
+            sql.SQL("SELECT following_profile_id FROM chain_follows "
+                    "WHERE follower_profile_id = %s::uuid AND following_profile_id = ANY(%s::uuid[]) AND deleted_at IS NULL"),
+            (str_viewer, chunk_literal), timeout_ms=5000, default=[]
         )
         for r in following_rows:
             oid = str(r.get("following_profile_id"))
@@ -127,12 +131,12 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
                 following_set.add(oid)
 
         friend_rows = fast_query(
-            "SELECT CASE WHEN profile_id_1 = %s THEN profile_id_2 ELSE profile_id_1 END AS other_id "
-            "FROM chain_friends "
-            "WHERE status = 'friend' AND deleted_at IS NULL "
-            "AND ((profile_id_1 = %s::uuid AND profile_id_2 = ANY(%s::uuid[])) "
-            "     OR (profile_id_2 = %s::uuid AND profile_id_1 = ANY(%s::uuid[])))",
-            (str_viewer, str_viewer, chunk, str_viewer, chunk), timeout_ms=5000, default=[]
+            sql.SQL("SELECT CASE WHEN profile_id_1 = %s THEN profile_id_2 ELSE profile_id_1 END AS other_id "
+                    "FROM chain_friends "
+                    "WHERE status = 'friend' AND deleted_at IS NULL "
+                    "AND ((profile_id_1 = %s::uuid AND profile_id_2 = ANY(%s::uuid[])) "
+                    "     OR (profile_id_2 = %s::uuid AND profile_id_1 = ANY(%s::uuid[])))"),
+            (str_viewer, str_viewer, chunk_literal, str_viewer, chunk_literal), timeout_ms=5000, default=[]
         )
         for r in friend_rows:
             oid = str(r.get("other_id"))
@@ -140,12 +144,12 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
                 friend_set.add(oid)
 
         blocked_rows = fast_query(
-            "SELECT CASE WHEN blocker_profile_id = %s THEN blocked_profile_id ELSE blocker_profile_id END AS other_id "
-            "FROM chain_blocks "
-            "WHERE deleted_at IS NULL "
-            "AND ((blocker_profile_id = %s::uuid AND blocked_profile_id = ANY(%s::uuid[])) "
-            "     OR (blocked_profile_id = %s::uuid AND blocker_profile_id = ANY(%s::uuid[])))",
-            (str_viewer, str_viewer, chunk, str_viewer, chunk), timeout_ms=5000, default=[]
+            sql.SQL("SELECT CASE WHEN blocker_profile_id = %s THEN blocked_profile_id ELSE blocker_profile_id END AS other_id "
+                    "FROM chain_blocks "
+                    "WHERE deleted_at IS NULL "
+                    "AND ((blocker_profile_id = %s::uuid AND blocked_profile_id = ANY(%s::uuid[])) "
+                    "     OR (blocked_profile_id = %s::uuid AND blocker_profile_id = ANY(%s::uuid[])))"),
+            (str_viewer, str_viewer, chunk_literal, str_viewer, chunk_literal), timeout_ms=5000, default=[]
         )
         for r in blocked_rows:
             oid = str(r.get("other_id"))
@@ -153,9 +157,9 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
                 blocked_set.add(oid)
 
         fr_sent_rows = fast_query(
-            "SELECT recipient_profile_id FROM chain_friend_requests "
-            "WHERE sender_profile_id = %s::uuid AND recipient_profile_id = ANY(%s::uuid[]) AND status = 'pending'",
-            (str_viewer, chunk), timeout_ms=5000, default=[]
+            sql.SQL("SELECT recipient_profile_id FROM chain_friend_requests "
+                    "WHERE sender_profile_id = %s::uuid AND recipient_profile_id = ANY(%s::uuid[]) AND status = 'pending'"),
+            (str_viewer, chunk_literal), timeout_ms=5000, default=[]
         )
         for r in fr_sent_rows:
             oid = str(r.get("recipient_profile_id"))
@@ -163,9 +167,9 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
                 fr_sent.add(oid)
 
         fr_received_rows = fast_query(
-            "SELECT sender_profile_id FROM chain_friend_requests "
-            "WHERE recipient_profile_id = %s::uuid AND sender_profile_id = ANY(%s::uuid[]) AND status = 'pending'",
-            (str_viewer, chunk), timeout_ms=5000, default=[]
+            sql.SQL("SELECT sender_profile_id FROM chain_friend_requests "
+                    "WHERE recipient_profile_id = %s::uuid AND sender_profile_id = ANY(%s::uuid[]) AND status = 'pending'"),
+            (str_viewer, chunk_literal), timeout_ms=5000, default=[]
         )
         for r in fr_received_rows:
             oid = str(r.get("sender_profile_id"))
@@ -173,9 +177,9 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
                 fr_received.add(oid)
 
         fol_req_sent_rows = fast_query(
-            "SELECT target_profile_id FROM chain_follow_requests "
-            "WHERE requester_profile_id = %s::uuid AND target_profile_id = ANY(%s::uuid[]) AND status = 'pending'",
-            (str_viewer, chunk), timeout_ms=5000, default=[]
+            sql.SQL("SELECT target_profile_id FROM chain_follow_requests "
+                    "WHERE requester_profile_id = %s::uuid AND target_profile_id = ANY(%s::uuid[]) AND status = 'pending'"),
+            (str_viewer, chunk_literal), timeout_ms=5000, default=[]
         )
         for r in fol_req_sent_rows:
             oid = str(r.get("target_profile_id"))
@@ -183,9 +187,9 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
                 fol_req_sent.add(oid)
 
         fol_req_received_rows = fast_query(
-            "SELECT requester_profile_id FROM chain_follow_requests "
-            "WHERE target_profile_id = %s::uuid AND requester_profile_id = ANY(%s::uuid[]) AND status = 'pending'",
-            (str_viewer, chunk), timeout_ms=5000, default=[]
+            sql.SQL("SELECT requester_profile_id FROM chain_follow_requests "
+                    "WHERE target_profile_id = %s::uuid AND requester_profile_id = ANY(%s::uuid[]) AND status = 'pending'"),
+            (str_viewer, chunk_literal), timeout_ms=5000, default=[]
         )
         for r in fol_req_received_rows:
             oid = str(r.get("requester_profile_id"))
