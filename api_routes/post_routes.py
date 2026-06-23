@@ -107,3 +107,33 @@ def delete(post_id):
         return redirect(request.referrer or url_for("profile.my_profile"))
     flash(result.get("error", "Could not delete post."))
     return redirect(request.referrer or url_for("profile.my_profile"))
+
+
+# ============== API ENDPOINTS ==============
+
+@post_bp.route("/api/posts/create", methods=["POST"])
+@login_required
+def api_create():
+    """API endpoint for creating posts with optional media."""
+    profile_id = get_session_profile_id()
+    if not profile_id:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    caption = request.form.get("caption") or request.form.get("body") or ""
+    media_file = request.files.get("media")
+    link_url = request.form.get("link_url") or ""
+    town_tag = request.form.get("town_tag") or request.form.get("location") or ""
+    visibility = request.form.get("visibility", "public")
+    
+    # Normalize visibility (handle 'audience' as well)
+    visibility = request.form.get("audience") or visibility
+    visibility = visibility.lower() if visibility else "public"
+    if visibility not in ("public", "followers", "private"):
+        visibility = "public"
+    
+    post, error = create_post(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility)
+    if error:
+        return jsonify({"ok": False, "error": error}), 400
+    if post:
+        return jsonify({"ok": True, "post": post}), 201
+    return jsonify({"ok": False, "error": "Failed to create post"}), 400

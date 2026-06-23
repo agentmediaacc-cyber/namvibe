@@ -41,16 +41,19 @@ CHAIN_STATIC_COLUMNS = {
     },
     "chain_posts": {
         "id", "profile_id", "body", "caption", "content", "post_type", "link_url",
-        "town_tag", "visibility",  "video_url", "thumbnail_url",
+        "town_tag", "visibility", "media_url", "video_url", "thumbnail_url",
+        "media_bucket", "media_path", "mime_type", "size_bytes",
         "likes_count", "comments_count", "shares_count", "category",
         "status", "is_archived", "is_pinned", "scheduled_at",
         "deleted_at", "created_at", "updated_at"
     },
     "chain_reels": {
-        "id", "profile_id", "caption", "video_url",  "thumbnail_url",
-        "storage_bucket", "storage_path", "music_title", "status", "visibility",
-        "processing_status", "mime_type", "file_size", "likes_count",
-        "comments_count", "shares_count", "is_archived", "is_pinned", "scheduled_at",
+        "id", "profile_id", "caption", "video_url", "thumbnail_url", "media_url",
+        "storage_bucket", "storage_path", "media_bucket", "media_path",
+        "music_title", "status", "visibility", "processing_status",
+        "mime_type", "file_size", "size_bytes",
+        "likes_count", "comments_count", "shares_count", "views_count",
+        "is_archived", "is_pinned", "scheduled_at",
         "deleted_at", "created_at", "updated_at"
     },
     "chain_friend_requests": {
@@ -76,8 +79,10 @@ CHAIN_STATIC_COLUMNS = {
         "reason", "created_at", "updated_at", "deleted_at"
     },
     "chain_status_posts": {
-        "id", "profile_id", "caption",  "thumbnail_url", "media_type",
+        "id", "profile_id", "caption", "media_url", "video_url", "media_type",
         "storage_bucket", "storage_path", "visibility", "expires_at",
+        "likes_count", "views_count", "comments_count",
+        "mime_type", "size_bytes", "status_type",
         "deleted_at", "created_at", "updated_at"
     },
     "chain_stories": {
@@ -121,6 +126,10 @@ CHAIN_STATIC_COLUMNS = {
     "chain_login_events": {
         "id", "profile_id", "auth_user_id", "provider", "email",
         "ip_address", "user_agent", "status", "created_at"
+    },
+    "chain_media_albums": {
+        "id", "profile_id", "title", "description", "cover_url",
+        "visibility", "created_at", "updated_at"
     },
 }
 
@@ -737,15 +746,6 @@ def get_pool_status():
         "ever_connected": _LAST_SUCCESS_AT > 0,
         "recent_success": (time.time() - _LAST_SUCCESS_AT) < 60 if _LAST_SUCCESS_AT > 0 else False
     }
-
-def get_table_columns(table_name: str, timeout_ms=5000):
-    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
-        static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
-        if static_cols:
-            log_info("schema_cache_static_hit", table=table_name, kind="columns")
-            return set(static_cols)
-    return get_table_columns(table_name, timeout_ms=timeout_ms)
-
 
 def table_exists(table_name: str, timeout_ms=2000):
     if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":

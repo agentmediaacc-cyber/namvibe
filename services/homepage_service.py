@@ -529,6 +529,7 @@ def _status_select():
             "media_url",
             "video_url",
             "thumbnail_url",
+            "visibility",
             "created_at",
             "expires_at",
             "status",
@@ -629,7 +630,7 @@ def _fetch_posts():
     return rows, [issue] if issue else []
 
 
-def _fetch_stories():
+def _fetch_stories(viewer_profile_id=None):
     issues = []
     story_rows = []
     story_columns = _story_select()
@@ -642,11 +643,20 @@ def _fetch_stories():
             where.append("active = TRUE")
         elif "status" in available:
             where.append("COALESCE(status, '') <> 'deleted'")
+        story_params = []
+        if viewer_profile_id and "visibility" in available:
+            where.append(f"""(visibility = 'public'
+                OR (profile_id = %s)
+                OR (visibility = 'followers' AND profile_id IN (
+                    SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s
+                )))""")
+            story_params.extend([viewer_profile_id, viewer_profile_id])
         query = f"SELECT {', '.join(story_columns)} FROM chain_stories"
         if where:
             query += f" WHERE {' AND '.join(where)}"
         query += " ORDER BY created_at DESC NULLS LAST LIMIT %s"
-        story_rows, issue = _run_sql("stories", query, [_HOMEPAGE_LIMITS["stories"]])
+        story_params.append(_HOMEPAGE_LIMITS["stories"])
+        story_rows, issue = _run_sql("stories", query, story_params)
         if issue:
             issues.append(issue)
     else:
@@ -664,6 +674,13 @@ def _fetch_stories():
             params.append(_utcnow())
         if "status" in available:
             where.append("COALESCE(status, '') <> 'deleted'")
+        if viewer_profile_id and "visibility" in available:
+            where.append(f"""(visibility = 'public'
+                OR (profile_id = %s)
+                OR (visibility = 'followers' AND profile_id IN (
+                    SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s
+                )))""")
+            params.extend([viewer_profile_id, viewer_profile_id])
         query = f"SELECT {', '.join(status_columns)} FROM chain_status_posts WHERE {' AND '.join(where)} ORDER BY created_at DESC NULLS LAST LIMIT %s"
         params.append(_HOMEPAGE_LIMITS["stories"])
         status_rows, issue = _run_sql("status_posts", query, params)
@@ -2548,7 +2565,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
             }
 
         # ── Stories (active, non-expired) ──
-        story_rows, _ = _fetch_stories()
+        story_rows, _ = _fetch_stories(viewer_profile_id=pid)
         if story_rows:
             pids = {r.get("profile_id") for r in story_rows if r.get("profile_id")}
             pmap = _load_profile_map(list(pids)) if pids else {}

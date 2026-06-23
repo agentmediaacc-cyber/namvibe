@@ -275,3 +275,35 @@ def api_reels_view_batch():
         return jsonify({"ok": True, "tracked": tracked}), 200
     except Exception:
         return jsonify({"ok": True, "tracked": 0}), 200
+
+
+# =========== API: Reel Upload ===========
+
+@reels_bp.route("/api/reels/create", methods=["POST"])
+@login_required
+def api_create_reel():
+    """API endpoint for creating reels with video upload."""
+    profile_id = get_session_profile_id()
+    if not profile_id:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    
+    video_file = request.files.get("video")
+    if not video_file:
+        return jsonify({"ok": False, "error": "Video file is required"}), 400
+    
+    caption = request.form.get("caption", "")
+    music_title = request.form.get("music_title", "")
+    visibility = request.form.get("visibility", "public")
+    
+    # Normalize visibility
+    visibility = request.form.get("audience") or visibility
+    visibility = visibility.lower() if visibility else "public"
+    if visibility not in ("public", "followers", "private"):
+        visibility = "public"
+    
+    reel_id, error = create_reel(profile_id, caption, video_file, None, music_title=music_title, visibility=visibility)
+    if error:
+        return jsonify({"ok": False, "error": error}), 400
+    if reel_id:
+        return jsonify({"ok": True, "reel_id": reel_id}), 201
+    return jsonify({"ok": False, "error": "Failed to create reel"}), 400

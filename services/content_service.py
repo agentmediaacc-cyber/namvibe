@@ -167,58 +167,35 @@ def validate_media(file_obj, media_kind=None, max_duration_seconds=None):
 
 
 def save_media_file(file_obj, upload_type, media_kind=None, profile_id=None, max_duration_seconds=None):
+    """Save media file using Supabase Storage for large files."""
     valid, error, info = validate_media(file_obj, media_kind=media_kind, max_duration_seconds=max_duration_seconds)
     if not valid:
         return None, error
-    from services.supabase_storage_router import upload_file
-    routed_type = {"post": "posts", "profile_post": "posts", "reel": "reels", "story": "stories"}.get(upload_type, "posts")
-    uploaded, upload_error = upload_file(file_obj, routed_type, profile_id, public=True)
-    if upload_error:
-        return None, upload_error
+    
+    from services.supabase_storage_service import upload_media_to_supabase
+    
+    # Map upload_type to storage folder
+    folder_map = {"post": "posts", "profile_post": "posts", "reel": "reels", "story": "stories"}
+    folder = folder_map.get(upload_type, "posts")
+    
+    # Use the new Supabase Storage service
+    upload_result = upload_media_to_supabase(file_obj, folder, profile_id)
+    if not upload_result.get("ok"):
+        return None, upload_result.get("error", "Upload failed")
+    
     media = {
         "id": str(uuid.uuid4()),
         "profile_id": profile_id,
         "upload_type": upload_type,
-        "media_type": uploaded["media_type"],
-        "file_path": uploaded["path"],
-        "public_url": uploaded["url"],
-        "storage_bucket": uploaded["bucket"],
-        "storage_path": uploaded["path"],
-        "mime_type": uploaded["mime_type"],
-        "file_size": uploaded["size_bytes"],
-        "size_bytes": uploaded["size_bytes"],
+        "media_type": upload_result["media_type"],
+        "file_path": upload_result["path"],
+        "public_url": upload_result["url"],
+        "storage_bucket": "supabase",
+        "storage_path": upload_result["path"],
+        "mime_type": upload_result["mime_type"],
+        "file_size": upload_result["size"],
+        "size_bytes": upload_result["size"],
         "original_filename": secure_filename(file_obj.filename or "upload"),
-        "created_at": utcnow().isoformat(),
-    }
-    inserted = _insert_media_metadata(media)
-    if not inserted and is_production_env():
-        log_error("content_media_metadata_persistence_failed", upload_type=upload_type)
-        return None, "Media metadata could not be saved. Please try again."
-    if not inserted:
-        log_warning("content_using_local_fallback", content_type="media", profile_id=profile_id)
-        _LOCAL_STORE["media"].append(media)
-    return media, None
-
-    # Legacy local path retained unreachable unless router logic is removed.
-    folder = UPLOAD_FOLDERS.get(upload_type, UPLOAD_FOLDERS["post"])
-    os.makedirs(folder, exist_ok=True)
-    original = secure_filename(file_obj.filename or "upload")
-    filename = f"{int(time.time())}_{uuid.uuid4().hex[:10]}_{original}"
-    path = os.path.join(folder, filename)
-    file_obj.save(path)
-    url = "/" + path.replace(os.sep, "/")
-    media = {
-        "id": str(uuid.uuid4()),
-        "profile_id": profile_id,
-        "upload_type": upload_type,
-        "media_type": info["kind"],
-        "file_path": path,
-        "public_url": url,
-        "storage_bucket": "local",
-        "storage_path": path,
-        "mime_type": info["content_type"],
-        "file_size": info["size"],
-        "original_filename": original,
         "created_at": utcnow().isoformat(),
     }
     inserted = _insert_media_metadata(media)
@@ -287,6 +264,10 @@ def ensure_content_schema():
     ALTER TABLE chain_posts ADD COLUMN IF NOT EXISTS shares_count integer DEFAULT 0;
     ALTER TABLE chain_posts ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
     ALTER TABLE chain_posts ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+    ALTER TABLE chain_posts ADD COLUMN IF NOT EXISTS media_bucket text;
+    ALTER TABLE chain_posts ADD COLUMN IF NOT EXISTS media_path text;
+    ALTER TABLE chain_posts ADD COLUMN IF NOT EXISTS mime_type text;
+    ALTER TABLE chain_posts ADD COLUMN IF NOT EXISTS size_bytes bigint;
     ALTER TABLE chain_media_uploads ADD COLUMN IF NOT EXISTS media_type text;
     ALTER TABLE chain_media_uploads ADD COLUMN IF NOT EXISTS file_path text;
     ALTER TABLE chain_media_uploads ADD COLUMN IF NOT EXISTS public_url text;
@@ -311,6 +292,13 @@ def ensure_content_schema():
     ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS video_url text;
     ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS likes_count integer DEFAULT 0;
     ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS media_type text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS storage_bucket text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS storage_path text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS mime_type text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS size_bytes bigint;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS views_count integer DEFAULT 0;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS comments_count integer DEFAULT 0;
     CREATE TABLE IF NOT EXISTS chain_hashtags (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         tag text UNIQUE NOT NULL,
@@ -353,6 +341,9 @@ def ensure_content_schema():
     ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS music_title text;
     ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS processing_status text DEFAULT 'ready';
     ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+    ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS media_bucket text;
+    ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS media_path text;
+    ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS size_bytes bigint;
     CREATE TABLE IF NOT EXISTS chain_follows (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         follower_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,

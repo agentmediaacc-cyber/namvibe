@@ -105,7 +105,7 @@ def api_poll_vote(story_id):
     return jsonify({"success": True}), 200
 
 
-# =========== PHASE 93: Story Engagement Endpoints ===========
+# =========== PHASE 93: Story Engagement (unique endpoints only) ===========
 
 @stories_bp.route("/api/stories/tray", methods=["GET"])
 def api_story_tray():
@@ -115,41 +115,6 @@ def api_story_tray():
         return jsonify({"stories": []})
     tray = se_get_tray(profile_id)
     return jsonify({"stories": tray})
-
-
-@stories_bp.route("/api/stories/<story_id>/view", methods=["POST"])
-def api_story_view(story_id):
-    profile = get_current_profile()
-    viewer_id = (profile or {}).get("id")
-    if viewer_id:
-        se_record_view(story_id, viewer_id)
-    return jsonify({"ok": True})
-
-
-@stories_bp.route("/api/stories/<story_id>/reaction", methods=["POST"])
-def api_story_reaction(story_id):
-    profile = get_current_profile()
-    user_id = (profile or {}).get("id")
-    if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
-    data = request.get_json(silent=True) or {}
-    reaction = data.get("reaction", "like")
-    se_set_reaction(story_id, user_id, reaction)
-    return jsonify({"ok": True})
-
-
-@stories_bp.route("/api/stories/<story_id>/reply", methods=["POST"])
-def api_story_reply(story_id):
-    profile = get_current_profile()
-    sender_id = (profile or {}).get("id")
-    if not sender_id:
-        return jsonify({"error": "Not authenticated"}), 401
-    data = request.get_json(silent=True) or {}
-    body = data.get("body", "")
-    if not body.strip():
-        return jsonify({"error": "Reply text required"}), 400
-    result = se_send_reply(story_id, sender_id, body.strip())
-    return jsonify(result)
 
 
 @stories_bp.route("/api/stories/<story_id>", methods=["DELETE"])

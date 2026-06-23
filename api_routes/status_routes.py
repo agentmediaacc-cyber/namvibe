@@ -3,6 +3,10 @@ from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile
 from services.status_service import create_status, list_active_statuses, get_status, delete_status, record_view, list_viewers
 from services.content_service import get_session_profile_id, session_profile_stub
+from services.supabase_storage_service import upload_media_to_supabase
+from services.neon_service import write_query
+import uuid
+from datetime import datetime, timezone
 
 status_bp = Blueprint("status", __name__, url_prefix="/status")
 
@@ -28,10 +32,16 @@ def create():
         caption = request.form.get("caption")
         media_file = request.files.get("media")
         visibility = request.form.get("visibility") or "public"
+        visibility = request.form.get("audience") or visibility
+        visibility = visibility.lower() if visibility else "public"
+        if visibility not in ("public", "followers", "private"):
+            visibility = "public"
         media_type = request.form.get("media_type", "image")
         
-        status = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
-        if status:
+        status, error = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+        if error:
+            flash(error, "error")
+        elif status:
             flash("Status posted successfully!", "success")
             return redirect(url_for("status.index"))
         
@@ -79,14 +89,20 @@ def delete(status_id):
 def api_create():
     profile_id = get_session_profile_id()
     if not profile_id:
-        return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
     
     caption = request.form.get("caption")
     media_file = request.files.get("media")
     visibility = request.form.get("visibility", "public")
+    visibility = request.form.get("audience") or visibility
+    visibility = visibility.lower() if visibility else "public"
+    if visibility not in ("public", "followers", "private"):
+        visibility = "public"
     media_type = request.form.get("media_type", "image")
     
-    status = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+    status, error = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+    if error:
+        return jsonify({"ok": False, "error": error}), 400
     if status:
-        return jsonify({"success": True, "status_id": status["id"]}), 201
-    return jsonify({"error": "Failed to create"}), 400
+        return jsonify({"ok": True, "story": status}), 201
+    return jsonify({"ok": False, "error": "Failed to create story"}), 400

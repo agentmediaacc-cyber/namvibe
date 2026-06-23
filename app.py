@@ -76,6 +76,7 @@ from api_routes.friend_routes import friend_bp
 from api_routes.contacts_routes import contacts_bp, contacts_api_bp
 from api_routes.inbox_routes import inbox_bp
 from api_routes.follow_request_routes import follow_request_api_bp
+from api_routes.gallery_routes import gallery_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
@@ -543,6 +544,7 @@ def create_app():
     app.register_blueprint(contacts_bp)
     app.register_blueprint(contacts_api_bp)
     app.register_blueprint(inbox_bp)
+    app.register_blueprint(gallery_bp)
 
     try:
         from services.content_service import ensure_content_schema
@@ -722,15 +724,7 @@ def create_app():
     @app.route("/stories")
     @app.route("/stories/")
     def stories_root():
-        profile = get_current_profile()
-        viewer_id = (profile or {}).get("id")
-        from services.status_service import list_active_statuses
-        use_new = request.args.get("v2", "") == "1"
-        if use_new:
-            return render_template("stories/tray.html", profile=profile)
-        stories = list_active_statuses(viewer_profile_id=viewer_id)
-        import json
-        return render_template("stories.html", stories=stories, profile=profile, current=profile, stories_json=json.dumps(stories or [], default=str))
+        return redirect(url_for("stories_v2.index"))
 
     @app.route("/live/create")
     def live_create_root_redirect():
@@ -833,11 +827,66 @@ def create_app():
         caption = request.form.get("caption")
         media_file = request.files.get("media")
         visibility = request.form.get("visibility", "public")
+        visibility = request.form.get("audience") or visibility
+        visibility = visibility.lower() if visibility else "public"
+        if visibility not in ("public", "followers", "private"):
+            visibility = "public"
         media_type = request.form.get("media_type", "image")
-        status = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+        status, error = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+        if error:
+            return jsonify({"ok": False, "error": error}), 400
         if status:
-            return jsonify({"success": True, "status_id": status["id"]}), 201
-        return jsonify({"error": "Failed to create"}), 400
+            return jsonify({"ok": True, "story": status}), 201
+        return jsonify({"ok": False, "error": "Failed to create"}), 400
+
+    @app.route("/api/posts/create", methods=["POST"])
+    @login_required
+    def api_posts_create():
+        from services.post_service import create_post
+        from services.content_service import get_session_profile_id
+        profile_id = get_session_profile_id()
+        if not profile_id:
+            return jsonify({"ok": False, "error": "Unauthorized"}), 401
+        caption = request.form.get("caption") or request.form.get("body") or ""
+        media_file = request.files.get("media")
+        link_url = request.form.get("link_url") or ""
+        town_tag = request.form.get("town_tag") or request.form.get("location") or ""
+        visibility = request.form.get("visibility", "public")
+        visibility = request.form.get("audience") or visibility
+        visibility = visibility.lower() if visibility else "public"
+        if visibility not in ("public", "followers", "private"):
+            visibility = "public"
+        post, error = create_post(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility)
+        if error:
+            return jsonify({"ok": False, "error": error}), 400
+        if post:
+            return jsonify({"ok": True, "post": post}), 201
+        return jsonify({"ok": False, "error": "Failed to create post"}), 400
+
+    @app.route("/api/reels/create", methods=["POST"])
+    @login_required
+    def api_reels_create():
+        from services.reels_engine import create_reel
+        from services.content_service import get_session_profile_id
+        profile_id = get_session_profile_id()
+        if not profile_id:
+            return jsonify({"ok": False, "error": "Unauthorized"}), 401
+        video_file = request.files.get("video")
+        if not video_file:
+            return jsonify({"ok": False, "error": "Video file is required"}), 400
+        caption = request.form.get("caption", "")
+        music_title = request.form.get("music_title", "")
+        visibility = request.form.get("visibility", "public")
+        visibility = request.form.get("audience") or visibility
+        visibility = visibility.lower() if visibility else "public"
+        if visibility not in ("public", "followers", "private"):
+            visibility = "public"
+        reel_id, error = create_reel(profile_id, caption, video_file, None, music_title=music_title, visibility=visibility)
+        if error:
+            return jsonify({"ok": False, "error": error}), 400
+        if reel_id:
+            return jsonify({"ok": True, "reel_id": reel_id}), 201
+        return jsonify({"ok": False, "error": "Failed to create reel"}), 400
 
     @app.route("/stories/create", methods=["GET", "POST"])
     @login_required
@@ -852,9 +901,15 @@ def create_app():
             caption = request.form.get("caption")
             media_file = request.files.get("media")
             visibility = request.form.get("visibility") or "public"
+            visibility = request.form.get("audience") or visibility
+            visibility = visibility.lower() if visibility else "public"
+            if visibility not in ("public", "followers", "private"):
+                visibility = "public"
             media_type = request.form.get("media_type", "image")
-            result = create_status(pid, caption, media_file, visibility=visibility, media_type=media_type)
-            if result:
+            result, error = create_status(pid, caption, media_file, visibility=visibility, media_type=media_type)
+            if error:
+                flash(error, "error")
+            elif result:
                 flash("Story posted!", "success")
                 return redirect("/stories")
             flash("Could not post story.", "error")

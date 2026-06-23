@@ -610,7 +610,8 @@
         fd.append("visibility", visibility);
         if (fileType === "video") fd.append("video", input.files[0]);
 
-        var uploadUrl = type === "post" ? "/posts/create" : type === "reel" ? "/reels/upload" : "/api/status/create";
+        // Use new API endpoints
+        var uploadUrl = type === "post" ? "/api/posts/create" : type === "reel" ? "/api/reels/create" : "/api/stories/create";
         var xhr = new XMLHttpRequest();
         xhr.open("POST", uploadUrl, true);
         xhr.setRequestHeader("X-CSRFToken", csrfToken());
@@ -631,8 +632,19 @@
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               var resp = JSON.parse(xhr.responseText);
-              if (resp.ok || resp.id || resp.url) {
-                showSuccess(resp.url || resp.redirect || "/");
+              if (resp.ok) {
+                // Show success with the created item's URL
+                var itemUrl = resp.story?.id ? "/status/" + resp.story.id :
+                              resp.post?.id ? "/posts/" + resp.post.id :
+                              resp.reel_id ? "/reels/" + resp.reel_id : "/";
+                showSuccess(itemUrl);
+                // Refresh feed after successful upload
+                setTimeout(function() {
+                  var feedEl = document.getElementById("nvpro-feed");
+                  if (feedEl) {
+                    fetchFeed(activeTab);
+                  }
+                }, 500);
                 return;
               }
             } catch (e) {}
@@ -665,7 +677,7 @@
     var id = btn.dataset.id;
     var type = btn.dataset.type || "post";
     if (!id) return;
-    var url = type === "reel" ? "/api/reels/" + id + "/like" : "/api/home/post/" + id + "/like";
+    var url = type === "reel" ? "/reels/api/reels/" + id + "/like" : "/api/home/post/" + id + "/like";
     apiFetch(url, { method: "POST" })
       .then(function (data) {
         if (data.ok) {
@@ -688,7 +700,7 @@
     var id = btn.dataset.id;
     var type = btn.dataset.type || "post";
     if (!id) return;
-    var url = type === "reel" ? "/api/reels/" + id + "/save" : "/api/home/post/" + id + "/save";
+    var url = type === "reel" ? "/reels/api/reels/" + id + "/save" : "/api/home/post/" + id + "/save";
     apiFetch(url, { method: "POST" })
       .then(function (data) {
         if (data.ok) {
