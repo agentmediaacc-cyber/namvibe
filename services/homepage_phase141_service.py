@@ -51,7 +51,7 @@ _PROFILE_BATCH_COLUMNS = [
 ]
 
 
-def fetch_profiles_batch(profile_ids, timeout_ms=500):
+def fetch_profiles_batch(profile_ids, timeout_ms=5000):
     """Fetch profiles by IDs in a single batch query.
     
     Returns dict {id: profile_dict} for efficient lookup.
@@ -130,6 +130,7 @@ def normalize_live_room_v2(row, profile_map):
         "created_label": _format_relative(row.get("created_at")),
         "watch_url": "/live/",
     }
+def normalize_post_v2(row, profile_map):
     """Normalize post/reel row with profile data from map."""
     if not row or not row.get("id"):
         return {}
@@ -200,7 +201,7 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
     try:
         # Build visibility-aware query
         profile_id_param = str(viewer_id) if viewer_id else None
-        base_query = f"SELECT {', '.join(story_columns)} FROM chain_status_posts WHERE expires_at > NOW() AND deleted_at IS NULL"
+        base_query = f"SELECT {', '.join(story_columns)} FROM chain_status_posts WHERE (expires_at IS NULL OR expires_at > NOW()) AND deleted_at IS NULL"
         
         if profile_id_param:
             # Show: owner's own stories (any visibility) + public stories + followers stories from followed users
@@ -225,7 +226,7 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
         profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
 
         # Batch fetch profiles
-        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=500)
+        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
 
         # Normalize with profile data
         normalized = [normalize_story_v2(r, profile_map) for r in rows if r.get("id")]
@@ -279,7 +280,7 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
             return [], False, None
         
         profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
-        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=500)
+        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
         
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
@@ -332,7 +333,7 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
             return [], False, None
         
         profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
-        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=500)
+        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
         
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
@@ -366,7 +367,7 @@ def fetch_live_rooms_v2(live_columns, timeout_ms=800, limit=5):
             return [], False, None
         
         profile_ids = [r.get("profile_id") or r.get("host_id") or r.get("creator_id") for r in rows if r.get("profile_id") or r.get("host_id") or r.get("creator_id")]
-        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=500)
+        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
         
         normalized = [normalize_live_room_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]

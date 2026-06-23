@@ -67,7 +67,7 @@ def _minimal_feed_payload():
 
 def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     started = time.perf_counter()
-    budget_seconds = 1.8
+    budget_seconds = 60.0
     payload = _minimal_feed_payload()
 
     def budget_left():
@@ -76,7 +76,7 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     try:
         stories, _, _ = fetch_stories_v2(
             ["id", "profile_id", "caption", "thumbnail_url", "created_at"],
-            timeout_ms=350,
+            timeout_ms=20000,
             limit=min(limit, 8),
             viewer_id=viewer_id,
         )
@@ -91,7 +91,7 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     try:
         posts, _, _ = fetch_posts_v2(
             ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "created_at", "likes_count", "comments_count"],
-            timeout_ms=400,
+            timeout_ms=20000,
             limit=min(limit, 12),
             viewer_id=viewer_id,
         )
@@ -106,7 +106,7 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     try:
         reels, _, _ = fetch_reels_v2(
             ["id", "profile_id", "caption", "thumbnail_url", "video_url", "created_at"],
-            timeout_ms=350,
+            timeout_ms=20000,
             limit=min(limit, 8),
             viewer_id=viewer_id,
         )
@@ -115,7 +115,7 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     except Exception:
         return _safe_degraded_homepage_payload()
 
-    payload["homepage_degraded"] = True
+    payload["homepage_degraded"] = not bool(payload.get("feed_items") or payload.get("stories") or payload.get("reels"))
     return payload
 
 
@@ -277,30 +277,21 @@ def api_share_post(post_id):
 
 @homepage_api_bp.route("/api/homepage/feed")
 def api_homepage_feed():
-    force_fast_home = (
-        request.headers.get("Host", "").lower().find("namvibe.com") >= 0
-        or os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
-        or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
-    )
     try:
         limit = min(max(int(request.args.get("limit", 20)), 1), 50)
     except (TypeError, ValueError):
         limit = 20
-    if force_fast_home:
-        return _json_ok({
-            "degraded": True,
-            "payload": _minimal_feed_payload(),
-        })
     profile = _current_profile()
     viewer_id = profile.get("id") if profile else None
     try:
         started = time.perf_counter()
         payload = _fast_homepage_feed_payload(limit=limit, viewer_id=viewer_id)
         elapsed = time.perf_counter() - started
-        if elapsed > 2.0:
+        has_data = bool(payload.get("feed_items") or payload.get("stories") or payload.get("reels"))
+        if not has_data:
             payload = _safe_degraded_homepage_payload()
         return _json_ok({
-            "degraded": True,
+            "degraded": not has_data,
             "payload": payload,
         })
     except Exception as e:

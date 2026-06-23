@@ -789,10 +789,63 @@
         return r.json();
       })
       .then(function (data) {
-        if (data && data.ok && data.payload && data.payload.feed_items) {
-          var feedEl = document.getElementById("nvpro-feed");
-          if (feedEl) {
-            renderFeedItems(feedEl, data.payload.feed_items);
+        if (data && data.ok && data.payload) {
+          var p = data.payload;
+          if (p.feed_items) {
+            var feedEl = document.getElementById("nvpro-feed");
+            if (feedEl) renderFeedItems(feedEl, p.feed_items);
+          }
+          if (p.stories && p.stories.length) {
+            var storiesEl = document.querySelector(".nvpro-stories-scroll");
+            if (storiesEl) {
+              var createBtn = storiesEl.querySelector(".nvpro-story-create");
+              var items = "";
+              p.stories.forEach(function (s) {
+                var name = (s.display_name || s.username || "?");
+                var initial = name.charAt(0).toUpperCase();
+                var avatar = s.avatar_url || "";
+                var ringCls = s.viewed ? "" : " is-unseen";
+                items += '<a href="/stories/" class="nvpro-story-item" data-story-id="' + (s.id || "") + '">' +
+                  '<div class="nvpro-story-ring' + ringCls + '">';
+                if (avatar) {
+                  items += '<img src="' + avatar + '" alt="" class="nvpro-story-avatar" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                    '<span class="nvpro-avatar-initials" style="display:none">' + initial + '</span>';
+                } else {
+                  items += '<span class="nvpro-avatar-initials">' + initial + '</span>';
+                }
+                items += '</div><span class="nvpro-story-label">' + name.substring(0, 10) + '</span></a>';
+              });
+              var emptyCard = storiesEl.querySelector(".nvpro-story-empty-card");
+              if (createBtn) {
+                var newHtml = createBtn.outerHTML + items;
+                var emptyNext = createBtn.nextElementSibling;
+                if (emptyCard) { emptyCard.remove(); }
+                while (createBtn.nextElementSibling) { createBtn.nextElementSibling.remove(); }
+                createBtn.insertAdjacentHTML("afterend", items);
+              }
+            }
+          }
+          if (p.reels && p.reels.length) {
+            var reelsGrid = document.querySelector(".nvpro-reels-grid");
+            if (reelsGrid) {
+              var rh = "";
+              p.reels.slice(0, 6).forEach(function (r) {
+                var thumb = r.thumbnail_url || r.media_url || r.video_url || "";
+                var name = r.display_name || r.username || "Creator";
+                var caption = (r.caption || r.text || "").substring(0, 60);
+                rh += '<a href="/reels/" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
+                  '<div class="nvpro-reel-thumb">';
+                if (thumb) {
+                  rh += '<img src="' + thumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<svg viewBox=\\\'0 0 24 24\\\' fill=\\\'none\\\' stroke=\\\'currentColor\\\' width=\\\'36\\\' height=\\\'36\\\'><polygon points=\\\'23 7 16 12 23 17 23 7\\\'/><rect x=\\\'1\\\' y=\\\'5\\\' width=\\\'15\\\' height=\\\'14\\\' rx=\\\'2\\\' ry=\\\'2\\\'/></svg>\'">';
+                } else {
+                  rh += '<div class="nvpro-reel-thumb-fallback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="36" height="36"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>';
+                }
+                rh += '</div><div class="nvpro-reel-info"><span class="nvpro-reel-creator">' + name + '</span>';
+                if (caption) rh += '<span class="nvpro-reel-caption">' + caption + '</span>';
+                rh += '</div></a>';
+              });
+              reelsGrid.innerHTML = rh;
+            }
           }
         }
       })

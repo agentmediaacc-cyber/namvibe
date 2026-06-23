@@ -7,11 +7,11 @@ from services.neon_service import fast_query
 
 
 HOMEPAGE_QUERY_BUDGET_MS = {
-    "stories": 100,
-    "reels": 100,
-    "live_rooms": 100,
-    "posts": 200,
-    "profiles": 200,
+    "stories": 500,
+    "reels": 500,
+    "live_rooms": 500,
+    "posts": 500,
+    "profiles": 500,
 }
 
 _PROFILE_LIMIT = 100

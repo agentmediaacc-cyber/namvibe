@@ -988,7 +988,6 @@ def create_app():
         force_fast_home = (
             os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
             or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
-            or "namvibe.com" in request.host.lower()
         )
 
         if force_fast_home:
@@ -1018,7 +1017,7 @@ def create_app():
             try:
                 data = get_homepage_data(**params)
                 elapsed_ms = (time.perf_counter() - home_start) * 1000
-                if elapsed_ms > 2500:
+                if elapsed_ms > 5000:
                     data = dict(shell)
                     data["homepage_degraded"] = True
                     data["homepage_message"] = "Loading latest NamVibe content..."

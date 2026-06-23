@@ -47,11 +47,11 @@ from services.homepage_real_data_guard import filter_content, filter_profiles, p
 
 _CACHE_TTL_SECONDS = HOMEPAGE_TTL_SECONDS
 _EMPTY_CACHE_TTL_SECONDS = 300
-_QUERY_TIMEOUT_MS = 1500
-_TOTAL_BUDGET_MS = 800
-_FAST_FALLBACK_MS = 800
-_SLOW_QUERY_MS = 100
-_WARM_CACHE_BUDGET_MS = 1000
+_QUERY_TIMEOUT_MS = 20000
+_TOTAL_BUDGET_MS = 30000
+_FAST_FALLBACK_MS = 30000
+_WARM_CACHE_BUDGET_MS = 30000
+_SLOW_QUERY_MS = 1000
 _HOMEPAGE_LIMITS = {
     "stories": 12,
     "reels": 12,
@@ -549,6 +549,7 @@ def _reel_select():
             "video_url",
             "thumbnail_url",
             "media_url",
+            "visibility",
             "created_at",
             "deleted_at",
         ],
@@ -1038,13 +1039,6 @@ def build_homepage_payload(async_warm=False):
         restore_timing_origin()
         return payload
 
-    pool_status = get_pool_status()
-    if not pool_status.get("recent_success") and not pool_status.get("pool_ready"):
-        payload["issues"].append("neon: cold-start-pending")
-        _log_section_timing("build_homepage_payload", total_started)
-        restore_timing_origin()
-        return payload
-
     started = time.perf_counter()
     section_timings = {}
     section_cache_hits = {}
@@ -1069,42 +1063,65 @@ def build_homepage_payload(async_warm=False):
         return value
     
     def fetch_stories():
-        cols = _story_select()
-        if not cols: return []
-        select_cols = ", ".join(f"s.{c}" for c in cols)
-        return timed_section(
-            "stories",
-            "_fetch_stories",
-            lambda: _profiled_homepage_query(
-                "stories",
-                f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
-                f"FROM chain_stories s "
-                f"LEFT JOIN chain_profiles p ON p.id = s.profile_id "
-                f"WHERE s.deleted_at IS NULL ORDER BY s.created_at DESC LIMIT {_HOMEPAGE_LIMITS['stories']}",
-                timeout_ms=100,
-                default=[],
-                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["stories"],
-            ),
-            ttl=_HOMEPAGE_SECTION_TTLS["stories"],
-        )
+        s_cols = _story_select()
+        sp_cols = _status_select()
+        def _load():
+            combined = []
+            if s_cols:
+                sc = ", ".join(f"s.{c}" for c in s_cols)
+                rows, _ = _run_sql(
+                    "stories",
+                    f"SELECT {sc}, {', '.join(_PROFILE_JOIN_COLS)} "
+                    f"FROM chain_stories s "
+                    f"LEFT JOIN chain_profiles p ON p.id = s.profile_id "
+                    f"WHERE s.deleted_at IS NULL ORDER BY s.created_at DESC LIMIT {_HOMEPAGE_LIMITS['stories']}",
+                    [],
+                )
+                combined.extend(rows or [])
+            if sp_cols:
+                sc = ", ".join(f"sp.{c}" for c in sp_cols)
+                cutoff = _utcnow() - timedelta(hours=24)
+                rows, _ = _run_sql(
+                    "status_posts",
+                    f"SELECT {sc}, {', '.join(_PROFILE_JOIN_COLS)} "
+                    f"FROM chain_status_posts sp "
+                    f"LEFT JOIN chain_profiles p ON p.id = sp.profile_id "
+                    f"WHERE sp.deleted_at IS NULL AND (sp.expires_at IS NULL OR sp.expires_at > %s) AND sp.visibility = 'public' "
+                    f"ORDER BY sp.created_at DESC LIMIT {_HOMEPAGE_LIMITS['stories']}",
+                    [_utcnow()],
+                )
+                combined.extend(rows or [])
+            seen = set()
+            deduped = []
+            for row in combined:
+                rid = row.get("id")
+                if rid and rid not in seen:
+                    seen.add(rid)
+                    deduped.append(row)
+            deduped.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+            return deduped[:_HOMEPAGE_LIMITS["stories"]]
+        return timed_section("stories", "_fetch_stories", _load, ttl=_HOMEPAGE_SECTION_TTLS["stories"])
 
     def fetch_live():
         cols = _live_select()
         if not cols: return []
         select_cols = ", ".join(f"lr.{c}" for c in cols)
+        def _load():
+            try:
+                rows = fast_query(
+                    f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
+                    f"FROM chain_live_rooms lr "
+                    f"LEFT JOIN chain_profiles p ON p.id = lr.profile_id "
+                    f"WHERE (lr.is_live = TRUE OR lr.status = 'live') AND lr.deleted_at IS NULL ORDER BY lr.created_at DESC LIMIT {_HOMEPAGE_LIMITS['live_rooms']}",
+                    timeout_ms=20000, default=[]
+                )
+                return rows or []
+            except Exception:
+                return []
         return timed_section(
             "live_rooms",
             "_fetch_live_rooms",
-            lambda: _profiled_homepage_query(
-                "live_rooms",
-                f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
-                f"FROM chain_live_rooms lr "
-                f"LEFT JOIN chain_profiles p ON p.id = lr.profile_id "
-                f"WHERE (lr.is_live = TRUE OR lr.status = 'live') AND lr.deleted_at IS NULL ORDER BY lr.created_at DESC LIMIT {_HOMEPAGE_LIMITS['live_rooms']}",
-                timeout_ms=100,
-                default=[],
-                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["live_rooms"],
-            ),
+            _load,
             ttl=_HOMEPAGE_SECTION_TTLS["live_rooms"],
         )
 
@@ -1118,7 +1135,7 @@ def build_homepage_payload(async_warm=False):
             lambda: _profiled_homepage_query(
                 "profiles",
                 f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL ORDER BY {order_by} LIMIT {_HOMEPAGE_LIMITS['recommended_profiles']}",
-                timeout_ms=200,
+                timeout_ms=20000,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["profiles"],
             ),
@@ -1129,19 +1146,22 @@ def build_homepage_payload(async_warm=False):
         cols = _post_select()
         if not cols: return []
         select_cols = ", ".join(f"po.{c}" for c in cols)
+        def _load():
+            try:
+                rows = fast_query(
+                    f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
+                    f"FROM chain_posts po "
+                    f"LEFT JOIN chain_profiles p ON p.id = po.profile_id "
+                    f"WHERE po.deleted_at IS NULL AND COALESCE(po.visibility, 'public') = 'public' ORDER BY po.created_at DESC NULLS LAST LIMIT {_HOMEPAGE_LIMITS['trending_posts']}",
+                    timeout_ms=20000, default=[]
+                )
+                return rows or []
+            except Exception:
+                return []
         return timed_section(
             "trending_posts",
             "_fetch_posts",
-            lambda: _profiled_homepage_query(
-                "posts",
-                f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
-                f"FROM chain_posts po "
-                f"LEFT JOIN chain_profiles p ON p.id = po.profile_id "
-                f"WHERE po.deleted_at IS NULL ORDER BY po.created_at DESC NULLS LAST LIMIT {_HOMEPAGE_LIMITS['trending_posts']}",
-                timeout_ms=200,
-                default=[],
-                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["posts"],
-            ),
+            _load,
             ttl=_HOMEPAGE_SECTION_TTLS["trending_posts"],
         )
 
@@ -1154,7 +1174,7 @@ def build_homepage_payload(async_warm=False):
             lambda: _profiled_homepage_query(
                 "profiles",
                 f"SELECT {', '.join(cols)} FROM chain_profiles WHERE dating_mode_enabled = TRUE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 8",
-                timeout_ms=200,
+                timeout_ms=20000,
                 default=[],
                 budget_ms=HOMEPAGE_QUERY_BUDGET_MS["profiles"],
             ),
@@ -1165,19 +1185,22 @@ def build_homepage_payload(async_warm=False):
         cols = _reel_select()
         if not cols: return []
         select_cols = ", ".join(f"r.{c}" for c in cols)
+        def _load():
+            try:
+                rows = fast_query(
+                    f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
+                    f"FROM chain_reels r "
+                    f"LEFT JOIN chain_profiles p ON p.id = r.profile_id "
+                    f"WHERE r.deleted_at IS NULL AND COALESCE(r.visibility, 'public') = 'public' ORDER BY r.created_at DESC LIMIT {_HOMEPAGE_LIMITS['reels']}",
+                    timeout_ms=20000, default=[]
+                )
+                return rows or []
+            except Exception:
+                return []
         return timed_section(
             "reels",
             "_fetch_reels",
-            lambda: _profiled_homepage_query(
-                "reels",
-                f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
-                f"FROM chain_reels r "
-                f"LEFT JOIN chain_profiles p ON p.id = r.profile_id "
-                f"WHERE r.deleted_at IS NULL ORDER BY r.created_at DESC LIMIT {_HOMEPAGE_LIMITS['reels']}",
-                timeout_ms=100,
-                default=[],
-                budget_ms=HOMEPAGE_QUERY_BUDGET_MS["reels"],
-            ),
+            _load,
             ttl=60,
         )
 
