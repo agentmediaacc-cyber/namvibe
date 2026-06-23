@@ -770,10 +770,13 @@
       credentials: "same-origin"
     })
       .then(function (r) {
+        clearTimeout(timeoutId);
+        if (!r.ok) {
+          throw new Error("HTTP " + r.status);
+        }
         return r.json();
       })
       .then(function (data) {
-        clearTimeout(timeoutId);
         if (data && data.ok && data.payload && data.payload.feed_items) {
           var feedEl = document.getElementById("nvpro-feed");
           if (feedEl) {
@@ -781,7 +784,7 @@
           }
         }
       })
-      .catch(function (err) {
+      .catch(function () {
         clearTimeout(timeoutId);
         // Fail silently - degraded mode already showing
       });

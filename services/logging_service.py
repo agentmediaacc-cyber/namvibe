@@ -1,10 +1,25 @@
 import json
 import os
+import sys
 import time
 from flask import g, has_request_context, request
 
 
 _SECRET_MARKERS = ("key", "token", "secret", "password", "authorization", "cookie", "dsn")
+
+
+def safe_print(*parts):
+    message = " ".join(str(part) for part in parts)
+    for stream in (getattr(sys, "stdout", None), getattr(sys, "stderr", None)):
+        if stream is None:
+            continue
+        try:
+            stream.write(message + "\n")
+            stream.flush()
+            return True
+        except Exception:
+            continue
+    return False
 
 
 def mask_secrets(value):
@@ -38,7 +53,7 @@ def _log(level, event, **fields):
         if g.get("current_profile_id"):
             payload["profile_id"] = g.current_profile_id
     payload.update(mask_secrets(fields))
-    print(json.dumps(payload, default=str, sort_keys=True))
+    safe_print(json.dumps(payload, default=str, sort_keys=True))
 
 
 def log_info(event, **fields):

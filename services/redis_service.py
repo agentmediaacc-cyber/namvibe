@@ -9,7 +9,7 @@ import redis
 
 from services.circuit_breaker import CircuitBreaker
 from services.env_service import get_env, load_project_env
-from services.logging_service import log_warning
+from services.logging_service import log_warning, safe_print
 
 
 load_project_env()
@@ -42,7 +42,7 @@ def log_redis_warning(key, message, interval_seconds=60):
     if _LOG_THROTTLE.get(key, 0) > now:
         return False
     _LOG_THROTTLE[key] = now + max(int(interval_seconds), 1)
-    print(message)
+    safe_print(message)
     return True
 
 

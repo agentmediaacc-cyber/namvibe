@@ -16,6 +16,7 @@ import random
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from services.circuit_breaker import CircuitBreaker
 from services.redis_service import _REDIS_URL, _REDIS_URL_MASKED, redis_available, get_redis, log_redis_warning
+from services.logging_service import safe_print
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +56,12 @@ def init_socketio(app):
     use_redis_mgr = os.environ.get("CHAIN_SOCKETIO_REDIS_MANAGER", "1") == "1"
     
     if not use_redis_mgr:
-        print("[socketio] CHAIN_SOCKETIO_REDIS_MANAGER=0 — using in-process Socket.IO (no Redis message queue)")
+        safe_print("[socketio] CHAIN_SOCKETIO_REDIS_MANAGER=0 — using in-process Socket.IO (no Redis message queue)")
     elif app.config.get("TESTING"):
-        print("[socketio] Test mode: Skipping Redis manager")
+        safe_print("[socketio] Test mode: Skipping Redis manager")
     elif redis_url:
         mgr = redis_url
-        print(f"[socketio] SCALABLE PRODUCTION MODE: Using Redis manager at {_REDIS_URL_MASKED}")
+        safe_print(f"[socketio] SCALABLE PRODUCTION MODE: Using Redis manager at {_REDIS_URL_MASKED}")
     else:
         log_redis_warning("redis_socketio_fallback", "[socketio] WARNING: Running in SINGLE-NODE mode. For production with multiple users, configure REDIS_URL and restart.")
 
@@ -70,22 +71,27 @@ def init_socketio(app):
     try:
         import geventwebsocket
         async_mode = 'gevent'
-        print(f"[socketio] Using gevent async_mode (websocket supported)")
+        safe_print(f"[socketio] Using gevent async_mode (websocket supported)")
     except ImportError:
-        print("[socketio] gevent-websocket not installed. Falling back to 'threading' mode (polling only).")
+        safe_print("[socketio] gevent-websocket not installed. Falling back to 'threading' mode (polling only).")
         async_mode = 'threading'
 
-    socketio.init_app(
-        app,
-        message_queue=mgr,
+    init_kwargs = dict(
         cors_allowed_origins="*",
         async_mode=async_mode,
         ping_timeout=20,
         ping_interval=10,
         max_http_buffer_size=5 * 1024 * 1024,
         http_compression=True,
-        engineio_logger=False
+        engineio_logger=False,
     )
+    try:
+        if mgr and not redis_available():
+            raise RuntimeError("Redis manager unavailable during startup")
+        socketio.init_app(app, message_queue=mgr, **init_kwargs)
+    except Exception as error:
+        log_redis_warning("socketio_init_fallback", f"[socketio] Redis manager failed, falling back to local mode: {error}")
+        socketio.init_app(app, message_queue=None, **init_kwargs)
     return socketio
 
 

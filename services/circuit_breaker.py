@@ -1,4 +1,5 @@
 import time
+from services.logging_service import safe_print
 
 
 class CircuitBreaker:
@@ -16,7 +17,7 @@ class CircuitBreaker:
         self.state = state
         if self._last_logged_state != state:
             self._last_logged_state = state
-            print(f"[circuit_breaker] {self.name} -> {state}")
+            safe_print(f"[circuit_breaker] {self.name} -> {state}")
 
     def allow(self):
         if self.state == "open":

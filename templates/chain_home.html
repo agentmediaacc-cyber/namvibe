@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}NamVibe | Home{% endblock %}
@@ -27,16 +28,20 @@
 {% set feed_for_you = p.get("feed_for_you") or [] %}
 {% set trending_posts = p.get("trending_posts") or [] %}
 {% set suggested_people = p.get("suggested_people") or [] %}
-{% set homepage_degraded = p.get("homepage_degraded", False) %}
+{# Phase 145: Safe defaults for degraded mode - all variables use default([]) #}
+{% if homepage_degraded is not defined %}
+    {% set homepage_degraded =
+        homepage_payload.get('homepage_degraded', False)
+        if homepage_payload else False %}
+{% endif %}
 
 <div class="nvpro-shell">
 <div hidden data-namvibe-build="phase141"></div>
 
 {# Phase 141: JS flag for degraded mode hydration #}
 <script>
-window.NAMVIBE_HOME_DEGRADED = {{ homepage_degraded|default(false) }};
+window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 </script>
-```
     <div class="nvpro-header-inner">
       <a href="/" class="nvpro-logo">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3L3 7v13l6-4V3zm6 0l6 4v13l-6-4V3zm-6 4l6-4v14l-6 4V7z"/></svg>

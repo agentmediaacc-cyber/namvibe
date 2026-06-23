@@ -1,3 +1,4 @@
+import os
 import time
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
@@ -56,6 +57,16 @@ def _render_upload(profile, **extra):
 @reels_bp.route("/")
 def index():
     start = time.perf_counter()
+    force_fast_reels = (
+        os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
+        or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
+        or "namvibe.com" in request.headers.get("Host", "").lower()
+    )
+    if force_fast_reels:
+        response = render_template("reels.html", reels=[], profile=None, current=None, follow_map={})
+        log_info("reels_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), reel_count=0, shell=True)
+        return response
+
     profile = get_current_profile()
     reels = get_reel_feed(limit=15)
     if not reels:

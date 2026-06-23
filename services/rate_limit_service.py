@@ -3,7 +3,7 @@ from flask import jsonify, request, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from services.redis_service import _REDIS_URL, _REDIS_URL_MASKED, log_redis_warning, redis_available
-from services.logging_service import log_warning
+from services.logging_service import log_warning, safe_print
 from services.metrics_service import increment
 
 
@@ -22,16 +22,26 @@ def user_or_ip_key():
 def init_rate_limiter(app):
     """Initializes Flask-Limiter with Redis or memory fallback."""
     storage_url = "memory://"
-    if redis_available():
-        storage_url = _REDIS_URL
-        print(f"[limiter] Using Redis storage: {_REDIS_URL_MASKED}")
-    else:
-        log_redis_warning("redis_limiter_fallback", "[limiter] Redis unavailable, using in-memory storage")
+    try:
+        if redis_available():
+            storage_url = _REDIS_URL
+            safe_print(f"[limiter] Using Redis storage: {_REDIS_URL_MASKED}")
+        else:
+            log_redis_warning("redis_limiter_fallback", "[limiter] Redis unavailable, using in-memory storage")
+    except Exception as error:
+        log_redis_warning("redis_limiter_init_error", f"[limiter] Redis check failed, using in-memory storage: {error}")
 
-    app.config["RATELIMIT_STORAGE_URI"] = storage_url
-    app.config["RATELIMIT_ENABLED"] = os.getenv("CHAIN_DISABLE_RATE_LIMITS") != "1"
-    limiter.enabled = app.config["RATELIMIT_ENABLED"]
-    limiter.init_app(app)
+    try:
+        app.config["RATELIMIT_STORAGE_URI"] = storage_url
+        app.config["RATELIMIT_ENABLED"] = os.getenv("CHAIN_DISABLE_RATE_LIMITS") != "1"
+        limiter.enabled = app.config["RATELIMIT_ENABLED"]
+        limiter.init_app(app)
+    except Exception as error:
+        app.config["RATELIMIT_STORAGE_URI"] = "memory://"
+        app.config["RATELIMIT_ENABLED"] = False
+        limiter.enabled = False
+        log_redis_warning("rate_limiter_disabled", f"[limiter] Failed to initialize limiter, disabling: {error}")
+
     @app.errorhandler(429)
     def _rate_limit_handler(error):
         message = "Too many requests. Please slow down and try again shortly."

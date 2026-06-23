@@ -6,6 +6,7 @@ set -e
 
 APP_DIR="$HOME/Desktop/chain_app"
 LOG_DIR="$APP_DIR/logs"
+PID_FILE="$LOG_DIR/gunicorn.pid"
 
 echo "========================================"
 echo "NamVibe Origin Server Startup"
@@ -17,10 +18,10 @@ cd "$APP_DIR"
 echo "[1/8] Working directory: $(pwd)"
 
 # Activate virtual environment if exists
-if [ -d "venv/bin/activate" ]; then
+if [ -f "venv/bin/activate" ]; then
     echo "[2/8] Activating virtual environment..."
     source venv/bin/activate
-elif [ -d ".venv/bin/activate" ]; then
+elif [ -f ".venv/bin/activate" ]; then
     echo "[2/8] Activating virtual environment..."
     source .venv/bin/activate
 else
@@ -32,10 +33,13 @@ echo "[3/8] Cleaning up old processes..."
 pkill -f "gunicorn.*app:app" 2>/dev/null || true
 pkill -f "gunicorn.*app:create_app" 2>/dev/null || true
 pkill -f "python.*app.py" 2>/dev/null || true
+rm -f "$PID_FILE"
 sleep 1
 
 # Ensure log directory exists
 mkdir -p "$LOG_DIR"
+: > "$LOG_DIR/gunicorn_access.log"
+: > "$LOG_DIR/gunicorn_error.log"
 echo "[4/8] Log directory ready: $LOG_DIR"
 
 # Verify Redis is running or reachable
@@ -56,13 +60,21 @@ else
     echo "       Redis CLI not available, will verify at runtime"
 fi
 
-# Export production environment variables
-export PORT=8080
-export FLASK_ENV=production
-export WERKZEUG_RUN_MAIN=true
-echo "[6/8] Environment configured:"
-echo "       PORT=$PORT"
-echo "       FLASK_ENV=$FLASK_ENV"
+ # Export production environment variables
+ export PORT=8080
+ export FLASK_ENV=production
+ export WERKZEUG_RUN_MAIN=true
+ export CHAIN_FORCE_FAST_HOME=1
+ export CHAIN_TUNNEL_TESTING=1
+ export CHAIN_DISABLE_PREWARM=1
+ export CHAIN_DISABLE_DB_PING=1
+ echo "[6/8] Environment configured:"
+ echo "       PORT=$PORT"
+ echo "       FLASK_ENV=$FLASK_ENV"
+ echo "       CHAIN_FORCE_FAST_HOME=$CHAIN_FORCE_FAST_HOME"
+ echo "       CHAIN_TUNNEL_TESTING=$CHAIN_TUNNEL_TESTING"
+ echo "       CHAIN_DISABLE_PREWARM=$CHAIN_DISABLE_PREWARM"
+ echo "       CHAIN_DISABLE_DB_PING=$CHAIN_DISABLE_DB_PING"
 
 # Start Gunicorn
 echo "[7/8] Starting Gunicorn..."
@@ -76,18 +88,24 @@ gunicorn \
     --workers 1 \
     --worker-class gevent \
     --timeout 120 \
+    --daemon \
+    --pid "$PID_FILE" \
     --access-logfile "$LOG_DIR/gunicorn_access.log" \
     --error-logfile "$LOG_DIR/gunicorn_error.log" \
-    --log-level info \
-    &
+    --log-level info
 
-GUNICORN_PID=$!
+sleep 1
+GUNICORN_PID=$(cat "$PID_FILE" 2>/dev/null || true)
+if [ -z "$GUNICORN_PID" ]; then
+    echo "       Gunicorn PID file not created"
+    exit 1
+fi
 echo "       Gunicorn PID: $GUNICORN_PID"
 
 # Wait for server to start
 echo ""
 echo "[8/8] Waiting for server to be ready..."
-sleep 3
+sleep 2
 
 # Verify healthz endpoint
 MAX_RETRIES=10
@@ -95,7 +113,12 @@ RETRY_COUNT=0
 HEALTHZ_OK=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/healthz 2>/dev/null || echo "000")
+    if ! kill -0 "$GUNICORN_PID" 2>/dev/null; then
+        echo "       Gunicorn master exited unexpectedly"
+        break
+    fi
+
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/healthz 2>/dev/null || true)
     
     if [ "$HTTP_CODE" = "200" ]; then
         HEALTHZ_OK=true
@@ -120,5 +143,6 @@ if [ "$HEALTHZ_OK" = true ]; then
 else
     echo "FAILURE: Origin server failed to start"
     echo "  - Check error log: $LOG_DIR/gunicorn_error.log"
+    tail -n 40 "$LOG_DIR/gunicorn_error.log" 2>/dev/null || true
     exit 1
 fi

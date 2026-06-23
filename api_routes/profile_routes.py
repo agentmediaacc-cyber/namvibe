@@ -347,7 +347,12 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
 
 def _resolve_profile_route(username=None, user_id=None):
     start = time.perf_counter()
-    viewer = get_current_profile() if is_logged_in() else None
+    fast_profile_shell = (
+        os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
+        or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
+        or "namvibe.com" in (request.host or "").lower()
+    )
+    viewer = None if fast_profile_shell else (get_current_profile() if is_logged_in() else None)
     profile = None
     if username:
         cleaned_username = username[1:] if username.startswith("@") else username
@@ -359,6 +364,20 @@ def _resolve_profile_route(username=None, user_id=None):
         log_warning("public_profile_missing", username=username, user_id=user_id)
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False)
         return render_template("profile/not_found.html", username=username or user_id or ''), 404
+
+    if fast_profile_shell:
+        shell_profile = {
+            "id": profile.get("id"),
+            "username": profile.get("username"),
+            "display_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
+            "avatar_url": profile.get("avatar_url"),
+            "bio": profile.get("bio") or "",
+            "verified": bool(profile.get("verified") or profile.get("is_verified")),
+            "is_verified": bool(profile.get("verified") or profile.get("is_verified")),
+            "full_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
+        }
+        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public", shell=True)
+        return render_template("profile/public.html", profile=shell_profile, viewer=None, content={"posts": [], "reels": [], "rooms": []}), 200
 
     if viewer and viewer.get("id") != profile.get("id"):
         record_profile_view(profile.get("id"), viewer.get("id"))

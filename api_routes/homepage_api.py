@@ -1,9 +1,10 @@
 """Phase 59 — Real Feed API + Follow + Like/Save/Share actions.
    Phase 120 — Premium Homepage JSON endpoints."""
 
+import time
 from flask import Blueprint, jsonify, request, session
 from services.profile_service import get_current_profile
-from services.homepage_service import get_feed_tab
+from services.homepage_service import get_feed_tab, get_homepage_payload
 from services.homepage_phase141_service import (
     fetch_posts_v2,
     fetch_reels_v2,
@@ -34,6 +35,84 @@ def _json_ok(data, status=200):
 
 def _json_error(message, status=400):
     return jsonify({"ok": False, "error": message}), status
+
+
+def _safe_degraded_homepage_payload():
+    return {
+        "homepage_degraded": True,
+        "feed_items": [],
+        "feed_for_you": [],
+        "posts": [],
+        "reels": [],
+        "stories": [],
+        "live_rooms": [],
+        "suggested_people": [],
+        "suggested_creators": [],
+        "trending_hashtags": [],
+        "wallet": {"coin_balance": 0, "label_balance": "0"},
+        "unread_counts": {},
+        "empty_states": {},
+    }
+
+
+def _minimal_feed_payload():
+    return {
+        "feed_items": [],
+        "stories": [],
+        "reels": [],
+        "homepage_degraded": True,
+    }
+
+
+def _fast_homepage_feed_payload(limit=20):
+    started = time.perf_counter()
+    budget_seconds = 1.8
+    payload = _minimal_feed_payload()
+
+    def budget_left():
+        return budget_seconds - (time.perf_counter() - started)
+
+    try:
+        stories, _, _ = fetch_stories_v2(
+            ["id", "profile_id", "caption", "thumbnail_url", "created_at"],
+            timeout_ms=350,
+            limit=min(limit, 8),
+        )
+        if budget_left() > 0:
+            payload["stories"] = stories[: min(limit, 8)]
+    except Exception:
+        return _safe_degraded_homepage_payload()
+
+    if budget_left() <= 0:
+        return _safe_degraded_homepage_payload()
+
+    try:
+        posts, _, _ = fetch_posts_v2(
+            ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "created_at", "likes_count", "comments_count"],
+            timeout_ms=400,
+            limit=min(limit, 12),
+        )
+        if budget_left() > 0:
+            payload["feed_items"] = posts[: min(limit, 12)]
+    except Exception:
+        return _safe_degraded_homepage_payload()
+
+    if budget_left() <= 0:
+        return _safe_degraded_homepage_payload()
+
+    try:
+        reels, _, _ = fetch_reels_v2(
+            ["id", "profile_id", "caption", "thumbnail_url", "video_url", "created_at"],
+            timeout_ms=350,
+            limit=min(limit, 8),
+        )
+        if budget_left() > 0:
+            payload["reels"] = reels[: min(limit, 8)]
+    except Exception:
+        return _safe_degraded_homepage_payload()
+
+    payload["homepage_degraded"] = True
+    return payload
 
 
 @homepage_api_bp.route("/api/suggestions/smart")
@@ -194,18 +273,36 @@ def api_share_post(post_id):
 
 @homepage_api_bp.route("/api/homepage/feed")
 def api_homepage_feed():
-    profile = _current_profile()
-    profile_id = profile.get("id") if profile else None
-    tab = request.args.get("tab", "for_you")
+    force_fast_home = (
+        request.headers.get("Host", "").lower().find("namvibe.com") >= 0
+        or os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
+        or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
+    )
     try:
         limit = min(max(int(request.args.get("limit", 20)), 1), 50)
     except (TypeError, ValueError):
         limit = 20
+    if force_fast_home:
+        return _json_ok({
+            "degraded": True,
+            "payload": _minimal_feed_payload(),
+        })
     try:
-        payload = get_homepage_payload(profile_id=profile_id, tab=tab, limit=limit)
-        return _json_ok({"payload": payload})
+        started = time.perf_counter()
+        payload = _fast_homepage_feed_payload(limit=limit)
+        elapsed = time.perf_counter() - started
+        if elapsed > 2.0:
+            payload = _safe_degraded_homepage_payload()
+        return _json_ok({
+            "degraded": True,
+            "payload": payload,
+        })
     except Exception as e:
-        return _json_error(str(e), 500)
+        return _json_ok({
+            "degraded": True,
+            "payload": _safe_degraded_homepage_payload(),
+            "warning": str(e),
+        })
 
 
 @homepage_api_bp.route("/api/homepage/sidebar")

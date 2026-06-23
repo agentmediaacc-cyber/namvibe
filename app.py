@@ -273,6 +273,8 @@ def create_app():
 
     @app.before_request
     def before_req():
+        if request.path.startswith("/static/"):
+            return None
         start_request_timer()
         check_ip_reputation()
 
@@ -569,6 +571,9 @@ def create_app():
 
     @app.after_request
     def after_request_cleanup(response):
+        if request.path.startswith("/static/"):
+            response.headers.setdefault("Cache-Control", "public, max-age=86400")
+            return response
         cache_clear()
         # Add latency header for monitoring
         if hasattr(g, 'request_started_at'):
@@ -598,6 +603,8 @@ def create_app():
 
     @app.before_request
     def track_request_start():
+        if request.path.startswith("/static/"):
+            return None
         g.request_started_at = time.perf_counter()
         g.request_id = str(uuid.uuid4())
         g.current_profile_id = session.get("auth_user_id")
@@ -872,9 +879,14 @@ def create_app():
             profile=profile,
         )
 
+    @app.route("/settings/")
+    def settings_landing():
+        if not (session.get("profile_id") or session.get("auth_user_id")):
+            return redirect("/auth/login?next=/settings/", code=302)
+        return redirect("/profile/settings", code=302)
+
     @app.route("/")
     def home():
-        from flask import request
         town = request.args.get("town", "")
         region = request.args.get("region", "")
         avail = {rule.rule for rule in app.url_map.iter_rules()}
@@ -917,6 +929,34 @@ def create_app():
             "homepage_message": "Loading latest NamVibe content...",
             **base_routes,
         }
+
+        force_fast_home = (
+            os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
+            or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
+            or "namvibe.com" in request.host.lower()
+        )
+
+        if force_fast_home:
+            print("[phase146_home]", {
+                "force": os.getenv("CHAIN_FORCE_FAST_HOME"),
+                "host": request.host,
+                "fast": force_fast_home,
+                "degraded": True
+            })
+            return render_template(
+                "chain_home.html",
+                homepage_payload={"homepage_degraded": True},
+                homepage_degraded=True,
+                feed_for_you=[],
+                posts=[],
+                reels=[],
+                stories=[],
+                suggested_people=[],
+                live_rooms=[],
+                homepage_message="Loading latest NamVibe content...",
+                **base_routes,
+            )
+
         params = {"town": town, "region": region}
         with timed("home"):
             home_start = time.perf_counter()
