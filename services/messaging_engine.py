@@ -310,6 +310,10 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
         RETURNING id
     """
     lat = location.get('lat') if location else None
+    # Normalize empty strings to None for UUID fields to avoid SQL errors
+    parent_message_id = parent_message_id if parent_message_id and parent_message_id != "" else None
+    status_id = status_id if status_id and status_id != "" else None
+    sticker_id = sticker_id if sticker_id and sticker_id != "" else None
     lng = location.get('lng') if location else None
     contact_json = json.dumps(contact) if contact else None
 

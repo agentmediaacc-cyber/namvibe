@@ -1618,3 +1618,36 @@ def api_inbox():
             "folder": folder,
         }
     }), 200
+
+
+# =========== TYPING ENDPOINT (fixes 404 error) ===========
+
+@message_bp.route("/messages/typing/<thread_id>", methods=["POST"])
+@login_required
+def api_typing(thread_id):
+    """Handle typing status updates."""
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    is_typing = data.get("typing", True)
+    from services.messaging_engine import set_typing
+    set_typing(thread_id, profile_id, is_typing)
+    return jsonify({"ok": True}), 200
+
+
+# =========== THREAD API ENDPOINT (fixes 403 error - JS calls /messages/api/thread/<thread_id>) ===========
+
+@message_bp.route("/api/thread/<thread_id>", methods=["GET"])
+@login_required
+def api_thread_by_id(thread_id):
+    """Get thread by ID - matches what the JS expects."""
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+    thread = get_thread(thread_id, profile_id)
+    if not thread:
+        return jsonify({"ok": False, "error": "Thread not found"}), 404
+    return jsonify({"ok": True, "message": thread}), 200
