@@ -140,6 +140,13 @@ def normalize_post_v2(row, profile_map):
     caption = row.get("caption") or row.get("content") or row.get("body") or ""
     display_name = profile.get("display_name") or profile.get("username") or ""
     username = profile.get("username") or ""
+    video_url = row.get("video_url") or ""
+    media_url = row.get("media_url") or row.get("thumbnail_url") or ""
+    mime_type = row.get("mime_type") or ""
+    media_type = row.get("media_type") or ""
+    if not media_type and mime_type:
+        media_type = "video" if mime_type.startswith("video/") else "image" if mime_type.startswith("image/") else ""
+    is_video = bool(video_url) or media_type in ("video", "reel") or mime_type.startswith("video/")
     
     return {
         "id": row.get("id"),
@@ -149,12 +156,15 @@ def normalize_post_v2(row, profile_map):
         "verified": bool(profile.get("verified")),
         "caption": caption,
         "excerpt": caption[:180] + ("..." if len(caption) > 180 else ""),
-        "media_url": row.get("media_url") or row.get("thumbnail_url") or "",
-        "video_url": row.get("video_url") or "",
+        "media_url": media_url,
+        "video_url": video_url,
         "link_url": row.get("link_url") or "",
         "town_tag": row.get("town_tag") or "",
         "visibility": row.get("visibility") or "public",
         "post_type": row.get("post_type") or "",
+        "media_type": media_type or ("video" if video_url else "image" if media_url else ""),
+        "mime_type": mime_type,
+        "is_video": is_video,
         "likes_count": int(row.get("likes_count") or 0),
         "comments_count": int(row.get("comments_count") or 0),
         "category": row.get("category") or "",
@@ -258,10 +268,9 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
     
     try:
         profile_id_param = str(viewer_id) if viewer_id else None
-        base_query = f"SELECT {', '.join(reel_columns)} FROM chain_reels WHERE deleted_at IS NULL"
+        base_query = f"SELECT {', '.join(reel_columns)} FROM chain_reels WHERE deleted_at IS NULL AND video_url IS NOT NULL AND video_url != ''"
         
         if profile_id_param:
-            # Show: owner's own reels (any visibility) + public reels + followers reels from followed users
             query = base_query + """ AND (
                 profile_id = %s
                 OR visibility = 'public'
@@ -272,7 +281,6 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
             ) ORDER BY created_at DESC LIMIT %s"""
             rows = fast_query(query, [profile_id_param, profile_id_param, limit], timeout_ms=timeout_ms, default=[])
         else:
-            # No viewer - only public reels
             query = base_query + " AND visibility = 'public' ORDER BY created_at DESC LIMIT %s"
             rows = fast_query(query, [limit], timeout_ms=timeout_ms, default=[])
         

@@ -106,11 +106,8 @@ def upload():
         
         return redirect(url_for('reels.index'))
 
-    profile = get_current_profile() or (session_profile_stub() if get_session_profile_id() else None)
-    if not profile or not profile.get("id"):
-        return redirect(url_for("auth.login", next=request.path))
-
-    return _render_upload(profile)
+    # Phase 156: Redirect to homepage with upload modal open
+    return redirect("/?open=upload#upload")
 
 @reels_bp.route("/api/reels/<reel_id>/view", methods=["POST"])
 def api_view(reel_id):

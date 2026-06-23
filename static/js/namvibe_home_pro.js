@@ -150,8 +150,9 @@
       var initial = displayName.charAt(0).toUpperCase();
       var verified = item.verified ? '<svg class="nv-icon-sm nvpro-verified" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' : "";
       var vAttr = item.type || "post";
+      var isVideo = videoUrl || item.is_video || item.media_type === "video" || item.media_type === "reel" || (item.mime_type && item.mime_type.indexOf("video/") === 0) || (item.post_type === "video");
       var vidHtml = "";
-      if (videoUrl) {
+      if (isVideo && videoUrl) {
         vidHtml = '<div class="nvpro-post-media" data-nv-video="' + escapeHtml(videoUrl) + '" data-nv-thumb="' + escapeHtml(thumbnail) + '">' +
           '<div class="nvpro-loading-skeleton"></div>' +
           '<div class="nvpro-video-overlay"><div class="nvpro-video-play-icon">' + icon("play") + "</div></div></div>";
@@ -755,6 +756,8 @@
     replaceFaIcons();
     initUploadModal();
     setupVideoObserver();
+    setupScrollHeader();
+    setupHamburgerMenu();
     // Lazy-load initial videos
     setTimeout(lazyLoadVideos, 100);
     // Handle tab-based upload opening
@@ -762,18 +765,52 @@
       var modal = document.getElementById("nvpro-upload-modal");
       if (modal) modal.classList.add("is-open");
     }
-    // Phase 141: Hydration for degraded mode
-    if (window.NAMVIBE_HOME_DEGRADED === true) {
-      hydrateHomepage();
-    }
+    // Always hydrate from API to ensure freshest content
+    hydrateHomepage();
   });
+
+  /* ── Phase 156: Scroll header show/hide ── */
+  function setupScrollHeader() {
+    var header = document.querySelector(".nvpro-header");
+    var lastY = 0;
+    if (!header) return;
+    window.addEventListener("scroll", function () {
+      var y = window.scrollY;
+      if (y > 120 && y > lastY) {
+        header.classList.add("nvpro-header-hidden");
+      } else if (y < lastY || y < 120) {
+        header.classList.remove("nvpro-header-hidden");
+      }
+      lastY = y;
+    }, { passive: true });
+  }
+
+  /* ── Phase 156: Hamburger menu toggle ── */
+  function setupHamburgerMenu() {
+    var btn = document.getElementById("nvpro-hamburger");
+    var drawer = document.getElementById("nvpro-drawer");
+    var overlay = document.getElementById("nvpro-drawer-overlay");
+    if (!btn || !drawer) return;
+    btn.addEventListener("click", function () {
+      drawer.classList.toggle("is-open");
+      if (overlay) overlay.classList.toggle("is-open");
+      document.body.classList.toggle("nvpro-drawer-open");
+    });
+    if (overlay) {
+      overlay.addEventListener("click", function () {
+        drawer.classList.remove("is-open");
+        overlay.classList.remove("is-open");
+        document.body.classList.remove("nvpro-drawer-open");
+      });
+    }
+  }
 
   /* ── Phase 141: Hydration for degraded mode ── */
   function hydrateHomepage() {
     var controller = new AbortController();
     var timeoutId = setTimeout(function () {
       controller.abort();
-    }, 6000);
+    }, 15000);
 
     fetch("/api/homepage/feed?tab=for_you&limit=20", {
       method: "GET",
@@ -791,10 +828,7 @@
       .then(function (data) {
         if (data && data.ok && data.payload) {
           var p = data.payload;
-          if (p.feed_items) {
-            var feedEl = document.getElementById("nvpro-feed");
-            if (feedEl) renderFeedItems(feedEl, p.feed_items);
-          }
+          // stories
           if (p.stories && p.stories.length) {
             var storiesEl = document.querySelector(".nvpro-stories-scroll");
             if (storiesEl) {
@@ -805,7 +839,7 @@
                 var initial = name.charAt(0).toUpperCase();
                 var avatar = s.avatar_url || "";
                 var ringCls = s.viewed ? "" : " is-unseen";
-                items += '<a href="/stories/" class="nvpro-story-item" data-story-id="' + (s.id || "") + '">' +
+                items += '<a href="/status/" class="nvpro-story-item" data-story-id="' + (s.id || "") + '">' +
                   '<div class="nvpro-story-ring' + ringCls + '">';
                 if (avatar) {
                   items += '<img src="' + avatar + '" alt="" class="nvpro-story-avatar" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
@@ -816,15 +850,19 @@
                 items += '</div><span class="nvpro-story-label">' + name.substring(0, 10) + '</span></a>';
               });
               var emptyCard = storiesEl.querySelector(".nvpro-story-empty-card");
+              if (emptyCard) emptyCard.remove();
               if (createBtn) {
-                var newHtml = createBtn.outerHTML + items;
-                var emptyNext = createBtn.nextElementSibling;
-                if (emptyCard) { emptyCard.remove(); }
                 while (createBtn.nextElementSibling) { createBtn.nextElementSibling.remove(); }
                 createBtn.insertAdjacentHTML("afterend", items);
               }
             }
           }
+          // feed items
+          if (p.feed_items && p.feed_items.length) {
+            var feedEl = document.getElementById("nvpro-feed");
+            if (feedEl) renderFeedItems(feedEl, p.feed_items);
+          }
+          // reels
           if (p.reels && p.reels.length) {
             var reelsGrid = document.querySelector(".nvpro-reels-grid");
             if (reelsGrid) {
@@ -832,7 +870,7 @@
               p.reels.slice(0, 6).forEach(function (r) {
                 var thumb = r.thumbnail_url || r.media_url || r.video_url || "";
                 var name = r.display_name || r.username || "Creator";
-                var caption = (r.caption || r.text || "").substring(0, 60);
+                var caption = (r.caption || "").substring(0, 60);
                 rh += '<a href="/reels/" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
                   '<div class="nvpro-reel-thumb">';
                 if (thumb) {
@@ -845,13 +883,18 @@
                 rh += '</div></a>';
               });
               reelsGrid.innerHTML = rh;
+              // remove reels empty section if exists
+              var reelsSection = reelsGrid.closest(".nvpro-reels-section");
+              if (reelsSection) {
+                var emptyCard = reelsSection.querySelector(".nvpro-empty-card");
+                if (emptyCard) emptyCard.remove();
+              }
             }
           }
         }
       })
       .catch(function () {
         clearTimeout(timeoutId);
-        // Fail silently - degraded mode already showing
       });
   }
 })();

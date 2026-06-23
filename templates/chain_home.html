@@ -8,8 +8,63 @@
 {% block mobile_nav %}{% endblock %}
 
 {% block extra_css %}
-<meta name="namvibe-build" content="phase127">
+<meta name="namvibe-build" content="phase156">
 <link rel="stylesheet" href="/static/css/namvibe_home_pro.css">
+<style>
+/* Phase 156 — Mobile hamburger & TikTok-style feed */
+.nvpro-hamburger { display:none; background:none; border:none; cursor:pointer; padding:8px; color:var(--nvpro-text); }
+.nvpro-hamburger svg { width:24px; height:24px; }
+.nvpro-drawer-overlay { display:none; position:fixed; inset:0; z-index:99; background:rgba(0,0,0,0.5); }
+.nvpro-drawer-overlay.is-open { display:block; }
+.nvpro-drawer { position:fixed; top:0; left:-280px; width:280px; height:100%; z-index:100; background:var(--nvpro-surface); overflow-y:auto; transition:left 0.3s ease; box-shadow:2px 0 12px rgba(0,0,0,0.15); }
+.nvpro-drawer.is-open { left:0; }
+.nvpro-drawer-head { display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid var(--nvpro-border); }
+.nvpro-drawer-logo { display:flex; align-items:center; gap:8px; font-weight:700; font-size:18px; color:var(--nvpro-text); text-decoration:none; }
+.nvpro-drawer-logo svg { width:22px; height:22px; }
+.nvpro-drawer-close { background:none; border:none; cursor:pointer; padding:4px; color:var(--nvpro-text); }
+.nvpro-drawer-close svg { width:22px; height:22px; }
+.nvpro-drawer-items { padding:8px 0; }
+.nvpro-drawer-item { display:flex; align-items:center; gap:12px; padding:12px 16px; color:var(--nvpro-text); text-decoration:none; font-size:15px; }
+.nvpro-drawer-item svg { width:20px; height:20px; flex-shrink:0; }
+.nvpro-drawer-item.is-active { font-weight:600; background:var(--nvpro-hover-bg); }
+.nvpro-drawer-item:hover { background:var(--nvpro-hover-bg); }
+.nvpro-drawer-signout { margin-top:16px; border-top:1px solid var(--nvpro-border); padding-top:16px; color:var(--nvpro-danger); }
+body.nvpro-drawer-open { overflow:hidden; }
+/* Scroll hide header */
+.nvpro-header-hidden { transform:translateY(-100%); }
+.nvpro-header { transition:transform 0.3s ease; position:sticky; top:0; z-index:50; }
+/* Hero section desktop only */
+.nvpro-home-hero { display:block; }
+/* Mobile: hide hero, hide shortcuts, hide sidebar, show hamburger */
+@media (max-width:768px) {
+  .nvpro-hamburger { display:flex; align-items:center; }
+  .nvpro-home-hero { display:none !important; }
+  .nvpro-left-rail { display:none !important; }
+  .nvpro-sidebar { display:none !important; }
+  .nvpro-header-inner .nvpro-logo { font-size:16px; }
+  .nvpro-header-inner .nvpro-logo svg { width:18px; height:18px; }
+  .nvpro-header-actions .nvpro-create-btn span { display:none; }
+  .nvpro-search-wrap { max-width:160px; }
+  /* Full-width content */
+  .nvpro-center { max-width:100% !important; padding:0 !important; }
+  .nvpro-feed .nvpro-post-card { border-radius:0; border-left:none; border-right:none; }
+  /* Fix input contrast on mobile */
+  .nvpro-form-input, .nvpro-form-select, .nvpro-modal-body input, .nvpro-modal-body textarea, .nvpro-modal-body select {
+    font-size:16px !important; color:var(--nvpro-text) !important; background:var(--nvpro-input-bg) !important;
+    border:1px solid var(--nvpro-border) !important; padding:12px !important; border-radius:8px !important;
+  }
+  .nvpro-form-input::placeholder, .nvpro-modal-body input::placeholder, .nvpro-modal-body textarea::placeholder {
+    color:var(--nvpro-muted) !important; opacity:0.7;
+  }
+  /* Story strip full width */
+  .nvpro-stories-tray { margin:0 !important; padding:8px 4px !important; }
+  .nvpro-stories-scroll { gap:4px; }
+  /* Reels grid */
+  .nvpro-reels-grid { grid-template-columns:repeat(3,1fr) !important; gap:2px !important; }
+  /* Remove bottom padding for feed */
+  .nvpro-feed { padding-bottom:80px; }
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -42,7 +97,10 @@
 <script>
 window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 </script>
-    <div class="nvpro-header-inner">
+    <button type="button" class="nvpro-hamburger" id="nvpro-hamburger" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nvpro-header-inner">
       <a href="/" class="nvpro-logo">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3L3 7v13l6-4V3zm6 0l6 4v13l-6-4V3zm-6 4l6-4v14l-6 4V7z"/></svg>
         NamVibe
@@ -76,6 +134,83 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
       </div>
     </div>
   </header>
+
+  {# MOBILE DRAWER OVERLAY #}
+  <div class="nvpro-drawer-overlay" id="nvpro-drawer-overlay"></div>
+
+  {# MOBILE DRAWER #}
+  <nav class="nvpro-drawer" id="nvpro-drawer">
+    <div class="nvpro-drawer-head">
+      <a href="/" class="nvpro-drawer-logo">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3L3 7v13l6-4V3zm6 0l6 4v13l-6-4V3zm-6 4l6-4v14l-6 4V7z"/></svg>
+        NamVibe
+      </a>
+      <button type="button" class="nvpro-drawer-close" id="nvpro-drawer-close" aria-label="Close menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="nvpro-drawer-items">
+      <a href="/" class="nvpro-drawer-item is-active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        <span>Home</span>
+      </a>
+      <a href="/discover/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>
+        <span>Discover</span>
+      </a>
+      <a href="/live/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        <span>Live</span>
+      </a>
+      <a href="/reels/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <span>Reels</span>
+      </a>
+      <a href="/status/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>
+        <span>Stories</span>
+      </a>
+      <a href="/inbox/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+        <span>Inbox</span>
+      </a>
+      <a href="/contacts/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-8-12a4 4 0 010 7.75"/></svg>
+        <span>Contacts</span>
+      </a>
+      <a href="/calls/recent" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+        <span>Calls</span>
+      </a>
+      <a href="/dating/discover" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <span>Dating</span>
+      </a>
+      <a href="/wallet/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><circle cx="18" cy="14" r="1"/></svg>
+        <span>Wallet</span>
+      </a>
+      <a href="/profile/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Profile</span>
+      </a>
+      <a href="/settings/" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <span>Settings</span>
+      </a>
+      {% if g_current %}
+      <a href="/auth/logout" class="nvpro-drawer-item nvpro-drawer-signout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Sign Out</span>
+      </a>
+      {% else %}
+      <a href="/auth/login" class="nvpro-drawer-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        <span>Login</span>
+      </a>
+      {% endif %}
+    </div>
+  </nav>
 
   <div class="nvpro-body">
 
@@ -156,7 +291,6 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
           <a href="/inbox/" class="nvpro-btn nvpro-btn-primary">Open inbox</a>
           <a href="/live/" class="nvpro-btn nvpro-btn-outline">Watch live</a>
           <a href="/discover/" class="nvpro-btn nvpro-btn-outline">Discover</a>
-          <button type="button" class="nvpro-btn nvpro-btn-outline" data-open-upload="post">Create post</button>
         </div>
       </section>
 
