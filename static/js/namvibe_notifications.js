@@ -311,6 +311,7 @@
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data.ok || data.success) {
+            markRead(notifId, card);
             card.remove();
             showToast(type === 'follow_request' ? 'Follow request declined' : 'Friend request declined');
             fetchUnreadCount();
@@ -570,7 +571,7 @@
   function esc(str) {
     if (typeof str !== 'string') return str || '';
     return str.replace(/[&<>"']/g, function (m) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+      return { '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;' }[m];
     });
   }
 

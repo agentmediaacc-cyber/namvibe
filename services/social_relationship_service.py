@@ -260,9 +260,14 @@ def send_friend_request(viewer_id, target_id):
         _prof = fast_query("SELECT username FROM chain_profiles WHERE id = %s", (viewer_id,), default=[])
         _uname = _prof[0]["username"] if _prof else "Someone"
         create_notification(
-            target_id, "friend_request", "New Friend Request",
-            f"{_uname} sent you a friend request.",
-            actor_profile_id=viewer_id, action_url=f"/profile/{viewer_id}",
+            recipient_profile_id=target_id,
+            event_type="friend_request",
+            title="New Friend Request",
+            body=f"{_uname} sent you a friend request.",
+            actor_profile_id=viewer_id,
+            entity_type="friend_request",
+            entity_id=request_id,
+            action_url="/social/friend-requests",
         )
     except Exception:
         pass
@@ -318,10 +323,14 @@ def accept_friend_request(viewer_id, request_id):
         _prof = fast_query("SELECT username FROM chain_profiles WHERE id = %s", (req["recipient_profile_id"],), default=[])
         _uname = _prof[0]["username"] if _prof else "Someone"
         create_notification(
-            req["sender_profile_id"], "friend_accepted", "Friend Request Accepted",
-            f"{_uname} accepted your friend request. You are now friends!",
+            recipient_profile_id=req["sender_profile_id"],
+            event_type="friend_accepted",
+            title="Friend Request Accepted",
+            body=f"{_uname} accepted your friend request. You are now friends!",
             actor_profile_id=req["recipient_profile_id"],
-            action_url=f"/profile/{req['recipient_profile_id']}",
+            entity_type="friend_request",
+            entity_id=request_id,
+            action_url=f"/profile/@{_uname}",
         )
     except Exception:
         pass

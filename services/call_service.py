@@ -23,7 +23,9 @@ def _bg_notify(receiver_profile_id, caller_profile_id, call_type, call_id, room_
             event_type="incoming_call",
             title=f"Incoming {call_type} call",
             body="Tap to answer",
-            action_url=f"/calls/{call_id}/answer",
+            entity_type="call",
+            entity_id=call_id,
+            action_url=f"/calls/{call_id}/view",
         )
     except Exception:
         pass

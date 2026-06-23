@@ -1,0 +1,200 @@
+/* ======================================================
+   Discover Mobile - Improved User Cards for Mobile
+   ====================================================== */
+
+/* Discover grid layout - mobile first */
+.discover-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 0 8px;
+}
+
+/* Discover card - mobile optimized */
+.discover-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--card-bg, #1a1a2e);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+.discover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Card header with gradient */
+.discover-card::before {
+  content: '';
+  display: block;
+  height: 70px;
+  background: linear-gradient(135deg, rgba(30, 136, 229, 0.25), rgba(11, 27, 51, 0.92));
+}
+
+/* Card body */
+.discover-card-body {
+  padding: 0 16px 16px;
+  position: relative;
+}
+
+/* Avatar - overlapping */
+.discover-card .avatar-dot {
+  position: absolute;
+  top: -32px;
+  left: 16px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 4px solid var(--card-bg, #1a1a2e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #F7B733, #1E88E5);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.discover-card .avatar-dot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Name and username - ensure visibility */
+.discover-card h3 {
+  margin: 8px 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-color, #f0f0f0);
+  line-height: 1.2;
+}
+
+.discover-card .px-muted {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted, #8888a0);
+  margin-bottom: 8px;
+}
+
+/* Bio text - ensure it's visible */
+.discover-card p[style*="font-size:12px"] {
+  font-size: 12px;
+  color: var(--text-muted, #8888a0);
+  margin: 6px 0;
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Social actions grid */
+.discover-social-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+/* Make the whole card clickable for profile */
+.discover-card-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.discover-card-link:hover {
+  text-decoration: underline;
+}
+
+/* Friend request card styling */
+.discover-card.friend-request-card {
+  background: linear-gradient(135deg, rgba(231, 76, 59, 0.15), transparent);
+  border-color: rgba(231, 76, 59, 0.3);
+}
+
+/* Action buttons */
+.px-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-color, #f0f0f0);
+  transition: all 0.15s;
+}
+
+.px-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color, #f0f0f0);
+}
+
+.px-chip.primary {
+  background: linear-gradient(135deg, #F7B733, #1E88E5);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .discover-grid {
+    gap: 10px;
+    padding: 0 6px;
+  }
+  
+  .discover-card .avatar-dot {
+    top: -28px;
+    left: 12px;
+    width: 56px;
+    height: 56px;
+    border-width: 3px;
+  }
+  
+  .discover-card-body {
+    padding: 0 12px 12px;
+  }
+  
+  .discover-card h3 {
+    font-size: 15px;
+  }
+  
+  .discover-social-actions {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 6px;
+    margin: 10px 0;
+  }
+}
+
+/* Dark mode text fixes */
+@media (prefers-color-scheme: dark) {
+  .discover-card h3,
+  .discover-card .px-muted,
+  .discover-card p[style*="font-size:12px"] {
+    color: #f0f0f0;
+  }
+}
+
+/* Ensure no white on white issues */
+.discover-card {
+  --text-color: #f0f0f0;
+  --text-muted: #8888a0;
+  --card-bg: #1a1a2e;
+  --border-color: rgba(255, 255, 255, 0.08);
+}

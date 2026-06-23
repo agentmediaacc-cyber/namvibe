@@ -403,7 +403,9 @@ def send_message(thread_id, sender_profile_id, body=None, file=None, client_mess
                         event_type="new_message",
                         title="New Message",
                         body=(body_text[:50] if body_text else "Sent a media message"),
-                        action_url=f"/messages/{thread_id}",
+                        entity_type="thread",
+                        entity_id=thread_id,
+                        action_url=f"/messages/?thread={thread_id}",
                     )
                 except Exception:
                     pass
