@@ -65,9 +65,12 @@ def get_redis_client():
             socket_timeout=float(os.getenv("CHAIN_REDIS_SOCKET_TIMEOUT", "0.25")),
             decode_responses=True,
         )
-        if _REDIS_SSL_CERT_REQS is not None:
-            kwargs["ssl_cert_reqs"] = _REDIS_SSL_CERT_REQS
-        _CLIENT = redis.Redis.from_url(url, **kwargs)
+        client_url = url
+        if url.startswith("rediss://") and _REDIS_SSL_CERT_REQS is not None:
+            ssl_label = _RAW_SSL_REQS or "none"
+            sep = "&" if "?" in url else "?"
+            client_url = f"{url}{sep}ssl_cert_reqs={ssl_label}"
+        _CLIENT = redis.Redis.from_url(client_url, **kwargs)
         _CLIENT.ping()
         _record_success()
         return _CLIENT

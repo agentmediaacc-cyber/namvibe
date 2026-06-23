@@ -106,9 +106,12 @@ class RedisManager:
             return None
         try:
             kwargs = dict(decode_responses=True, socket_timeout=10, socket_connect_timeout=10, retry_on_timeout=True, health_check_interval=15)
+            client_url = self.url
             if self.url.startswith("rediss://") and _REDIS_SSL_CERT_REQS is not None:
-                kwargs["ssl_cert_reqs"] = _REDIS_SSL_CERT_REQS
-            self.client = redis.from_url(self.url, **kwargs)
+                ssl_label = _RAW_SSL_REQS or "none"
+                sep = "&" if "?" in self.url else "?"
+                client_url = f"{self.url}{sep}ssl_cert_reqs={ssl_label}"
+            self.client = redis.from_url(client_url, **kwargs)
             self.client.ping()
             self._remember_success()
             return self.client
