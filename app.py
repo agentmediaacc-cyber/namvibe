@@ -79,6 +79,14 @@ from api_routes.follow_request_routes import follow_request_api_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
+from services.homepage_phase141_service import (
+    fetch_stories_v2,
+    fetch_reels_v2,
+    fetch_posts_v2,
+    fetch_live_rooms_v2,
+    fetch_suggested_people_v2,
+    fetch_profiles_batch,
+)
 from services.homepage_warmup_service import warm_homepage_cache
 from services.content_service import hashtag_links
 from services.profile_service import get_current_profile, get_profile_by_username
@@ -897,10 +905,16 @@ def create_app():
             "upload_video_available": "/features/upload-video" in avail,
             "post_available": True,
         }
+        # Phase 141: Hard render fallback for degraded mode
         shell = {
-            "reels_feed": [], "suggested_creators": [], "smart_suggestions": [],
-            "recommendation_cards": [], "trending_hashtags": [], "popular_towns": [],
-            "live_rooms": [], "stories": [], "posts": [], "current": None,
+            "feed_for_you": [],
+            "posts": [],
+            "reels": [],
+            "stories": [],
+            "suggested_people": [],
+            "live_rooms": [],
+            "homepage_degraded": True,
+            "homepage_message": "Loading latest NamVibe content...",
             **base_routes,
         }
         params = {"town": town, "region": region}
@@ -908,8 +922,15 @@ def create_app():
             home_start = time.perf_counter()
             try:
                 data = get_homepage_data(**params)
+                elapsed_ms = (time.perf_counter() - home_start) * 1000
+                if elapsed_ms > 2500:
+                    data = dict(shell)
+                    data["homepage_degraded"] = True
+                    data["homepage_message"] = "Loading latest NamVibe content..."
             except Exception:
                 data = dict(shell)
+                data["homepage_degraded"] = True
+                data["homepage_message"] = "Loading latest NamVibe content..."
             try:
                 tiktok = build_tiktok_home_payload()
                 data["reels_feed"] = tiktok.get("reels_feed", [])
@@ -921,9 +942,7 @@ def create_app():
             data.update(base_routes)
             response = render_template("chain_home.html", **data)
             log_info("homepage_route_total", duration_ms=round((time.perf_counter() - home_start) * 1000, 2))
-            return response
-
-    @app.route("/login")
+            return response, 200
     def legacy_login():
         return redirect("/auth/login", code=302)
 

@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-06-23T09:43:02.208105+00:00",
+  "base_url": "https://namvibe.com",
+  "checks": {
+    "healthz": {
+      "url": "https://namvibe.com/healthz",
+      "status": "200",
+      "elapsed_ms": 1629.53,
+      "passed": true
+    },
+    "homepage": {
+      "url": "https://namvibe.com/",
+      "status": "timeout",
+      "elapsed_ms": 10000,
+      "passed": false
+    },
+    "feedback": {
+      "url": "https://namvibe.com/feedback/",
+      "status": "200",
+      "elapsed_ms": 3349.33,
+      "passed": true
+    },
+    "notifications": {
+      "url": "https://namvibe.com/notifications/",
+      "status": "302",
+      "elapsed_ms": 2311.58,
+      "passed": true
+    },
+    "profile_beta": {
+      "url": "https://namvibe.com/profile/@beta",
+      "status": "200",
+      "elapsed_ms": 9230.82,
+      "passed": true
+    },
+    "reels": {
+      "url": "https://namvibe.com/reels/",
+      "status": "200",
+      "elapsed_ms": 2843.48,
+      "passed": true
+    },
+    "reels_view_batch": {
+      "url": "https://namvibe.com/reels/api/reels/view/batch",
+      "status": "200",
+      "elapsed_ms": 979.89,
+      "passed": true
+    }
+  },
+  "errors": [
+    {
+      "endpoint": "/",
+      "status": "timeout",
+      "message": "Unexpected status timeout"
+    }
+  ],
+  "production_ready": false
+}

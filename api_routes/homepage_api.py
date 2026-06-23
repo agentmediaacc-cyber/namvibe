@@ -3,7 +3,14 @@
 
 from flask import Blueprint, jsonify, request, session
 from services.profile_service import get_current_profile
-from services.homepage_service import get_feed_tab, get_homepage_payload
+from services.homepage_service import get_feed_tab
+from services.homepage_phase141_service import (
+    fetch_posts_v2,
+    fetch_reels_v2,
+    fetch_stories_v2,
+    fetch_live_rooms_v2,
+    fetch_suggested_people_v2,
+)
 from services.engagement_service import follow_profile, unfollow_profile, toggle_like, toggle_save
 from services.neon_service import fast_query, is_circuit_open
 from api_routes.profile_routes import login_required

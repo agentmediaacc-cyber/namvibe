@@ -30,6 +30,16 @@ from services.homepage_cache_service import (
 from services.query_optimizer import HOMEPAGE_QUERY_BUDGET_MS, batch_load_profiles, profiled_query
 from services.logging_service import log_info
 from services.profile_service import get_current_profile
+
+# Phase 141: Import fast functions that avoid expensive JOINs
+from services.homepage_phase141_service import (
+    fetch_stories_v2,
+    fetch_reels_v2,
+    fetch_posts_v2,
+    fetch_live_rooms_v2,
+    fetch_suggested_people_v2,
+    fetch_profiles_batch,
+)
 from services.wallet_service import ensure_wallet
 from services.content_service import local_content, active_local_stories
 from services.homepage_real_data_guard import filter_content, filter_profiles, public_profile_sql, public_profile_subquery

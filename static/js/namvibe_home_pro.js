@@ -750,5 +750,40 @@
       var modal = document.getElementById("nvpro-upload-modal");
       if (modal) modal.classList.add("is-open");
     }
+    // Phase 141: Hydration for degraded mode
+    if (window.NAMVIBE_HOME_DEGRADED === true) {
+      hydrateHomepage();
+    }
   });
+
+  /* ── Phase 141: Hydration for degraded mode ── */
+  function hydrateHomepage() {
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function () {
+      controller.abort();
+    }, 6000);
+
+    fetch("/api/homepage/feed?tab=for_you&limit=20", {
+      method: "GET",
+      headers: { "X-CSRFToken": csrfToken() },
+      signal: controller.signal,
+      credentials: "same-origin"
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        clearTimeout(timeoutId);
+        if (data && data.ok && data.payload && data.payload.feed_items) {
+          var feedEl = document.getElementById("nvpro-feed");
+          if (feedEl) {
+            renderFeedItems(feedEl, data.payload.feed_items);
+          }
+        }
+      })
+      .catch(function (err) {
+        clearTimeout(timeoutId);
+        // Fail silently - degraded mode already showing
+      });
+  }
 })();

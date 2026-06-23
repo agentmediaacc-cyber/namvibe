@@ -23,12 +23,20 @@
 {% set wallet_data = p.get("wallet") or wallet or {} %}
 {% set unread = p.get("unread_counts") or {} %}
 {% set empty = p.get("empty_states") or {} %}
+{# Phase 141: Safe defaults for degraded mode - all variables use default([]) #}
+{% set feed_for_you = p.get("feed_for_you") or [] %}
+{% set trending_posts = p.get("trending_posts") or [] %}
+{% set suggested_people = p.get("suggested_people") or [] %}
+{% set homepage_degraded = p.get("homepage_degraded", False) %}
 
 <div class="nvpro-shell">
-<div hidden data-namvibe-build="phase127"></div>
+<div hidden data-namvibe-build="phase141"></div>
 
-  {# HEADER #}
-  <header class="nvpro-header">
+{# Phase 141: JS flag for degraded mode hydration #}
+<script>
+window.NAMVIBE_HOME_DEGRADED = {{ homepage_degraded|default(false) }};
+</script>
+```
     <div class="nvpro-header-inner">
       <a href="/" class="nvpro-logo">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3L3 7v13l6-4V3zm6 0l6 4v13l-6-4V3zm-6 4l6-4v14l-6 4V7z"/></svg>

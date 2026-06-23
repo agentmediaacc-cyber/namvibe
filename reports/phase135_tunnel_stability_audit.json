@@ -1,0 +1,151 @@
+{
+  "timestamp": "2026-06-23T09:22:30.751368",
+  "checks": {
+    "app_process_alive": {
+      "status": "PASS",
+      "details": "admin            10331  17.0  0.1 33589132  11060 s012  S+   11:22AM   0:00.14 /usr/local/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python scripts/audit_phase135_tunnel_stability.py"
+    },
+    "healthz_responding": {
+      "status": "FAIL",
+      "details": "HTTP 000"
+    },
+    "database_connected": {
+      "status": "PASS",
+      "details": {
+        "status": "ok",
+        "connected": true,
+        "latency_ms": 3473.05,
+        "circuit_state": "closed",
+        "pool_ready": true,
+        "configured": true,
+        "ever_connected": true
+      }
+    },
+    "redis_connected": {
+      "status": "PASS",
+      "details": {
+        "status": "ok",
+        "connected": true,
+        "fallback": false,
+        "latency_ms": 1900.0,
+        "error": null,
+        "last_connected_at": "2026-06-23T09:22:39.047177+00:00",
+        "last_failure_at": null,
+        "circuit_state": "closed",
+        "redis_url_scheme": "rediss://[masked]",
+        "ssl_cert_reqs": "none"
+      }
+    },
+    "socketio_active": {
+      "status": "FAIL",
+      "details": {
+        "registered": true,
+        "server": false
+      }
+    },
+    "routes_render": {
+      "status": "FAIL",
+      "details": [
+        {
+          "route": "/",
+          "name": "homepage",
+          "status": "000",
+          "passed": false
+        },
+        {
+          "route": "/profile/test",
+          "name": "profile page",
+          "status": "000",
+          "passed": false
+        },
+        {
+          "route": "/messages/",
+          "name": "messaging routes",
+          "status": "000",
+          "passed": false
+        },
+        {
+          "route": "/notifications/",
+          "name": "notification routes",
+          "status": "000",
+          "passed": false
+        }
+      ]
+    },
+    "no_500_errors": {
+      "status": "WARN",
+      "details": "Found 80 error-level log entries"
+    },
+    "port_8080_binding": {
+      "status": "FAIL",
+      "details": "Port 8080 not bound"
+    }
+  },
+  "errors": [
+    {
+      "source": "Healthz endpoint",
+      "file": "app.py",
+      "line": 942,
+      "message": "Healthz endpoint not responding. Got: 000"
+    },
+    {
+      "source": "Route homepage",
+      "file": null,
+      "line": null,
+      "message": "Route / returned status 000"
+    },
+    {
+      "source": "Route profile page",
+      "file": null,
+      "line": null,
+      "message": "Route /profile/test returned status 000"
+    },
+    {
+      "source": "Route messaging routes",
+      "file": null,
+      "line": null,
+      "message": "Route /messages/ returned status 000"
+    },
+    {
+      "source": "Route notification routes",
+      "file": null,
+      "line": null,
+      "message": "Route /notifications/ returned status 000"
+    },
+    {
+      "source": "Port 8080 binding",
+      "file": "gunicorn.conf.py",
+      "line": 7,
+      "message": "Port 8080 is not bound - application not listening"
+    },
+    {
+      "source": "Worker crash",
+      "file": null,
+      "line": 5597,
+      "message": "Worker exit detected: [2026-06-23 06:07:56 +0200] [54346] [INFO] Worker exiting (pid: 54346)"
+    }
+  ],
+  "warnings": [
+    {
+      "source": "Socket.IO",
+      "file": "services/socketio_service.py",
+      "line": 22,
+      "message": "Socket.IO server not initialized"
+    },
+    {
+      "source": "Log analysis",
+      "file": null,
+      "line": null,
+      "message": "Found 80 error entries in logs"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "file": "gunicorn.conf.py",
+      "line": 7,
+      "recommendation": "Verify Gunicorn is started and binding to correct port"
+    }
+  ],
+  "production_readiness_score": 0
+}
