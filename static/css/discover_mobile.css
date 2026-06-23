@@ -198,3 +198,44 @@
   --card-bg: #1a1a2e;
   --border-color: rgba(255, 255, 255, 0.08);
 }
+
+/* Discover search bar */
+.discover-search {
+  display: flex;
+  align-items: center;
+  background: var(--card-bg, #1a1a2e);
+  border-radius: 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.discover-search i {
+  color: var(--text-muted, #8888a0);
+  margin-right: 8px;
+}
+
+.discover-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-color, #f0f0f0);
+  font-size: 14px;
+  outline: none;
+}
+
+.discover-search input::placeholder {
+  color: var(--text-muted, #8888a0);
+}
+
+/* Load More button */
+.load-more-btn {
+  margin: 24px auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.load-more-btn:hover {
+  opacity: 0.9;
+}
+```

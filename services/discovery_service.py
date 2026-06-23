@@ -278,3 +278,92 @@ def _calculate_compatibility(a, b):
         score += 5
 
     return min(score, 99)
+
+
+def search_profiles(query, viewer_id=None, limit=50, offset=0, timeout_ms=5000):
+    """
+    Search profiles by username, display_name, or full_name using ILIKE.
+    Returns dict with items and has_more for pagination.
+    """
+    if not query:
+        return {"items": [], "has_more": False, "query": ""}
+    
+    search_pattern = f"%{query}%"
+    columns = ", ".join("chain_profiles." + col for col in DISCOVERY_PROFILE_COLUMNS)
+    
+    sql = f"""
+        SELECT {columns}
+        FROM chain_profiles
+        WHERE deleted_at IS NULL
+          AND COALESCE(is_public, TRUE) = TRUE
+          AND {public_profile_sql("chain_profiles")}
+          AND (
+            LOWER(username) LIKE LOWER(%s)
+            OR LOWER(display_name) LIKE LOWER(%s)
+            OR LOWER(full_name) LIKE LOWER(%s)
+          )
+        ORDER BY COALESCE(is_premium, FALSE) DESC, created_at DESC
+        LIMIT %s OFFSET %s
+    """
+    
+    rows = fast_query(
+        sql,
+        [search_pattern, search_pattern, search_pattern, limit, offset],
+        timeout_ms=timeout_ms,
+        default=[],
+    )
+    
+    profiles = [normalize_profile(row) for row in rows]
+    
+    # Check if there are more results
+    has_more = len(profiles) == limit
+    if has_more:
+        # Check if there's actually one more
+        check_sql = f"""
+            SELECT 1 FROM chain_profiles
+            WHERE deleted_at IS NULL
+              AND COALESCE(is_public, TRUE) = TRUE
+              AND {public_profile_sql("chain_profiles")}
+              AND (
+                LOWER(username) LIKE LOWER(%s)
+                OR LOWER(display_name) LIKE LOWER(%s)
+                OR LOWER(full_name) LIKE LOWER(%s)
+              )
+            ORDER BY COALESCE(is_premium, FALSE) DESC, created_at DESC
+            LIMIT 1 OFFSET %s
+        """
+        has_more_row = fast_query(check_sql, [search_pattern, search_pattern, search_pattern, limit + offset], timeout_ms=timeout_ms, default=[])
+        has_more = len(has_more_row) > 0
+    
+    # Enrich profiles with relationship data
+    enriched = []
+    profile_ids = [p.get("id") for p in profiles if isinstance(p, dict) and p.get("id")]
+    rel_states = get_many_relationship_states(viewer_id, profile_ids) if viewer_id and profile_ids else {}
+    
+    for item in profiles:
+        if isinstance(item, dict) and "username" in item:
+            pid = item.get("id")
+            state = rel_states.get(str(pid), {}) if viewer_id and pid else {}
+            if state.get("blocked"):
+                continue
+            
+            account_kind = _account_kind(item)
+            primary_action = _primary_action_from_state(viewer_id, item, state)
+            item["account_kind"] = account_kind
+            item["relationship"] = state.get("relationship", "none")
+            item["follow_status"] = _follow_status_from_state(state)
+            item["primary_action"] = primary_action
+            item["can_send_friend_request"] = bool(viewer_id and account_kind == "person" and primary_action == "friend_request")
+            item["can_follow"] = bool(viewer_id and primary_action in {"follow", "request_follow", "following"})
+            
+            can_view = _can_view_profile_from_state(viewer_id, item, state)
+            if not can_view:
+                item = _strip_private_data(item)
+            enriched.append(item)
+    
+    return {
+        "items": enriched,
+        "has_more": has_more,
+        "query": query,
+        "offset": offset + len(enriched)
+    }

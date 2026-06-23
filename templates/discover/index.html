@@ -57,6 +57,15 @@
         <span class="px-chip"><i class="fas fa-fire"></i>{{ items|length if items else 0 }} results</span>
     </section>
 
+    {# Search bar for members/discover section #}
+    {% if section == 'members' or section == 'recommended' or query %}
+    <form class="px-search discover-search" action="/discover/" method="get" style="margin:16px 0;">
+        <i class="fas fa-search"></i>
+        <input type="text" name="q" value="{{ query or '' }}" placeholder="Search username, name, or people">
+        <button type="submit" class="px-chip" style="margin-left:8px;">Search</button>
+    </form>
+    {% endif %}
+
     {% if section == 'live' %}
     <section class="live-grid-premium">
         {% for room in items %}
@@ -164,9 +173,22 @@
             </div>
         </article>
         {% else %}
+        {% if query %}
+        <article class="premium-empty"><i class="fas fa-user-group"></i><h3>No people found</h3><p>Try another name or username.</p><a class="px-btn" href="/discover/">Clear Search</a></article>
+        {% else %}
         <article class="premium-empty"><i class="fas fa-user-group"></i><h3>No suggestions found</h3><p>Explore creators, towns and live rooms while recommendations warm up.</p><a class="px-btn" href="/discover/">Refresh Discover</a></article>
+        {% endif %}
         {% endfor %}
     </section>
+    
+    {# Load More button #}
+    {% if has_more and section != 'live' and section != 'trending' %}
+    <section style="padding:16px 0; text-align:center;">
+        <button type="button" class="px-btn load-more-btn" data-offset="{{ offset or items|length }}" data-limit="50" data-query="{{ query or '' }}">
+            <i class="fas fa-chevron-down"></i> Load More
+        </button>
+    </section>
+    {% endif %}
     {% endif %}
 
     <section class="px-section-head">
@@ -256,5 +278,68 @@
         }
     });
 })();
+
+    // Load More functionality
+    (function() {
+        document.body.addEventListener('click', async (event) => {
+            const loadMoreBtn = event.target.closest('.load-more-btn');
+            if (!loadMoreBtn) return;
+            event.preventDefault();
+            
+            const offset = parseInt(loadMoreBtn.dataset.offset || 0);
+            const limit = parseInt(loadMoreBtn.dataset.limit || 50);
+            const query = loadMoreBtn.dataset.query || '';
+            
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading';
+            
+            try {
+                const url = query ? `/discover/?q=${encodeURIComponent(query)}&offset=${offset}&limit=${limit}` : `/discover/members?offset=${offset}&limit=${limit}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin'
+                });
+                
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+                
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newCards = doc.querySelectorAll('.discover-card');
+                const grid = document.querySelector('.discover-grid');
+                
+                if (grid && newCards.length > 0) {
+                    newCards.forEach(card => {
+                        // Remove the link duplication
+                        const link = card.querySelector('.discover-card-link');
+                        if (link) link.remove();
+                        grid.appendChild(card.cloneNode(true));
+                    });
+                    
+                    // Update offset
+                    const newOffset = offset + newCards.length;
+                    loadMoreBtn.dataset.offset = newOffset;
+                    
+                    // Hide button if no more results
+                    const hasMore = doc.querySelector('.load-more-btn');
+                    if (!hasMore) {
+                        loadMoreBtn.closest('section').style.display = 'none';
+                    }
+                } else {
+                    loadMoreBtn.closest('section').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Load More failed:', error);
+                loadMoreBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Load More';
+                loadMoreBtn.disabled = false;
+            }
+        });
+    })();
 </script>
 {% endblock %}
+```
+```
