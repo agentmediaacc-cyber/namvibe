@@ -1008,6 +1008,7 @@ def create_app():
         return redirect("/profile/settings", code=302)
 
     @app.route("/")
+    @app.route("/home")
     def home():
         town = request.args.get("town", "")
         region = request.args.get("region", "")
@@ -1052,31 +1053,24 @@ def create_app():
             **base_routes,
         }
 
-        force_fast_home = (
-            os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
-            or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
-        )
-
-        if force_fast_home:
-            print("[phase146_home]", {
-                "force": os.getenv("CHAIN_FORCE_FAST_HOME"),
-                "host": request.host,
-                "fast": force_fast_home,
-                "degraded": True
-            })
-            return render_template(
-                "chain_home.html",
-                homepage_payload={"homepage_degraded": True},
-                homepage_degraded=True,
-                feed_for_you=[],
-                posts=[],
-                reels=[],
-                stories=[],
-                suggested_people=[],
-                live_rooms=[],
-                homepage_message="Loading latest NamVibe content...",
-                **base_routes,
-            )
+        def build_fast_shell():
+            data = dict(shell)
+            try:
+                from api_routes.homepage_api import _fast_homepage_feed_payload
+                fast_payload = _fast_homepage_feed_payload(
+                    limit=20,
+                    viewer_id=(get_current_profile() or {}).get("id"),
+                ) or {}
+            except Exception:
+                fast_payload = {}
+            data["feed_items"] = fast_payload.get("feed_items") or []
+            data["feed_for_you"] = list(data["feed_items"])
+            data["posts"] = list(data["feed_items"])
+            data["stories"] = fast_payload.get("stories") or []
+            data["reels"] = fast_payload.get("reels") or []
+            data["homepage_degraded"] = True
+            data["homepage_message"] = "Loading latest NamVibe content..."
+            return data
 
         params = {"town": town, "region": region}
         with timed("home"):
@@ -1085,13 +1079,30 @@ def create_app():
                 data = get_homepage_data(**params)
                 elapsed_ms = (time.perf_counter() - home_start) * 1000
                 if elapsed_ms > 5000:
-                    data = dict(shell)
-                    data["homepage_degraded"] = True
-                    data["homepage_message"] = "Loading latest NamVibe content..."
+                    data = build_fast_shell()
             except Exception:
-                data = dict(shell)
-                data["homepage_degraded"] = True
-                data["homepage_message"] = "Loading latest NamVibe content..."
+                data = build_fast_shell()
+            if not (
+                data.get("feed_items")
+                and data.get("stories")
+                and data.get("reels")
+            ):
+                fast_shell = build_fast_shell()
+                if not data.get("feed_items") and fast_shell.get("feed_items"):
+                    data["feed_items"] = fast_shell.get("feed_items", [])
+                    data["feed_for_you"] = list(data["feed_items"])
+                    data["posts"] = list(data["feed_items"])
+                if not data.get("stories") and fast_shell.get("stories"):
+                    data["stories"] = fast_shell.get("stories", [])
+                if not data.get("reels") and fast_shell.get("reels"):
+                    data["reels"] = fast_shell.get("reels", [])
+                if data.get("feed_items") or data.get("stories") or data.get("reels"):
+                    data["homepage_degraded"] = False
+                    data["homepage_message"] = ""
+            if data.get("feed_items") and not data.get("feed_for_you"):
+                data["feed_for_you"] = list(data.get("feed_items") or [])
+            if data.get("feed_for_you") and not data.get("posts"):
+                data["posts"] = list(data.get("feed_for_you") or [])
             try:
                 tiktok = build_tiktok_home_payload()
                 data["reels_feed"] = tiktok.get("reels_feed", [])
