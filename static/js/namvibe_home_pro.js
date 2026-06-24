@@ -127,7 +127,7 @@
     feedEl.innerHTML =
       '<div class="nvpro-empty-card">' +
       icon("newpost") +
-      '<h3>Your NamVibe feed is ready</h3>' +
+      '<h3>Fresh posts will land here</h3>' +
       '<p>Follow creators, watch reels, join live rooms, or share your first post.</p>' +
       '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">' +
       '<a href="/discover/" class="nvpro-btn nvpro-btn-primary">' + icon("discover") + ' Discover Creators</a>' +
@@ -138,6 +138,7 @@
   function renderFeedItems(feedEl, items) {
     if (!feedEl) return;
     if (!items || items.length === 0) { renderEmpty(feedEl); return; }
+    feedEl.innerHTML = "";
     var html = "";
     items.forEach(function (item) {
       var text = item.text || item.caption || "";
@@ -462,7 +463,7 @@
   var UPLOAD_RULES = {
     post: { maxDuration: 600, maxSize: 700, accept: "video/mp4,video/webm,video/mov,image/jpeg,image/jpg,image/png,image/webp", label: "Post", types: ["video", "image"] },
     reel: { maxDuration: 90, maxSize: 250, accept: "video/mp4,video/webm,video/mov", label: "Reel", types: ["video"] },
-    story: { maxDuration: 60, maxSize: 100, accept: "video/mp4,video/webm,video/mov,image/jpeg,image/jpg,image/png,image/webp", label: "Story", types: ["video", "image"] },
+    story: { maxDuration: 120, maxSize: 100, accept: "video/mp4,video/webm,video/mov,image/jpeg,image/jpg,image/png,image/webp", label: "Story", types: ["video", "image"] },
   };
 
   function initDropZone(type) {
@@ -607,7 +608,7 @@
         fd.append("caption", (document.getElementById("nvpro-caption-" + type) || {}).value || "");
         var fileType = input.files[0].type.startsWith("video/") ? "video" : "image";
         fd.append("media_type", fileType);
-        var visibility = (document.getElementById("nvpro-visibility-" + type) || {}).value || "public";
+        var visibility = (document.getElementById("nvpro-visibility-" + type) || {}).value || (type === "story" ? "followers" : "public");
         fd.append("visibility", visibility);
         if (fileType === "video") fd.append("video", input.files[0]);
 
@@ -805,8 +806,104 @@
     }
   }
 
-  /* ── Phase 141: Hydration for degraded mode ── */
+  /* ── Phase 158a: Hydrate homepage from API or server data ── */
   function hydrateHomepage() {
+    console.log("NAMVIBE HYDRATE START");
+    console.log("window.NAMVIBE_HOME:", window.NAMVIBE_HOME);
+
+    // Helper: get data from payload with fallback shapes
+    function getFeedItems(p) { return p.feed_items || p.feed_for_you || []; }
+    function getStories(p)   { return p.stories || []; }
+    function getReels(p)     { return p.reels || []; }
+
+    function doHydrate(p) {
+      var storiesList = getStories(p);
+      var feedList    = getFeedItems(p);
+      var reelsList   = getReels(p);
+
+      console.log("stories:", storiesList.length);
+      console.log("feed_items:", feedList.length);
+      console.log("reels:", reelsList.length);
+
+      // ── Stories ──
+      var storiesEl = document.getElementById("nvpro-stories");
+      if (!storiesEl) storiesEl = document.querySelector(".nvpro-stories-scroll");
+      if (storiesEl) {
+        if (storiesList.length > 0) {
+          // Remove all empty/placeholder cards
+          storiesEl.querySelectorAll(".nvpro-story-empty-card").forEach(function (e) { e.remove(); });
+          var createBtn = storiesEl.querySelector(".nvpro-story-create");
+          // Remove all story-items except the create button
+          storiesEl.querySelectorAll(".nvpro-story-item").forEach(function (e) { e.remove(); });
+          // Render fresh stories
+          var itemsHtml = "";
+          storiesList.forEach(function (s) {
+            var name = (s.display_name || s.username || "?");
+            var initial = name.charAt(0).toUpperCase();
+            var avatar = s.avatar_url || "";
+            var ringCls = s.viewed ? "" : " is-unseen";
+            itemsHtml += '<a href="/status/" class="nvpro-story-item" data-story-id="' + (s.id || "") + '">' +
+              '<div class="nvpro-story-ring' + ringCls + '">';
+            if (avatar) {
+              itemsHtml += '<img src="' + avatar + '" alt="" class="nvpro-story-avatar" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
+                '<span class="nvpro-avatar-initials" style="display:none">' + initial + '</span>';
+            } else {
+              itemsHtml += '<span class="nvpro-avatar-initials">' + initial + '</span>';
+            }
+            itemsHtml += '</div><span class="nvpro-story-label">' + name.substring(0, 10) + '</span></a>';
+          });
+          if (createBtn) {
+            createBtn.insertAdjacentHTML("afterend", itemsHtml);
+          }
+        }
+      }
+
+      // ── Feed ──
+      var feedEl = document.getElementById("nvpro-feed");
+      if (feedEl) {
+        if (feedList.length > 0) {
+          renderFeedItems(feedEl, feedList);
+        }
+      }
+
+      // ── Reels ──
+      var reelsGrid = document.getElementById("nvpro-reels");
+      if (!reelsGrid) reelsGrid = document.querySelector(".nvpro-reels-grid");
+      if (reelsGrid) {
+        if (reelsList.length > 0) {
+          // Remove any empty cards
+          var reelsSection = reelsGrid.closest(".nvpro-reels-section");
+          if (reelsSection) {
+            reelsSection.querySelectorAll(".nvpro-empty-card").forEach(function (e) { e.remove(); });
+          }
+          reelsGrid.innerHTML = "";
+          var rh = "";
+          reelsList.slice(0, 6).forEach(function (r) {
+            var thumb = r.thumbnail_url || r.media_url || r.video_url || "";
+            var name = r.display_name || r.username || "Creator";
+            var caption = (r.caption || "").substring(0, 60);
+            rh += '<a href="/reels/" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
+              '<div class="nvpro-reel-thumb">';
+            if (thumb) {
+              rh += '<img src="' + thumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<svg viewBox=\\\'0 0 24 24\\\' fill=\\\'none\\\' stroke=\\\'currentColor\\\' width=\\\'36\\\' height=\\\'36\\\'><polygon points=\\\'23 7 16 12 23 17 23 7\\\'/><rect x=\\\'1\\\' y=\\\'5\\\' width=\\\'15\\\' height=\\\'14\\\' rx=\\\'2\\\' ry=\\\'2\\\'/></svg>\'">';
+            } else {
+              rh += '<div class="nvpro-reel-thumb-fallback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="36" height="36"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>';
+            }
+            rh += '</div><div class="nvpro-reel-info"><span class="nvpro-reel-creator">' + name + '</span>';
+            if (caption) rh += '<span class="nvpro-reel-caption">' + caption + '</span>';
+            rh += '</div></a>';
+          });
+          reelsGrid.innerHTML = rh;
+        }
+      }
+    }
+
+    // Hydrate from window.NAMVIBE_HOME (server data) immediately
+    if (window.NAMVIBE_HOME) {
+      doHydrate(window.NAMVIBE_HOME);
+    }
+
+    // Then fetch fresh data from API and re-hydrate
     var controller = new AbortController();
     var timeoutId = setTimeout(function () {
       controller.abort();
@@ -827,74 +924,13 @@
       })
       .then(function (data) {
         if (data && data.ok && data.payload) {
-          var p = data.payload;
-          // stories
-          if (p.stories && p.stories.length) {
-            var storiesEl = document.querySelector(".nvpro-stories-scroll");
-            if (storiesEl) {
-              var createBtn = storiesEl.querySelector(".nvpro-story-create");
-              var items = "";
-              p.stories.forEach(function (s) {
-                var name = (s.display_name || s.username || "?");
-                var initial = name.charAt(0).toUpperCase();
-                var avatar = s.avatar_url || "";
-                var ringCls = s.viewed ? "" : " is-unseen";
-                items += '<a href="/status/" class="nvpro-story-item" data-story-id="' + (s.id || "") + '">' +
-                  '<div class="nvpro-story-ring' + ringCls + '">';
-                if (avatar) {
-                  items += '<img src="' + avatar + '" alt="" class="nvpro-story-avatar" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-                    '<span class="nvpro-avatar-initials" style="display:none">' + initial + '</span>';
-                } else {
-                  items += '<span class="nvpro-avatar-initials">' + initial + '</span>';
-                }
-                items += '</div><span class="nvpro-story-label">' + name.substring(0, 10) + '</span></a>';
-              });
-              var emptyCard = storiesEl.querySelector(".nvpro-story-empty-card");
-              if (emptyCard) emptyCard.remove();
-              if (createBtn) {
-                while (createBtn.nextElementSibling) { createBtn.nextElementSibling.remove(); }
-                createBtn.insertAdjacentHTML("afterend", items);
-              }
-            }
-          }
-          // feed items
-          if (p.feed_items && p.feed_items.length) {
-            var feedEl = document.getElementById("nvpro-feed");
-            if (feedEl) renderFeedItems(feedEl, p.feed_items);
-          }
-          // reels
-          if (p.reels && p.reels.length) {
-            var reelsGrid = document.querySelector(".nvpro-reels-grid");
-            if (reelsGrid) {
-              var rh = "";
-              p.reels.slice(0, 6).forEach(function (r) {
-                var thumb = r.thumbnail_url || r.media_url || r.video_url || "";
-                var name = r.display_name || r.username || "Creator";
-                var caption = (r.caption || "").substring(0, 60);
-                rh += '<a href="/reels/" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
-                  '<div class="nvpro-reel-thumb">';
-                if (thumb) {
-                  rh += '<img src="' + thumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<svg viewBox=\\\'0 0 24 24\\\' fill=\\\'none\\\' stroke=\\\'currentColor\\\' width=\\\'36\\\' height=\\\'36\\\'><polygon points=\\\'23 7 16 12 23 17 23 7\\\'/><rect x=\\\'1\\\' y=\\\'5\\\' width=\\\'15\\\' height=\\\'14\\\' rx=\\\'2\\\' ry=\\\'2\\\'/></svg>\'">';
-                } else {
-                  rh += '<div class="nvpro-reel-thumb-fallback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="36" height="36"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>';
-                }
-                rh += '</div><div class="nvpro-reel-info"><span class="nvpro-reel-creator">' + name + '</span>';
-                if (caption) rh += '<span class="nvpro-reel-caption">' + caption + '</span>';
-                rh += '</div></a>';
-              });
-              reelsGrid.innerHTML = rh;
-              // remove reels empty section if exists
-              var reelsSection = reelsGrid.closest(".nvpro-reels-section");
-              if (reelsSection) {
-                var emptyCard = reelsSection.querySelector(".nvpro-empty-card");
-                if (emptyCard) emptyCard.remove();
-              }
-            }
-          }
+          doHydrate(data.payload);
+          console.log("NAMVIBE HYDRATE COMPLETE (API)");
         }
       })
-      .catch(function () {
+      .catch(function (err) {
         clearTimeout(timeoutId);
+        console.log("NAMVIBE HYDRATE API FAILED, using server data", err);
       });
   }
 })();

@@ -97,6 +97,16 @@ body.nvpro-drawer-open { overflow:hidden; }
 <script>
 window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 </script>
+
+{# Phase 158a: Server data for JS hydration fallback #}
+<script>
+window.NAMVIBE_HOME = {
+    feed_items: {{ home_feed_items | tojson | safe }},
+    feed_for_you: {{ p.get("feed_for_you") or [] | tojson | safe }},
+    stories: {{ stories | tojson | safe }},
+    reels: {{ reels_items | tojson | safe }}
+};
+</script>
     <button type="button" class="nvpro-hamburger" id="nvpro-hamburger" aria-label="Menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
@@ -296,7 +306,7 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 
       {# STORIES TRAY #}
       <section class="nvpro-stories-tray">
-        <div class="nvpro-stories-scroll">
+        <div class="nvpro-stories-scroll" id="nvpro-stories">
           <button type="button" class="nvpro-story-create" data-open-upload="story" aria-label="Create story">
             <div class="nvpro-story-create-ring">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -432,7 +442,7 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
           <a href="/reels/" class="nvpro-section-link">View all</a>
         </div>
         {% if reels_items %}
-        <div class="nvpro-reels-grid">
+        <div class="nvpro-reels-grid" id="nvpro-reels">
           {% for reel in reels_items[:6] %}
           <a href="/reels/" class="nvpro-reel-card" data-reel-id="{{ reel.get('id') }}">
             <div class="nvpro-reel-thumb">
@@ -750,5 +760,5 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/namvibe_home_pro.js?v=phase158"></script>
+<script src="/static/js/namvibe_home_pro.js?v=158a"></script>
 {% endblock %}
