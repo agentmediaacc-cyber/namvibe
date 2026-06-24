@@ -247,11 +247,10 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
 def record_view(status_id, viewer_profile_id, reaction=None, reply_message=None):
     """Record a status view. Uses chain_status_views with UNIQUE(status_id, viewer_profile_id)."""
     try:
-        allowed, _ = can_view_status(status_id, viewer_profile_id)
-        if not allowed:
-            return False
         status = get_status(status_id, viewer_profile_id=viewer_profile_id)
-        if not status or str(status.get("profile_id")) == str(viewer_profile_id):
+        if not status:
+            return False
+        if str(status.get("profile_id")) == str(viewer_profile_id):
             return True
         write_query(
             """INSERT INTO chain_status_views (status_id, viewer_profile_id, viewed_at, reaction, reply_message)

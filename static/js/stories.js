@@ -1,4 +1,4 @@
-/* Phase 60: Stories V2 JS — full-screen viewer with progress, reactions, replies */
+/* Phase 157B: Status viewer with progress, hold-pause, swipe, views, and owner tools */
 (function() {
   'use strict';
 
@@ -23,22 +23,55 @@
   const laughBtn = document.getElementById('story-react-laugh');
   const wowBtn = document.getElementById('story-react-wow');
   const sadBtn = document.getElementById('story-react-sad');
+  const viewerCountBtn = document.getElementById('story-viewer-count');
+  const deleteBtn = document.getElementById('story-delete-btn');
 
   let currentIndex = 0;
   let progressTimer = null;
   let progressStart = 0;
+  let elapsedBeforePause = 0;
+  let paused = false;
+  let swipeStartX = 0;
   const STORY_DURATION = 5000;
+  const HOLD_EVENTS = ['mousedown', 'touchstart'];
+  const RELEASE_EVENTS = ['mouseup', 'mouseleave', 'touchend', 'touchcancel'];
+
+  function currentStory() {
+    return stories[currentIndex] || null;
+  }
+
+  function recordView(story) {
+    if (!story || !story.id) return;
+    fetch(`/api/stories/${story.id}/view`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({})
+    }).catch(() => {});
+  }
 
   function showStory(index) {
     if (index < 0 || index >= stories.length) { hideViewer(); return; }
     currentIndex = index;
     const story = stories[index];
     if (!story) return;
-
     usernameLabel.textContent = story.username || 'User';
-    timeLabel.textContent = timeAgo(story.created_at);
+    const uploaded = story.uploaded_label || timeAgo(story.created_at);
+    const expires = story.expires_in_label || '';
+    timeLabel.textContent = expires ? `${uploaded} · ${expires}` : uploaded;
     userAvatar.src = story.avatar_url || '';
-    storyText.textContent = story.caption || '';
+    storyText.textContent = story.text_content || story.caption || '';
+    storyText.style.background = story.background_color || 'transparent';
+    if (viewerCountBtn) {
+      if (story.is_owner) {
+        viewerCountBtn.style.display = 'inline-flex';
+        viewerCountBtn.textContent = `${story.views_count || 0} views`;
+      } else {
+        viewerCountBtn.style.display = 'none';
+      }
+    }
+    if (deleteBtn) {
+      deleteBtn.style.display = story.is_owner ? 'inline-flex' : 'none';
+    }
 
     if (story.media_type === 'video' && story.media_url) {
       storyImg.style.display = 'none';
@@ -55,7 +88,10 @@
     }
 
     viewer.style.display = 'flex';
+    elapsedBeforePause = 0;
+    paused = false;
     startProgress();
+    recordView(story);
   }
 
   function hideViewer() {
@@ -71,15 +107,30 @@
       const span = seg.querySelector('span');
       if (span) span.style.width = i === 0 ? '0%' : '0%';
     });
-    progressStart = Date.now();
+    progressStart = Date.now() - elapsedBeforePause;
     progressTimer = setInterval(() => {
-      const elapsed = Date.now() - progressStart;
+      const elapsed = elapsedBeforePause + (Date.now() - progressStart);
       const pct = Math.min(100, (elapsed / STORY_DURATION) * 100);
       const activeSeg = progressSegments[0];
       const span = activeSeg ? activeSeg.querySelector('span') : null;
       if (span) span.style.width = pct + '%';
       if (elapsed >= STORY_DURATION) nextStory();
     }, 50);
+  }
+
+  function pauseStory() {
+    if (paused || viewer.style.display !== 'flex') return;
+    paused = true;
+    elapsedBeforePause = Math.min(STORY_DURATION, elapsedBeforePause + (Date.now() - progressStart));
+    clearInterval(progressTimer);
+    if (storyVideo.style.display === 'block') storyVideo.pause();
+  }
+
+  function resumeStory() {
+    if (!paused || viewer.style.display !== 'flex') return;
+    paused = false;
+    if (storyVideo.style.display === 'block') storyVideo.play().catch(() => {});
+    startProgress();
   }
 
   function nextStory() { showStory(currentIndex + 1); }
@@ -93,8 +144,31 @@
     if (viewer.style.display !== 'flex') return;
     if (e.key === 'ArrowRight') nextStory();
     else if (e.key === 'ArrowLeft') prevStory();
+    else if (e.key === ' ') {
+      e.preventDefault();
+      paused ? resumeStory() : pauseStory();
+    }
     else if (e.key === 'Escape') hideViewer();
   });
+
+  HOLD_EVENTS.forEach(function(eventName) {
+    mediaWrap?.addEventListener(eventName, pauseStory, { passive: true });
+  });
+  RELEASE_EVENTS.forEach(function(eventName) {
+    mediaWrap?.addEventListener(eventName, resumeStory, { passive: true });
+  });
+
+  mediaWrap?.addEventListener('touchstart', function(e) {
+    swipeStartX = e.changedTouches[0].screenX;
+  }, { passive: true });
+
+  mediaWrap?.addEventListener('touchend', function(e) {
+    const endX = e.changedTouches[0].screenX;
+    const deltaX = endX - swipeStartX;
+    if (Math.abs(deltaX) < 60) return;
+    if (deltaX < 0) nextStory();
+    else prevStory();
+  }, { passive: true });
 
   /* ── Reactions ── */
   function sendReaction(storyId, reaction) {
@@ -142,6 +216,33 @@
 
   if (replyInput) replyInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') replySend.click();
+  });
+
+  if (viewerCountBtn) viewerCountBtn.addEventListener('click', function() {
+    const story = currentStory();
+    if (!story) return;
+    fetch(`/api/stories/${story.id}/viewers`)
+      .then(r => r.json())
+      .then(data => {
+        const viewers = (data && data.viewers) || [];
+        const names = viewers.map(v => `${v.display_name || v.username || 'Viewer'} (${timeAgo(v.viewed_at)})`);
+        alert(names.length ? names.join('\n') : 'No viewers yet.');
+      })
+      .catch(() => alert('Could not load viewers.'));
+  });
+
+  if (deleteBtn) deleteBtn.addEventListener('click', function() {
+    const story = currentStory();
+    if (!story || !story.is_owner) return;
+    fetch(`/api/stories/${story.id}`, { method: 'DELETE' })
+      .then(r => r.json())
+      .then(data => {
+        if (!data || !data.ok) throw new Error('delete_failed');
+        stories.splice(currentIndex, 1);
+        if (!stories.length) hideViewer();
+        else showStory(Math.min(currentIndex, stories.length - 1));
+      })
+      .catch(() => alert('Could not delete status.'));
   });
 
   /* ── Link story avatars ── */

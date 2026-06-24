@@ -642,8 +642,14 @@ def fast_query(sql_text, params: Any = None, timeout_ms: int = 10000, default: A
             return [{"?column?": 1}] if default is None else default
 
     future = _DB_EXECUTOR.submit(_run, sql_text, params, "all", timeout_ms)
+    # A fresh process may spend most of its budget initializing the Neon pool
+    # before the first query even starts. Allow a small cold-start grace window
+    # so one-shot scripts do not falsely treat the first real DB query as empty.
+    wait_timeout_s = timeout_ms / 1000.0
+    if _POOL is None:
+        wait_timeout_s += 5.0
     try:
-        results = future.result(timeout=timeout_ms / 1000.0)
+        results = future.result(timeout=wait_timeout_s)
         return results if results is not None else (default if default is not None else [])
     except (FutureTimeoutError, Exception) as e:
         if isinstance(e, FutureTimeoutError):

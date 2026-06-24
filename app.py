@@ -756,18 +756,67 @@ def create_app():
         reply_to_story(story_id, viewer_id, data.get("reply_text", ""))
         return jsonify({"success": True}), 200
 
+    @app.route("/api/stories/feed", methods=["GET"])
+    def api_story_feed():
+        from services.status_service import list_active_statuses
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        stories = list_active_statuses(viewer_profile_id=viewer_id)
+        return jsonify({"stories": stories}), 200
+
+    @app.route("/api/stories/<story_id>", methods=["GET"])
+    def api_story_detail(story_id):
+        from services.status_service import get_status, can_view_status
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        allowed, reason = can_view_status(story_id, viewer_id)
+        if not allowed:
+            return jsonify({"error": "Cannot view status", "reason": reason}), 403
+        story = get_status(story_id, viewer_profile_id=viewer_id)
+        if not story:
+            return jsonify({"error": "Not found"}), 404
+        return jsonify({"story": story}), 200
+
+    @app.route("/api/stories/<story_id>/view", methods=["POST"])
+    def api_story_view(story_id):
+        from services.status_service import record_view, can_view_status
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        if not viewer_id:
+            return jsonify({"error": "Not authenticated"}), 401
+        allowed, reason = can_view_status(story_id, viewer_id)
+        if not allowed:
+            return jsonify({"error": "Cannot view status", "reason": reason}), 403
+        data = request.get_json(silent=True) or {}
+        ok = record_view(
+            story_id,
+            viewer_id,
+            reaction=data.get("reaction"),
+            reply_message=data.get("reply_message"),
+        )
+        return jsonify({"success": bool(ok)}), 200 if ok else 400
+
+    @app.route("/api/stories/<story_id>/viewers", methods=["GET"])
+    def api_story_viewers_exact(story_id):
+        from services.status_service import list_viewers
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        if not viewer_id:
+            return jsonify({"error": "Not authenticated"}), 401
+        viewers = list_viewers(story_id, requesting_profile_id=viewer_id)
+        return jsonify({"viewers": viewers}), 200
+
     @app.route("/api/stories/<story_id>", methods=["DELETE"])
     @login_required
     def api_story_delete(story_id):
-        from services.story_engagement_service import delete_story
+        from services.status_service import delete_status
         from services.content_service import get_session_profile_id
         profile_id = get_session_profile_id()
         if not profile_id:
             return jsonify({"error": "Unauthorized"}), 401
-        result = delete_story(story_id, profile_id)
-        if result.get("ok"):
+        if delete_status(story_id, profile_id):
             return jsonify({"ok": True})
-        return jsonify({"error": result.get("error", "delete_failed")}), 403
+        return jsonify({"error": "delete_failed"}), 403
 
     @app.route("/api/reels/<reel_id>/comments", methods=["POST"])
     @login_required
