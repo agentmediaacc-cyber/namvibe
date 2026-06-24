@@ -8,8 +8,8 @@
 {% block mobile_nav %}{% endblock %}
 
 {% block extra_css %}
-<meta name="namvibe-build" content="phase156">
-<link rel="stylesheet" href="/static/css/namvibe_home_pro.css">
+<meta name="namvibe-build" content="phase158">
+<link rel="stylesheet" href="/static/css/namvibe_home_pro.css?v=phase158">
 <style>
 /* Phase 156 — Mobile hamburger & TikTok-style feed */
 .nvpro-hamburger { display:none; background:none; border:none; cursor:pointer; padding:8px; color:var(--nvpro-text); }
@@ -71,7 +71,7 @@ body.nvpro-drawer-open { overflow:hidden; }
 {% set p = homepage_payload or {} %}
 {% set profile = p.get("profile") or current or {} %}
 {% set stories = p.get("stories") or stories or [] %}
-{% set feed_items = p.get("feed_items") or feed_for_you or [] %}
+{% set home_feed_items = p.get("feed_items") or feed_items or feed_for_you or [] %}
 {% set reels_items = p.get("reels") or reels or [] %}
 {% set live_rooms = p.get("live_rooms") or live_rooms or [] %}
 {% set suggested = p.get("suggested_creators") or suggested_creators or suggested_people or [] %}
@@ -91,7 +91,7 @@ body.nvpro-drawer-open { overflow:hidden; }
 {% endif %}
 
 <div class="nvpro-shell">
-<div hidden data-namvibe-build="phase141"></div>
+<div hidden data-namvibe-build="phase158"></div>
 
 {# Phase 141: JS flag for degraded mode hydration #}
 <script>
@@ -278,7 +278,7 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 
       <section class="nvpro-home-hero" aria-label="NamVibe homepage overview">
         <div class="nvpro-home-hero-copy">
-          <span class="nvpro-home-hero-kicker">Special homepage</span>
+          <span class="nvpro-home-hero-kicker">Now on NamVibe</span>
           <h1>NamVibe</h1>
           <p>Messages, calls, live rooms, reels, and creator tools in one place.</p>
           <div class="nvpro-home-hero-meta">
@@ -321,8 +321,8 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
           <div class="nvpro-story-empty-card">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>
             <div>
-              <p style="margin:0;font-weight:600;font-size:14px">No stories yet</p>
-              <p style="margin:2px 0 0;font-size:12px;color:var(--nvpro-muted)">Share a moment with the NamVibe community</p>
+              <p style="margin:0;font-weight:600;font-size:14px">Start your first status</p>
+              <p style="margin:2px 0 0;font-size:12px;color:var(--nvpro-muted)">Share a 24-hour update with followers only</p>
             </div>
             <button type="button" class="nvpro-btn nvpro-btn-primary nvpro-btn-sm" data-open-upload="story">Create Story</button>
           </div>
@@ -340,8 +340,8 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 
       {# FEED ITEMS #}
       <div class="nvpro-feed" id="nvpro-feed">
-        {% if feed_items %}
-        {% for item in feed_items %}
+        {% if home_feed_items %}
+        {% for item in home_feed_items %}
         <article class="nvpro-post-card" data-item-id="{{ item.get('id') }}" data-type="{{ item.get('type', 'post') }}">
           <div class="nvpro-post-head">
             <a href="/profile/@{{ item.get('username') }}" class="nvpro-post-avatar">
@@ -402,7 +402,7 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
         {% else %}
         <div class="nvpro-empty-card">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m-7-7h14"/></svg>
-          <h3>Your NamVibe feed is ready</h3>
+          <h3>Fresh posts will land here</h3>
           <p>Follow creators, watch reels, join live rooms, or share your first post.</p>
           <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
             <a href="/discover/" class="nvpro-btn nvpro-btn-primary">
@@ -452,7 +452,7 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
         {% else %}
         <div class="nvpro-empty-card">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-          <h3>No reels yet</h3>
+          <h3>Upload the first reel</h3>
           <p>Create and share short videos with the NamVibe community.</p>
           <button type="button" class="nvpro-btn nvpro-btn-primary" data-open-upload="reel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -710,7 +710,7 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
         <div class="nvpro-drop-zone" id="nvpro-drop-story">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>
           <p>Drag & drop or tap to upload</p>
-          <span>JPG, PNG, WebP, MP4, MOV, WebM · Max 100MB · Max 60 seconds</span>
+          <span>JPG, PNG, WebP, MP4, MOV, WebM · Max 100MB · Max 120 seconds</span>
         </div>
         <input type="file" class="nvpro-file-input" id="nvpro-file-story" accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/jpg,image/png,image/webp">
         <div class="nvpro-preview-area" id="nvpro-preview-story" style="display:none"></div>
@@ -725,8 +725,7 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
           <div class="nvpro-form-field">
             <label>Privacy</label>
             <select class="nvpro-form-select" id="nvpro-visibility-story">
-              <option value="public">Public</option>
-              <option value="followers">Followers</option>
+              <option value="followers" selected>Followers</option>
               <option value="private">Private</option>
             </select>
           </div>
@@ -751,5 +750,5 @@ window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/namvibe_home_pro.js?v=phase127"></script>
+<script src="/static/js/namvibe_home_pro.js?v=phase158"></script>
 {% endblock %}
