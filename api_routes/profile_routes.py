@@ -1076,6 +1076,21 @@ def settings():
         ok, result = update_profile_setup(profile["id"], data, current_profile=profile)
         if ok:
             _apply_profile_session(result if isinstance(result, dict) else profile, fallback_email=data.get("email"))
+        # Save settings toggles (allow_messages, allow_video_calls, show_online_status, profile_visibility)
+        from services.supabase_safe import safe_insert, safe_update
+        settings_payload = {
+            "allow_messages": data.get("allow_messages") == "on",
+            "allow_video_calls": data.get("allow_video_calls") == "on",
+            "show_online_status": data.get("show_online_status") == "on",
+            "profile_visibility": data.get("profile_visibility", "public"),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        existing_settings = get_profile_settings(profile["id"])["settings"]
+        if existing_settings.get("id"):
+            safe_update("chain_user_settings", settings_payload, eq={"id": existing_settings["id"]})
+        else:
+            safe_insert("chain_user_settings", {"profile_id": profile["id"], **settings_payload})
+        if ok:
             flash("Profile updated.", "success")
             return redirect(url_for("profile.settings"))
         flash(result or "Profile could not be saved yet.", "error")
@@ -1231,28 +1246,6 @@ def verification():
     from services.supabase_safe import safe_select
     verification_request = (safe_select("chain_user_verifications", filters={"profile_id": profile["id"]}, limit=1, order_by=None) or [None])[0]
     return render_template("profile/verification.html", profile=profile, verification=verification_request)
-
-
-@profile_bp.route("/settings", methods=["POST"])
-@login_required
-def update_settings():
-    profile = get_current_profile()
-    settings = get_profile_settings(profile["id"])
-    from services.supabase_safe import safe_insert, safe_update
-
-    payload = {
-        "allow_messages": request.form.get("allow_messages") == "on",
-        "allow_video_calls": request.form.get("allow_video_calls") == "on",
-        "show_online_status": request.form.get("show_online_status") == "on",
-        "profile_visibility": request.form.get("profile_visibility", "public"),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-    if settings["settings"].get("id"):
-        safe_update("chain_user_settings", payload, eq={"id": settings["settings"]["id"]})
-    else:
-        safe_insert("chain_user_settings", {"profile_id": profile["id"], **payload})
-    flash("Settings updated.", "success")
-    return redirect(url_for("profile.settings"))
 
 
 @profile_bp.route("/security")
