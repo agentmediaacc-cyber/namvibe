@@ -6,6 +6,8 @@ from services.engagement_service import (
     delete_comment,
     follow_profile,
     list_comments,
+    record_share,
+    record_view_count,
     react_to_live,
     react_to_post,
     toggle_like,
@@ -109,6 +111,38 @@ def api_toggle_save(item_type, item_id):
     if not profile_id:
         return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
     return _response(toggle_save(profile_id, item_type, item_id))
+
+
+@engagement_bp.route("/api/media/<entity_id>/like", methods=["POST"])
+@login_required
+def api_media_like(entity_id):
+    profile_id = _current_id()
+    entity_type = request.args.get("type", "post")
+    return _response(toggle_like(profile_id, entity_type, entity_id))
+
+
+@engagement_bp.route("/api/media/<entity_id>/comment", methods=["POST"])
+@login_required
+def api_media_comment(entity_id):
+    profile_id = _current_id()
+    entity_type = request.args.get("type", "post")
+    body = request.form.get("body") or _json_body().get("body")
+    return _response(add_comment(profile_id, entity_type, entity_id, body), ok_status=201)
+
+
+@engagement_bp.route("/api/media/<entity_id>/share", methods=["POST"])
+@login_required
+def api_media_share(entity_id):
+    profile_id = _current_id()
+    entity_type = request.args.get("type", "post")
+    return _response(record_share(profile_id, entity_type, entity_id))
+
+
+@engagement_bp.route("/api/media/<entity_id>/view", methods=["POST"])
+def api_media_view(entity_id):
+    profile_id = _current_id()
+    entity_type = request.args.get("type", "post")
+    return _response(record_view_count(profile_id, entity_type, entity_id))
 
 
 @engagement_bp.route("/follow/<profile_id>", methods=["POST"])

@@ -534,6 +534,10 @@ def _status_select():
             "expires_at",
             "status",
             "deleted_at",
+            "duration_seconds",
+            "background_color",
+            "text_content",
+            "views_count",
         ],
         required=["id"],
     )
@@ -680,8 +684,11 @@ def _fetch_stories(viewer_profile_id=None):
                 OR (profile_id = %s)
                 OR (visibility = 'followers' AND profile_id IN (
                     SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s
+                ))
+                OR (visibility IN ('subscribers','locked') AND profile_id IN (
+                    SELECT creator_profile_id FROM chain_creator_subscriptions WHERE subscriber_profile_id = %s AND status = 'active'
                 )))""")
-            params.extend([viewer_profile_id, viewer_profile_id])
+            params.extend([viewer_profile_id, viewer_profile_id, viewer_profile_id])
         query = f"SELECT {', '.join(status_columns)} FROM chain_status_posts WHERE {' AND '.join(where)} ORDER BY created_at DESC NULLS LAST LIMIT %s"
         params.append(_HOMEPAGE_LIMITS["stories"])
         status_rows, issue = _run_sql("status_posts", query, params)
@@ -824,6 +831,11 @@ def _normalize_story(row, profile_map):
         "media_url": _first_present(row, ["media_url", "thumbnail_url"]),
         "video_url": _first_present(row, ["video_url"]),
         "thumbnail_url": _first_present(row, ["thumbnail_url", "media_url"]),
+        "duration_seconds": row.get("duration_seconds"),
+        "background_color": row.get("background_color"),
+        "text_content": row.get("text_content"),
+        "views_count": _safe_int(row.get("views_count"), 0),
+        "visibility": _clean_text(row.get("visibility"), "public"),
     }
 
 

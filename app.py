@@ -826,13 +826,22 @@ def create_app():
             return jsonify({"error": "Unauthorized"}), 401
         caption = request.form.get("caption")
         media_file = request.files.get("media")
-        visibility = request.form.get("visibility", "public")
+        visibility = request.form.get("visibility", "followers")
         visibility = request.form.get("audience") or visibility
-        visibility = visibility.lower() if visibility else "public"
-        if visibility not in ("public", "followers", "private"):
-            visibility = "public"
+        visibility = visibility.lower() if visibility else "followers"
+        if visibility not in ("followers", "private", "subscribers", "locked"):
+            visibility = "followers"
         media_type = request.form.get("media_type", "image")
-        status, error = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+        status, error = create_status(
+            profile_id,
+            caption,
+            media_file,
+            visibility=visibility,
+            media_type=media_type,
+            duration_seconds=request.form.get("duration_seconds", 0),
+            background_color=request.form.get("background_color"),
+            text_content=request.form.get("text_content"),
+        )
         if error:
             return jsonify({"ok": False, "error": error}), 400
         if status:
@@ -900,13 +909,22 @@ def create_app():
                 return redirect(url_for("auth.login"))
             caption = request.form.get("caption")
             media_file = request.files.get("media")
-            visibility = request.form.get("visibility") or "public"
+            visibility = request.form.get("visibility") or "followers"
             visibility = request.form.get("audience") or visibility
-            visibility = visibility.lower() if visibility else "public"
-            if visibility not in ("public", "followers", "private"):
-                visibility = "public"
+            visibility = visibility.lower() if visibility else "followers"
+            if visibility not in ("followers", "private", "subscribers", "locked"):
+                visibility = "followers"
             media_type = request.form.get("media_type", "image")
-            result, error = create_status(pid, caption, media_file, visibility=visibility, media_type=media_type)
+            result, error = create_status(
+                pid,
+                caption,
+                media_file,
+                visibility=visibility,
+                media_type=media_type,
+                duration_seconds=request.form.get("duration_seconds", 0),
+                background_color=request.form.get("background_color"),
+                text_content=request.form.get("text_content"),
+            )
             if error:
                 flash(error, "error")
             elif result:

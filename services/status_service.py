@@ -1,105 +1,323 @@
+"""Phase 157 — Premium Status System with viewer tracking, expiry, and locked-media metadata."""
+
 from datetime import datetime, timezone, timedelta
 import uuid
 from services.neon_service import fast_query, write_query
 from services.socketio_service import emit_to_profile
 from services.content_service import invalidate_content_caches, local_content, local_fallback_allowed
 from services.supabase_storage_service import upload_media_to_supabase, BUCKET_MAPPING, SUPABASE_MEDIA_BUCKET
+from engines.cache_engine import cache_key, get_cache, set_cache
+
+MAX_STATUS_DURATION_SECONDS = 120
+STATUS_ALLOWED_VISIBILITY = {"followers", "private", "subscribers", "locked"}
 
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
 
-def create_status(profile_id, caption, media_file=None, visibility="public", media_type="image"):
-    """Create a story/status with optional media upload to Supabase.
+
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+
+def _parse_dt(value):
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def _relative_label(value):
+    parsed = _parse_dt(value)
+    if not parsed:
+        return ""
+    delta = _utcnow() - parsed.astimezone(timezone.utc)
+    seconds = max(int(delta.total_seconds()), 0)
+    if seconds < 60:
+        return f"uploaded {seconds}s ago"
+    if seconds < 3600:
+        return f"uploaded {seconds // 60}m ago"
+    if seconds < 86400:
+        return f"uploaded {seconds // 3600}h ago"
+    return f"uploaded {seconds // 86400}d ago"
+
+
+def _expires_in_label(value):
+    parsed = _parse_dt(value)
+    if not parsed:
+        return ""
+    seconds = int((parsed.astimezone(timezone.utc) - _utcnow()).total_seconds())
+    if seconds <= 0:
+        return "expired"
+    if seconds < 3600:
+        minutes = max(1, seconds // 60)
+        return f"expires in {minutes}m"
+    return f"expires in {max(1, seconds // 3600)}h"
+
+
+def _is_active_subscription(viewer_profile_id, owner_id):
+    if not viewer_profile_id or not owner_id:
+        return False
+    rows = fast_query(
+        """SELECT 1
+           FROM chain_creator_subscriptions
+           WHERE subscriber_profile_id = %s AND creator_profile_id = %s AND status = 'active'
+           LIMIT 1""",
+        (viewer_profile_id, owner_id),
+        default=[],
+    )
+    return bool(rows)
+
+
+def _is_follower(viewer_profile_id, owner_id):
+    if not viewer_profile_id or not owner_id:
+        return False
+    rows = fast_query(
+        """SELECT 1
+           FROM chain_follows
+           WHERE follower_profile_id = %s AND following_profile_id = %s
+           LIMIT 1""",
+        (viewer_profile_id, owner_id),
+        default=[],
+    )
+    return bool(rows)
+
+
+def _status_access_flags(status, viewer_profile_id=None):
+    if not status:
+        return {
+            "is_owner": False,
+            "can_view": False,
+            "is_locked": True,
+            "locked_reason": "not_found",
+            "subscribe_url": "/wallet",
+            "preview_url": "",
+        }
+    owner_id = str(status.get("profile_id") or status.get("owner_id") or "")
+    viewer_id = str(viewer_profile_id or "")
+    visibility = str(status.get("visibility") or "followers").lower()
+    is_owner = bool(viewer_id and owner_id and viewer_id == owner_id)
+    can_view = False
+    locked_reason = None
+    if is_owner:
+        can_view = True
+    elif visibility == "private":
+        locked_reason = "private"
+    elif visibility == "followers":
+        can_view = _is_follower(viewer_profile_id, owner_id)
+        if not can_view:
+            locked_reason = "followers_only"
+    elif visibility in {"subscribers", "locked"}:
+        can_view = _is_active_subscription(viewer_profile_id, owner_id)
+        if not can_view:
+            locked_reason = "subscriber_only"
+    else:
+        locked_reason = "private"
+    preview_url = status.get("thumbnail_url") or status.get("media_url") or status.get("video_url") or ""
+    return {
+        "is_owner": is_owner,
+        "can_view": can_view,
+        "is_locked": not can_view,
+        "locked_reason": locked_reason,
+        "subscribe_url": f"/wallet?creator_id={owner_id}" if owner_id else "/wallet",
+        "preview_url": preview_url if not can_view else "",
+    }
+
+
+def serialize_status(status, viewer_profile_id=None):
+    if not status:
+        return None
+    row = dict(status)
+    row["visibility"] = str(row.get("visibility") or "followers").lower()
+    row["uploaded_label"] = _relative_label(row.get("created_at"))
+    row["expires_in_label"] = _expires_in_label(row.get("expires_at"))
+    row["owner_id"] = row.get("owner_id") or row.get("profile_id")
+    row["views_count"] = int(row.get("views_count") or 0)
+    row["duration_seconds"] = int(row.get("duration_seconds") or 0)
+    row.update(_status_access_flags(row, viewer_profile_id=viewer_profile_id))
+    return row
+
+def validate_status_duration(duration_seconds):
+    if duration_seconds and duration_seconds > MAX_STATUS_DURATION_SECONDS:
+        return False, f"Status video cannot exceed {MAX_STATUS_DURATION_SECONDS} seconds"
+    return True, None
+
+def create_status(profile_id, caption="", media_file=None, visibility="followers",
+                  media_type="image", duration_seconds=0, background_color=None,
+                  text_content=None):
+    """Create a story/status with optional media.
     
-    Returns:
-        (record_dict, None) on success
-        (None, error_string) on failure
+    Status rules:
+    - Default visibility is 'followers' (not public)
+    - Video max 120 seconds
+    - Expires after 24 hours
     """
+    if visibility not in STATUS_ALLOWED_VISIBILITY:
+        visibility = "followers"
+    duration_seconds = int(duration_seconds or 0)
+    ok, error = validate_status_duration(duration_seconds)
+    if not ok:
+        return None, error
+    
     media_url = None
+    video_url = None
     storage_bucket = None
     storage_path = None
     mime_type = None
     size_bytes = None
     
     if media_file:
-        # Use Supabase Storage for media uploads
-        result = upload_media_to_supabase(media_file, "stories", profile_id)
+        folder = "status" if media_type == "text" else "stories"
+        result = upload_media_to_supabase(media_file, folder, profile_id)
         if not result.get("ok"):
             return None, result.get("error", "Upload failed")
         media_url = result.get("url")
+        video_url = result.get("url") if media_type == "video" else None
         storage_path = result.get("path")
         mime_type = result.get("mime_type")
         size_bytes = result.get("size")
         storage_bucket = "supabase"
-            
+    
+    if not caption and not media_file and not text_content:
+        return None, "Status cannot be empty."
+    
     status_id = str(uuid.uuid4())
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+    now = _utcnow_iso()
     
     sql = """
-        INSERT INTO chain_status_posts (id, profile_id, caption, media_url, media_type, storage_bucket, storage_path, mime_type, size_bytes, visibility, expires_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO chain_status_posts
+            (id, profile_id, caption, media_url, video_url, media_type, storage_bucket, storage_path,
+             mime_type, size_bytes, visibility, expires_at, duration_seconds, background_color,
+             text_content, views_count, created_at, owner_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, %s, %s)
     """
     try:
-        write_query(sql, (status_id, profile_id, caption, media_url, media_type, storage_bucket, storage_path, mime_type, size_bytes, visibility, expires_at))
-        record = {
+        write_query(sql, (
+            status_id, profile_id, caption, media_url, video_url, media_type,
+            storage_bucket, storage_path, mime_type, size_bytes, visibility,
+            expires_at, duration_seconds, background_color, text_content, now, profile_id
+        ))
+        record = serialize_status({
             "id": status_id,
             "profile_id": profile_id,
+            "owner_id": profile_id,
             "caption": caption,
             "media_url": media_url,
+            "video_url": video_url,
             "media_type": media_type,
             "visibility": visibility,
-            "expires_at": expires_at
-        }
+            "expires_at": expires_at,
+            "duration_seconds": duration_seconds,
+            "background_color": background_color,
+            "text_content": text_content,
+            "views_count": 0,
+            "created_at": now,
+        }, viewer_profile_id=profile_id)
         invalidate_content_caches()
         return record, None
     except Exception as e:
-        print(f"[status_service] Error creating status: {e}")
         if local_fallback_allowed():
-            record = {
+            record = serialize_status({
                 "id": status_id,
                 "profile_id": profile_id,
+                "owner_id": profile_id,
                 "caption": caption,
                 "media_url": media_url,
+                "video_url": video_url,
                 "media_type": media_type,
                 "visibility": visibility,
                 "expires_at": expires_at,
-                "created_at": _utcnow_iso(),
-            }
+                "duration_seconds": duration_seconds,
+                "background_color": background_color,
+                "text_content": text_content,
+                "views_count": 0,
+                "created_at": now,
+            }, viewer_profile_id=profile_id)
             local_content()["stories"].insert(0, record)
             invalidate_content_caches()
             return record, None
         return None, str(e)
 
-def record_view(status_id, viewer_profile_id):
-    sql = "INSERT INTO chain_status_viewers (status_id, viewer_profile_id) VALUES (%s, %s) ON CONFLICT DO NOTHING"
-    write_query(sql, (status_id, viewer_profile_id))
-    
-    # Notify status owner
-    status = get_status(status_id)
-    if status and str(status['profile_id']) != str(viewer_profile_id):
-        emit_to_profile(status['profile_id'], "status:viewed", {
-            "status_id": status_id,
-            "viewer_id": viewer_profile_id
-        })
-    return True
+def record_view(status_id, viewer_profile_id, reaction=None, reply_message=None):
+    """Record a status view. Uses chain_status_views with UNIQUE(status_id, viewer_profile_id)."""
+    try:
+        allowed, _ = can_view_status(status_id, viewer_profile_id)
+        if not allowed:
+            return False
+        status = get_status(status_id, viewer_profile_id=viewer_profile_id)
+        if not status or str(status.get("profile_id")) == str(viewer_profile_id):
+            return True
+        write_query(
+            """INSERT INTO chain_status_views (status_id, viewer_profile_id, viewed_at, reaction, reply_message)
+               VALUES (%s, %s, now(), %s, %s)
+               ON CONFLICT (status_id, viewer_profile_id) DO UPDATE SET viewed_at = now()""",
+            (status_id, viewer_profile_id, reaction, reply_message)
+        )
+        # Increment views_count on the status
+        write_query(
+            "UPDATE chain_status_posts SET views_count = (SELECT COUNT(*) FROM chain_status_views WHERE status_id = %s) WHERE id = %s",
+            (status_id, status_id)
+        )
+        # Notify status owner
+        if status:
+            emit_to_profile(status['profile_id'], "status:viewed", {
+                "status_id": status_id,
+                "viewer_id": viewer_profile_id,
+                "reaction": reaction,
+            })
+        return True
+    except Exception:
+        return False
 
-def list_viewers(status_id):
-    sql = """
-        SELECT v.*, p.username, p.avatar_url, p.full_name
-        FROM chain_status_viewers v
-        JOIN chain_profiles p ON v.viewer_profile_id = p.id
-        WHERE v.status_id = %s
-        ORDER BY v.viewed_at DESC
-    """
-    return fast_query(sql, (status_id,))
+def list_viewers(status_id, requesting_profile_id=None):
+    """List viewers for a status. Only owner can see viewer list."""
+    if not requesting_profile_id:
+        return []
+    status = get_status(status_id, viewer_profile_id=requesting_profile_id)
+    if not status:
+        return []
+    if str(status.get("profile_id")) != str(requesting_profile_id):
+        return []
+    rows = fast_query(
+        """SELECT v.viewed_at, v.reaction, v.reply_message,
+                  p.id, p.username, p.avatar_url, p.display_name, p.is_verified
+           FROM chain_status_views v
+           JOIN chain_profiles p ON v.viewer_profile_id = p.id
+           WHERE v.status_id = %s
+           ORDER BY v.viewed_at DESC LIMIT 100""",
+        (status_id,)
+    )
+    result = []
+    for r in rows:
+        result.append({
+            "viewer_id": r.get("id"),
+            "username": r.get("username"),
+            "avatar_url": r.get("avatar_url"),
+            "display_name": r.get("display_name"),
+            "verified": bool(r.get("is_verified")),
+            "viewed_at": str(r.get("viewed_at") or ""),
+            "reaction": r.get("reaction"),
+            "reply_message": r.get("reply_message"),
+        })
+    return result
 
 def list_active_statuses(profile_id=None, viewer_profile_id=None):
+    """List active (non-expired) statuses with visibility filtering."""
     now = _utcnow_iso()
+    cache_key_str = cache_key(f"status:active:{profile_id or 'all'}:viewer:{viewer_profile_id or 'anon'}")
+    cached = get_cache(cache_key_str)
+    if cached is not None:
+        return cached
     
-    # Base query for all active statuses
     sql = """
-        SELECT s.*, p.username, p.avatar_url,
-               (SELECT COUNT(*) FROM chain_status_viewers WHERE status_id = s.id) as viewer_count
+        SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
+               COALESCE(s.views_count, 0) as views_count
         FROM chain_status_posts s
         JOIN chain_profiles p ON s.profile_id = p.id
         WHERE s.expires_at > %s AND s.deleted_at IS NULL
@@ -107,59 +325,82 @@ def list_active_statuses(profile_id=None, viewer_profile_id=None):
     params = [now]
     
     if profile_id:
-        # Looking at a specific profile's statuses
         sql += " AND s.profile_id = %s"
         params.append(profile_id)
-        
         if viewer_profile_id and str(profile_id) != str(viewer_profile_id):
-            # Check visibility for the viewer
             sql += """ AND (
-                s.visibility = 'public'
-                OR (s.visibility = 'followers' AND EXISTS (
-                    SELECT 1 FROM chain_follows 
+                (s.visibility = 'followers' AND EXISTS (
+                    SELECT 1 FROM chain_follows
                     WHERE follower_profile_id = %s AND following_profile_id = s.profile_id
                 ))
+                OR (s.visibility IN ('subscribers','locked') AND EXISTS (
+                    SELECT 1 FROM chain_creator_subscriptions
+                    WHERE subscriber_profile_id = %s AND creator_profile_id = s.profile_id AND status = 'active'
+                ))
+                OR (s.visibility = 'private' AND s.profile_id = %s)
             )"""
-            params.append(viewer_profile_id)
+            params.extend([viewer_profile_id, viewer_profile_id, viewer_profile_id])
     else:
-        # Feed view - statuses from people viewer follows or public
         if viewer_profile_id:
             sql += """ AND (
                 s.profile_id = %s
-                OR s.visibility = 'public'
                 OR (s.profile_id IN (SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s) AND (
-                    s.visibility = 'public'
-                    OR s.visibility = 'followers'
+                    s.visibility = 'followers'
+                    OR (s.visibility IN ('subscribers','locked') AND EXISTS (
+                        SELECT 1 FROM chain_creator_subscriptions
+                        WHERE subscriber_profile_id = %s AND creator_profile_id = s.profile_id AND status = 'active'
+                    ))
                 ))
             )"""
-            params.extend([viewer_profile_id, viewer_profile_id])
+            params.extend([viewer_profile_id, viewer_profile_id, viewer_profile_id])
         else:
-            sql += " AND s.visibility = 'public'"
-        
-    sql += " ORDER BY s.created_at DESC LIMIT 50"
-    return fast_query(sql, tuple(params))
+            sql += " AND 1 = 0"
 
-def get_status(status_id):
-    rows = fast_query("SELECT * FROM chain_status_posts WHERE id = %s", (status_id,))
+    sql += " ORDER BY s.created_at DESC LIMIT 50"
+    rows = fast_query(sql, tuple(params))
+    serialized = [serialize_status(row, viewer_profile_id=viewer_profile_id) for row in rows]
+    set_cache(cache_key_str, serialized, ttl=15)
+    return serialized
+
+def get_status(status_id, viewer_profile_id=None):
+    rows = fast_query("SELECT * FROM chain_status_posts WHERE id = %s", (status_id,), default=[])
     if rows:
-        return rows[0]
+        return serialize_status(rows[0], viewer_profile_id=viewer_profile_id)
     for story in local_content()["stories"]:
         if story.get("id") == status_id:
-            return story
+            return serialize_status(story, viewer_profile_id=viewer_profile_id)
     return None
 
+def can_view_status(status_id, viewer_profile_id=None):
+    """Check if a viewer can view a specific status. Returns (allowed, reason)."""
+    status = get_status(status_id, viewer_profile_id=viewer_profile_id)
+    if not status:
+        return False, "not_found"
+    flags = _status_access_flags(status, viewer_profile_id=viewer_profile_id)
+    return bool(flags["can_view"]), flags["locked_reason"]
+
 def delete_status(status_id, profile_id):
+    status = get_status(status_id, viewer_profile_id=profile_id)
+    if status and status.get("storage_path"):
+        try:
+            from utils.supabase_client import get_supabase_admin
+            bucket = status.get("storage_bucket") or SUPABASE_MEDIA_BUCKET
+            get_supabase_admin().storage.from_(bucket).remove([status["storage_path"]])
+        except Exception:
+            pass
     sql = "UPDATE chain_status_posts SET deleted_at = now() WHERE id = %s AND profile_id = %s"
     write_query(sql, (status_id, profile_id))
-    # Also handle local content removal if it was a local story
-    local_content()["stories"][:] = [story for story in local_content()["stories"] if not (story.get("id") == status_id and story.get("profile_id") == profile_id)]
+    local_content()["stories"][:] = [s for s in local_content()["stories"]
+                                      if not (s.get("id") == status_id and s.get("profile_id") == profile_id)]
     invalidate_content_caches()
     return True
 
 def expire_old_statuses():
+    """Mark expired statuses as deleted and remove their Supabase files."""
     rows = fast_query(
         "SELECT id, storage_bucket, storage_path FROM chain_status_posts WHERE expires_at < now() AND deleted_at IS NULL",
         timeout_ms=5000,
+        default=[],
     )
     for row in rows:
         path = row.get("storage_path")

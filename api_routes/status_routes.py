@@ -31,14 +31,26 @@ def create():
             return redirect(url_for("auth.login", next=request.path))
         caption = request.form.get("caption")
         media_file = request.files.get("media")
-        visibility = request.form.get("visibility") or "public"
+        visibility = request.form.get("visibility") or "followers"
         visibility = request.form.get("audience") or visibility
-        visibility = visibility.lower() if visibility else "public"
-        if visibility not in ("public", "followers", "private"):
-            visibility = "public"
+        visibility = visibility.lower() if visibility else "followers"
+        if visibility not in ("followers", "private", "subscribers", "locked"):
+            visibility = "followers"
         media_type = request.form.get("media_type", "image")
-        
-        status, error = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+        duration_seconds = request.form.get("duration_seconds", 0)
+        background_color = request.form.get("background_color")
+        text_content = request.form.get("text_content")
+
+        status, error = create_status(
+            profile_id,
+            caption,
+            media_file,
+            visibility=visibility,
+            media_type=media_type,
+            duration_seconds=duration_seconds,
+            background_color=background_color,
+            text_content=text_content,
+        )
         if error:
             flash(error, "error")
         elif status:
@@ -57,7 +69,7 @@ def create():
 
 @status_bp.route("/<status_id>")
 def detail(status_id):
-    status = get_status(status_id)
+    status = get_status(status_id, viewer_profile_id=(get_current_profile() or {}).get("id"))
     if not status:
         return redirect(url_for("status.index"))
     
@@ -66,7 +78,7 @@ def detail(status_id):
         record_view(status_id, profile["id"])
         
     can_delete = bool(profile and profile.get("id") == status.get("profile_id"))
-    viewers = list_viewers(status_id) if can_delete else []
+    viewers = list_viewers(status_id, requesting_profile_id=profile.get("id")) if can_delete and profile else []
     
     return render_template("status/detail.html", status=status, profile=profile, can_delete=can_delete, viewers=viewers)
 
@@ -93,14 +105,26 @@ def api_create():
     
     caption = request.form.get("caption")
     media_file = request.files.get("media")
-    visibility = request.form.get("visibility", "public")
+    visibility = request.form.get("visibility", "followers")
     visibility = request.form.get("audience") or visibility
-    visibility = visibility.lower() if visibility else "public"
-    if visibility not in ("public", "followers", "private"):
-        visibility = "public"
+    visibility = visibility.lower() if visibility else "followers"
+    if visibility not in ("followers", "private", "subscribers", "locked"):
+        visibility = "followers"
     media_type = request.form.get("media_type", "image")
-    
-    status, error = create_status(profile_id, caption, media_file, visibility=visibility, media_type=media_type)
+    duration_seconds = request.form.get("duration_seconds", 0)
+    background_color = request.form.get("background_color")
+    text_content = request.form.get("text_content")
+
+    status, error = create_status(
+        profile_id,
+        caption,
+        media_file,
+        visibility=visibility,
+        media_type=media_type,
+        duration_seconds=duration_seconds,
+        background_color=background_color,
+        text_content=text_content,
+    )
     if error:
         return jsonify({"ok": False, "error": error}), 400
     if status:

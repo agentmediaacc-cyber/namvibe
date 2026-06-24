@@ -37,7 +37,7 @@ def _owner_for(entity_type, entity_id):
     for column in owner_columns:
         if row.get(column):
             return row.get(column)
-    if table in ("chain_reels", "chain_status_posts"):
+    if table in ("chain_posts", "chain_reels", "chain_status_posts"):
         try:
             neon_row = fast_query(
                 f"SELECT {', '.join(owner_columns)} FROM {table} WHERE id = %s",
@@ -152,7 +152,7 @@ def _table_available(table_name):
     globally.
     """
     try:
-        if table_name in {"chain_reel_reactions", "chain_reel_comments", "chain_saved_items"}:
+        if table_name in {"chain_post_reactions", "chain_story_reactions", "chain_post_comments", "chain_reel_reactions", "chain_reel_comments", "chain_saved_items"}:
             try:
                 if neon_service.table_exists(table_name, timeout_ms=10000):
                     return True
@@ -175,70 +175,64 @@ def toggle_like(profile_id, entity_type, entity_id):
     if owner_id and str(profile_id) == str(owner_id):
         return {"success": False, "error": "cannot_like_own_content"}
 
+    NEON_TABLES = {"chain_reel_reactions", "chain_post_reactions", "chain_story_reactions"}
     filters = {
         "profile_id": profile_id,
         config["entity_column"]: entity_id,
         "reaction_type": "like",
     }
-    existing = _first(config["table"], filters, columns="id", order_by=None)
+
+    existing = None
+    if config["table"] in NEON_TABLES:
+        rows = fast_query(
+            "SELECT id FROM {} WHERE profile_id = %s AND {} = %s AND reaction_type = 'like' LIMIT 1".format(config["table"], config["entity_column"]),
+            (profile_id, entity_id), default=[]
+        )
+        if rows:
+            existing = rows[0]
+    else:
+        existing = _first(config["table"], filters, columns="id", order_by=None)
     liked = not bool(existing)
     if existing:
-        # Prefer Neon direct delete for reel reactions to avoid Supabase schema cache
         try:
-            if config["table"] == "chain_reel_reactions":
-                write_query("DELETE FROM chain_reel_reactions WHERE id = %s", (existing["id"],))
+            if config["table"] in NEON_TABLES:
+                write_query("DELETE FROM {} WHERE id = %s".format(config["table"]), (existing["id"],))
             else:
                 safe_delete(config["table"], eq={"id": existing["id"]})
         except Exception:
-            # fallback to supabase safe delete
             safe_delete(config["table"], eq={"id": existing["id"]})
     else:
-        # Prefer Neon direct insert for reel reactions to avoid Supabase schema cache
         try:
-            if config["table"] == "chain_reel_reactions":
+            if config["table"] in NEON_TABLES:
                 inserted = neon_service.insert_row(
-                    "chain_reel_reactions",
+                    config["table"],
                     {**filters, "created_at": _utcnow_iso()},
-                    returning="id, profile_id, reel_id, reaction_type, created_at",
+                    returning="id, profile_id, {}, reaction_type, created_at".format(config["entity_column"]),
                 )
                 if not inserted:
                     return {"success": False, "error": "Could not save like."}
             else:
-                inserted = safe_insert(
-                    config["table"],
-                    {
-                        **filters,
-                        "created_at": _utcnow_iso(),
-                    },
-                )
+                inserted = safe_insert(config["table"], {**filters, "created_at": _utcnow_iso()})
                 if inserted is None:
                     return {"success": False, "error": "Could not save like."}
         except Exception:
-            # If Neon path failed for any reason, fall back to supabase
-            inserted = safe_insert(
-                config["table"],
-                {
-                    **filters,
-                    "created_at": _utcnow_iso(),
-                },
-            )
+            inserted = safe_insert(config["table"], {**filters, "created_at": _utcnow_iso()})
             if inserted is None:
                 return {"success": False, "error": "Could not save like."}
 
-    # Compute count using Neon for reel reactions to avoid PostgREST cache issues
+    # Compute count using Neon for post/story/reel reactions
     try:
-        if config["table"] == "chain_reel_reactions":
+        if config["table"] in NEON_TABLES:
             count = fast_query(
-                "SELECT COUNT(*) as count FROM chain_reel_reactions WHERE reel_id = %s AND reaction_type = 'like'",
+                "SELECT COUNT(*) as count FROM {} WHERE {} = %s AND reaction_type = 'like'".format(config["table"], config["entity_column"]),
                 (entity_id,),
                 default=[{"count": 0}],
             )[0]["count"]
-            write_query("UPDATE chain_reels SET likes_count = %s WHERE id = %s", (count, entity_id))
+            write_query("UPDATE {} SET {} = %s WHERE id = %s".format(config["target_table"], config["count_column"]), (count, entity_id))
         else:
             count = safe_count(config["table"], filters={config["entity_column"]: entity_id, "reaction_type": "like"})
             _set_count(config["target_table"], entity_id, config["count_column"], count)
     except Exception:
-        # fallback to safe_count/update
         count = safe_count(config["table"], filters={config["entity_column"]: entity_id, "reaction_type": "like"})
         _set_count(config["target_table"], entity_id, config["count_column"], count)
 
@@ -261,11 +255,11 @@ def is_liked(profile_id, entity_type, entity_id):
     config = _reaction_config(entity_type)
     if not profile_id or not entity_id or not config:
         return False
-    # Prefer Neon check for reel reactions to avoid Supabase schema cache PGRST205
+    NEON_TABLES = {"chain_reel_reactions", "chain_post_reactions", "chain_story_reactions"}
     try:
-        if config and config["table"] == "chain_reel_reactions":
+        if config and config["table"] in NEON_TABLES:
             rows = fast_query(
-                "SELECT id FROM chain_reel_reactions WHERE profile_id = %s AND reel_id = %s AND reaction_type = 'like' LIMIT 1",
+                "SELECT id FROM {} WHERE profile_id = %s AND {} = %s AND reaction_type = 'like' LIMIT 1".format(config["table"], config["entity_column"]),
                 (profile_id, entity_id),
                 default=[],
             )
@@ -327,43 +321,29 @@ def add_comment(profile_id, entity_type, entity_id, body):
     if not _table_available(config["table"]):
         return {"success": False, "error": f"{config['table']} is not available."}
 
-    # Prefer Neon direct insert for reel comments to avoid Supabase schema cache
+    NEON_COMMENT_TABLES = {"chain_reel_comments", "chain_post_comments"}
     try:
-        if config["table"] == "chain_reel_comments":
+        if config["table"] in NEON_COMMENT_TABLES:
             inserted = neon_service.insert_row(
-                "chain_reel_comments",
+                config["table"],
                 {"profile_id": profile_id, config["entity_column"]: entity_id, "body": clean, "created_at": _utcnow_iso()},
-                returning="id, profile_id, reel_id, body, created_at",
+                returning="id, profile_id, {}, body, created_at".format(config["entity_column"]),
             )
             if not inserted:
                 return {"success": False, "error": "Could not save comment."}
-            count = fast_query("SELECT COUNT(*) as count FROM chain_reel_comments WHERE reel_id = %s", (entity_id,), default=[{"count": 0}])[0]["count"]
-            write_query("UPDATE chain_reels SET comments_count = %s WHERE id = %s", (count, entity_id))
+            count = fast_query(
+                "SELECT COUNT(*) as count FROM {} WHERE {} = %s".format(config["table"], config["entity_column"]),
+                (entity_id,), default=[{"count": 0}]
+            )[0]["count"]
+            write_query("UPDATE {} SET {} = %s WHERE id = %s".format(config["target_table"], config["count_column"]), (count, entity_id))
         else:
-            inserted = safe_insert(
-                config["table"],
-                {
-                    "profile_id": profile_id,
-                    config["entity_column"]: entity_id,
-                    "body": clean,
-                    "created_at": _utcnow_iso(),
-                },
-            )
+            inserted = safe_insert(config["table"], {"profile_id": profile_id, config["entity_column"]: entity_id, "body": clean, "created_at": _utcnow_iso()})
             if not inserted:
                 return {"success": False, "error": "Could not save comment."}
             count = safe_count(config["table"], filters={config["entity_column"]: entity_id})
             _set_count(config["target_table"], entity_id, config["count_column"], count)
     except Exception:
-        # fallback to supabase behavior
-        inserted = safe_insert(
-            config["table"],
-            {
-                "profile_id": profile_id,
-                config["entity_column"]: entity_id,
-                "body": clean,
-                "created_at": _utcnow_iso(),
-            },
-        )
+        inserted = safe_insert(config["table"], {"profile_id": profile_id, config["entity_column"]: entity_id, "body": clean, "created_at": _utcnow_iso()})
         if not inserted:
             return {"success": False, "error": "Could not save comment."}
         count = safe_count(config["table"], filters={config["entity_column"]: entity_id})
@@ -393,6 +373,46 @@ def add_comment(profile_id, entity_type, entity_id, body):
         comment = None
 
     return {"success": True, "comment": comment, "count": count}
+
+
+def record_share(profile_id, entity_type, entity_id):
+    table_map = {
+        "post": "chain_posts",
+        "reel": "chain_reels",
+        "story": "chain_status_posts",
+    }
+    table_name = table_map.get(entity_type)
+    if not profile_id or not entity_id or not table_name:
+        return {"success": False, "error": "Invalid share target."}
+    try:
+        write_query(
+            f"UPDATE {table_name} SET shares_count = COALESCE(shares_count, 0) + 1 WHERE id = %s",
+            (entity_id,),
+        )
+        rows = fast_query(f"SELECT COALESCE(shares_count, 0) AS count FROM {table_name} WHERE id = %s", (entity_id,), default=[{"count": 0}])
+        return {"success": True, "count": int(rows[0].get("count") or 0)}
+    except Exception as error:
+        return {"success": False, "error": str(error)}
+
+
+def record_view_count(profile_id, entity_type, entity_id):
+    table_map = {
+        "post": "chain_posts",
+        "reel": "chain_reels",
+        "story": "chain_status_posts",
+    }
+    table_name = table_map.get(entity_type)
+    if not entity_id or not table_name:
+        return {"success": False, "error": "Invalid view target."}
+    try:
+        write_query(
+            f"UPDATE {table_name} SET views_count = COALESCE(views_count, 0) + 1 WHERE id = %s",
+            (entity_id,),
+        )
+        rows = fast_query(f"SELECT COALESCE(views_count, 0) AS count FROM {table_name} WHERE id = %s", (entity_id,), default=[{"count": 0}])
+        return {"success": True, "count": int(rows[0].get("count") or 0)}
+    except Exception as error:
+        return {"success": False, "error": str(error)}
 
 
 def list_comments(entity_type, entity_id, limit=5):

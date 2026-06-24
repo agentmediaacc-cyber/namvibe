@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Create Story | NamVibe{% endblock %}
+{% block title %}Create Status | NamVibe{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -58,8 +58,8 @@
 
 {% block content %}
 <div class="status-container">
-    <h2 style="margin: 0 0 10px;">Create Story</h2>
-    <p style="color: var(--chain-muted); font-size: 14px; margin-bottom: 25px;">Share a moment that lasts 24 hours.</p>
+    <h2 style="margin: 0 0 10px;">Create Status</h2>
+    <p style="color: var(--chain-muted); font-size: 14px; margin-bottom: 25px;">Follower-only by default, expires after 24 hours.</p>
     
     <form method="POST" enctype="multipart/form-data" id="status-form">
         <div class="media-placeholder" onclick="document.getElementById('media-input').click()">
@@ -67,22 +67,40 @@
                 <i class="fas fa-camera"></i>
                 <p>Tap to upload or take a photo/video</p>
             </div>
-            <input type="file" name="media" id="media-input" accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov,image/*,video/*" hidden onchange="handleMedia(this)">
+            <input type="file" name="media" id="media-input" accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.webm,.mov,image/*,video/*" capture="environment" hidden onchange="handleMedia(this)">
         </div>
-        
+
+        <input type="hidden" name="media_type" id="media-type-input" value="image">
+        <input type="hidden" name="duration_seconds" id="duration-seconds-input" value="0">
+        <input type="hidden" name="background_color" id="background-color-input" value="#111111">
+
         <div class="form-group">
             <label>Caption</label>
             <textarea name="caption" rows="3" placeholder="Add a caption..."></textarea>
         </div>
 
         <div class="form-group">
+            <label>Text Status</label>
+            <textarea name="text_content" id="text-status-input" rows="3" placeholder="Write a text status or leave blank if you're uploading media"></textarea>
+        </div>
+
+        <div class="form-group">
             <label>Visibility</label>
             <select name="visibility" style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--chain-border);background:var(--chain-bg-soft);">
-                <option value="public">Public</option>
                 <option value="followers">Followers</option>
-                <option value="close_friends">Close Friends</option>
                 <option value="private">Private</option>
+                <option value="subscribers">Subscribers</option>
+                <option value="locked">Locked Preview</option>
             </select>
+        </div>
+
+        <div class="form-group">
+            <label>Background</label>
+            <input type="color" id="background-color-picker" value="#111111" style="width:100%;height:48px;border-radius:12px;border:1px solid var(--chain-border);background:var(--chain-bg-soft);">
+        </div>
+
+        <div class="form-group" id="trim-hint" style="display:none;color:var(--chain-muted);font-size:13px;">
+            Video is longer than 120 seconds. Trim it before upload. This browser build only enforces the duration gate and does not export the trimmed clip automatically.
         </div>
         
         <div class="action-cluster">
@@ -98,16 +116,38 @@
             const file = input.files[0];
             const reader = new FileReader();
             const preview = document.getElementById('preview-content');
+            const mediaTypeInput = document.getElementById('media-type-input');
+            const durationInput = document.getElementById('duration-seconds-input');
+            const trimHint = document.getElementById('trim-hint');
             
             reader.onload = function(e) {
                 if (file.type.startsWith('image/')) {
+                    mediaTypeInput.value = 'image';
+                    durationInput.value = '0';
+                    trimHint.style.display = 'none';
                     preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
                 } else if (file.type.startsWith('video/')) {
-                    preview.innerHTML = `<video src="${e.target.result}" autoplay muted loop></video>`;
+                    mediaTypeInput.value = 'video';
+                    preview.innerHTML = `<video src="${e.target.result}" autoplay muted loop controls></video>`;
+                    const probe = document.createElement('video');
+                    probe.preload = 'metadata';
+                    probe.onloadedmetadata = function() {
+                        const duration = Math.ceil(probe.duration || 0);
+                        durationInput.value = String(duration);
+                        trimHint.style.display = duration > 120 ? 'block' : 'none';
+                        if (duration > 120) {
+                            input.value = '';
+                        }
+                    };
+                    probe.src = e.target.result;
                 }
             }
             reader.readAsDataURL(file);
         }
     }
+
+    document.getElementById('background-color-picker').addEventListener('input', function(event) {
+        document.getElementById('background-color-input').value = event.target.value;
+    });
 </script>
 {% endblock %}

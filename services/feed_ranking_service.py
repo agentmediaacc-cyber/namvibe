@@ -142,7 +142,28 @@ def rank_feed(items, viewer_id=None, tab="for_you", limit=30):
 
     # Sort by score desc
     scored.sort(key=lambda x: x[0], reverse=True)
-    ranked = [s[1] for s in scored[:limit]]
+
+    ranked = []
+    creator_streak = []
+    for score, item in scored:
+        creator_id = item.get("profile_id")
+        if len(creator_streak) >= 2 and creator_id and creator_streak[-1] == creator_id and creator_streak[-2] == creator_id:
+            continue
+        enriched = dict(item)
+        enriched["ranking_score"] = score
+        ranked.append(enriched)
+        creator_streak.append(creator_id)
+        if len(ranked) >= limit:
+            return ranked
+
+    for score, item in scored:
+        if len(ranked) >= limit:
+            break
+        if any(existing.get("id") == item.get("id") for existing in ranked):
+            continue
+        enriched = dict(item)
+        enriched["ranking_score"] = score
+        ranked.append(enriched)
     return ranked
 
 def get_regional_feed(region, limit=30):

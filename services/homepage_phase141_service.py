@@ -14,6 +14,8 @@ D. Merge profiles into content rows in Python.
 import time
 from services.neon_service import fast_query
 from engines.cache_engine import cache_key, get_cache, set_cache
+from services.feed_ranking_service import rank_feed
+from services.ads_service import get_ads_for_feed
 
 def _format_relative(value):
     """Format relative time - duplicated to avoid circular import."""
@@ -102,6 +104,11 @@ def normalize_story_v2(row, profile_map):
         "media_url": row.get("media_url") or row.get("thumbnail_url") or "",
         "video_url": row.get("video_url") or "",
         "thumbnail_url": row.get("thumbnail_url") or row.get("media_url") or "",
+        "duration_seconds": row.get("duration_seconds"),
+        "background_color": row.get("background_color"),
+        "text_content": row.get("text_content"),
+        "views_count": int(row.get("views_count") or 0),
+        "visibility": row.get("visibility") or "followers",
     }
 
 
@@ -198,6 +205,7 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
     Visibility rules:
     - public: everyone can see
     - followers: only followers can see
+    - subscribers/locked: only subscribers can see
     - private: only owner can see
     """
     cache_key_str = cache_key(f"homepage:v1:stories:viewer:{viewer_id or 'anon'}")
@@ -214,20 +222,20 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
         base_query = f"SELECT {', '.join(story_columns)} FROM chain_status_posts WHERE (expires_at IS NULL OR expires_at > NOW()) AND deleted_at IS NULL"
         
         if profile_id_param:
-            # Show: owner's own stories (any visibility) + public stories + followers stories from followed users
             query = base_query + """ AND (
                 profile_id = %s
-                OR visibility = 'public'
                 OR (visibility = 'followers' AND EXISTS (
                     SELECT 1 FROM chain_follows 
                     WHERE follower_profile_id = %s AND following_profile_id = profile_id
                 ))
+                OR (visibility IN ('subscribers','locked') AND EXISTS (
+                    SELECT 1 FROM chain_creator_subscriptions
+                    WHERE subscriber_profile_id = %s AND creator_profile_id = profile_id AND status = 'active'
+                ))
             ) ORDER BY created_at DESC LIMIT %s"""
-            rows = fast_query(query, [profile_id_param, profile_id_param, limit], timeout_ms=timeout_ms, default=[])
+            rows = fast_query(query, [profile_id_param, profile_id_param, profile_id_param, limit], timeout_ms=timeout_ms, default=[])
         else:
-            # No viewer - only public stories
-            query = base_query + " AND visibility = 'public' ORDER BY created_at DESC LIMIT %s"
-            rows = fast_query(query, [limit], timeout_ms=timeout_ms, default=[])
+            return [], False, None
 
         if not rows:
             return [], False, None
@@ -293,7 +301,8 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
         
-        result = normalized[:limit]
+        ranked = rank_feed(normalized, viewer_id=viewer_id, tab="for_you", limit=limit)
+        result = ranked[:limit]
         set_cache(cache_key_str, result, ttl=30)
         return result, False, None
         
@@ -346,7 +355,12 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
         
-        result = normalized[:limit]
+        ranked = rank_feed(normalized, viewer_id=viewer_id, tab="trending", limit=limit)
+        if viewer_id is None:
+            ad_slots = get_ads_for_feed(viewer_id=None, slot_count=1)
+            if ad_slots and len(ranked) >= 3:
+                ranked.insert(3, ad_slots[0])
+        result = ranked[:limit]
         set_cache(cache_key_str, result, ttl=30)
         return result, False, None
         
