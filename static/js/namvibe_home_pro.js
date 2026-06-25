@@ -7,6 +7,32 @@
   };
   var toastEl = document.getElementById("nvpro-toast");
 
+  // Offline support
+  var isOnline = navigator.onLine;
+  var offlineBanner = document.getElementById("nvpro-offline-banner");
+  function updateOfflineBanner(online) {
+    isOnline = online;
+    if (offlineBanner) {
+      offlineBanner.classList.toggle("is-offline", !online);
+      offlineBanner.querySelector(".nvpro-offline-text").textContent =
+        online ? "Back online — refreshing…" : "You are offline — showing cached content";
+    }
+    document.querySelectorAll("[data-open-upload]").forEach(function (b) {
+      b.disabled = !online;
+      b.title = online ? "" : "Upload unavailable while offline";
+    });
+    if (online && offlineBanner && offlineBanner.classList.contains("is-offline")) {
+      setTimeout(function () {
+        offlineBanner.classList.remove("is-offline");
+        window.location.reload();
+      }, 1500);
+    }
+  }
+  window.addEventListener("offline", function () { updateOfflineBanner(false); });
+  window.addEventListener("online", function () {
+    updateOfflineBanner(true);
+  });
+
   function showToast(msg) {
     if (!toastEl) return;
     toastEl.textContent = msg;
@@ -218,6 +244,8 @@
           var items = tab === "for_you" ? (data.payload.feed_items || []).concat(data.payload.reels || []) : (data.payload.feed_items || []);
           nextCursor = data.payload.next_cursor || null;
           hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
+          // Cache feed payload
+          try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {}
           if (items.length) {
             renderFeedItems(feedEl, items);
             return;
@@ -229,7 +257,18 @@
           renderEmpty(feedEl);
         }
       })
-      .catch(function () { renderEmpty(feedEl); });
+      .catch(function () {
+        // Try loading from cache when offline
+        try {
+          var cached = localStorage.getItem("namvibe_feed_cache");
+          if (cached) {
+            var cp = JSON.parse(cached);
+            var citems = tab === "for_you" ? (cp.feed_items || []).concat(cp.reels || []) : (cp.feed_items || []);
+            if (citems.length) { renderFeedItems(feedEl, citems); return; }
+          }
+        } catch(e) {}
+        renderEmpty(feedEl);
+      });
   }
 
   /* ── VIEW TRACKING ── */
@@ -1067,12 +1106,21 @@
           nextCursor = data.payload.next_cursor || null;
           hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
           doHydrate(data.payload);
+          // Cache for offline use
+          try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {}
           console.log("NAMVIBE HYDRATE COMPLETE (API)");
         }
       })
       .catch(function (err) {
         clearTimeout(timeoutId);
         console.log("NAMVIBE HYDRATE API FAILED, using server data", err);
+        // If server data was empty, try cache
+        if (window.NAMVIBE_HOME && (!window.NAMVIBE_HOME.feed_items || !window.NAMVIBE_HOME.feed_items.length)) {
+          try {
+            var cached = localStorage.getItem("namvibe_feed_cache");
+            if (cached) { doHydrate(JSON.parse(cached)); }
+          } catch(e) {}
+        }
       });
   }
 })();

@@ -63,7 +63,11 @@ body.nvpro-drawer-open { overflow:hidden; }
   .nvpro-reels-grid { grid-template-columns:repeat(3,1fr) !important; gap:2px !important; }
   /* Remove bottom padding for feed */
   .nvpro-feed { padding-bottom:80px; }
-}
+  }
+  /* Offline banner */
+  .nvpro-offline-banner { display:none; position:fixed; bottom:70px; left:0; right:0; z-index:999; background:var(--nvpro-danger,#e44); color:#fff; text-align:center; padding:8px 16px; font-size:13px; font-weight:500; }
+  .nvpro-offline-banner.is-offline { display:block; }
+  @media (max-width:768px) { .nvpro-offline-banner { bottom:60px; } }
 </style>
 {% endblock %}
 
@@ -754,6 +758,11 @@ window.NAMVIBE_HOME = {
         </div>
       </div>
     </div>
+  </div>
+
+  {# OFFLINE BANNER #}
+  <div class="nvpro-offline-banner" id="nvpro-offline-banner">
+    <span class="nvpro-offline-text">You are offline — showing cached content</span>
   </div>
 
   {# TOAST #}
