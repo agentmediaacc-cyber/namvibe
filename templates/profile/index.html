@@ -14,6 +14,7 @@
 {% set stories = content_data.get('stories', []) %}
 {% set products = pv.products or [] %}
 {% set bio = profile.bio or '' %}
+{% set is_subscriber = subscriber_status == 'active' or false %}
 {% set can_view = own_profile or pa.can_view_full_profile is not sameas false %}
 {% set can_view_posts = own_profile or pa.can_view_posts is not sameas false %}
 {% set can_view_reels = own_profile or pa.can_view_reels is not sameas false %}
@@ -149,9 +150,17 @@
       {% if can_view_posts %}
       <div class="nv-content-grid">
         {% for post in posts %}
+        {% set post_media = post.media_url or post.public_url or post.image_url or post.thumbnail_url %}
         <article class="nv-content-tile">
-          {% if post.media_url or post.video_url %}<img src="{{ post.media_url or post.video_url }}" alt="Post media" loading="lazy">{% endif %}
+          {% if post.video_url %}
+          <video src="{{ post.video_url }}" poster="{{ post.thumbnail_url or post_media or '' }}" preload="metadata" muted playsinline></video>
+          {% elif post_media %}<img src="{{ post_media }}" alt="{{ post.caption or post.body or post.content or '' }}" loading="lazy" class="nvpro-post-media">{% endif %}
           <p>{{ post.caption or post.body or post.content or '' }}</p>
+          {% if own_profile or post.sharing_enabled or true %}
+          <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px">
+            <button style="background:rgba(0,0,0,.5);border:0;color:#fff;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer" data-share-post="{{ post.id }}" title="Share"><i class="fas fa-share"></i></button>
+          </div>
+          {% endif %}
         </article>
         {% else %}
         <div class="nv-empty">{% if own_profile %}<h3>No posts yet</h3><p>Create your first update to start growing.</p><a class="nv-btn primary" href="/posts/create">Create Post</a>{% else %}<h3>No public posts yet</h3>{% endif %}</div>
@@ -166,8 +175,9 @@
       {% if can_view_reels %}
       <div class="nv-reels-grid">
         {% for reel in reels %}
+        {% set reel_media = reel.thumbnail_url or reel.media_url or reel.public_url or reel.image_url or reel.video_url %}
         <article class="nv-reel-tile">
-          {% if reel.thumbnail_url %}<img src="{{ reel.thumbnail_url }}" alt="Reel thumbnail" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-play"></i></div>{% endif %}
+          {% if reel_media %}<img src="{{ reel_media }}" alt="Reel thumbnail" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-play"></i></div>{% endif %}
           <span><i class="fas fa-play"></i>{{ reel.views_count or 0 }}</span>
         </article>
         {% else %}
@@ -181,13 +191,77 @@
 
     <div class="nv-tab-panel" id="media-panel" data-tab-panel="media">
       <div class="nv-content-grid">
-        {% for post in posts if post.media_url %}
-        <article class="nv-content-tile"><img src="{{ post.media_url }}" alt="Media" loading="lazy"></article>
+        {% for post in posts if post.media_url or post.public_url or post.image_url or post.thumbnail_url or post.video_url %}
+        {% set post_media = post.media_url or post.public_url or post.image_url or post.thumbnail_url or post.video_url %}
+        <article class="nv-content-tile">
+          <img src="{{ post_media }}" alt="Media" loading="lazy">
+          {% if post.visibility == 'subscribers' and not own_profile and not is_subscriber %}
+          <div style="position:absolute;inset:0;background:rgba(15,23,42,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:6px;border-radius:16px">
+            <i class="fas fa-lock" style="font-size:24px;color:#f59e0b"></i>
+            <span style="font-size:12px;font-weight:700">Locked Content</span>
+            <small style="font-size:10px;color:#94a3b8">Subscribe To View</small>
+          </div>
+          {% endif %}
+        </article>
         {% endfor %}
         {% for reel in reels %}
-        <article class="nv-content-tile">{% if reel.thumbnail_url %}<img src="{{ reel.thumbnail_url }}" alt="Reel media" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-film"></i></div>{% endif %}</article>
+        {% set reel_media = reel.thumbnail_url or reel.media_url or reel.public_url or reel.image_url or reel.video_url %}
+        <article class="nv-content-tile">
+          {% if reel_media %}<img src="{{ reel_media }}" alt="Reel media" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-film"></i></div>{% endif %}
+          {% if reel.visibility == 'subscribers' and not own_profile and not is_subscriber %}
+          <div style="position:absolute;inset:0;background:rgba(15,23,42,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:6px;border-radius:16px">
+            <i class="fas fa-lock" style="font-size:24px;color:#f59e0b"></i>
+            <span style="font-size:12px;font-weight:700">Locked Content</span>
+            <small style="font-size:10px;color:#94a3b8">Subscribe To View</small>
+          </div>
+          {% endif %}
+        </article>
         {% endfor %}
         {% if not posts and not reels %}<div class="nv-empty"><h3>No media yet</h3><p>{{ 'Add photos or reels to build your profile.' if own_profile else 'No public media yet.' }}</p></div>{% endif %}
+      </div>
+      {% if own_profile %}
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <a class="nv-btn primary" href="/gallery/profile/{{ profile.id }}"><i class="fas fa-photo-film"></i> Open Full Gallery</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="nv-tab-panel" id="gallery-panel" data-tab-panel="gallery">
+      <div class="nv-content-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
+        {% if pv.gallery_preview %}
+          {% for item in pv.gallery_preview %}
+          <article class="nv-content-tile" style="aspect-ratio:1">
+            {% if item.upload_type == 'video' %}
+            <video src="{{ item.public_url }}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:12px"></video>
+            {% else %}
+            <img src="{{ item.public_url }}" alt="Gallery" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:12px">
+            {% endif %}
+            {% if item.visibility == 'subscribers' and not own_profile and not is_subscriber %}
+            <div style="position:absolute;inset:0;background:rgba(15,23,42,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:6px;border-radius:12px">
+              <i class="fas fa-lock" style="font-size:20px;color:#f59e0b"></i>
+              <span style="font-size:11px;font-weight:700">Subscribe To View</span>
+            </div>
+            {% endif %}
+          </article>
+          {% endfor %}
+        {% endif %}
+        {% if own_profile or pv.gallery_preview %}
+        <div class="nv-empty" style="{% if pv.gallery_preview %}display:none{% endif %}">
+          <h3>Gallery</h3>
+          <p>View and manage all your photos and videos.</p>
+          <a class="nv-btn primary" href="/gallery/profile/{{ profile.id }}"><i class="fas fa-photo-film"></i> Open Gallery</a>
+        </div>
+        {% if pv.gallery_preview %}
+        <div style="grid-column:1/-1;text-align:center;margin-top:8px">
+          <a class="nv-btn" href="/gallery/profile/{{ profile.id }}"><i class="fas fa-photo-film"></i> View Full Gallery</a>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="nv-empty">
+          <h3>No gallery yet</h3>
+          <p>This profile hasn't shared any gallery items yet.</p>
+        </div>
+        {% endif %}
       </div>
     </div>
 
@@ -305,4 +379,58 @@
     {% endif %}
   </section>
 </main>
+
+<div id="share-modal-profile" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:28px;padding:28px;width:100%;max-width:400px;box-shadow:0 25px 60px rgba(0,0,0,.3)">
+    <h2 style="margin:0 0 18px;font-size:22px;color:#0f172a"><i class="fas fa-share-alt"></i> Share</h2>
+    <input type="hidden" id="share-profile-id" value="">
+    <input type="hidden" id="share-profile-type" value="">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button class="share-dest" data-share="namvibe" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fas fa-paper-plane" style="color:#6C5CE7;display:block;font-size:24px;margin-bottom:4px"></i> NamVibe</button>
+      <button class="share-dest" data-share="whatsapp" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fab fa-whatsapp" style="color:#25D366;display:block;font-size:24px;margin-bottom:4px"></i> WhatsApp</button>
+      <button class="share-dest" data-share="facebook" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fab fa-facebook" style="color:#1877F2;display:block;font-size:24px;margin-bottom:4px"></i> Facebook</button>
+      <button class="share-dest" data-share="email" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fas fa-envelope" style="color:#EA4335;display:block;font-size:24px;margin-bottom:4px"></i> Email</button>
+      <button class="share-dest" data-share="copy" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a;grid-column:1/-1"><i class="fas fa-link" style="color:#64748b;display:block;font-size:24px;margin-bottom:4px"></i> Copy Link</button>
+    </div>
+    <div style="margin-top:14px;text-align:right">
+      <button onclick="document.getElementById('share-modal-profile').style.display='none'" style="padding:10px 20px;border-radius:999px;border:0;font-weight:800;background:#f1f5f9;color:#0f172a;cursor:pointer">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+document.querySelectorAll('[data-share-post]').forEach(btn => {
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    const postId = this.dataset.sharePost;
+    const url = '{{ request.url_root }}posts/' + postId;
+    const modal = document.getElementById('share-modal-profile');
+    modal.style.display = 'flex';
+    modal.querySelector('#share-profile-id').value = postId;
+    modal.querySelector('#share-profile-type').value = 'post';
+  };
+});
+document.querySelectorAll('.share-dest').forEach(btn => {
+  btn.onclick = function() {
+    const type = document.getElementById('share-profile-type').value;
+    const id = document.getElementById('share-profile-id').value;
+    const dest = this.dataset.share;
+    const baseUrl = '{{ request.url_root }}';
+    let url = baseUrl;
+    if (type === 'post') url += 'posts/' + id;
+    else if (type === 'reel') url += 'reels/' + id;
+    else url += 'profile/@{{ profile.username }}';
+    switch(dest) {
+      case 'copy': navigator.clipboard.writeText(url).then(() => alert('Link copied!')); break;
+      case 'whatsapp': window.open('https://wa.me/?text=' + encodeURIComponent(url), '_blank'); break;
+      case 'facebook': window.open('https://facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), '_blank'); break;
+      case 'email': window.open('mailto:?body=' + encodeURIComponent(url), '_blank'); break;
+      case 'namvibe': navigator.clipboard.writeText(url).then(() => alert('Link copied! Share it in NamVibe messages.')); break;
+    }
+    document.getElementById('share-modal-profile').style.display = 'none';
+  };
+});
+})();
+</script>
 {% endblock %}

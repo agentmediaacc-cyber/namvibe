@@ -418,10 +418,7 @@ def _table_columns(table_name):
 def _select_columns(table_name, candidates, required=None):
     available = _table_columns(table_name)
     if not available:
-        # If schema lookup failed, skip table if it's reels or stories, or use minimal for profiles/posts
-        if table_name in {"chain_reels", "chain_stories", "chain_status_posts"}:
-            return []
-        return [c for c in candidates if c in {"id", "created_at", "username", "display_name", "profile_id"}]
+        return [c for c in candidates]
     
     if required and any(column not in available for column in required):
         return []
@@ -1818,6 +1815,9 @@ def _normalize_items(rows, default_type="post"):
         if not isinstance(r, dict) or not r.get("id"):
             continue
         item_type = r.get("_type") or r.get("type") or default_type
+        media_url = r.get("media_url") or r.get("public_url") or r.get("image_url") or r.get("thumbnail_url") or r.get("cover_url") or r.get("video_url") or ""
+        video_url = r.get("video_url") or ""
+        thumbnail_url = r.get("thumbnail_url") or media_url or video_url or ""
         normalized = {
             "id": str(r.get("id")),
             "type": item_type,
@@ -1827,8 +1827,11 @@ def _normalize_items(rows, default_type="post"):
             "avatar_url": r.get("avatar_url") or r.get("creator_avatar") or "",
             "verified": bool(r.get("is_verified") or r.get("verified") or False),
             "text": r.get("caption") or r.get("excerpt") or r.get("body") or r.get("title") or "",
-            "media_url": r.get("media_url") or r.get("thumbnail_url") or r.get("cover_url") or "",
-            "video_url": r.get("video_url") or "",
+            "media_url": media_url,
+            "public_url": r.get("public_url") or media_url,
+            "image_url": r.get("image_url") or media_url,
+            "thumbnail_url": thumbnail_url,
+            "video_url": video_url,
             "likes_count": r.get("likes_count") or 0,
             "comments_count": r.get("comments_count") or 0,
             "view_count": r.get("view_count") or r.get("viewer_count") or 0,
@@ -1836,6 +1839,7 @@ def _normalize_items(rows, default_type="post"):
             "location": r.get("town_tag") or r.get("location") or "",
             "visibility": r.get("visibility") or "public",
             "sponsored": bool(r.get("sponsored") or False),
+            "is_video": bool(video_url) or str(r.get("mime_type") or "").startswith("video/") or item_type == "reel",
         }
         if item_type == "live" and r.get("watch_url"):
             normalized["watch_url"] = r.get("watch_url")

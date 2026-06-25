@@ -352,6 +352,8 @@ window.NAMVIBE_HOME = {
       <div class="nvpro-feed" id="nvpro-feed">
         {% if home_feed_items %}
         {% for item in home_feed_items %}
+        {% set media_url = item.get('media_url') or item.get('public_url') or item.get('image_url') or item.get('thumbnail_url') %}
+        {% set video_url = item.get('video_url') or '' %}
         <article class="nvpro-post-card" data-item-id="{{ item.get('id') }}" data-type="{{ item.get('type', 'post') }}">
           <div class="nvpro-post-head">
             <a href="/profile/@{{ item.get('username') }}" class="nvpro-post-avatar">
@@ -376,8 +378,8 @@ window.NAMVIBE_HOME = {
           {% if item.get("text") or item.get("caption") %}
           <div class="nvpro-post-body">{{ item.get("text") or item.get("caption") }}</div>
           {% endif %}
-          {% if item.get("video_url") %}
-          <div class="nvpro-post-media" data-nv-video="{{ item['video_url'] }}" data-nv-thumb="{{ item.get('thumbnail_url') or item.get('media_url') or '' }}">
+          {% if video_url %}
+          <div class="nvpro-post-media" data-nv-video="{{ video_url }}" data-nv-thumb="{{ item.get('thumbnail_url') or media_url or '' }}">
             <div class="nvpro-loading-skeleton"></div>
             <div class="nvpro-video-overlay">
               <div class="nvpro-video-play-icon">
@@ -385,9 +387,9 @@ window.NAMVIBE_HOME = {
               </div>
             </div>
           </div>
-          {% elif item.get("media_url") %}
+          {% elif media_url %}
           <div class="nvpro-post-media">
-            <img src="{{ item['media_url'] }}" alt="" loading="lazy">
+            <img src="{{ media_url }}" alt="{{ item.get('caption') or item.get('text') or '' }}" loading="{% if loop.index0 < 3 %}eager{% else %}lazy{% endif %}" class="nvpro-post-media">
           </div>
           {% endif %}
           <div class="nvpro-post-actions">
@@ -444,10 +446,11 @@ window.NAMVIBE_HOME = {
         {% if reels_items %}
         <div class="nvpro-reels-grid" id="nvpro-reels">
           {% for reel in reels_items[:6] %}
+          {% set reel_thumb = reel.get('thumbnail_url') or reel.get('media_url') or reel.get('public_url') or reel.get('image_url') or reel.get('video_url') %}
           <a href="/reels/" class="nvpro-reel-card" data-reel-id="{{ reel.get('id') }}">
             <div class="nvpro-reel-thumb">
-              {% if reel.get("thumbnail_url") or reel.get("media_url") or reel.get("video_url") %}
-              <img src="{{ reel.get('thumbnail_url') or reel.get('media_url') or reel.get('video_url') }}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' width=\'36\' height=\'36\'><polygon points=\'23 7 16 12 23 17 23 7\'/><rect x=\'1\' y=\'5\' width=\'15\' height=\'14\' rx=\'2\' ry=\'2\'/></svg>'">
+              {% if reel_thumb %}
+              <img src="{{ reel_thumb }}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' width=\'36\' height=\'36\'><polygon points=\'23 7 16 12 23 17 23 7\'/><rect x=\'1\' y=\'5\' width=\'15\' height=\'14\' rx=\'2\' ry=\'2\'/></svg>'">
               {% else %}
               <div class="nvpro-reel-thumb-fallback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="36" height="36"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
               {% endif %}

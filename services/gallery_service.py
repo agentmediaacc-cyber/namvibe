@@ -321,7 +321,15 @@ def get_profile_gallery(profile_id, viewer_id=None, album_id=None, media_type=No
             default=[],
         )
 
-        return (items or [], total)
+        normalized_items = []
+        for item in (items or []):
+            row = dict(item)
+            row["media_url"] = row.get("media_url") or row.get("public_url") or ""
+            row["image_url"] = row.get("image_url") or row.get("public_url") or row.get("media_url") or ""
+            row["thumbnail_url"] = row.get("thumbnail_url") or row.get("media_url") or row.get("public_url") or ""
+            normalized_items.append(row)
+
+        return (normalized_items, total)
     except Exception as e:
         log_error("gallery_get_profile_gallery_failed", profile_id=profile_id, error=str(e))
         return ([], 0)

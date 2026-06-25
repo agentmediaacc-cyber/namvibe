@@ -140,11 +140,11 @@
     if (!items || items.length === 0) { renderEmpty(feedEl); return; }
     feedEl.innerHTML = "";
     var html = "";
-    items.forEach(function (item) {
+    items.forEach(function (item, index) {
       var text = item.text || item.caption || "";
-      var mediaUrl = item.media_url || "";
+      var mediaUrl = item.media_url || item.public_url || item.image_url || item.thumbnail_url || "";
       var videoUrl = item.video_url || "";
-      var thumbnail = item.thumbnail_url || item.media_url || "";
+      var thumbnail = item.thumbnail_url || mediaUrl || videoUrl || "";
       var avatar = item.avatar_url || "";
       var displayName = item.display_name || item.username || "Creator";
       var username = item.username || "";
@@ -158,7 +158,8 @@
           '<div class="nvpro-loading-skeleton"></div>' +
           '<div class="nvpro-video-overlay"><div class="nvpro-video-play-icon">' + icon("play") + "</div></div></div>";
       } else if (mediaUrl) {
-        vidHtml = '<div class="nvpro-post-media"><img src="' + escapeHtml(mediaUrl) + '" alt="" loading="lazy"></div>';
+        var loadMode = index < 3 ? "eager" : "lazy";
+        vidHtml = '<div class="nvpro-post-media"><img src="' + escapeHtml(mediaUrl) + '" alt="' + escapeHtml(text) + '" loading="' + loadMode + '" class="nvpro-post-media"></div>';
       }
       html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '">';
       html += '<div class="nvpro-post-head">';
@@ -195,7 +196,6 @@
 
   /* ── Tab switching ── */
   var tabs = document.querySelectorAll(".nvpro-tab");
-  var feedEl = document.getElementById("nvpro-feed");
   var activeTab = "for_you";
 
   function switchTab(tab) {
@@ -211,8 +211,18 @@
   });
 
   function fetchFeed(tab) {
-    apiFetch("/api/homepage/feed?tab=" + encodeURIComponent(tab) + "&limit=20")
+    var url = tab === "for_you" ? "/api/feed?limit=20" : "/api/homepage/feed?tab=" + encodeURIComponent(tab) + "&limit=20";
+    apiFetch(url)
       .then(function (data) {
+        if (data.ok && data.payload) {
+          var items = tab === "for_you" ? (data.payload.feed_items || []).concat(data.payload.reels || []) : (data.payload.feed_items || []);
+          nextCursor = data.payload.next_cursor || null;
+          hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
+          if (items.length) {
+            renderFeedItems(feedEl, items);
+            return;
+          }
+        }
         if (data.ok && data.payload && data.payload.feed_items) {
           renderFeedItems(feedEl, data.payload.feed_items);
         } else {
@@ -305,6 +315,8 @@
           vid.play().catch(function () {});
           var overlay = el.querySelector(".nvpro-video-overlay");
           if (overlay) overlay.classList.add("is-hidden");
+          // Preload next 3 videos
+          preloadNearbyVideos(el, 3);
           // Start 2s view timer when video becomes visible
           startViewTimer(reelId);
         } else {
@@ -335,6 +347,26 @@
     }
   });
   if (document.body) mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+  /* ── Preload nearby videos — start loading next N without autoplay ── */
+  function preloadNearbyVideos(currentEl, count) {
+    var all = document.querySelectorAll("[data-nv-video]");
+    var idx = -1;
+    all.forEach(function (el, i) { if (el === currentEl) idx = i; });
+    if (idx < 0) return;
+    for (var i = idx + 1; i <= idx + count && i < all.length; i++) {
+      var next = all[i];
+      if (next.getAttribute("data-nv-preload") === "1") continue;
+      next.setAttribute("data-nv-preload", "1");
+      var src = next.dataset.nvVideo;
+      if (!src) continue;
+      var link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "video";
+      link.href = src;
+      document.head.appendChild(link);
+    }
+  }
 
   /* ── Lazy-load videos — replace skeleton with actual video ── */
   function lazyLoadVideos() {
@@ -613,7 +645,7 @@
         if (fileType === "video") fd.append("video", input.files[0]);
 
         // Use new API endpoints
-        var uploadUrl = type === "post" ? "/api/posts/create" : type === "reel" ? "/api/reels/create" : "/api/stories/create";
+        var uploadUrl = type === "post" ? "/posts/api/posts/create" : type === "reel" ? "/reels/api/reels/create" : "/status/api/status/create";
         var xhr = new XMLHttpRequest();
         xhr.open("POST", uploadUrl, true);
         xhr.setRequestHeader("X-CSRFToken", csrfToken());
@@ -636,8 +668,19 @@
               var resp = JSON.parse(xhr.responseText);
               if (resp.ok) {
                 // Show success with the created item's URL
-                var itemUrl = resp.story?.id ? "/status/" + resp.story.id :
-                              resp.post?.id ? "/posts/" + resp.post.id :
+                var mediaPreviewUrl = (resp.story && (resp.story.media_url || resp.story.public_url || resp.story.image_url || resp.story.video_url)) ||
+                  (resp.post && (resp.post.media_url || resp.post.public_url || resp.post.image_url || resp.post.video_url)) ||
+                  resp.media_url || resp.video_url || "";
+                if (mediaPreviewUrl && preview) {
+                  preview.style.display = "block";
+                  if ((resp.story && resp.story.video_url) || (resp.post && resp.post.video_url) || resp.video_url) {
+                    preview.innerHTML = '<video src="' + escapeHtml(mediaPreviewUrl) + '" muted playsinline controls style="width:100%;max-height:200px;border-radius:8px"></video>';
+                  } else {
+                    preview.innerHTML = '<img src="' + escapeHtml(mediaPreviewUrl) + '" alt="" style="width:100%;max-height:200px;border-radius:8px;object-fit:contain">';
+                  }
+                }
+                var itemUrl = resp.story && resp.story.id ? "/status/" + resp.story.id :
+                              resp.post && resp.post.id ? "/posts/" + resp.post.id :
                               resp.reel_id ? "/reels/" + resp.reel_id : "/";
                 showSuccess(itemUrl);
                 // Refresh feed after successful upload
@@ -770,7 +813,98 @@
     hydrateHomepage();
   });
 
-  /* ── Phase 156: Scroll header show/hide ── */
+  /* ── Phase 156: Scroll header show/hide + infinite scroll ── */
+  var pageNum = 1;
+  var loadingMore = false;
+  var hasMoreFeed = true;
+  var nextCursor = null;
+  var feedEl = document.getElementById("nvpro-feed");
+
+  function fetchNextPage() {
+    if (loadingMore || !hasMoreFeed) return;
+    loadingMore = true;
+    var url = activeTab === "for_you"
+      ? "/api/feed?limit=20" + (nextCursor ? "&cursor=" + encodeURIComponent(nextCursor) : "")
+      : "/api/home/feed?tab=" + encodeURIComponent(activeTab) + "&page=" + (pageNum + 1) + "&limit=20";
+    apiFetch(url)
+      .then(function (data) {
+        loadingMore = false;
+        if (activeTab === "for_you" && data.ok && data.payload) {
+          var items = (data.payload.feed_items || []).concat(data.payload.reels || []);
+          if (items.length > 0) {
+            nextCursor = data.payload.next_cursor || null;
+            hasMoreFeed = !!data.payload.has_more;
+            appendFeedItems(feedEl, items);
+          } else {
+            hasMoreFeed = false;
+          }
+        } else if (data.ok && data.items && data.items.length > 0) {
+          pageNum++;
+          hasMoreFeed = data.has_more;
+          appendFeedItems(feedEl, data.items);
+        } else {
+          hasMoreFeed = false;
+        }
+      })
+      .catch(function () { loadingMore = false; });
+  }
+
+  function appendFeedItems(feedEl, items) {
+    if (!feedEl || !items || items.length === 0) return;
+    var html = "";
+    items.forEach(function (item, index) {
+      var text = item.text || item.caption || "";
+      var mediaUrl = item.media_url || item.public_url || item.image_url || item.thumbnail_url || "";
+      var videoUrl = item.video_url || "";
+      var thumbnail = item.thumbnail_url || mediaUrl || videoUrl || "";
+      var avatar = item.avatar_url || "";
+      var displayName = item.display_name || item.username || "Creator";
+      var username = item.username || "";
+      var initial = displayName.charAt(0).toUpperCase();
+      var verified = item.verified ? '<svg class="nv-icon-sm nvpro-verified" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' : "";
+      var vAttr = item.type || "post";
+      var isVideo = videoUrl || item.is_video || item.media_type === "video" || item.media_type === "reel" || (item.mime_type && item.mime_type.indexOf("video/") === 0) || (item.post_type === "video");
+      var vidHtml = "";
+      if (isVideo && videoUrl) {
+        vidHtml = '<div class="nvpro-post-media" data-nv-video="' + escapeHtml(videoUrl) + '" data-nv-thumb="' + escapeHtml(thumbnail) + '">' +
+          '<div class="nvpro-loading-skeleton"></div>' +
+          '<div class="nvpro-video-overlay"><div class="nvpro-video-play-icon">' + icon("play") + "</div></div></div>";
+      } else if (mediaUrl) {
+        var loadMode = "lazy";
+        vidHtml = '<div class="nvpro-post-media"><img src="' + escapeHtml(mediaUrl) + '" alt="' + escapeHtml(text) + '" loading="' + loadMode + '" class="nvpro-post-media"></div>';
+      }
+      html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '">';
+      html += '<div class="nvpro-post-head">';
+      html += '<a href="' + profileHref(username) + '" class="nvpro-post-avatar">';
+      if (avatar) {
+        html += '<img src="' + escapeHtml(avatar) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
+        html += '<span class="nvpro-avatar-initials" style="display:none">' + initial + "</span>";
+      } else {
+        html += '<span class="nvpro-avatar-initials">' + initial + "</span>";
+      }
+      html += "</a>";
+      html += '<div class="nvpro-post-meta">';
+      html += '<a href="' + profileHref(username) + '" class="nvpro-post-author">' + escapeHtml(displayName) + verified + "</a>";
+      html += '<span class="nvpro-post-time">' + (item.created_label || "Just now") + "</span>";
+      html += "</div>";
+      if (item.profile_id) {
+        html += '<button type="button" class="nvpro-follow-pill" data-follow-id="' + item.profile_id + '">Follow</button>';
+      }
+      html += "</div>";
+      if (text) html += '<div class="nvpro-post-body">' + escapeHtml(text) + "</div>";
+      html += vidHtml;
+      html += '<div class="nvpro-post-actions">';
+      html += '<button type="button" class="nvpro-action-btn" data-action="like" data-id="' + (item.id || "") + '" data-type="' + vAttr + '">' + icon("heart") + " <span>" + (item.likes_count || 0) + "</span></button>";
+      html += '<button type="button" class="nvpro-action-btn" data-action="comment" data-id="' + (item.id || "") + '">' + icon("comment") + " <span>" + (item.comments_count || 0) + "</span></button>";
+      html += '<button type="button" class="nvpro-action-btn" data-action="share" data-id="' + (item.id || "") + '">' + icon("share") + " <span>Share</span></button>";
+      html += '<button type="button" class="nvpro-action-btn" data-action="save" data-id="' + (item.id || "") + '" data-type="' + vAttr + '">' + icon("save") + "</button>";
+      html += "</div>";
+      html += "</article>";
+    });
+    feedEl.insertAdjacentHTML("beforeend", html);
+    lazyLoadVideos();
+  }
+
   function setupScrollHeader() {
     var header = document.querySelector(".nvpro-header");
     var lastY = 0;
@@ -783,6 +917,12 @@
         header.classList.remove("nvpro-header-hidden");
       }
       lastY = y;
+      // Infinite scroll: fetch next page when near bottom
+      var docHeight = document.documentElement.scrollHeight;
+      var winHeight = window.innerHeight;
+      if (y + winHeight >= docHeight - 600 && hasMoreFeed && !loadingMore) {
+        fetchNextPage();
+      }
     }, { passive: true });
   }
 
@@ -879,7 +1019,7 @@
           reelsGrid.innerHTML = "";
           var rh = "";
           reelsList.slice(0, 6).forEach(function (r) {
-            var thumb = r.thumbnail_url || r.media_url || r.video_url || "";
+            var thumb = r.thumbnail_url || r.media_url || r.public_url || r.image_url || r.video_url || "";
             var name = r.display_name || r.username || "Creator";
             var caption = (r.caption || "").substring(0, 60);
             rh += '<a href="/reels/" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
@@ -909,7 +1049,7 @@
       controller.abort();
     }, 15000);
 
-    fetch("/api/homepage/feed?tab=for_you&limit=20", {
+    fetch("/api/feed?limit=20", {
       method: "GET",
       headers: { "X-CSRFToken": csrfToken() },
       signal: controller.signal,
@@ -924,6 +1064,8 @@
       })
       .then(function (data) {
         if (data && data.ok && data.payload) {
+          nextCursor = data.payload.next_cursor || null;
+          hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
           doHydrate(data.payload);
           console.log("NAMVIBE HYDRATE COMPLETE (API)");
         }

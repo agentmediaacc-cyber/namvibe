@@ -147,8 +147,11 @@ def normalize_post_v2(row, profile_map):
     caption = row.get("caption") or row.get("content") or row.get("body") or ""
     display_name = profile.get("display_name") or profile.get("username") or ""
     username = profile.get("username") or ""
+    public_url = row.get("public_url") or ""
+    image_url = row.get("image_url") or ""
     video_url = row.get("video_url") or ""
-    media_url = row.get("media_url") or row.get("thumbnail_url") or ""
+    thumbnail_url = row.get("thumbnail_url") or ""
+    media_url = row.get("media_url") or public_url or image_url or thumbnail_url or video_url or ""
     mime_type = row.get("mime_type") or ""
     media_type = row.get("media_type") or ""
     if not media_type and mime_type:
@@ -164,7 +167,10 @@ def normalize_post_v2(row, profile_map):
         "caption": caption,
         "excerpt": caption[:180] + ("..." if len(caption) > 180 else ""),
         "media_url": media_url,
+        "public_url": public_url or media_url,
+        "image_url": image_url or media_url,
         "video_url": video_url,
+        "thumbnail_url": thumbnail_url or media_url or video_url,
         "link_url": row.get("link_url") or "",
         "town_tag": row.get("town_tag") or "",
         "visibility": row.get("visibility") or "public",
