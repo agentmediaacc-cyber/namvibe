@@ -31,7 +31,7 @@ def profile_reels():
         "profile/reels_manager.html", 
         profile=profile, 
         reels=data['items'], 
-        pagination={'total': data['total']},
+        pagination={'total': data['total'], 'per_page': limit},
         **data
     )
 
