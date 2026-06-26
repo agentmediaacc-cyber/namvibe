@@ -949,20 +949,27 @@
   function setupScrollHeader() {
     var header = document.querySelector(".nvpro-header");
     var lastY = 0;
+    var ticking = false;
     if (!header) return;
     window.addEventListener("scroll", function () {
-      var y = window.scrollY;
-      if (y > 120 && y > lastY) {
-        header.classList.add("nvpro-header-hidden");
-      } else if (y < lastY || y < 120) {
-        header.classList.remove("nvpro-header-hidden");
-      }
-      lastY = y;
-      // Infinite scroll: fetch next page when near bottom
-      var docHeight = document.documentElement.scrollHeight;
-      var winHeight = window.innerHeight;
-      if (y + winHeight >= docHeight - 600 && hasMoreFeed && !loadingMore) {
-        fetchNextPage();
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(function () {
+          var y = window.scrollY;
+          if (y > 120 && y > lastY) {
+            header.classList.add("nvpro-header-hidden");
+          } else if (y < lastY || y < 120) {
+            header.classList.remove("nvpro-header-hidden");
+          }
+          lastY = y;
+          // Infinite scroll: fetch next page when near bottom
+          var docHeight = document.documentElement.scrollHeight;
+          var winHeight = window.innerHeight;
+          if (y + winHeight >= docHeight - 600 && hasMoreFeed && !loadingMore) {
+            fetchNextPage();
+          }
+          ticking = false;
+        });
       }
     }, { passive: true });
   }

@@ -29,6 +29,7 @@ body.nv-home-pro-page {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 a { color: var(--nvpro-blue); text-decoration: none; }
@@ -87,6 +88,7 @@ a:hover { color: var(--nvpro-blue-hover); }
   width: 38px; height: 38px; display: flex; align-items: center;
   justify-content: center; border-radius: 50%; background: var(--nvpro-surface);
   color: var(--nvpro-white); transition: background 0.15s;
+  position: relative;
 }
 
 .nvpro-header-icon:hover { background: var(--nvpro-card); }
@@ -728,22 +730,22 @@ textarea.nvpro-form-input { min-height: 70px; resize: vertical; }
 @media (max-width: 760px) {
   .nvpro-left-rail { display: none; }
   .nvpro-bottom-nav { display: flex; }
-  .nvpro-body { padding: 10px 10px calc(var(--nvpro-bottom-h) + 12px); gap: 0; }
+  .nvpro-body { padding: 10px 10px calc(var(--nvpro-bottom-h) + env(safe-area-inset-bottom, 0px) + 12px); gap: 0; }
   .nvpro-header-inner { padding: 0 10px; gap: 6px; }
   .nvpro-search-wrap { max-width: none; flex: 0 1 auto; min-width: 0; }
-  .nvpro-search-input { font-size: 14px; padding: 0 12px 0 36px; }
+  .nvpro-search-input { font-size: max(16px, 14px); padding: 0 12px 0 36px; }
   .nvpro-search-icon { left: 10px; }
   .nvpro-create-btn { padding: 6px 12px; font-size: 13px; }
   .nvpro-create-btn span { display: inline; }
   .nvpro-home-hero { padding: 14px; margin-bottom: 12px; }
   .nvpro-home-hero h1 { font-size: 24px; }
   .nvpro-reels-grid { grid-template-columns: repeat(2, 1fr); }
-  .nvpro-modal { max-width: 100vw; max-height: 100vh; border-radius: 0; width: 100%; height: 100%; }
+  .nvpro-modal { max-width: 100%; max-height: 100vh; border-radius: 0; width: 100%; height: 100%; }
   .nvpro-modal-body { padding: 14px; }
   .nvpro-drop-zone { padding: 24px 14px; }
   .nvpro-preview-area { grid-template-columns: 1fr; }
   .nvpro-empty-card { padding: 20px 14px; }
-  .nvpro-center { padding-bottom: calc(var(--nvpro-bottom-h) + 12px); }
+  .nvpro-center { padding-bottom: 0; }
   .nvpro-form-input { font-size: 16px; }
   .nvpro-modal-tab { padding: 10px 12px; font-size: 13px; }
   .nvpro-header-avatar { width: 30px; height: 30px; }
@@ -752,7 +754,7 @@ textarea.nvpro-form-input { min-height: 70px; resize: vertical; }
   .nvpro-logo svg { width: 22px; height: 22px; }
   .nvpro-bottom-item { min-height: 48px; }
   .nvpro-bottom-item svg { width: 24px; height: 24px; }
-  .nvpro-toast { bottom: calc(var(--nvpro-bottom-h) + 12px); }
+  .nvpro-toast { bottom: calc(var(--nvpro-bottom-h) + env(safe-area-inset-bottom, 0px) + 12px); }
   .nvpro-stories-tray { margin-bottom: 10px; }
   .nvpro-story-ring, .nvpro-story-create-ring { width: 48px; height: 48px; }
   .nvpro-story-label { font-size: 10px; max-width: 50px; }
@@ -761,7 +763,7 @@ textarea.nvpro-form-input { min-height: 70px; resize: vertical; }
 @media (max-width: 480px) {
   .nvpro-reels-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .nvpro-tab { font-size: 11px; padding: 6px 6px; }
-  .nvpro-search-input { font-size: 13px; padding: 0 10px 0 32px; }
+  .nvpro-search-input { font-size: max(16px, 13px); padding: 0 10px 0 32px; }
   .nvpro-create-btn span { display: none; }
   .nvpro-home-hero { padding: 12px; }
   .nvpro-home-hero h1 { font-size: 21px; }

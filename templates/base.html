@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ APP_NAME }} | Premium Live Social{% endblock %}</title>
     <link rel="icon" href="/static/img/favicon.ico">
@@ -37,6 +37,11 @@
         .skeleton-card { height: 180px; width: 100%; border-radius: 16px; }
         .skeleton-row { height: 56px; width: 100%; margin-bottom: 8px; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        html, body {
+            width: 100%; max-width: 100%; overflow-x: hidden;
+        }
+        img, video { max-width: 100%; }
 
         /* ── Page Transitions ── */
         .page-fade-in {
@@ -345,6 +350,34 @@
         @media (min-width: 761px) {
             .chain-shell--social .content-body { padding: 0 24px 40px; }
         }
+
+        /* ── Accessibility: inputs, contrast, font sizes ── */
+        input, textarea, select, button, [contenteditable] {
+            font-size: 16px !important;
+        }
+        ::placeholder, [placeholder] {
+            color: #64748b !important;
+            opacity: 1 !important;
+        }
+        input, select, textarea {
+            color: #0f172a !important;
+            background: #f8fafc !important;
+            border: 2px solid #cbd5e1 !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #111827 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(15,23,42,.12) !important;
+        }
+        a { color: #2563eb !important; }
+        a:hover { color: #1d4ed8 !important; }
+        .text-muted, .muted, [class*="muted"] { color: #64748b !important; }
+        .btn, button, [class*="btn"], [class*="button"] {
+            cursor: pointer !important;
+        }
+        @media (max-width: 480px) {
+            input, textarea, select { font-size: 16px !important; }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -466,7 +499,7 @@
 
         <div class="content-body page-fade-in">
             <div id="error-retry-banner" style="display: none; background: #ff3b30; color: white; padding: 10px 20px; text-align: center; position: sticky; top: 80px; z-index: 100;">
-                <i class="fas fa-exclamation-circle mr-2"></i> Connection lost. <button type="button" onclick="location.reload()" style="color: white; text-decoration: underline; font-weight: bold; background: transparent; border: 0; padding: 0; cursor: pointer;">Retry</button>
+                <i class="fas fa-exclamation-circle mr-2"></i> Reconnecting to NamVibe...
             </div>
             {% block content %}{% endblock %}
         </div>
