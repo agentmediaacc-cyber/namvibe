@@ -48,12 +48,19 @@ def create():
         link_url = request.form.get("link_url") or ""
         town_tag = request.form.get("town_tag") or request.form.get("location") or ""
         visibility = request.form.get("visibility") or "public"
+        music_url = request.form.get("music_url", "")
+        music_title = request.form.get("music_title", "")
+        music_artist = request.form.get("music_artist", "")
+        music_start_seconds = request.form.get("music_start_seconds", 0)
+        music_duration_seconds = request.form.get("music_duration_seconds", 0)
         
         if not caption.strip() and not (media_file and media_file.filename) and not link_url.strip():
             flash("Post cannot be empty.")
             return render_template("posts/create.html", profile=profile)
-            
-        post, error = create_post(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility)
+        
+        post, error = create_post(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility,
+                                  music_url=music_url, music_title=music_title, music_artist=music_artist,
+                                  music_start_seconds=music_start_seconds, music_duration_seconds=music_duration_seconds)
         if error:
             flash(error)
             return render_template("posts/create.html", profile=profile)
@@ -124,14 +131,33 @@ def api_create():
     link_url = request.form.get("link_url") or ""
     town_tag = request.form.get("town_tag") or request.form.get("location") or ""
     visibility = request.form.get("visibility", "public")
+    music_url = request.form.get("music_url", "")
+    music_title = request.form.get("music_title", "")
+    music_artist = request.form.get("music_artist", "")
+    music_start_seconds = request.form.get("music_start_seconds", 0)
+    music_duration_seconds = request.form.get("music_duration_seconds", 0)
+    music_file = request.files.get("music_file")
     
-    # Normalize visibility (handle 'audience' as well)
+    if music_file and music_file.filename:
+        try:
+            from services.supabase_storage_service import upload_media_to_supabase
+            result = upload_media_to_supabase(music_file, "posts", profile_id)
+            if result.get("ok"):
+                music_url = music_url or result["url"]
+                if not music_title:
+                    music_title = music_file.filename.rsplit(".", 1)[0]
+        except Exception:
+            pass
+    
+    # Normalize visibility
     visibility = request.form.get("audience") or visibility
     visibility = visibility.lower() if visibility else "public"
     if visibility not in ("public", "followers", "private"):
         visibility = "public"
     
-    post, error = create_post(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility)
+    post, error = create_post(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility,
+                              music_url=music_url, music_title=music_title, music_artist=music_artist,
+                              music_start_seconds=music_start_seconds, music_duration_seconds=music_duration_seconds)
     if error:
         return jsonify({"ok": False, "error": error}), 400
     if post:

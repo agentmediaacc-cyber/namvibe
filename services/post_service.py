@@ -1,8 +1,11 @@
 from services.supabase_safe import safe_select, safe_update, safe_delete
 from services.content_service import create_post_record, local_content
 
-def create_post(profile_id, caption, media_file=None, link_url="", town_tag="", visibility="public"):
-    return create_post_record(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility)
+def create_post(profile_id, caption, media_file=None, link_url="", town_tag="", visibility="public",
+                music_url="", music_title="", music_artist="", music_start_seconds=0, music_duration_seconds=0):
+    return create_post_record(profile_id, caption, media_file, link_url=link_url, town_tag=town_tag, visibility=visibility,
+                              music_url=music_url, music_title=music_title, music_artist=music_artist,
+                              music_start_seconds=music_start_seconds, music_duration_seconds=music_duration_seconds)
 
 def edit_post(post_id, profile_id, caption=None, visibility=None):
     updates = {}

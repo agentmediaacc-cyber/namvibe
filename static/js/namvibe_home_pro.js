@@ -17,7 +17,7 @@
       offlineBanner.querySelector(".nvpro-offline-text").textContent =
         online ? "Back online — refreshing…" : "You are offline — showing cached content";
     }
-    document.querySelectorAll("[data-open-upload]").forEach(function (b) {
+    document.querySelectorAll("[data-open-upload], [data-open-camera]").forEach(function (b) {
       b.disabled = !online;
       b.title = online ? "" : "Upload unavailable while offline";
     });
@@ -187,7 +187,7 @@
         var loadMode = index < 3 ? "eager" : "lazy";
         vidHtml = '<div class="nvpro-post-media"><img src="' + escapeHtml(mediaUrl) + '" alt="' + escapeHtml(text) + '" loading="' + loadMode + '" class="nvpro-post-media"></div>';
       }
-      html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '">';
+      html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '" data-href="/post/' + (item.id || "") + '" style="cursor:pointer">';
       html += '<div class="nvpro-post-head">';
       html += '<a href="' + profileHref(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
@@ -244,8 +244,7 @@
           var items = tab === "for_you" ? (data.payload.feed_items || []).concat(data.payload.reels || []) : (data.payload.feed_items || []);
           nextCursor = data.payload.next_cursor || null;
           hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
-          // Cache feed payload
-          try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {}
+          if (window.NamVibeCache) { window.NamVibeCache.saveFeed(data.payload); } else { try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {} }
           if (items.length) {
             renderFeedItems(feedEl, items);
             return;
@@ -258,16 +257,19 @@
         }
       })
       .catch(function () {
-        // Try loading from cache when offline
-        try {
-          var cached = localStorage.getItem("namvibe_feed_cache");
+        function tryCachedData(cached) {
           if (cached) {
-            var cp = JSON.parse(cached);
-            var citems = tab === "for_you" ? (cp.feed_items || []).concat(cp.reels || []) : (cp.feed_items || []);
-            if (citems.length) { renderFeedItems(feedEl, citems); return; }
+            var citems = tab === "for_you" ? (cached.feed_items || []).concat(cached.reels || []) : (cached.feed_items || []);
+            if (citems.length) { renderFeedItems(feedEl, citems); return true; }
           }
-        } catch(e) {}
-        renderEmpty(feedEl);
+          return false;
+        }
+        if (window.NamVibeCache) {
+          window.NamVibeCache.loadFeed().then(function (cached) { if (!tryCachedData(cached)) renderEmpty(feedEl); });
+        } else {
+          try { var cached = localStorage.getItem("namvibe_feed_cache"); if (cached) { var cp = JSON.parse(cached); if (tryCachedData(cp)) return; } } catch(e) {}
+          renderEmpty(feedEl);
+        }
       });
   }
 
@@ -719,7 +721,7 @@
                   }
                 }
                 var itemUrl = resp.story && resp.story.id ? "/status/" + resp.story.id :
-                              resp.post && resp.post.id ? "/posts/" + resp.post.id :
+                              resp.post && resp.post.id ? "/post/" + resp.post.id :
                               resp.reel_id ? "/reels/" + resp.reel_id : "/";
                 showSuccess(itemUrl);
                 // Refresh feed after successful upload
@@ -800,7 +802,7 @@
     var btn = e.target.closest("[data-action=share]");
     if (!btn) return;
     var id = btn.dataset.id;
-    var url = window.location.origin + "/posts/" + (id || "");
+    var url = window.location.origin + "/post/" + (id || "");
     if (navigator.share) {
       navigator.share({ title: "NamVibe", url: url }).catch(function () {});
     } else {
@@ -813,7 +815,7 @@
     var btn = e.target.closest("[data-action=comment]");
     if (!btn) return;
     var id = btn.dataset.id;
-    if (id) window.location.href = "/posts/" + id;
+    if (id) window.location.href = "/post/" + id;
   });
 
   /* ── Follow action ── */
@@ -912,7 +914,7 @@
         var loadMode = "lazy";
         vidHtml = '<div class="nvpro-post-media"><img src="' + escapeHtml(mediaUrl) + '" alt="' + escapeHtml(text) + '" loading="' + loadMode + '" class="nvpro-post-media"></div>';
       }
-      html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '">';
+      html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '" data-href="/post/' + (item.id || "") + '" style="cursor:pointer">';
       html += '<div class="nvpro-post-head">';
       html += '<a href="' + profileHref(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
@@ -1061,7 +1063,7 @@
             var thumb = r.thumbnail_url || r.media_url || r.public_url || r.image_url || r.video_url || "";
             var name = r.display_name || r.username || "Creator";
             var caption = (r.caption || "").substring(0, 60);
-            rh += '<a href="/reels/" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
+            rh += '<a href="/reels/' + (r.id || "") + '" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
               '<div class="nvpro-reel-thumb">';
             if (thumb) {
               rh += '<img src="' + thumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<svg viewBox=\\\'0 0 24 24\\\' fill=\\\'none\\\' stroke=\\\'currentColor\\\' width=\\\'36\\\' height=\\\'36\\\'><polygon points=\\\'23 7 16 12 23 17 23 7\\\'/><rect x=\\\'1\\\' y=\\\'5\\\' width=\\\'15\\\' height=\\\'14\\\' rx=\\\'2\\\' ry=\\\'2\\\'/></svg>\'">';
@@ -1106,21 +1108,110 @@
           nextCursor = data.payload.next_cursor || null;
           hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
           doHydrate(data.payload);
-          // Cache for offline use
-          try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {}
+          if (window.NamVibeCache) {
+            window.NamVibeCache.saveFeed(data.payload);
+          } else {
+            try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {}
+          }
           console.log("NAMVIBE HYDRATE COMPLETE (API)");
         }
       })
       .catch(function (err) {
         clearTimeout(timeoutId);
         console.log("NAMVIBE HYDRATE API FAILED, using server data", err);
-        // If server data was empty, try cache
         if (window.NAMVIBE_HOME && (!window.NAMVIBE_HOME.feed_items || !window.NAMVIBE_HOME.feed_items.length)) {
-          try {
-            var cached = localStorage.getItem("namvibe_feed_cache");
-            if (cached) { doHydrate(JSON.parse(cached)); }
-          } catch(e) {}
+          if (window.NamVibeCache) {
+            window.NamVibeCache.loadFeed().then(function (cached) {
+              if (cached) doHydrate(cached);
+            });
+          } else {
+            try { var cached = localStorage.getItem("namvibe_feed_cache"); if (cached) doHydrate(JSON.parse(cached)); } catch(e) {}
+          }
         }
       });
   }
+
+  /* ── Media Preloading with IntersectionObserver ── */
+  function getMediaUrlFromCard(card) {
+    var img = card.querySelector("img");
+    if (img && img.src && !img.src.includes("data:")) return { url: img.src, type: "image" };
+    var video = card.querySelector("video");
+    if (video && video.src) return { url: video.src, type: "video" };
+    var srcAttr = card.querySelector("[src]");
+    if (srcAttr) return { url: srcAttr.getAttribute("src"), type: "image" };
+    var bg = card.style.backgroundImage;
+    if (bg) {
+      var m = bg.match(/url\(["']?([^"')]+)["']?\)/);
+      if (m) return { url: m[1], type: "image" };
+    }
+    return null;
+  }
+
+  function preloadNextMedia() {
+    var cards = document.querySelectorAll(".nvpro-post-card:not(.nvpro-preload-attached)");
+    var preloadCount = 0;
+    for (var i = 0; i < cards.length && preloadCount < 8; i++) {
+      var card = cards[i];
+      card.classList.add("nvpro-preload-attached");
+      var info = getMediaUrlFromCard(card);
+      if (info && info.url && preloadCount < 5) {
+        var link = document.createElement("link");
+        link.rel = "preload";
+        link.as = info.type;
+        link.href = info.url;
+        document.head.appendChild(link);
+        preloadCount++;
+      }
+    }
+  }
+
+  var mediaObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var card = entry.target;
+      if (entry.isIntersecting) {
+        card.classList.add("nvpro-card-visible");
+        var v = card.querySelector("video");
+        if (v) {
+          v.preload = "auto";
+          v.load();
+        }
+        preloadNextMedia();
+      } else {
+        var v = card.querySelector("video");
+        if (v && !v.paused) v.pause();
+      }
+    });
+  }, { rootMargin: "200px" });
+
+  function observeCards() {
+    document.querySelectorAll(".nvpro-post-card").forEach(function (card) {
+      if (!card.dataset.observerAttached) {
+        card.dataset.observerAttached = "1";
+        mediaObserver.observe(card);
+      }
+    });
+  }
+
+  var origRender = window.renderFeedItems;
+  var origAppend = window.appendFeedItems;
+  function wrapRender(fn) {
+    return function (container, items) {
+      fn(container, items);
+      setTimeout(observeCards, 100);
+      setTimeout(preloadNextMedia, 200);
+    };
+  }
+  if (typeof renderFeedItems === "function") { window.renderFeedItems = wrapRender(renderFeedItems); }
+  if (typeof appendFeedItems === "function") { window.appendFeedItems = wrapRender(appendFeedItems); }
+  setTimeout(observeCards, 500);
+  setTimeout(preloadNextMedia, 1000);
+
+  /* ── Clickable post cards (delegated) ── */
+  document.addEventListener("click", function (e) {
+    var card = e.target.closest(".nvpro-post-card");
+    if (!card) return;
+    if (e.target.closest("button, a, input, textarea, select, video, [data-action], [data-follow-id], [data-open-upload], [data-open-camera]")) return;
+    var href = card.dataset.href;
+    if (href) window.location.href = href;
+  });
 })();

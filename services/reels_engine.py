@@ -33,14 +33,27 @@ def get_reel(reel_id):
     rows = fast_query(sql, (reel_id,), timeout_ms=1000, default=[])
     return rows[0] if rows else None
 
-def create_reel(profile_id, caption, file=None, thumbnail=None, music_title="", visibility="public"):
-    """Uploads video and triggers async processing."""
+def create_reel(profile_id, caption, file=None, thumbnail=None, music_title="", visibility="public",
+               music_url="", music_artist="", music_start_seconds=0, music_duration_seconds=0):
+    """Uploads video and triggers async processing. Returns (id, error)."""
     if not file:
         return None, "Video file is required"
-    reel, error = create_reel_record(profile_id, file, caption=caption, music_title=music_title, visibility=visibility)
+    reel, error = create_reel_record(profile_id, file, caption=caption, music_title=music_title, visibility=visibility,
+                                     music_url=music_url, music_artist=music_artist,
+                                     music_start_seconds=music_start_seconds, music_duration_seconds=music_duration_seconds)
     if error:
         return None, error
     return reel.get("id"), None
+
+
+def create_reel_full(profile_id, caption, file=None, thumbnail=None, music_title="", visibility="public",
+                     music_url="", music_artist="", music_start_seconds=0, music_duration_seconds=0):
+    """Uploads video and returns full record dict. Returns (record_dict, error)."""
+    if not file:
+        return None, "Video file is required"
+    return create_reel_record(profile_id, file, caption=caption, music_title=music_title, visibility=visibility,
+                              music_url=music_url, music_artist=music_artist,
+                              music_start_seconds=music_start_seconds, music_duration_seconds=music_duration_seconds)
 
 
 def create_reel_legacy(profile_id, caption, file=None, thumbnail=None):

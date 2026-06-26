@@ -3,7 +3,7 @@ import time
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
 from services.profile_service import get_current_profile
-from services.reels_engine import list_reels, get_reel, create_reel, record_reel_view, share_reel, delete_reel
+from services.reels_engine import list_reels, get_reel, create_reel, create_reel_full, record_reel_view, share_reel, delete_reel
 from services.reels_service import track_reel_event, get_reel_comments, get_reel_feed, batch_is_following, toggle_reel_save, toggle_reel_like
 from services.engagement_service import add_comment, toggle_like, toggle_save
 from api_routes.profile_routes import login_required
@@ -290,7 +290,23 @@ def api_create_reel():
     
     caption = request.form.get("caption", "")
     music_title = request.form.get("music_title", "")
+    music_url = request.form.get("music_url", "")
+    music_artist = request.form.get("music_artist", "")
+    music_start_seconds = request.form.get("music_start_seconds", 0)
+    music_duration_seconds = request.form.get("music_duration_seconds", 0)
+    music_file = request.files.get("music_file")
     visibility = request.form.get("visibility", "public")
+    
+    if music_file and music_file.filename:
+        try:
+            from services.supabase_storage_service import upload_media_to_supabase
+            result = upload_media_to_supabase(music_file, "reels", profile_id)
+            if result.get("ok"):
+                music_url = music_url or result["url"]
+                if not music_title:
+                    music_title = music_file.filename.rsplit(".", 1)[0]
+        except Exception:
+            pass
     
     # Normalize visibility
     visibility = request.form.get("audience") or visibility
@@ -298,9 +314,11 @@ def api_create_reel():
     if visibility not in ("public", "followers", "private"):
         visibility = "public"
     
-    reel_id, error = create_reel(profile_id, caption, video_file, None, music_title=music_title, visibility=visibility)
+    reel, error = create_reel_full(profile_id, caption, video_file, None, music_title=music_title, visibility=visibility,
+                                   music_url=music_url, music_artist=music_artist,
+                                   music_start_seconds=music_start_seconds, music_duration_seconds=music_duration_seconds)
     if error:
         return jsonify({"ok": False, "error": error}), 400
-    if reel_id:
-        return jsonify({"ok": True, "reel_id": reel_id}), 201
+    if reel:
+        return jsonify({"ok": True, "reel_id": reel.get("id"), "video_url": reel.get("video_url"), "media_url": reel.get("media_url")}), 201
     return jsonify({"ok": False, "error": "Failed to create reel"}), 400

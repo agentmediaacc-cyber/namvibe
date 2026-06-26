@@ -10,6 +10,7 @@
 {% block extra_css %}
 <meta name="namvibe-build" content="phase158">
 <link rel="stylesheet" href="/static/css/namvibe_home_pro.css?v=phase158">
+<link rel="stylesheet" href="/static/css/namvibe_camera_creator.css?v=phase162">
 <style>
 /* Phase 156 — Mobile hamburger & TikTok-style feed */
 .nvpro-hamburger { display:none; background:none; border:none; cursor:pointer; padding:8px; color:var(--nvpro-text); }
@@ -311,7 +312,7 @@ window.NAMVIBE_HOME = {
       {# STORIES TRAY #}
       <section class="nvpro-stories-tray">
         <div class="nvpro-stories-scroll" id="nvpro-stories">
-          <button type="button" class="nvpro-story-create" data-open-upload="story" aria-label="Create story">
+          <button type="button" class="nvpro-story-create" data-open-camera="story" aria-label="Create story">
             <div class="nvpro-story-create-ring">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </div>
@@ -338,7 +339,7 @@ window.NAMVIBE_HOME = {
               <p style="margin:0;font-weight:600;font-size:14px">Start your first status</p>
               <p style="margin:2px 0 0;font-size:12px;color:var(--nvpro-muted)">Share a 24-hour update with followers only</p>
             </div>
-            <button type="button" class="nvpro-btn nvpro-btn-primary nvpro-btn-sm" data-open-upload="story">Create Story</button>
+            <button type="button" class="nvpro-btn nvpro-btn-primary nvpro-btn-sm" data-open-camera="story">Create Story</button>
           </div>
           {% endif %}
         </div>
@@ -358,7 +359,7 @@ window.NAMVIBE_HOME = {
         {% for item in home_feed_items %}
         {% set media_url = item.get('media_url') or item.get('public_url') or item.get('image_url') or item.get('thumbnail_url') %}
         {% set video_url = item.get('video_url') or '' %}
-        <article class="nvpro-post-card" data-item-id="{{ item.get('id') }}" data-type="{{ item.get('type', 'post') }}">
+        <article class="nvpro-post-card" data-item-id="{{ item.get('id') }}" data-type="{{ item.get('type', 'post') }}" data-href="/post/{{ item.get('id') }}" style="cursor:pointer">
           <div class="nvpro-post-head">
             <a href="/profile/@{{ item.get('username') }}" class="nvpro-post-avatar">
               {% if item.get("avatar_url") %}
@@ -451,7 +452,7 @@ window.NAMVIBE_HOME = {
         <div class="nvpro-reels-grid" id="nvpro-reels">
           {% for reel in reels_items[:6] %}
           {% set reel_thumb = reel.get('thumbnail_url') or reel.get('media_url') or reel.get('public_url') or reel.get('image_url') or reel.get('video_url') %}
-          <a href="/reels/" class="nvpro-reel-card" data-reel-id="{{ reel.get('id') }}">
+          <a href="/reels/{{ reel.get('id') }}" class="nvpro-reel-card" data-reel-id="{{ reel.get('id') }}">
             <div class="nvpro-reel-thumb">
               {% if reel_thumb %}
               <img src="{{ reel_thumb }}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' width=\'36\' height=\'36\'><polygon points=\'23 7 16 12 23 17 23 7\'/><rect x=\'1\' y=\'5\' width=\'15\' height=\'14\' rx=\'2\' ry=\'2\'/></svg>'">
@@ -471,10 +472,10 @@ window.NAMVIBE_HOME = {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
           <h3>Upload the first reel</h3>
           <p>Create and share short videos with the NamVibe community.</p>
-          <button type="button" class="nvpro-btn nvpro-btn-primary" data-open-upload="reel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload Reel
-          </button>
+            <button type="button" class="nvpro-btn nvpro-btn-primary" data-open-camera="reel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload Reel
+            </button>
         </div>
         {% endif %}
       </section>
@@ -769,8 +770,22 @@ window.NAMVIBE_HOME = {
   <div class="nvpro-toast" id="nvpro-toast"></div>
 
 </div>
+
+{% include "partials/camera_creator.html" %}
 {% endblock %}
 
 {% block extra_js %}
 <script src="/static/js/namvibe_home_pro.js?v=158a"></script>
+<script src="/static/js/namvibe_camera_creator.js?v=phase162"></script>
+<script src="/static/js/namvibe_offline_cache.js?v=phase162b"></script>
+<script src="/static/js/namvibe_pwa_register.js" defer></script>
+<script>
+document.addEventListener("click", function(e) {
+  var card = e.target.closest(".nvpro-post-card");
+  if (!card) return;
+  if (e.target.closest("button, a, input, textarea, select, video, [data-action], [data-follow-id], [data-open-upload], [data-open-camera]")) return;
+  var href = card.dataset.href;
+  if (href) window.location.href = href;
+});
+</script>
 {% endblock %}

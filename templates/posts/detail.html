@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{{ post.get('caption') or post.get('body') or 'Post' }} — NamVibe</title>
+  <link rel="stylesheet" href="/static/css/chain_theme.css">
+  <style>
+    *,::after,::before{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#0a0a0f;color:#f0f0f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    .pd-wrap{max-width:680px;margin:0 auto;padding:16px}
+    .pd-back{display:inline-flex;align-items:center;gap:6px;padding:8px 0;color:#9496a8;text-decoration:none;font-size:14px;margin-bottom:12px}
+    .pd-back:hover{color:#f0f0f5}
+    .pd-card{background:#141419;border:1px solid #2a2a32;border-radius:16px;overflow:hidden}
+    .pd-head{display:flex;align-items:center;gap:12px;padding:16px}
+    .pd-avatar{width:40px;height:40px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#2a2a32}
+    .pd-avatar img{width:100%;height:100%;object-fit:cover}
+    .pd-avatar-initials{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#7c3aed;color:#fff;font-weight:700;font-size:16px}
+    .pd-meta{flex:1;min-width:0}
+    .pd-author{font-weight:600;font-size:15px;color:#f0f0f5;text-decoration:none;display:flex;align-items:center;gap:4px}
+    .pd-author:hover{text-decoration:underline}
+    .pd-time{font-size:12px;color:#9496a8;margin-top:2px}
+    .pd-verified{width:14px;height:14px;fill:#7c3aed}
+    .pd-body{padding:0 16px 12px;font-size:15px;line-height:1.5;color:#d0d0dd;white-space:pre-wrap;word-break:break-word}
+    .pd-media{width:100%;max-height:600px;object-fit:contain;background:#000;display:block}
+    .pd-video{width:100%;max-height:600px;background:#000;display:block}
+    .pd-actions{display:flex;align-items:center;gap:4px;padding:12px 16px;border-top:1px solid #2a2a32}
+    .pd-action-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;border:none;background:none;color:#9496a8;font-size:14px;cursor:pointer;border-radius:8px;transition:all .15s;font-family:inherit}
+    .pd-action-btn:hover{background:rgba(255,255,255,.06);color:#f0f0f5}
+    .pd-action-btn svg{width:20px;height:20px}
+    .pd-action-btn.is-liked{color:#ef4444}
+    .pd-action-btn.is-liked svg{fill:#ef4444;stroke:#ef4444}
+    .pd-action-btn.is-saved{color:#7c3aed}
+    .pd-action-btn.is-saved svg{fill:#7c3aed;stroke:#7c3aed}
+    .pd-comments{padding:16px}
+    .pd-comments-head{font-size:15px;font-weight:600;margin-bottom:12px;color:#f0f0f5}
+    .pd-comment{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #1e1e26}
+    .pd-comment:last-child{border-bottom:none}
+    .pd-comment-avatar{width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#2a2a32}
+    .pd-comment-avatar img{width:100%;height:100%;object-fit:cover}
+    .pd-comment-avatar-initials{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#7c3aed;color:#fff;font-weight:600;font-size:12px}
+    .pd-comment-body{flex:1;min-width:0}
+    .pd-comment-author{font-weight:600;font-size:13px;color:#f0f0f5;text-decoration:none}
+    .pd-comment-text{font-size:13px;color:#c0c0cc;margin-top:2px;word-break:break-word}
+    .pd-comment-time{font-size:11px;color:#6b6b7a;margin-top:4px}
+    .pd-comment-delete{background:none;border:none;color:#6b6b7a;cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px}
+    .pd-comment-delete:hover{color:#ef4444;background:rgba(239,68,68,.1)}
+    .pd-add-comment{display:flex;gap:10px;padding:12px 16px;border-top:1px solid #2a2a32}
+    .pd-add-comment input{flex:1;padding:10px 14px;border-radius:24px;border:1px solid #2a2a32;background:#1a1a22;color:#f0f0f5;font-size:14px;outline:none;font-family:inherit}
+    .pd-add-comment input:focus{border-color:#7c3aed}
+    .pd-add-comment input::placeholder{color:#6b6b7a}
+    .pd-add-comment button{padding:10px 20px;border-radius:24px;border:none;background:#7c3aed;color:#fff;font-weight:600;font-size:14px;cursor:pointer;transition:all .15s;font-family:inherit}
+    .pd-add-comment button:hover{background:#6d28d9}
+    .pd-add-comment button:disabled{opacity:.5;cursor:not-allowed}
+    .pd-empty-comments{padding:24px;text-align:center;color:#6b6b7a;font-size:14px}
+    .pd-music{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #2a2a32;background:#1a1a22}
+    .pd-music-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+    .pd-music-icon{font-size:20px;color:#7c3aed;flex-shrink:0}
+    .pd-music-title{font-size:14px;font-weight:600;color:#f0f0f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .pd-music-artist{font-size:12px;color:#9496a8}
+    .pd-music-play,.pd-music-mute{width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:#f0f0f5;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+    .pd-music-play:hover,.pd-music-mute:hover{background:#7c3aed}
+    .pd-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a22;border:1px solid #2a2a32;padding:10px 20px;border-radius:12px;font-size:14px;color:#f0f0f5;opacity:0;transition:opacity .3s;z-index:999;pointer-events:none}
+    .pd-toast.is-visible{opacity:1}
+    @media(max-width:480px){
+      .pd-wrap{padding:8px}
+      .pd-card{border-radius:12px}
+      .pd-actions{gap:0;justify-content:space-between}
+      .pd-action-btn{padding:8px 12px;font-size:13px}
+      .pd-action-btn span{font-size:12px}
+    }
+  </style>
+</head>
+<body>
+  <div class="pd-wrap">
+    <a href="javascript:history.back()" class="pd-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back
+    </a>
+    <div class="pd-card">
+      <div class="pd-head">
+        <a href="/profile/@{{ post.get('username') }}" class="pd-avatar">
+          {% if post.get("avatar_url") %}
+          <img src="{{ post['avatar_url'] }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <span class="pd-avatar-initials" style="display:none">{{ (post.get("display_name") or post.get("username") or "?")[:1] }}</span>
+          {% else %}
+          <span class="pd-avatar-initials">{{ (post.get("display_name") or post.get("username") or "?")[:1] }}</span>
+          {% endif %}
+        </a>
+        <div class="pd-meta">
+          <a href="/profile/@{{ post.get('username') }}" class="pd-author">
+            {{ post.get("display_name") or post.get("username") or "Creator" }}
+            {% if post.get("verified") %}<svg class="pd-verified" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{% endif %}
+          </a>
+          <div class="pd-time">{{ post.get("created_at") | datetime if post.get("created_at") else "Just now" }}</div>
+        </div>
+      </div>
+      {% set caption = post.get("caption") or post.get("body") or post.get("text") or "" %}
+      {% if caption %}
+      <div class="pd-body">{{ caption }}</div>
+      {% endif %}
+      {% set media_url = post.get("media_url") or post.get("video_url") or post.get("public_url") or post.get("image_url") %}
+      {% set video_url = post.get("video_url") or "" %}
+      {% if video_url and (post.get("post_type") == "video" or post.get("mime_type", "").startswith("video/")) %}
+      <video src="{{ video_url }}" class="pd-video" controls playsinline preload="metadata"></video>
+      {% elif media_url %}
+      <img src="{{ media_url }}" alt="" class="pd-media" loading="eager">
+      {% endif %}
+      {% set pmusic_url = post.get("music_url") %}
+      {% if pmusic_url %}
+      <div class="pd-music">
+        <div class="pd-music-info">
+          <span class="pd-music-icon">&#9835;</span>
+          <div>
+            <div class="pd-music-title">{{ post.get("music_title") or "Untitled" }}</div>
+            <div class="pd-music-artist">{{ post.get("music_artist") or "Unknown artist" }}</div>
+          </div>
+        </div>
+        <button type="button" class="pd-music-play" data-music-url="{{ pmusic_url }}" data-music-start="{{ post.get('music_start_seconds')|default(0) }}" aria-label="Play music">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        </button>
+        <button type="button" class="pd-music-mute" style="display:none" aria-label="Mute">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+      </div>
+      {% endif %}
+      <div class="pd-actions">
+        <button type="button" class="pd-action-btn{% if has_liked %} is-liked{% endif %}" data-action="like" data-id="{{ post.get('id') }}" data-type="post" aria-label="Like post">
+          <svg viewBox="0 0 24 24" fill="{% if has_liked %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+          <span>{{ post.get("likes_count") or 0 }}</span>
+        </button>
+        <button type="button" class="pd-action-btn" data-action="comment-scroll" aria-label="Scroll to comments">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span>{{ post.get("comments_count") or 0 }}</span>
+        </button>
+        <button type="button" class="pd-action-btn" data-action="share" data-id="{{ post.get('id') }}" aria-label="Share post">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          <span>Share</span>
+        </button>
+        <button type="button" class="pd-action-btn" data-action="save" data-id="{{ post.get('id') }}" data-type="post" aria-label="Save post">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        </button>
+      </div>
+      <div class="pd-comments">
+        <div class="pd-comments-head">Comments</div>
+        {% if comments %}
+        {% for c in comments %}
+        <div class="pd-comment" data-comment-id="{{ c.get('id') }}">
+          <a href="/profile/@{{ c.get('username') }}" class="pd-comment-avatar">
+            {% if c.get("avatar_url") %}
+            <img src="{{ c['avatar_url'] }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            <span class="pd-comment-avatar-initials" style="display:none">{{ (c.get("username") or "?")[:1] }}</span>
+            {% else %}
+            <span class="pd-comment-avatar-initials">{{ (c.get("username") or "?")[:1] }}</span>
+            {% endif %}
+          </a>
+          <div class="pd-comment-body">
+            <a href="/profile/@{{ c.get('username') }}" class="pd-comment-author">{{ c.get("username") or "User" }}</a>
+            <div class="pd-comment-text">{{ c.get("body") }}</div>
+            <div class="pd-comment-time">
+              {{ c.get("created_at") | datetime if c.get("created_at") else "" }}
+              {% if profile and profile.get("id") == c.get("user_id") or profile and profile.get("id") == post.get("profile_id") %}
+              <button type="button" class="pd-comment-delete" data-action="delete-comment" data-comment-id="{{ c.get('id') }}" aria-label="Delete comment">Delete</button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="pd-empty-comments">No comments yet. Be the first to comment!</div>
+        {% endif %}
+      </div>
+      {% if profile %}
+      <div class="pd-add-comment">
+        <input type="text" id="pd-comment-input" placeholder="Write a comment..." maxlength="2000" autocomplete="off">
+        <button type="button" id="pd-comment-submit" data-post-id="{{ post.get('id') }}" aria-label="Post comment">Post</button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="pd-toast" id="pd-toast"></div>
+  <script>
+    (function() {
+      var csrf = function() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute("content") : "";
+      };
+      var toast = document.getElementById("pd-toast");
+      function showToast(msg) {
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add("is-visible");
+        setTimeout(function() { toast.classList.remove("is-visible"); }, 2500);
+      }
+      function apiFetch(url, opts) {
+        opts = opts || {};
+        var headers = opts.headers || {};
+        headers["X-CSRFToken"] = csrf();
+        if (opts.body && typeof opts.body === "object" && !(opts.body instanceof FormData)) {
+          headers["Content-Type"] = "application/json";
+          opts.body = JSON.stringify(opts.body);
+        }
+        opts.headers = headers;
+        opts.credentials = "same-origin";
+        return fetch(url, opts).then(function(r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        });
+      }
+      function escapeHtml(str) {
+        if (!str) return "";
+        var d = document.createElement("div");
+        d.textContent = str;
+        return d.innerHTML;
+      }
+      document.addEventListener("click", function(e) {
+        var likeBtn = e.target.closest("[data-action=like]");
+        if (likeBtn) {
+          var id = likeBtn.dataset.id;
+          if (!id) return;
+          apiFetch("/api/home/post/" + id + "/like", { method: "POST" })
+            .then(function(data) {
+              if (data.ok) {
+                likeBtn.classList.toggle("is-liked");
+                var span = likeBtn.querySelector("span");
+                if (span) {
+                  var c = parseInt(span.textContent, 10) || 0;
+                  span.textContent = likeBtn.classList.contains("is-liked") ? c + 1 : Math.max(c - 1, 0);
+                }
+              }
+            })
+            .catch(function() {});
+          return;
+        }
+        var saveBtn = e.target.closest("[data-action=save]");
+        if (saveBtn) {
+          var id = saveBtn.dataset.id;
+          if (!id) return;
+          apiFetch("/api/home/post/" + id + "/save", { method: "POST" })
+            .then(function(data) {
+              if (data.ok) {
+                saveBtn.classList.toggle("is-saved");
+                showToast(saveBtn.classList.contains("is-saved") ? "Saved" : "Unsaved");
+              }
+            })
+            .catch(function() {});
+          return;
+        }
+        var shareBtn = e.target.closest("[data-action=share]");
+        if (shareBtn) {
+          var url = window.location.href;
+          if (navigator.share) {
+            navigator.share({ title: "NamVibe", url: url }).catch(function() {});
+          } else {
+            navigator.clipboard.writeText(url).then(function() { showToast("Link copied!"); }).catch(function() {});
+          }
+          return;
+        }
+        var commentScroll = e.target.closest("[data-action=comment-scroll]");
+        if (commentScroll) {
+          var input = document.getElementById("pd-comment-input");
+          if (input) input.focus();
+          return;
+        }
+        var delBtn = e.target.closest("[data-action=delete-comment]");
+        if (delBtn) {
+          var commentId = delBtn.dataset.commentId;
+          if (!commentId || !confirm("Delete this comment?")) return;
+          apiFetch("/api/comments/" + commentId, { method: "DELETE" })
+            .then(function() {
+              var el = delBtn.closest("[data-comment-id]");
+              if (el) el.remove();
+              showToast("Comment deleted");
+            })
+            .catch(function() { showToast("Could not delete comment"); });
+          return;
+        }
+      });
+      var submitBtn = document.getElementById("pd-comment-submit");
+      var input = document.getElementById("pd-comment-input");
+      if (submitBtn && input) {
+        function postComment() {
+          var body = input.value.trim();
+          if (!body) return;
+          submitBtn.disabled = true;
+          var postId = submitBtn.dataset.postId;
+          apiFetch("/api/comments/post/" + postId, {
+            method: "POST",
+            body: JSON.stringify({ body: body })
+          })
+          .then(function(data) {
+            if (data.success) {
+              input.value = "";
+              showToast("Comment posted!");
+              setTimeout(function() { window.location.reload(); }, 800);
+            } else {
+              showToast("Could not post comment");
+            }
+          })
+          .catch(function() { showToast("Could not post comment"); })
+          .finally(function() { submitBtn.disabled = false; });
+        }
+        submitBtn.addEventListener("click", postComment);
+        input.addEventListener("keydown", function(e) {
+          if (e.key === "Enter") postComment();
+        });
+      }
+      /* Music Playback */
+      var activeMusicAudio = null;
+      var activeMusicBtn = null;
+      document.addEventListener("click", function(e) {
+        var playBtn = e.target.closest("[data-music-url]");
+        if (playBtn) {
+          var url = playBtn.dataset.musicUrl;
+          if (!url) return;
+          if (activeMusicAudio && activeMusicAudio.src === url) {
+            if (!activeMusicAudio.paused) { activeMusicAudio.pause(); if (activeMusicBtn) activeMusicBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3"/></svg>'; }
+            return;
+          } else { if (activeMusicAudio) { activeMusicAudio.pause(); activeMusicAudio = null; } }
+          if (activeMusicBtn && activeMusicBtn !== playBtn) {
+            activeMusicBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+          }
+          activeMusicBtn = playBtn;
+          var audio = new Audio(url);
+          var startSec = parseInt(playBtn.dataset.musicStart, 10) || 0;
+          if (startSec > 0) audio.currentTime = startSec;
+          audio.volume = 0.5;
+          audio.play().then(function() { playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'; }).catch(function() {});
+          audio.addEventListener("ended", function() {
+            playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
+            if (activeMusicAudio === audio) activeMusicAudio = null;
+            if (activeMusicBtn === playBtn) activeMusicBtn = null;
+          });
+          activeMusicAudio = audio;
+          return;
+        }
+        var muteBtn = e.target.closest(".pd-music-mute");
+        if (muteBtn && activeMusicAudio) {
+          activeMusicAudio.muted = !activeMusicAudio.muted;
+          muteBtn.innerHTML = activeMusicAudio.muted ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>';
+          return;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

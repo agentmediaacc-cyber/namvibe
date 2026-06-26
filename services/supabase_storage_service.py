@@ -24,10 +24,12 @@ SUPABASE_MEDIA_BUCKET = os.getenv("SUPABASE_MEDIA_BUCKET", "stories")
 # Allowed file types
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
 ALLOWED_VIDEO_EXTENSIONS = {"mp4", "mov", "webm"}
+ALLOWED_AUDIO_EXTENSIONS = {"mp3", "wav", "ogg", "m4a", "flac", "aac"}
 
 # Max file sizes (in bytes)
 MAX_IMAGE_SIZE = 100 * 1024 * 1024  # 100MB for images
 MAX_VIDEO_SIZE = 500 * 1024 * 1024  # 500MB for videos
+MAX_AUDIO_SIZE = 50 * 1024 * 1024   # 50MB for audio tracks
 
 
 def _utcnow_iso():
@@ -46,6 +48,10 @@ def _is_allowed_image(filename):
 
 def _is_allowed_video(filename):
     return _extension(filename) in ALLOWED_VIDEO_EXTENSIONS
+
+
+def _is_allowed_audio(filename):
+    return _extension(filename) in ALLOWED_AUDIO_EXTENSIONS
 
 
 def _build_storage_path(folder, owner_id, ext):
@@ -96,11 +102,12 @@ def upload_media_to_supabase(file, folder, owner_id):
     # Determine media type and validate
     is_image = _is_allowed_image(filename)
     is_video = _is_allowed_video(filename)
+    is_audio = _is_allowed_audio(filename)
     
-    if not is_image and not is_video:
-        return {"ok": False, "error": f"Unsupported file type: {ext}. Allowed: jpg, jpeg, png, webp, gif, mp4, mov, webm"}
+    if not is_image and not is_video and not is_audio:
+        return {"ok": False, "error": f"Unsupported file type: {ext}. Allowed: jpg, jpeg, png, webp, gif, mp4, mov, webm, mp3, wav, ogg, m4a, flac, aac"}
     
-    media_type = "video" if is_video else "image"
+    media_type = "audio" if is_audio else ("video" if is_video else "image")
     
     # Check file size
     file_obj = file
@@ -108,7 +115,7 @@ def upload_media_to_supabase(file, folder, owner_id):
     file_size = file_obj.tell()
     file_obj.seek(0)  # Reset to beginning
     
-    max_size = MAX_VIDEO_SIZE if is_video else MAX_IMAGE_SIZE
+    max_size = MAX_AUDIO_SIZE if is_audio else (MAX_VIDEO_SIZE if is_video else MAX_IMAGE_SIZE)
     if file_size > max_size:
         return {"ok": False, "error": f"File too large. Max allowed: {max_size // (1024*1024)}MB"}
     

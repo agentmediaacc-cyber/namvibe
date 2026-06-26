@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 import uuid
 from services.neon_service import fast_query, write_query
 from services.socketio_service import emit_to_profile
-from services.content_service import invalidate_content_caches, local_content, local_fallback_allowed
+from services.content_service import invalidate_content_caches, local_content, local_fallback_allowed, sanitize_text
 from services.supabase_storage_service import upload_media_to_supabase, BUCKET_MAPPING, SUPABASE_MEDIA_BUCKET
 from engines.cache_engine import cache_key, get_cache, set_cache
 
@@ -149,7 +149,8 @@ def validate_status_duration(duration_seconds):
 
 def create_status(profile_id, caption="", media_file=None, visibility="followers",
                   media_type="image", duration_seconds=0, background_color=None,
-                  text_content=None):
+                  text_content=None, music_url="", music_title="", music_artist="",
+                  music_start_seconds=0, music_duration_seconds=0):
     """Create a story/status with optional media.
     
     Status rules:
@@ -163,6 +164,9 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
     ok, error = validate_status_duration(duration_seconds)
     if not ok:
         return None, error
+    
+    music_title = sanitize_text(music_title, max_len=160) if music_title else ""
+    music_artist = sanitize_text(music_artist, max_len=120) if music_artist else ""
     
     media_url = None
     video_url = None
@@ -194,14 +198,19 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
         INSERT INTO chain_status_posts
             (id, profile_id, caption, media_url, video_url, media_type, storage_bucket, storage_path,
              mime_type, size_bytes, visibility, expires_at, duration_seconds, background_color,
-             text_content, views_count, created_at, owner_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, %s, %s)
+             text_content, music_url, music_title, music_artist, music_start_seconds, music_duration_seconds,
+             views_count, created_at, owner_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, %s, %s)
     """
     try:
         write_query(sql, (
             status_id, profile_id, caption, media_url, video_url, media_type,
             storage_bucket, storage_path, mime_type, size_bytes, visibility,
-            expires_at, duration_seconds, background_color, text_content, now, profile_id
+            expires_at, duration_seconds, background_color, text_content,
+            music_url or None, music_title or None, music_artist or None,
+            int(music_start_seconds) if music_start_seconds else 0,
+            int(music_duration_seconds) if music_duration_seconds else 0,
+            now, profile_id
         ))
         record = serialize_status({
             "id": status_id,
@@ -216,6 +225,11 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
             "duration_seconds": duration_seconds,
             "background_color": background_color,
             "text_content": text_content,
+            "music_url": music_url or None,
+            "music_title": music_title or None,
+            "music_artist": music_artist or None,
+            "music_start_seconds": int(music_start_seconds) if music_start_seconds else 0,
+            "music_duration_seconds": int(music_duration_seconds) if music_duration_seconds else 0,
             "views_count": 0,
             "created_at": now,
         }, viewer_profile_id=profile_id)

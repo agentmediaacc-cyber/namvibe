@@ -592,11 +592,14 @@ def _store_hashtags(tags, content_type, content_id):
             continue
 
 
-def create_post_record(profile_id, body="", media_file=None, link_url="", town_tag="", visibility="public"):
+def create_post_record(profile_id, body="", media_file=None, link_url="", town_tag="", visibility="public",
+                       music_url="", music_title="", music_artist="", music_start_seconds=0, music_duration_seconds=0):
     body = sanitize_text(body)
     town_tag = sanitize_text(town_tag, max_len=120)
     visibility = normalize_visibility(visibility)
     link_url = validate_link(link_url)
+    music_title = sanitize_text(music_title, max_len=160)
+    music_artist = sanitize_text(music_artist, max_len=120)
     media = None
     if media_file and getattr(media_file, "filename", ""):
         media, error = save_media_file(media_file, "post", profile_id=profile_id)
@@ -614,7 +617,7 @@ def create_post_record(profile_id, body="", media_file=None, link_url="", town_t
         "body": body,
         "caption": body,
         "post_type": post_type,
-        "media_url": media["public_url"] if media and media_type == "image" else None,
+        "media_url": media["public_url"] if media else None,
         "video_url": media["public_url"] if media and media_type == "video" else None,
         "media_bucket": media["storage_bucket"] if media else None,
         "media_path": media["storage_path"] if media else None,
@@ -623,6 +626,11 @@ def create_post_record(profile_id, body="", media_file=None, link_url="", town_t
         "link_url": link_url,
         "town_tag": town_tag,
         "visibility": visibility,
+        "music_url": music_url or None,
+        "music_title": music_title or None,
+        "music_artist": music_artist or None,
+        "music_start_seconds": int(music_start_seconds) if music_start_seconds else 0,
+        "music_duration_seconds": int(music_duration_seconds) if music_duration_seconds else 0,
         "likes_count": 0,
         "comments_count": 0,
         "shares_count": 0,
@@ -631,7 +639,7 @@ def create_post_record(profile_id, body="", media_file=None, link_url="", town_t
     inserted = _insert(
         "chain_posts",
         payload,
-        ["id", "profile_id", "body", "caption", "post_type", "media_url", "video_url", "media_bucket", "media_path", "mime_type", "size_bytes", "link_url", "town_tag", "visibility", "likes_count", "comments_count", "shares_count", "created_at"],
+        ["id", "profile_id", "body", "caption", "post_type", "media_url", "video_url", "media_bucket", "media_path", "mime_type", "size_bytes", "link_url", "town_tag", "visibility", "music_url", "music_title", "music_artist", "music_start_seconds", "music_duration_seconds", "likes_count", "comments_count", "shares_count", "created_at"],
     )
     if not inserted and is_production_env():
         log_error("content_post_persistence_failed", profile_id=profile_id)
@@ -646,9 +654,11 @@ def create_post_record(profile_id, body="", media_file=None, link_url="", town_t
     return record, None
 
 
-def create_reel_record(profile_id, video_file, caption="", music_title="", visibility="public"):
+def create_reel_record(profile_id, video_file, caption="", music_title="", visibility="public",
+                       music_url="", music_artist="", music_start_seconds=0, music_duration_seconds=0):
     caption = sanitize_text(caption)
     music_title = sanitize_text(music_title, max_len=160)
+    music_artist = sanitize_text(music_artist, max_len=120)
     visibility = normalize_visibility(visibility)
     media, error = save_media_file(video_file, "reel", media_kind="video", profile_id=profile_id)
     if error:
@@ -665,7 +675,11 @@ def create_reel_record(profile_id, video_file, caption="", music_title="", visib
         "storage_path": media["storage_path"],
         "media_bucket": media["storage_bucket"],
         "media_path": media["storage_path"],
-        "music_title": music_title,
+        "music_url": music_url or None,
+        "music_title": music_title or None,
+        "music_artist": music_artist or None,
+        "music_start_seconds": int(music_start_seconds) if music_start_seconds else 0,
+        "music_duration_seconds": int(music_duration_seconds) if music_duration_seconds else 0,
         "status": "published",
         "visibility": visibility,
         "processing_status": "ready",
@@ -681,7 +695,7 @@ def create_reel_record(profile_id, video_file, caption="", music_title="", visib
     inserted = _insert(
         "chain_reels",
         payload,
-        ["id", "profile_id", "caption", "video_url", "media_url", "storage_bucket", "storage_path", "media_bucket", "media_path", "music_title", "status", "visibility", "processing_status", "mime_type", "file_size", "size_bytes", "likes_count", "comments_count", "shares_count", "views_count", "created_at"],
+        ["id", "profile_id", "caption", "video_url", "media_url", "storage_bucket", "storage_path", "media_bucket", "media_path", "music_url", "music_title", "music_artist", "music_start_seconds", "music_duration_seconds", "status", "visibility", "processing_status", "mime_type", "file_size", "size_bytes", "likes_count", "comments_count", "shares_count", "views_count", "created_at"],
     )
     if not inserted and is_production_env():
         log_error("content_reel_persistence_failed", profile_id=profile_id)
@@ -695,9 +709,12 @@ def create_reel_record(profile_id, video_file, caption="", music_title="", visib
     return record, None
 
 
-def create_story_record(profile_id, caption="", media_file=None, visibility="public"):
+def create_story_record(profile_id, caption="", media_file=None, visibility="public",
+                        music_url="", music_title="", music_artist="", music_start_seconds=0, music_duration_seconds=0):
     caption = sanitize_text(caption)
     visibility = normalize_visibility(visibility)
+    music_title = sanitize_text(music_title, max_len=160)
+    music_artist = sanitize_text(music_artist, max_len=120)
     media = None
     if media_file and getattr(media_file, "filename", ""):
         media, error = save_media_file(media_file, "story", profile_id=profile_id)
@@ -713,12 +730,17 @@ def create_story_record(profile_id, caption="", media_file=None, visibility="pub
         "profile_id": profile_id,
         "status_type": "story",
         "caption": caption,
-        "media_url": media["public_url"] if media and media_type == "image" else None,
+        "media_url": media["public_url"] if media else None,
         "video_url": media["public_url"] if media and media_type == "video" else None,
         "media_bucket": media["storage_bucket"] if media else None,
         "media_path": media["storage_path"] if media else None,
         "mime_type": media["mime_type"] if media else None,
         "size_bytes": media["size_bytes"] if media else None,
+        "music_url": music_url or None,
+        "music_title": music_title or None,
+        "music_artist": music_artist or None,
+        "music_start_seconds": int(music_start_seconds) if music_start_seconds else 0,
+        "music_duration_seconds": int(music_duration_seconds) if music_duration_seconds else 0,
         "visibility": visibility,
         "expires_at": (now + timedelta(hours=24)).isoformat(),
         "likes_count": 0,
@@ -727,7 +749,7 @@ def create_story_record(profile_id, caption="", media_file=None, visibility="pub
     inserted = _insert(
         "chain_status_posts",
         payload,
-        ["id", "profile_id", "status_type", "caption", "media_url", "video_url", "media_bucket", "media_path", "mime_type", "size_bytes", "visibility", "expires_at", "likes_count", "created_at"],
+        ["id", "profile_id", "status_type", "caption", "media_url", "video_url", "media_bucket", "media_path", "mime_type", "size_bytes", "music_url", "music_title", "music_artist", "music_start_seconds", "music_duration_seconds", "visibility", "expires_at", "likes_count", "created_at"],
     )
     if not inserted and is_production_env():
         log_error("content_story_persistence_failed", profile_id=profile_id)
@@ -796,6 +818,22 @@ def active_local_stories(profile_id=None):
         if parsed > now:
             items.append(story)
     return items
+
+
+def get_post_by_id(post_id, viewer_profile_id=None):
+    """Fetch a single post by ID with profile info."""
+    rows = fast_query("""
+        SELECT p.*, pr.username, pr.avatar_url, pr.display_name
+        FROM chain_posts p
+        JOIN chain_profiles pr ON p.profile_id = pr.id
+        WHERE p.id = %s AND p.deleted_at IS NULL
+    """, (post_id,), timeout_ms=2000, default=[])
+    if rows:
+        return rows[0]
+    for post in _LOCAL_STORE["posts"]:
+        if post.get("id") == post_id:
+            return post
+    return None
 
 
 def search_hashtags(query):
