@@ -299,6 +299,28 @@ def ensure_content_schema():
     ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS size_bytes bigint;
     ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS views_count integer DEFAULT 0;
     ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS comments_count integer DEFAULT 0;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS background_color text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS text_content text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS music_url text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS music_title text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS music_artist text;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS music_start_seconds integer DEFAULT 0;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS music_duration_seconds integer DEFAULT 0;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS owner_id uuid;
+    ALTER TABLE chain_status_posts ADD COLUMN IF NOT EXISTS duration_seconds integer DEFAULT 0;
+    CREATE TABLE IF NOT EXISTS chain_story_media_items (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        story_id uuid REFERENCES chain_status_posts(id) ON DELETE CASCADE NOT NULL,
+        media_url text NOT NULL,
+        media_type text DEFAULT 'image',
+        sort_order integer DEFAULT 0,
+        storage_bucket text,
+        storage_path text,
+        mime_type text,
+        size_bytes bigint,
+        created_at timestamptz DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_chain_story_media_items_story ON chain_story_media_items(story_id, sort_order);
     CREATE TABLE IF NOT EXISTS chain_hashtags (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         tag text UNIQUE NOT NULL,
@@ -344,6 +366,20 @@ def ensure_content_schema():
     ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS media_bucket text;
     ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS media_path text;
     ALTER TABLE chain_reels ADD COLUMN IF NOT EXISTS size_bytes bigint;
+    CREATE TABLE IF NOT EXISTS chain_media_processing_jobs (
+        id text PRIMARY KEY,
+        entity_type text NOT NULL,
+        entity_id text NOT NULL,
+        profile_id text NOT NULL,
+        input_url text NOT NULL,
+        output_url text,
+        status text NOT NULL DEFAULT 'pending',
+        target_resolution text DEFAULT '720p',
+        error_message text,
+        created_at text NOT NULL,
+        updated_at text NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_media_processing_jobs_status ON chain_media_processing_jobs(status);
     CREATE TABLE IF NOT EXISTS chain_follows (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         follower_profile_id uuid REFERENCES chain_profiles(id) ON DELETE CASCADE,

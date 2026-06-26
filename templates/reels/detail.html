@@ -125,7 +125,7 @@
         <div class="rd-comments-head">Comments</div>
         {% if comments %}
         {% for c in comments %}
-        <div class="rd-comment">
+        <div class="rd-comment" data-comment-id="{{ c.get('id') }}">
           <a href="/profile/@{{ c.get('username') }}" class="rd-comment-avatar">
             {% if c.get("avatar_url") %}
             <img src="{{ c['avatar_url'] }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
@@ -148,7 +148,7 @@
       {% if profile %}
       <div class="rd-add-comment">
         <input type="text" id="rd-comment-input" placeholder="Write a comment..." maxlength="2000" autocomplete="off">
-        <button type="button" id="rd-comment-submit" data-reel-id="{{ reel.get('id') }}">Post</button>
+        <button type="button" id="rd-comment-submit" data-reel-id="{{ reel.get('id') }}" data-username="{{ profile.get('username') if profile else '' }}" data-avatar="{{ profile.get('avatar_url') if profile else '' }}">Post</button>
       </div>
       {% endif %}
     </div>
@@ -188,18 +188,24 @@
           var id = likeBtn.dataset.id;
           var type = likeBtn.dataset.type || "reel";
           if (!id) return;
+          var wasLiked = likeBtn.classList.contains("is-liked");
+          var span = likeBtn.querySelector("span");
+          var oldCount = span ? parseInt(span.textContent, 10) : 0;
+          likeBtn.classList.toggle("is-liked");
+          if (span) span.textContent = wasLiked ? Math.max(oldCount - 1, 0) : oldCount + 1;
           apiFetch("/reels/api/reels/" + id + "/like", { method: "POST" })
             .then(function(data) {
-              if (data.success) {
-                likeBtn.classList.toggle("is-liked");
-                var span = likeBtn.querySelector("span");
-                if (span) {
-                  var c = parseInt(span.textContent, 10) || 0;
-                  span.textContent = likeBtn.classList.contains("is-liked") ? c + 1 : Math.max(c - 1, 0);
-                }
+              if (!data.success) {
+                likeBtn.classList.toggle("is-liked", wasLiked);
+                if (span) span.textContent = oldCount;
+              } else if (data.count !== undefined && span) {
+                span.textContent = data.count;
               }
             })
-            .catch(function() {});
+            .catch(function() {
+              likeBtn.classList.toggle("is-liked", wasLiked);
+              if (span) span.textContent = oldCount;
+            });
           return;
         }
         var shareBtn = e.target.closest("[data-action=share]");
@@ -243,28 +249,82 @@
           return;
         }
       });
+      function escapeHtml(str) {
+        if (!str) return "";
+        var d = document.createElement("div");
+        d.textContent = str;
+        return d.innerHTML;
+      }
       var submitBtn = document.getElementById("rd-comment-submit");
       var input = document.getElementById("rd-comment-input");
+      var commentsContainer = document.querySelector(".rd-comments");
+      var commentsHead = commentsContainer ? commentsContainer.querySelector(".rd-comments-head") : null;
+      var emptyMsg = commentsContainer ? commentsContainer.querySelector(".rd-empty-comments") : null;
+      var commentCountSpan = document.querySelector(".rd-action-btn[data-action=comment-scroll] span, .rd-actions button:nth-child(2) span");
+      if (!commentCountSpan) {
+        commentCountSpan = document.querySelector(".rd-actions span:nth-child(2)");
+      }
       if (submitBtn && input) {
+        function addCommentToDOM(commentText, commentId) {
+          var now = new Date().toLocaleString();
+          var username = submitBtn.dataset.username || "me";
+          var avatar = submitBtn.dataset.avatar || "";
+          var div = document.createElement("div");
+          div.className = "rd-comment";
+          div.setAttribute("data-comment-id", commentId);
+          var avatarHtml = avatar ? '<img src="' + avatar.replace(/"/g,'&quot;') + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span class="rd-comment-avatar-initials" style="display:none">' + username.charAt(0).toUpperCase() + '</span>' : '<span class="rd-comment-avatar-initials">' + username.charAt(0).toUpperCase() + '</span>';
+          div.innerHTML = '<a href="/profile/@' + username + '" class="rd-comment-avatar">' + avatarHtml + '</a><div class="rd-comment-body"><a href="/profile/@' + username + '" class="rd-comment-author">' + username + '</a><div class="rd-comment-text">' + escapeHtml(commentText) + '</div><div class="rd-comment-time">' + now + '</div></div>';
+          if (emptyMsg) { emptyMsg.remove(); emptyMsg = null; }
+          if (commentsHead && commentsHead.nextSibling) {
+            commentsContainer.insertBefore(div, commentsHead.nextSibling);
+          } else if (commentsContainer) {
+            commentsContainer.appendChild(div);
+          }
+          if (commentCountSpan) {
+            var cc = parseInt(commentCountSpan.textContent, 10) || 0;
+            commentCountSpan.textContent = cc + 1;
+          }
+        }
         function postComment() {
           var body = input.value.trim();
           if (!body) return;
           submitBtn.disabled = true;
           var reelId = submitBtn.dataset.reelId;
+          var tempId = "tmp-" + Date.now();
+          addCommentToDOM(body, tempId);
+          input.value = "";
           apiFetch("/reels/api/reels/" + reelId + "/comment", {
             method: "POST",
             body: new URLSearchParams({ body: body })
           })
           .then(function(data) {
             if (data.success) {
-              input.value = "";
               showToast("Comment posted!");
-              setTimeout(function() { window.location.reload(); }, 800);
+              var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
+              if (tempEl && data.comment && data.comment.id) {
+                tempEl.setAttribute("data-comment-id", data.comment.id);
+              }
             } else {
+              var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
+              if (tempEl) tempEl.remove();
+              if (commentCountSpan) {
+                var cc = parseInt(commentCountSpan.textContent, 10) || 0;
+                commentCountSpan.textContent = Math.max(cc - 1, 0);
+              }
               showToast("Could not post comment");
+              input.value = body;
             }
           })
-          .catch(function() { showToast("Could not post comment"); })
+          .catch(function() {
+            var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
+            if (tempEl) tempEl.remove();
+            if (commentCountSpan) {
+              var cc = parseInt(commentCountSpan.textContent, 10) || 0;
+              commentCountSpan.textContent = Math.max(cc - 1, 0);
+            }
+            showToast("Could not post comment");
+            input.value = body;
+          })
           .finally(function() { submitBtn.disabled = false; });
         }
         submitBtn.addEventListener("click", postComment);

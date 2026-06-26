@@ -167,6 +167,12 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
     
     music_title = sanitize_text(music_title, max_len=160) if music_title else ""
     music_artist = sanitize_text(music_artist, max_len=120) if music_artist else ""
+    music_duration_seconds = int(music_duration_seconds or 0)
+    music_start_seconds = int(music_start_seconds or 0)
+    if music_duration_seconds > 90:
+        music_duration_seconds = 90
+    if music_start_seconds < 0:
+        music_start_seconds = 0
     
     media_url = None
     video_url = None

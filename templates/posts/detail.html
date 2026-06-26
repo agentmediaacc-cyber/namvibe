@@ -174,7 +174,7 @@
       {% if profile %}
       <div class="pd-add-comment">
         <input type="text" id="pd-comment-input" placeholder="Write a comment..." maxlength="2000" autocomplete="off">
-        <button type="button" id="pd-comment-submit" data-post-id="{{ post.get('id') }}" aria-label="Post comment">Post</button>
+        <button type="button" id="pd-comment-submit" data-post-id="{{ post.get('id') }}" aria-label="Post comment" data-username="{{ profile.get('username') if profile else '' }}" data-avatar="{{ profile.get('avatar_url') if profile else '' }}">Post</button>
       </div>
       {% endif %}
     </div>
@@ -219,18 +219,22 @@
         if (likeBtn) {
           var id = likeBtn.dataset.id;
           if (!id) return;
+          var wasLiked = likeBtn.classList.contains("is-liked");
+          var span = likeBtn.querySelector("span");
+          var oldCount = span ? parseInt(span.textContent, 10) : 0;
+          likeBtn.classList.toggle("is-liked");
+          if (span) span.textContent = wasLiked ? Math.max(oldCount - 1, 0) : oldCount + 1;
           apiFetch("/api/home/post/" + id + "/like", { method: "POST" })
             .then(function(data) {
-              if (data.ok) {
-                likeBtn.classList.toggle("is-liked");
-                var span = likeBtn.querySelector("span");
-                if (span) {
-                  var c = parseInt(span.textContent, 10) || 0;
-                  span.textContent = likeBtn.classList.contains("is-liked") ? c + 1 : Math.max(c - 1, 0);
-                }
+              if (!data.ok || !data.result) {
+                likeBtn.classList.toggle("is-liked", wasLiked);
+                if (span) span.textContent = oldCount;
               }
             })
-            .catch(function() {});
+            .catch(function() {
+              likeBtn.classList.toggle("is-liked", wasLiked);
+              if (span) span.textContent = oldCount;
+            });
           return;
         }
         var saveBtn = e.target.closest("[data-action=save]");
@@ -279,26 +283,73 @@
       });
       var submitBtn = document.getElementById("pd-comment-submit");
       var input = document.getElementById("pd-comment-input");
+      var commentsContainer = document.querySelector(".pd-comments");
+      var commentsHead = commentsContainer ? commentsContainer.querySelector(".pd-comments-head") : null;
+      var emptyMsg = commentsContainer ? commentsContainer.querySelector(".pd-empty-comments") : null;
+      var commentCountSpan = document.querySelector(".pd-actions button[data-action=comment-scroll] span");
       if (submitBtn && input) {
+        function addCommentToDOM(commentText, commentId) {
+          var now = new Date().toLocaleString();
+          var username = submitBtn.dataset.username || "me";
+          var avatar = submitBtn.dataset.avatar || "";
+          var div = document.createElement("div");
+          div.className = "pd-comment";
+          div.setAttribute("data-comment-id", commentId);
+          var avatarHtml = avatar ? '<img src="' + avatar.replace(/"/g,'&quot;') + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span class="pd-comment-avatar-initials" style="display:none">' + username.charAt(0).toUpperCase() + '</span>' : '<span class="pd-comment-avatar-initials">' + username.charAt(0).toUpperCase() + '</span>';
+          div.innerHTML = '<a href="/profile/@' + username + '" class="pd-comment-avatar">' + avatarHtml + '</a><div class="pd-comment-body"><a href="/profile/@' + username + '" class="pd-comment-author">' + username + '</a><div class="pd-comment-text">' + escapeHtml(commentText) + '</div><div class="pd-comment-time">' + now + ' <button type="button" class="pd-comment-delete" data-action="delete-comment" data-comment-id="' + commentId + '" aria-label="Delete comment">Delete</button></div></div>';
+          if (emptyMsg) { emptyMsg.remove(); emptyMsg = null; }
+          if (commentsHead && commentsHead.nextSibling) {
+            commentsContainer.insertBefore(div, commentsHead.nextSibling);
+          } else if (commentsContainer) {
+            commentsContainer.appendChild(div);
+          }
+          if (commentCountSpan) {
+            var cc = parseInt(commentCountSpan.textContent, 10) || 0;
+            commentCountSpan.textContent = cc + 1;
+          }
+        }
         function postComment() {
           var body = input.value.trim();
           if (!body) return;
           submitBtn.disabled = true;
           var postId = submitBtn.dataset.postId;
+          var tempId = "tmp-" + Date.now();
+          addCommentToDOM(body, tempId);
+          input.value = "";
           apiFetch("/api/comments/post/" + postId, {
             method: "POST",
             body: JSON.stringify({ body: body })
           })
           .then(function(data) {
             if (data.success) {
-              input.value = "";
               showToast("Comment posted!");
-              setTimeout(function() { window.location.reload(); }, 800);
+              var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
+              if (tempEl && data.comment && data.comment.id) {
+                tempEl.setAttribute("data-comment-id", data.comment.id);
+                var delBtn = tempEl.querySelector("[data-action=delete-comment]");
+                if (delBtn) delBtn.setAttribute("data-comment-id", data.comment.id);
+              }
             } else {
+              var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
+              if (tempEl) tempEl.remove();
+              if (commentCountSpan) {
+                var cc = parseInt(commentCountSpan.textContent, 10) || 0;
+                commentCountSpan.textContent = Math.max(cc - 1, 0);
+              }
               showToast("Could not post comment");
+              input.value = body;
             }
           })
-          .catch(function() { showToast("Could not post comment"); })
+          .catch(function() {
+            var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
+            if (tempEl) tempEl.remove();
+            if (commentCountSpan) {
+              var cc = parseInt(commentCountSpan.textContent, 10) || 0;
+              commentCountSpan.textContent = Math.max(cc - 1, 0);
+            }
+            showToast("Could not post comment");
+            input.value = body;
+          })
           .finally(function() { submitBtn.disabled = false; });
         }
         submitBtn.addEventListener("click", postComment);

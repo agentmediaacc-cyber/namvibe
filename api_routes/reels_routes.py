@@ -288,6 +288,16 @@ def api_create_reel():
     if not video_file:
         return jsonify({"ok": False, "error": "Video file is required"}), 400
     
+    from services.redis_service import cache_get, cache_set
+    dedup_key = f"reel_upload:{profile_id}:{video_file.filename}:{video_file.content_length}"
+    if cache_get(dedup_key):
+        return jsonify({"ok": False, "error": "Duplicate upload detected"}), 429
+    cache_set(dedup_key, True, ttl=30)
+    
+    max_size = 500 * 1024 * 1024
+    if video_file.content_length and video_file.content_length > max_size:
+        return jsonify({"ok": False, "error": "Video exceeds 500MB limit"}), 400
+    
     caption = request.form.get("caption", "")
     music_title = request.form.get("music_title", "")
     music_url = request.form.get("music_url", "")
@@ -320,5 +330,12 @@ def api_create_reel():
     if error:
         return jsonify({"ok": False, "error": error}), 400
     if reel:
+        try:
+            from services.video_processing_service import create_processing_job
+            video_url = reel.get("video_url") or reel.get("media_url") or ""
+            if video_url:
+                create_processing_job("reel", reel.get("id"), profile_id, video_url)
+        except Exception:
+            pass
         return jsonify({"ok": True, "reel_id": reel.get("id"), "video_url": reel.get("video_url"), "media_url": reel.get("media_url")}), 201
     return jsonify({"ok": False, "error": "Failed to create reel"}), 400

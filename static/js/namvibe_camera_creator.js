@@ -519,11 +519,14 @@
   }
 
   /* ── Upload ── */
+  var _uploading = false;
   function uploadMedia() {
+    if (_uploading) return;
     if (!state.mediaFile) {
       showToast("No media to upload");
       return;
     }
+    _uploading = true;
     confirmBtn.disabled = true;
     progressBar.classList.add("is-active");
 
@@ -567,6 +570,7 @@
     };
 
     xhr.onload = function () {
+      _uploading = false;
       progressBar.classList.remove("is-active");
       confirmBtn.disabled = false;
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -599,6 +603,7 @@
     };
 
     xhr.onerror = function () {
+      _uploading = false;
       progressBar.classList.remove("is-active");
       confirmBtn.disabled = false;
       showToast("Network error. Check your connection.");

@@ -756,27 +756,50 @@
     }
   }
 
-  /* ── Like action ── */
+  /* ── Like action (optimistic) ── */
+  function _handleLikeResult(btn, data) {
+    var liked, count;
+    if (data.ok && data.result) {
+      liked = data.result.liked;
+      count = data.result.count;
+    } else {
+      liked = data.liked;
+      count = data.count;
+    }
+    if (liked !== undefined) {
+      btn.classList.toggle("is-liked", liked);
+      var span = btn.querySelector("span");
+      if (span && count !== undefined) span.textContent = count;
+      showToast(liked ? "Liked" : "Unliked");
+      return true;
+    }
+    return false;
+  }
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-action=like]");
     if (!btn) return;
     var id = btn.dataset.id;
     var type = btn.dataset.type || "post";
     if (!id) return;
+    var wasLiked = btn.classList.contains("is-liked");
+    var span = btn.querySelector("span");
+    var oldCount = span ? parseInt(span.textContent, 10) : 0;
+    btn.classList.toggle("is-liked");
+    if (span) span.textContent = wasLiked ? Math.max(oldCount - 1, 0) : oldCount + 1;
     var url = type === "reel" ? "/reels/api/reels/" + id + "/like" : "/api/home/post/" + id + "/like";
     apiFetch(url, { method: "POST" })
       .then(function (data) {
-        if (data.ok) {
-          btn.classList.toggle("is-liked");
-          var span = btn.querySelector("span");
-          if (span) {
-            var c = parseInt(span.textContent, 10) || 0;
-            span.textContent = btn.classList.contains("is-liked") ? c + 1 : Math.max(c - 1, 0);
-          }
-          showToast(btn.classList.contains("is-liked") ? "Liked" : "Unliked");
+        if (!_handleLikeResult(btn, data)) {
+          btn.classList.toggle("is-liked", wasLiked);
+          if (span) span.textContent = oldCount;
+          showToast("Could not like. Try again.");
         }
       })
-      .catch(function () { showToast("Could not like. Try again."); });
+      .catch(function () {
+        btn.classList.toggle("is-liked", wasLiked);
+        if (span) span.textContent = oldCount;
+        showToast("Could not like. Try again.");
+      });
   });
 
   /* ── Save action ── */
