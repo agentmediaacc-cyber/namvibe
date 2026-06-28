@@ -265,7 +265,7 @@ def upload_payment_proof(profile_id, file):
 
 def upload_verification_file(profile_id, file, upload_type='verification_doc'):
     # Verification docs are private
-    return upload_file_to_bucket(file, 'chain-verifications', profile_id, upload_type, public=False)
+    return upload_file_to_bucket(file, 'chain-verification', profile_id, upload_type, public=False)
 
 def upload_chat_media(profile_id, file):
     result, error = upload_message_attachment(file, profile_id)

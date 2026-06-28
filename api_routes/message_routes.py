@@ -5,7 +5,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for,
 from api_routes.profile_routes import login_required
 from services.profile_service import get_current_profile
 from services.messaging_engine import (
-    list_threads, get_thread, send_message_realtime, 
+    list_threads, get_thread, get_thread_metadata, send_message_realtime, 
     get_or_create_direct_thread, mark_thread_seen, set_typing,
     add_reaction, remove_reaction, delete_message, 
     pin_thread, archive_thread, mute_thread, search_messages,
@@ -84,6 +84,20 @@ def api_thread(thread_id):
     if not thread:
         return jsonify({"error": "Thread not found"}), 404
     return jsonify(thread), 200
+
+
+@message_bp.route("/api/messages/<thread_id>/metadata")
+@login_required
+def api_thread_metadata(thread_id):
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"error": "Profile setup incomplete"}), 400
+    message_ids = request.args.getlist("message_id")
+    metadata = get_thread_metadata(thread_id, profile_id, message_ids=message_ids)
+    if metadata is None:
+        return jsonify({"error": "Thread not found"}), 404
+    return jsonify(metadata), 200
 
 @message_bp.route("/api/messages/send", methods=["POST"])
 @login_required
@@ -188,11 +202,17 @@ def api_move(thread_id):
     return jsonify({"error": "Failed"}), 400
 
 @message_bp.route("/api/messages/<message_id>/reaction", methods=["POST"])
+@message_bp.route("/api/message/<message_id>/react", methods=["POST"])
 @login_required
 def api_reaction(message_id):
     profile = get_current_profile()
     data = request.get_json(silent=True) or {}
-    reaction_type = data.get("reaction") or request.form.get("reaction")
+    reaction_type = (
+        data.get("reaction")
+        or data.get("reaction_type")
+        or request.form.get("reaction")
+        or request.form.get("reaction_type")
+    )
     action = data.get("action", "add")
     
     if not profile or not reaction_type:
@@ -244,6 +264,7 @@ def api_message_info(message_id):
 
 
 @message_bp.route("/api/messages/<message_id>/edit", methods=["POST"])
+@message_bp.route("/api/message/<message_id>/edit", methods=["POST"])
 @login_required
 def api_edit_msg(message_id):
     profile = get_current_profile()
@@ -936,7 +957,7 @@ def api_wallet_send():
         return jsonify({"ok": False, "error": "forbidden"}), 403
     result = phase29_messages.wallet_send(
         thread_id, profile_id, data.get("recipient_profile_id"),
-        data.get("amount"), data.get("note", ""))
+        data.get("amount"), data.get("note", ""), idempotency_key=data.get("idempotency_key"))
     return jsonify(result), 200
 
 @message_bp.route("/api/wallet/request", methods=["POST"])
@@ -951,7 +972,7 @@ def api_wallet_request():
         return jsonify({"ok": False, "error": "forbidden"}), 403
     result = phase29_messages.wallet_request(
         thread_id, profile_id, data.get("recipient_profile_id"),
-        data.get("amount"), data.get("note", ""))
+        data.get("amount"), data.get("note", ""), idempotency_key=data.get("idempotency_key"))
     return jsonify(result), 200
 
 @message_bp.route("/api/wallet/tip", methods=["POST"])
@@ -966,7 +987,7 @@ def api_wallet_tip():
         return jsonify({"ok": False, "error": "forbidden"}), 403
     result = phase29_messages.wallet_tip(
         thread_id, profile_id, data.get("recipient_profile_id"),
-        data.get("amount"), data.get("note", ""))
+        data.get("amount"), data.get("note", ""), idempotency_key=data.get("idempotency_key"))
     return jsonify(result), 200
 
 @message_bp.route("/api/wallet/split", methods=["POST"])
@@ -980,7 +1001,7 @@ def api_wallet_split():
     if not thread_id or not can_access_thread(profile_id, thread_id):
         return jsonify({"ok": False, "error": "forbidden"}), 403
     result = phase29_messages.wallet_split(
-        thread_id, profile_id, data.get("amount"), data.get("participants"))
+        thread_id, profile_id, data.get("amount"), data.get("participants"), idempotency_key=data.get("idempotency_key"))
     return jsonify(result), 200
 
 @message_bp.route("/api/thread/<thread_id>/search", methods=["GET"])

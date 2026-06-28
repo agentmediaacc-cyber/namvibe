@@ -11,7 +11,7 @@ import time
 import uuid
 from datetime import datetime, timezone, timedelta
 from flask import Flask, g, jsonify, make_response, redirect, render_template, request, session, send_from_directory, url_for
-from flask_wtf.csrf import CSRFError, CSRFProtect
+from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -50,8 +50,9 @@ from api_routes.admin_safety_routes import admin_safety_bp
 from api_routes.system_routes import system_bp
 from api_routes.production_routes import production_bp
 from api_routes.feed_routes import feed_bp
-from api_routes.homepage_api import homepage_api_bp
+from api_routes.homepage_api import homepage_api_bp, feed_preload_bp
 from api_routes.verification_routes import verification_bp
+from api_routes.content_controls_routes import content_controls_bp
 from api_routes.mobile_api_routes import mobile_api_bp
 from api_routes.engagement_routes import engagement_bp
 from api_routes.marketplace_routes import marketplace_bp
@@ -77,6 +78,9 @@ from api_routes.contacts_routes import contacts_bp, contacts_api_bp
 from api_routes.inbox_routes import inbox_bp
 from api_routes.follow_request_routes import follow_request_api_bp
 from api_routes.gallery_routes import gallery_bp
+from api_routes.social_graph_routes import social_graph_bp, profile_extra_bp
+from api_routes.verification_admin_routes import verification_admin_bp
+from api_routes.ad_admin_routes import ad_admin_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
@@ -180,8 +184,8 @@ def schedule_delayed_homepage_prewarm(app, debug=False):
         print("[app] Performing delayed homepage prewarm and readiness check...")
         with app.app_context():
             try:
-                check_readiness()
                 prime_neon_runtime()
+                check_readiness()
                 prime_live_rooms_public_cache(limit=8)
                 warm_homepage_cache()
                 print("[app] Startup sequence complete")
@@ -231,6 +235,7 @@ def _valid_apk_csrf_token(app, path, token):
 
 def create_app():
     app = Flask(__name__)
+    app.jinja_env.globals.setdefault("csrf_token", generate_csrf)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
     csrf = CSRFProtect(app)
     
@@ -285,6 +290,7 @@ def create_app():
 
     if os.getenv("FLASK_TESTING") == "1":
         app.config["TESTING"] = True
+        app.config["WTF_CSRF_ENABLED"] = False
     
     flask_env = os.getenv("FLASK_ENV", "development")
     is_prod = flask_env == "production"
@@ -297,14 +303,12 @@ def create_app():
         secret_key = "namvibe-local-dev-secret-change-before-production"
     app.secret_key = secret_key
     
-    # Production Security Settings
+    # Session and Performance Configuration
+    SLOW_REQUEST_MS_LOCAL = 500
+    SLOW_REQUEST_MS_PROD = 1000
     app.config.update(
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE='Lax',
-        PERMANENT_SESSION_LIFETIME=timedelta(days=30),
-        SLOW_REQUEST_MS_LOCAL=500,
-        SLOW_REQUEST_MS_PROD=1000,
+        SLOW_REQUEST_MS_LOCAL=SLOW_REQUEST_MS_LOCAL,
+        SLOW_REQUEST_MS_PROD=SLOW_REQUEST_MS_PROD,
         MAX_CONTENT_LENGTH=100 * 1024 * 1024
     )
     
@@ -350,17 +354,10 @@ def create_app():
     if not is_prod:
         app.config["WTF_CSRF_TIME_LIMIT"] = None
         app.config["WTF_CSRF_SSL_STRICT"] = False
+        _apply_local_session_cookie_config(app)
     else:
         app.config.setdefault("WTF_CSRF_TIME_LIMIT", None)
         app.config["PREFERRED_URL_SCHEME"] = "https"
-
-    app.config["SESSION_COOKIE_SECURE"] = is_prod
-    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    app.config["SESSION_COOKIE_HTTPONLY"] = True
-    app.config["SESSION_COOKIE_DOMAIN"] = None
-    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
-    if not is_prod:
-        _apply_local_session_cookie_config(app)
 
     @app.before_request
     def manage_session():
@@ -387,6 +384,7 @@ def create_app():
             is_logged_in=is_logged_in(),
             APP_NAME=app.config.get("APP_NAME", "NamVibe"),
             APP_DOMAIN=app.config.get("APP_DOMAIN", "namvibe.com"),
+            csrf_token=generate_csrf,
             apk_csrf_token=lambda path=None: _make_apk_csrf_token(app, path or request.path),
         )
 
@@ -524,6 +522,7 @@ def create_app():
     app.register_blueprint(post_bp)
     app.register_blueprint(media_bp)
     app.register_blueprint(homepage_api_bp)
+    app.register_blueprint(feed_preload_bp)
     app.register_blueprint(creator_bp)
     app.register_blueprint(social_bp, url_prefix="/social")
     app.register_blueprint(social_api_bp)
@@ -545,6 +544,13 @@ def create_app():
     app.register_blueprint(contacts_api_bp)
     app.register_blueprint(inbox_bp)
     app.register_blueprint(gallery_bp)
+    from api_routes.block_routes import block_bp
+    app.register_blueprint(block_bp)
+    app.register_blueprint(social_graph_bp)
+    app.register_blueprint(profile_extra_bp)
+    app.register_blueprint(verification_admin_bp)
+    app.register_blueprint(ad_admin_bp)
+    app.register_blueprint(content_controls_bp)
 
     try:
         from services.content_service import ensure_content_schema
@@ -1072,49 +1078,16 @@ def create_app():
             data["homepage_message"] = "Loading latest NamVibe content..."
             return data
 
-        params = {"town": town, "region": region}
         with timed("home"):
             home_start = time.perf_counter()
-            try:
-                data = get_homepage_data(**params)
-                elapsed_ms = (time.perf_counter() - home_start) * 1000
-                if elapsed_ms > 5000:
-                    data = build_fast_shell()
-            except Exception:
-                data = build_fast_shell()
-            if not (
-                data.get("feed_items")
-                and data.get("stories")
-                and data.get("reels")
-            ):
-                fast_shell = build_fast_shell()
-                if not data.get("feed_items") and fast_shell.get("feed_items"):
-                    data["feed_items"] = fast_shell.get("feed_items", [])
-                    data["feed_for_you"] = list(data["feed_items"])
-                    data["posts"] = list(data["feed_items"])
-                if not data.get("stories") and fast_shell.get("stories"):
-                    data["stories"] = fast_shell.get("stories", [])
-                if not data.get("reels") and fast_shell.get("reels"):
-                    data["reels"] = fast_shell.get("reels", [])
-                if data.get("feed_items") or data.get("stories") or data.get("reels"):
-                    data["homepage_degraded"] = False
-                    data["homepage_message"] = ""
-            if data.get("feed_items") and not data.get("feed_for_you"):
-                data["feed_for_you"] = list(data.get("feed_items") or [])
-            if data.get("feed_for_you") and not data.get("posts"):
-                data["posts"] = list(data.get("feed_for_you") or [])
-            try:
-                tiktok = build_tiktok_home_payload()
-                data["reels_feed"] = tiktok.get("reels_feed", [])
-                data["suggested_creators"] = tiktok.get("suggested_creators", [])
-                data["smart_suggestions"] = tiktok.get("smart_suggestions", [])
-                data["recommendation_cards"] = tiktok.get("recommendation_cards", [])
-            except Exception:
-                pass
+            # Return shell immediately - sections load via AJAX after page render
+            data = dict(shell)
             data.update(base_routes)
             response = render_template("chain_home.html", **data)
             log_info("homepage_route_total", duration_ms=round((time.perf_counter() - home_start) * 1000, 2))
             return response, 200
+
+    @app.route("/login")
     def legacy_login():
         return redirect("/auth/login", code=302)
 
@@ -1231,6 +1204,46 @@ def create_app():
         status = 200 if health["url_present"] and health["anon_key_present"] and health["service_role_present"] else 503
         return jsonify(health), status
 
+    @app.route("/reels/<reel_id>")
+    def reel_detail(reel_id):
+        from services.reels_engine import get_reel
+        from services.reels_service import get_reel_comments
+        from services.profile_service import get_current_profile
+        from services.engagement_service import is_liked
+        profile = get_current_profile()
+        reel = get_reel(reel_id)
+        if not reel:
+            return render_template("errors/post_not_found.html",
+                message="This reel could not be found. It may have been deleted or made private.",
+                profile=profile), 404
+        comments = get_reel_comments(reel_id, limit=30)
+        has_liked = False
+        if profile:
+            has_liked = is_liked(profile.get("id"), "reel", reel_id)
+        return render_template("reels/detail.html",
+            reel=reel, comments=comments, profile=profile,
+            has_liked=has_liked)
+
+    @app.route("/post/<post_id>")
+    def post_detail(post_id):
+        from services.content_service import get_post_by_id
+        from services.comments_service import get_comments
+        from services.profile_service import get_current_profile
+        from services.engagement_service import is_liked
+        profile = get_current_profile()
+        post = get_post_by_id(post_id, viewer_profile_id=(profile or {}).get("id"))
+        if not post:
+            return render_template("errors/post_not_found.html",
+                message="This post could not be found. It may have been deleted or made private.",
+                profile=profile), 404
+        comments = get_comments("post", post_id)
+        has_liked = False
+        if profile:
+            has_liked = is_liked(profile.get("id"), "post", post_id)
+        return render_template("posts/detail.html",
+            post=post, comments=comments, profile=profile,
+            has_liked=has_liked)
+
     @app.route("/features/create-post")
     @login_required
     def feature_create_post():
@@ -1245,6 +1258,13 @@ def create_app():
     @login_required
     def feature_upload_video():
         return redirect(url_for("marketplace.marketplace_create"))
+
+    @app.route("/business/flyer-generator")
+    @login_required
+    def flyer_generator():
+        from services.profile_service import get_current_profile
+        profile = get_current_profile()
+        return render_template("business/flyer_generator.html", current_user=profile or {})
 
     @app.route("/games/")
     def games_redirect():

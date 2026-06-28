@@ -17,6 +17,10 @@
   };
 
   function $(id) { return document.getElementById(id); }
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
 
   function esc(str) { if (!str) return ''; var d = document.createElement('div'); d.appendChild(document.createTextNode(str)); return d.innerHTML; }
 
@@ -40,6 +44,8 @@
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
+    var token = csrfToken();
+    if (token) xhr.setRequestHeader('X-CSRFToken', token);
     xhr.onload = function () { try { cb(JSON.parse(xhr.responseText)); } catch (e) { cb(null); } };
     xhr.onerror = function () { cb(null); };
     xhr.send(JSON.stringify(body));
@@ -48,6 +54,8 @@
   function deleteReq(url, cb) {
     var xhr = new XMLHttpRequest();
     xhr.open('DELETE', url, true);
+    var token = csrfToken();
+    if (token) xhr.setRequestHeader('X-CSRFToken', token);
     xhr.onload = function () { try { cb(JSON.parse(xhr.responseText)); } catch (e) { cb(null); } };
     xhr.onerror = function () { cb(null); };
     xhr.send();

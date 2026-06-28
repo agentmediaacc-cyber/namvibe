@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 import json
 
-from services.neon_service import fast_query, get_pool_status, write_query
+from services.neon_service import fast_query, get_pool_status, transaction_query, write_query
 from services.socketio_service import emit_to_profile, emit_to_thread
 
 _THREADS = {}
@@ -23,6 +23,7 @@ _AUTODOWNLOAD = {}
 _ENCRYPTION = {}
 _VOICE_DRAFTS = {}
 _VOICE_PLAYBACK = {}
+_WALLET_SPLIT_IDEMPOTENCY = {}
 
 
 def _now():
@@ -996,17 +997,445 @@ def stop_live_location(share_id, profile_id):
         pass
     return {"ok": True}
 
-def wallet_send(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
-    return {"ok": False, "error": "Wallet transfer route not connected yet."}
+def _wallet_amount_cents(amount):
+    try:
+        value = int(round(float(amount or 0)))
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
 
-def wallet_request(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
-    return {"ok": False, "error": "Wallet transfer route not connected yet."}
 
-def wallet_tip(thread_id, sender_profile_id, recipient_profile_id, amount, note=""):
-    return {"ok": False, "error": "Wallet transfer route not connected yet."}
+def _thread_member_ids(thread_id):
+    thread_id = _uuid(thread_id)
+    rows = _safe_query(
+        "SELECT profile_id FROM chain_thread_members WHERE thread_id = %s",
+        (thread_id,),
+        default=[],
+    )
+    if rows:
+        return [str(row["profile_id"]) for row in rows if row.get("profile_id")]
+    thread = _THREADS.get(thread_id) or {}
+    members = thread.get("members") or []
+    return [str(member) for member in members]
 
-def wallet_split(thread_id, sender_profile_id, amount, participants=None):
-    return {"ok": False, "error": "Wallet transfer route not connected yet."}
+
+def _wallet_transfer_idempotency(prefix, thread_id, sender_profile_id, recipient_profile_id, amount_cents, note="", provided=None):
+    if provided:
+        return str(provided)
+    return f"{prefix}:{thread_id}:{sender_profile_id}:{recipient_profile_id}:{amount_cents}:{(note or '').strip()[:64]}"
+
+
+def _wallet_split_plan(thread_id, sender_profile_id, amount, participants=None, idempotency_key=None):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    amount_cents = _wallet_amount_cents(amount)
+    if not amount_cents:
+        return None, {"ok": False, "error": "invalid_amount"}
+    raw_participants = participants or []
+    if not isinstance(raw_participants, list) or not raw_participants:
+        return None, {"ok": False, "error": "participants_required"}
+
+    member_ids = set(_thread_member_ids(thread_id))
+    if sender_profile_id not in member_ids:
+        return None, {"ok": False, "error": "recipient_not_in_thread"}
+
+    seen = set()
+    recipients = []
+    for participant in raw_participants:
+        pid = _uuid(participant)
+        if pid == sender_profile_id:
+            continue
+        if pid in seen:
+            return None, {"ok": False, "error": "duplicate_recipient"}
+        if pid not in member_ids:
+            return None, {"ok": False, "error": "recipient_not_in_thread"}
+        seen.add(pid)
+        recipients.append(pid)
+    if not recipients:
+        return None, {"ok": False, "error": "participants_required"}
+
+    per_person = amount_cents // len(recipients)
+    remainder = amount_cents % len(recipients)
+    if per_person <= 0:
+        return None, {"ok": False, "error": "invalid_amount"}
+
+    split_key = str(idempotency_key or f"message_split:{thread_id}:{sender_profile_id}:{amount_cents}:{','.join(recipients)}")
+    transfers = []
+    total_cents = 0
+    for idx, recipient_profile_id in enumerate(recipients):
+        share = per_person + (1 if idx < remainder else 0)
+        total_cents += share
+        transfer_key = _wallet_transfer_idempotency(
+            "message_split",
+            thread_id,
+            sender_profile_id,
+            recipient_profile_id,
+            share,
+            f"{split_key}:{idx}",
+            provided=f"{split_key}:{idx}",
+        )
+        transfers.append({
+            "recipient_profile_id": recipient_profile_id,
+            "amount_cents": share,
+            "idempotency_key": transfer_key,
+        })
+    return {
+        "thread_id": thread_id,
+        "sender_profile_id": sender_profile_id,
+        "amount_cents": amount_cents,
+        "participants": recipients,
+        "split_key": split_key,
+        "transfers": transfers,
+        "note": f"Split payment via thread {thread_id}",
+        "created_at": _now(),
+    }, None
+
+
+def _wallet_split_execute_transactional(plan):
+    def _callback(cursor):
+        cursor.execute(
+            """
+            SELECT idempotency_key
+            FROM chain_wallet_transactions
+            WHERE profile_id = %s
+              AND idempotency_key = %s
+            LIMIT 1
+            """,
+            (plan["sender_profile_id"], f'{plan["split_key"]}:debit'),
+        )
+        existing = cursor.fetchone()
+        if existing:
+            return {"ok": True, "duplicate": True}
+
+        cursor.execute(
+            """
+            INSERT INTO chain_wallets (profile_id, balance_cents, lifetime_earned_cents, lifetime_spent_cents, pending_cents, withdrawable_cents, status, created_at, updated_at)
+            VALUES (%s, 0, 0, 0, 0, 0, 'active', now(), now())
+            ON CONFLICT (profile_id) DO NOTHING
+            """,
+            (plan["sender_profile_id"],),
+        )
+        cursor.execute(
+            "SELECT id, COALESCE(balance_cents, 0) AS balance_cents FROM chain_wallets WHERE profile_id = %s FOR UPDATE",
+            (plan["sender_profile_id"],),
+        )
+        sender_wallet = cursor.fetchone()
+        if not sender_wallet:
+            return {"ok": False, "error": "wallet_not_found"}
+        if str(sender_wallet.get("status", "active")) == "locked":
+            return {"ok": False, "error": "wallet_locked"}
+        if int(sender_wallet.get("balance_cents") or 0) < plan["amount_cents"]:
+            return {"ok": False, "error": "insufficient_balance"}
+
+        recipient_wallet_ids = {}
+        for transfer in plan["transfers"]:
+            recipient_profile_id = transfer["recipient_profile_id"]
+            cursor.execute(
+                """
+                INSERT INTO chain_wallets (profile_id, balance_cents, lifetime_earned_cents, lifetime_spent_cents, pending_cents, withdrawable_cents, status, created_at, updated_at)
+                VALUES (%s, 0, 0, 0, 0, 0, 'active', now(), now())
+                ON CONFLICT (profile_id) DO NOTHING
+                """,
+                (recipient_profile_id,),
+            )
+            cursor.execute(
+                "SELECT id, COALESCE(balance_cents, 0) AS balance_cents, COALESCE(status, 'active') AS status FROM chain_wallets WHERE profile_id = %s FOR UPDATE",
+                (recipient_profile_id,),
+            )
+            recipient_wallet = cursor.fetchone()
+            if not recipient_wallet:
+                return {"ok": False, "error": "wallet_not_found"}
+            if str(recipient_wallet.get("status", "active")) == "locked":
+                return {"ok": False, "error": "wallet_locked"}
+            recipient_wallet_ids[recipient_profile_id] = recipient_wallet["id"]
+
+        cursor.execute(
+            """
+            UPDATE chain_wallets
+            SET balance_cents = balance_cents - %s,
+                lifetime_spent_cents = COALESCE(lifetime_spent_cents, 0) + %s,
+                updated_at = now()
+            WHERE profile_id = %s AND balance_cents >= %s
+            RETURNING balance_cents
+            """,
+            (plan["amount_cents"], plan["amount_cents"], plan["sender_profile_id"], plan["amount_cents"]),
+        )
+        sender_balance_row = cursor.fetchone()
+        if not sender_balance_row:
+            return {"ok": False, "error": "insufficient_balance"}
+
+        transaction_rows = []
+        sender_tx_id = str(uuid.uuid4())
+        cursor.execute(
+            """
+            INSERT INTO chain_wallet_transactions (
+                id, wallet_id, profile_id, counterparty_profile_id, transaction_type, direction,
+                amount_cents, fee_cents, net_amount_cents, currency, status, reference_type,
+                reference_id, description, idempotency_key, metadata
+            ) VALUES (%s, %s, %s, NULL, 'transfer_out', 'debit', %s, 0, %s, 'NAD', 'completed', 'message_thread', %s, %s, %s, %s)
+            """,
+            (
+                sender_tx_id,
+                sender_wallet["id"],
+                plan["sender_profile_id"],
+                -plan["amount_cents"],
+                -plan["amount_cents"],
+                plan["thread_id"],
+                plan["note"],
+                f'{plan["split_key"]}:debit',
+                json.dumps({"split": True, "participants": plan["participants"]}),
+            ),
+        )
+        for transfer in plan["transfers"]:
+            recipient_profile_id = transfer["recipient_profile_id"]
+            amount_cents = transfer["amount_cents"]
+            cursor.execute(
+                """
+                UPDATE chain_wallets
+                SET balance_cents = balance_cents + %s,
+                    lifetime_earned_cents = COALESCE(lifetime_earned_cents, 0) + %s,
+                    updated_at = now()
+                WHERE profile_id = %s
+                RETURNING balance_cents
+                """,
+                (amount_cents, amount_cents, recipient_profile_id),
+            )
+            cursor.fetchone()
+            recipient_tx_id = str(uuid.uuid4())
+            cursor.execute(
+                """
+                INSERT INTO chain_wallet_transactions (
+                    id, wallet_id, profile_id, counterparty_profile_id, transaction_type, direction,
+                    amount_cents, fee_cents, net_amount_cents, currency, status, reference_type,
+                    reference_id, description, idempotency_key, metadata
+                ) VALUES (%s, %s, %s, %s, 'transfer_in', 'credit', %s, 0, %s, 'NAD', 'completed', 'message_thread', %s, %s, %s, %s)
+                """,
+                (
+                    recipient_tx_id,
+                    recipient_wallet_ids[recipient_profile_id],
+                    recipient_profile_id,
+                    plan["sender_profile_id"],
+                    amount_cents,
+                    amount_cents,
+                    plan["thread_id"],
+                    plan["note"],
+                    transfer["idempotency_key"],
+                    json.dumps({"split": True, "sender_profile_id": plan["sender_profile_id"]}),
+                ),
+            )
+            transaction_rows.append({
+                "recipient_profile_id": recipient_profile_id,
+                "amount_cents": amount_cents,
+                "transaction_id": recipient_tx_id,
+                "idempotent": False,
+            })
+
+        return {
+            "ok": True,
+            "transaction_id": sender_tx_id,
+            "transfers": transaction_rows,
+            "idempotent": False,
+        }
+
+    return transaction_query(_callback, timeout_ms=1800)
+
+
+def _wallet_split_execute_fallback(plan):
+    from services.wallet_ledger_service import reverse as ledger_reverse
+
+    memo = _WALLET_SPLIT_IDEMPOTENCY.get(plan["split_key"])
+    if memo:
+        return {
+            "ok": True,
+            "transaction_id": memo.get("transaction_id"),
+            "transfers": [dict(item) for item in memo.get("transfers", [])],
+            "idempotent": True,
+        }
+
+    applied = []
+    for transfer in plan["transfers"]:
+        result = wallet_send(
+            plan["thread_id"],
+            plan["sender_profile_id"],
+            transfer["recipient_profile_id"],
+            transfer["amount_cents"],
+            note=plan["note"],
+            idempotency_key=transfer["idempotency_key"],
+        )
+        if not result.get("ok"):
+            for completed in reversed(applied):
+                ledger_reverse(
+                    plan["sender_profile_id"],
+                    completed["amount_cents"],
+                    description=f"Split rollback via thread {plan['thread_id']}",
+                    ref_type="message_thread",
+                    ref_id=plan["thread_id"],
+                )
+                ledger_reverse(
+                    completed["recipient_profile_id"],
+                    completed["amount_cents"],
+                    description=f"Split rollback via thread {plan['thread_id']}",
+                    ref_type="message_thread",
+                    ref_id=plan["thread_id"],
+                )
+            return {"ok": False, "error": result.get("error") or "split_failed"}
+        applied.append({
+            "recipient_profile_id": transfer["recipient_profile_id"],
+            "amount_cents": transfer["amount_cents"],
+            "transaction_id": result.get("transaction_id"),
+            "idempotent": bool(result.get("idempotent")),
+        })
+
+    response = {
+        "ok": True,
+        "transaction_id": applied[0]["transaction_id"] if applied else None,
+        "transfers": applied,
+        "idempotent": False,
+    }
+    _WALLET_SPLIT_IDEMPOTENCY[plan["split_key"]] = dict(response)
+    return response
+
+
+def wallet_send(thread_id, sender_profile_id, recipient_profile_id, amount, note="", idempotency_key=None):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    recipient_profile_id = _uuid(recipient_profile_id)
+    amount_cents = _wallet_amount_cents(amount)
+    if not recipient_profile_id:
+        return {"ok": False, "error": "recipient_required"}
+    if not amount_cents:
+        return {"ok": False, "error": "invalid_amount"}
+    if sender_profile_id == recipient_profile_id:
+        return {"ok": False, "error": "self_transfer_not_allowed"}
+
+    member_ids = set(_thread_member_ids(thread_id))
+    if sender_profile_id not in member_ids or recipient_profile_id not in member_ids:
+        return {"ok": False, "error": "recipient_not_in_thread"}
+
+    from services.wallet_ledger_service import transfer as ledger_transfer
+
+    transfer_key = _wallet_transfer_idempotency("message_send", thread_id, sender_profile_id, recipient_profile_id, amount_cents, note, provided=idempotency_key)
+    result = ledger_transfer(
+        sender_profile_id,
+        recipient_profile_id,
+        amount_cents,
+        description=note or f"Sent via message thread {thread_id}",
+        idempotency_key=transfer_key,
+    )
+    if not result.get("ok"):
+        return result
+
+    payload = {
+        "thread_id": thread_id,
+        "sender_profile_id": sender_profile_id,
+        "recipient_profile_id": recipient_profile_id,
+        "amount_cents": amount_cents,
+        "note": note,
+        "transaction_id": result.get("transaction_id"),
+        "idempotent": bool(result.get("idempotent")),
+        "created_at": _now(),
+    }
+    emit_to_thread(thread_id, "wallet:transfer", payload)
+    emit_to_profile(recipient_profile_id, "wallet:balance-updated", {"profile_id": recipient_profile_id})
+    emit_to_profile(sender_profile_id, "wallet:balance-updated", {"profile_id": sender_profile_id})
+    return {"ok": True, **payload}
+
+
+def wallet_request(thread_id, sender_profile_id, recipient_profile_id, amount, note="", idempotency_key=None):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    recipient_profile_id = _uuid(recipient_profile_id)
+    amount_cents = _wallet_amount_cents(amount)
+    if not recipient_profile_id:
+        return {"ok": False, "error": "recipient_required"}
+    if not amount_cents:
+        return {"ok": False, "error": "invalid_amount"}
+    if sender_profile_id == recipient_profile_id:
+        return {"ok": False, "error": "self_request_not_allowed"}
+
+    member_ids = set(_thread_member_ids(thread_id))
+    if sender_profile_id not in member_ids or recipient_profile_id not in member_ids:
+        return {"ok": False, "error": "recipient_not_in_thread"}
+
+    request_id = str(uuid.uuid5(uuid.NAMESPACE_URL, _wallet_transfer_idempotency("message_request", thread_id, sender_profile_id, recipient_profile_id, amount_cents, note, provided=idempotency_key)))
+    payload = {
+        "request_id": request_id,
+        "thread_id": thread_id,
+        "sender_profile_id": sender_profile_id,
+        "recipient_profile_id": recipient_profile_id,
+        "amount_cents": amount_cents,
+        "note": note,
+        "created_at": _now(),
+    }
+    emit_to_thread(thread_id, "wallet:request", payload)
+    return {"ok": True, **payload}
+
+
+def wallet_tip(thread_id, sender_profile_id, recipient_profile_id, amount, note="", idempotency_key=None):
+    thread_id = _uuid(thread_id)
+    sender_profile_id = _uuid(sender_profile_id)
+    recipient_profile_id = _uuid(recipient_profile_id)
+    amount_cents = _wallet_amount_cents(amount)
+    if not recipient_profile_id:
+        return {"ok": False, "error": "recipient_required"}
+    if not amount_cents:
+        return {"ok": False, "error": "invalid_amount"}
+    if sender_profile_id == recipient_profile_id:
+        return {"ok": False, "error": "self_tip_not_allowed"}
+
+    member_ids = set(_thread_member_ids(thread_id))
+    if sender_profile_id not in member_ids or recipient_profile_id not in member_ids:
+        return {"ok": False, "error": "recipient_not_in_thread"}
+
+    from services.wallet_payment_service import send_tip as wallet_send_tip
+
+    tip_key = _wallet_transfer_idempotency("message_tip", thread_id, sender_profile_id, recipient_profile_id, amount_cents, note, provided=idempotency_key)
+    result = wallet_send_tip(sender_profile_id, recipient_profile_id, amount_cents, message=note or f"Tip via message thread {thread_id}", idempotency_key=tip_key)
+    if not result.get("ok"):
+        return result
+
+    payload = {
+        "thread_id": thread_id,
+        "sender_profile_id": sender_profile_id,
+        "recipient_profile_id": recipient_profile_id,
+        "amount_cents": amount_cents,
+        "net_cents": result.get("net_cents", amount_cents),
+        "fee_cents": result.get("fee_cents", 0),
+        "note": note,
+        "transaction_id": result.get("transaction_id"),
+        "idempotent": bool(result.get("idempotent")),
+        "created_at": _now(),
+    }
+    emit_to_thread(thread_id, "wallet:tip", payload)
+    emit_to_profile(recipient_profile_id, "wallet:balance-updated", {"profile_id": recipient_profile_id})
+    emit_to_profile(sender_profile_id, "wallet:balance-updated", {"profile_id": sender_profile_id})
+    return {"ok": True, **payload}
+
+
+def wallet_split(thread_id, sender_profile_id, amount, participants=None, idempotency_key=None):
+    plan, error = _wallet_split_plan(thread_id, sender_profile_id, amount, participants, idempotency_key=idempotency_key)
+    if error:
+        return error
+
+    result = _wallet_split_execute_transactional(plan) if _db_available() else _wallet_split_execute_fallback(plan)
+    if not result.get("ok"):
+        return result
+
+    payload = {
+        "thread_id": plan["thread_id"],
+        "sender_profile_id": plan["sender_profile_id"],
+        "amount_cents": plan["amount_cents"],
+        "participants": plan["participants"],
+        "transfers": result.get("transfers", []),
+        "transaction_id": result.get("transaction_id"),
+        "idempotent": bool(result.get("idempotent") or result.get("duplicate")),
+        "created_at": plan["created_at"],
+    }
+    emit_to_thread(plan["thread_id"], "wallet:split", payload)
+    for recipient_profile_id in plan["participants"]:
+        emit_to_profile(recipient_profile_id, "wallet:balance-updated", {"profile_id": recipient_profile_id})
+    emit_to_profile(plan["sender_profile_id"], "wallet:balance-updated", {"profile_id": plan["sender_profile_id"]})
+    return {"ok": True, **payload}
 
 def ai_summarize(thread_id, profile_id):
     return {"ok": True, "summary": "AI summarization route not available yet", "note": "ai_route_unavailable"}

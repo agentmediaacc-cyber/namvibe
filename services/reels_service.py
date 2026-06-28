@@ -51,7 +51,7 @@ def get_reel_feed(limit=20, offset=0, viewer_id=None):
         WHERE r.status = 'published'
           AND r.processing_status = 'ready' AND r.deleted_at IS NULL
     """
-    params = [limit, offset]
+    params = []
     
     # Add visibility filter based on viewer
     if profile_id_param:
@@ -64,12 +64,12 @@ def get_reel_feed(limit=20, offset=0, viewer_id=None):
                 WHERE follower_profile_id = %s AND following_profile_id = r.profile_id
             ))
         )"""
-        params = [profile_id_param, profile_id_param] + params
+        params.extend([profile_id_param, profile_id_param])
     else:
         # No viewer - only public reels
         query += " AND r.visibility = 'public'"
-        params = params[2:]  # Remove placeholder params
     
+    params.extend([limit, offset])
     query += " ORDER BY r.created_at DESC LIMIT %s OFFSET %s"
     return fast_query(query, params, timeout_ms=2000, default=[]) or []
 

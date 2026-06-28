@@ -65,7 +65,30 @@ def _get_creator_badge(author_id):
     )
     return rows[0].get("badge_type") if rows else None
 
-def _score_item(item, viewer_id=None, viewer_region=None, following_ids=None):
+
+def _get_creator_badges(author_ids):
+    ids = [str(author_id) for author_id in set(author_ids or []) if author_id]
+    if not ids:
+        return {}
+    rows = fast_query(
+        """
+        SELECT user_id, badge_type
+        FROM chain_creator_verifications
+        WHERE status = 'approved' AND user_id = ANY(%s)
+        """,
+        (ids,),
+        timeout_ms=2000,
+        default=[],
+    )
+    badges = {}
+    for row in rows or []:
+        user_id = row.get("user_id")
+        badge_type = row.get("badge_type")
+        if user_id and badge_type and str(user_id) not in badges:
+            badges[str(user_id)] = badge_type
+    return badges
+
+def _score_item(item, viewer_id=None, viewer_region=None, following_ids=None, badge_map=None):
     age = _age_hours(item.get("created_at"))
     likes = _safe_int(item.get("likes_count"))
     comments = _safe_int(item.get("comments_count"))
@@ -100,7 +123,9 @@ def _score_item(item, viewer_id=None, viewer_region=None, following_ids=None):
             quality += 10
 
     # Verification badge bonus
-    badge = _get_creator_badge(author_id)
+    badge = (badge_map or {}).get(str(author_id)) if author_id else None
+    if badge is None:
+        badge = _get_creator_badge(author_id)
     badge_bonus = {"blue": 15, "business": 10, "government": 20, "artist": 12, "creator": 15}
     if badge:
         quality += badge_bonus.get(badge, 10)
@@ -122,10 +147,11 @@ def rank_feed(items, viewer_id=None, tab="for_you", limit=30):
     if viewer_id:
         author_ids = list({item.get("profile_id") for item in items if item.get("profile_id")})
         following_ids = _batch_following(viewer_id, author_ids)
+    badge_map = _get_creator_badges(item.get("profile_id") for item in items)
 
     scored = []
     for item in items:
-        score = _score_item(item, viewer_id, viewer_region, following_ids)
+        score = _score_item(item, viewer_id, viewer_region, following_ids, badge_map=badge_map)
         # Tab-specific adjustments
         if tab == "trending":
             score *= 1.3  # Trending boosts engagement weight

@@ -178,17 +178,19 @@ def reconcile(profile_id):
         log_error("reconcile_failed", profile_id=profile_id, error=str(e))
         return {"ok": False, "error": f"reconcile_failed: {e}"}
 
-def transfer(from_pid, to_pid, amount_cents, description=""):
+def transfer(from_pid, to_pid, amount_cents, description="", idempotency_key=None):
     if from_pid == to_pid:
         return {"ok": False, "error": "self_transfer_not_allowed"}
-    dr = debit(from_pid, amount_cents, description=f"Transfer: {description}", tx_type="transfer_out", counterparty=to_pid)
+    debit_key = f"{idempotency_key}:debit" if idempotency_key else None
+    credit_key = f"{idempotency_key}:credit" if idempotency_key else None
+    dr = debit(from_pid, amount_cents, description=f"Transfer: {description}", tx_type="transfer_out", counterparty=to_pid, idempotency_key=debit_key)
     if not dr.get("ok"):
         return dr
-    cr = credit(to_pid, amount_cents, description=f"Transfer: {description}", tx_type="transfer_in", counterparty=from_pid)
+    cr = credit(to_pid, amount_cents, description=f"Transfer: {description}", tx_type="transfer_in", counterparty=from_pid, idempotency_key=credit_key)
     if not cr.get("ok"):
         reverse(from_pid, amount_cents, description=f"Transfer reversal: {description}")
         return {"ok": False, "error": "transfer_reversed"}
-    return {"ok": True, "transaction_id": dr.get("transaction_id")}
+    return {"ok": True, "transaction_id": dr.get("transaction_id"), "idempotent": bool(dr.get("idempotent") and cr.get("idempotent"))}
 
 def _insert_tx(wallet_id, profile_id, amount_cents, fee_cents, net_cents, tx_type, direction, counterparty=None, ref_type=None, ref_id=None, desc="", idempotency_key=None, tx_id=None):
     if not tx_id:

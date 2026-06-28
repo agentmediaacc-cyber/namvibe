@@ -26,9 +26,12 @@
     <div class="wd-field">
       <label>Payout Method</label>
       <select class="wp-input" name="payout_method_id" id="wdMethod">
-        <option value="">Bank Transfer</option>
-        <option value="">Mobile Wallet</option>
-        <option value="">PayPal</option>
+        <option value="">Select later / default method</option>
+        {% for method in payout_methods or [] %}
+        <option value="{{ method.id }}">
+          {{ (method.provider or 'manual')|replace('_', ' ')|title }}{% if method.masked_account %} · {{ method.masked_account }}{% endif %}{% if method.is_default %} · Default{% endif %}
+        </option>
+        {% endfor %}
       </select>
     </div>
     <div class="wd-field">
@@ -56,7 +59,10 @@ document.getElementById('wdForm')?.addEventListener('submit', function(e) {
   };
   fetch('/wallet/api/payouts/request', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': (document.querySelector('meta[name="csrf-token"]') || {}).content || ''
+    },
     body: JSON.stringify(data),
   }).then(function(r) { return r.json(); }).then(function(res) {
     btn.disabled = false;
