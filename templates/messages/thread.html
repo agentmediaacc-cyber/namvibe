@@ -1007,6 +1007,64 @@
         return d.toLocaleDateString();
     }
 
+    function ensureReplyPreview(group, parentMessage) {
+        if (!group || !parentMessage) return;
+        const bubble = group.querySelector('.msg-bubble');
+        if (!bubble || bubble.querySelector('.msg-reply-ref')) return;
+        const reply = document.createElement('div');
+        reply.className = 'msg-reply-ref';
+        reply.innerHTML = `<i class="fas fa-reply" style="font-size:10px;"></i> ${escapeHtml(String(parentMessage.body || '').slice(0, 30))}...`;
+        bubble.insertBefore(reply, bubble.firstChild);
+    }
+
+    function renderReactionBadges(messageId, reactions) {
+        const bubble = document.querySelector(`.msg-bubble[data-id="${messageId}"]`);
+        if (!bubble) return;
+        const actions = bubble.querySelector('.msg-actions');
+        let container = bubble.querySelector(`.msg-reactions[data-message-id="${messageId}"]`);
+        if (!reactions || !reactions.length) {
+            if (container) container.remove();
+            return;
+        }
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'msg-reactions';
+            container.setAttribute('data-message-id', messageId);
+            if (actions) bubble.insertBefore(container, actions);
+            else bubble.appendChild(container);
+        }
+        container.innerHTML = reactions.map(r => `<span class="reaction-badge${r.profile_id === myId ? ' mine' : ''}" data-reaction="${r.reaction_type}" onclick="toggleReaction('${messageId}','${r.reaction_type}')">${r.reaction_type}</span>`).join('');
+    }
+
+    function applyThreadMetadata(metadata) {
+        if (!metadata) return;
+        const reactions = metadata.reactions || {};
+        const parents = metadata.parents || {};
+        const receipts = metadata.receipts || {};
+        document.querySelectorAll('.msg-group').forEach(group => {
+            const messageId = (group.id || '').replace(/^msg-/, '');
+            if (!messageId) return;
+            renderReactionBadges(messageId, reactions[messageId] || []);
+            const receipt = receipts[messageId];
+            if (receipt && receipt.delivery_status) setMessageState(group, receipt.delivery_status);
+            const bubble = group.querySelector('.msg-bubble');
+            const parentId = bubble?.dataset.replyTo || '';
+            if (parentId && parents[parentId]) ensureReplyPreview(group, parents[parentId]);
+        });
+    }
+
+    async function loadThreadMetadata(messageIds) {
+        const ids = (messageIds || []).filter(Boolean);
+        if (!ids.length) return;
+        const params = ids.map(id => 'message_id=' + encodeURIComponent(id)).join('&');
+        try {
+            const resp = await fetch(`/messages/api/messages/${encodeURIComponent(threadId)}/metadata?${params}`, {credentials:'same-origin'});
+            if (!resp.ok) return;
+            const data = await resp.json();
+            applyThreadMetadata(data);
+        } catch(e) {}
+    }
+
     function appendMessage(msg) {
         const existing = document.getElementById('msg-' + msg.id) || document.querySelector(`[data-client-id="${msg.optimistic_id || msg.client_event_id || ''}"]`);
         if (existing && !String(msg.id || '').startsWith('temp-')) {
@@ -1024,7 +1082,7 @@
         const reactionsHtml = msg.reactions && msg.reactions.length ? `<div class="msg-reactions" data-message-id="${msg.id}">${msg.reactions.map(r => `<span class="reaction-badge${r.profile_id === myId ? ' mine' : ''}" onclick="toggleReaction('${msg.id}','${r.reaction_type}')">${r.reaction_type}</span>`).join('')}</div>` : '';
         group.innerHTML = `
             <div class="msg-bubble-container ${mine ? 'msg-mine-container' : 'msg-theirs-container'}">
-                <div class="msg-bubble ${mine ? 'msg-mine' : 'msg-theirs'}" data-id="${msg.id}" oncontextmenu="showMsgMenu(event,'${msg.id}')">
+                <div class="msg-bubble ${mine ? 'msg-mine' : 'msg-theirs'}" data-id="${msg.id}" data-reply-to="${msg.reply_to_message_id || ''}" oncontextmenu="showMsgMenu(event,'${msg.id}')">
                     ${replyHtml}
                     ${msg.body ? `<div class="msg-text">${escapeHtml(msg.body)}</div>` : ''}
                     ${msg.media_url ? renderMediaTag(msg.media_url, msg.media_type) : ''}
@@ -1283,6 +1341,7 @@
             const res = await fetch('/messages/api/messages/' + encodeURIComponent(threadId), {credentials:'same-origin'});
             const data = await res.json();
             (data.messages || []).forEach(appendMessage);
+            loadThreadMetadata((data.messages || []).map(msg => msg.id));
         } catch(e) {}
     }
     socket.on('connect_error', () => {
@@ -1308,6 +1367,11 @@
             }
         }, 30000);
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const ids = Array.from(document.querySelectorAll('.msg-bubble[data-id]')).map(el => el.dataset.id).filter(Boolean);
+        loadThreadMetadata(ids);
+    });
 
     async function sendMessage(body, file, existingTempId) {
         const tempId = existingTempId || addOptimisticMessage(body, file);

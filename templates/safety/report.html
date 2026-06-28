@@ -1,16 +1,134 @@
 {% extends "base.html" %}
+{% block title %}Report | {{ APP_NAME }}{% endblock %}
 {% block content %}
-<main class="chain-page safety-page">
-  <section class="chain-panel">
-    <h1>Report</h1>
-    <form method="post" action="/safety/api/report">
-      <input name="reported_profile_id" placeholder="Profile ID">
-      <input name="content_type" placeholder="Content type">
-      <input name="content_id" placeholder="Content ID">
-      <select name="reason"><option value="spam">Spam</option><option value="scam">Scam</option><option value="abuse">Abuse</option></select>
-      <textarea name="details" placeholder="Details"></textarea>
-      <button type="submit">Submit report</button>
-    </form>
-  </section>
-</main>
+{% set target = reported_profile or {} %}
+{% set current_profile = profile or {} %}
+<div class="settings-shell">
+  <div class="settings-hero">
+    <h1><i class="fas fa-flag"></i> Report</h1>
+    <p>Report inappropriate content, profiles, or behavior to our moderation team.</p>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+      <div style="padding:14px 18px;border-radius:16px;margin-bottom:14px;font-weight:700;{% if category == 'success' %}background:#d1fae5;color:#065f46;border:1px solid #a7f3d0{% else %}background:#fee2e2;color:#991b1b;border:1px solid #fecaca{% endif %}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="settings-grid" style="grid-template-columns:1fr">
+    <section class="settings-card full">
+      <div class="card-title"><i class="fas fa-info-circle"></i><h2>Reporter Information</h2></div>
+      <div class="profile-fields">
+        <label>
+          Your Name
+          <input class="text-control" type="text" value="{{ current_profile.display_name or current_profile.username or 'Anonymous' }}" readonly disabled style="opacity:.8">
+        </label>
+        <label>
+          Reporter ID
+          <input class="text-control" type="text" value="{{ current_profile.id or 'N/A' }}" readonly disabled style="opacity:.8">
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-card full">
+      <div class="card-title"><i class="fas fa-bullseye"></i><h2>Report Target</h2></div>
+      <form method="POST" action="/safety/api/report" id="report-form">
+        <div class="profile-fields">
+          <label class="full">
+            What are you reporting?
+            <select name="content_type" id="report-type" required style="width:100%;padding:12px 14px;border:2px solid #cbd5e1;border-radius:14px;font-size:16px;font-weight:700;color:#0f172a;background:#f8fafc">
+              <option value="">Select type...</option>
+              <option value="profile" {% if request.args.get('type') == 'profile' %}selected{% endif %}>Profile / Account</option>
+              <option value="page" {% if request.args.get('type') == 'page' %}selected{% endif %}>Business Page</option>
+              <option value="post" {% if request.args.get('type') == 'post' %}selected{% endif %}>Post</option>
+              <option value="reel" {% if request.args.get('type') == 'reel' %}selected{% endif %}>Reel</option>
+              <option value="story" {% if request.args.get('type') == 'story' %}selected{% endif %}>Story</option>
+              <option value="message" {% if request.args.get('type') == 'message' %}selected{% endif %}>Message</option>
+              <option value="comment" {% if request.args.get('type') == 'comment' %}selected{% endif %}>Comment</option>
+            </select>
+          </label>
+
+          <label class="full">
+            Target Profile ID
+            <input class="text-control" type="text" name="reported_profile_id" value="{{ target.id or request.args.get('profile_id') or '' }}" placeholder="ID of the profile being reported" required>
+          </label>
+
+          <label class="full" id="content-id-field">
+            Content ID (if reporting a specific post, reel, story, or message)
+            <input class="text-control" type="text" name="content_id" value="{{ request.args.get('content_id') or '' }}" placeholder="Content identifier">
+          </label>
+
+          <label class="full">
+            Reason for report
+            <select name="reason" required style="width:100%;padding:12px 14px;border:2px solid #cbd5e1;border-radius:14px;font-size:16px;font-weight:700;color:#0f172a;background:#f8fafc">
+              <option value="">Select a reason...</option>
+              <optgroup label="Safety & Harassment">
+                <option value="harassment">Harassment / Bullying</option>
+                <option value="hate_speech">Hate Speech</option>
+                <option value="threats">Violent Threats</option>
+                <option value="impersonation">Impersonation / Fake Account</option>
+              </optgroup>
+              <optgroup label="Content Issues">
+                <option value="spam">Spam</option>
+                <option value="scam">Scam / Fraud</option>
+                <option value="misleading">Misleading Information</option>
+                <option value="copyright">Copyright / Trademark Violation</option>
+                <option value="nudity">Nudity / Sexual Content</option>
+                <option value="violence">Violent Content</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="abuse">Abuse</option>
+                <option value="inappropriate">Inappropriate Content</option>
+                <option value="other">Other</option>
+              </optgroup>
+            </select>
+          </label>
+
+          <label class="full">
+            Additional details
+            <textarea class="text-control" name="details" placeholder="Provide any additional context or evidence..." style="min-height:120px;resize:vertical"></textarea>
+          </label>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+          <button class="save-btn" type="submit" style="background:#dc2626;color:#fff"><i class="fas fa-flag"></i> Submit Report</button>
+          <a href="/" class="cancel-btn">Cancel</a>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:12px">
+          <i class="fas fa-shield-alt"></i> Your report is anonymous to the reported user. Reports are reviewed by our moderation team.
+          False reporting may result in account restrictions.
+        </p>
+      </form>
+    </section>
+  </div>
+</div>
+
+<script>
+document.getElementById('report-type')?.addEventListener('change', function() {
+  const field = document.getElementById('content-id-field');
+  const types = ['post', 'reel', 'story', 'message', 'comment'];
+  field.style.display = types.includes(this.value) ? 'flex' : 'none';
+  field.querySelector('input').required = types.includes(this.value);
+});
+document.getElementById('report-form')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = this;
+  const data = Object.fromEntries(new FormData(form));
+  try {
+    const resp = await fetch('/safety/api/report', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token() }}'},
+      body: JSON.stringify({...data, timestamp: new Date().toISOString()})
+    });
+    const result = await resp.json();
+    if (result.ok) {
+      form.innerHTML = '<div style="text-align:center;padding:40px"><i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;margin-bottom:16px"></i><h3 style="color:#0f172a;margin:0 0 8px">Report Submitted</h3><p style="color:#64748b">Thank you. Our moderation team will review your report.</p><a href="/" class="save-btn" style="display:inline-flex;margin-top:16px">Back to Home</a></div>';
+    } else {
+      alert(result.error || 'Failed to submit report');
+    }
+  } catch(e) { alert('Request failed'); }
+});
+</script>
 {% endblock %}

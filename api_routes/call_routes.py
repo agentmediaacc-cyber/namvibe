@@ -781,6 +781,97 @@ def msg_api_call_ice_servers():
     return api_webrtc_ice_servers()
 
 
+@messages_call_bp.route("/logs", methods=["GET"])
+@login_required
+def msg_api_call_logs_legacy():
+    response, status = api_phase41_logs()
+    data = response.get_json(silent=True) or {}
+    return jsonify({
+        "ok": data.get("ok", False),
+        "calls": data.get("logs", []),
+        "logs": data.get("logs", []),
+    }), status
+
+
+@messages_call_bp.route("/<log_id>/delete", methods=["POST"])
+@login_required
+def msg_api_call_delete_legacy(log_id):
+    return phase92_delete_call_log(log_id)
+
+
+@messages_call_bp.route("/start", methods=["POST"])
+@login_required
+def msg_api_call_start_legacy():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    target = (data.get("target") or "").strip()
+    call_type = data.get("call_type", "audio")
+    if not target:
+        return jsonify({"ok": False, "error": "target_required"}), 400
+
+    from services.neon_service import fast_query
+
+    receiver_id = None
+    thread_id = None
+
+    thread_rows = fast_query(
+        """
+        SELECT tm.profile_id
+        FROM chain_thread_members tm
+        WHERE tm.thread_id = %s AND tm.profile_id != %s
+        ORDER BY tm.profile_id
+        LIMIT 1
+        """,
+        (target, profile["id"]),
+        default=[],
+    )
+    if thread_rows:
+        thread_id = target
+        receiver_id = str(thread_rows[0]["profile_id"])
+
+    if not receiver_id:
+        profile_rows = fast_query(
+            """
+            SELECT id
+            FROM chain_profiles
+            WHERE (id::text = %s OR username = %s)
+              AND deleted_at IS NULL
+            LIMIT 1
+            """,
+            (target, target),
+            default=[],
+        )
+        if profile_rows:
+            receiver_id = str(profile_rows[0]["id"])
+
+    if not receiver_id:
+        return jsonify({"ok": False, "error": "target_not_found"}), 404
+
+    result = w_create_call(profile["id"], receiver_id, thread_id=thread_id, call_type=call_type)
+    if result.get("ok"):
+        return jsonify({
+            "ok": True,
+            "success": True,
+            "call": result.get("call"),
+        }), 200
+    if result.get("status") == "busy" or result.get("error") == "duplicate_call":
+        return jsonify({
+            "ok": False,
+            "success": False,
+            "error": result.get("error", "busy"),
+            "status": "busy",
+        }), 409
+    return jsonify({
+        "ok": False,
+        "success": False,
+        "error": result.get("error", "failed"),
+        "status": result.get("status", "failed"),
+    }), 400
+
+
 # =========== PHASE 41: Mobile Call Reliability Endpoints ===========
 
 @call_bp.route("/api/<call_id>/invite", methods=["POST"])

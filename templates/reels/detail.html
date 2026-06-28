@@ -167,6 +167,7 @@
         toast.classList.add("is-visible");
         setTimeout(function() { toast.classList.remove("is-visible"); }, 2500);
       }
+      var likeErrorLogged = false;
       function apiFetch(url, opts) {
         opts = opts || {};
         var headers = opts.headers || {};
@@ -193,18 +194,30 @@
           var oldCount = span ? parseInt(span.textContent, 10) : 0;
           likeBtn.classList.toggle("is-liked");
           if (span) span.textContent = wasLiked ? Math.max(oldCount - 1, 0) : oldCount + 1;
-          apiFetch("/reels/api/reels/" + id + "/like", { method: "POST" })
+          apiFetch("/api/social/reel/" + id + "/like", { method: "POST" })
             .then(function(data) {
-              if (!data.success) {
+              if (!data || data.success !== true || typeof data.liked !== "boolean") {
                 likeBtn.classList.toggle("is-liked", wasLiked);
                 if (span) span.textContent = oldCount;
-              } else if (data.count !== undefined && span) {
-                span.textContent = data.count;
+                showToast("Could not like reel. Try again.");
+                if (!likeErrorLogged) {
+                  likeErrorLogged = true;
+                  console.error("NamVibe reel like failed", data);
+                }
+                return;
               }
+              likeBtn.classList.toggle("is-liked", data.liked);
+              if (typeof data.count === "number" && span) span.textContent = data.count;
+              showToast(data.liked ? "Liked" : "Unliked");
             })
             .catch(function() {
               likeBtn.classList.toggle("is-liked", wasLiked);
               if (span) span.textContent = oldCount;
+              showToast("Could not like reel. Try again.");
+              if (!likeErrorLogged) {
+                likeErrorLogged = true;
+                console.error("NamVibe reel like failed", { reel_id: id });
+              }
             });
           return;
         }
@@ -264,68 +277,72 @@
       if (!commentCountSpan) {
         commentCountSpan = document.querySelector(".rd-actions span:nth-child(2)");
       }
+      function setCommentPending(isPending) {
+        if (!submitBtn) return;
+        submitBtn.disabled = isPending;
+        submitBtn.textContent = isPending ? "Posting..." : "Post";
+      }
       if (submitBtn && input) {
-        function addCommentToDOM(commentText, commentId) {
+        function insertCommentToDOM(commentData, pending) {
           var now = new Date().toLocaleString();
           var username = submitBtn.dataset.username || "me";
           var avatar = submitBtn.dataset.avatar || "";
+          var commentId = commentData.id || ("tmp-" + Date.now());
+          var commentText = commentData.body || "";
+          var commentTime = commentData.created_at || now;
           var div = document.createElement("div");
-          div.className = "rd-comment";
+          div.className = "rd-comment" + (pending ? " is-pending" : "");
           div.setAttribute("data-comment-id", commentId);
           var avatarHtml = avatar ? '<img src="' + avatar.replace(/"/g,'&quot;') + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span class="rd-comment-avatar-initials" style="display:none">' + username.charAt(0).toUpperCase() + '</span>' : '<span class="rd-comment-avatar-initials">' + username.charAt(0).toUpperCase() + '</span>';
-          div.innerHTML = '<a href="/profile/@' + username + '" class="rd-comment-avatar">' + avatarHtml + '</a><div class="rd-comment-body"><a href="/profile/@' + username + '" class="rd-comment-author">' + username + '</a><div class="rd-comment-text">' + escapeHtml(commentText) + '</div><div class="rd-comment-time">' + now + '</div></div>';
+          div.innerHTML = '<a href="/profile/@' + username + '" class="rd-comment-avatar">' + avatarHtml + '</a><div class="rd-comment-body"><a href="/profile/@' + username + '" class="rd-comment-author">' + username + '</a><div class="rd-comment-text">' + escapeHtml(commentText) + '</div><div class="rd-comment-time">' + escapeHtml(String(commentTime)) + (pending ? " · Sending..." : "") + "</div></div>";
           if (emptyMsg) { emptyMsg.remove(); emptyMsg = null; }
           if (commentsHead && commentsHead.nextSibling) {
             commentsContainer.insertBefore(div, commentsHead.nextSibling);
           } else if (commentsContainer) {
             commentsContainer.appendChild(div);
           }
-          if (commentCountSpan) {
-            var cc = parseInt(commentCountSpan.textContent, 10) || 0;
-            commentCountSpan.textContent = cc + 1;
+          return div;
+        }
+        function removeCommentNode(node) {
+          if (node && node.parentNode) node.parentNode.removeChild(node);
+        }
+        function syncCommentCount(count) {
+          if (commentCountSpan && typeof count === "number") {
+            commentCountSpan.textContent = count;
           }
         }
         function postComment() {
           var body = input.value.trim();
-          if (!body) return;
-          submitBtn.disabled = true;
+          if (!body) {
+            showToast("Comment cannot be empty.");
+            return;
+          }
           var reelId = submitBtn.dataset.reelId;
-          var tempId = "tmp-" + Date.now();
-          addCommentToDOM(body, tempId);
+          setCommentPending(true);
+          var pendingEl = insertCommentToDOM({ id: "tmp-" + Date.now(), body: body }, true);
           input.value = "";
-          apiFetch("/reels/api/reels/" + reelId + "/comment", {
+          apiFetch("/api/social/reel/" + reelId + "/comments", {
             method: "POST",
-            body: new URLSearchParams({ body: body })
+            body: { body: body }
           })
           .then(function(data) {
-            if (data.success) {
+            if (data && data.success === true && data.comment) {
+              removeCommentNode(pendingEl);
+              insertCommentToDOM(data.comment, false);
+              syncCommentCount(typeof data.count === "number" ? data.count : undefined);
               showToast("Comment posted!");
-              var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
-              if (tempEl && data.comment && data.comment.id) {
-                tempEl.setAttribute("data-comment-id", data.comment.id);
-              }
             } else {
-              var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
-              if (tempEl) tempEl.remove();
-              if (commentCountSpan) {
-                var cc = parseInt(commentCountSpan.textContent, 10) || 0;
-                commentCountSpan.textContent = Math.max(cc - 1, 0);
-              }
-              showToast("Could not post comment");
+              removeCommentNode(pendingEl);
+              showToast((data && data.error) || "Could not post comment.");
               input.value = body;
             }
           })
           .catch(function() {
-            var tempEl = commentsContainer ? commentsContainer.querySelector('[data-comment-id="' + tempId + '"]') : null;
-            if (tempEl) tempEl.remove();
-            if (commentCountSpan) {
-              var cc = parseInt(commentCountSpan.textContent, 10) || 0;
-              commentCountSpan.textContent = Math.max(cc - 1, 0);
-            }
-            showToast("Could not post comment");
+            removeCommentNode(pendingEl);
+            showToast("Could not post comment.");
             input.value = body;
           })
-          .finally(function() { submitBtn.disabled = false; });
+          .finally(function() { setCommentPending(false); });
         }
         submitBtn.addEventListener("click", postComment);
         input.addEventListener("keydown", function(e) {
