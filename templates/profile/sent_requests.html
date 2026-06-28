@@ -1,0 +1,41 @@
+{% extends "profile/base_profile.html" %}
+{% block profile_body %}
+<div class="profile-manager-shell" data-page="sent-requests">
+  <div class="manager-head">
+    <a href="javascript:history.back()" class="back-link">&larr; Back</a>
+    <h2>Sent Requests</h2>
+    <span class="manager-count">{{ sent|length }} pending</span>
+  </div>
+  {% if sent %}
+  <div class="people-list">
+    {% for req in sent %}
+    <div class="people-card" data-request-id="{{ req.id }}">
+      <div class="people-avatar">
+        {% if req.avatar_url %}
+        <img src="{{ req.avatar_url }}" alt="{{ req.display_name or 'User' }}" loading="lazy">
+        {% else %}
+        <span>{{ (req.display_name or req.username or 'U')[0]|upper }}</span>
+        {% endif %}
+      </div>
+      <div class="people-info">
+        <strong>{{ req.display_name or req.username or 'NamVibe User' }}</strong>
+        <span>@{{ req.username or 'user' }}</span>
+        <span style="font-size:13px;color:#f59e0b"><i class="fas fa-clock"></i> Pending</span>
+      </div>
+      <div class="people-actions">
+        <a href="/profile/{{ req.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+        <button class="action-btn danger" title="Cancel Request" data-action="cancel-friend-request" data-id="{{ req.id }}"><i class="fas fa-ban"></i></button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="manager-empty">
+    <i class="fas fa-paper-plane"></i>
+    <h3>No sent requests</h3>
+    <p>Friend requests you send will appear here.</p>
+    <a href="/social/graph/suggestions" style="color:var(--accent,#3b82f6)"><i class="fas fa-search"></i> Find People</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
