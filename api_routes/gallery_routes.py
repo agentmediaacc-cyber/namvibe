@@ -1,6 +1,6 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template, redirect
 from api_routes.profile_routes import login_required
-from services.profile_service import get_current_profile
+from services.profile_service import get_current_profile, get_profile_by_id, get_profile_privacy
 from services.gallery_service import (
     create_album,
     get_albums,
@@ -13,6 +13,8 @@ from services.gallery_service import (
     toggle_media_visibility,
     delete_media,
 )
+from services.gallery_service import get_album as get_album_by_id
+from services.neon_service import fast_query
 
 gallery_bp = Blueprint("gallery", __name__, url_prefix="/gallery")
 
@@ -181,5 +183,76 @@ def api_media_stats(profile_id):
     try:
         stats = get_profile_media_stats(profile_id)
         return jsonify({"ok": True, "stats": stats})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@gallery_bp.route("/profile/<profile_id>")
+@login_required
+def gallery_page(profile_id):
+    try:
+        viewer = get_current_profile()
+        if not viewer:
+            return redirect("/auth/login")
+        profile = get_profile_by_id(profile_id) or {}
+        if not profile:
+            return render_template("profile/not_found.html", username=""), 404
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 20))
+        album_id = request.args.get("album_id")
+        media_items, total = get_profile_gallery(
+            profile_id, viewer_id=viewer.get("id"),
+            album_id=album_id, page=page, per_page=per_page,
+        )
+        albums = get_albums(profile_id, viewer_id=viewer.get("id"))
+        stats = get_profile_media_stats(profile_id)
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        is_following = bool(
+            fast_query(
+                "SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
+                (viewer["id"], profile_id), default=[]
+            )
+        )
+        sub_status = "inactive"
+        try:
+            sub_check = fast_query(
+                "SELECT status FROM chain_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
+                (viewer["id"], profile_id), default=[]
+            )
+            if sub_check:
+                sub_status = sub_check[0].get("status", "inactive")
+        except Exception:
+            pass
+        is_owner = str(viewer.get("id")) == str(profile_id)
+        return render_template(
+            "gallery/index.html",
+            profile=profile, viewer=viewer,
+            media_items=media_items, albums=albums, stats=stats,
+            page=page, total_pages=total_pages, total=total,
+            current_album_id=album_id,
+            is_following=is_following,
+            subscriber_status=sub_status,
+        )
+    except Exception as e:
+        return f"Error loading gallery: {str(e)}", 500
+
+
+@gallery_bp.route("/api/upload-media", methods=["POST"])
+@login_required
+def api_upload_media():
+    try:
+        profile = get_current_profile()
+        if not profile:
+            return jsonify({"ok": False, "error": "Unauthorized"}), 401
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"ok": False, "error": "No file provided"}), 400
+        visibility = request.form.get("visibility", "public")
+        album_id = request.form.get("album_id")
+        from services.content_service import save_media_file
+        result = save_media_file(file, upload_type="image", profile_id=profile["id"])
+        if result:
+            return jsonify({"ok": True, "media": result}), 201
+        return jsonify({"ok": False, "error": "Upload failed"}), 500
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500

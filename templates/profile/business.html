@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.business_name or profile.display_name }} | Business{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:20px">
+  {% if profile.cover_url %}<div style="height:200px;border-radius:20px;overflow:hidden;margin-bottom:-50px"><img src="{{ profile.cover_url }}" style="width:100%;height:100%;object-fit:cover"></div>{% endif %}
+  <div style="display:flex;align-items:flex-end;gap:20px;margin-bottom:24px;position:relative;padding-left:20px">
+    <div style="width:100px;height:100px;border-radius:50%;overflow:hidden;border:4px solid #fff;background:#f1f5f9;flex-shrink:0">
+      {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" style="width:100%;height:100%;object-fit:cover">{% else %}<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:700;color:#0f172a">{{ (profile.business_name or profile.display_name or 'B')[0]|upper }}</div>{% endif %}
+    </div>
+    <div>
+      <h1 style="margin:0;font-size:28px;color:#0f172a">{{ profile.business_name or profile.display_name }}</h1>
+      {% if profile.business_category %}<span style="display:inline-block;padding:4px 12px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:13px;font-weight:600">{{ profile.business_category }}</span>{% endif %}
+      {% if profile.is_verified %}<i class="fas fa-check-circle" style="color:#1E88E5;font-size:18px" title="Verified Business"></i>{% endif %}
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
+    <div>
+      <div class="sec-card" style="background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px;margin-bottom:16px">
+        <h2 style="color:#0f172a;font-size:20px;margin:0 0 12px">About</h2>
+        <p style="color:#475569;font-size:15px;line-height:1.6">{{ profile.bio or profile.business_description or 'No description yet.' }}</p>
+        {% if profile.business_website %}<p style="margin-top:12px"><i class="fas fa-globe"></i> <a href="{{ profile.business_website }}" target="_blank" style="color:#3b82f6">{{ profile.business_website }}</a></p>{% endif %}
+        {% if profile.location or profile.town %}<p><i class="fas fa-map-marker-alt"></i> {{ profile.location or profile.town }}{% if profile.country %}, {{ profile.country }}{% endif %}</p>{% endif %}
+        {% if profile.show_phone_publicly and profile.phone %}<p><i class="fas fa-phone"></i> {{ profile.phone }}</p>{% endif %}
+        {% if profile.show_email_publicly and profile.email %}<p><i class="fas fa-envelope"></i> {{ profile.email }}</p>{% endif %}
+      </div>
+
+      <div class="sec-card" style="background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px;margin-bottom:16px">
+        <h2 style="color:#0f172a;font-size:20px;margin:0 0 12px">Services</h2>
+        {% if profile.services %}
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          {% for s in profile.services %}<span style="padding:6px 14px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:13px">{{ s }}</span>{% endfor %}
+        </div>
+        {% else %}<p style="color:#64748b">No services listed.</p>{% endif %}
+      </div>
+
+      <div class="sec-card" style="background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px;margin-bottom:16px">
+        <h2 style="color:#0f172a;font-size:20px;margin:0 0 12px">Products</h2>
+        {% if profile.products %}
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          {% for p in profile.products %}<span style="padding:6px 14px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:13px">{{ p }}</span>{% endfor %}
+        </div>
+        {% else %}<p style="color:#64748b">No products listed.</p>{% endif %}
+      </div>
+    </div>
+
+    <div>
+      <div class="sec-card" style="background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px;margin-bottom:16px">
+        <h2 style="color:#0f172a;font-size:20px;margin:0 0 12px">Actions</h2>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="sec-btn primary" onclick="window.location='/social/follow/{{ profile.id }}'" style="width:100%;text-align:center"><i class="fas fa-heart"></i> Follow</button>
+          <button class="sec-btn outline" onclick="shareBusiness()" style="width:100%;text-align:center"><i class="fas fa-share"></i> Share</button>
+          <button class="sec-btn outline" onclick="reportBusiness()" style="width:100%;text-align:center;color:#ef4444"><i class="fas fa-flag"></i> Report</button>
+        </div>
+      </div>
+      {% if viewer and viewer.id == profile.id %}
+      <div class="sec-card" style="background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px">
+        <h2 style="color:#0f172a;font-size:20px;margin:0 0 12px"><i class="fas fa-chart-line"></i> Campaigns</h2>
+        {% for c in campaigns %}
+        <div style="padding:10px 0;border-top:1px solid rgba(15,23,42,.07)">
+          <strong style="color:#0f172a">{{ c.name }}</strong>
+          <div style="font-size:13px;color:#64748b">Status: {{ c.status }} | Impressions: {{ c.impressions or 0 }} | Clicks: {{ c.clicks or 0 }}</div>
+        </div>
+        {% else %}
+        <p style="color:#64748b;font-size:14px">No campaigns yet. <a href="/social/graph/advertising" style="color:#3b82f6">Create one</a></p>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+function shareBusiness() {
+  if (navigator.share) {
+    navigator.share({title: '{{ profile.business_name or profile.display_name }}', url: window.location.href}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(window.location.href).then(() => alert('Link copied!'));
+  }
+}
+function reportBusiness() {
+  if (confirm('Report this business?')) {
+    fetch('/profile/@{{ profile.username }}/report', {method:'POST'}).then(r=>r.json()).then(d => alert(d.ok ? 'Reported' : 'Failed'));
+  }
+}
+</script>
+{% endblock %}

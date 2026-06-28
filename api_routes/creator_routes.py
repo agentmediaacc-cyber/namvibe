@@ -205,3 +205,51 @@ def api_ranking():
     data = request.get_json(silent=True) or {}
     result = upsert_creator_ranking(profile["id"], data.get("category", "overall"), data.get("score", 0), data.get("rank"))
     return jsonify({"success": bool(result.get("ok")), **result}), 200
+
+
+@creator_bp.route('/api/campaigns/create', methods=['POST'])
+@login_required
+def api_create_campaign():
+    profile = get_current_profile()
+    data = request.get_json(silent=True) or request.form
+    try:
+        from services.neon_service import write_query
+        import uuid
+        from datetime import datetime, timezone
+        campaign_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+        write_query(
+            """INSERT INTO chain_campaigns (id, profile_id, name, description, audience, budget, start_date, end_date, status, views, clicks, reach, engagement, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'active', 0, 0, 0, 0, %s)""",
+            (
+                campaign_id,
+                profile["id"],
+                data.get("name", "Campaign"),
+                data.get("description", ""),
+                data.get("audience", "everyone"),
+                float(data.get("budget", 0)),
+                data.get("start_date", now[:10]),
+                data.get("end_date", now[:10]),
+                now,
+            ),
+        )
+        log_info("campaign_created", campaign_id=campaign_id, profile_id=profile["id"])
+        return jsonify({"ok": True, "campaign_id": campaign_id}), 201
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route('/api/campaigns/<campaign_id>/end', methods=['POST'])
+@login_required
+def api_end_campaign(campaign_id):
+    profile = get_current_profile()
+    try:
+        from services.neon_service import write_query
+        write_query(
+            "UPDATE chain_campaigns SET status = 'completed' WHERE id = %s AND profile_id = %s",
+            (campaign_id, profile["id"]),
+        )
+        log_info("campaign_ended", campaign_id=campaign_id, profile_id=profile["id"])
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500

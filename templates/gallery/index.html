@@ -1,0 +1,549 @@
+{% extends "base.html" %}
+{% block title %}Gallery | {{ profile.display_name or profile.username }} | {{ APP_NAME }}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/gallery.css">
+<style>
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-content{background:#fff;border-radius:28px;padding:28px;width:100%;max-width:520px;box-shadow:0 25px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto}
+.modal-content h2{margin:0 0 18px;font-size:22px;color:#0f172a}
+.edit-caption-input{width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;resize:vertical;min-height:80px}
+.edit-caption-input:focus{border-color:#111827;outline:0}
+input,select,textarea{font-size:16px!important}
+@media(max-width:768px){.modal-content{padding:20px;margin:10px}}
+</style>
+{% endblock %}
+{% block content %}
+{% set is_owner = viewer and profile and viewer.id == profile.id %}
+{% set is_subscriber = subscriber_status == 'active' %}
+{% set can_view_private = is_owner %}
+{% set can_view_followers = is_owner or is_following or is_subscriber %}
+<div class="gallery-shell">
+  <div class="gallery-hero">
+    <h1><i class="fas fa-photo-film"></i> Gallery</h1>
+    <p>{{ profile.display_name or profile.username }}'s media gallery</p>
+  </div>
+
+  <div class="gallery-nav">
+    <a href="{{ url_for('profile.public_profile', username=profile.username) if profile.username else '#' }}" class="active"><i class="fas fa-arrow-left"></i> Back to Profile</a>
+    <button data-gallery-view="grid" class="active"><i class="fas fa-grid-2"></i> Grid</button>
+    <button data-gallery-view="albums"><i class="fas fa-folder"></i> Albums</button>
+    {% if is_owner %}
+    <button data-gallery-mode="select"><i class="fas fa-check-square"></i> Select</button>
+    {% endif %}
+  </div>
+
+  {% if stats %}
+  <div class="gallery-stats">
+    <div class="gallery-stat"><strong>{{ stats.total_media or 0 }}</strong><span>Total Media</span></div>
+    <div class="gallery-stat"><strong>{{ stats.total_albums or 0 }}</strong><span>Albums</span></div>
+    <div class="gallery-stat"><strong>{{ stats.public_count or 0 }}</strong><span>Public</span></div>
+    <div class="gallery-stat"><strong>{{ stats.followers_count or 0 }}</strong><span>Followers Only</span></div>
+    <div class="gallery-stat"><strong>{{ stats.private_count or 0 }}</strong><span>Private</span></div>
+  </div>
+  {% endif %}
+
+  {% if is_owner %}
+  <div class="gallery-actions">
+    <button class="gallery-btn primary" data-upload-trigger><i class="fas fa-upload"></i> Upload</button>
+    <button class="gallery-btn secondary" data-create-album-trigger><i class="fas fa-folder-plus"></i> Create Album</button>
+    <input type="file" id="gallery-file-input" accept="image/*,video/*" multiple hidden>
+  </div>
+  {% endif %}
+
+  <div id="select-mode-bar" class="select-mode-bar" style="display:none">
+    <span><i class="fas fa-check-square"></i> <span id="selected-count">0</span> selected</span>
+    <button class="gallery-btn secondary" data-move-to-album><i class="fas fa-folder-open"></i> Move to Album</button>
+    <button class="gallery-btn danger" data-delete-selected><i class="fas fa-trash"></i> Delete</button>
+    <button class="gallery-btn secondary" data-cancel-select><i class="fas fa-times"></i> Cancel</button>
+  </div>
+
+  {% if albums %}
+  <div id="albums-view" class="albums-grid" style="display:none">
+    {% for album in albums %}
+    <div class="album-card" data-album-id="{{ album.id }}" data-album-visibility="{{ album.visibility }}">
+      <div class="album-cover">
+        {% if album.cover_url %}
+        <img src="{{ album.cover_url }}" alt="{{ album.title }}">
+        {% else %}
+        <i class="fas fa-images"></i>
+        {% endif %}
+        <span class="album-visibility-badge">
+          {% if album.visibility == 'private' %}<i class="fas fa-lock"></i> Private
+          {% elif album.visibility == 'followers' %}<i class="fas fa-users"></i> Followers
+          {% elif album.visibility == 'subscribers' %}<i class="fas fa-crown"></i> Subscribers
+          {% else %}<i class="fas fa-globe"></i> Public{% endif %}
+        </span>
+      </div>
+      <div class="album-info">
+        <h3>{{ album.title }}</h3>
+        {% if album.description %}<p>{{ album.description[:80] }}{% if album.description|length > 80 %}...{% endif %}</p>{% endif %}
+        <div class="album-meta">
+          <span><i class="fas fa-image"></i> {{ album.item_count or 0 }} items</span>
+          <span><i class="fas fa-calendar"></i> {{ album.created_at[:10] if album.created_at else '' }}</span>
+        </div>
+        {% if is_owner %}
+        <div style="margin-top:10px;display:flex;gap:6px">
+          <button class="gallery-btn secondary" style="padding:6px 12px;font-size:12px" data-album-edit="{{ album.id }}"><i class="fas fa-pen"></i></button>
+          <button class="gallery-btn danger" style="padding:6px 12px;font-size:12px" data-album-delete="{{ album.id }}"><i class="fas fa-trash"></i></button>
+          <button class="gallery-btn secondary" style="padding:6px 12px;font-size:12px" data-album-share="{{ album.id }}"><i class="fas fa-share"></i></button>
+          {% if album.visibility != 'subscribers' %}
+          <button class="gallery-btn secondary" style="padding:6px 12px;font-size:12px" data-album-lock="{{ album.id }}"><i class="fas fa-lock"></i></button>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if not is_owner and album.visibility == 'subscribers' and not is_subscriber %}
+        <div class="gallery-lock-overlay" style="position:static;padding:8px;margin-top:8px;border-radius:10px;font-size:12px">
+          <i class="fas fa-lock"></i> Subscribe To View
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="gallery-empty" style="grid-column:1/-1">
+      <i class="fas fa-folder-open"></i>
+      <h3>No albums yet</h3>
+      {% if is_owner %}<p>Create your first album to organize your media.</p>{% else %}<p>No public albums available.</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div id="grid-view" class="gallery-grid">
+    {% for item in media_items %}
+    <div class="gallery-item" data-media-id="{{ item.id }}" data-visibility="{{ item.visibility }}">
+      {% if is_owner %}
+      <input type="checkbox" class="gallery-checkbox media-select" data-media-id="{{ item.id }}" style="display:none;position:absolute;top:8px;left:8px;z-index:2;width:20px;height:20px">
+      {% endif %}
+      {% if item.upload_type and item.upload_type == 'video' %}
+      <video src="{{ item.public_url }}" muted preload="metadata"></video>
+      <span class="gallery-item-type"><i class="fas fa-video"></i> Video</span>
+      {% else %}
+      <img src="{{ item.public_url }}" alt="Media" loading="lazy">
+      <span class="gallery-item-type"><i class="fas fa-image"></i> Photo</span>
+      {% endif %}
+      {% if is_owner %}
+      <span class="gallery-item-visibility">
+        {% if item.visibility == 'private' %}<i class="fas fa-lock"></i> Private
+        {% elif item.visibility == 'followers' %}<i class="fas fa-users"></i> Followers
+        {% elif item.visibility == 'subscribers' %}<i class="fas fa-crown"></i> Subscribers
+        {% else %}<i class="fas fa-globe"></i> Public{% endif %}
+      </span>
+      {% endif %}
+      {% if not is_owner and item.visibility == 'subscribers' and not is_subscriber %}
+      <div class="gallery-lock-overlay">
+        <i class="fas fa-lock"></i>
+        <span>Locked Content</span>
+        <small>Subscribe To View</small>
+      </div>
+      {% endif %}
+      {% if item.visibility != 'subscribers' or is_owner or is_subscriber %}
+      <div class="gallery-item-overlay">
+        <span>{{ item.created_at[:10] if item.created_at else '' }}</span>
+        <div style="display:flex;gap:6px">
+          {% if is_owner %}
+          <button style="background:0;border:0;color:#fff;cursor:pointer" data-media-edit="true" data-media-id="{{ item.id }}"><i class="fas fa-pen"></i></button>
+          <button style="background:0;border:0;color:#fff;cursor:pointer" data-media-delete="{{ item.id }}"><i class="fas fa-trash"></i></button>
+          {% endif %}
+          <button style="background:0;border:0;color:#fff;cursor:pointer" data-media-share="{{ item.id }}"><i class="fas fa-share"></i></button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="gallery-empty">
+      <i class="fas fa-image"></i>
+      <h3>No media yet</h3>
+      {% if is_owner %}<p>Upload photos and videos to build your gallery.</p>{% else %}<p>No public media available yet.</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if total_pages > 1 %}
+  <div style="display:flex;justify-content:center;gap:8px;margin-top:24px">
+    {% if page > 1 %}
+    <a class="gallery-btn secondary" href="?page={{ page - 1 }}{% if current_album_id %}&album_id={{ current_album_id }}{% endif %}"><i class="fas fa-chevron-left"></i> Previous</a>
+    {% endif %}
+    <span style="padding:12px 0;font-weight:700;color:#64748b">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a class="gallery-btn secondary" href="?page={{ page + 1 }}{% if current_album_id %}&album_id={{ current_album_id }}{% endif %}">Next <i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<div id="upload-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-content">
+    <h2><i class="fas fa-upload"></i> Upload Media</h2>
+    <div class="upload-zone" id="upload-drop-zone">
+      <i class="fas fa-cloud-upload-alt"></i>
+      <p>Drop files here or click to browse</p>
+      <small>Supports images and videos</small>
+    </div>
+    <div id="upload-preview" style="display:none;margin-bottom:14px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap" id="upload-preview-files"></div>
+    </div>
+    <label>Album <select id="upload-album-select" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;background:#f8fafc;margin-bottom:14px">
+      <option value="">None (no album)</option>
+      {% for album in albums or [] %}
+      <option value="{{ album.id }}">{{ album.title }}</option>
+      {% endfor %}
+    </select></label>
+    <label>Visibility <select id="upload-visibility-select" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;background:#f8fafc;margin-bottom:14px">
+      <option value="public">Public</option>
+      <option value="followers">Followers</option>
+      <option value="subscribers">Subscribers</option>
+      <option value="private">Private</option>
+    </select></label>
+    <div class="form-actions">
+      <button class="gallery-btn secondary" data-close-modal>Cancel</button>
+      <button class="gallery-btn primary" id="upload-submit" disabled><i class="fas fa-upload"></i> Upload</button>
+    </div>
+  </div>
+</div>
+
+<div id="album-form-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-content">
+    <h2 id="album-form-title"><i class="fas fa-folder-plus"></i> Create Album</h2>
+    <input type="hidden" id="album-form-id" value="">
+    <label>Title <input type="text" id="album-form-title-input" placeholder="Album title" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;background:#f8fafc;margin-bottom:14px"></label>
+    <label>Description <textarea id="album-form-desc" placeholder="Album description" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;background:#f8fafc;margin-bottom:14px;resize:vertical;min-height:60px"></textarea></label>
+    <label>Visibility <select id="album-form-visibility" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;background:#f8fafc;margin-bottom:14px">
+      <option value="public">Public</option>
+      <option value="followers">Followers</option>
+      <option value="subscribers">Subscribers</option>
+      <option value="private">Private</option>
+    </select></label>
+    <div class="form-actions">
+      <button class="gallery-btn secondary" data-close-modal>Cancel</button>
+      <button class="gallery-btn primary" id="album-form-submit"><i class="fas fa-save"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="edit-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-content">
+    <h2><i class="fas fa-pen"></i> Edit Media</h2>
+    <input type="hidden" id="edit-media-id" value="">
+    <label>Caption <textarea id="edit-caption" class="edit-caption-input" placeholder="Edit caption..."></textarea></label>
+    <label>Visibility <select id="edit-visibility" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;background:#f8fafc;margin-bottom:14px">
+      <option value="public">Public</option>
+      <option value="followers">Followers</option>
+      <option value="subscribers">Subscribers</option>
+      <option value="private">Private</option>
+    </select></label>
+    <label>Album <select id="edit-album-select" style="width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:14px;font-size:16px;color:#0f172a;font-weight:600;background:#f8fafc;margin-bottom:14px">
+      <option value="">None (no album)</option>
+      {% for album in albums or [] %}
+      <option value="{{ album.id }}">{{ album.title }}</option>
+      {% endfor %}
+    </select></label>
+    <div class="form-actions">
+      <button class="gallery-btn secondary" data-close-modal>Cancel</button>
+      <button class="gallery-btn primary" id="edit-save"><i class="fas fa-save"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="share-modal" class="share-modal" style="display:none">
+  <div class="share-modal-content">
+    <h2><i class="fas fa-share-alt"></i> Share</h2>
+    <p style="color:#64748b;font-size:14px;margin-bottom:18px" id="share-description">Share this content</p>
+    <input type="hidden" id="share-type" value="">
+    <input type="hidden" id="share-id" value="">
+    <div class="share-options">
+      <button class="share-option" data-share-destination="namvibe"><i class="fas fa-paper-plane" style="color:#6C5CE7"></i> NamVibe</button>
+      <button class="share-option" data-share-destination="whatsapp"><i class="fab fa-whatsapp" style="color:#25D366"></i> WhatsApp</button>
+      <button class="share-option" data-share-destination="facebook"><i class="fab fa-facebook" style="color:#1877F2"></i> Facebook</button>
+      <button class="share-option" data-share-destination="email"><i class="fas fa-envelope" style="color:#EA4335"></i> Email</button>
+      <button class="share-option" data-share-destination="copy"><i class="fas fa-link" style="color:#64748b"></i> Copy Link</button>
+    </div>
+    <div style="margin-top:14px;text-align:right">
+      <button class="gallery-btn secondary" data-close-modal>Close</button>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+{{ super() }}
+<script>
+(function() {
+const API = { csrf: '{{ csrf_token() }}', profileId: '{{ profile.id }}' };
+
+function api(path, opts={}) {
+  const headers = {'X-CSRF-Token': API.csrf};
+  if (opts.body && !(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  return fetch('/gallery/api/' + path, { ...opts, headers, credentials:'same-origin' }).then(r=>r.json());
+}
+
+function reload() { window.location.reload(); }
+
+// Upload
+const uploadTrigger = document.querySelector('[data-upload-trigger]');
+const fileInput = document.getElementById('gallery-file-input');
+const uploadModal = document.getElementById('upload-modal');
+const uploadZone = document.getElementById('upload-drop-zone');
+
+if (uploadTrigger) {
+  uploadTrigger.onclick = () => { uploadModal.style.display = 'flex'; };
+}
+if (uploadZone) {
+  uploadZone.onclick = () => fileInput.click();
+  uploadZone.ondragover = e => { e.preventDefault(); uploadZone.style.borderColor = '#111827'; };
+  uploadZone.ondragleave = () => { uploadZone.style.borderColor = '#cbd5e1'; };
+  uploadZone.ondrop = e => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
+}
+if (fileInput) {
+  fileInput.onchange = () => handleFiles(fileInput.files);
+}
+
+function handleFiles(files) {
+  const preview = document.getElementById('upload-preview');
+  const container = document.getElementById('upload-preview-files');
+  const submitBtn = document.getElementById('upload-submit');
+  container.innerHTML = '';
+  for (const f of files) {
+    const el = document.createElement('div');
+    el.style.cssText = 'width:80px;height:80px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0';
+    if (f.type.startsWith('video/')) {
+      el.innerHTML = '<i class="fas fa-video" style="display:grid;place-items:center;height:100%;font-size:24px;color:#94a3b8"></i>';
+    } else {
+      const img = document.createElement('img');
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover';
+      img.src = URL.createObjectURL(f);
+      el.appendChild(img);
+    }
+    container.appendChild(el);
+  }
+  preview.style.display = 'block';
+  submitBtn.disabled = false;
+  window._uploadFiles = files;
+}
+
+document.getElementById('upload-submit')?.addEventListener('click', async function() {
+  const files = window._uploadFiles;
+  if (!files || !files.length) return;
+  const albumId = document.getElementById('upload-album-select').value;
+  const visibility = document.getElementById('upload-visibility-select').value;
+  this.disabled = true;
+  this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+  try {
+    for (const f of files) {
+      const form = new FormData();
+      form.append('file', f);
+      form.append('visibility', visibility);
+      if (albumId) form.append('album_id', albumId);
+      await api('upload-media', { method:'POST', body: form });
+    }
+    reload();
+  } catch(e) { alert('Upload failed: ' + e.message); }
+  this.disabled = false;
+  this.innerHTML = '<i class="fas fa-upload"></i> Upload';
+});
+
+// Create/Edit Album
+document.querySelector('[data-create-album-trigger]')?.addEventListener('click', function() {
+  document.getElementById('album-form-title').innerHTML = '<i class="fas fa-folder-plus"></i> Create Album';
+  document.getElementById('album-form-id').value = '';
+  document.getElementById('album-form-title-input').value = '';
+  document.getElementById('album-form-desc').value = '';
+  document.getElementById('album-form-visibility').value = 'public';
+  document.getElementById('album-form-modal').style.display = 'flex';
+});
+
+document.querySelectorAll('[data-album-edit]').forEach(btn => {
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    const card = this.closest('.album-card');
+    const id = card.dataset.albumId;
+    const title = card.querySelector('h3').textContent;
+    const desc = card.querySelector('p')?.textContent || '';
+    const vis = card.dataset.albumVisibility;
+    document.getElementById('album-form-title').innerHTML = '<i class="fas fa-pen"></i> Edit Album';
+    document.getElementById('album-form-id').value = id;
+    document.getElementById('album-form-title-input').value = title;
+    document.getElementById('album-form-desc').value = desc;
+    document.getElementById('album-form-visibility').value = vis || 'public';
+    document.getElementById('album-form-modal').style.display = 'flex';
+  };
+});
+
+document.getElementById('album-form-submit')?.addEventListener('click', async function() {
+  const id = document.getElementById('album-form-id').value;
+  const data = {
+    title: document.getElementById('album-form-title-input').value.trim(),
+    description: document.getElementById('album-form-desc').value.trim(),
+    visibility: document.getElementById('album-form-visibility').value,
+  };
+  if (!data.title) return alert('Title is required');
+  try {
+    if (id) {
+      await api('albums/' + id + '/update', { method:'POST', body: data });
+    } else {
+      await api('albums/create', { method:'POST', body: data });
+    }
+    reload();
+  } catch(e) { alert('Failed: ' + e.message); }
+});
+
+// Delete album
+document.querySelectorAll('[data-album-delete]').forEach(btn => {
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    if (!confirm('Delete this album and all its media?')) return;
+    const id = this.closest('.album-card').dataset.albumId;
+    api('albums/' + id, { method:'DELETE' }).then(reload).catch(e => alert('Failed: ' + e.message));
+  };
+});
+
+// Edit media
+document.querySelectorAll('[data-media-edit]').forEach(btn => {
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    const id = this.dataset.mediaId;
+    document.getElementById('edit-media-id').value = id;
+    document.getElementById('edit-caption').value = '';
+    document.getElementById('edit-visibility').value = this.closest('[data-visibility]')?.dataset.visibility || 'public';
+    document.getElementById('edit-modal').style.display = 'flex';
+  };
+});
+
+document.getElementById('edit-save')?.addEventListener('click', async function() {
+  const id = document.getElementById('edit-media-id').value;
+  const albumId = document.getElementById('edit-album-select').value;
+  const visibility = document.getElementById('edit-visibility').value;
+  try {
+    if (visibility) {
+      await api('media/' + id + '/visibility', { method:'POST', body: { visibility } });
+    }
+    if (albumId) {
+      await api('albums/' + albumId + '/add-media', { method:'POST', body: { media_id: id } });
+    }
+    reload();
+  } catch(e) { alert('Failed: ' + e.message); }
+});
+
+// Delete media
+document.querySelectorAll('[data-media-delete]').forEach(btn => {
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    if (!confirm('Delete this media?')) return;
+    api('media/' + this.dataset.mediaId, { method:'DELETE' }).then(reload).catch(e => alert('Failed: ' + e.message));
+  };
+});
+
+// Share
+document.querySelectorAll('[data-media-share], [data-album-share]').forEach(btn => {
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    const isAlbum = this.hasAttribute('data-album-share');
+    const id = this.dataset.mediaShare || this.dataset.albumShare;
+    document.getElementById('share-type').value = isAlbum ? 'album' : 'media';
+    document.getElementById('share-id').value = id;
+    document.getElementById('share-description').textContent = isAlbum ? 'Share this album' : 'Share this media';
+    document.getElementById('share-modal').style.display = 'flex';
+  };
+});
+
+document.querySelectorAll('[data-share-destination]').forEach(btn => {
+  btn.onclick = function() {
+    const type = document.getElementById('share-type').value;
+    const id = document.getElementById('share-id').value;
+    const dest = this.dataset.shareDestination;
+    const url = '{{ request.url_root }}' + (type === 'album' ? 'gallery/album/' : 'gallery/media/') + id;
+    switch(dest) {
+      case 'copy':
+        navigator.clipboard.writeText(url).then(() => { alert('Link copied!'); });
+        break;
+      case 'whatsapp':
+        window.open('https://wa.me/?text=' + encodeURIComponent(url), '_blank');
+        break;
+      case 'facebook':
+        window.open('https://facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), '_blank');
+        break;
+      case 'email':
+        window.open('mailto:?body=' + encodeURIComponent(url), '_blank');
+        break;
+      case 'namvibe':
+        navigator.clipboard.writeText(url).then(() => { alert('Link copied! Share it in NamVibe messages.'); });
+        break;
+    }
+    document.getElementById('share-modal').style.display = 'none';
+  };
+});
+
+// Select mode
+let selectMode = false;
+document.querySelector('[data-gallery-mode="select"]')?.addEventListener('click', function() {
+  selectMode = !selectMode;
+  document.querySelectorAll('.media-select').forEach(cb => cb.style.display = selectMode ? 'block' : 'none');
+  document.getElementById('select-mode-bar').style.display = selectMode ? 'flex' : 'none';
+  this.textContent = selectMode ? 'Cancel Select' : 'Select';
+});
+
+document.querySelector('[data-cancel-select]')?.addEventListener('click', function() {
+  document.querySelector('[data-gallery-mode="select"]')?.click();
+});
+
+document.querySelectorAll('.media-select').forEach(cb => {
+  cb.onchange = function() {
+    document.getElementById('selected-count').textContent = document.querySelectorAll('.media-select:checked').length;
+  };
+});
+
+document.querySelector('[data-delete-selected]')?.addEventListener('click', async function() {
+  const ids = Array.from(document.querySelectorAll('.media-select:checked')).map(cb => cb.dataset.mediaId);
+  if (!ids.length || !confirm('Delete ' + ids.length + ' items?')) return;
+  for (const id of ids) {
+    await api('media/' + id, { method:'DELETE' });
+  }
+  reload();
+});
+
+document.querySelector('[data-move-to-album]')?.addEventListener('click', function() {
+  const ids = Array.from(document.querySelectorAll('.media-select:checked')).map(cb => cb.dataset.mediaId);
+  if (!ids.length) return alert('No items selected');
+  const albumId = prompt('Enter album ID to move to:');
+  if (!albumId) return;
+  Promise.all(ids.map(id => api('albums/' + albumId + '/add-media', { method:'POST', body: { media_id: id } }))).then(reload);
+});
+
+// Album lock
+document.querySelectorAll('[data-album-lock]').forEach(btn => {
+  btn.onclick = function(e) {
+    e.stopPropagation();
+    const card = this.closest('.album-card');
+    const id = card.dataset.albumId;
+    api('albums/' + id + '/update', { method:'POST', body: { visibility: 'subscribers' } }).then(reload);
+  };
+});
+
+// Toggle views
+document.querySelectorAll('[data-gallery-view]').forEach(btn => {
+  btn.onclick = function() {
+    document.querySelectorAll('[data-gallery-view]').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    const view = this.dataset.galleryView;
+    document.getElementById('grid-view').style.display = view === 'grid' ? 'grid' : 'none';
+    const albumView = document.getElementById('albums-view');
+    if (albumView) albumView.style.display = view === 'albums' ? 'grid' : 'none';
+  };
+});
+
+// Close modals
+document.querySelectorAll('[data-close-modal]').forEach(btn => {
+  btn.onclick = function() {
+    this.closest('.modal-backdrop, .share-modal').style.display = 'none';
+  };
+});
+window.onclick = e => {
+  if (e.target.classList.contains('modal-backdrop') || e.target.classList.contains('share-modal')) {
+    e.target.style.display = 'none';
+  }
+};
+})();
+</script>
+{% endblock %}
+{% endblock %}

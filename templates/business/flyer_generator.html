@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Flyer Generator - NamVibe{% endblock %}
+
+{% block head_extra %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<link rel="stylesheet" href="/static/css/business_flyer_generator.css">
+{% endblock %}
+
+{% block content %}
+<div class="bfg-wrap">
+
+  <div class="bfg-head">
+    <h1>Flyer Generator</h1>
+    <a href="/business">&larr; Back to Business</a>
+  </div>
+
+  <div class="bfg-layout">
+
+    {# ── Editor Panel ── #}
+    <div class="bfg-panel">
+      <h2>Choose Template</h2>
+      <div id="bfg-templates" class="bfg-templates"></div>
+
+      <div class="bfg-field">
+        <label for="bfg-business-name">Business Name</label>
+        <input type="text" id="bfg-business-name" placeholder="Your Business Name" maxlength="60">
+      </div>
+
+      <div class="bfg-field">
+        <label for="bfg-product-text">Product / Service Description</label>
+        <textarea id="bfg-product-text" placeholder="What are you promoting?" maxlength="200"></textarea>
+      </div>
+
+      <div class="bfg-field">
+        <label for="bfg-price">Price (optional)</label>
+        <input type="text" id="bfg-price" placeholder="$19.99" maxlength="20">
+      </div>
+
+      <div class="bfg-field">
+        <label for="bfg-contact">Contact Info</label>
+        <input type="text" id="bfg-contact" placeholder="Phone, email, or website" maxlength="80">
+      </div>
+
+      <div class="bfg-field">
+        <label>Background Color</label>
+        <div id="bfg-bg-colors" class="bfg-colors"></div>
+      </div>
+
+      <div class="bfg-field">
+        <label>Text Color</label>
+        <div id="bfg-text-colors" class="bfg-colors"></div>
+      </div>
+
+      <div class="bfg-field">
+        <label for="bfg-accent-color">Accent Color</label>
+        <input type="color" id="bfg-accent-color" value="#7c3aed" style="width:48px;height:48px;padding:2px;border-radius:50%;cursor:pointer;border:1px solid #2a2a32;background:none">
+      </div>
+
+      <div class="bfg-field">
+        <label>Upload Logo</label>
+        <input type="file" id="bfg-logo-input" accept="image/*" style="font-size:16px;color:#9496a8">
+        <div id="bfg-logo-preview" class="bfg-logo-preview"></div>
+      </div>
+    </div>
+
+    {# ── Preview Panel ── #}
+    <div class="bfg-preview">
+      <h2>Preview</h2>
+      <div class="bfg-preview-canvas">
+        <canvas id="bfg-preview-canvas"></canvas>
+      </div>
+      <div class="bfg-preview-actions">
+        <button class="bfg-preview-btn bfg-preview-btn-primary" id="bfg-preview-btn" aria-label="Refresh preview">Refresh Preview</button>
+        <button class="bfg-preview-btn bfg-preview-btn-secondary" id="bfg-download-btn" aria-label="Download flyer">Download</button>
+        <button class="bfg-preview-btn bfg-preview-btn-primary" id="bfg-hd-btn" aria-label="Download HD flyer">Download HD</button>
+      </div>
+
+      <div id="bfg-lock-msg" class="bfg-lock" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <span>HD Download requires NamVibe Premium. <a href="/premium" style="color:#7c3aed;text-decoration:none;font-weight:600;">Upgrade now</a></span>
+      </div>
+
+      <div id="bfg-success" class="bfg-success">
+        <h3>Flyer ready!</h3>
+        <p>Your flyer has been generated. Use the Download button to save it.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="bfg-toast" class="bfg-toast"></div>
+
+<script>window.NAMVIBE_IS_PREMIUM = {{ 'true' if current_user.is_premium|default(false) else 'false' }};</script>
+<script src="/static/js/business_flyer_generator.js"></script>
+{% endblock %}
