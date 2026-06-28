@@ -105,7 +105,7 @@ def login_required(f):
             if session.get("refresh_token"):
                 refresh_supabase_session_if_needed()
         if not is_logged_in() and not has_local_session:
-            if request.path.startswith('/api/') or request.path.startswith('/reels/api/'):
+            if request.path.startswith('/api/') or request.path.startswith('/reels/api/') or request.path.startswith('/posts/api/') or request.path.startswith('/status/api/'):
                 return jsonify({"error": "Unauthorized", "message": "Authentication required"}), 401
             return redirect(url_for("auth.login", next=request.path))
         return f(*args, **kwargs)
@@ -342,6 +342,20 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         presence=context.get("presence"),
         action_policy=context.get("action_policy"),
     )
+    # Determine subscriber status for locked content display
+    try:
+        viewer_id = viewer.get("id") if viewer else None
+        profile_id = render_profile.get("id")
+        if viewer_id and profile_id and str(viewer_id) != str(profile_id):
+            sub_check = fast_query(
+                "SELECT status FROM chain_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
+                (viewer_id, profile_id), default=[]
+            )
+            context["subscriber_status"] = sub_check[0].get("status", "inactive") if sub_check else "inactive"
+        else:
+            context["subscriber_status"] = "active" if (viewer_id and profile_id and str(viewer_id) == str(profile_id)) else "inactive"
+    except Exception:
+        context["subscriber_status"] = "inactive"
     return render_template("profile/index.html", **context), status_code
 
 
