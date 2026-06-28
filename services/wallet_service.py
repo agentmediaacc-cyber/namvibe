@@ -39,6 +39,10 @@ def get_or_create_wallet(profile_id):
         return None
     if not _db_available():
         return _fake_wallet(profile_id)
+    # Check cache first to avoid duplicate DB hits
+    cached = cache_get(f"wallet:{profile_id}")
+    if cached is not None:
+        return cached
     try:
         existing = fast_query(
             "SELECT * FROM chain_wallets WHERE profile_id = %s LIMIT 1",
@@ -48,7 +52,8 @@ def get_or_create_wallet(profile_id):
         log_warning("wallet_lookup_failed", profile_id=profile_id, error=str(e))
         return _fake_wallet(profile_id)
     if existing:
-        return _wallet_dict(existing[0])
+        result = _wallet_dict(existing[0])
+        return cache_set(f"wallet:{profile_id}", result)
     try:
         rows = write_query(
             """
@@ -60,7 +65,9 @@ def get_or_create_wallet(profile_id):
             (str(uuid4()), profile_id), timeout_ms=3000
         )
         if rows:
-            return _wallet_dict(rows[0])
+            result = _wallet_dict(rows[0])
+            cache_set(f"wallet:{profile_id}", result)
+            return result
     except Exception as e:
         log_warning("wallet_create_failed", profile_id=profile_id, error=str(e))
     existing = fast_query(
@@ -68,7 +75,9 @@ def get_or_create_wallet(profile_id):
         (profile_id,), default=[]
     )
     if existing:
-        return _wallet_dict(existing[0])
+        result = _wallet_dict(existing[0])
+        cache_set(f"wallet:{profile_id}", result)
+        return result
     return None
 
 

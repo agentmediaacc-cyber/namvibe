@@ -56,6 +56,49 @@ CHAIN_STATIC_COLUMNS = {
         "is_archived", "is_pinned", "scheduled_at",
         "deleted_at", "created_at", "updated_at"
     },
+    "chain_message_threads": {
+        "id", "thread_type", "created_by_profile_id", "folder_type",
+        "deleted_at", "created_at", "updated_at"
+    },
+    "chain_thread_members": {
+        "id", "thread_id", "profile_id",
+        "last_read_at", "is_pinned", "is_archived", "muted",
+        "deleted_at", "created_at", "updated_at"
+    },
+    "chain_messages": {
+        "id", "thread_id", "sender_profile_id",
+        "body", "media_url", "media_type", "mime_type", "size_bytes",
+        "storage_bucket", "storage_path", "media_bucket", "media_path",
+        "client_event_id", "parent_message_id", "is_forwarded", "status_id",
+        "sticker_id", "gif_url",
+        "location_lat", "location_lng", "contact_data",
+        "message_type", "delivery_status", "is_seen",
+        "seen_at", "read_at", "edited_at",
+        "deleted_for_everyone_at",
+        "created_at", "updated_at", "deleted_at"
+    },
+    "chain_message_reactions": {
+        "id", "message_id", "profile_id",
+        "reaction_type", "created_at"
+    },
+    "chain_message_deletions": {
+        "id", "message_id", "profile_id",
+        "created_at"
+    },
+    "chain_wallet_transactions": {
+        "id", "wallet_id", "profile_id", "counterparty_profile_id",
+        "transaction_type", "direction", "amount_cents", "currency",
+        "status", "reference_type", "reference_id", "description",
+        "metadata", "created_at", "updated_at"
+    },
+    "chain_payout_requests": {
+        "id", "creator_profile_id", "profile_id",
+        "amount_cents", "currency",
+        "payout_method", "payout_details", "method_info",
+        "status", "admin_note",
+        "requested_at", "reviewed_at", "paid_at",
+        "created_at", "updated_at"
+    },
     "chain_friend_requests": {
         "id", "sender_profile_id", "recipient_profile_id",
         "receiver_profile_id",
@@ -181,11 +224,25 @@ _TABLE_EXISTS_CACHE_TTL = 3600 * 24
 _HEALTH_CACHE = {"payload": None, "expires_at": 0.0}
 
 def get_table_columns(table_name: str, timeout_ms=10000):
-    """Retrieve live table columns, falling back to static schema only if DB lookup fails."""
+    """Retrieve table columns, checking static schema FIRST to avoid pg_attribute introspection.
+
+    The static schema (CHAIN_STATIC_COLUMNS) is complete for all known tables and
+    avoids expensive pg_attribute/pg_class catalog queries that cause repeated
+    schema_cache_miss warnings and slow cold-start request latency.
+    """
     cached = _COLUMN_CACHE.get(table_name)
     now = time.time()
     if cached is not None and now < cached["expires_at"]:
         return set(cached["columns"])
+
+    # Static lookup first — avoids pg_attribute entirely for known tables
+    static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
+    if static_cols:
+        _COLUMN_CACHE[table_name] = {
+            "columns": list(static_cols),
+            "expires_at": now + _COLUMN_CACHE_TTL
+        }
+        return set(static_cols)
 
     log_info("schema_cache_miss", table=table_name, kind="columns")
     query = """
@@ -199,13 +256,10 @@ def get_table_columns(table_name: str, timeout_ms=10000):
     rows = fast_query(query, (table_name,), timeout_ms=timeout_ms, default=None)
     columns = {r["column_name"] for r in rows} if rows else set()
     if not columns:
-        static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
-        if static_cols:
-            log_warning("schema_live_lookup_empty_fallback", table=table_name)
-            columns = set(static_cols)
+        log_warning("schema_live_lookup_empty_fallback", table=table_name)
 
     _COLUMN_CACHE[table_name] = {
-        "columns": columns,
+        "columns": list(columns),
         "expires_at": now + _COLUMN_CACHE_TTL
     }
     return columns
