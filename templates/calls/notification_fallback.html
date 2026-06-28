@@ -20,17 +20,18 @@
 </style>
 {% endblock %}
 {% block content %}
+{% set current_status = call.call_status or call.status or 'ringing' %}
 <div class="call-fallback-shell">
   <div class="call-fallback-card">
-    {% if call.call_status == 'missed' or call.call_status == 'ended' %}
+    {% if current_status in ['missed', 'ended', 'rejected', 'cancelled'] %}
       <div class="call-missed-badge"><i class="fas fa-phone-slash"></i> Missed Call</div>
     {% endif %}
     <div class="call-fallback-avatar">
       {% if target_avatar %}<img src="{{ target_avatar }}" alt="">{% else %}<i class="fas fa-user"></i>{% endif %}
     </div>
     <h2 class="call-fallback-name">{{ target_name or 'Caller' }}</h2>
-    <p class="call-fallback-type">{{ call.call_type|title }} Call {% if call.call_status == 'ringing' %}· Incoming{% elif call.call_status == 'answered' %}· Connected{% elif call.call_status == 'missed' %}· Missed{% endif %}</p>
-    {% if call.call_status == 'ringing' %}
+    <p class="call-fallback-type">{{ call.call_type|title }} Call {% if current_status == 'ringing' %}· Incoming{% elif current_status in ['answered', 'accepted', 'connecting', 'connected'] %}· Connected{% elif current_status == 'missed' %}· Missed{% endif %}</p>
+    {% if current_status == 'ringing' %}
     <div class="call-fallback-actions">
       <div>
         <form action="/calls/{{ call.id }}/answer" method="POST">
@@ -45,7 +46,7 @@
         <div class="call-fallback-label">Decline</div>
       </div>
     </div>
-    {% elif call.call_status == 'missed' %}
+    {% elif current_status == 'missed' %}
     <div class="call-fallback-actions">
       <div>
         <form action="/calls/start/{{ target_id }}/audio" method="GET">

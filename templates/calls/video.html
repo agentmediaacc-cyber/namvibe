@@ -248,7 +248,8 @@
 {% endblock %}
 
 {% block content %}
-<section class="call-shell" data-call-type="{{ call.call_type }}" data-call-id="{{ call.id }}" data-role="{{ role }}" data-call-status="{{ call.call_status }}">
+{% set current_status = call.call_status or call.status or 'ringing' %}
+<section class="call-shell" data-call-type="{{ call.call_type }}" data-call-id="{{ call.id }}" data-role="{{ role }}" data-call-status="{{ current_status }}">
 
   <!-- Camera Denied Banner -->
   <div id="cameraDeniedBanner">
@@ -298,7 +299,7 @@
   {% set target_avatar = call.receiver_avatar if role == 'caller' else call.caller_avatar %}
 
   <!-- Incoming Call Overlay -->
-  <div id="incomingOverlay" class="call-overlay {{ '' if role == 'receiver' and call.call_status == 'ringing' else 'hidden' }}">
+  <div id="incomingOverlay" class="call-overlay {{ '' if role == 'receiver' and current_status == 'ringing' else 'hidden' }}">
     <img class="call-avatar-lg" src="{{ target_avatar or '' }}" alt="">
     <h2>{{ target_name or 'Caller' }}</h2>
     <p id="incomingCallType">{{ call.call_type|title }} Call</p>
@@ -315,7 +316,7 @@
   </div>
 
   <!-- Outgoing Ringback Overlay -->
-  <div id="outgoingOverlay" class="call-overlay {{ '' if role == 'caller' and call.call_status == 'ringing' else 'hidden' }}">
+  <div id="outgoingOverlay" class="call-overlay {{ '' if role == 'caller' and current_status == 'ringing' else 'hidden' }}">
     <div style="position:relative; display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
       <div class="ring-pulse"></div>
       <i class="fas fa-phone-alt call-icon-big" style="position:relative; z-index:2;"></i>
@@ -326,7 +327,7 @@
   </div>
 
   <!-- Connected Overlay -->
-  <div id="connectedOverlay" class="call-overlay {{ '' if call.call_status == 'answered' else 'hidden' }}">
+  <div id="connectedOverlay" class="call-overlay {{ '' if current_status in ['answered', 'accepted', 'connecting', 'connected'] else 'hidden' }}">
     <i class="fas fa-{{ 'phone' if call.call_type == 'audio' else 'video' }} call-icon-big"></i>
     <h2>{{ target_name or 'Connected' }}</h2>
     <p id="callStatusText">Call in progress</p>
@@ -393,8 +394,8 @@
         document.getElementById('cameraToggle').style.display = 'none';
       }
       // Start call timer if answered
-      var status = "{{ call.call_status }}";
-      if (status === 'answered') {
+      var status = "{{ current_status }}";
+      if (['answered', 'accepted', 'connecting', 'connected'].indexOf(status) !== -1) {
         startCallTimer();
         showConnectedOverlay();
       }
@@ -741,7 +742,7 @@
 <script id="CHAIN_CALL_SCREEN_RING_PATCH">
 (function(){
   var role = "{{ role or '' }}";
-  var status = "{{ call.call_status or 'ringing' }}";
+  var status = "{{ current_status }}";
 
   function startCorrectTone(){
     if (status !== "ringing") return;
@@ -776,7 +777,7 @@
 <script id="CHAIN_FORCE_CALL_RING_START">
 (function(){
   var role = "{{ role or '' }}";
-  var status = "{{ call.call_status or 'ringing' }}";
+  var status = "{{ current_status }}";
 
   function startRing(){
     if(status !== "ringing") return;

@@ -59,7 +59,7 @@
       headers: csrfHeaders()
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok || !json.ok) throw new Error(json.error || "send_failed");
+    if (!res.ok || !(json.ok || json.success)) throw new Error(json.error || "send_failed");
     markLocalStatus(clientTempId, "sent");
     return json;
   }
