@@ -45,3 +45,6 @@ tmp/
 
 # Cloudflare tunnel credentials
 .cloudflared/*.json
+
+# Local/generated audit output
+audit_results.json
