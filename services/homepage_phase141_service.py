@@ -49,8 +49,14 @@ def _format_relative(value):
 
 # Profile batch fetch columns for efficient loading
 _PROFILE_BATCH_COLUMNS = [
-    "id", "username", "display_name", "avatar_url", "is_verified", "verified"
+    "id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified"
 ]
+
+
+def _profile_avatar(profile):
+    if not profile:
+        return ""
+    return profile.get("avatar_url") or profile.get("profile_photo") or ""
 
 
 def fetch_profiles_batch(profile_ids, timeout_ms=5000):
@@ -87,7 +93,7 @@ def normalize_story_v2(row, profile_map):
     
     display_name = profile.get("display_name") or profile.get("username") or ""
     username = profile.get("username") or ""
-    avatar_url = profile.get("avatar_url") or ""
+    avatar_url = _profile_avatar(profile)
     verified = bool(profile.get("verified") or profile.get("is_verified"))
     is_online = bool(profile.get("is_online"))
     
@@ -131,7 +137,7 @@ def normalize_live_room_v2(row, profile_map):
         "entry_fee_label": f"{int(float(row.get('entry_fee') or 0))} coins" if row.get('entry_fee') else "",
         "cover_url": row.get("cover_url") or row.get("thumbnail_url") or "",
         "creator_name": creator_name,
-        "creator_avatar": profile.get("avatar_url") or "",
+        "creator_avatar": _profile_avatar(profile),
         "creator_verified": bool(profile.get("verified")),
         "creator_location": profile.get("town") or profile.get("location") or "",
         "created_label": _format_relative(row.get("created_at")),
@@ -162,7 +168,7 @@ def normalize_post_v2(row, profile_map):
         "id": row.get("id"),
         "display_name": display_name,
         "username": username,
-        "avatar_url": profile.get("avatar_url") or "",
+        "avatar_url": _profile_avatar(profile),
         "verified": bool(profile.get("verified")),
         "caption": caption,
         "excerpt": caption[:180] + ("..." if len(caption) > 180 else ""),
@@ -196,7 +202,7 @@ def normalize_profile_v2(row):
         "id": row.get("id"),
         "username": username,
         "display_name": display_name,
-        "avatar_url": row.get("avatar_url") or "",
+        "avatar_url": _profile_avatar(row),
         "verified": bool(row.get("verified") or row.get("is_verified")),
         "followers_count": int(row.get("followers_count") or 0),
         "town": row.get("town") or "",

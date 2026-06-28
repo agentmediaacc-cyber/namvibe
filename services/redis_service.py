@@ -244,15 +244,27 @@ class RedisManager:
         client = self.get_client()
         if not client:
             return False
-        try:
-            client.publish(pubsub_channel(channel), self._safe_json(payload))
-            self._remember_success()
-            return True
-        except Exception as error:
-            self.client = None
-            self.reset_pubsub()
-            self._remember_failure(error)
-            return False
+        last_error = None
+        for attempt in range(3):
+            try:
+                client.publish(pubsub_channel(channel), self._safe_json(payload))
+                self._remember_success()
+                if attempt > 0:
+                    log_redis_warning("redis_publish_retry_succeeded",
+                                      f"[redis_service] publish succeeded on retry attempt {attempt + 1}")
+                return True
+            except Exception as error:
+                last_error = error
+                self.client = None
+                self.reset_pubsub()
+                self._remember_failure(error)
+                # Exponential backoff: 50ms, 200ms, 1s — do not block for long
+                if attempt < 2:
+                    backoff = 0.05 * (4 ** attempt)
+                    time.sleep(min(backoff, 1.0))
+        log_warning("redis_publish_failed",
+                    f"[redis_service] publish failed after 3 attempts for channel={channel}: {last_error}")
+        return False
 
     def subscribe(self, *channels):
         client = self.get_client()

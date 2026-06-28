@@ -80,8 +80,11 @@
                 <div class="chain-auth-divider"><span>or</span></div>
 
                 <form class="auth-submit-form chain-auth-form" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="apk_csrf_token" value="{{ apk_csrf_token('/auth/login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                    <input type="hidden" name="apk_csrf_token" value="{{ apk_csrf_token('/auth/login') if apk_csrf_token is defined else '' }}">
+                    {% if next_path %}
+                    <input type="hidden" name="next" value="{{ next_path }}">
+                    {% endif %}
                     <label>
                         <span>Email or Username</span>
                         <input type="text" name="login_id" placeholder="Enter your email or username" required>
@@ -89,6 +92,10 @@
                     <label>
                         <span>Password</span>
                         <input type="password" name="password" placeholder="••••••••" required>
+                    </label>
+                    <label class="field-checkbox">
+                        <input type="checkbox" name="remember_me" value="1" checked>
+                        <span>Keep me signed in</span>
                     </label>
                     <button type="submit" class="primary auth-submit-btn" data-loading-text="Logging in...">
                         <span class="btn-label">Log In</span>

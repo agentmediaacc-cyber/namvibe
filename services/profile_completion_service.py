@@ -1,99 +1,60 @@
-"""Weighted profile completion for NamVibe profiles."""
+"""Profile completion service using registration data."""
+from services.neon_service import fast_query, write_query
+from services.logging_service import log_info
 
-
-COMPLETION_WEIGHTS = {
-    "avatar": 15,
-    "cover": 10,
-    "bio": 15,
-    "location": 10,
-    "phone_verified": 10,
-    "email_verified": 10,
-    "identity_verified": 15,
-    "first_content": 15,
+COMPLETION_FIELDS = {
+    "full_name": 10,
+    "username": 5,
+    "avatar_url": 15,
+    "cover_url": 5,
+    "bio": 10,
+    "phone": 5,
+    "email": 5,
+    "date_of_birth": 5,
+    "gender": 3,
+    "town": 5,
+    "country": 5,
+    "location": 5,
+    "website": 5,
+    "interests": 7,
+    "profile_photo": 10,
 }
 
-
-CHECKLIST = {
-    "avatar": {"label": "Add profile photo", "action_url": "/profile/edit"},
-    "cover": {"label": "Add cover banner", "action_url": "/profile/edit"},
-    "bio": {"label": "Write bio", "action_url": "/profile/edit"},
-    "location": {"label": "Add location", "action_url": "/profile/edit"},
-    "phone_verified": {"label": "Verify phone", "action_url": "/security"},
-    "email_verified": {"label": "Verify email", "action_url": "/security"},
-    "identity_verified": {"label": "Verify identity", "action_url": "/profile/verification"},
-    "first_content": {"label": "Upload first reel/post", "action_url": "/posts/create"},
-}
-
-
-def _present(value):
-    return value not in (None, "", [], {})
-
-
-def _has_avatar(profile):
-    return _present(profile.get("avatar_url") or profile.get("photo_url") or profile.get("thumbnail_url") or profile.get("profile_photo"))
-
-
-def _has_cover(profile):
-    return _present(profile.get("cover_url") or profile.get("cover_path") or profile.get("banner_url") or profile.get("banner_path"))
-
-
-def _has_location(profile):
-    return _present(
-        profile.get("location")
-        or profile.get("current_location")
-        or profile.get("town")
-        or profile.get("city")
-        or profile.get("region")
-        or profile.get("country")
-        or profile.get("country_origin")
-        or profile.get("current_country")
-    )
-
-
-def _has_first_content(profile):
-    for key in ("posts_count", "reels_count", "stories_count", "status_count"):
-        try:
-            if int(profile.get(key) or 0) > 0:
-                return True
-        except (TypeError, ValueError):
-            pass
-    return bool(profile.get("has_first_content") or profile.get("has_posts") or profile.get("has_reels") or profile.get("has_stories"))
-
-
-def _completion_state(profile):
-    profile = profile or {}
-    return {
-        "avatar": _has_avatar(profile),
-        "cover": _has_cover(profile),
-        "bio": _present(profile.get("bio")),
-        "location": _has_location(profile),
-        "phone_verified": bool(profile.get("phone_verified") or profile.get("phone_confirmed") or profile.get("phone_number_verified")),
-        "email_verified": bool(profile.get("email_verified") or profile.get("email_confirmed") or profile.get("verified_email")),
-        "identity_verified": bool(profile.get("identity_verified") or profile.get("is_verified") or profile.get("verified")),
-        "first_content": _has_first_content(profile),
-    }
-
-
-def calculate_profile_completion(profile):
-    """Return weighted completion, missing checklist, and next best action."""
+def calculate_completion(profile):
     if not profile:
-        return {"percent": 0, "score": 0, "total": 100, "missing": [], "checklist": [], "next_best_action": None}
-
-    state = _completion_state(profile)
-    score = sum(COMPLETION_WEIGHTS[key] for key, ok in state.items() if ok)
+        return {"percentage": 0, "completed": [], "missing": []}
+    completed = []
     missing = []
-    checklist = []
-    for key, weight in COMPLETION_WEIGHTS.items():
-        task = {**CHECKLIST[key], "key": key, "weight": weight, "complete": bool(state[key])}
-        checklist.append(task)
-        if not state[key]:
-            missing.append(task)
+    score = 0
+    total = sum(COMPLETION_FIELDS.values())
+    for field, weight in COMPLETION_FIELDS.items():
+        value = profile.get(field)
+        if value and str(value).strip():
+            score += weight
+            completed.append(field)
+        else:
+            missing.append(field)
+    pct = min(100, int((score / total) * 100))
+    return {"percentage": pct, "completed": completed, "missing": missing, "score": score, "total": total}
 
-    return {
-        "percent": max(0, min(100, int(score))),
-        "score": score,
-        "total": 100,
-        "missing": missing,
-        "checklist": checklist,
-        "next_best_action": missing[0] if missing else None,
-    }
+def get_completion(profile_id):
+    rows = fast_query(
+        "SELECT full_name, username, avatar_url, cover_url, bio, phone, email, "
+        "date_of_birth, gender, town, country, location, website, interests, profile_photo "
+        "FROM chain_profiles WHERE id = %s",
+        (profile_id,), default=[]
+    )
+    if not rows:
+        return {"percentage": 0, "completed": [], "missing": []}
+    return calculate_completion(rows[0])
+
+def update_completion_percentage(profile_id):
+    result = get_completion(profile_id)
+    write_query(
+        "UPDATE chain_profiles SET completion_percentage = %s, profile_completed = %s WHERE id = %s",
+        (result["percentage"], result["percentage"] >= 80, profile_id)
+    )
+    return result
+
+# Alias for backward compatibility with existing imports
+calculate_profile_completion = calculate_completion

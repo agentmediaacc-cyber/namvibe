@@ -18,19 +18,54 @@ def _db_available():
 
 
 def _payout_dict(row):
+    profile_id = row.get("creator_profile_id") or row.get("profile_id")
+    payout_method = row.get("payout_method")
+    if not payout_method:
+        method_info = row.get("method_info")
+        if isinstance(method_info, str):
+            try:
+                method_info = json.loads(method_info)
+            except Exception:
+                method_info = {}
+        payout_method = (method_info or {}).get("provider") or "bank"
+    requested_at = row.get("requested_at") or row.get("created_at")
     return {
         "id": str(row["id"]),
-        "creator_profile_id": str(row["creator_profile_id"]),
+        "creator_profile_id": str(profile_id) if profile_id else None,
+        "profile_id": str(profile_id) if profile_id else None,
         "amount_cents": int(row["amount_cents"]),
         "currency": row.get("currency", "NAD"),
-        "payout_method": row.get("payout_method", "bank"),
+        "payout_method": payout_method,
         "payout_details": row.get("payout_details", {}),
         "status": row.get("status", "pending"),
         "admin_note": row.get("admin_note"),
-        "requested_at": row["requested_at"].isoformat() if row.get("requested_at") else None,
+        "requested_at": requested_at.isoformat() if requested_at else None,
         "reviewed_at": row["reviewed_at"].isoformat() if row.get("reviewed_at") else None,
         "paid_at": row["paid_at"].isoformat() if row.get("paid_at") else None,
     }
+
+
+def _row_profile_id(row):
+    value = row.get("creator_profile_id") or row.get("profile_id")
+    return str(value) if value else None
+
+
+def _is_modern_payout_row(row):
+    return bool(row.get("profile_id")) and not bool(row.get("creator_profile_id"))
+
+
+def _credit_refund(profile_id, amount_cents, payout_id):
+    if not profile_id or amount_cents <= 0:
+        return {"ok": False, "error": "invalid_refund"}
+    from services.wallet_service import credit_wallet
+    return credit_wallet(
+        profile_id,
+        amount_cents,
+        description=f"Payout refund: {payout_id}",
+        transaction_type="withdrawal_reversal",
+        reference_type="payout",
+        reference_id=payout_id,
+    )
 
 
 def request_payout(creator_profile_id, amount_cents, payout_method="bank", payout_details=None):
@@ -113,12 +148,12 @@ def get_payout_requests(status=None, limit=50, offset=0):
         return []
     if status:
         rows = fast_query(
-            "SELECT * FROM chain_payout_requests WHERE status = %s ORDER BY requested_at DESC LIMIT %s OFFSET %s",
+            "SELECT * FROM chain_payout_requests WHERE status = %s ORDER BY COALESCE(requested_at, created_at) DESC LIMIT %s OFFSET %s",
             (status, limit, offset), default=[]
         )
     else:
         rows = fast_query(
-            "SELECT * FROM chain_payout_requests ORDER BY requested_at DESC LIMIT %s OFFSET %s",
+            "SELECT * FROM chain_payout_requests ORDER BY COALESCE(requested_at, created_at) DESC LIMIT %s OFFSET %s",
             (limit, offset), default=[]
         )
     return [_payout_dict(r) for r in rows]
@@ -128,8 +163,13 @@ def get_creator_payouts(creator_profile_id, limit=50, offset=0):
     if not _db_available():
         return []
     rows = fast_query(
-        "SELECT * FROM chain_payout_requests WHERE creator_profile_id = %s ORDER BY requested_at DESC LIMIT %s OFFSET %s",
-        (creator_profile_id, limit, offset), default=[]
+        """
+        SELECT * FROM chain_payout_requests
+        WHERE (creator_profile_id = %s OR profile_id = %s)
+        ORDER BY COALESCE(requested_at, created_at) DESC
+        LIMIT %s OFFSET %s
+        """,
+        (creator_profile_id, creator_profile_id, limit, offset), default=[]
     )
     return [_payout_dict(r) for r in rows]
 
@@ -138,22 +178,24 @@ def approve_payout(payout_id, admin_note=None):
     if not _db_available():
         return {"ok": False, "error": "db_unavailable"}
     rows = fast_query(
-        "SELECT * FROM chain_payout_requests WHERE id = %s AND status = 'pending' LIMIT 1",
+        "SELECT * FROM chain_payout_requests WHERE id = %s AND status IN ('pending', 'pending_review') LIMIT 1",
         (payout_id,), default=[]
     )
     if not rows:
         return {"ok": False, "error": "payout_not_found_or_already_processed"}
     payout = rows[0]
-    creator_pid = str(payout["creator_profile_id"])
+    creator_pid = _row_profile_id(payout)
+    if not creator_pid:
+        return {"ok": False, "error": "payout_profile_missing"}
     try:
         if admin_note:
             write_query(
-                "UPDATE chain_payout_requests SET status = 'approved', admin_note = %s, reviewed_at = now() WHERE id = %s AND status = 'pending'",
+                "UPDATE chain_payout_requests SET status = 'approved', admin_note = %s, reviewed_at = now() WHERE id = %s AND status IN ('pending', 'pending_review')",
                 (admin_note, payout_id)
             )
         else:
             write_query(
-                "UPDATE chain_payout_requests SET status = 'approved', reviewed_at = now() WHERE id = %s AND status = 'pending'",
+                "UPDATE chain_payout_requests SET status = 'approved', reviewed_at = now() WHERE id = %s AND status IN ('pending', 'pending_review')",
                 (payout_id,)
             )
         log_wallet_event("payout_approved", payout_id=payout_id, creator=creator_pid, amount_cents=payout["amount_cents"])
@@ -179,19 +221,25 @@ def reject_payout(payout_id, admin_note=None):
     if not _db_available():
         return {"ok": False, "error": "db_unavailable"}
     rows = fast_query(
-        "SELECT * FROM chain_payout_requests WHERE id = %s AND status = 'pending' LIMIT 1",
+        "SELECT * FROM chain_payout_requests WHERE id = %s AND status IN ('pending', 'pending_review') LIMIT 1",
         (payout_id,), default=[]
     )
     if not rows:
         return {"ok": False, "error": "payout_not_found_or_already_processed"}
     payout = rows[0]
-    creator_pid = str(payout["creator_profile_id"])
+    creator_pid = _row_profile_id(payout)
+    if not creator_pid:
+        return {"ok": False, "error": "payout_profile_missing"}
     try:
         note = admin_note or "Rejected by admin"
         write_query(
-            "UPDATE chain_payout_requests SET status = 'rejected', admin_note = %s, reviewed_at = now() WHERE id = %s AND status = 'pending'",
+            "UPDATE chain_payout_requests SET status = 'rejected', admin_note = %s, reviewed_at = now() WHERE id = %s AND status IN ('pending', 'pending_review')",
             (note, payout_id)
         )
+        if _is_modern_payout_row(payout):
+            refund = _credit_refund(creator_pid, int(payout["amount_cents"]), payout_id)
+            if not refund.get("ok"):
+                return {"ok": False, "error": refund.get("error", "refund_failed")}
         log_wallet_event("payout_rejected", payout_id=payout_id, creator=creator_pid, amount_cents=payout["amount_cents"])
         emit_to_profile(creator_pid, "wallet:payout-updated", {"payout_id": payout_id, "status": "rejected"})
         try:
@@ -221,15 +269,19 @@ def mark_payout_paid(payout_id):
     if not rows:
         return {"ok": False, "error": "payout_not_found_or_not_approved"}
     payout = rows[0]
-    creator_id = str(payout["creator_profile_id"])
+    creator_id = _row_profile_id(payout)
+    if not creator_id:
+        return {"ok": False, "error": "payout_profile_missing"}
     amount = int(payout["amount_cents"])
-    debit = debit_wallet(
-        creator_id, amount,
-        description=f"Payout: {payout_id}",
-        transaction_type="payout",
-    )
-    if not debit.get("ok"):
-        return debit
+    debit = {"ok": True, "balance_cents": get_wallet(creator_id).get("balance_cents", 0) if get_wallet(creator_id) else 0}
+    if not _is_modern_payout_row(payout):
+        debit = debit_wallet(
+            creator_id, amount,
+            description=f"Payout: {payout_id}",
+            transaction_type="payout",
+        )
+        if not debit.get("ok"):
+            return debit
     try:
         write_query(
             "UPDATE chain_payout_requests SET status = 'paid', paid_at = now() WHERE id = %s AND status = 'approved'",

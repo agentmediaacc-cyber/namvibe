@@ -330,7 +330,7 @@
   }
 
   function updateEmptyState() {
-    if (state.items.length === 0 && !DOM.skeleton.style.display !== 'none') {
+    if (state.items.length === 0 && DOM.skeleton.style.display === 'none') {
       DOM.emptyState.classList.remove('hidden');
     } else {
       DOM.emptyState.classList.add('hidden');

@@ -17,8 +17,29 @@
             <option value="public" {% if privacy.profile_visibility == 'public' %}selected{% endif %}>Public</option>
             <option value="friends_only" {% if privacy.profile_visibility == 'friends_only' %}selected{% endif %}>Friends Only</option>
             <option value="followers_only" {% if privacy.profile_visibility == 'followers_only' %}selected{% endif %}>Followers Only</option>
+            <option value="subscribers_only" {% if privacy.profile_visibility == 'subscribers_only' %}selected{% endif %}>Subscribers Only</option>
             <option value="private" {% if privacy.profile_visibility == 'private' %}selected{% endif %}>Private</option>
           </select>
+        </div>
+      </section>
+
+      <section class="settings-card full">
+        <div class="card-title"><i class="fas fa-eye-slash"></i><h2>Profile Field Visibility</h2></div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Show phone number</strong><span>Display your phone number on your profile.</span></div>
+          <label class="switch"><input type="checkbox" name="show_phone" {% if privacy.show_phone != false %}checked{% endif %}><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Show email</strong><span>Display your email address on your profile.</span></div>
+          <label class="switch"><input type="checkbox" name="show_email" {% if privacy.show_email != false %}checked{% endif %}><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Show location</strong><span>Display your location on your profile.</span></div>
+          <label class="switch"><input type="checkbox" name="show_location" {% if privacy.show_location != false %}checked{% endif %}><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-text"><strong>Show website</strong><span>Display your website on your profile.</span></div>
+          <label class="switch"><input type="checkbox" name="show_website" {% if privacy.show_website != false %}checked{% endif %}><span class="slider"></span></label>
         </div>
       </section>
 

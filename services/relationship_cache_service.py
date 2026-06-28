@@ -117,8 +117,7 @@ def _query_relationship_states(str_viewer, str_ids, id_set):
     blocked_set = set()
 
     for chunk in _chunks(str_ids, 50):
-        # Use psycopg2.sql.SQL to properly adapt the UUID list to uuid[]
-        chunk_literal = sql.Literal(chunk)
+        chunk_literal = chunk
         
         following_rows = fast_query(
             sql.SQL("SELECT following_profile_id FROM chain_follows "

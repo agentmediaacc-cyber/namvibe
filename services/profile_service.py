@@ -878,7 +878,7 @@ def ensure_neon_profile(auth_user_id, defaults=None):
         "username_slug": username,
         "display_name": (defaults.get("display_name") or defaults.get("full_name") or username).strip(),
         "full_name": (defaults.get("full_name") or defaults.get("display_name") or username).strip(),
-        "phone": defaults.get("phone") or session.get("phone"),
+        "phone": defaults.get("phone") or (session.get("phone") if has_request_context() else None),
         "normalized_phone": defaults.get("normalized_phone") or _normalize_phone(defaults.get("phone") or session.get("phone")),
         "date_of_birth": defaults.get("date_of_birth"),
         "residential_address": defaults.get("residential_address"),
@@ -1743,7 +1743,7 @@ def get_profile_stats(profile_id):
             rooms = safe_count("chain_live_rooms", filters={"profile_id": profile_id})
 
         posts = safe_count("chain_posts", filters={"profile_id": profile_id})
-        stories = safe_count("chain_stories", filters={"profile_id": profile_id})
+        stories = safe_count("chain_status_posts", filters={"profile_id": profile_id})
         reels = safe_count("chain_reels", filters={"profile_id": profile_id})
         counts = get_profile_counts(profile_id)
         return {
@@ -1763,22 +1763,49 @@ def get_profile_stats(profile_id):
 
 
 def get_profile_content(profile_id, limit=8):
-    rooms = safe_select("chain_live_rooms", columns="id,title,profile_id,status,is_live,category,viewer_count,cover_url,created_at", filters={"profile_id": profile_id}, limit=limit)
-    posts = safe_select("chain_posts", columns="id,profile_id,body,caption,category,media_url,video_url,link_url,town_tag,created_at", filters={"profile_id": profile_id}, limit=limit)
-    reels = safe_select("chain_reels", columns="id,profile_id,caption,media_url,video_url,thumbnail_url,music_title,created_at", filters={"profile_id": profile_id}, limit=limit)
-    stories = safe_select("chain_stories", columns="id,profile_id,caption,media_url,created_at", filters={"profile_id": profile_id}, limit=limit)
-    if not posts or not reels or not stories:
-        try:
-            from services.content_service import local_content, active_local_stories
-            local = local_content()
-            if not posts:
-                posts = [post for post in local["posts"] if post.get("profile_id") == profile_id][:limit]
-            if not reels:
-                reels = [reel for reel in local["reels"] if reel.get("profile_id") == profile_id][:limit]
-            if not stories:
-                stories = active_local_stories(profile_id=profile_id)[:limit]
-        except Exception:
-            pass
+    try:
+        posts = fast_query(
+            """SELECT id, profile_id, body, caption, category, media_url, video_url,
+                      link_url, town_tag, created_at
+               FROM chain_posts
+               WHERE profile_id = %s AND deleted_at IS NULL
+               ORDER BY created_at DESC LIMIT %s""",
+            (profile_id, limit), default=[]
+        )
+    except Exception:
+        posts = []
+    try:
+        reels = fast_query(
+            """SELECT id, profile_id, caption, media_url, video_url, thumbnail_url,
+                      music_title, created_at
+               FROM chain_reels
+               WHERE profile_id = %s AND deleted_at IS NULL
+               ORDER BY created_at DESC LIMIT %s""",
+            (profile_id, limit), default=[]
+        )
+    except Exception:
+        reels = []
+    try:
+        stories = fast_query(
+            """SELECT id, profile_id, caption, media_url, video_url, created_at
+               FROM chain_status_posts
+               WHERE profile_id = %s AND deleted_at IS NULL
+               ORDER BY created_at DESC LIMIT %s""",
+            (profile_id, limit), default=[]
+        )
+    except Exception:
+        stories = []
+    try:
+        rooms = fast_query(
+            """SELECT id, profile_id, title, status, is_live, category,
+                      viewer_count, cover_url, created_at
+               FROM chain_live_rooms
+               WHERE profile_id = %s AND deleted_at IS NULL
+               ORDER BY created_at DESC LIMIT %s""",
+            (profile_id, limit), default=[]
+        )
+    except Exception:
+        rooms = []
     return {
         "rooms": rooms, 
         "posts": posts, 

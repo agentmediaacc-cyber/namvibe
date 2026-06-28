@@ -57,8 +57,8 @@
     </div>
 
     <form method="POST" action="/auth/register" class="register-fields auth-submit-form" id="chain-register-form" autocomplete="on">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="apk_csrf_token" value="{{ apk_csrf_token('/auth/register') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+      <input type="hidden" name="apk_csrf_token" value="{{ apk_csrf_token('/auth/register') if apk_csrf_token is defined else '' }}">
 
       <label class="field">
         <span class="field-label">Full name <span class="req">*</span></span>

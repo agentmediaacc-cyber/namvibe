@@ -372,6 +372,10 @@ def add_comment(profile_id, entity_type, entity_id, body):
     except Exception:
         comment = None
 
+    if comment and comment.get("id"):
+        comments = list_comments(entity_type, entity_id, limit=100)
+        comment = next((row for row in comments if str(row.get("id")) == str(comment.get("id"))), comment)
+
     return {"success": True, "comment": comment, "count": count}
 
 
@@ -419,6 +423,36 @@ def list_comments(entity_type, entity_id, limit=5):
     config = _comment_config(entity_type)
     if not config or not entity_id:
         return []
+    table = config["table"]
+    entity_column = config["entity_column"]
+    try:
+        rows = fast_query(
+            f"""
+            SELECT
+                c.id,
+                c.profile_id,
+                c.profile_id AS user_id,
+                c.{entity_column},
+                c.body,
+                c.created_at,
+                p.username,
+                p.display_name,
+                COALESCE(p.avatar_url, p.profile_photo, '') AS avatar_url,
+                COALESCE(p.is_verified, p.verified, FALSE) AS is_verified
+            FROM {table} c
+            LEFT JOIN chain_profiles p ON c.profile_id = p.id
+            WHERE c.{entity_column} = %s
+            ORDER BY c.created_at ASC
+            LIMIT %s
+            """,
+            (entity_id, limit),
+            default=[],
+        )
+        if rows is not None:
+            return rows
+    except Exception:
+        pass
+
     comments = safe_select(
         config["table"],
         filters={config["entity_column"]: entity_id},

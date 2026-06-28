@@ -291,11 +291,14 @@ def login():
     if request.args.get("password_reset") == "1":
         success_message = "Password updated. You can now log in."
     elif request.args.get("registered") == "1":
-        success_message = "Account created. You can log in now."
+        success_message = "Account created. Check your email or log in now."
     elif request.args.get("oauth_error") == "1":
-        oauth_error = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
+        oauth_error = "We could not complete social login. Try email registration or check OAuth callback settings."
 
     if request.method == "POST":
+        form_next = request.form.get("next") or ""
+        if form_next.startswith("/"):
+            session["auth_next"] = form_next
         raw_login_id = (
             request.form.get("login_id")
             or request.form.get("username")
@@ -309,7 +312,12 @@ def login():
             or request.form.get("user_password")
             or ""
         )
-        ok, result = login_chain_user(raw_login_id, raw_password)
+        remember_me = request.form.get("remember_me") in {"1", "true", "on", "yes"}
+        ok, result = login_chain_user({
+            "login_id": raw_login_id,
+            "password": raw_password,
+            "remember_me": remember_me,
+        })
         if ok:
             return redirect(_post_login_redirect(result))
         
@@ -327,7 +335,7 @@ def login():
         
     if request.method == "GET":
         if not oauth_error and _should_show_oauth_error():
-            oauth_error = session.pop("oauth_error_message", None) or "Google sign-in could not complete. Try email registration or check OAuth callback settings."
+            oauth_error = session.pop("oauth_error_message", None) or "We could not complete social login. Try email registration or check OAuth callback settings."
         else:
             _clear_oauth_error_state()
             
@@ -411,6 +419,8 @@ def register_post():
                 "csrf_valid": csrf_valid,
             },
         )
+        if not isinstance(result, dict):
+            result = {"ok": False, "error": "Registration failed. Please try again."}
         log_warning(
             "auth_register_apk_route_result",
             user_agent=request.headers.get("User-Agent", ""),
@@ -746,7 +756,7 @@ def reset_password():
                 # Successfully reset. Log them out of the recovery session so they can re-login properly.
                 from services.auth_service import logout_chain_user
                 logout_chain_user()
-                return redirect(url_for("auth.login", password_reset_success=1))
+                return redirect(url_for("auth.login", password_reset=1))
             else:
                 error = result
 

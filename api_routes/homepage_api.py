@@ -5,7 +5,11 @@ import os
 import time
 from flask import Blueprint, jsonify, request, session
 from services.profile_service import get_current_profile
-from services.homepage_service import get_feed_tab, get_homepage_payload
+from services.homepage_service import (
+    get_feed_tab,
+    get_homepage_payload,
+    get_homepage_sidebar_payload,
+)
 from services.homepage_phase141_service import (
     fetch_posts_v2,
     fetch_reels_v2,
@@ -18,6 +22,7 @@ from services.neon_service import fast_query, is_circuit_open
 from api_routes.profile_routes import login_required
 
 homepage_api_bp = Blueprint("homepage_api", __name__)
+feed_preload_bp = Blueprint("feed_preload", __name__)
 
 
 def _current_profile():
@@ -194,7 +199,7 @@ def api_feed():
 @homepage_api_bp.route("/api/home/follow/<profile_id>", methods=["POST"])
 @login_required
 def api_follow(profile_id):
-    profile = get_current_profile()
+    profile = _current_profile()
     if not profile or not profile.get("id"):
         return _json_error("Not authenticated", 401)
     if str(profile["id"]) == str(profile_id):
@@ -210,7 +215,7 @@ def api_follow(profile_id):
 @homepage_api_bp.route("/api/home/unfollow/<profile_id>", methods=["POST"])
 @login_required
 def api_unfollow(profile_id):
-    profile = get_current_profile()
+    profile = _current_profile()
     if not profile or not profile.get("id"):
         return _json_error("Not authenticated", 401)
     if str(profile["id"]) == str(profile_id):
@@ -307,13 +312,21 @@ def api_homepage_sidebar():
     profile = _current_profile()
     profile_id = profile.get("id") if profile else None
     try:
-        payload = get_homepage_payload(profile_id=profile_id, tab="for_you", limit=1)
-        return _json_ok({
-            "suggested_creators": payload.get("suggested_creators", []),
-            "trending_hashtags": payload.get("trending_hashtags", []),
-            "live_rooms": payload.get("live_rooms", []),
-            "wallet": payload.get("wallet", {"coin_balance": 0, "label_balance": "0"}),
-        })
+        live_rooms, _, _ = fetch_live_rooms_v2(
+            ["id", "profile_id", "category", "status", "is_live", "viewer_count", "cover_url", "thumbnail_url", "entry_fee", "created_at"],
+            timeout_ms=1200,
+            limit=5,
+        )
+        suggested_creators, _ = fetch_suggested_people_v2(
+            ["id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified", "followers_count", "town", "location"],
+            timeout_ms=800,
+            limit=5,
+        )
+        payload = get_homepage_sidebar_payload(profile_id=profile_id)
+        payload["live_rooms"] = live_rooms or payload.get("live_rooms", [])
+        payload["suggested_creators"] = suggested_creators or payload.get("suggested_creators", [])
+        payload["suggested_users"] = payload["suggested_creators"]
+        return _json_ok(payload)
     except Exception as e:
         return _json_error(str(e), 500)
 
@@ -323,8 +336,13 @@ def api_homepage_stories():
     profile = _current_profile()
     profile_id = profile.get("id") if profile else None
     try:
-        payload = get_homepage_payload(profile_id=profile_id, tab="for_you", limit=1)
-        return _json_ok({"stories": payload.get("stories", [])})
+        stories, _, _ = fetch_stories_v2(
+            ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "created_at", "duration_seconds", "background_color", "text_content", "views_count", "visibility"],
+            timeout_ms=1200,
+            limit=12,
+            viewer_id=profile_id,
+        )
+        return _json_ok({"stories": stories or []})
     except Exception as e:
         return _json_error(str(e), 500)
 
@@ -334,7 +352,46 @@ def api_homepage_reels():
     profile = _current_profile()
     profile_id = profile.get("id") if profile else None
     try:
-        payload = get_homepage_payload(profile_id=profile_id, tab="for_you", limit=1)
-        return _json_ok({"reels": payload.get("reels", [])})
+        reels, _, _ = fetch_reels_v2(
+            ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "created_at", "likes_count", "comments_count", "visibility"],
+            timeout_ms=1200,
+            limit=8,
+            viewer_id=profile_id,
+        )
+        return _json_ok({"reels": reels or []})
     except Exception as e:
         return _json_error(str(e), 500)
+
+
+# ================================================================
+# GET /api/feed — Smart feed preload (feed_preload_service)
+# ================================================================
+@feed_preload_bp.route("/api/feed")
+def api_feed_preload():
+    cursor = request.args.get("cursor") or None
+    try:
+        limit = min(max(int(request.args.get("limit", 20)), 1), 50)
+    except (TypeError, ValueError):
+        limit = 20
+    profile = _current_profile()
+    profile_id = profile.get("id") if profile else None
+    try:
+        from services.feed_preload_service import get_mixed_feed
+        payload = get_mixed_feed(profile_id=profile_id, cursor=cursor, limit=limit)
+        return _json_ok({
+            "degraded": False,
+            "payload": payload,
+        })
+    except Exception as e:
+        return _json_ok({
+            "degraded": True,
+            "payload": {
+                "stories": [],
+                "feed_items": [],
+                "reels": [],
+                "ads": [],
+                "next_cursor": None,
+                "has_more": False,
+            },
+            "warning": str(e),
+        })

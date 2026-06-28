@@ -86,13 +86,21 @@ CHAIN_STATIC_COLUMNS = {
         "deleted_at", "created_at", "updated_at"
     },
     "chain_stories": {
-        "id", "profile_id", "caption",  "thumbnail_url",
+        "id", "profile_id", "caption", "thumbnail_url",
+        "media_url", "video_url", "mime_type", "size_bytes",
+        "visibility", "status", "active", "is_active",
+        "storage_bucket", "storage_path", "media_bucket", "media_path",
+        "likes_count", "views_count", "comments_count",
         "deleted_at", "created_at", "updated_at"
     },
     "chain_live_rooms": {
-        "id", "profile_id",   "title", 
-        "category", "status", "is_live", "viewer_count", 
-        "cover_url", "thumbnail_url",  "entry_fee", 
+        "id", "profile_id", "host_id", "creator_id",
+        "title", "description", "category", "status", "is_live",
+        "viewer_count", "cover_url", "thumbnail_url", "media_url",
+        "video_url", "entry_fee", "visibility", "processing_status",
+        "storage_bucket", "storage_path", "media_bucket", "media_path",
+        "mime_type", "size_bytes", "file_size",
+        "likes_count", "comments_count", "shares_count",
         "deleted_at", "created_at", "updated_at"
     },
     "chain_notifications": {
@@ -173,16 +181,11 @@ _TABLE_EXISTS_CACHE_TTL = 3600 * 24
 _HEALTH_CACHE = {"payload": None, "expires_at": 0.0}
 
 def get_table_columns(table_name: str, timeout_ms=10000):
-    """Retrieves column names for a table, prioritizing static cache."""
-    if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
-        static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
-        if static_cols:
-            return set(static_cols)
-
+    """Retrieve live table columns, falling back to static schema only if DB lookup fails."""
     cached = _COLUMN_CACHE.get(table_name)
     now = time.time()
     if cached is not None and now < cached["expires_at"]:
-        return cached["columns"]
+        return set(cached["columns"])
 
     log_info("schema_cache_miss", table=table_name, kind="columns")
     query = """
@@ -193,9 +196,14 @@ def get_table_columns(table_name: str, timeout_ms=10000):
         WHERE c.relname = %s AND n.nspname = 'public'
         AND a.attnum > 0 AND NOT a.attisdropped
     """
-    rows = fast_query(query, (table_name,), timeout_ms=timeout_ms)
-    columns = [r["column_name"] for r in rows] if rows else []
-    
+    rows = fast_query(query, (table_name,), timeout_ms=timeout_ms, default=None)
+    columns = {r["column_name"] for r in rows} if rows else set()
+    if not columns:
+        static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
+        if static_cols:
+            log_warning("schema_live_lookup_empty_fallback", table=table_name)
+            columns = set(static_cols)
+
     _COLUMN_CACHE[table_name] = {
         "columns": columns,
         "expires_at": now + _COLUMN_CACHE_TTL
@@ -839,9 +847,5 @@ def is_circuit_open():
 
 
 def get_cached_table_columns(table_name: str, timeout_ms=5000):
-    """Cached wrapper for table columns to avoid pg_attribute checks during requests."""
-    static_cols = CHAIN_STATIC_COLUMNS.get(table_name)
-    if static_cols:
-        log_info("schema_cache_static_hit", table=table_name, kind="columns")
-        return set(static_cols)
+    """Cached wrapper for table columns that prefers live DB schema."""
     return get_table_columns(table_name, timeout_ms=timeout_ms)

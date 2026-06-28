@@ -16,7 +16,9 @@ _LOGGED_OUT_UNREAD_CACHE = {"expires_at": 0.0, "payload": {"count": 0}}
 _TABS = [
     {"key": "all", "label": "All"},
     {"key": "unread", "label": "Unread"},
-    {"key": "requests", "label": "Requests"},
+    {"key": "social", "label": "Social"},
+    {"key": "messages", "label": "Messages"},
+    {"key": "system", "label": "System"},
 ]
 
 @notification_engine_bp.route("/notifications/")

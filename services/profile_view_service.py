@@ -94,6 +94,7 @@ def _tabs(own_profile, is_creator, has_shop):
         {"key": "posts", "label": "Posts", "icon": "fa-table-cells-large"},
         {"key": "reels", "label": "Reels", "icon": "fa-film"},
         {"key": "media", "label": "Media", "icon": "fa-photo-film"},
+        {"key": "gallery", "label": "Gallery", "icon": "fa-photo-film"},
         {"key": "live", "label": "Live", "icon": "fa-tower-broadcast"},
         {"key": "about", "label": "About", "icon": "fa-circle-info"},
     ]

@@ -207,7 +207,7 @@ def _row_to_post(row):
         "id": str(row["id"]),
         "profile_id": str(row["profile_id"]),
         "caption": row.get("caption", ""),
-        "media_url": row.get("media_url", ""),
+        "media_url": row.get("media_url") or row.get("video_url") or "",
         "media_type": row.get("media_type", "image"),
         "likes_count": row.get("likes_count", 0) or 0,
         "comments_count": row.get("comments_count", 0) or 0,

@@ -11,9 +11,11 @@ from flask import has_request_context, session
 from engines.cache_engine import cache_key, get_cache, set_cache
 from services.request_cache import build_request_key, request_memoize
 from services.neon_service import (
+    CHAIN_STATIC_COLUMNS,
     fetch_all,
     fast_query,
     get_cached_table_columns,
+    get_table_columns,
     get_pool_status,
     get_tables_columns,
     is_circuit_open,
@@ -86,6 +88,7 @@ _SHARED_FEED_CACHE_PREFIX = "chain_homepage_feed_v1"
 _TIMING_ROOT = threading.local()
 _PERF_LOCAL = threading.local()
 _PERF_LOCK = threading.RLock()
+_SCHEMA_NEVER_ASSUME_COLUMNS = {"video_url", "host_id", "status"}
 
 
 def _new_perf_profile():
@@ -370,55 +373,81 @@ def _format_relative(value):
 
 
 def _table_columns(table_name):
-    global _SCHEMA_CACHE
-    now = time.monotonic()
-    
-    # 1. Quick cache check (no lock)
-    if _SCHEMA_CACHE and _SCHEMA_CACHE.get("_expires_at", 0) > now:
-        _log(f"schema_cache_hit table={table_name} kind=columns")
-        return _SCHEMA_CACHE.get(table_name, set())
+    snapshot = _table_column_snapshot(table_name)
+    return snapshot["columns"]
 
-    # 2. Lock for lookup
+
+def _table_column_snapshot(table_name):
+    now = time.monotonic()
+
+    cached_entry = _SCHEMA_CACHE.get(table_name)
+    if isinstance(cached_entry, dict) and cached_entry.get("expires_at", 0) > now:
+        _log(f"schema_cache_hit table={table_name} kind=columns")
+        return {
+            "columns": set(cached_entry.get("columns", set())),
+            "source": cached_entry.get("source", "unknown"),
+        }
+    if isinstance(cached_entry, set):
+        _SCHEMA_CACHE[table_name] = {"columns": set(cached_entry), "expires_at": now + 600, "source": "unknown"}
+        return {"columns": set(cached_entry), "source": "unknown"}
+
     with _SCHEMA_LOCK:
-        # Re-check cache
-        if _SCHEMA_CACHE and _SCHEMA_CACHE.get("_expires_at", 0) > now:
+        cached_entry = _SCHEMA_CACHE.get(table_name)
+        if isinstance(cached_entry, dict) and cached_entry.get("expires_at", 0) > now:
             _log(f"schema_cache_hit table={table_name} kind=columns")
-            return _SCHEMA_CACHE.get(table_name, set())
+            return {
+                "columns": set(cached_entry.get("columns", set())),
+                "source": cached_entry.get("source", "unknown"),
+            }
 
         _log(f"schema_cache_miss table={table_name} kind=columns")
-        if _fast_local_enabled():
-            _log(f"schema_check_skipped_fast_local table={table_name} kind=columns")
-            _SCHEMA_CACHE = {"_expires_at": now + 600}
-            return set()
-
-        # Initialize or refresh
-        new_cache = {"_expires_at": now + 600} # Cache schema for at least 10 mins in dev
-        
+        columns = set()
+        source = "unknown"
         try:
-            # Try local memory/filesystem cache first
-            for name in _HOMEPAGE_TABLES:
-                cached_columns = get_cached_table_columns(name)
+            live_columns = get_table_columns(table_name, timeout_ms=500)
+            if live_columns:
+                columns = set(live_columns)
+                static_columns = CHAIN_STATIC_COLUMNS.get(table_name)
+                if static_columns and columns == set(static_columns):
+                    source = "static_fallback"
+                else:
+                    source = "live"
+            else:
+                cached_columns = get_cached_table_columns(table_name)
                 if cached_columns:
-                    new_cache[name] = set(cached_columns)
-            
-            # If missing anything, try a quick DB lookup
-            if len(new_cache) < len(_HOMEPAGE_TABLES) + 1: # +1 for _expires_at
-                db_schemas = get_tables_columns(_HOMEPAGE_TABLES, timeout_ms=1000)
-                for name, columns in db_schemas.items():
-                    new_cache[name] = set(columns)
+                    columns = set(cached_columns)
+                    source = "static_fallback"
         except Exception as e:
-            _log(f"Schema lookup failed: {e}")
-            # If it failed, don't try again immediately (30s backoff)
-            new_cache["_expires_at"] = now + 30
-        
-        _SCHEMA_CACHE = new_cache
-        return _SCHEMA_CACHE.get(table_name, set())
+            _log(f"Schema lookup failed for {table_name}: {e}")
+            if table_name in _SCHEMA_CACHE:
+                existing = _SCHEMA_CACHE[table_name]
+                return {
+                    "columns": set(existing.get("columns", set())),
+                    "source": existing.get("source", "unknown"),
+                }
+
+        _SCHEMA_CACHE[table_name] = {"columns": columns, "expires_at": now + 600, "source": source}
+        return {"columns": columns, "source": source}
+
+
+def select_existing_columns(table_name, wanted_columns):
+    """
+    Return only columns that exist in live DB schema cache.
+    Never include missing columns in SQL.
+    """
+    snapshot = _table_column_snapshot(table_name)
+    available = set(snapshot.get("columns") or set())
+    source = snapshot.get("source")
+    selected = [column for column in wanted_columns if column in available]
+    if source != "live":
+        selected = [column for column in selected if column not in _SCHEMA_NEVER_ASSUME_COLUMNS]
+    return selected
 
 
 def _select_columns(table_name, candidates, required=None):
-    available = _table_columns(table_name)
+    available = set(select_existing_columns(table_name, candidates))
     if not available:
-        return [c for c in candidates]
+        return []
     
     if required and any(column not in available for column in required):
         return []
@@ -496,7 +525,7 @@ def _post_select():
 
 
 def _story_select():
-    return _select_columns(
+    return select_existing_columns(
         "chain_stories",
         [
             "id",
@@ -512,12 +541,11 @@ def _story_select():
             "is_active",
             "deleted_at",
         ],
-        required=["id"],
     )
 
 
 def _status_select():
-    return _select_columns(
+    return select_existing_columns(
         "chain_status_posts",
         [
             "id",
@@ -536,12 +564,11 @@ def _status_select():
             "text_content",
             "views_count",
         ],
-        required=["id"],
     )
 
 
 def _reel_select():
-    return _select_columns(
+    return select_existing_columns(
         "chain_reels",
         [
             "id",
@@ -554,12 +581,11 @@ def _reel_select():
             "created_at",
             "deleted_at",
         ],
-        required=["id"],
     )
 
 
 def _live_select():
-    return _select_columns(
+    return select_existing_columns(
         "chain_live_rooms",
         [
             "id",
@@ -576,12 +602,12 @@ def _live_select():
             "cover_url",
             "thumbnail_url",
             "media_url",
+            "video_url",
             "entry_fee",
             "coins_required",
             "created_at",
             "deleted_at",
         ],
-        required=["id"],
     )
 
 
@@ -696,6 +722,11 @@ def _fetch_stories(viewer_profile_id=None):
     for row in status_rows:
         if row.get("id"):
             combined.append(row)
+    for row in combined:
+        row.setdefault("video_url", None)
+        row.setdefault("status", None)
+        row.setdefault("thumbnail_url", None)
+        row.setdefault("media_url", None)
     combined.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
     return combined[:_HOMEPAGE_LIMITS["stories"]], issues
 
@@ -711,6 +742,10 @@ def _fetch_reels():
         query += f" WHERE {' AND '.join(where)}"
     query += " ORDER BY created_at DESC NULLS LAST LIMIT %s"
     rows, issue = _run_sql("reels", query, [_HOMEPAGE_LIMITS["reels"]])
+    for row in rows or []:
+        row.setdefault("video_url", None)
+        row.setdefault("media_url", None)
+        row.setdefault("thumbnail_url", None)
     return rows, [issue] if issue else []
 
 
@@ -729,6 +764,11 @@ def _fetch_live_rooms():
         query += f" WHERE {' AND '.join(where)}"
     query += " ORDER BY created_at DESC NULLS LAST LIMIT %s"
     rows, issue = _run_sql("live_rooms", query, [_HOMEPAGE_LIMITS["live_rooms"]])
+    for row in rows or []:
+        row.setdefault("host_id", None)
+        row.setdefault("video_url", None)
+        row.setdefault("status", None)
+        row.setdefault("profile_id", _first_present(row, ["profile_id", "creator_id"]))
     live_only = [row for row in rows if _boolish(row.get("is_live")) or _clean_text(row.get("status")).lower() == "live"]
     return live_only[:_HOMEPAGE_LIMITS["live_rooms"]], [issue] if issue else []
 
@@ -839,7 +879,10 @@ def _normalize_story(row, profile_map):
 def _normalize_live_room(row, profile_map):
     if row and not isinstance(row, dict):
         return {}
-    profile_id = _first_present(row, ["profile_id", "host_id", "creator_id"])
+    row.setdefault("host_id", None)
+    row.setdefault("video_url", None)
+    row.setdefault("status", None)
+    profile_id = _first_present(row, ["profile_id", "creator_id"])
     profile = profile_map.get(profile_id)
     if profile is None:
         profile = _profile_from_row(row)
@@ -1078,26 +1121,44 @@ def build_homepage_payload(async_warm=False):
             combined = []
             if s_cols:
                 sc = ", ".join(f"s.{c}" for c in s_cols)
+                story_available = set(s_cols)
+                story_where = []
+                if "deleted_at" in story_available:
+                    story_where.append("s.deleted_at IS NULL")
+                if "is_active" in story_available:
+                    story_where.append("s.is_active = TRUE")
+                elif "active" in story_available:
+                    story_where.append("s.active = TRUE")
+                elif "status" in story_available:
+                    story_where.append("COALESCE(s.status, '') <> 'deleted'")
                 rows, _ = _run_sql(
                     "stories",
-                    f"SELECT {sc}, {', '.join(_PROFILE_JOIN_COLS)} "
-                    f"FROM chain_stories s "
-                    f"LEFT JOIN chain_profiles p ON p.id = s.profile_id "
-                    f"WHERE s.deleted_at IS NULL ORDER BY s.created_at DESC LIMIT {_HOMEPAGE_LIMITS['stories']}",
+                    f"SELECT {sc} FROM chain_stories s "
+                    f"{'WHERE ' + ' AND '.join(story_where) if story_where else ''} "
+                    f"ORDER BY s.created_at DESC LIMIT {_HOMEPAGE_LIMITS['stories']}",
                     [],
                 )
                 combined.extend(rows or [])
             if sp_cols:
                 sc = ", ".join(f"sp.{c}" for c in sp_cols)
-                cutoff = _utcnow() - timedelta(hours=24)
+                status_available = set(sp_cols)
+                status_where = []
+                status_params = []
+                if "deleted_at" in status_available:
+                    status_where.append("sp.deleted_at IS NULL")
+                if "expires_at" in status_available:
+                    status_where.append("(sp.expires_at IS NULL OR sp.expires_at > %s)")
+                    status_params.append(_utcnow())
+                if "visibility" in status_available:
+                    status_where.append("sp.visibility = 'public'")
+                if "status" in status_available:
+                    status_where.append("COALESCE(sp.status, '') <> 'deleted'")
                 rows, _ = _run_sql(
                     "status_posts",
-                    f"SELECT {sc}, {', '.join(_PROFILE_JOIN_COLS)} "
-                    f"FROM chain_status_posts sp "
-                    f"LEFT JOIN chain_profiles p ON p.id = sp.profile_id "
-                    f"WHERE sp.deleted_at IS NULL AND (sp.expires_at IS NULL OR sp.expires_at > %s) AND sp.visibility = 'public' "
+                    f"SELECT {sc} FROM chain_status_posts sp "
+                    f"{'WHERE ' + ' AND '.join(status_where) if status_where else ''} "
                     f"ORDER BY sp.created_at DESC LIMIT {_HOMEPAGE_LIMITS['stories']}",
-                    [_utcnow()],
+                    status_params,
                 )
                 combined.extend(rows or [])
             seen = set()
@@ -1106,6 +1167,10 @@ def build_homepage_payload(async_warm=False):
                 rid = row.get("id")
                 if rid and rid not in seen:
                     seen.add(rid)
+                    row.setdefault("video_url", None)
+                    row.setdefault("status", None)
+                    row.setdefault("thumbnail_url", None)
+                    row.setdefault("media_url", None)
                     deduped.append(row)
             deduped.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
             return deduped[:_HOMEPAGE_LIMITS["stories"]]
@@ -1117,13 +1182,25 @@ def build_homepage_payload(async_warm=False):
         select_cols = ", ".join(f"lr.{c}" for c in cols)
         def _load():
             try:
+                available = set(cols)
+                where = []
+                if "deleted_at" in available:
+                    where.append("lr.deleted_at IS NULL")
+                if "is_live" in available:
+                    where.append("lr.is_live = TRUE")
+                elif "status" in available:
+                    where.append("lr.status = 'live'")
                 rows = fast_query(
-                    f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
-                    f"FROM chain_live_rooms lr "
-                    f"LEFT JOIN chain_profiles p ON p.id = lr.profile_id "
-                    f"WHERE (lr.is_live = TRUE OR lr.status = 'live') AND lr.deleted_at IS NULL ORDER BY lr.created_at DESC LIMIT {_HOMEPAGE_LIMITS['live_rooms']}",
+                    f"SELECT {select_cols} FROM chain_live_rooms lr "
+                    f"{'WHERE ' + ' AND '.join(where) if where else ''} "
+                    f"ORDER BY lr.created_at DESC LIMIT {_HOMEPAGE_LIMITS['live_rooms']}",
                     timeout_ms=20000, default=[]
                 )
+                for row in rows or []:
+                    row.setdefault("host_id", None)
+                    row.setdefault("video_url", None)
+                    row.setdefault("status", None)
+                    row.setdefault("profile_id", _first_present(row, ["profile_id", "creator_id"]))
                 return rows or []
             except Exception:
                 return []
@@ -1158,9 +1235,7 @@ def build_homepage_payload(async_warm=False):
         def _load():
             try:
                 rows = fast_query(
-                    f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
-                    f"FROM chain_posts po "
-                    f"LEFT JOIN chain_profiles p ON p.id = po.profile_id "
+                    f"SELECT {select_cols} FROM chain_posts po "
                     f"WHERE po.deleted_at IS NULL AND COALESCE(po.visibility, 'public') = 'public' ORDER BY po.created_at DESC NULLS LAST LIMIT {_HOMEPAGE_LIMITS['trending_posts']}",
                     timeout_ms=20000, default=[]
                 )
@@ -1196,13 +1271,22 @@ def build_homepage_payload(async_warm=False):
         select_cols = ", ".join(f"r.{c}" for c in cols)
         def _load():
             try:
+                available = set(cols)
+                where = []
+                if "deleted_at" in available:
+                    where.append("r.deleted_at IS NULL")
+                if "visibility" in available:
+                    where.append("COALESCE(r.visibility, 'public') = 'public'")
                 rows = fast_query(
-                    f"SELECT {select_cols}, {', '.join(_PROFILE_JOIN_COLS)} "
-                    f"FROM chain_reels r "
-                    f"LEFT JOIN chain_profiles p ON p.id = r.profile_id "
-                    f"WHERE r.deleted_at IS NULL AND COALESCE(r.visibility, 'public') = 'public' ORDER BY r.created_at DESC LIMIT {_HOMEPAGE_LIMITS['reels']}",
+                    f"SELECT {select_cols} FROM chain_reels r "
+                    f"{'WHERE ' + ' AND '.join(where) if where else ''} "
+                    f"ORDER BY r.created_at DESC LIMIT {_HOMEPAGE_LIMITS['reels']}",
                     timeout_ms=20000, default=[]
                 )
+                for row in rows or []:
+                    row.setdefault("video_url", None)
+                    row.setdefault("media_url", None)
+                    row.setdefault("thumbnail_url", None)
                 return rows or []
             except Exception:
                 return []
@@ -1252,15 +1336,14 @@ def build_homepage_payload(async_warm=False):
             if "partial_fallback" not in payload["issues"]:
                 payload["issues"].append("partial_fallback")
 
-    # 1. Build profile map from inline JOIN data (no additional query)
-    profile_map = {}
+    # 1. Build profile map via batch profile lookup (eliminates N+1 profile queries)
+    profile_ids = set()
     for section_name in ("stories", "trending_posts", "live_rooms", "reels"):
         for row in payload.get(section_name, []):
             pid = row.get("profile_id")
-            if pid and pid not in profile_map:
-                p = _profile_from_row(row)
-                if p:
-                    profile_map[pid] = p
+            if pid:
+                profile_ids.add(pid)
+    profile_map = _load_profile_map(list(profile_ids)) if profile_ids else {}
 
     # 2. Normalize all collections (inline profile data from JOINs)
     payload["stories"] = [row for row in (_normalize_story(r, profile_map) for r in payload["stories"]) if row.get("id")]
@@ -1565,9 +1648,9 @@ def get_homepage_data(town=None, region=None):
         f_wallet = exe.submit(_wallet_snapshot, current)
 
         if current and current.get("id"):
+            post_cols = _post_select() or ["id", "profile_id", "caption", "content", "body", "media_url", "thumbnail_url", "visibility", "likes_count", "comments_count", "created_at", "category", "deleted_at"]
             f_own = exe.submit(fetch_all, """
-                SELECT id, profile_id, caption, content, body, media_url, video_url, thumbnail_url, visibility,
-                       likes_count, comments_count, created_at, category, deleted_at
+                SELECT {cols}
                 FROM chain_posts
                 WHERE deleted_at IS NULL
                   AND (
@@ -1576,7 +1659,7 @@ def get_homepage_data(town=None, region=None):
                   )
                 ORDER BY created_at DESC NULLS LAST
                 LIMIT 4
-            """, (current["id"], current.get("auth_user_id")), timeout_ms=500)
+            """.format(cols=", ".join(post_cols)), (current["id"], current.get("auth_user_id")), timeout_ms=500)
         else:
             f_own = None
 
@@ -1868,6 +1951,17 @@ def _profile_map_for_ids(profile_ids):
         return {}
 
 
+def _profile_map_for_rows(rows, key_candidates=("profile_id",)):
+    profile_ids = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        pid = _first_present(row, key_candidates)
+        if pid:
+            profile_ids.append(pid)
+    return _profile_map_for_ids(profile_ids)
+
+
 def _post_select_alias(alias="po"):
     cols = _post_select() or ["id", "profile_id", "caption", "media_url", "likes_count", "comments_count", "created_at", "visibility", "video_url"]
     return cols, ", ".join(f"{alias}.{col}" for col in cols)
@@ -2051,21 +2145,28 @@ def _feed_live(profile_id=None, limit=20, offset=0):
         available = set(cols)
         live_clause = "is_live = TRUE" if "is_live" in available else "status = 'live'" if "status" in available else "TRUE"
         order_col = "viewer_count" if "viewer_count" in available else "created_at"
+        where = [live_clause]
+        if "deleted_at" in available:
+            where.insert(0, "deleted_at IS NULL")
         rows = fast_query(
-            f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE deleted_at IS NULL AND {live_clause} ORDER BY {order_col} DESC NULLS LAST LIMIT {limit + offset}",
+            f"SELECT {', '.join(cols)} FROM chain_live_rooms WHERE {' AND '.join(where)} ORDER BY {order_col} DESC NULLS LAST LIMIT {limit + offset}",
             timeout_ms=500, default=[]
         )
     except Exception:
         rows = []
     pids = []
     for r in rows:
-        pids.append(r.get("profile_id") or r.get("host_id") or r.get("creator_id"))
+        r.setdefault("host_id", None)
+        r.setdefault("video_url", None)
+        r.setdefault("status", None)
+        r.setdefault("profile_id", _first_present(r, ["profile_id", "creator_id"]))
+        pids.append(_first_present(r, ["profile_id", "creator_id"]))
     pmap = _profile_map_for_ids(pids)
     result = []
     for r in rows[offset:]:
         if not isinstance(r, dict) or not r.get("id"):
             continue
-        pid = r.get("profile_id") or r.get("host_id") or r.get("creator_id")
+        pid = _first_present(r, ["profile_id", "creator_id"])
         p = pmap.get(str(pid)) if pid else None
         title = r.get("title") or ""
         result.append({
@@ -2307,6 +2408,72 @@ def fetch_homepage_stories(limit=12):
         return stories[:limit]
     except Exception:
         return []
+
+
+def get_homepage_stories_section(profile_id=None, limit=12):
+    try:
+        rows, _ = _fetch_stories(viewer_profile_id=profile_id)
+        rows = [row for row in (rows or []) if row.get("id")][:limit]
+        profile_map = _profile_map_for_rows(rows, ("profile_id",))
+        return [item for item in (_normalize_story(row, profile_map) for row in rows) if item.get("id")]
+    except Exception:
+        return []
+
+
+def get_homepage_reels_section(profile_id=None, limit=8):
+    try:
+        rows, _ = _fetch_reels()
+        rows = [row for row in (rows or []) if row.get("id")][:limit]
+        profile_map = _profile_map_for_rows(rows, ("profile_id",))
+        return [item for item in (_normalize_post(row, profile_map) for row in rows) if item.get("id")]
+    except Exception:
+        return []
+
+
+def get_homepage_live_rooms_section(limit=5):
+    try:
+        rows, _ = _fetch_live_rooms()
+        rows = [row for row in (rows or []) if row.get("id")][:limit]
+        profile_map = _profile_map_for_rows(rows, ("profile_id", "creator_id"))
+        return [item for item in (_normalize_live_room(row, profile_map) for row in rows) if item.get("id")]
+    except Exception:
+        return []
+
+
+def get_homepage_suggested_users_section(current_user=None, limit=5):
+    try:
+        from services.homepage_real_data_guard import filter_profiles
+        return filter_profiles(_suggested_people(current_user=current_user, limit=limit) or [])
+    except Exception:
+        return []
+
+
+def get_homepage_nearby_users_section(limit=5):
+    try:
+        rows = _feed_nearby(limit=limit, offset=0)
+        return rows[:limit]
+    except Exception:
+        return []
+
+
+def get_homepage_sidebar_payload(profile_id=None):
+    current = _safe_current_profile() if not profile_id else None
+    current_id = profile_id or (current.get("id") if current else None)
+    reels = get_homepage_reels_section(profile_id=current_id, limit=8)
+    feed_items, _ = get_feed_tab(profile_id=current_id, tab="for_you", page=1, limit=8)
+    live_rooms = get_homepage_live_rooms_section(limit=5)
+    suggested_users = get_homepage_suggested_users_section(current_user=current, limit=5)
+    nearby_users = get_homepage_nearby_users_section(limit=5)
+    hashtags = _trending_hashtags((feed_items or []) + (reels or []), limit=8)
+    wallet = _wallet_snapshot(current) if current else {"coin_balance": 0, "label_balance": "0"}
+    return {
+        "live_rooms": live_rooms,
+        "suggested_creators": suggested_users,
+        "suggested_users": suggested_users,
+        "nearby_users": nearby_users,
+        "trending_hashtags": hashtags,
+        "wallet": wallet,
+    }
 
 
 def fetch_homepage_reels(limit=8):
@@ -2583,6 +2750,8 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         "reels": [],
         "live_rooms": [],
         "suggested_creators": [],
+        "suggested_users": [],
+        "nearby_users": [],
         "trending_hashtags": [],
         "wallet": {"coin_balance": 0, "label_balance": "0"},
         "unread_counts": {"notifications": 0, "messages": 0},
@@ -2606,8 +2775,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         # ── Stories (active, non-expired) ──
         story_rows, _ = _fetch_stories(viewer_profile_id=pid)
         if story_rows:
-            pids = {r.get("profile_id") for r in story_rows if r.get("profile_id")}
-            pmap = _load_profile_map(list(pids)) if pids else {}
+            pmap = _profile_map_for_rows(story_rows, ("profile_id",))
             payload["stories"] = [_normalize_story(r, pmap) for r in story_rows if r.get("id")]
             payload["stories"] = [s for s in payload["stories"] if s.get("id")]
 
@@ -2624,8 +2792,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         # ── Reels preview ──
         reel_rows, _ = _fetch_reels()
         if reel_rows:
-            rpids = {r.get("profile_id") for r in reel_rows if r.get("profile_id")}
-            rpmap = _load_profile_map(list(rpids)) if rpids else {}
+            rpmap = _profile_map_for_rows(reel_rows, ("profile_id",))
             raw = [_normalize_post(r, rpmap) for r in reel_rows if r.get("id")]
             payload["reels"] = [r for r in raw if r.get("id")][:8]
 
@@ -2635,8 +2802,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         # ── Live rooms ──
         live_rows, _ = _fetch_live_rooms()
         if live_rows:
-            lpids = {r.get("profile_id") for r in live_rows if r.get("profile_id")}
-            lpmap = _load_profile_map(list(lpids)) if lpids else {}
+            lpmap = _profile_map_for_rows(live_rows, ("profile_id", "creator_id"))
             payload["live_rooms"] = [_normalize_live_room(r, lpmap) for r in live_rows if r.get("id")]
 
         if not payload["live_rooms"]:
@@ -2646,6 +2812,8 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         from services.homepage_real_data_guard import filter_profiles
         suggested = _suggested_people(current_user=current, limit=5)
         payload["suggested_creators"] = filter_profiles(suggested) if suggested else []
+        payload["suggested_users"] = list(payload["suggested_creators"])
+        payload["nearby_users"] = _feed_nearby(limit=5, offset=0)[:5]
 
         if not payload["suggested_creators"]:
             payload["empty_states"]["suggested"] = True

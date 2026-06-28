@@ -1,44 +1,292 @@
 {% extends "base.html" %}
-
-{% block title %}Security | {{ APP_NAME }} Premium{% endblock %}
-
+{% block title %}Security Settings | {{ APP_NAME }}{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/profile_premium.css">
+<style>
+.sec-shell{max-width:900px;margin:0 auto;padding:20px}
+.sec-header{background:linear-gradient(135deg,#111827,#334155);color:#fff;border-radius:30px;padding:28px;margin-bottom:24px}
+.sec-header h1{margin:0;font-size:34px;font-weight:950}
+.sec-header p{margin:8px 0 0;color:#dbeafe}
+.sec-card{background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px;margin-bottom:16px}
+.sec-card h2{font-size:20px;color:#0f172a;margin:0 0 16px;display:flex;align-items:center;gap:10px}
+.sec-card h2 i{width:36px;height:36px;border-radius:10px;background:#f1f5f9;display:grid;place-items:center;color:#111827}
+.sec-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid rgba(15,23,42,.07)}
+.sec-row:first-child{border-top:0}
+.sec-label{font-weight:700;color:#0f172a;font-size:15px}
+.sec-desc{font-size:13px;color:#64748b;margin-top:2px}
+.sec-input{border:1px solid #cbd5e1;border-radius:12px;padding:10px 14px;font-size:16px;background:#f8fafc;color:#0f172a;width:220px;max-width:100%}
+.sec-btn{padding:10px 20px;border-radius:999px;border:none;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
+.sec-btn.primary{background:#111827;color:#fff}
+.sec-btn.danger{background:#ef4444;color:#fff}
+.sec-btn.outline{background:transparent;border:1px solid #cbd5e1;color:#0f172a}
+.sec-badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700}
+.sec-badge.verified{background:#22c55e;color:#fff}
+.sec-badge.pending{background:#f59e0b;color:#fff}
+.sec-badge.none{background:#e2e8f0;color:#64748b}
+.trust-meter{display:flex;gap:4px;margin:8px 0}
+.trust-bar{height:8px;flex:1;border-radius:999px;background:#e2e8f0}
+.trust-bar.fill{background:#22c55e}
+.verification-status{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px 16px;margin-top:12px;font-size:14px;color:#166534}
+@media(max-width:600px){.sec-row{flex-direction:column;align-items:flex-start;gap:8px}.sec-input{width:100%}}
+</style>
 {% endblock %}
-
 {% block content %}
-<section class="profile-form-shell">
-    <div class="glass-panel form-panel">
-        <div class="panel-head">
-            <div>
-                <p>SECURITY</p>
-                <h2>Password and recovery</h2>
-            </div>
-            <a class="profile-empty-btn" href="/profile/settings">Back to Settings</a>
-        </div>
+<div class="sec-shell">
+  <div class="sec-header">
+    <h1>Security Settings</h1>
+    <p>Manage your account security, privacy, and trust.</p>
+  </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="form-error" {% if category == 'success' %}style="background: rgba(0,212,255,.12); border-color: rgba(0,212,255,.28); color: #93c5fd;"{% endif %}>{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <div class="metric-stack" style="margin-bottom: 22px;">
-            <div><span>Email</span><strong>{{ account_security.email or profile.email }}</strong></div>
-            <div><span>Password login enabled</span><strong>{{ 'Yes' if account_security.password_set or profile.password_set else 'No' }}</strong></div>
-            <div><span>Recovery enabled</span><strong>{{ 'Yes' if account_security.recovery_enabled != false else 'No' }}</strong></div>
-        </div>
-
-        <form method="POST" action="/profile/security/set-password" class="profile-form-grid">
-            <label class="full"><span>New password</span><input type="password" name="password" minlength="8" required></label>
-            <label class="full"><span>Confirm password</span><input type="password" name="confirm_password" minlength="8" required></label>
-            <div class="full action-cluster">
-                <button class="profile-empty-btn" type="submit">Set Password</button>
-                <a class="profile-empty-btn" href="/auth/forgot-password">Use Recovery Email</a>
-            </div>
-        </form>
+  <!-- Verification Status -->
+  <div class="sec-card">
+    <h2><i class="fas fa-check-circle"></i> Verification Status</h2>
+    <div class="sec-row">
+      <div>
+        <div class="sec-label">Profile Verification</div>
+        <div class="sec-desc">Your verification badge status</div>
+      </div>
+      <div>
+        {% if verification.status == "approved" %}
+        <span class="sec-badge verified"><i class="fas fa-check-circle"></i> Verified</span>
+        {% elif verification.status == "pending" %}
+        <span class="sec-badge pending"><i class="fas fa-clock"></i> Pending Review</span>
+        {% elif verification.status == "rejected" %}
+        <span class="sec-badge" style="background:#ef4444;color:#fff">Rejected</span>
+        {% else %}
+        <a href="/profile/verification" class="sec-btn primary">Apply for Verification</a>
+        {% endif %}
+      </div>
     </div>
-</section>
+  </div>
+
+  <!-- Trust Level -->
+  <div class="sec-card">
+    <h2><i class="fas fa-shield-alt"></i> Trust Level</h2>
+    <div class="sec-row">
+      <div>
+        <div class="sec-label">Account Trust</div>
+        <div class="trust-meter">
+          {% set levels = ['new','low','medium','high','verified'] %}
+          {% set idx = levels.index(trust.trust_level) if trust.trust_level in levels else 0 %}
+          {% for i in range(5) %}
+          <div class="trust-bar {{ 'fill' if i <= idx else '' }}"></div>
+          {% endfor %}
+        </div>
+        <div class="sec-desc">Level: {{ trust.trust_level|title }} | Reports: {{ trust.report_count }} | Score: {{ trust.suspicious_score }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password -->
+  <div class="sec-card">
+    <h2><i class="fas fa-key"></i> Change Password</h2>
+    <form id="passwordForm" onsubmit="return changePassword(event)">
+      <div class="sec-row"><input class="sec-input" type="password" name="current_password" placeholder="Current password" required style="width:100%"></div>
+      <div class="sec-row"><input class="sec-input" type="password" name="new_password" placeholder="New password (min 8 chars)" required style="width:100%"></div>
+      <div class="sec-row"><button type="submit" class="sec-btn primary">Update Password</button></div>
+    </form>
+    <div id="passwordResult" style="font-size:14px;margin-top:8px"></div>
+  </div>
+
+  <!-- Change Email -->
+  <div class="sec-card">
+    <h2><i class="fas fa-envelope"></i> Change Email</h2>
+    <form id="emailForm" onsubmit="return changeEmail(event)">
+      <div class="sec-row">
+        <div>
+          <div class="sec-label">Current: {{ profile.email }}</div>
+          {% if profile.is_verified %}<div class="sec-desc" style="color:#ef4444">Verified users must contact admin to change email.</div>{% endif %}
+        </div>
+      </div>
+      {% if not profile.is_verified %}
+      <div class="sec-row"><input class="sec-input" type="email" name="email" placeholder="New email address" required style="width:100%"></div>
+      <div class="sec-row"><button type="submit" class="sec-btn primary">Update Email</button></div>
+      {% endif %}
+    </form>
+    <div id="emailResult" style="font-size:14px;margin-top:8px"></div>
+  </div>
+
+  <!-- Change Phone -->
+  <div class="sec-card">
+    <h2><i class="fas fa-phone"></i> Change Phone</h2>
+    <form id="phoneForm" onsubmit="return changePhone(event)">
+      <div class="sec-row">
+        <div>
+          <div class="sec-label">Current: {{ profile.phone or 'Not set' }}</div>
+          {% if profile.is_verified %}<div class="sec-desc" style="color:#ef4444">Verified users must contact admin to change phone.</div>{% endif %}
+        </div>
+      </div>
+      {% if not profile.is_verified %}
+      <div class="sec-row"><input class="sec-input" type="tel" name="phone" placeholder="New phone number" required style="width:100%"></div>
+      <div class="sec-row"><button type="submit" class="sec-btn primary">Update Phone</button></div>
+      {% endif %}
+    </form>
+    <div id="phoneResult" style="font-size:14px;margin-top:8px"></div>
+  </div>
+
+  <!-- Privacy Settings -->
+  <div class="sec-card">
+    <h2><i class="fas fa-user-shield"></i> Privacy Settings</h2>
+    <form id="privacyForm" onsubmit="return updatePrivacy(event)">
+      <div class="sec-row">
+        <div><div class="sec-label">Show phone publicly</div><div class="sec-desc">Display phone on your public profile</div></div>
+        <label class="switch"><input type="checkbox" name="show_phone_publicly" {{ 'checked' if profile.show_phone_publicly else ''}}><span class="slider"></span></label>
+      </div>
+      <div class="sec-row">
+        <div><div class="sec-label">Show email publicly</div><div class="sec-desc">Display email on your public profile</div></div>
+        <label class="switch"><input type="checkbox" name="show_email_publicly" {{ 'checked' if profile.show_email_publicly else ''}}><span class="slider"></span></label>
+      </div>
+      <div class="sec-row">
+        <div><div class="sec-label">Show location publicly</div><div class="sec-desc">Display location on your public profile</div></div>
+        <label class="switch"><input type="checkbox" name="show_location_publicly" {{ 'checked' if profile.show_location_publicly != False else ''}}><span class="slider"></span></label>
+      </div>
+      <div class="sec-row">
+        <div><div class="sec-label">Show online status</div><div class="sec-desc">Let others see when you are active</div></div>
+        <label class="switch"><input type="checkbox" name="show_online_status" {{ 'checked' if privacy.show_online_status != False else ''}}><span class="slider"></span></label>
+      </div>
+      <div class="sec-row">
+        <div><div class="sec-label">Show last seen</div><div class="sec-desc">Let others see when you were last active</div></div>
+        <label class="switch"><input type="checkbox" name="show_last_seen" {{ 'checked' if privacy.show_last_seen != False else ''}}><span class="slider"></span></label>
+      </div>
+      <div class="sec-row"><button type="submit" class="sec-btn primary">Save Privacy</button></div>
+    </form>
+    <div id="privacyResult" style="font-size:14px;margin-top:8px"></div>
+  </div>
+
+  <!-- Device Sessions -->
+  <div class="sec-card">
+    <h2><i class="fas fa-mobile-alt"></i> Login Sessions</h2>
+    {% for d in devices %}
+    <div class="sec-row">
+      <div>
+        <div class="sec-label">{{ d.device_name or d.device_type or 'Unknown device' }}</div>
+        <div class="sec-desc">{{ d.browser or '' }} {{ d.os or '' }} &middot; Last seen: {{ d.last_seen[:19] if d.last_seen else 'N/A' }}</div>
+      </div>
+      <button class="sec-btn outline" onclick="revokeSession('{{ d.id }}')">Log Out</button>
+    </div>
+    {% else %}
+    <div class="sec-row"><div class="sec-desc">No active sessions found.</div></div>
+    {% endfor %}
+    <div class="sec-row">
+      <button class="sec-btn danger" onclick="logoutAllDevices()">Log Out All Devices</button>
+    </div>
+    <div id="sessionResult" style="font-size:14px"></div>
+  </div>
+
+  <!-- Account Management -->
+  <div class="sec-card">
+    <h2><i class="fas fa-database"></i> Account Management</h2>
+    <div class="sec-row">
+      <div><div class="sec-label">Request Account Data</div><div class="sec-desc">Receive a copy of your data</div></div>
+      <button class="sec-btn outline" onclick="requestData()">Request</button>
+    </div>
+    <div class="sec-row">
+      <div><div class="sec-label">Delete Account</div><div class="sec-desc" style="color:#ef4444">Permanently delete your account</div></div>
+      <button class="sec-btn danger" onclick="deleteAccount()">Delete</button>
+    </div>
+    <div class="sec-row">
+      <div><div class="sec-label">Report a Problem</div><div class="sec-desc">Send a report to support</div></div>
+      <button class="sec-btn outline" onclick="document.getElementById('reportModal').style.display='block'">Report</button>
+    </div>
+  </div>
+
+  <!-- Security Events -->
+  <div class="sec-card">
+    <h2><i class="fas fa-history"></i> Recent Security Events</h2>
+    {% for e in events %}
+    <div class="sec-row">
+      <div>
+        <div class="sec-label">{{ e.event_type|replace('_',' ')|title }}</div>
+        <div class="sec-desc">{{ e.created_at[:19] if e.created_at else '' }}</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="sec-row"><div class="sec-desc">No security events recorded.</div></div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div id="reportModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000">
+  <div style="background:#fff;max-width:500px;margin:10% auto;border-radius:20px;padding:24px;color:#0f172a">
+    <h3 style="margin:0 0 16px">Report a Problem</h3>
+    <form onsubmit="return submitReport(event)">
+      <input class="sec-input" type="text" name="subject" placeholder="Subject" required style="width:100%;margin-bottom:12px">
+      <textarea class="sec-input" name="message" placeholder="Describe your problem..." required style="width:100%;min-height:100px;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button type="submit" class="sec-btn primary">Send Report</button>
+        <button type="button" class="sec-btn outline" onclick="document.getElementById('reportModal').style.display='none'">Cancel</button>
+      </div>
+    </form>
+    <div id="reportResult" style="font-size:14px;margin-top:8px"></div>
+  </div>
+</div>
+
+<script>
+async function changePassword(e) {
+  e.preventDefault(); const f = e.target;
+  const res = await fetch('/profile/api/security/change-password', {method:'POST', body: new FormData(f)});
+  const d = await res.json();
+  document.getElementById('passwordResult').textContent = d.ok ? 'Password updated!' : (d.error || 'Failed');
+  document.getElementById('passwordResult').style.color = d.ok ? '#22c55e' : '#ef4444';
+  return false;
+}
+async function changeEmail(e) {
+  e.preventDefault(); const f = e.target;
+  const res = await fetch('/profile/api/security/change-email', {method:'POST', body: new FormData(f)});
+  const d = await res.json();
+  document.getElementById('emailResult').textContent = d.ok ? 'Email updated!' : (d.error || 'Failed');
+  document.getElementById('emailResult').style.color = d.ok ? '#22c55e' : '#ef4444';
+  return false;
+}
+async function changePhone(e) {
+  e.preventDefault(); const f = e.target;
+  const res = await fetch('/profile/api/security/change-phone', {method:'POST', body: new FormData(f)});
+  const d = await res.json();
+  document.getElementById('phoneResult').textContent = d.ok ? 'Phone updated!' : (d.error || 'Failed');
+  document.getElementById('phoneResult').style.color = d.ok ? '#22c55e' : '#ef4444';
+  return false;
+}
+async function updatePrivacy(e) {
+  e.preventDefault(); const f = e.target;
+  const res = await fetch('/profile/api/privacy/update', {method:'POST', body: new FormData(f)});
+  const d = await res.json();
+  document.getElementById('privacyResult').textContent = d.ok ? 'Privacy settings saved!' : 'Failed';
+  document.getElementById('privacyResult').style.color = d.ok ? '#22c55e' : '#ef4444';
+  return false;
+}
+async function revokeSession(id) {
+  if(!confirm('Log out this device?')) return;
+  const res = await fetch('/profile/api/security/logout-devices', {method:'POST', body: new URLSearchParams({device_id: id})});
+  const d = await res.json();
+  document.getElementById('sessionResult').textContent = d.ok ? 'Session revoked' : 'Failed';
+  if(d.ok) setTimeout(()=>location.reload(), 1000);
+}
+async function logoutAllDevices() {
+  if(!confirm('Log out all devices including this one?')) return;
+  const res = await fetch('/profile/api/security/logout-devices', {method:'POST', body: new URLSearchParams({all: 'true'})});
+  const d = await res.json();
+  if(d.logged_out) { alert('Logged out'); window.location='/'; }
+}
+async function requestData() {
+  if(!confirm('Request a copy of your data?')) return;
+  const res = await fetch('/profile/api/security/request-data', {method:'POST'});
+  const d = await res.json();
+  alert(d.ok ? 'Request received. Check your email within 48 hours.' : 'Failed');
+}
+async function deleteAccount() {
+  if(!confirm('Are you sure? This cannot be undone.')) return;
+  const res = await fetch('/profile/api/security/delete-account', {method:'POST'});
+  const d = await res.json();
+  if(d.redirect) window.location = d.redirect;
+}
+async function submitReport(e) {
+  e.preventDefault(); const f = e.target;
+  const res = await fetch('/profile/api/security/report-problem', {method:'POST', body: new FormData(f)});
+  const d = await res.json();
+  document.getElementById('reportResult').textContent = d.ok ? 'Report sent. Thank you!' : 'Failed';
+  document.getElementById('reportResult').style.color = d.ok ? '#22c55e' : '#ef4444';
+  if(d.ok) setTimeout(()=>document.getElementById('reportModal').style.display='none', 1500);
+  return false;
+}
+</script>
 {% endblock %}

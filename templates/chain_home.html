@@ -320,7 +320,7 @@ window.NAMVIBE_HOME = {
           </button>
           {% if stories %}
           {% for s in stories %}
-          <a href="/status/" class="nvpro-story-item" data-story-id="{{ s.get('id') }}">
+          <a href="/stories/{{ s.get('id') }}" class="nvpro-story-item" data-story-id="{{ s.get('id') }}">
             <div class="nvpro-story-ring{% if not s.get('viewed') %} is-unseen{% endif %}">
               {% if s.get("avatar_url") %}
               <img src="{{ s['avatar_url'] }}" alt="" class="nvpro-story-avatar" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">

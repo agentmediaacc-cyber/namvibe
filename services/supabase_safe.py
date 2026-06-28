@@ -131,6 +131,15 @@ def _load_columns(table):
     _schema_log("schema_cache_miss", table, "columns")
     if _fast_local_enabled():
         _schema_log("schema_check_skipped_fast_local", table, "columns")
+        # Fallback to Neon static columns so we don't strip valid columns
+        try:
+            from services.neon_service import CHAIN_STATIC_COLUMNS
+            known = set(CHAIN_STATIC_COLUMNS.get(table, []))
+            if known:
+                _COLUMN_CACHE[table] = {"columns": known, "expires_at": now + _SCHEMA_CACHE_TTL}
+                return known
+        except Exception:
+            pass
         _COLUMN_CACHE[table] = {"columns": set(), "expires_at": now + _SCHEMA_CACHE_TTL}
         return set()
 
@@ -148,6 +157,14 @@ def _load_columns(table):
         columns = {row["column_name"] for row in (response.data or []) if row.get("column_name")}
     except Exception:
         columns = set()
+
+    # If Supabase can't see the columns (e.g., migration pending), fall back to Neon static schema
+    if not columns:
+        try:
+            from services.neon_service import CHAIN_STATIC_COLUMNS
+            columns = set(CHAIN_STATIC_COLUMNS.get(table, []))
+        except Exception:
+            pass
 
     _COLUMN_CACHE[table] = {"columns": columns, "expires_at": now + _SCHEMA_CACHE_TTL}
     return columns

@@ -133,11 +133,13 @@ def clear_auth_session():
         K_USER_ID, K_EMAIL, K_PROVIDER, K_ACCESS_TOKEN, K_REFRESH_TOKEN,
         K_EXPIRES_AT, K_PROFILE_ID, K_USERNAME, K_FULL_NAME, K_LOGIN_AT,
         K_REMEMBER, K_PROFILE_WARNING, K_AGE_CHECK_REQUIRED, K_PENDING_DATE_OF_BIRTH,
-        "date_of_birth", "age_verified",
+        "date_of_birth", "age_verified", "logged_in", "user_id", "email",
+        "auth_next", "profile_completed", "dev_profile", "dev_profile_fallback",
     ]
     for key in keys_to_clear:
         session.pop(key, None)
     session.permanent = False
+    session.modified = True
 
 def is_logged_in():
     """

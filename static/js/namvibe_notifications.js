@@ -16,7 +16,9 @@
   var FILTER_API_MAP = {
     all: 'all',
     unread: 'unread',
-    requests: 'activity',
+    social: 'social',
+    messages: 'messages',
+    system: 'system',
   };
 
   function init() {
@@ -109,27 +111,31 @@
     card.className = 'nv-notif-card' + (item.is_read ? ' read' : ' unread');
     card.dataset.id = item.id;
 
+    var senderName = item.sender_display_name || item.actor_display_name || item.actor_username || 'Someone';
+    var previewText = item.preview_text || item.body || '';
+    var actionText = item.action_text || item.title || 'sent a notification';
+    var openUrl = item.open_url || item.action_url || '';
+    var avatarUrl = item.sender_avatar_url || item.actor_avatar || '';
     var avatarHtml = '';
-    if (item.actor_avatar) {
-      avatarHtml = '<img src="' + esc(item.actor_avatar) + '" alt="' + esc(item.actor_username || '') + '" loading="lazy">';
+    if (avatarUrl) {
+      avatarHtml = '<img src="' + esc(avatarUrl) + '" alt="' + esc(senderName) + '" loading="lazy">';
     }
-    var avatarBlock = item.actor_avatar
+    var avatarBlock = avatarUrl
       ? '<div class="nv-notif-avatar">' + avatarHtml + '</div>'
-      : '<div class="nv-notif-avatar"><i class="fas ' + (item.icon || 'fa-bell') + '"></i></div>';
+      : '<div class="nv-notif-avatar"><span class="nv-notif-avatar-fallback">' + esc(item.sender_initials || senderName.slice(0, 1).toUpperCase()) + '</span></div>';
 
     var unreadDot = item.is_read ? '' : '<div class="nv-notif-unread-dot"></div>';
     var rightDot = item.is_read ? '' : '<div class="nv-notif-right-dot"></div>';
 
-    var actionHtml = buildActions(item);
-    var actionUrl = item.action_url || '';
+    var actionHtml = buildActions(item, openUrl);
 
     card.innerHTML =
       '<div class="nv-notif-avatar-wrap" style="position:relative;flex-shrink:0">' +
         avatarBlock + unreadDot +
       '</div>' +
       '<div class="nv-notif-body">' +
-        '<p class="nv-notif-title">' + esc(item.title || '') + '</p>' +
-        '<p class="nv-notif-preview">' + esc(item.body || '') + '</p>' +
+        '<p class="nv-notif-title"><strong>' + esc(senderName) + '</strong> ' + esc(actionText) + '</p>' +
+        '<p class="nv-notif-preview">' + esc(previewText || 'Open to view details.') + '</p>' +
         '<span class="nv-notif-time">' + timeAgo(item.created_at) + '</span>' +
         actionHtml +
       '</div>' +
@@ -138,13 +144,18 @@
     card.addEventListener('click', function (e) {
       var actBtn = e.target.closest('.nv-notif-action-btn');
       if (actBtn) {
+        if (actBtn.dataset.nvAction === 'mark-read') {
+          e.stopPropagation();
+          markRead(item.id, card);
+          return;
+        }
         e.stopPropagation();
         handleAction(actBtn, item, card);
         return;
       }
 
-      if (actionUrl) {
-        window.location.href = actionUrl;
+      if (openUrl) {
+        window.location.href = openUrl;
       } else if (!item.is_read) {
         markRead(item.id, card);
       }
@@ -189,8 +200,8 @@
       (item.is_read ? '' : '<div class="nv-notif-right-dot"></div>');
 
     card.addEventListener('click', function (e) {
-      if (item.action_url) {
-        window.location.href = item.action_url;
+      if (item.open_url || item.action_url) {
+        window.location.href = item.open_url || item.action_url;
       } else if (!item.is_read) {
         markGroupRead(item, card);
       }
@@ -222,7 +233,7 @@
       .catch(function () {});
   }
 
-  function buildActions(item) {
+  function buildActions(item, openUrl) {
     if ((item.event_type === 'friend_request' || item.event_type === 'follow_request') && item.entity_id) {
       return (
         '<div class="nv-notif-actions">' +
@@ -242,7 +253,12 @@
       );
     }
 
-    return '';
+    return (
+      '<div class="nv-notif-actions">' +
+        (openUrl ? '<a class="nv-notif-action-btn nv-action-open" href="' + esc(openUrl) + '">Open</a>' : '') +
+        (item.is_read ? '' : '<button class="nv-notif-action-btn nv-action-read" data-nv-action="mark-read" data-notif-id="' + esc(item.id) + '">Mark read</button>') +
+      '</div>'
+    );
   }
 
   function getCsrfToken() {

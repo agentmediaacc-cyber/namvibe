@@ -461,9 +461,10 @@ def index():
 def withdraw_page():
     profile = get_current_profile()
     wallet = get_wallet(profile.get('id')) if profile else None
+    payout_methods = get_payout_methods(profile.get('id')) if profile and profile.get('id') else []
     if not wallet:
         wallet = get_or_create_wallet(profile['id']) if profile and profile.get('id') else None
-    return render_template('wallet/withdraw.html', profile=profile, wallet=wallet)
+    return render_template('wallet/withdraw.html', profile=profile, wallet=wallet, payout_methods=payout_methods)
 
 
 @wallet_bp.route('/transactions')

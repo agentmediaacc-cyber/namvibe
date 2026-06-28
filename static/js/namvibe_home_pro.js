@@ -40,6 +40,8 @@
     setTimeout(function () { toastEl.classList.remove("is-visible"); }, 2500);
   }
 
+  var likeErrorLogged = false;
+
   function apiFetch(url, opts) {
     opts = opts || {};
     var headers = opts.headers || {};
@@ -758,22 +760,20 @@
 
   /* ── Like action (optimistic) ── */
   function _handleLikeResult(btn, data) {
-    var liked, count;
-    if (data.ok && data.result) {
-      liked = data.result.liked;
-      count = data.result.count;
-    } else {
-      liked = data.liked;
-      count = data.count;
+    if (!data || data.success !== true || typeof data.liked !== "boolean") {
+      return false;
     }
-    if (liked !== undefined) {
-      btn.classList.toggle("is-liked", liked);
-      var span = btn.querySelector("span");
-      if (span && count !== undefined) span.textContent = count;
-      showToast(liked ? "Liked" : "Unliked");
-      return true;
-    }
-    return false;
+    btn.classList.toggle("is-liked", data.liked);
+    var span = btn.querySelector("span");
+    if (span && typeof data.count === "number") span.textContent = data.count;
+    showToast(data.liked ? "Liked" : "Unliked");
+    return true;
+  }
+
+  function _logLikeErrorOnce(error) {
+    if (likeErrorLogged) return;
+    likeErrorLogged = true;
+    console.error("NamVibe like failed", error);
   }
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-action=like]");
@@ -786,19 +786,21 @@
     var oldCount = span ? parseInt(span.textContent, 10) : 0;
     btn.classList.toggle("is-liked");
     if (span) span.textContent = wasLiked ? Math.max(oldCount - 1, 0) : oldCount + 1;
-    var url = type === "reel" ? "/reels/api/reels/" + id + "/like" : "/api/home/post/" + id + "/like";
+    var url = "/api/social/" + encodeURIComponent(type) + "/" + encodeURIComponent(id) + "/like";
     apiFetch(url, { method: "POST" })
       .then(function (data) {
         if (!_handleLikeResult(btn, data)) {
           btn.classList.toggle("is-liked", wasLiked);
           if (span) span.textContent = oldCount;
           showToast("Could not like. Try again.");
+          _logLikeErrorOnce(data);
         }
       })
       .catch(function () {
         btn.classList.toggle("is-liked", wasLiked);
         if (span) span.textContent = oldCount;
         showToast("Could not like. Try again.");
+        _logLikeErrorOnce({ type: type, id: id });
       });
   });
 
@@ -825,6 +827,8 @@
     var btn = e.target.closest("[data-action=share]");
     if (!btn) return;
     var id = btn.dataset.id;
+    if (!id) return;
+    apiFetch("/api/home/post/" + encodeURIComponent(id) + "/share", { method: "POST" }).catch(function () {});
     var url = window.location.origin + "/post/" + (id || "");
     if (navigator.share) {
       navigator.share({ title: "NamVibe", url: url }).catch(function () {});
@@ -1053,7 +1057,7 @@
             var initial = name.charAt(0).toUpperCase();
             var avatar = s.avatar_url || "";
             var ringCls = s.viewed ? "" : " is-unseen";
-            itemsHtml += '<a href="/status/" class="nvpro-story-item" data-story-id="' + (s.id || "") + '">' +
+            itemsHtml += '<a href="/stories/' + (s.id || "") + '" class="nvpro-story-item" data-story-id="' + (s.id || "") + '">' +
               '<div class="nvpro-story-ring' + ringCls + '">';
             if (avatar) {
               itemsHtml += '<img src="' + avatar + '" alt="" class="nvpro-story-avatar" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
