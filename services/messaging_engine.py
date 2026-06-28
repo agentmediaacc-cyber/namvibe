@@ -7,6 +7,7 @@ from services.media_storage_service import upload_media_file
 from services.moderation_engine import contains_profanity, detect_spam_burst, is_blocked
 from services.neon_service import fast_query, write_query, get_cached_table_columns
 from services.request_cache import build_request_key, request_memoize
+from engines.cache_engine import cache_key, get_cache, set_cache, delete_cache
 
 
 def _thread_name_expr(table_alias="t"):
@@ -43,6 +44,14 @@ def _message_dedupe_key(thread_id, sender_profile_id, client_message_id):
 
 def _delivery_ack_key(message_id, profile_id):
     return f"message_ack:{message_id}:{profile_id}"
+
+
+def _invalidate_thread_list_cache(profile_id):
+    """Invalidate common thread list cache entries for a profile."""
+    for include_archived in (False, True):
+        for folder in ('primary', 'request', 'spam'):
+            key = cache_key("message_threads", profile_id, include_archived, folder, 30, 0)
+            delete_cache(key)
 
 
 def list_threads(profile_id, include_archived=False, folder='primary', limit=30, offset=0):
@@ -123,11 +132,11 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
         ) unread ON TRUE
         ORDER BY mt.is_pinned DESC, latest.created_at DESC NULLS LAST, mt.updated_at DESC NULLS LAST
     """
-    threads = request_memoize(
-        build_request_key("message_threads", profile_id, include_archived, folder, limit, offset),
-        lambda: fast_query(sql, tuple(params), timeout_ms=800, default=[]),
-    )
-
+    cache_key_str = cache_key("message_threads", profile_id, include_archived, folder, limit, offset)
+    cached = get_cache(cache_key_str)
+    if cached is not None:
+        return cached
+    threads = fast_query(sql, tuple(params), timeout_ms=800, default=[])
     # Process threads to handle group vs direct labels
     for thread in threads:
         if thread.get('thread_type') == 'group':
@@ -136,6 +145,7 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
         elif thread.get('other_member'):
             thread['display_name'] = thread['other_member'].get('full_name') or thread['other_member'].get('username')
             thread['display_avatar'] = thread['other_member'].get('avatar_url')
+    set_cache(cache_key_str, threads, ttl=10)
     return threads
 
 
@@ -571,6 +581,7 @@ def mark_thread_seen(thread_id, profile_id):
     cache_delete(f"unread_count_{profile_id}")
     cache_delete(f"unread_count_msg:{profile_id}")
     cache_delete(f"chain:unread_count_msg:{profile_id}")
+    _invalidate_thread_list_cache(profile_id)
     return True
 
 
@@ -723,29 +734,33 @@ def delete_message(message_id, profile_id, for_everyone=False):
     cache_delete(f"unread_count_{profile_id}")
     cache_delete(f"unread_count_msg:{profile_id}")
     cache_delete(f"chain:unread_count_msg:{profile_id}")
+    _invalidate_thread_list_cache(profile_id)
     
     return True
 
 def pin_thread(thread_id, profile_id, pinned=True):
     write_query("UPDATE chain_thread_members SET is_pinned = %s WHERE thread_id = %s AND profile_id = %s", (pinned, thread_id, profile_id))
-    cache_delete(f"message_threads_{profile_id}_False")
-    cache_delete(f"message_threads_{profile_id}_True")
+    _invalidate_thread_list_cache(profile_id)
     return True
 
 def archive_thread(thread_id, profile_id, archived=True):
     write_query("UPDATE chain_thread_members SET is_archived = %s WHERE thread_id = %s AND profile_id = %s", (archived, thread_id, profile_id))
-    cache_delete(f"message_threads_{profile_id}_False")
-    cache_delete(f"message_threads_{profile_id}_True")
+    _invalidate_thread_list_cache(profile_id)
     return True
 
 def mute_thread(thread_id, profile_id, muted=True):
     write_query("UPDATE chain_thread_members SET muted = %s WHERE thread_id = %s AND profile_id = %s", (muted, thread_id, profile_id))
+    _invalidate_thread_list_cache(profile_id)
     return True
 
 def move_thread(thread_id, folder_type):
     """Moves a thread to a specific folder (primary, request, spam)."""
     sql = "UPDATE chain_message_threads SET folder_type = %s WHERE id = %s"
-    return write_query(sql, (folder_type, thread_id))
+    write_query(sql, (folder_type, thread_id))
+    members = fast_query("SELECT profile_id FROM chain_thread_members WHERE thread_id = %s", (thread_id,), default=[])
+    for row in members:
+        _invalidate_thread_list_cache(row["profile_id"])
+    return True
 
 def search_messages(profile_id, query):
     if not query or len(query) < 2:
