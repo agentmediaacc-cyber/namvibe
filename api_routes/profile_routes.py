@@ -1652,6 +1652,117 @@ def view_views(username):
     return render_template("profile/command_center.html", profile=profile, viewer=viewer)
 
 
+def _normalize_business_hours(form):
+    """Build a validated JSONB-safe hours dict from flat form fields."""
+    import re
+    HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+    ALLOWED_DAYS = {"monday","tuesday","wednesday","thursday","friday","saturday","sunday"}
+    hours = {}
+    for day in ALLOWED_DAYS:
+        open_time = (form.get(f"hours_{day}_open") or "").strip()
+        close_time = (form.get(f"hours_{day}_close") or "").strip()
+        is_closed = form.get(f"hours_{day}_closed") == "on"
+        day_entry = {"closed": is_closed}
+        if is_closed:
+            day_entry["open"] = ""
+            day_entry["close"] = ""
+        else:
+            if open_time and HHMM.match(open_time):
+                day_entry["open"] = open_time
+            else:
+                day_entry["open"] = ""
+            if close_time and HHMM.match(close_time):
+                day_entry["close"] = close_time
+            else:
+                day_entry["close"] = ""
+        if day_entry.get("open") or day_entry.get("close") or is_closed:
+            hours[day] = day_entry
+    return hours
+
+
+@profile_bp.route("/business/api/<page_id>/update", methods=["POST"])
+@login_required
+def business_page_update(page_id):
+    viewer = get_current_profile()
+    try:
+        from services.neon_service import write_query
+        from services.supabase_safe import safe_update
+        data = {}
+        for key in ("name", "description", "website", "location", "contact_email", "contact_phone", "category"):
+            val = request.form.get(key)
+            if val is not None:
+                data[key] = val
+        logo = request.files.get("logo")
+        if logo and logo.filename:
+            from services.content_service import save_media_file
+            media, error = save_media_file(logo, upload_type="image", profile_id=page_id)
+            if media and isinstance(media, dict):
+                data["logo_url"] = media.get("public_url") or media.get("url")
+        cover = request.files.get("cover")
+        if cover and cover.filename:
+            from services.content_service import save_media_file
+            media, error = save_media_file(cover, upload_type="image", profile_id=page_id)
+            if media and isinstance(media, dict):
+                data["cover_url"] = media.get("public_url") or media.get("url")
+        if data:
+            safe_update("chain_profiles", data, eq={"id": page_id})
+        hours = _normalize_business_hours(request.form)
+        if hours:
+            from services.business_page_service import update_business_profile
+            update_business_profile(page_id, opening_hours=hours)
+        flash("Business page updated.", "success")
+    except Exception as e:
+        flash(f"Error: {str(e)}", "error")
+    return redirect(f"/profile/business/{page_id}?tab=settings")
+
+
+@profile_bp.route("/business/<page_id>")
+@login_required
+def business_page(page_id):
+    viewer = get_current_profile()
+    tab = request.args.get("tab", "overview")
+    try:
+        from services.neon_service import fast_query
+        rows = fast_query("SELECT * FROM chain_pages WHERE id = %s LIMIT 1", (page_id,), default=[])
+        page = rows[0] if rows else None
+        if not page:
+            rows = fast_query(
+                "SELECT * FROM chain_profiles WHERE id = %s AND (account_kind = 'business' OR account_kind = 'creator' OR account_kind = 'organization' OR is_page = true) LIMIT 1",
+                (page_id,), default=[]
+            )
+            page = rows[0] if rows else None
+        if not page:
+            return render_template("profile/not_found.html", username=""), 404
+        promotions = fast_query(
+            "SELECT * FROM chain_campaigns WHERE profile_id = %s ORDER BY created_at DESC",
+            (page_id,), default=[]
+        )
+        page["promotions"] = promotions
+        hours_raw = fast_query(
+            "SELECT hours FROM chain_business_hours WHERE profile_id = %s",
+            (page_id,), default=[]
+        )
+        page["hours"] = hours_raw[0]["hours"] if hours_raw else {}
+        is_following = bool(
+            fast_query(
+                "SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s LIMIT 1",
+                (viewer["id"], page_id), default=[]
+            )
+        )
+        stats = fast_query(
+            "SELECT COUNT(*) AS followers FROM chain_follows WHERE following_profile_id = %s",
+            (page_id,), default=[{"followers": 0}]
+        )
+        followers_count = int(stats[0]["followers"]) if stats else 0
+        return render_template(
+            "business/page.html",
+            page=page, viewer=viewer, is_following=is_following,
+            tab=tab, stats={"followers": followers_count},
+        )
+    except Exception as e:
+        return f"Error loading business page: {str(e)}", 500
+
+
 @profile_bp.route("/@<username>/score")
 def view_score(username):
     viewer = get_current_profile()
@@ -1659,3 +1770,94 @@ def view_score(username):
     if not profile:
         return render_template("profile/not_found.html", username=username), 404
     return render_template("profile/command_center.html", profile=profile, viewer=viewer)
+
+
+# ── Security Routes ─────────────────────────────────────────────────────
+
+@profile_bp.route("/security/change-email", methods=["POST"])
+@login_required
+def security_change_email():
+    profile = get_current_profile()
+    new_email = request.form.get("new_email", "").strip()
+    password = request.form.get("password", "")
+    if not new_email or "@" not in new_email:
+        flash("Invalid email address.", "error")
+        return redirect(url_for("profile.security"))
+    try:
+        from services.supabase_safe import safe_update
+        ok = safe_update("chain_profiles", {"email": new_email}, eq={"id": profile["id"]})
+        if ok:
+            session["auth_email"] = new_email
+            flash("Email updated successfully.", "success")
+        else:
+            flash("Failed to update email.", "error")
+    except Exception as e:
+        flash(f"Error: {str(e)}", "error")
+    return redirect(url_for("profile.security"))
+
+
+@profile_bp.route("/security/change-phone", methods=["POST"])
+@login_required
+def security_change_phone():
+    profile = get_current_profile()
+    new_phone = request.form.get("new_phone", "").strip()
+    password = request.form.get("password", "")
+    if not new_phone:
+        flash("Invalid phone number.", "error")
+        return redirect(url_for("profile.security"))
+    try:
+        from services.supabase_safe import safe_update
+        ok = safe_update("chain_profiles", {"phone": new_phone}, eq={"id": profile["id"]})
+        flash("Phone number updated successfully." if ok else "Failed to update phone number.", "success" if ok else "error")
+    except Exception as e:
+        flash(f"Error: {str(e)}", "error")
+    return redirect(url_for("profile.security"))
+
+
+@profile_bp.route("/security/request-data", methods=["POST"])
+@login_required
+def security_request_data():
+    profile = get_current_profile()
+    try:
+        from services.neon_service import fast_query, write_query
+        from datetime import datetime, timezone
+        import json
+        data_export = {
+            "profile": profile,
+            "requested_at": datetime.now(timezone.utc).isoformat(),
+            "status": "pending",
+        }
+        write_query(
+            "INSERT INTO chain_data_requests (profile_id, data_export, status, created_at) VALUES (%s, %s, 'pending', NOW())",
+            (profile["id"], json.dumps(data_export)),
+            timeout_ms=3000,
+        )
+        flash("Data export requested. You will be notified when it is ready.", "success")
+    except Exception as e:
+        flash(f"Error requesting data: {str(e)}", "error")
+    return redirect(url_for("profile.security"))
+
+
+@profile_bp.route("/security/delete-account", methods=["POST"])
+@login_required
+def security_delete_account():
+    profile = get_current_profile()
+    password = request.form.get("password", "")
+    if len(password) < 8:
+        flash("Password required to delete account.", "error")
+        return redirect(url_for("profile.security"))
+    try:
+        from services.supabase_safe import safe_update
+        ok = safe_update("chain_profiles", {
+            "deleted_at": datetime.now(timezone.utc).isoformat(),
+            "is_active": False,
+            "username": f"deleted_{profile['id'][:8]}",
+        }, eq={"id": profile["id"]})
+        if ok:
+            clear_auth_session()
+            flash("Account deleted.", "success")
+            return redirect(url_for("auth.login"))
+        flash("Failed to delete account.", "error")
+    except Exception as e:
+        flash(f"Error: {str(e)}", "error")
+    return redirect(url_for("profile.security"))
