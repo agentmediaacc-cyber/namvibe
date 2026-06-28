@@ -78,7 +78,9 @@ def report_entity(reporter_profile_id, entity_type, entity_id, reason, details=N
     escalation = auto_mute(target_profile_id, repeated_reports, severity)
     if repeated_reports >= 3:
         print(f"[moderation_engine] escalation: {escalation}")
-    return result
+    if result and isinstance(result, list) and len(result) > 0:
+        return result[0].get("id")
+    return None
 
 def block_profile(blocker_profile_id, blocked_profile_id):
     """Blocks a profile."""
