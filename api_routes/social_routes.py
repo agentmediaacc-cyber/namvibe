@@ -41,7 +41,7 @@ def api_follow(profile_id):
     from services.social_relationship_service import follow, unfollow, relationship_summary
 
     current = relationship_summary(profile["id"], profile_id)
-    if current.get("state") == "following":
+    if current.get("state") in ("following", "friends"):
         res = unfollow(profile["id"], profile_id)
     else:
         res = follow(profile["id"], profile_id)

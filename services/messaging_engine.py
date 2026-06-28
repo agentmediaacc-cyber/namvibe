@@ -35,61 +35,83 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
     """Lists message threads for a profile in a specific folder with pagination."""
     archived_filter = "AND tm.is_archived = FALSE" if not include_archived else ""
     folder_filter = ""
-    params = [profile_id, profile_id, profile_id, profile_id]
-    
+    params = [profile_id]
+
     if folder:
         folder_filter = "AND t.folder_type = %s"
         params.append(folder)
-    
-    params.extend([limit, offset])
+
+    params.extend([limit, offset, profile_id, profile_id, profile_id])
 
     sql = f"""
-        SELECT DISTINCT ON (t.id) t.*,
-               tm.last_read_at,
-               tm.is_pinned,
-               tm.is_archived,
-               tm.muted,
+        WITH member_threads AS (
+            SELECT
+                t.id,
+                t.thread_type,
+                t.folder_type,
+                t.updated_at,
+                t.thread_name,
+                t.thread_avatar_url,
+                tm.last_read_at,
+                tm.is_pinned,
+                tm.is_archived,
+                tm.muted
+            FROM chain_message_threads t
+            JOIN chain_thread_members tm ON t.id = tm.thread_id
+            WHERE tm.profile_id = %s AND t.deleted_at IS NULL {archived_filter} {folder_filter}
+            ORDER BY tm.is_pinned DESC, t.updated_at DESC NULLS LAST
+            LIMIT %s OFFSET %s
+        )
+        SELECT
+               mt.id,
+               mt.thread_type,
+               mt.folder_type,
+               mt.updated_at,
+               mt.thread_name,
+               mt.thread_avatar_url,
+               mt.last_read_at,
+               mt.is_pinned,
+               mt.is_archived,
+               mt.muted,
                peer.profile_json AS other_member,
                latest.body AS last_message,
                latest.created_at AS last_message_at,
                COALESCE(unread.unread_count, 0) AS unread_count
-        FROM chain_message_threads t
-        JOIN chain_thread_members tm ON t.id = tm.thread_id
+        FROM member_threads mt
         LEFT JOIN LATERAL (
             SELECT json_build_object('id', p.id, 'username', p.username, 'avatar_url', p.avatar_url, 'full_name', p.full_name) AS profile_json
             FROM chain_thread_members tm2
             JOIN chain_profiles p ON tm2.profile_id = p.id
-            WHERE tm2.thread_id = t.id AND tm2.profile_id != %s
+            WHERE tm2.thread_id = mt.id AND tm2.profile_id != %s
             LIMIT 1
         ) peer ON TRUE
         LEFT JOIN LATERAL (
             SELECT body, created_at
             FROM chain_messages m
-            WHERE m.thread_id = t.id AND m.deleted_at IS NULL
+            WHERE m.thread_id = mt.id AND m.deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT 1
         ) latest ON TRUE
         LEFT JOIN LATERAL (
             SELECT COUNT(*) AS unread_count
             FROM chain_messages m
-            WHERE m.thread_id = t.id
+            WHERE m.thread_id = mt.id
               AND m.sender_profile_id != %s
               AND COALESCE(m.is_seen, FALSE) = FALSE
               AND m.deleted_at IS NULL
+              AND m.created_at > COALESCE(mt.last_read_at, to_timestamp(0))
               AND NOT EXISTS (
-                  SELECT 1 FROM chain_message_deletions md 
+                  SELECT 1 FROM chain_message_deletions md
                   WHERE md.message_id = m.id AND md.profile_id = %s
               )
         ) unread ON TRUE
-        WHERE tm.profile_id = %s AND t.deleted_at IS NULL {archived_filter} {folder_filter}
-        ORDER BY t.id, tm.is_pinned DESC, latest.created_at DESC NULLS LAST, t.updated_at DESC NULLS LAST
-        LIMIT %s OFFSET %s
+        ORDER BY mt.is_pinned DESC, latest.created_at DESC NULLS LAST, mt.updated_at DESC NULLS LAST
     """
     threads = request_memoize(
         build_request_key("message_threads", profile_id, include_archived, folder, limit, offset),
         lambda: fast_query(sql, tuple(params), timeout_ms=800, default=[]),
     )
-    
+
     # Process threads to handle group vs direct labels
     for thread in threads:
         if thread.get('thread_type') == 'group':
@@ -101,70 +123,151 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
     return threads
 
 
-def get_thread(thread_id, profile_id):
-    """Gets a thread and its messages if the profile is a member.
-    Optimized: 2-3 queries instead of 5-6.
-    """
-    # Single query: verify membership, fetch thread, fetch peer simultaneously
-    # We batch: membership check + thread metadata in one round trip
+def _load_thread_message_metadata(messages, profile_id):
+    if not messages:
+        return {"reactions": {}, "parents": {}, "receipts": {}}
+
+    msg_ids = [m["id"] for m in messages if m.get("id")]
+    parent_ids = [m["reply_to_message_id"] for m in messages if m.get("reply_to_message_id")]
+    reactions_by_msg = {}
+    parent_info_map = {}
+    receipts = {}
+
+    if msg_ids:
+        id_ph = ",".join("%s" for _ in msg_ids)
+        reactions_list = fast_query(
+            f"SELECT message_id, profile_id, reaction_type FROM chain_message_reactions WHERE message_id IN ({id_ph})",
+            msg_ids,
+            timeout_ms=800,
+            default=[],
+        )
+        for reaction in reactions_list:
+            reactions_by_msg.setdefault(reaction["message_id"], []).append({
+                "profile_id": reaction["profile_id"],
+                "reaction_type": reaction["reaction_type"],
+            })
+
+        receipt_rows = fast_query(
+            f"SELECT id, delivery_status, seen_at, read_at FROM chain_messages WHERE id IN ({id_ph})",
+            msg_ids,
+            timeout_ms=800,
+            default=[],
+        )
+        for receipt in receipt_rows:
+            receipts[receipt["id"]] = {
+                "delivery_status": receipt.get("delivery_status"),
+                "seen_at": receipt.get("seen_at"),
+                "read_at": receipt.get("read_at"),
+            }
+
+    if parent_ids:
+        p_ph = ",".join("%s" for _ in parent_ids)
+        parent_rows = fast_query(
+            f"SELECT id, body, sender_profile_id FROM chain_messages WHERE id IN ({p_ph})",
+            parent_ids,
+            timeout_ms=800,
+            default=[],
+        )
+        for parent in parent_rows:
+            parent_info_map[parent["id"]] = {
+                "id": parent["id"],
+                "body": parent.get("body"),
+                "sender_id": parent.get("sender_profile_id"),
+            }
+
+    return {"reactions": reactions_by_msg, "parents": parent_info_map, "receipts": receipts}
+
+
+def get_thread_metadata(thread_id, profile_id, message_ids=None):
+    thread = get_thread(thread_id, profile_id, include_metadata=False)
+    if not thread:
+        return None
+    messages = thread.get("messages") or []
+    if message_ids:
+        wanted = {str(message_id) for message_id in message_ids}
+        messages = [msg for msg in messages if str(msg.get("id")) in wanted]
+    return _load_thread_message_metadata(messages, profile_id)
+
+
+def get_thread(thread_id, profile_id, include_metadata=False):
+    """Gets thread shell plus latest messages for the initial render."""
     from services.neon_service import fast_query as _fq
-    from concurrent.futures import TimeoutError as FutureTimeoutError
     import logging
     logger = logging.getLogger(__name__)
-    
-    QUERY_TIMEOUT_MS = 1500  # 1.5 second timeout per query
 
-    # 1) Membership check
+    QUERY_TIMEOUT_MS = 1500
+
     try:
-        memberships = _fq(
-            "SELECT muted, last_read_at FROM chain_thread_members WHERE thread_id = %s AND profile_id = %s",
-            (thread_id, profile_id), timeout_ms=QUERY_TIMEOUT_MS, default=[]
+        rows = _fq(
+            """
+            SELECT
+                t.id,
+                t.thread_type,
+                t.created_by_profile_id,
+                t.created_at,
+                tm.muted,
+                tm.last_read_at,
+                peer.id AS other_member_id,
+                peer.username AS other_member_username,
+                peer.full_name AS other_member_full_name,
+                peer.avatar_url AS other_member_avatar_url
+            FROM chain_thread_members tm
+            JOIN chain_message_threads t ON t.id = tm.thread_id
+            LEFT JOIN LATERAL (
+                SELECT p.id, p.username, p.full_name, p.avatar_url
+                FROM chain_thread_members tm2
+                JOIN chain_profiles p ON p.id = tm2.profile_id
+                WHERE tm2.thread_id = t.id AND tm2.profile_id != %s
+                LIMIT 1
+            ) peer ON TRUE
+            WHERE tm.thread_id = %s
+              AND tm.profile_id = %s
+              AND t.deleted_at IS NULL
+            LIMIT 1
+            """,
+            (profile_id, thread_id, profile_id),
+            timeout_ms=QUERY_TIMEOUT_MS,
+            default=[],
         )
     except Exception as e:
-        logger.warning(f"get_thread membership query failed: {e}")
-        memberships = []
-    
-    if not memberships:
+        logger.warning(f"get_thread shell query failed: {e}")
+        rows = []
+
+    if not rows:
         return None
 
-    # 2) Thread metadata
-    try:
-        threads = _fq(
-            "SELECT id, thread_type, created_by_profile_id, created_at FROM chain_message_threads WHERE id = %s AND deleted_at IS NULL",
-            (thread_id,), timeout_ms=QUERY_TIMEOUT_MS, default=[]
-        )
-    except Exception as e:
-        logger.warning(f"get_thread thread query failed: {e}")
-        threads = []
-    
-    if not threads:
-        return None
+    row = rows[0]
+    thread = {
+        "id": row.get("id"),
+        "thread_type": row.get("thread_type"),
+        "created_by_profile_id": row.get("created_by_profile_id"),
+        "created_at": row.get("created_at"),
+        "membership": {
+            "muted": row.get("muted"),
+            "last_read_at": row.get("last_read_at"),
+        },
+    }
 
-    thread = threads[0]
-    thread["membership"] = memberships[0]
-
-    # 3) Fetch peer for direct threads (or group display)
     if thread.get("thread_type") == "group":
         thread["display_name"] = "Unnamed Group"
     else:
-        try:
-            peers = _fq(
-                "SELECT p.id, p.username, p.full_name, p.avatar_url FROM chain_thread_members tm JOIN chain_profiles p ON tm.profile_id = p.id WHERE tm.thread_id = %s AND tm.profile_id != %s LIMIT 1",
-                (thread_id, profile_id), timeout_ms=500, default=[]
-            )
-            if peers:
-                thread["other_member"] = peers[0]
-                thread["display_name"] = peers[0].get("full_name") or peers[0].get("username")
-                thread["display_avatar"] = peers[0].get("avatar_url")
-        except Exception as e:
-            logger.warning(f"get_thread peer query failed: {e}")
+        thread["other_member"] = {
+            "id": row.get("other_member_id"),
+            "username": row.get("other_member_username"),
+            "full_name": row.get("other_member_full_name"),
+            "avatar_url": row.get("other_member_avatar_url"),
+        } if row.get("other_member_id") else None
+        peer = thread.get("other_member") or {}
+        thread["display_name"] = peer.get("full_name") or peer.get("username")
+        thread["display_avatar"] = peer.get("avatar_url")
 
-    # 4) Fetch latest 50 messages + reactions in one batch
     try:
         messages = _fq(
-            """SELECT m.id, m.thread_id, m.sender_profile_id, m.body, m.media_url,
-                      m.media_type, m.mime_type, m.size_bytes, m.sticker_id, m.gif_url,
-                      m.parent_message_id, m.is_forwarded, m.created_at, m.delivery_status,
+            """SELECT m.id, m.thread_id, m.sender_profile_id,
+                      CASE WHEN m.deleted_for_everyone_at IS NOT NULL OR m.deleted_at IS NOT NULL THEN NULL ELSE m.body END AS body,
+                      m.media_url, m.media_type, m.mime_type, m.sticker_id, m.gif_url,
+                      m.reply_to_message_id, m.message_type, m.location_lat, m.location_lng,
+                      m.created_at, m.delivery_status, m.seen_at, m.read_at, m.edited_at,
                       p.username AS sender_username, p.avatar_url AS sender_avatar
              FROM chain_messages m
              JOIN chain_profiles p ON m.sender_profile_id = p.id
@@ -181,36 +284,17 @@ def get_thread(thread_id, profile_id):
     except Exception as e:
         logger.warning(f"get_thread messages query failed: {e}")
         messages = []
-    # Reverse to chronological order
     messages.reverse()
 
-    if messages:
-        msg_ids = [m["id"] for m in messages]
-        parent_ids = [m["parent_message_id"] for m in messages if m.get("parent_message_id")]
-        id_ph = ",".join("%s" for _ in msg_ids)
+    for message in messages:
+        message["edited"] = bool(message.get("edited_at"))
 
-        # Batch fetch reactions + parent messages in one extra query
-        reactions_list = _fq(
-            f"SELECT message_id, profile_id, reaction_type FROM chain_message_reactions WHERE message_id IN ({id_ph})",
-            msg_ids, default=[]
-        )
-        reactions_by_msg = {}
-        for r in reactions_list:
-            reactions_by_msg.setdefault(r["message_id"], []).append({"profile_id": r["profile_id"], "reaction_type": r["reaction_type"]})
-
-        parent_info_map = {}
-        if parent_ids:
-            p_ph = ",".join("%s" for _ in parent_ids)
-            parent_rows = _fq(
-                f"SELECT id, body, sender_profile_id FROM chain_messages WHERE id IN ({p_ph})",
-                parent_ids, default=[]
-            )
-            for p in parent_rows:
-                parent_info_map[p["id"]] = {"id": p["id"], "body": p["body"], "sender_id": p["sender_profile_id"]}
-
-        for m in messages:
-            m["reactions"] = reactions_by_msg.get(m["id"], [])
-            m["parent_message"] = parent_info_map.get(m["parent_message_id"]) if m.get("parent_message_id") else None
+    if include_metadata:
+        metadata = _load_thread_message_metadata(messages, profile_id)
+        for message in messages:
+            message["reactions"] = metadata["reactions"].get(message["id"], [])
+            parent_id = message.get("reply_to_message_id")
+            message["parent_message"] = metadata["parents"].get(parent_id) if parent_id else None
 
     thread["messages"] = messages
     return thread

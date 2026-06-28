@@ -68,6 +68,7 @@ with flask_app.app_context():
 
     # 1. Create test user
     print("\n--- Step 1: Create test user ---")
+    db_available = True
     try:
         write_query(
             """INSERT INTO chain_profiles (id, auth_user_id, username, display_name, email,
@@ -82,6 +83,7 @@ with flask_app.app_context():
 
     # 2. Create a post via service (simulates upload)
     print("\n--- Step 2: Create photo post ---")
+    record = {}
     try:
         media_file = FakeFile("test_photo.jpg")
         record, error = create_post_record(alpha_id, "Test photo caption", media_file)
@@ -156,7 +158,8 @@ with flask_app.app_context():
     html = resp.data.decode("utf-8") if resp.data else ""
     test("Homepage returns 200", resp.status_code == 200, f"status={resp.status_code}")
     if post_id and db_available:
-        has_img_tag = f'src="{FAKE_PUBLIC_URL}"' in html or post_id in html
+        actual_media_url = record.get("media_url", FAKE_PUBLIC_URL) if 'record' in dir() else FAKE_PUBLIC_URL
+        has_img_tag = actual_media_url in html or post_id in html
         test("Homepage HTML contains post reference", has_img_tag, f"contains post_id or media_url")
 
     # 6. Test profile page renders media
@@ -165,8 +168,9 @@ with flask_app.app_context():
     test("Profile page returns 200", resp.status_code in (200, 302, 404) if not db_available else resp.status_code in (200, 302), f"status={resp.status_code}")
     profile_html = resp.data.decode("utf-8") if resp.data else ""
     if post_id and db_available:
-        has_media = FAKE_PUBLIC_URL in profile_html
-        test("Profile page HTML contains media_url", has_media, "media_url not found in profile HTML")
+        actual_media_url = record.get("media_url", FAKE_PUBLIC_URL) if 'record' in dir() else FAKE_PUBLIC_URL
+        has_media = actual_media_url in profile_html
+        test("Profile page HTML contains media_url", has_media, f"media_url={actual_media_url} not found in profile HTML")
 
     # 7. Test gallery service
     print("\n--- Step 7: Gallery/posts query ---")

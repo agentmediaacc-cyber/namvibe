@@ -1043,9 +1043,10 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         try{
             const res = await fetch('/messages/api/thread/' + encodeURIComponent(id));
             const json = await res.json();
-            messages = json.messages || [];
-            if(json.pinned_message){
-                showPinnedMessage(json.pinned_message);
+            const threadPayload = json.message || json.thread || json;
+            messages = threadPayload.messages || json.messages || [];
+            if(threadPayload.pinned_message || json.pinned_message){
+                showPinnedMessage(threadPayload.pinned_message || json.pinned_message);
             } else {
                 hidePinnedMessage();
             }
