@@ -34,8 +34,23 @@ def get_reel_feed(limit=20, offset=0, viewer_id=None):
     - public: everyone can see
     - followers: only followers can see
     - private: only owner can see
+    
+    Caching:
+    - Anonymous/public reels (no viewer_id) are cached with short TTL (15s)
+    - Authenticated feeds bypass cache (privacy-sensitive)
     """
     profile_id_param = str(viewer_id) if viewer_id else None
+    
+    # Anonymous/public feed is safe to cache briefly
+    if not profile_id_param and offset == 0:
+        try:
+            from services.redis_service import cache_get as _rget, cache_set as _rset
+            cache_key = f"reel_feed:public:limit:{limit}"
+            cached = _rget(cache_key)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
     
     # Base query
     query = """
@@ -71,7 +86,18 @@ def get_reel_feed(limit=20, offset=0, viewer_id=None):
     
     params.extend([limit, offset])
     query += " ORDER BY r.created_at DESC LIMIT %s OFFSET %s"
-    return fast_query(query, params, timeout_ms=2000, default=[]) or []
+    result = fast_query(query, params, timeout_ms=2000, default=[]) or []
+    
+    # Cache anonymous/public feed briefly
+    if not profile_id_param and offset == 0:
+        try:
+            from services.redis_service import cache_set as _rset
+            cache_key = f"reel_feed:public:limit:{limit}"
+            _rset(cache_key, result, ttl=15)
+        except Exception:
+            pass
+    
+    return result
 
 
 def _event_debounce_key(reel_id, user_id, event_type):
