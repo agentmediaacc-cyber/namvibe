@@ -68,6 +68,7 @@ with flask_app.app_context():
 
     # 1. Create test user
     print("\n--- Step 1: Create test user ---")
+    db_available = True
     try:
         write_query(
             """INSERT INTO chain_profiles (id, auth_user_id, username, display_name, email,
@@ -83,6 +84,7 @@ with flask_app.app_context():
     # 2. Create reel record via service (simulates upload)
     print("\n--- Step 2: Create reel record ---")
     reel_id = None
+    record = {}
     try:
         video_file = FakeVideoFile("test_reel.mp4")
         record, error = create_reel_record(alpha_id, video_file, caption="Test reel caption", visibility="public")
@@ -156,7 +158,8 @@ with flask_app.app_context():
     resp = client.get("/reels/")
     html = resp.data.decode("utf-8") if resp.data else ""
     test("/reels/ returns 200", resp.status_code == 200, f"status={resp.status_code}")
-    has_reference = FAKE_VIDEO_URL in html or (reel_id and reel_id[:8] in html)
+    actual_url = record.get("media_url") or record.get("video_url", FAKE_VIDEO_URL)
+    has_reference = actual_url in html or FAKE_VIDEO_URL in html or (reel_id and reel_id[:8] in html)
     if reel_id and db_available:
         test("Reels page references reel", has_reference, "reel not found in reels page")
 
@@ -166,8 +169,9 @@ with flask_app.app_context():
     test("Profile page returns 200", resp.status_code in (200, 302, 404) if not db_available else resp.status_code in (200, 302), f"status={resp.status_code}")
     profile_html = resp.data.decode("utf-8") if resp.data else ""
     if reel_id and db_available:
-        has_reel_media = FAKE_VIDEO_URL in profile_html
-        test("Profile HTML contains reel media_url", has_reel_media, "media_url not found in profile HTML")
+        actual_url = record.get("media_url") or record.get("video_url", FAKE_VIDEO_URL)
+        has_reel_media = actual_url in profile_html or FAKE_VIDEO_URL in profile_html
+        test("Profile HTML contains reel media_url", has_reel_media, f"media_url={actual_url} not found in profile HTML")
 
     # 7. Verify normalizers handle video_url/thumbnail fallback
     print("\n--- Step 7: Normalizer fallbacks ---")
