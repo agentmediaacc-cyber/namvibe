@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Profile Completion | {{ APP_NAME }}{% endblock %}
+{% block extra_css %}
+<style>
+.completion-shell{max-width:800px;margin:0 auto;padding:20px}
+.completion-header{background:linear-gradient(135deg,#111827,#334155);color:#fff;border-radius:30px;padding:28px;margin-bottom:24px}
+.completion-header h1{margin:0 0 8px;font-size:34px;font-weight:950}
+.completion-header p{margin:0;color:#dbeafe}
+.progress-ring{width:120px;height:120px;border-radius:50%;background:conic-gradient(#22c55e 0deg, #22c55e var(--pct-deg, 0deg), #374151 var(--pct-deg, 0deg));display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.progress-ring-inner{width:100px;height:100px;border-radius:50%;background:#1e1e36;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.progress-ring-inner strong{font-size:28px;color:#fff}
+.progress-ring-inner span{font-size:12px;color:#94a3b8}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field-card{background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:16px;padding:16px;display:flex;align-items:center;gap:12px}
+.field-card.completed{border-left:4px solid #22c55e}
+.field-card.missing{border-left:4px solid #ef4444}
+.field-card i{font-size:20px;width:24px;text-align:center}
+.field-card.completed i{color:#22c55e}
+.field-card.missing i{color:#ef4444}
+.field-card .field-label{font-size:14px;color:#475569}
+.field-card .field-name{font-weight:700;color:#0f172a;font-size:15px}
+.quick-edit-btn{padding:6px 14px;border-radius:8px;border:1px solid #cbd5e1;background:#f8fafc;color:#0f172a;cursor:pointer;font-weight:700;font-size:13px;text-decoration:none;margin-left:auto}
+.quick-edit-btn:hover{background:#e2e8f0}
+@media(max-width:600px){.field-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="completion-shell">
+  <div class="completion-header">
+    <h1>Profile Completion</h1>
+    <p>Complete your profile to help others find and trust you.</p>
+  </div>
+  <div class="progress-ring" style="--pct-deg: {{ completion.percentage * 3.6 }}deg">
+    <div class="progress-ring-inner">
+      <strong>{{ completion.percentage }}%</strong>
+      <span>complete</span>
+    </div>
+  </div>
+  <div class="field-grid">
+    {% for field in ['full_name','username','avatar_url','cover_url','bio','phone','email','date_of_birth','gender','town','country','location','website','interests','profile_photo'] %}
+    {% set is_complete = field in completion.completed %}
+    <div class="field-card {{ 'completed' if is_complete else 'missing' }}">
+      <i class="fas {{ 'fa-check-circle' if is_complete else 'fa-exclamation-circle' }}"></i>
+      <div>
+        <div class="field-name">{{ field|replace('_',' ')|title }}</div>
+        <div class="field-label">{{ 'Completed' if is_complete else 'Missing' }}</div>
+      </div>
+      <a href="/profile/edit" class="quick-edit-btn"><i class="fas fa-pen"></i> Edit</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

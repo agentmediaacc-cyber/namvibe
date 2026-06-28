@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Verification Request | {{ APP_NAME }}{% endblock %}
+{% block extra_css %}
+<style>
+.ver-shell{max-width:700px;margin:0 auto;padding:20px}
+.ver-header{background:linear-gradient(135deg,#111827,#334155);color:#fff;border-radius:30px;padding:28px;margin-bottom:24px}
+.ver-header h1{margin:0;font-size:34px;font-weight:950}
+.ver-header p{margin:8px 0 0;color:#dbeafe}
+.ver-card{background:rgba(255,255,255,.94);border:1px solid rgba(15,23,42,.08);border-radius:20px;padding:22px;margin-bottom:16px}
+.ver-card h2{font-size:20px;color:#0f172a;margin:0 0 16px}
+.ver-input{border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;font-size:16px;background:#f8fafc;color:#0f172a;width:100%;margin-bottom:12px;box-sizing:border-box}
+.ver-input:focus{border-color:#3b82f6;outline:none;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+.ver-label{display:block;font-weight:700;color:#0f172a;font-size:14px;margin-bottom:4px}
+.ver-hint{font-size:13px;color:#64748b;margin-bottom:12px}
+.ver-btn{padding:14px 28px;border-radius:999px;border:none;font-weight:700;font-size:16px;cursor:pointer;background:#111827;color:#fff;width:100%}
+.ver-btn:disabled{opacity:.5;cursor:not-allowed}
+.status-badge{display:inline-block;padding:8px 20px;border-radius:999px;font-weight:700;font-size:14px}
+.status-pending{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+.status-approved{background:#f0fdf4;color:#166534;border:1px solid #22c55e}
+.status-rejected{background:#fef2f2;color:#991b1b;border:1px solid #ef4444}
+.status-none{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+.selfie-instructions{background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:16px;margin:12px 0}
+.selfie-instructions li{margin:4px 0;font-size:14px;color:#0c4a6e}
+</style>
+{% endblock %}
+{% block content %}
+<div class="ver-shell">
+  <div class="ver-header">
+    <h1>Profile Verification</h1>
+    <p>Get your verified badge to build trust with the NamVibe community.</p>
+  </div>
+
+  {% if verification.status == "approved" %}
+  <div class="ver-card" style="text-align:center;padding:40px">
+    <i class="fas fa-check-circle" style="font-size:64px;color:#22c55e"></i>
+    <h2 style="color:#166534;margin:16px 0 8px">You are verified!</h2>
+    <p style="color:#64748b">Your profile has the verified badge. Thank you for confirming your identity.</p>
+    <p style="color:#64748b;font-size:13px">Verified since: {{ verification.reviewed_at[:10] if verification.reviewed_at else 'N/A' }}</p>
+  </div>
+
+  {% elif verification.status == "pending" %}
+  <div class="ver-card" style="text-align:center;padding:40px">
+    <i class="fas fa-clock" style="font-size:64px;color:#f59e0b"></i>
+    <h2 style="color:#92400e;margin:16px 0 8px">Verification Pending</h2>
+    <div class="status-badge status-pending">Pending Review</div>
+    <p style="color:#64748b;margin-top:16px">Your verification request is being reviewed by our team. This usually takes 1-3 business days.</p>
+  </div>
+
+  {% elif verification.status == "rejected" %}
+  <div class="ver-card" style="text-align:center;padding:40px">
+    <i class="fas fa-times-circle" style="font-size:64px;color:#ef4444"></i>
+    <h2 style="color:#991b1b;margin:16px 0 8px">Verification Rejected</h2>
+    {% if verification.admin_notes %}
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;margin:12px 0;text-align:left">
+      <strong style="color:#991b1b">Reason:</strong>
+      <p style="color:#991b1b;margin:4px 0 0">{{ verification.admin_notes }}</p>
+    </div>
+    {% endif %}
+    <p style="color:#64748b">You can resubmit your verification request with corrected documents.</p>
+  </div>
+  {% endif %}
+
+  {% if verification.status != "approved" %}
+  <form id="verificationForm" enctype="multipart/form-data" onsubmit="return submitVerification(event)">
+    <div class="ver-card">
+      <h2><i class="fas fa-id-card"></i> Identity Documents</h2>
+      <label class="ver-label">ID Front</label>
+      <input class="ver-input" type="file" name="id_front" accept="image/*" required>
+      
+      <label class="ver-label">ID Back</label>
+      <input class="ver-input" type="file" name="id_back" accept="image/*" required>
+    </div>
+
+    <div class="ver-card">
+      <h2><i class="fas fa-home"></i> Proof of Address</h2>
+      <label class="ver-label">Document Type</label>
+      <select class="ver-input" name="address_proof_type">
+        <option value="water_bill">Water Bill</option>
+        <option value="electricity_bill">Electricity Bill</option>
+        <option value="municipal_bill">Municipal Bill</option>
+        <option value="local_authority">Local Authority Document</option>
+      </select>
+      <label class="ver-label">Upload Document</label>
+      <input class="ver-input" type="file" name="address_proof" accept="image/*,application/pdf" required>
+    </div>
+
+    <div class="ver-card">
+      <h2><i class="fas fa-video"></i> Liveness Video</h2>
+      <p class="ver-hint">Record a short video following these instructions:</p>
+      <div class="selfie-instructions">
+        <strong>Instructions:</strong>
+        <ol style="margin:8px 0 0;padding-left:20px">
+          <li>Turn your head to the <strong>left</strong></li>
+          <li>Turn your head to the <strong>right</strong></li>
+          <li><strong>Smile</strong></li>
+          <li><strong>Say your full name</strong> clearly</li>
+        </ol>
+      </div>
+      <label class="ver-label">Selfie Video</label>
+      <input class="ver-input" type="file" name="selfie_video" accept="video/*" required>
+    </div>
+
+    <div class="ver-card">
+      <h2><i class="fab fa-whatsapp"></i> WhatsApp Verification</h2>
+      <label class="ver-label">WhatsApp Phone Number</label>
+      <input class="ver-input" type="tel" name="whatsapp_phone" placeholder="+265123456789" required>
+      <p class="ver-hint">We will send a verification code to this WhatsApp number.</p>
+      
+      <label class="ver-label">Verification Code</label>
+      <input class="ver-input" type="text" name="whatsapp_code" placeholder="Enter the code sent to your WhatsApp" required>
+    </div>
+
+    <button type="submit" class="ver-btn" id="submitBtn">Submit Verification Request</button>
+  </form>
+  <div id="verResult" style="font-size:14px;margin-top:12px;text-align:center"></div>
+  {% endif %}
+</div>
+
+<script>
+async function submitVerification(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  try {
+    const res = await fetch('/profile/api/verification/submit', {method:'POST', body: new FormData(e.target)});
+    const d = await res.json();
+    const el = document.getElementById('verResult');
+    if (d.ok) {
+      el.innerHTML = '<span style="color:#22c55e">Verification request submitted! Our team will review it shortly.</span>';
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      el.innerHTML = '<span style="color:#ef4444">' + (d.error || 'Submission failed') + '</span>';
+      btn.disabled = false;
+      btn.textContent = 'Submit Verification Request';
+    }
+  } catch(err) {
+    document.getElementById('verResult').innerHTML = '<span style="color:#ef4444">Network error. Please try again.</span>';
+    btn.disabled = false;
+    btn.textContent = 'Submit Verification Request';
+  }
+  return false;
+}
+</script>
+{% endblock %}
