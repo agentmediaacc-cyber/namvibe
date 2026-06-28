@@ -5,10 +5,24 @@ from datetime import datetime, timezone
 
 from services.media_storage_service import upload_media_file
 from services.moderation_engine import contains_profanity, detect_spam_burst, is_blocked
-from services.neon_service import fast_query, write_query
+from services.neon_service import fast_query, write_query, get_cached_table_columns
 from services.request_cache import build_request_key, request_memoize
-from services.redis_service import cache_delete, cache_get, cache_set, set_json, get_json, delete_key
-from services.socketio_service import emit_to_profile, emit_to_thread
+
+
+def _thread_name_expr(table_alias="t"):
+    cols = get_cached_table_columns("chain_message_threads") or set()
+    for col in ("thread_name", "title", "name", "display_name"):
+        if col in cols:
+            return f"{table_alias}.{col}"
+    return "'Conversation'"
+
+
+def _thread_avatar_expr(table_alias="t"):
+    cols = get_cached_table_columns("chain_message_threads") or set()
+    for col in ("thread_avatar_url", "avatar_url"):
+        if col in cols:
+            return f"{table_alias}.{col}"
+    return "NULL"
 
 
 _TYPING_TTL_SECONDS = 10
@@ -43,6 +57,8 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
 
     params.extend([limit, offset, profile_id, profile_id, profile_id])
 
+    tn = _thread_name_expr("t")
+    tav = _thread_avatar_expr("t")
     sql = f"""
         WITH member_threads AS (
             SELECT
@@ -50,8 +66,8 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
                 t.thread_type,
                 t.folder_type,
                 t.updated_at,
-                t.thread_name,
-                t.thread_avatar_url,
+                {tn} AS thread_name,
+                {tav} AS thread_avatar_url,
                 tm.last_read_at,
                 tm.is_pinned,
                 tm.is_archived,
@@ -734,8 +750,9 @@ def move_thread(thread_id, folder_type):
 def search_messages(profile_id, query):
     if not query or len(query) < 2:
         return []
-    sql = """
-        SELECT m.*, t.thread_type, t.thread_name
+    tn = _thread_name_expr("t")
+    sql = f"""
+        SELECT m.*, t.thread_type, {tn} AS thread_name
         FROM chain_messages m
         JOIN chain_thread_members tm ON m.thread_id = tm.thread_id
         JOIN chain_message_threads t ON m.thread_id = t.id
