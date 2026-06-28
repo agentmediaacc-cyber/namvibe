@@ -148,7 +148,7 @@ def upload_file_to_bucket(file_obj, bucket_name, profile_id, upload_type, public
         category = 'audio'
     elif upload_type == 'video':
         category = 'video'
-    elif upload_type in ['payment_proof', 'verification_doc']:
+    elif upload_type in ['payment_proof', 'verification_doc', 'id_front', 'id_back', 'address_proof', 'selfie']:
         category = 'documents'
     
     if not allowed_file(filename, category):
