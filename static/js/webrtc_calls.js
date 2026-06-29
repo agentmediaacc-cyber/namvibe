@@ -368,7 +368,6 @@ function wRejectCall() {
 
 function wEndCall() {
     if (!CHAIN_WEBRTC.currentCallId) return;
-    if (typeof window !== 'undefined' && !window.confirm('End this call?')) return;
     CHAIN_WEBRTC.socket.emit('call:end', {
         call_id: CHAIN_WEBRTC.currentCallId,
         target_id: CHAIN_WEBRTC.currentTargetId
@@ -1243,6 +1242,303 @@ window.startCallTimeoutTimer = startCallTimeoutTimer;
 window.stopCallTimeoutTimer = stopCallTimeoutTimer;
 window.wRestartICE = wRestartICE;
 window.wSwitchCamera = wSwitchCamera;
+
+/* ---- Phase 2: Screen Share ---- */
+let _screenShareStream = null;
+let _screenShareActive = false;
+
+async function wToggleScreenShare() {
+    if (_screenShareActive) {
+        return stopScreenShare();
+    }
+    try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        _screenShareStream = stream;
+        _screenShareActive = true;
+        const pc = CHAIN_WEBRTC.peerConnection;
+        if (pc) {
+            const videoTrack = stream.getVideoTracks()[0];
+            const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) {
+                await sender.replaceTrack(videoTrack);
+            } else {
+                pc.addTrack(videoTrack, stream);
+            }
+        }
+        stream.getVideoTracks()[0].onended = function() {
+            stopScreenShare();
+        };
+        const btn = document.getElementById('call-screen-share-btn');
+        if (btn) {
+            btn.dataset.screenSharing = 'true';
+            btn.classList.add('active');
+        }
+        CHAIN_WEBRTC.socket.emit('call:screen-share', {
+            call_id: CHAIN_WEBRTC.currentCallId,
+            target_id: CHAIN_WEBRTC.currentTargetId,
+            active: true
+        });
+    } catch (e) {
+        if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') {
+            console.warn('[wCall] Screen share error:', e);
+        }
+    }
+}
+
+async function stopScreenShare() {
+    if (_screenShareStream) {
+        _screenShareStream.getTracks().forEach(t => t.stop());
+        _screenShareStream = null;
+    }
+    _screenShareActive = false;
+    const btn = document.getElementById('call-screen-share-btn');
+    if (btn) {
+        btn.dataset.screenSharing = 'false';
+        btn.classList.remove('active');
+    }
+    if (CHAIN_WEBRTC.localStream) {
+        const pc = CHAIN_WEBRTC.peerConnection;
+        if (pc) {
+            const videoTrack = CHAIN_WEBRTC.localStream.getVideoTracks()[0];
+            const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender && videoTrack) {
+                try { await sender.replaceTrack(videoTrack); } catch(e) {}
+            }
+        }
+    }
+    CHAIN_WEBRTC.socket.emit('call:screen-share', {
+        call_id: CHAIN_WEBRTC.currentCallId,
+        target_id: CHAIN_WEBRTC.currentTargetId,
+        active: false
+    });
+}
+
+/* ---- Phase 2: Swipe-to-Answer Gesture ---- */
+let _swipeGestureActive = false;
+
+function initSwipeToAnswer() {
+    const track = document.getElementById('call-swipe-track');
+    const thumb = document.getElementById('swipe-thumb');
+    const container = document.getElementById('call-swipe-container');
+    if (!track || !thumb) return;
+
+    const trackHeight = track.offsetHeight || 120;
+    const thumbHeight = 52;
+    const maxTravel = trackHeight - thumbHeight - 8;
+    let startY = 0;
+    let currentOffset = 0;
+
+    function onStart(y) {
+        if (_swipeGestureActive) return;
+        startY = y;
+        currentOffset = 0;
+        _swipeGestureActive = true;
+        thumb.classList.add('active');
+    }
+
+    function onMove(y) {
+        if (!_swipeGestureActive) return;
+        const delta = y - startY;
+        currentOffset = Math.max(0, Math.min(delta, maxTravel));
+        thumb.style.bottom = (4 + currentOffset) + 'px';
+        const progress = currentOffset / maxTravel;
+        if (progress > 0.6) {
+            thumb.style.background = 'linear-gradient(135deg, #22c55e, #15803d)';
+        } else {
+            thumb.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+        }
+    }
+
+    function onEnd() {
+        if (!_swipeGestureActive) return;
+        _swipeGestureActive = false;
+        thumb.classList.remove('active');
+        if (currentOffset >= maxTravel * 0.75) {
+            if (window.wAcceptCall) wAcceptCall();
+        }
+        thumb.style.bottom = '4px';
+        currentOffset = 0;
+    }
+
+    thumb.addEventListener('touchstart', function(e) {
+        const touch = e.touches[0];
+        onStart(touch.clientY);
+    }, { passive: true });
+
+    thumb.addEventListener('touchmove', function(e) {
+        const touch = e.touches[0];
+        onMove(touch.clientY);
+    }, { passive: true });
+
+    thumb.addEventListener('touchend', onEnd, { passive: true });
+    thumb.addEventListener('touchcancel', onEnd, { passive: true });
+
+    thumb.addEventListener('mousedown', function(e) { onStart(e.clientY); });
+    document.addEventListener('mousemove', function(e) {
+        if (_swipeGestureActive) onMove(e.clientY);
+    });
+    document.addEventListener('mouseup', function() {
+        if (_swipeGestureActive) onEnd();
+    });
+}
+
+/* ---- Phase 2: Quality Display Integration ---- */
+function updateQualityDisplay(quality) {
+    const badge = document.getElementById('call-quality-badge');
+    const statusEl = document.getElementById('call-quality-status');
+    const dot = document.getElementById('quality-dot');
+    if (!badge || !statusEl || !dot) return;
+    const qualities = {
+        'Excellent': { color: '#22c55e', cls: 'excellent' },
+        'Good': { color: '#22c55e', cls: 'good' },
+        'Weak': { color: '#f59e0b', cls: 'weak' },
+        'Poor': { color: '#ef4444', cls: 'poor' },
+        'Reconnecting': { color: '#f59e0b', cls: 'reconnecting' },
+        'Failed': { color: '#ef4444', cls: 'failed' },
+    };
+    const q = qualities[quality] || qualities['Good'];
+    dot.className = 'quality-dot ' + q.cls;
+    statusEl.textContent = quality;
+}
+
+const _origUpdateQuality = updateNetworkQuality;
+updateNetworkQuality = function(status) {
+    if (_origUpdateQuality) _origUpdateQuality(status);
+    updateQualityDisplay(status);
+};
+
+/* ---- Phase 2: Enhanced Incoming Call UI ---- */
+const _origShowIncomingUI = showIncomingCallUI;
+showIncomingCallUI = function(data) {
+    const incoming = document.getElementById('call-overlay-incoming');
+    if (incoming) {
+        incoming.style.display = 'flex';
+        const nameEl = document.getElementById('caller-name-display');
+        if (nameEl) nameEl.textContent = data.caller_name || 'Incoming Call';
+        const typeEl = document.getElementById('call-type-display');
+        if (typeEl) typeEl.textContent = (data.call_type || 'audio') + ' call';
+        const rejectBtn = incoming.querySelector('[data-call-reject]');
+        if (rejectBtn) rejectBtn.dataset.callId = data.call_id || '';
+        const avatarEl = document.getElementById('caller-avatar-lg');
+        if (avatarEl && data.caller_avatar) {
+            avatarEl.innerHTML = '<img src="' + data.caller_avatar + '" alt="">';
+        } else if (avatarEl) {
+            avatarEl.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+        }
+        const outgoing = document.getElementById('call-overlay-outgoing');
+        if (outgoing) outgoing.style.display = 'none';
+        const connected = document.getElementById('call-overlay-connected');
+        if (connected) connected.style.display = 'none';
+        const reconnecting = document.getElementById('call-overlay-reconnecting');
+        if (reconnecting) reconnecting.style.display = 'none';
+        setTimeout(initSwipeToAnswer, 100);
+    } else if (_origShowIncomingUI) {
+        _origShowIncomingUI(data);
+    }
+};
+
+/* ---- Phase 2: Enhanced Active Call UI ---- */
+const _origShowActiveUI = showActiveCallUI;
+showActiveCallUI = function() {
+    const incoming = document.getElementById('call-overlay-incoming');
+    if (incoming) incoming.style.display = 'none';
+    const outgoing = document.getElementById('call-overlay-outgoing');
+    if (outgoing) outgoing.style.display = 'none';
+    const reconnecting = document.getElementById('call-overlay-reconnecting');
+    if (reconnecting) reconnecting.style.display = 'none';
+    const connected = document.getElementById('call-overlay-connected');
+    if (connected) {
+        connected.style.display = 'flex';
+        const timerEl = document.getElementById('call-timer-connected');
+        if (timerEl) {
+            timerEl.style.display = 'block';
+            const m = String(Math.floor(CHAIN_WEBRTC.callSeconds / 60)).padStart(2, '0');
+            const s = String(CHAIN_WEBRTC.callSeconds % 60).padStart(2, '0');
+            timerEl.textContent = m + ':' + s;
+        }
+        const muteBtn = document.getElementById('call-mute-btn');
+        if (muteBtn) muteBtn.dataset.muted = CHAIN_WEBRTC.isMuted ? 'true' : 'false';
+        const cameraBtn = document.getElementById('call-camera-btn');
+        if (cameraBtn) cameraBtn.dataset.cameraEnabled = CHAIN_WEBRTC.isCameraOn ? 'true' : 'false';
+        const speakerBtn = document.getElementById('call-speaker-btn');
+        if (speakerBtn) speakerBtn.dataset.speakerEnabled = CHAIN_WEBRTC.isSpeakerOn ? 'true' : 'false';
+    }
+    if (_origShowActiveUI) _origShowActiveUI();
+    updateQualityDisplay(CHAIN_WEBRTC.networkQuality || 'Good');
+};
+
+/* ---- Phase 2: Enhanced Hide Call UI ---- */
+const _origHideUI = hideCallUI;
+hideCallUI = function() {
+    const incoming = document.getElementById('call-overlay-incoming');
+    if (incoming) incoming.style.display = 'none';
+    const outgoing = document.getElementById('call-overlay-outgoing');
+    if (outgoing) outgoing.style.display = 'none';
+    const connected = document.getElementById('call-overlay-connected');
+    if (connected) connected.style.display = 'none';
+    const reconnecting = document.getElementById('call-overlay-reconnecting');
+    if (reconnecting) reconnecting.style.display = 'none';
+    const modal = document.getElementById('incoming-call-modal');
+    if (modal) modal.style.display = 'none';
+    const mini = document.getElementById('phase54-mini-call');
+    if (mini) mini.style.display = 'none';
+    CHAIN_WEBRTC.isPiP = false;
+    const callScreen = document.getElementById('callScreen');
+    if (callScreen) callScreen.classList.remove('active');
+};
+
+/* ---- Phase 2: Enhanced Show Outgoing UI ---- */
+function showOutgoingCallUI(data) {
+    const outgoing = document.getElementById('call-overlay-outgoing');
+    if (!outgoing) return;
+    outgoing.style.display = 'flex';
+    const incoming = document.getElementById('call-overlay-incoming');
+    if (incoming) incoming.style.display = 'none';
+    const connected = document.getElementById('call-overlay-connected');
+    if (connected) connected.style.display = 'none';
+    const reconnecting = document.getElementById('call-overlay-reconnecting');
+    if (reconnecting) reconnecting.style.display = 'none';
+    const nameEl = document.getElementById('outgoing-caller-name');
+    if (nameEl) nameEl.textContent = data.target_name || 'Calling...';
+    const statusEl = document.getElementById('call-status-text');
+    if (statusEl) statusEl.textContent = 'Ringing...';
+    const timerEl = document.getElementById('call-timer');
+    if (timerEl) timerEl.style.display = 'none';
+    const avatarEl = document.getElementById('caller-avatar-lg-outgoing');
+    if (avatarEl && data.target_avatar) {
+        avatarEl.innerHTML = '<img src="' + data.target_avatar + '" alt="">';
+    } else if (avatarEl) {
+        avatarEl.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>';
+    }
+}
+
+/* ---- Phase 2: Reconnecting overlay for new structure ---- */
+const _origShowReconnecting = showReconnectingOverlay;
+showReconnectingOverlay = function() {
+    const reconnecting = document.getElementById('call-overlay-reconnecting');
+    if (reconnecting) {
+        reconnecting.style.display = 'flex';
+        const incoming = document.getElementById('call-overlay-incoming');
+        if (incoming) incoming.style.display = 'none';
+        const outgoing = document.getElementById('call-overlay-outgoing');
+        if (outgoing) outgoing.style.display = 'none';
+    }
+    if (_origShowReconnecting) _origShowReconnecting();
+};
+
+const _origHideReconnecting = hideReconnectingOverlay;
+hideReconnectingOverlay = function() {
+    const reconnecting = document.getElementById('call-overlay-reconnecting');
+    if (reconnecting) reconnecting.style.display = 'none';
+    if (_origHideReconnecting) _origHideReconnecting();
+};
+
+/* ---- Phase 2: Exports ---- */
+window.wToggleScreenShare = wToggleScreenShare;
+window.stopScreenShare = stopScreenShare;
+window.initSwipeToAnswer = initSwipeToAnswer;
+window.showOutgoingCallUI = showOutgoingCallUI;
+window.updateQualityDisplay = updateQualityDisplay;
 
 /* ---- Phase 2: Init sound settings on load ---- */
 (function() {

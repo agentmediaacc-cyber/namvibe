@@ -1,28 +1,35 @@
-<div id="call-overlay-incoming" class="call-overlay" style="display:none">
-  <div class="call-incoming-info">
-    <div style="width:80px;height:80px;border-radius:50%;background:#374151;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#9ca3af">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+<div id="call-overlay-incoming" class="call-overlay" style="display:none" data-call-overlay="incoming">
+  <div class="call-swipe-container" id="call-swipe-container">
+    <div class="call-incoming-info">
+      <div class="caller-avatar-lg" id="caller-avatar-lg">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <h2 data-caller-name id="caller-name-display">Incoming Call</h2>
+      <p data-call-type id="call-type-display">Audio Call</p>
     </div>
-    <h2 data-caller-name>Incoming Call</h2>
-    <p data-call-type>Audio Call</p>
-  </div>
-  <div class="call-incoming-actions">
-    <button data-call-reject class="call-control-btn danger" data-call-id="" style="width:64px;height:64px;font-size:24px">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-    </button>
-    <button data-call-accept class="call-control-btn success" data-call-id="" data-caller-id="" data-call-type="audio" style="width:64px;height:64px;font-size:24px">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+    <div class="call-swipe-hint" id="call-swipe-hint">
+      <span class="swipe-arrow">&#8593;</span>
+      <span class="swipe-text">Swipe up to answer</span>
+    </div>
+    <div class="call-swipe-track" id="call-swipe-track">
+      <div class="swipe-thumb" id="swipe-thumb">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+      </div>
+    </div>
+    <button data-call-reject class="call-control-btn danger call-decline-btn" data-call-id="">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
     </button>
   </div>
 </div>
 
-<div id="call-overlay-outgoing" class="call-overlay" style="display:none">
+<div id="call-overlay-outgoing" class="call-overlay" style="display:none" data-call-overlay="outgoing">
   <div class="call-info">
-    <div style="width:80px;height:80px;border-radius:50%;background:#374151;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#9ca3af">
+    <div class="caller-avatar-lg" id="caller-avatar-lg-outgoing">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
     </div>
-    <h2>Calling...</h2>
-    <p id="call-timer" class="call-timer" style="display:none"></p>
+    <h2 id="outgoing-caller-name">Calling...</h2>
+    <p id="call-status-text">Ringing...</p>
+    <p id="call-timer" class="call-timer" style="display:none">00:00</p>
   </div>
   <div class="call-controls">
     <button data-call-cancel class="call-control-btn danger" style="width:64px;height:64px;font-size:24px">
@@ -31,7 +38,7 @@
   </div>
 </div>
 
-<div id="call-overlay-connected" class="call-overlay" style="display:none">
+<div id="call-overlay-connected" class="call-overlay" style="display:none" data-call-overlay="connected">
   <div class="call-video-container">
     <video id="call-remote-video" autoplay playsinline></video>
     <audio id="call-remote-audio" autoplay></audio>
@@ -39,7 +46,11 @@
       <video id="call-local-video" autoplay playsinline muted></video>
     </div>
   </div>
-  <div class="call-info" style="position:absolute;top:calc(16px + var(--call-safe-top));left:0;right:0;z-index:2">
+  <div class="call-quality-badge" id="call-quality-badge">
+    <span class="quality-dot" id="quality-dot"></span>
+    <span id="call-quality-status">Good</span>
+  </div>
+  <div class="call-info" style="position:absolute;top:calc(16px + var(--call-safe-top, 0px));left:0;right:0;z-index:2">
     <p id="call-timer-connected" class="call-timer">00:00</p>
     <p id="call-remote-mute" hidden style="color:#ef4444;font-size:13px;margin:4px 0 0">Remote mic muted</p>
     <p id="call-remote-camera" hidden style="color:#ef4444;font-size:13px;margin:4px 0 0">Remote camera off</p>
@@ -57,8 +68,11 @@
     <button id="call-camera-btn" class="call-control-btn" data-camera-enabled="true">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
     </button>
+    <button id="call-screen-share-btn" class="call-control-btn" data-screen-sharing="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    </button>
     <button id="pip-btn" class="call-control-btn" data-pip-btn data-minimize-call aria-label="Picture in picture">
-      PiP
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
     </button>
     <button id="call-switch-camera-btn" class="call-control-btn">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
@@ -66,9 +80,9 @@
   </div>
 </div>
 
-<div id="call-overlay-reconnecting" class="call-overlay" style="display:none">
+<div id="call-overlay-reconnecting" class="call-overlay" style="display:none" data-call-overlay="reconnecting">
   <div class="call-reconnecting-text">
-    <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;margin:0 auto 16px;animation:call-spin 0.8s linear infinite"></div>
+    <div class="call-spinner"></div>
     <p>Reconnecting call...</p>
     <p style="font-size:13px;color:var(--call-text-secondary);margin-top:4px">Please wait</p>
   </div>
@@ -82,5 +96,125 @@
 <style>
 @keyframes call-spin {
   to { transform: rotate(360deg); }
+}
+.call-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: call-spin 0.8s linear infinite;
+}
+.caller-avatar-lg {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #374151, #4b5563);
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: #9ca3af;
+  overflow: hidden;
+  border: 3px solid rgba(255,255,255,0.15);
+  transition: transform 0.3s ease;
+}
+.caller-avatar-lg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.call-swipe-container {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+.call-swipe-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 20px 0 12px;
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  animation: swipe-bounce 1.5s ease-in-out infinite;
+}
+.swipe-arrow {
+  font-size: 24px;
+  line-height: 1;
+}
+@keyframes swipe-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-8px); opacity: 1; }
+}
+.call-swipe-track {
+  width: 64px;
+  height: 120px;
+  border-radius: 32px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  position: relative;
+  margin-bottom: 16px;
+  touch-action: none;
+}
+.swipe-thumb {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  transition: bottom 0.1s ease;
+  touch-action: none;
+  box-shadow: 0 4px 12px rgba(34,197,94,0.4);
+}
+.swipe-thumb.active {
+  background: linear-gradient(135deg, #22c55e, #15803d);
+}
+.call-decline-btn {
+  position: absolute;
+  bottom: 40px;
+  z-index: 2;
+}
+.call-quality-badge {
+  position: absolute;
+  top: calc(16px + var(--call-safe-top, 0px));
+  right: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.5);
+  padding: 4px 12px 4px 8px;
+  border-radius: 16px;
+  font-size: 12px;
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.quality-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+.quality-dot.weak { background: #f59e0b; }
+.quality-dot.poor { background: #ef4444; }
+.quality-dot.reconnecting { background: #f59e0b; animation: pulse-dot 0.8s ease-in-out infinite; }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 </style>

@@ -255,3 +255,121 @@
     font-size: 18px;
   }
 }
+
+/* ── Phase 2: Screen Share Button Active State ── */
+.call-control-btn[data-screen-sharing="true"] {
+  background: var(--call-primary) !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.call-control-btn[data-screen-sharing="true"] svg {
+  animation: pulse-screen-share 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-screen-share {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ── Phase 2: Mini Call Draggable Enhancement ── */
+.phase54-mini-call {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: box-shadow 0.2s;
+}
+
+.phase54-mini-call:active {
+  cursor: grabbing;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Phase 2: Swipe to Answer ── */
+.call-swipe-container {
+  animation: call-fade-in 0.3s ease;
+}
+
+@keyframes call-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── Phase 2: Call Overlay Transitions ── */
+.call-overlay {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  opacity: 1;
+}
+
+.call-overlay[style*="display: none"] {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+/* ── Phase 2: Quality Badge ── */
+.call-quality-badge {
+  animation: slide-down 0.3s ease;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Phase 2: Caller Avatar Pulse ── */
+.caller-avatar-lg {
+  box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+  transition: box-shadow 0.3s ease;
+}
+
+.call-overlay[data-call-overlay="incoming"] .caller-avatar-lg {
+  animation: avatar-ring-pulse 2s ease-in-out infinite;
+}
+
+@keyframes avatar-ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.15); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0.05); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.15); }
+}
+
+/* ── Phase 2: Reconnecting Overlay ── */
+#call-overlay-reconnecting .call-spinner {
+  animation: call-spin 0.8s linear infinite;
+}
+
+@keyframes call-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Phase 2: Network Warning Transition ── */
+#network-warning {
+  transition: opacity 0.3s ease;
+}
+
+#weak-network-banner {
+  animation: slide-down 0.3s ease;
+}
+
+/* ── Phase 2: Connected Overlay Controls Enhancement ── */
+#call-overlay-connected .call-control-btn {
+  transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+#call-overlay-connected .call-control-btn:active {
+  transform: scale(0.9);
+}
+
+#call-overlay-connected .danger:active {
+  transform: scale(0.92);
+}
+
+/* ── Phase 2: Responsive Quality Badge ── */
+@media (max-width: 480px) {
+  .call-quality-badge {
+    font-size: 10px;
+    padding: 3px 8px 3px 6px;
+  }
+  .quality-dot {
+    width: 6px;
+    height: 6px;
+  }
+}
