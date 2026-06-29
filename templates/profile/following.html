@@ -32,7 +32,7 @@
         {% if f.created_at %}<small>Followed {{ f.created_at[:10] }}</small>{% endif %}
       </div>
       <div class="people-actions">
-        <a href="/profile/{{ f.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+        <a href="/profile/@{{ f.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
         {% if viewer %}
         <button class="action-btn" title="Message" onclick="window.location='/messages/start/{{ pid }}'"><i class="fas fa-comment"></i></button>
         <button class="action-btn" title="Audio Call" onclick="window.location='/calls/start/{{ pid }}/audio'"><i class="fas fa-phone"></i></button>
@@ -76,7 +76,7 @@ window.loadMoreFollowing = function() {
           <div class="people-avatar">${f.avatar_url ? `<img src="${f.avatar_url}" alt="" loading="lazy">` : `<span>${(f.display_name || f.username || 'U')[0].toUpperCase()}</span>`}</div>
           <div class="people-info"><strong>${f.display_name || f.username || 'User'}</strong><span>@${f.username || 'user'}</span></div>
           <div class="people-actions">
-            <a href="/profile/${f.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
+            <a href="/profile/@${f.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
             <button class="action-btn" title="Message" onclick="window.location='/messages/start/${pid}'"><i class="fas fa-comment"></i></button>
             <button class="action-btn" title="Add Friend" data-action="send-friend-request" data-id="${pid}"><i class="fas fa-user-group"></i></button>
             <button class="action-btn danger" title="Unfollow" data-action="unfollow" data-id="${pid}"><i class="fas fa-user-slash"></i></button>

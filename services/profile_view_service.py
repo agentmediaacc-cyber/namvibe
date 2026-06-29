@@ -138,6 +138,7 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         {"key": "profile_views", "label": "Profile Views", "value": views_count},
     ]
     highlights = content.get("highlights") or profile.get("highlights") or []
+    gallery_preview = content.get("gallery_preview") or content.get("albums_preview") or []
     if own_profile and not highlights:
         highlights = [
             {"label": "Add Highlight", "icon": "fa-plus", "url": "/status/create", "empty": True},
@@ -157,6 +158,7 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "active": _relative_active(profile, presence),
         "avatar_url": profile.get("avatar_url") or profile.get("photo_url") or profile.get("thumbnail_url"),
         "cover_url": profile.get("cover_url") or profile.get("banner_url"),
+        "gallery_preview": gallery_preview,
         "member_badge": "Creator" if is_creator else ("Verified" if profile.get("is_verified") or profile.get("verified") else "Member"),
         "privacy": profile.get("profile_visibility") or profile.get("visibility") or "public",
         "completion": calculate_profile_completion(completion_profile),

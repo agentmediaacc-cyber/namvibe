@@ -255,7 +255,7 @@
           <div class="people-avatar">${item.avatar_url ? `<img src="${item.avatar_url}" alt="">` : `<span>${(item.display_name || item.username || 'U')[0].toUpperCase()}</span>`}</div>
           <div class="people-info"><strong>${item.display_name || item.username || 'User'}</strong><span>@${item.username || 'user'}</span></div>
           <div class="people-actions">
-            <a href="/profile/${item.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
+            <a href="/profile/@${item.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
             <button class="action-btn" title="Message" onclick="window.location='/messages/start/${item.follower_profile_id || item.profile_id}'"><i class="fas fa-comment"></i></button>
             <button class="action-btn" title="Follow" onclick="Phase86.followUser('${item.follower_profile_id || item.profile_id}', this)"><i class="fas fa-user-plus"></i></button>
           </div>`;
@@ -273,7 +273,7 @@
           <div class="people-avatar">${item.avatar_url ? `<img src="${item.avatar_url}" alt="">` : `<span>${(item.display_name || item.username || 'U')[0].toUpperCase()}</span>`}</div>
           <div class="people-info"><strong>${item.display_name || item.username || 'User'}</strong><span>@${item.username || 'user'}</span></div>
           <div class="people-actions">
-            <a href="/profile/${item.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
+            <a href="/profile/@${item.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
             <button class="action-btn" title="Message" onclick="window.location='/messages/start/${item.following_profile_id || item.profile_id}'"><i class="fas fa-comment"></i></button>
             <button class="action-btn danger" title="Unfollow" onclick="Phase86.unfollowUser('${item.following_profile_id || item.profile_id}')"><i class="fas fa-user-slash"></i></button>
           </div>`;

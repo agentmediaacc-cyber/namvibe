@@ -34,7 +34,7 @@
         {% endif %}
       </div>
       <div class="people-actions">
-        <a href="/profile/{{ s.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+        <a href="/profile/@{{ s.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
         <button class="action-btn primary" title="Add Friend" data-action="send-friend-request" data-id="{{ s.id }}"><i class="fas fa-user-plus"></i></button>
         <button class="action-btn" title="Follow" data-action="follow" data-id="{{ s.id }}"><i class="fas fa-heart"></i></button>
       </div>

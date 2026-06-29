@@ -234,12 +234,13 @@
   }
 
   function buildActions(item, openUrl) {
+    var profileUrl = item.actor_profile_url || openUrl || item.action_url || (item.actor_username ? '/profile/@' + item.actor_username : '');
     if ((item.event_type === 'friend_request' || item.event_type === 'follow_request') && item.entity_id) {
       return (
         '<div class="nv-notif-actions">' +
           '<button class="nv-notif-action-btn nv-action-accept" data-nv-action="accept" data-nv-type="' + item.event_type + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-check"></i> Approve</button>' +
           '<button class="nv-notif-action-btn nv-action-decline" data-nv-action="decline" data-nv-type="' + item.event_type + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-times"></i> Decline</button>' +
-          '<a href="/profile/@' + esc(item.actor_username || '') + '" class="nv-notif-action-btn nv-action-profile"><i class="fas fa-user"></i> Profile</a>' +
+          (profileUrl ? '<a href="' + esc(profileUrl) + '" class="nv-notif-action-btn nv-action-profile"><i class="fas fa-user"></i> Profile</a>' : '') +
         '</div>'
       );
     }
@@ -248,7 +249,7 @@
       return (
         '<div class="nv-notif-actions">' +
           '<a href="/messages/" class="nv-notif-action-btn nv-action-message"><i class="fas fa-comment"></i> Message</a>' +
-          '<a href="/profile/@' + esc(item.actor_username || '') + '" class="nv-notif-action-btn nv-action-profile"><i class="fas fa-user"></i> Profile</a>' +
+          (profileUrl ? '<a href="' + esc(profileUrl) + '" class="nv-notif-action-btn nv-action-profile"><i class="fas fa-user"></i> Profile</a>' : '') +
         '</div>'
       );
     }

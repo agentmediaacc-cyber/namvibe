@@ -25,6 +25,16 @@ def _ordered_pair(a, b):
     return (a, b) if a < b else (b, a)
 
 
+def _profile_url(profile):
+    username = (profile or {}).get("username")
+    profile_id = (profile or {}).get("id")
+    if username:
+        return f"/profile/@{username}"
+    if profile_id:
+        return f"/profile/id/{profile_id}"
+    return "/discover/"
+
+
 def _load_relationship_state(viewer_id, target_id):
     """Single CTE returning all relationship state between two profiles."""
     rows = fast_query(
@@ -245,6 +255,9 @@ def send_friend_request(viewer_id, target_id):
     if state.get("fr_sent_id"):
         return _ok("friend_requested", "Friend request already sent.", request_id=state["fr_sent_id"])
 
+    sender = get_profile_by_id(viewer_id) or {}
+    receiver = get_profile_by_id(target_id) or {}
+
     rows = write_query(
         """
         INSERT INTO chain_friend_requests (sender_profile_id, recipient_profile_id, status, created_at)
@@ -255,23 +268,33 @@ def send_friend_request(viewer_id, target_id):
     )
     _invalidate(viewer_id, target_id)
     request_id = rows[0]["id"] if rows else None
-    # Notify recipient
+    sender_name = sender.get("display_name") or sender.get("full_name") or sender.get("username") or "Someone"
+    sender_url = _profile_url(sender)
     try:
-        _prof = fast_query("SELECT username FROM chain_profiles WHERE id = %s", (viewer_id,), default=[])
-        _uname = _prof[0]["username"] if _prof else "Someone"
         create_notification(
             recipient_profile_id=target_id,
             event_type="friend_request",
             title="New Friend Request",
-            body=f"{_uname} sent you a friend request.",
+            body=f"{sender_name} sent you a friend request.",
             actor_profile_id=viewer_id,
             entity_type="friend_request",
             entity_id=request_id,
-            action_url="/social/friend-requests",
+            action_url=sender_url,
         )
     except Exception:
         pass
-    return _ok("friend_requested", "Friend request sent.", request_id=request_id)
+    return _ok(
+        "friend_requested",
+        "Friend request sent.",
+        request_id=request_id,
+        actor_profile_id=viewer_id,
+        recipient_profile_id=target_id,
+        action_url=sender_url,
+        sender_username=sender.get("username"),
+        sender_display_name=sender.get("display_name") or sender.get("full_name"),
+        sender_avatar_url=sender.get("avatar_url"),
+        receiver_username=receiver.get("username"),
+    )
 
 
 def accept_friend_request(viewer_id, request_id):
@@ -318,26 +341,52 @@ def accept_friend_request(viewer_id, request_id):
         (req["recipient_profile_id"], req["sender_profile_id"])
     )
     _invalidate(req["sender_profile_id"], req["recipient_profile_id"])
-    # Notify the original sender
+    sender_profile = get_profile_by_id(req["sender_profile_id"]) or {}
+    recipient_profile = get_profile_by_id(req["recipient_profile_id"]) or {}
+    recipient_name = recipient_profile.get("display_name") or recipient_profile.get("full_name") or recipient_profile.get("username") or "Someone"
+    recipient_url = _profile_url(recipient_profile)
     try:
-        _prof = fast_query("SELECT username FROM chain_profiles WHERE id = %s", (req["recipient_profile_id"],), default=[])
-        _uname = _prof[0]["username"] if _prof else "Someone"
         create_notification(
             recipient_profile_id=req["sender_profile_id"],
             event_type="friend_accepted",
             title="Friend Request Accepted",
-            body=f"{_uname} accepted your friend request. You are now friends!",
+            body=f"{recipient_name} accepted your friend request. You are now friends!",
             actor_profile_id=req["recipient_profile_id"],
             entity_type="friend_request",
             entity_id=request_id,
-            action_url=f"/profile/@{_uname}",
+            action_url=recipient_url,
         )
     except Exception:
         pass
-    return _ok("friends", "Friend request accepted.", request_id=request_id)
+    return _ok(
+        "friends",
+        "Friend request accepted.",
+        request_id=request_id,
+        actor_profile_id=req["recipient_profile_id"],
+        sender_profile_id=req["sender_profile_id"],
+        recipient_profile_id=req["recipient_profile_id"],
+        action_url=recipient_url,
+        sender_username=sender_profile.get("username"),
+        recipient_username=recipient_profile.get("username"),
+    )
 
 
 def decline_friend_request(viewer_id, request_id):
+    rows = fast_query(
+        """
+        SELECT id, sender_profile_id, recipient_profile_id
+        FROM chain_friend_requests
+        WHERE id = %s AND status = 'pending'
+        LIMIT 1
+        """,
+        (request_id,),
+        default=[],
+    )
+    if not rows:
+        return _err("Friend request not found.", status=404)
+    req = rows[0]
+    if not _same(viewer_id, req["recipient_profile_id"]):
+        return _err("You cannot decline this friend request.", status=403)
     res = write_query(
         """
         UPDATE chain_friend_requests SET status = 'declined', responded_at = now()
@@ -345,8 +394,9 @@ def decline_friend_request(viewer_id, request_id):
         """,
         (request_id, viewer_id)
     )
-    if not res or res.get("rowcount", 0) < 1:
+    if not res:
         return _err("Friend request not found.", status=404)
+    _invalidate(req["sender_profile_id"], req["recipient_profile_id"])
     return _ok("none", "Friend request declined.", request_id=request_id)
 
 

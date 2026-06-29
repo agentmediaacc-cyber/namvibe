@@ -23,7 +23,7 @@
         <span style="font-size:13px;color:#f59e0b"><i class="fas fa-clock"></i> Pending</span>
       </div>
       <div class="people-actions">
-        <a href="/profile/{{ req.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
+        <a href="/profile/@{{ req.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>
         <button class="action-btn danger" title="Cancel Request" data-action="cancel-friend-request" data-id="{{ req.id }}"><i class="fas fa-ban"></i></button>
       </div>
     </div>

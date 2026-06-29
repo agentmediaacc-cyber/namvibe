@@ -2005,7 +2005,17 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
         "reels": raw_content.get("reels", []),
         "marketplace": raw_content.get("marketplace", []),
         "albums": raw_content.get("albums", []),
+        "gallery_preview": raw_content.get("gallery_preview", []),
     }
+    try:
+        from services.gallery_service import get_albums, get_profile_gallery
+        viewer_id = viewer.get("id") if viewer else None
+        gallery_items, _ = get_profile_gallery(profile["id"], viewer_id=viewer_id, page=1, per_page=12)
+        content["gallery_preview"] = gallery_items or []
+        if not content["albums"]:
+            content["albums"] = get_albums(profile["id"], viewer_id=viewer_id) or []
+    except Exception as error:
+        log_warning("profile_bundle_gallery_failed", profile_id=profile.get("id"), error=str(error))
     saved_items = bundle_results["saved_items"] or []
     log_info(
         "profile_bundle_content_state",

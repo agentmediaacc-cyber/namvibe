@@ -112,6 +112,7 @@ def _open_url(row):
     entity_type = row.get("entity_type")
     entity_id = row.get("entity_id")
     actor_username = row.get("actor_username")
+    actor_profile_id = row.get("actor_profile_id")
     if event_type == "post_like" and entity_id:
         return f"/post/{entity_id}"
     if event_type == "comment" and entity_type == "post" and entity_id:
@@ -122,6 +123,11 @@ def _open_url(row):
         return f"/reels/{entity_id}#comments"
     if event_type in {"follow", "new_follower", "follow_accepted"} and actor_username:
         return f"/profile/@{actor_username}"
+    if event_type in {"friend_request", "friend_request_accepted", "friend_accepted", "friend_request_declined"}:
+        if actor_username:
+            return f"/profile/@{actor_username}"
+        if actor_profile_id:
+            return f"/profile/id/{actor_profile_id}"
     if event_type in {"new_message", "message_reaction"}:
         action_url = row.get("action_url") or ""
         return action_url
@@ -142,6 +148,10 @@ def _action_text(row):
         "message_reaction": "reacted to your message",
         "story_liked": "liked your story",
         "story_reaction": "reacted to your story",
+        "friend_request": "sent you a friend request",
+        "friend_request_accepted": "accepted your friend request",
+        "friend_accepted": "accepted your friend request",
+        "friend_request_declined": "declined your friend request",
     }
     return mapping.get(row.get("event_type"), row.get("title") or "sent a notification")
 
@@ -163,6 +173,8 @@ def format_notification(row):
     d["open_url"] = _open_url(d)
     d["open_label"] = "Open"
     d["is_unread"] = not bool(d.get("is_read"))
+    d["actor_profile_url"] = _open_url(d)
+    d["supports_accept_reject"] = bool(d.get("event_type") == "friend_request" and d.get("entity_id"))
     if isinstance(d.get("created_at"), datetime):
         d["created_at"] = d["created_at"].isoformat()
     if isinstance(d.get("read_at"), datetime):
