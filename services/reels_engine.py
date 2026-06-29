@@ -467,7 +467,7 @@ def _reel_row_to_dict(row):
 # ── Enhanced Watch Tracking ──
 
 def track_reel_watch(viewer_id, reel_id, watch_ms, completed=False, replayed=False):
-    """Record detailed watch event with completion/replay signals. Debounced to 5s per user per reel."""
+    """Record detailed watch event using existing chain_reel_watch_events schema."""
     if not viewer_id or not reel_id:
         return False
 
@@ -480,17 +480,18 @@ def track_reel_watch(viewer_id, reel_id, watch_ms, completed=False, replayed=Fal
         _DEBOUNCE_CACHE[debounce_key] = now
 
     try:
-        write_query(
-            """INSERT INTO chain_reel_watch_events
-               (profile_id, reel_id, watch_ms, completed, replayed, watched_at)
-               VALUES (%s, %s, %s, %s, %s, now())""",
-            (viewer_id, reel_id, watch_ms, completed, replayed),
+        watch_seconds = watch_ms / 1000.0
+        completion_percent = 1.0 if completed else 0.0
+        replay_count = 1 if replayed else 0
+        from services.reel_watch_service import record_watch_event
+        record_watch_event(
+            reel_id=reel_id,
+            user_id=viewer_id,
+            session_id=f"web_{int(time.time())}",
+            watch_seconds=watch_seconds,
+            completion_percent=completion_percent,
+            replay_count=replay_count,
         )
-        if completed:
-            write_query(
-                "UPDATE chain_reels SET views_count = COALESCE(views_count, 0) + 1 WHERE id = %s",
-                (reel_id,),
-            )
         try:
             from services.activity_engine import emit_activity
             emit_activity(
@@ -670,8 +671,8 @@ def get_creator_reel_stats(profile_id, requesting_profile_id=None):
 
         watch = fast_query(
             """SELECT
-                 COALESCE(AVG(watch_ms), 0) AS avg_watch_ms,
-                 COALESCE(SUM(CASE WHEN completed THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0), 0) AS completion_rate
+                 COALESCE(AVG(watch_seconds * 1000), 0) AS avg_watch_ms,
+                 COALESCE(AVG(completion_percent), 0) AS completion_rate
                FROM chain_reel_watch_events
                WHERE reel_id IN (SELECT id FROM chain_reels WHERE profile_id = %s AND deleted_at IS NULL)""",
             (profile_id,),

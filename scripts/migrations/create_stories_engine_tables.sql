@@ -1,10 +1,10 @@
--- Stories 2.0 Engine Migration
--- Run on production after verifying chain_status_posts exists
+-- Stories 2.0 Engine Migration (FIXED: UUID types)
+-- Run after verifying chain_status_posts exists
 
 -- Story highlights
 CREATE TABLE IF NOT EXISTS chain_story_highlights (
-    id BIGSERIAL PRIMARY KEY,
-    profile_id BIGINT NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
     title VARCHAR(64) NOT NULL DEFAULT 'Highlights',
     cover_url TEXT DEFAULT '',
     sort_order INTEGER NOT NULL DEFAULT 0,
@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS chain_story_highlights (
 CREATE INDEX IF NOT EXISTS idx_story_highlights_profile ON chain_story_highlights(profile_id);
 CREATE INDEX IF NOT EXISTS idx_story_highlights_sort ON chain_story_highlights(profile_id, sort_order);
 
--- Story highlight items (stories in highlights)
+-- Story highlight items
 CREATE TABLE IF NOT EXISTS chain_story_highlight_items (
-    id BIGSERIAL PRIMARY KEY,
-    highlight_id BIGINT NOT NULL REFERENCES chain_story_highlights(id) ON DELETE CASCADE,
-    story_id BIGINT NOT NULL REFERENCES chain_status_posts(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    highlight_id UUID NOT NULL REFERENCES chain_story_highlights(id) ON DELETE CASCADE,
+    story_id UUID NOT NULL REFERENCES chain_status_posts(id) ON DELETE CASCADE,
     sort_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -29,9 +29,9 @@ CREATE INDEX IF NOT EXISTS idx_story_highlight_items_story ON chain_story_highli
 
 -- Story close friends list
 CREATE TABLE IF NOT EXISTS chain_story_close_friends (
-    id BIGSERIAL PRIMARY KEY,
-    profile_id BIGINT NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    friend_id BIGINT NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    friend_id UUID NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(profile_id, friend_id)
 );
@@ -40,9 +40,9 @@ CREATE INDEX IF NOT EXISTS idx_story_close_friends_profile ON chain_story_close_
 
 -- Story hidden from users
 CREATE TABLE IF NOT EXISTS chain_story_hidden_from (
-    id BIGSERIAL PRIMARY KEY,
-    profile_id BIGINT NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
-    hidden_user_id BIGINT NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    profile_id UUID NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
+    hidden_user_id UUID NOT NULL REFERENCES chain_profiles(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(profile_id, hidden_user_id)
 );
@@ -51,9 +51,9 @@ CREATE INDEX IF NOT EXISTS idx_story_hidden_from_profile ON chain_story_hidden_f
 
 -- Story analytics events
 CREATE TABLE IF NOT EXISTS chain_story_analytics_events (
-    id BIGSERIAL PRIMARY KEY,
-    story_id BIGINT NOT NULL REFERENCES chain_status_posts(id) ON DELETE CASCADE,
-    viewer_id BIGINT REFERENCES chain_profiles(id) ON DELETE SET NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    story_id UUID NOT NULL REFERENCES chain_status_posts(id) ON DELETE CASCADE,
+    viewer_id UUID REFERENCES chain_profiles(id) ON DELETE SET NULL,
     event_type VARCHAR(32) NOT NULL,
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
