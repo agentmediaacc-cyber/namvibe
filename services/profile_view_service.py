@@ -139,6 +139,9 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
     ]
     highlights = content.get("highlights") or profile.get("highlights") or []
     gallery_preview = content.get("gallery_preview") or content.get("albums_preview") or []
+    mutual_friends = content.get("mutual_friends") or {}
+    profile_strength = content.get("profile_strength") or {}
+    recently_active_friends = content.get("recently_active_friends") or []
     if own_profile and not highlights:
         highlights = [
             {"label": "Add Highlight", "icon": "fa-plus", "url": "/status/create", "empty": True},
@@ -159,6 +162,10 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "avatar_url": profile.get("avatar_url") or profile.get("photo_url") or profile.get("thumbnail_url"),
         "cover_url": profile.get("cover_url") or profile.get("banner_url"),
         "gallery_preview": gallery_preview,
+        "mutual_friends_count": int(mutual_friends.get("count") or 0),
+        "mutual_friends_items": mutual_friends.get("items") or [],
+        "profile_strength": profile_strength,
+        "recently_active_friends": recently_active_friends,
         "member_badge": "Creator" if is_creator else ("Verified" if profile.get("is_verified") or profile.get("verified") else "Member"),
         "privacy": profile.get("profile_visibility") or profile.get("visibility") or "public",
         "completion": calculate_profile_completion(completion_profile),
@@ -176,4 +183,11 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "can_message": bool(action_policy.get("can_chat") or action_policy.get("can_message")),
         "can_call": bool(action_policy.get("can_call")),
         "can_video_call": bool(action_policy.get("can_video_call") or action_policy.get("can_call")),
+        "friendship_status_label": {
+            "friend": "Friends",
+            "pending_sent": "Request sent",
+            "pending_received": "Accept request",
+            "follower": "Following",
+            "blocked": "Blocked",
+        }.get(action_policy.get("relationship"), "Discover"),
     }

@@ -1762,6 +1762,87 @@ def get_profile_stats(profile_id):
         return {"rooms": 0, "posts": 0, "reels": 0, "stories": 0, "followers": 0, "following": 0, "likes": 0, "favorites": 0, "views": 0}
 
 
+def get_mutual_friends_summary(viewer_id, profile_id, limit=3):
+    if not viewer_id or not profile_id or str(viewer_id) == str(profile_id):
+        return {"count": 0, "items": []}
+    try:
+        from services.friend_service import get_mutual_friends
+        items = get_mutual_friends(viewer_id, profile_id, limit=limit, offset=0) or []
+        return {"count": len(items), "items": items}
+    except Exception:
+        return {"count": 0, "items": []}
+
+
+def get_recently_active_friends(profile_id, limit=6):
+    cache_key_str = cache_key("recently_active_friends", profile_id, limit)
+    cached = get_cache(cache_key_str)
+    if cached is not None:
+        return cached
+    try:
+        rows = fast_query(
+            """
+            SELECT
+                p.id,
+                p.username,
+                p.display_name,
+                p.avatar_url,
+                p.is_verified,
+                COALESCE(pr.status, 'offline') AS presence_status,
+                pr.last_seen_at,
+                f.created_at AS became_friends_at
+            FROM chain_friends f
+            JOIN chain_profiles p
+              ON p.id = CASE
+                           WHEN f.profile_id_1 = %s THEN f.profile_id_2
+                           ELSE f.profile_id_1
+                         END
+            LEFT JOIN chain_presence pr ON pr.profile_id = p.id
+            WHERE (f.profile_id_1 = %s OR f.profile_id_2 = %s)
+              AND f.status = 'friend'
+              AND f.deleted_at IS NULL
+              AND p.deleted_at IS NULL
+            ORDER BY
+              CASE WHEN LOWER(COALESCE(pr.status, 'offline')) IN ('online', 'active') THEN 0 ELSE 1 END,
+              COALESCE(pr.last_seen_at, p.last_login_at, p.updated_at, f.created_at) DESC
+            LIMIT %s
+            """,
+            (profile_id, profile_id, profile_id, limit),
+            default=[],
+        )
+    except Exception:
+        rows = []
+    set_cache(cache_key_str, rows, ttl=60)
+    return rows
+
+
+def build_profile_strength(profile, stats=None):
+    profile = profile or {}
+    stats = stats or {}
+    score = 0
+    checks = []
+    signals = [
+        ("avatar", bool(profile.get("avatar_url")), 20, "Profile photo"),
+        ("cover", bool(profile.get("cover_url") or profile.get("banner_url")), 10, "Cover image"),
+        ("bio", bool(profile.get("bio")), 15, "Bio"),
+        ("location", bool(profile.get("current_location") or profile.get("town") or profile.get("country_origin")), 10, "Location"),
+        ("interests", bool(profile.get("interests")), 10, "Interests"),
+        ("verified", bool(profile.get("is_verified") or profile.get("verified")), 10, "Verification"),
+        ("posts", int(stats.get("posts") or profile.get("posts_count") or 0) > 0, 15, "Posts"),
+        ("reels", int(stats.get("reels") or profile.get("reels_count") or 0) > 0, 10, "Reels"),
+    ]
+    for key, present, weight, label in signals:
+        if present:
+            score += weight
+        checks.append({"key": key, "label": label, "complete": bool(present)})
+    if score >= 75:
+        level = "Strong"
+    elif score >= 45:
+        level = "Growing"
+    else:
+        level = "Fresh"
+    return {"score": min(score, 100), "level": level, "checks": checks}
+
+
 def get_profile_content(profile_id, limit=8):
     try:
         posts = fast_query(
@@ -1949,7 +2030,19 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    bundle_results = {"stats": {}, "content": {}, "activity": {}, "wallet": {}, "creator_tools": {}, "actions": [], "presence": {"status": "offline", "last_seen": None}, "is_following": False, "is_page_liked": False, "saved_items": []}
+    bundle_results = {
+        "stats": {},
+        "content": {},
+        "activity": {},
+        "wallet": {},
+        "creator_tools": {},
+        "actions": [],
+        "presence": {"status": "offline", "last_seen": None},
+        "is_following": False,
+        "is_page_liked": False,
+        "saved_items": [],
+        "recently_active_friends": [],
+    }
 
     def _safe(fn, key, default):
         try:
@@ -1984,6 +2077,7 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
             if viewer.get("id") == profile.get("id"):
                 futures.update({
                     exe.submit(_safe, lambda pid=profile["id"]: safe_select("chain_saved_items", filters={"profile_id": pid}, limit=20) or [], "saved_items", []): "saved_items",
+                    exe.submit(_safe, lambda pid=profile["id"]: get_recently_active_friends(pid, limit=6) or [], "recently_active_friends", []): "recently_active_friends",
                 })
         for future in futures:
             try:
@@ -2017,6 +2111,8 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
     except Exception as error:
         log_warning("profile_bundle_gallery_failed", profile_id=profile.get("id"), error=str(error))
     saved_items = bundle_results["saved_items"] or []
+    mutual_friends = get_mutual_friends_summary(viewer.get("id"), profile.get("id"), limit=3) if viewer and viewer.get("id") != profile.get("id") else {"count": 0, "items": []}
+    profile_strength = build_profile_strength(profile, stats)
     log_info(
         "profile_bundle_content_state",
         profile_id=profile.get("id"),
@@ -2066,11 +2162,14 @@ def get_profile_bundle(username=None, profile_id=None, viewer=None):
         "stats": stats,
         "content": content,
         "saved_items": saved_items,
+        "mutual_friends": mutual_friends,
+        "profile_strength": profile_strength,
         "activity": activity,
         "wallet": wallet,
         "creator_tools": creator_tools,
         "actions": actions,
         "presence": presence,
+        "recently_active_friends": bundle_results["recently_active_friends"] or [],
         "is_following": is_following,
         "is_page_liked": is_page_liked,
         "age_gate_required": adult_result is None,

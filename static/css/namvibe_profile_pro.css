@@ -254,6 +254,18 @@
   color: #fff;
 }
 
+.nv-status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(29,155,240,.12);
+  color: var(--nv-blue);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .nv-btn.disabled,
 .nv-icon-btn.disabled {
   opacity: .48;
@@ -296,6 +308,108 @@
   border-top: 1px solid var(--nv-border);
   color: var(--nv-muted);
   font-weight: 750;
+}
+
+.nv-social-insights,
+.nv-inline-insights {
+  display: grid;
+  gap: 12px;
+}
+
+.nv-social-insights {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 16px 18px 0;
+}
+
+.nv-inline-insights {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 14px;
+}
+
+.nv-insight-card,
+.nv-mini-card {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--nv-border);
+  background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.58));
+}
+
+.chain-shell--social .nv-insight-card,
+.chain-shell--social .nv-mini-card {
+  background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+}
+
+.nv-insight-card p,
+.nv-mini-card p {
+  margin: 0;
+  color: var(--nv-muted);
+  font-size: 12px;
+}
+
+.nv-insight-card h3,
+.nv-mini-card h3 {
+  margin: 6px 0 4px;
+  font-size: 20px;
+}
+
+.nv-mini-avatars,
+.nv-recent-friends {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 8px;
+}
+
+.nv-mini-avatar,
+.nv-recent-friend {
+  text-decoration: none;
+  color: inherit;
+}
+
+.nv-mini-avatar,
+.nv-recent-friend img,
+.nv-recent-friend span {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+.nv-mini-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2px solid rgba(29,155,240,.18);
+  background: linear-gradient(135deg, var(--nv-red), var(--nv-blue));
+  color: #fff;
+  font-weight: 900;
+}
+
+.nv-mini-avatar img,
+.nv-recent-friend img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nv-recent-friend {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.nv-recent-friend span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--nv-red), var(--nv-blue));
+  color: #fff;
+  font-weight: 900;
+}
+
+.nv-recent-friend strong {
+  font-size: 13px;
 }
 
 .nv-highlights {

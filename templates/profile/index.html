@@ -84,6 +84,7 @@
         <a class="nv-btn" href="/wallet"><i class="fas fa-wallet"></i>Wallet</a>
         <a class="nv-btn" href="/security/privacy"><i class="fas fa-shield-halved"></i>Privacy</a>
         {% else %}
+          <span class="nv-status-chip">{{ pv.friendship_status_label }}</span>
           {% if pa.primary_action == 'request_follow' %}
           <button class="nv-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-clock"></i>Request Follow</button>
           {% elif pa.primary_action == 'requested' %}
@@ -96,18 +97,19 @@
           {% if pa.can_chat or pv.can_message %}
           <a class="nv-btn" href="/messages/start/{{ profile.id }}"><i class="fas fa-message"></i>Message</a>
           {% else %}
-          <button class="nv-btn disabled" type="button" disabled title="Messaging is not available for this profile"><i class="fas fa-message"></i>Message</button>
+          <button class="nv-btn disabled" type="button" disabled title="Messaging is only available when the profile privacy rules allow it"><i class="fas fa-message"></i>Message locked</button>
           {% endif %}
           {% if pa.can_call or pv.can_call %}
           <a class="nv-icon-btn" href="/calls/start/{{ profile.id }}/audio" title="Audio call"><i class="fas fa-phone"></i></a>
           {% else %}
-          <button class="nv-icon-btn disabled" type="button" disabled title="Audio calls are not available"><i class="fas fa-phone"></i></button>
+          <button class="nv-icon-btn disabled" type="button" disabled title="Audio calls are only available when the profile privacy rules allow it"><i class="fas fa-phone"></i></button>
           {% endif %}
           {% if pa.can_video_call or pv.can_video_call %}
           <a class="nv-icon-btn" href="/calls/start/{{ profile.id }}/video" title="Video call"><i class="fas fa-video"></i></a>
           {% else %}
-          <button class="nv-icon-btn disabled" type="button" disabled title="Video calls are not available"><i class="fas fa-video"></i></button>
+          <button class="nv-icon-btn disabled" type="button" disabled title="Video calls are only available when the profile privacy rules allow it"><i class="fas fa-video"></i></button>
           {% endif %}
+          <a class="nv-btn" href="/profile/@{{ profile.username }}#gallery-panel"><i class="fas fa-photo-film"></i>Gallery</a>
           <a class="nv-btn" href="/wallet/gift?to={{ profile.id }}"><i class="fas fa-gift"></i>Send Gift</a>
         {% endif %}
       </div>
@@ -120,6 +122,25 @@
         <span>{{ item.label }}</span>
       </div>
       {% endfor %}
+    </div>
+    <div class="nv-social-insights">
+      <article class="nv-insight-card">
+        <p>Friendship status</p>
+        <h3>{{ pv.friendship_status_label }}</h3>
+        <span>{% if pv.mutual_friends_count %}{{ pv.mutual_friends_count }} mutual friends{% else %}Real-time relationship state from the social graph{% endif %}</span>
+      </article>
+      <article class="nv-insight-card">
+        <p>Profile strength</p>
+        <h3>{{ (pv.profile_strength.score or 0) }}% {{ pv.profile_strength.level or 'Fresh' }}</h3>
+        <span>
+          {% if pv.profile_strength.checks %}
+          {% set strength_labels = pv.profile_strength.checks | selectattr('complete') | map(attribute='label') | list %}
+          {{ strength_labels[:2]|join(' · ') if strength_labels else 'Add more profile details, media, and trust signals.' }}
+          {% else %}
+          Add more profile details, media, and trust signals.
+          {% endif %}
+        </span>
+      </article>
     </div>
     {% if pv.all_stats_zero %}
     <div class="nv-onboarding-note">Your profile is ready. Post your first update to start growing.</div>
@@ -227,6 +248,44 @@
     </div>
 
     <div class="nv-tab-panel" id="gallery-panel" data-tab-panel="gallery">
+      {% if pv.mutual_friends_items or pv.recently_active_friends %}
+      <div class="nv-inline-insights">
+        {% if pv.mutual_friends_items %}
+        <article class="nv-card nv-mini-card">
+          <h3>Mutual friends</h3>
+          <div class="nv-mini-avatars">
+            {% for friend in pv.mutual_friends_items %}
+            <a href="/profile/@{{ friend.username }}" class="nv-mini-avatar" title="{{ friend.display_name or friend.username }}">
+              {% if friend.avatar_url %}
+              <img src="{{ friend.avatar_url }}" alt="{{ friend.display_name or friend.username }}">
+              {% else %}
+              <span>{{ (friend.display_name or friend.username or 'N')[0]|upper }}</span>
+              {% endif %}
+            </a>
+            {% endfor %}
+          </div>
+          <p>{{ pv.mutual_friends_count }} shared connection{{ '' if pv.mutual_friends_count == 1 else 's' }}</p>
+        </article>
+        {% endif %}
+        {% if pv.recently_active_friends %}
+        <article class="nv-card nv-mini-card">
+          <h3>Recently active friends</h3>
+          <div class="nv-recent-friends">
+            {% for friend in pv.recently_active_friends[:4] %}
+            <a href="/profile/@{{ friend.username }}" class="nv-recent-friend">
+              {% if friend.avatar_url %}
+              <img src="{{ friend.avatar_url }}" alt="{{ friend.display_name or friend.username }}">
+              {% else %}
+              <span>{{ (friend.display_name or friend.username or 'N')[0]|upper }}</span>
+              {% endif %}
+              <strong>{{ friend.display_name or friend.username }}</strong>
+            </a>
+            {% endfor %}
+          </div>
+        </article>
+        {% endif %}
+      </div>
+      {% endif %}
       <div class="nv-content-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
         {% if pv.gallery_preview %}
           {% for item in pv.gallery_preview %}

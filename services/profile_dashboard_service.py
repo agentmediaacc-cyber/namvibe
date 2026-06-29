@@ -82,6 +82,9 @@ def build_profile_dashboard(profile=None, viewer=None, bundle=None):
     activity = bundle.get("activity") or {"gifts": [], "favorites": [], "recent_views": []}
     actions = bundle.get("actions") or []
     presence = bundle.get("presence") or {"status": "offline", "last_seen": None}
+    mutual_friends = bundle.get("mutual_friends") or {"count": 0, "items": []}
+    profile_strength = bundle.get("profile_strength") or {"score": 0, "level": "Fresh", "checks": []}
+    recently_active_friends = bundle.get("recently_active_friends") or []
 
     profile_id = profile.get("id")
     settings = {
@@ -238,6 +241,9 @@ def build_profile_dashboard(profile=None, viewer=None, bundle=None):
         "presence": presence,
         "actions": actions,
         "activity": activity,
+        "mutual_friends": mutual_friends,
+        "profile_strength": profile_strength,
+        "recently_active_friends": recently_active_friends,
         "public_stats": public_stats,
         "level": level,
         "story_highlights": ["Travel", "Business", "Family", "Education", "Projects"],

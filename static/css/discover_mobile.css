@@ -35,6 +35,13 @@
   background: linear-gradient(135deg, rgba(30, 136, 229, 0.25), rgba(11, 27, 51, 0.92));
 }
 
+.discover-card-cover {
+  height: 70px;
+  background: linear-gradient(135deg, rgba(30, 136, 229, 0.25), rgba(11, 27, 51, 0.92));
+  background-size: cover;
+  background-position: center;
+}
+
 /* Card body */
 .discover-card-body {
   padding: 0 16px 16px;
@@ -73,6 +80,98 @@
   font-weight: 700;
   color: var(--text-color, #f0f0f0);
   line-height: 1.2;
+}
+
+.discover-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.discover-bio {
+  font-size: 12px;
+  color: var(--text-muted, #8888a0);
+  margin: 6px 0;
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.discover-meta-row,
+.discover-interest-row,
+.discover-quick-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.discover-meta-row {
+  margin: 10px 0 0;
+}
+
+.discover-interest-row {
+  margin-top: 10px;
+}
+
+.discover-interest-pill,
+.discover-meta-pill,
+.discover-live-pill,
+.discover-private {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.discover-interest-pill,
+.discover-meta-pill {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #d6deed;
+}
+
+.discover-live-pill {
+  padding: 5px 10px;
+  background: rgba(16, 185, 129, 0.14);
+  color: #7cf5c7;
+}
+
+.discover-private {
+  color: #ff8f9f;
+}
+
+.discover-quick-grid {
+  margin: 0 8px 14px;
+}
+
+.discover-quick-card {
+  flex: 1 1 220px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: linear-gradient(145deg, rgba(11,27,51,0.96), rgba(18,31,55,0.72));
+}
+
+.discover-quick-card p {
+  margin: 0 0 6px;
+  color: #7fb9ff;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.discover-quick-card h3 {
+  margin: 0 0 4px;
+}
+
+.discover-quick-card span {
+  color: #b5bfd4;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .discover-card .px-muted {

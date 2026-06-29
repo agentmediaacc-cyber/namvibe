@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from engines.cache_engine import cache_key, get_cache, set_cache, delete_cache
 from services.neon_service import fast_query
 from services.notification_engine import (
     create_notification as engine_create,
@@ -18,6 +19,19 @@ from services.notification_engine import (
 
 _NOTIFICATION_TYPE_CATEGORIES = _NOTIF_TYPE_CATEGORIES
 _NOTIFICATION_ICONS = _NOTIF_ICONS
+
+
+def _notif_list_cache_key(profile_id, tab, page, limit):
+    return cache_key("notif_feed", profile_id, tab, page, limit)
+
+
+def invalidate_notification_feed_cache(profile_id):
+    if not profile_id:
+        return
+    for tab in ("all", "activity", "social", "unread", "messages", "system"):
+        for page in (1, 2):
+            for limit in (20, 30, 50):
+                delete_cache(_notif_list_cache_key(profile_id, tab, page, limit))
 
 
 def _category_for(event_type):
@@ -197,7 +211,7 @@ def create_notification(
     metadata=None,
 ):
     from services.notification_engine import create_notification as _engine_create
-    return _engine_create(
+    notification_id = _engine_create(
         recipient_profile_id=recipient_profile_id,
         event_type=notification_type,
         title=title,
@@ -207,6 +221,8 @@ def create_notification(
         entity_id=target_id,
         action_url=action_url,
     )
+    invalidate_notification_feed_cache(recipient_profile_id)
+    return notification_id
 
 
 def list_notifications(profile_id, tab="all", page=1, limit=30):
@@ -218,8 +234,14 @@ def list_notifications(profile_id, tab="all", page=1, limit=30):
     try:
         if tab == "social":
             tab = "activity"
+        cache_key_str = _notif_list_cache_key(profile_id, tab, page, limit)
+        cached = get_cache(cache_key_str)
+        if cached is not None:
+            return cached
         items, has_more = list_notifications_tab(profile_id, tab=tab, page=page, limit=limit)
-        return [format_notification(item) for item in items], has_more
+        result = ([format_notification(item) for item in items], has_more)
+        set_cache(cache_key_str, result, ttl=15)
+        return result
     except Exception:
         return [], False
 
@@ -233,21 +255,30 @@ def unread_count(profile_id):
 
 def mark_read(profile_id, notification_id):
     try:
-        return engine_mark_read(notification_id, profile_id)
+        ok = engine_mark_read(notification_id, profile_id)
+        if ok:
+            invalidate_notification_feed_cache(profile_id)
+        return ok
     except Exception:
         return False
 
 
 def mark_all_read(profile_id):
     try:
-        return engine_mark_all_read(profile_id)
+        ok = engine_mark_all_read(profile_id)
+        if ok:
+            invalidate_notification_feed_cache(profile_id)
+        return ok
     except Exception:
         return False
 
 
 def delete_notification(profile_id, notification_id):
     try:
-        return engine_delete(notification_id, profile_id)
+        ok = engine_delete(notification_id, profile_id)
+        if ok:
+            invalidate_notification_feed_cache(profile_id)
+        return ok
     except Exception:
         return False
 
@@ -256,7 +287,10 @@ def delete_selected(profile_id, notification_ids):
     if not notification_ids:
         return False
     try:
-        return delete_selected_notifications(notification_ids, profile_id)
+        ok = delete_selected_notifications(notification_ids, profile_id)
+        if ok:
+            invalidate_notification_feed_cache(profile_id)
+        return ok
     except Exception:
         return False
 

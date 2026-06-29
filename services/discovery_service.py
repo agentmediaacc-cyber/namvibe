@@ -13,6 +13,7 @@ from services.logging_service import log_info
 DISCOVERY_PROFILE_COLUMNS = [
     "id",
     "username",
+    "display_name",
     "full_name",
     "bio",
     "current_location",
@@ -24,6 +25,8 @@ DISCOVERY_PROFILE_COLUMNS = [
     "country_origin",
     "interests",
     "cover_url",
+    "updated_at",
+    "last_login_at",
 ]
 
 
@@ -124,6 +127,110 @@ def _load_profiles(where_clause="", params=None, limit=20, offset=0, timeout_ms=
     return [normalize_profile(profile) for profile in rows]
 
 
+def _profile_strength(profile):
+    profile = profile or {}
+    score = 0
+    if profile.get("avatar_url"):
+        score += 20
+    if profile.get("cover_url"):
+        score += 10
+    if profile.get("bio"):
+        score += 20
+    if profile.get("current_location"):
+        score += 10
+    interests = profile.get("interests") or []
+    if isinstance(interests, str):
+        interests = [part.strip() for part in interests.split(",") if part.strip()]
+    score += min(20, len(interests) * 5)
+    if profile.get("is_verified"):
+        score += 10
+    if profile.get("is_premium"):
+        score += 10
+    if score >= 75:
+        label = "Strong"
+    elif score >= 45:
+        label = "Growing"
+    else:
+        label = "Fresh"
+    return {"score": score, "label": label}
+
+
+def _batch_mutual_friend_counts(viewer_id, target_ids):
+    if not viewer_id or not target_ids:
+        return {}
+    placeholders = ", ".join(["%s"] * len(target_ids))
+    query = f"""
+        WITH viewer_friends AS (
+            SELECT CASE
+                     WHEN profile_id_1 = %s THEN profile_id_2
+                     ELSE profile_id_1
+                   END AS friend_id
+            FROM chain_friends
+            WHERE status = 'friend'
+              AND deleted_at IS NULL
+              AND (profile_id_1 = %s OR profile_id_2 = %s)
+        )
+        SELECT target_id, COUNT(*)::int AS mutual_count
+        FROM (
+            SELECT
+                CASE
+                    WHEN f.profile_id_1 = t.target_id THEN f.profile_id_2
+                    ELSE f.profile_id_1
+                END AS friend_id,
+                t.target_id
+            FROM chain_friends f
+            JOIN (SELECT unnest(ARRAY[{placeholders}]::uuid[]) AS target_id) t
+              ON (f.profile_id_1 = t.target_id OR f.profile_id_2 = t.target_id)
+            WHERE f.status = 'friend' AND f.deleted_at IS NULL
+        ) candidate_friends
+        JOIN viewer_friends vf ON vf.friend_id = candidate_friends.friend_id
+        GROUP BY target_id
+    """
+    rows = fast_query(
+        query,
+        [viewer_id, viewer_id, viewer_id, *target_ids],
+        timeout_ms=5000,
+        default=[],
+    )
+    return {str(row.get("target_id")): int(row.get("mutual_count") or 0) for row in rows}
+
+
+def _batch_presence(target_ids):
+    if not target_ids:
+        return {}
+    rows = fast_query(
+        """
+        SELECT profile_id, status, last_seen_at
+        FROM chain_presence
+        WHERE profile_id = ANY(%s::uuid[])
+        """,
+        (target_ids,),
+        timeout_ms=3000,
+        default=[],
+    )
+    presence_map = {}
+    for row in rows:
+        presence_map[str(row.get("profile_id"))] = {
+            "status": row.get("status") or "offline",
+            "last_seen_at": row.get("last_seen_at"),
+        }
+    return presence_map
+
+
+def _shared_interest_count(viewer_profile, target_profile):
+    viewer_interests = viewer_profile.get("interests") or []
+    target_interests = target_profile.get("interests") or []
+    if isinstance(viewer_interests, str):
+        viewer_interests = [part.strip().lower() for part in viewer_interests.split(",") if part.strip()]
+    else:
+        viewer_interests = [str(part).strip().lower() for part in viewer_interests if str(part).strip()]
+    if isinstance(target_interests, str):
+        target_interests = [part.strip().lower() for part in target_interests.split(",") if part.strip()]
+    else:
+        target_interests = [str(part).strip().lower() for part in target_interests if str(part).strip()]
+    return len(set(viewer_interests).intersection(target_interests))
+
+
 def _load_trending(limit=50, timeout_ms=5000):
     query = """
         SELECT id, profile_id, body, caption, media_url, created_at, visibility
@@ -198,18 +305,17 @@ def get_discovery_data(section, viewer_id=None, limit=50, offset=0, q=""):
             return result
 
         load_start = time.perf_counter()
+        viewer_profile = {}
+        if viewer_id:
+            viewer_rows = fast_query(
+                f"SELECT {', '.join(DISCOVERY_PROFILE_COLUMNS)} FROM chain_profiles WHERE id = %s AND deleted_at IS NULL LIMIT 1",
+                [viewer_id],
+                timeout_ms=3000,
+                default=[],
+            )
+            viewer_profile = normalize_profile(viewer_rows[0]) if viewer_rows else {}
         if section == "dating":
             profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=limit, offset=offset, timeout_ms=5000)
-            viewer_profile = {}
-            if viewer_id:
-                viewer_rows = fast_query(
-                    f"SELECT {', '.join(DISCOVERY_PROFILE_COLUMNS)} FROM chain_profiles WHERE id = %s AND deleted_at IS NULL LIMIT 1",
-                    [viewer_id],
-                    timeout_ms=5000,
-                    default=[],
-                )
-                viewer_profile = normalize_profile(viewer_rows[0]) if viewer_rows else {}
-
             for p in profiles:
                 if p["id"] == viewer_id:
                     continue
@@ -239,6 +345,10 @@ def get_discovery_data(section, viewer_id=None, limit=50, offset=0, q=""):
         rel_start = time.perf_counter()
         rel_states = get_many_relationship_states(viewer_id, profile_ids) if viewer_id and profile_ids else {}
         log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="load_relationships", item_count=len(profile_ids), duration_ms=_ms(rel_start))
+        social_start = time.perf_counter()
+        mutual_counts = _batch_mutual_friend_counts(viewer_id, profile_ids) if viewer_id and profile_ids else {}
+        presence_map = _batch_presence(profile_ids)
+        log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="load_social_context", item_count=len(profile_ids), duration_ms=_ms(social_start))
 
         enrich_start = time.perf_counter()
         for item in data:
@@ -256,11 +366,28 @@ def get_discovery_data(section, viewer_id=None, limit=50, offset=0, q=""):
                 item["primary_action"] = primary_action
                 item["can_send_friend_request"] = bool(viewer_id and account_kind == "person" and primary_action == "friend_request")
                 item["can_follow"] = bool(viewer_id and primary_action in {"follow", "request_follow", "following"})
+                item["mutual_friends_count"] = int(mutual_counts.get(str(pid), 0))
+                item["mutual_friends_label"] = f"{item['mutual_friends_count']} mutual friend{'s' if item['mutual_friends_count'] != 1 else ''}" if item["mutual_friends_count"] else ""
+                item["shared_interest_count"] = _shared_interest_count(viewer_profile, item) if viewer_profile else 0
+                item["profile_strength"] = _profile_strength(item)
+                presence = presence_map.get(str(pid), {})
+                item["is_online"] = (presence.get("status") or "").lower() in {"online", "active"}
+                item["last_seen_at"] = presence.get("last_seen_at")
 
                 can_view = _can_view_profile_from_state(viewer_id, item, state)
                 if not can_view:
                     item = _strip_private_data(item)
                 enriched.append(item)
+        if viewer_id and section in {"members", "recommended"}:
+            enriched.sort(
+                key=lambda row: (
+                    int(row.get("mutual_friends_count") or 0),
+                    int(row.get("shared_interest_count") or 0),
+                    int(bool(row.get("is_online"))),
+                    int(bool(row.get("is_premium"))),
+                ),
+                reverse=True,
+            )
         log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="enrich_items", item_count=len(enriched), duration_ms=_ms(enrich_start))
 
         result = {

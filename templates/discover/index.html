@@ -100,18 +100,30 @@
         {% endfor %}
     </section>
     {% else %}
+    <section class="discover-quick-grid">
+        <article class="discover-quick-card">
+            <p>People you may know</p>
+            <h3>Ranked by real overlap</h3>
+            <span>Mutual friends, interests, activity, and location now shape this feed.</span>
+        </article>
+        <article class="discover-quick-card">
+            <p>Fast profile open</p>
+            <h3>Real routes only</h3>
+            <span>Every card opens the live public profile route for that member.</span>
+        </article>
+    </section>
     <section class="discover-grid">
         {% for profile in items %}
-        <article class="discover-card" id="discover-card-{{ profile.id }}">
+        <article class="discover-card" id="discover-card-{{ profile.id }}" data-profile-card="discover">
             <!-- Clickable profile link area -->
             <a href="/profile/@{{ profile.username }}" class="discover-card-link"></a>
             
             <!-- Gradient header -->
-            <div style="height:70px; background:linear-gradient(135deg, rgba(30,136,229,.25), rgba(11,27,51,.92));"></div>
+            <div class="discover-card-cover" {% if profile.cover_url %}style="background-image:linear-gradient(135deg, rgba(9,14,30,.24), rgba(9,14,30,.78)), url('{{ profile.cover_url }}');"{% endif %}></div>
             
             <div class="discover-card-body">
                 <!-- Avatar -->
-                <a href="/profile/@{{ profile.username }}" class="avatar-dot" style="width:64px;height:64px;margin-top:-36px;border:4px solid var(--card-bg, #1a1a2e);">
+                <a href="/profile/@{{ profile.username }}" class="avatar-dot discover-avatar">
                     {% if profile.avatar_url %}
                     <img src="{{ profile.avatar_url }}" alt="{{ profile.full_name or profile.username }}">
                     {% else %}
@@ -120,16 +132,44 @@
                 </a>
                 
                 <!-- Profile info - with proper contrast -->
-                <h3 style="color:#f0f0f0;margin-top:8px;">{{ profile.full_name or profile.username }}</h3>
-                <p class="px-muted">@{{ profile.username }}{% if profile.privacy_restricted %} · <span style="color:#ef4444;">🔒 Private Account</span>{% elif profile.current_location %} · {{ profile.current_location }}{% endif %}</p>
+                <div class="discover-title-row">
+                    <h3>{{ profile.full_name or profile.display_name or profile.username }}</h3>
+                    {% if profile.is_online %}
+                    <span class="discover-live-pill">Online</span>
+                    {% elif profile.last_seen_at %}
+                    <span class="discover-meta-pill">Active recently</span>
+                    {% endif %}
+                </div>
+                <p class="px-muted">@{{ profile.username }}{% if profile.privacy_restricted %} · <span class="discover-private">Private account</span>{% elif profile.current_location %} · {{ profile.current_location }}{% endif %}</p>
                 
                 <!-- Bio with visible text -->
                 {% if not profile.privacy_restricted %}
-                <p style="font-size:12px;color:#a0aec0;margin:6px 0;line-height:1.3;word-wrap:break-word;">{{ (profile.bio or '')[:120] }}</p>
+                <p class="discover-bio">{{ (profile.bio or '')[:120] }}</p>
+                {% endif %}
+
+                <div class="discover-meta-row">
+                    {% if profile.mutual_friends_count %}
+                    <span class="px-chip primary"><i class="fas fa-user-group"></i>{{ profile.mutual_friends_label or (profile.mutual_friends_count ~ ' mutual friends') }}</span>
+                    {% endif %}
+                    {% if profile.shared_interest_count %}
+                    <span class="px-chip"><i class="fas fa-heart"></i>{{ profile.shared_interest_count }} shared interests</span>
+                    {% endif %}
+                    {% if profile.profile_strength and profile.profile_strength.score %}
+                    <span class="px-chip"><i class="fas fa-bolt"></i>{{ profile.profile_strength.level }} {{ profile.profile_strength.score }}%</span>
+                    {% endif %}
+                </div>
+
+                {% if profile.interests %}
+                <div class="discover-interest-row">
+                    {% set interests = profile.interests if profile.interests is sequence and profile.interests is not string else [profile.interests] %}
+                    {% for interest in interests[:3] %}
+                    <span class="discover-interest-pill">{{ interest }}</span>
+                    {% endfor %}
+                </div>
                 {% endif %}
                 
                 <!-- Social actions -->
-                <div class="discover-social-actions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0;">
+                <div class="discover-social-actions">
                     <a href="/profile/@{{ profile.username }}" class="px-chip primary">Profile</a>
                     {% if viewer_id and profile.primary_action == 'message' %}
                     <a href="/messages/start/{{ profile.id }}" class="px-chip" onclick="event.stopPropagation();">Message</a>

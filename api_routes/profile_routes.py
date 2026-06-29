@@ -327,6 +327,10 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
     context.update(dashboard)
     context["profile"] = render_profile
     context["viewer"] = _with_profile_defaults(viewer) if viewer else None
+    profile_content = dict(context.get("content") or {})
+    profile_content["mutual_friends"] = context.get("mutual_friends") or render_bundle.get("mutual_friends") or {"count": 0, "items": []}
+    profile_content["profile_strength"] = context.get("profile_strength") or render_bundle.get("profile_strength") or {"score": 0, "level": "Fresh", "checks": []}
+    context["content"] = profile_content
     if not context.get("action_policy"):
         from services.social_action_policy import get_action_policy
         viewer_id = viewer.get("id") if viewer else None
