@@ -1383,6 +1383,30 @@ def get_wallet_snapshot(profile_id):
     return _f(profile_id)
 
 
+def get_profile_activity(profile_id):
+    """Safe stub: profile activity aggregation not yet implemented."""
+    log_warning(
+        "profile_activity_disabled",
+        operation="get_profile_activity",
+        profile_id=profile_id,
+    )
+    return {"posts": [], "reels": [], "stories": []}
+
+
+def get_creator_tools(profile_id):
+    """Safe stub: creator tools config not yet implemented."""
+    log_warning(
+        "creator_tools_disabled",
+        operation="get_creator_tools",
+        profile_id=profile_id,
+    )
+    return {
+        "studio_enabled": False,
+        "creator_notes": "",
+        "featured_links": [],
+    }
+
+
 def get_public_profiles(limit=20, offset=0, exclude_ids=None):
     """Get public profiles for matching/discovery."""
     exclude_ids = exclude_ids or []
