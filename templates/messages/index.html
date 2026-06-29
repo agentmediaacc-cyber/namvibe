@@ -479,6 +479,84 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 .composer .premium-btn{min-width:46px;height:46px;padding:0;display:grid;place-items:center}
 .composer-tools{position:relative;display:flex;gap:8px}
 .typing-line{color:#00f2ea;font-size:12px;font-weight:900;margin-top:3px;display:none}
+
+/* Skeleton Loading */
+.skeleton-container{padding:8px}
+.skeleton-card{display:flex;gap:12px;padding:13px;border-radius:22px;margin-bottom:4px}
+.skeleton-avatar{width:54px;height:54px;border-radius:20px;background:rgba(255,255,255,.08);flex-shrink:0;animation:skeleton-pulse 1.4s infinite}
+.skeleton-lines{flex:1;display:flex;flex-direction:column;gap:10px;padding:6px 0}
+.skeleton-line{height:14px;border-radius:8px;background:rgba(255,255,255,.08);animation:skeleton-pulse 1.4s infinite}
+.skeleton-line.w60{width:60%}.skeleton-line.w80{width:80%}.skeleton-line.w40{width:40%}.skeleton-line.w50{width:50%}.skeleton-line.w70{width:70%}.skeleton-line.w90{width:90%}
+@keyframes skeleton-pulse{0%{opacity:.6}50%{opacity:.3}100%{opacity:.6}}
+
+/* Thread Context Menu */
+.thread-context-btn{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    width:32px;height:32px;border-radius:50%;border:0;
+    background:rgba(255,255,255,.08);color:white;cursor:pointer;
+    opacity:0;transition:.18s ease;display:grid;place-items:center;z-index:5;
+}
+.thread-card:hover .thread-context-btn{opacity:1}
+.thread-context-btn:hover{background:rgba(255,255,255,.18)}
+.thread-context-menu{
+    position:fixed;z-index:3000;min-width:180px;
+    background:#0a0a0a;border:1px solid rgba(255,255,255,.12);
+    border-radius:16px;padding:6px;box-shadow:0 20px 60px rgba(0,0,0,.45);
+    backdrop-filter:blur(18px);
+}
+.context-item{
+    display:flex;align-items:center;gap:10px;width:100%;
+    padding:10px 12px;border:0;border-radius:10px;
+    background:transparent;color:white;font-size:13px;font-weight:700;
+    cursor:pointer;transition:.12s ease;
+}
+.context-item:hover{background:rgba(255,255,255,.1)}
+.context-item.danger:hover{background:rgba(239,68,68,.2);color:#ef4444}
+.context-item i{width:18px;text-align:center;font-size:14px}
+
+/* New Message Floating Chip */
+.new-message-chip{
+    position:absolute;bottom:112px;left:50%;transform:translateX(-50%);
+    z-index:40;
+    background:rgba(37,99,235,.92);color:white;border:1px solid rgba(255,255,255,.12);
+    padding:10px 20px;border-radius:999px;font-size:13px;font-weight:900;
+    cursor:pointer;backdrop-filter:blur(12px);
+    box-shadow:0 8px 28px rgba(0,0,0,.32);
+    animation:chip-enter .25s ease;white-space:nowrap;
+}
+.new-message-chip:hover{background:#2563eb}
+@keyframes chip-enter{from{opacity:0;transform:translateX(-50%) translateY(12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* Unread highlight on thread avatar */
+.thread-avatar{position:relative}
+.thread-unread-badge{
+    position:absolute;top:-4px;right:-4px;
+    min-width:20px;height:20px;border-radius:999px;
+    background:#22c55e;color:#04130a;
+    font-size:11px;font-weight:900;
+    display:grid;place-items:center;
+    padding:0 5px;border:2px solid #050505;z-index:10;
+}
+.thread-pill.new{background:rgba(34,197,94,.2);color:#22c55e}
+
+/* Thread Search Bar */
+.thread-search-bar{
+    position:relative;padding:8px 14px;
+    background:rgba(5,5,5,.92);border-bottom:1px solid rgba(255,255,255,.08);
+    backdrop-filter:blur(18px);z-index:20;
+}
+.thread-search-results{
+    position:absolute;top:100%;left:0;right:0;max-height:240px;overflow:auto;
+    background:#0a0a0a;border:1px solid rgba(255,255,255,.12);
+    border-radius:0 0 16px 16px;z-index:25;
+}
+.thread-search-result-item{
+    display:flex;gap:10px;padding:10px 14px;cursor:pointer;
+    border-bottom:1px solid rgba(255,255,255,.06);transition:.12s ease;
+}
+.thread-search-result-item:hover{background:rgba(255,255,255,.08)}
+.thread-search-result-text{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ddd}
+.thread-search-result-date{font-size:11px;color:#9ca3af;white-space:nowrap}
 </style>
 {% endblock %}
 
@@ -518,23 +596,36 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
                      data-id="{{ t.id }}"
                      data-name="{{ t.display_name or 'Conversation' }}"
                      data-has-draft="{{ 'true' if t.has_draft else 'false' }}"
+                     data-pinned="{{ 'true' if t.is_pinned else 'false' }}"
+                     data-muted="{{ 'true' if t.muted else 'false' }}"
                      data-search="{{ (t.display_name ~ ' ' ~ (t.last_message or '') ~ ' ' ~ (t.thread_type or ''))|lower }}">
                     <div class="thread-avatar">
                         {% if t.display_avatar %}<img src="{{ t.display_avatar }}" alt="">{% else %}<i class="fas fa-{{ 'users' if t.thread_type == 'group' else 'user' }}"></i>{% endif %}
                         <span class="thread-online-dot {{ 'online' if t.is_online else 'offline' }}" data-online-dot="{{ t.participant_profile_id or '' }}"></span>
+                        {% if t.unread_count and t.unread_count > 0 %}
+                        <span class="thread-unread-badge" data-unread="{{ t.id }}">{{ t.unread_count }}</span>
+                        {% endif %}
                     </div>
                     <div class="thread-body">
                         <div class="thread-line">
-                            <span class="thread-name">{{ t.display_name or 'Conversation' }}<span class="thread-draft-indicator" data-draft="{{ t.id }}">(draft)</span></span>
+                            <span class="thread-name">{{ t.display_name or 'Conversation' }}
+                                {% if t.is_pinned %}<i class="fas fa-thumbtack" style="font-size:10px;color:#00f2ea;margin-left:4px;" title="Pinned"></i>{% endif %}
+                                {% if t.muted %}<i class="fas fa-volume-off" style="font-size:10px;color:#9ca3af;margin-left:4px;" title="Muted"></i>{% endif %}
+                                <span class="thread-draft-indicator" data-draft="{{ t.id }}">(draft)</span>
+                            </span>
                             <span class="thread-time">{{ t.last_message_at|datetime if t.last_message_at else '' }}</span>
                         </div>
-                        <div class="thread-preview">{{ t.last_message or 'Start the conversation' }}</div>
+                        <div class="thread-preview">{% if t.last_message_sender_id and t.last_message_sender_id == profile.id %}<span style="color:#00f2ea;font-weight:600;">You: </span>{% endif %}{{ t.last_message or 'Start the conversation' }}</div>
                         <div class="thread-meta">
                             <span class="thread-pill">{{ 'Group' if t.thread_type == 'group' else 'Direct' }}</span>
                             {% if t.is_online %}<span class="thread-pill live">Online</span>{% endif %}
+                            {% if t.unread_count and t.unread_count > 0 %}
+                            <span class="thread-pill" style="background:rgba(34,197,94,.15);color:#22c55e;">{{ t.unread_count }} new</span>
+                            {% endif %}
                             <span class="thread-pill" style="background:rgba(34,197,94,.15);color:#22c55e;display:none;" data-e2ee="{{ t.id }}"><i class="fas fa-lock"></i> E2EE</span>
                         </div>
                     </div>
+                    <button class="thread-context-btn" data-context="{{ t.id }}" title="More actions" type="button"><i class="fas fa-ellipsis-h"></i></button>
                 </div>
                 {% endfor %}
             {% endif %}
@@ -566,6 +657,23 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         </div>
 
         <div class="no-results" id="noResults">No chat found.</div>
+        <!-- Skeleton Loading -->
+        <div class="skeleton-container" id="skeletonContainer" style="display:none;">
+            <div class="skeleton-card"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line w60"></div><div class="skeleton-line w80"></div></div></div>
+            <div class="skeleton-card"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line w40"></div><div class="skeleton-line w70"></div></div></div>
+            <div class="skeleton-card"><div class="skeleton-avatar"></div><div class="skeleton-lines"><div class="skeleton-line w50"></div><div class="skeleton-line w90"></div></div></div>
+        </div>
+        <!-- Thread Context Menu -->
+        <div class="thread-context-menu" id="threadContextMenu" style="display:none;">
+            <button class="context-item" data-action="pin"><i class="fas fa-thumbtack"></i> <span>Pin</span></button>
+            <button class="context-item" data-action="mute"><i class="fas fa-volume-off"></i> <span>Mute</span></button>
+            <button class="context-item" data-action="archive"><i class="fas fa-archive"></i> <span>Archive</span></button>
+            <button class="context-item danger" data-action="delete"><i class="fas fa-trash"></i> <span>Delete</span></button>
+        </div>
+        <!-- New Message Floating Chip -->
+        <div class="new-message-chip" id="newMessageChip" style="display:none;">
+            <i class="fas fa-arrow-down"></i> New messages
+        </div>
     </aside>
 
     <main class="chain-chat-panel">
@@ -585,6 +693,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
                 </div>
             </div>
             <div class="chat-actions">
+                <button class="action-circle" id="searchInThreadBtn" title="Search in conversation" onclick="openSearchInThread()"><i class="fas fa-search"></i></button>
                 <button class="action-circle" id="sharedMediaBtn" title="Shared Media"><i class="fas fa-images"></i></button>
                 <button class="action-circle call" id="quickAudio" onclick="startQuickCall('audio')"><i class="fas fa-phone"></i></button>
                 <button class="action-circle video" id="quickVideo" onclick="startQuickCall('video')"><i class="fas fa-video"></i></button>
@@ -594,6 +703,14 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
                 <button class="action-circle" id="blockUserBtn" title="Block User"><i class="fas fa-ban"></i></button>
                 <button class="action-circle" id="deleteThread"><i class="fas fa-trash"></i></button>
             </div>
+        </div>
+
+        <!-- Search in Thread Bar -->
+        <div class="thread-search-bar" id="threadSearchBar" style="display:none;">
+            <i class="fas fa-search" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#aaa;z-index:2;"></i>
+            <input id="threadSearchInput" placeholder="Search in conversation..." style="width:100%;border:0;background:rgba(255,255,255,.08);color:white;border-radius:12px;padding:10px 14px 10px 40px;outline:none;">
+            <div class="thread-search-results" id="threadSearchResults" style="display:none;"></div>
+            <button class="thread-search-close" id="threadSearchClose" type="button" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:#aaa;cursor:pointer;"><i class="fas fa-times"></i></button>
         </div>
 
         <!-- Pinned Message Bar -->
@@ -1069,6 +1186,93 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
 
     $('pinnedBarClose')?.addEventListener('click', hidePinnedMessage);
 
+    document.querySelectorAll('.thread-card .thread-context-btn').forEach(function(btn){
+        btn.addEventListener('click',function(e){
+            e.stopPropagation();
+            var card = this.closest('.thread-card');
+            var menu = $('threadContextMenu');
+            if(!menu || !card) return;
+            var rect = this.getBoundingClientRect();
+            menu.style.top = rect.bottom + 4 + 'px';
+            menu.style.left = Math.max(8, rect.right - 180) + 'px';
+            menu.style.display = 'block';
+            menu.dataset.threadId = card.dataset.id;
+            menu.dataset.threadName = card.dataset.name;
+            menu.dataset.isPinned = card.dataset.pinned || 'false';
+            menu.dataset.isMuted = card.dataset.muted || 'false';
+            // Update labels
+            menu.querySelector('[data-action="pin"] span').textContent = card.dataset.pinned === 'true' ? 'Unpin' : 'Pin';
+            menu.querySelector('[data-action="mute"] span').textContent = card.dataset.muted === 'true' ? 'Unmute' : 'Mute';
+        });
+    });
+    document.addEventListener('click',function(e){
+        var menu = $('threadContextMenu');
+        if(menu && !menu.contains(e.target) && !e.target.closest('.thread-context-btn')){
+            menu.style.display = 'none';
+        }
+    });
+    $('threadContextMenu')?.querySelector('[data-action="pin"]')?.addEventListener('click',function(){
+        var menu = $('threadContextMenu');
+        var tid = menu?.dataset.threadId;
+        if(!tid) return;
+        var pinned = menu.dataset.isPinned === 'true';
+        fetch('/messages/api/threads/' + encodeURIComponent(tid) + '/pin',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({pinned:!pinned})
+        }).then(function(){ location.reload(); }).catch(function(){});
+    });
+    $('threadContextMenu')?.querySelector('[data-action="mute"]')?.addEventListener('click',function(){
+        var menu = $('threadContextMenu');
+        var tid = menu?.dataset.threadId;
+        if(!tid) return;
+        var muted = menu.dataset.isMuted === 'true';
+        fetch('/messages/api/threads/' + encodeURIComponent(tid) + '/mute',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({muted:!muted})
+        }).then(function(){ location.reload(); }).catch(function(){});
+    });
+    $('threadContextMenu')?.querySelector('[data-action="archive"]')?.addEventListener('click',function(){
+        var menu = $('threadContextMenu');
+        var tid = menu?.dataset.threadId;
+        if(!tid) return;
+        fetch('/messages/api/threads/' + encodeURIComponent(tid) + '/archive',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({archived:true})
+        }).then(function(){ location.reload(); }).catch(function(){});
+    });
+    $('threadContextMenu')?.querySelector('[data-action="delete"]')?.addEventListener('click',function(){
+        var menu = $('threadContextMenu');
+        var tid = menu?.dataset.threadId;
+        if(!tid) return;
+        if(!confirm('Delete this conversation?')) return;
+        fetch('/messages/api/threads/' + encodeURIComponent(tid) + '/move',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({folder:'trash'})
+        }).then(function(){ location.reload(); }).catch(function(){});
+    });
+
+    // New message chip (scroll to bottom)
+    const msgArea = $('messagesArea');
+    if(msgArea){
+        var chip = $('newMessageChip');
+        msgArea.addEventListener('scroll',function(){
+            var atBottom = msgArea.scrollHeight - msgArea.scrollTop - msgArea.clientHeight < 80;
+            if(chip) chip.style.display = atBottom ? 'none' : '';
+        });
+        chip?.addEventListener('click',function(){
+            msgArea.scrollTop = msgArea.scrollHeight;
+            chip.style.display = 'none';
+        });
+    }
+
+    // Skeleton loading for API threads refresh
+    function showSkeleton(){ $('skeletonContainer').style.display = ''; }
+    function hideSkeleton(){ $('skeletonContainer').style.display = 'none'; }
+
     document.querySelectorAll('.thread-card').forEach(card=>{
         card.addEventListener('click',()=>openThread(card.dataset.id, card.dataset.name, card.dataset.type));
         if(card.dataset.hasDraft === 'true'){
@@ -1417,6 +1621,57 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
                 }
             });
         });
+    }
+
+    // Search in Thread
+    var searchInThreadTimeout;
+    function openSearchInThread(){
+        var bar = $('threadSearchBar');
+        var input = $('threadSearchInput');
+        if(!bar || !currentThreadId) return;
+        bar.style.display = '';
+        input.focus();
+    }
+    $('threadSearchClose')?.addEventListener('click',function(){
+        $('threadSearchBar').style.display = 'none';
+        $('threadSearchResults').style.display = 'none';
+        $('threadSearchInput').value = '';
+    });
+    $('threadSearchInput')?.addEventListener('input',function(){
+        clearTimeout(searchInThreadTimeout);
+        var q = this.value.trim();
+        if(q.length < 2){ $('threadSearchResults').style.display = 'none'; return; }
+        searchInThreadTimeout = setTimeout(function(){
+            fetch('/messages/api/thread/' + encodeURIComponent(currentThreadId) + '/search?q=' + encodeURIComponent(q))
+                .then(function(r){ return r.json(); })
+                .then(function(data){
+                    var results = data.results || data.messages || data || [];
+                    if(!Array.isArray(results)) results = [];
+                    var container = $('threadSearchResults');
+                    if(!results.length){
+                        container.innerHTML = '<div style="padding:14px;color:#9ca3af;font-size:13px;text-align:center;">No results found</div>';
+                    } else {
+                        container.innerHTML = results.slice(0,10).map(function(r){
+                            return '<div class="thread-search-result-item" onclick="jumpToMessage(\'' + escapeHtml(r.id) + '\')">' +
+                                '<span class="thread-search-result-text">' + escapeHtml(r.body || '(media)') + '</span>' +
+                                '<span class="thread-search-result-date">' + timeAgo(r.created_at) + '</span>' +
+                            '</div>';
+                        }).join('');
+                    }
+                    container.style.display = '';
+                }).catch(function(){});
+        }, 300);
+    });
+    function jumpToMessage(msgId){
+        var el = document.querySelector('[data-msg-id="' + CSS.escape(msgId) + '"]');
+        if(el){
+            el.scrollIntoView({behavior:'smooth',block:'center'});
+            el.style.outline = '2px solid #00f2ea';
+            setTimeout(function(){ el.style.outline = ''; }, 2000);
+        }
+        $('threadSearchBar').style.display = 'none';
+        $('threadSearchResults').style.display = 'none';
+        $('threadSearchInput').value = '';
     }
 
     async function startFriendThread(pid, name, username) {

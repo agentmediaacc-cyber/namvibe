@@ -98,10 +98,11 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
                mt.is_pinned,
                mt.is_archived,
                mt.muted,
-               peer.profile_json AS other_member,
-               latest.body AS last_message,
-               latest.created_at AS last_message_at,
-               COALESCE(unread.unread_count, 0) AS unread_count
+                peer.profile_json AS other_member,
+                latest.body AS last_message,
+                latest.sender_profile_id AS last_message_sender_id,
+                latest.created_at AS last_message_at,
+                COALESCE(unread.unread_count, 0) AS unread_count
         FROM member_threads mt
         LEFT JOIN LATERAL (
             SELECT json_build_object('id', p.id, 'username', p.username, 'avatar_url', p.avatar_url, 'full_name', p.full_name) AS profile_json
@@ -111,7 +112,7 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
             LIMIT 1
         ) peer ON TRUE
         LEFT JOIN LATERAL (
-            SELECT body, created_at
+            SELECT body, sender_profile_id, created_at
             FROM chain_messages m
             WHERE m.thread_id = mt.id AND m.deleted_at IS NULL
             ORDER BY created_at DESC

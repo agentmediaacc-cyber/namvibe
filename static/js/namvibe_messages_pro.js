@@ -656,6 +656,150 @@
     qs("[data-restore-call]")?.addEventListener("click", restoreCall);
   }
 
+  // ── Wallpaper Support ──
+  function wireWallpaper() {
+    const container = $("message-list") || $("messages-area") || $("message-container") || qs(".message-list, .messages-area, [data-message-container]");
+    if (!container) return;
+    const saved = localStorage.getItem("namvibe_chat_wallpaper");
+    if (saved) {
+      try {
+        const wp = JSON.parse(saved);
+        if (wp.image) container.style.backgroundImage = `url(${wp.image})`;
+        if (wp.color) container.style.backgroundColor = wp.color;
+        container.style.backgroundSize = "cover";
+        container.style.backgroundPosition = "center";
+        container.style.backgroundBlendMode = "overlay";
+      } catch (_) {}
+    }
+  }
+
+  function setWallpaper(imageUrl, color) {
+    const data = {};
+    if (imageUrl) data.image = imageUrl;
+    if (color) data.color = color;
+    localStorage.setItem("namvibe_chat_wallpaper", JSON.stringify(data));
+    wireWallpaper();
+  }
+
+  function clearWallpaper() {
+    localStorage.removeItem("namvibe_chat_wallpaper");
+    const container = $("message-list") || $("messages-area") || $("message-container") || qs(".message-list, .messages-area, [data-message-container]");
+    if (container) {
+      container.style.backgroundImage = "";
+      container.style.backgroundColor = "";
+    }
+  }
+
+  // ── Conversation Actions (Pin / Mute / Archive) ──
+  function wireConversationActions() {
+    qsa(".thread-card .thread-context-btn").forEach(function (btn) {
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        const card = this.closest(".thread-card");
+        if (!card) return;
+        let menu = $("thread-context-menu");
+        if (!menu) {
+          menu = document.createElement("div");
+          menu.id = "thread-context-menu";
+          menu.className = "thread-context-menu";
+          menu.innerHTML = [
+            '<button class="context-item" data-action="pin"><i class="fas fa-thumbtack"></i> <span>Pin</span></button>',
+            '<button class="context-item" data-action="mute"><i class="fas fa-volume-off"></i> <span>Mute</span></button>',
+            '<button class="context-item" data-action="archive"><i class="fas fa-archive"></i> <span>Archive</span></button>',
+            '<button class="context-item danger" data-action="delete"><i class="fas fa-trash"></i> <span>Delete</span></button>',
+          ].join("");
+          document.body.appendChild(menu);
+        }
+
+        const rect = this.getBoundingClientRect();
+        menu.style.top = rect.bottom + 4 + "px";
+        menu.style.left = Math.max(8, rect.right - 180) + "px";
+        menu.style.display = "block";
+        menu.dataset.threadId = card.dataset.id;
+        menu.dataset.threadName = card.dataset.name || "";
+        menu.dataset.isPinned = card.dataset.pinned || "false";
+        menu.dataset.isMuted = card.dataset.muted || "false";
+
+        menu.querySelector('[data-action="pin"] span').textContent = card.dataset.pinned === "true" ? "Unpin" : "Pin";
+        menu.querySelector('[data-action="mute"] span').textContent = card.dataset.muted === "true" ? "Unmute" : "Mute";
+      });
+    });
+
+    qsa(".context-item[data-action]").forEach(function (item) {
+      item.addEventListener("click", function () {
+        const menu = this.closest(".thread-context-menu");
+        if (!menu) return;
+        const tid = menu.dataset.threadId;
+        const action = this.dataset.action;
+        if (!tid) return;
+        menu.style.display = "none";
+
+        if (action === "pin") {
+          const pinned = menu.dataset.isPinned === "true";
+          fetch("/messages/api/threads/" + encodeURIComponent(tid) + "/pin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pinned: !pinned }),
+          }).then(function () { location.reload(); }).catch(function () {});
+        } else if (action === "mute") {
+          const muted = menu.dataset.isMuted === "true";
+          fetch("/messages/api/threads/" + encodeURIComponent(tid) + "/mute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ muted: !muted }),
+          }).then(function () { location.reload(); }).catch(function () {});
+        } else if (action === "archive") {
+          fetch("/messages/api/threads/" + encodeURIComponent(tid) + "/archive", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ archived: true }),
+          }).then(function () { location.reload(); }).catch(function () {});
+        } else if (action === "delete") {
+          if (!confirm("Delete this conversation?")) return;
+          fetch("/messages/api/threads/" + encodeURIComponent(tid) + "/move", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ folder: "trash" }),
+          }).then(function () { location.reload(); }).catch(function () {});
+        }
+      });
+    });
+
+    document.addEventListener("click", function (e) {
+      const menu = $("thread-context-menu");
+      if (menu && !menu.contains(e.target) && !e.target.closest(".thread-context-btn")) {
+        menu.style.display = "none";
+      }
+    });
+  }
+
+  // ── New Message Chip ──
+  function wireNewMessageChip() {
+    const container = $("messages-area") || $("message-list") || qs(".messages-area, .message-list, [data-message-container]");
+    if (!container) return;
+    let chip = $("new-message-chip");
+    if (!chip) {
+      chip = document.createElement("div");
+      chip.id = "new-message-chip";
+      chip.className = "new-message-chip";
+      chip.innerHTML = '<i class="fas fa-arrow-down"></i> New messages';
+      chip.setAttribute("hidden", "");
+      container.parentElement?.appendChild(chip);
+    }
+    container.addEventListener("scroll", function () {
+      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+      if (atBottom) {
+        chip.setAttribute("hidden", "");
+      } else if (container.scrollHeight > container.clientHeight + 120) {
+        chip.removeAttribute("hidden");
+      }
+    });
+    chip.addEventListener("click", function () {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      chip.setAttribute("hidden", "");
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.add("chain-message-mode");
     $("reply-preview")?.setAttribute("data-reply-preview", "true");
@@ -668,8 +812,15 @@
     wireDraftAutosave();
     wireScrollToBottom();
     wirePiP();
+    wireWallpaper();
+    wireConversationActions();
+    wireNewMessageChip();
     flushOfflineQueue();
   });
 
-  window.NamVibeMessagesPro = { flushOfflineQueue, queueMessage, sendPayload, minimizeCall, restoreCall };
+  window.NamVibeMessagesPro = {
+    flushOfflineQueue, queueMessage, sendPayload,
+    minimizeCall, restoreCall,
+    setWallpaper, clearWallpaper, wireWallpaper,
+  };
 })();
