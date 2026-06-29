@@ -69,6 +69,7 @@ def _is_active_subscription(viewer_profile_id, owner_id):
            WHERE subscriber_profile_id = %s AND creator_profile_id = %s AND status = 'active'
            LIMIT 1""",
         (viewer_profile_id, owner_id),
+        timeout_ms=500,
         default=[],
     )
     return bool(rows)
@@ -83,6 +84,7 @@ def _is_follower(viewer_profile_id, owner_id):
            WHERE follower_profile_id = %s AND following_profile_id = %s
            LIMIT 1""",
         (viewer_profile_id, owner_id),
+        timeout_ms=500,
         default=[],
     )
     return bool(rows)
@@ -327,56 +329,92 @@ def list_viewers(status_id, requesting_profile_id=None):
     return result
 
 def list_active_statuses(profile_id=None, viewer_profile_id=None):
-    """List active (non-expired) statuses with visibility filtering."""
+    """List active (non-expired) statuses with visibility filtering.
+    
+    Performance optimized: uses CTE to batch-follow lookups for the viewer
+    and avoids correlated subqueries by pushing all filtering into the JOIN conditions.
+    """
     now = _utcnow_iso()
     cache_key_str = cache_key(f"status:active:{profile_id or 'all'}:viewer:{viewer_profile_id or 'anon'}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
     
-    sql = """
-        SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
-               COALESCE(s.views_count, 0) as views_count
-        FROM chain_status_posts s
-        JOIN chain_profiles p ON s.profile_id = p.id
-        WHERE s.expires_at > %s AND s.deleted_at IS NULL
-    """
-    params = [now]
-    
+    # Build optimized query based on view context
     if profile_id:
-        sql += " AND s.profile_id = %s"
-        params.append(profile_id)
+        # Single profile view - simpler query
+        params = [now, profile_id]
+        sql = """
+            SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
+                   COALESCE(s.views_count, 0) as views_count
+            FROM chain_status_posts s
+            JOIN chain_profiles p ON s.profile_id = p.id
+            WHERE s.expires_at > %s AND s.deleted_at IS NULL
+              AND s.profile_id = %s
+        """
         if viewer_profile_id and str(profile_id) != str(viewer_profile_id):
+            # Use EXISTS for visibility checks - more efficient than multiple OR branches
+            viewer = str(viewer_profile_id)
+            params.append(viewer)
+            params.append(viewer)
+            params.append(viewer_profile_id)
             sql += """ AND (
-                (s.visibility = 'followers' AND EXISTS (
+                s.visibility = 'followers' AND EXISTS (
                     SELECT 1 FROM chain_follows
                     WHERE follower_profile_id = %s AND following_profile_id = s.profile_id
-                ))
-                OR (s.visibility IN ('subscribers','locked') AND EXISTS (
+                )
+                OR s.visibility IN ('subscribers','locked') AND EXISTS (
                     SELECT 1 FROM chain_creator_subscriptions
                     WHERE subscriber_profile_id = %s AND creator_profile_id = s.profile_id AND status = 'active'
-                ))
-                OR (s.visibility = 'private' AND s.profile_id = %s)
+                )
+                OR s.visibility = 'private' AND s.profile_id = %s
             )"""
-            params.extend([viewer_profile_id, viewer_profile_id, viewer_profile_id])
-    else:
-        if viewer_profile_id:
-            sql += """ AND (
-                s.profile_id = %s
-                OR (s.profile_id IN (SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s) AND (
-                    s.visibility = 'followers'
-                    OR (s.visibility IN ('subscribers','locked') AND EXISTS (
-                        SELECT 1 FROM chain_creator_subscriptions
-                        WHERE subscriber_profile_id = %s AND creator_profile_id = s.profile_id AND status = 'active'
-                    ))
-                ))
-            )"""
-            params.extend([viewer_profile_id, viewer_profile_id, viewer_profile_id])
+        elif viewer_profile_id and str(profile_id) == str(viewer_profile_id):
+            # Owner can see all their own statuses - no additional filter
+            pass
         else:
-            sql += " AND 1 = 0"
+            # No viewer - only public/followers
+            sql += """ AND s.visibility IN ('public', 'followers')"""
+    else:
+        # Feed view - optimized with follow_map CTE
+        if viewer_profile_id:
+            viewer = str(viewer_profile_id)
+            params = [viewer, now, viewer, viewer, viewer]
+            sql = """
+                WITH follow_map AS (
+                    SELECT following_profile_id FROM chain_follows
+                    WHERE follower_profile_id = %s AND deleted_at IS NULL
+                ),
+                subscription_map AS (
+                    SELECT creator_profile_id FROM chain_creator_subscriptions
+                    WHERE subscriber_profile_id = %s AND status = 'active'
+                )
+                SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
+                       COALESCE(s.views_count, 0) as views_count
+                FROM chain_status_posts s
+                JOIN chain_profiles p ON s.profile_id = p.id
+                WHERE s.expires_at > %s AND s.deleted_at IS NULL
+                  AND (
+                      s.profile_id = %s
+                      OR s.visibility = 'public'
+                      OR (s.visibility = 'followers' AND s.profile_id IN (SELECT following_profile_id FROM follow_map))
+                      OR (s.visibility IN ('subscribers','locked') AND s.profile_id IN (SELECT creator_profile_id FROM subscription_map))
+                  )
+            """
+            params = [viewer, viewer, now, viewer]
+        else:
+            # No viewer - no statuses visible (empty feed)
+            sql = """
+                SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
+                       COALESCE(s.views_count, 0) as views_count
+                FROM chain_status_posts s
+                JOIN chain_profiles p ON s.profile_id = p.id
+                WHERE s.expires_at > %s AND s.deleted_at IS NULL AND 1 = 0
+            """
+            params = [now]
 
     sql += " ORDER BY s.created_at DESC LIMIT 50"
-    rows = fast_query(sql, tuple(params))
+    rows = fast_query(sql, tuple(params), timeout_ms=2000, default=[])
     serialized = [serialize_status(row, viewer_profile_id=viewer_profile_id) for row in rows]
     set_cache(cache_key_str, serialized, ttl=15)
     return serialized

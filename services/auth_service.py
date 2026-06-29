@@ -766,7 +766,7 @@ def _find_profile_for_user(user):
 
 
 from services.neon_service import write_query, fast_query
-from services.profile_service import ensure_neon_profile, get_profile_completion, is_profile_complete, is_adult_profile
+from services.profile_service import ensure_neon_profile, is_profile_complete, is_adult_profile
 
 def sync_oauth_profile(user, provider):
     email = clean_email(getattr(user, "email", None))

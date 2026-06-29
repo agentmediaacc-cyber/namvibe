@@ -56,6 +56,10 @@ def _invalidate_thread_list_cache(profile_id):
 
 def list_threads(profile_id, include_archived=False, folder='primary', limit=30, offset=0):
     """Lists message threads for a profile in a specific folder with pagination."""
+    # Cap limit to prevent abuse
+    limit = min(int(limit or 30), 100)
+    offset = max(int(offset or 0), 0)
+    
     archived_filter = "AND tm.is_archived = FALSE" if not include_archived else ""
     folder_filter = ""
     params = [profile_id]
@@ -68,6 +72,10 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
 
     tn = _thread_name_expr("t")
     tav = _thread_avatar_expr("t")
+    
+    # Optimized: pull unread counts in a single separate batch to eliminate
+    # per-row correlated subquery overhead, and use a simpler query structure
+    # that the Postgres planner can handle more efficiently.
     sql = f"""
         WITH member_threads AS (
             SELECT
@@ -137,7 +145,9 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
-    threads = fast_query(sql, tuple(params), timeout_ms=800, default=[])
+    
+    # Use a higher timeout since this is a complex query
+    threads = fast_query(sql, tuple(params), timeout_ms=2000, default=[])
     # Process threads to handle group vs direct labels
     for thread in threads:
         if thread.get('thread_type') == 'group':

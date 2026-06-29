@@ -3,6 +3,7 @@ from datetime import datetime, timezone, timedelta
 import uuid
 from services.neon_service import fast_query, write_query
 from services.socketio_service import emit_to_profile
+from engines.cache_engine import cache_key, get_cache, set_cache, delete_cache
 
 def _utcnow_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -185,15 +186,38 @@ def check_call_timeouts():
     return len(stale_calls)
 
 def list_recent_calls(profile_id):
+    """Get recent calls with caching for performance."""
+    # Check cache first (short TTL for recent calls)
+    cache_key_str = cache_key("recent_calls", profile_id, 10, 0)
+    cached = get_cache(cache_key_str)
+    if cached is not None:
+        return cached
+    
+    # Optimized query: use UNION instead of OR for better index usage,
+    # and only select the profile columns we actually need
     sql = """
-        SELECT c.*,
+        SELECT c.id, c.conversation_id, c.call_type, c.call_status, c.started_at, c.ended_at, c.duration_seconds,
+               c.caller_profile_id, c.receiver_profile_id,
                caller.username as caller_username, caller.avatar_url as caller_avatar,
                receiver.username as receiver_username, receiver.avatar_url as receiver_avatar
         FROM chain_call_sessions c
         LEFT JOIN chain_profiles caller ON c.caller_profile_id = caller.id
         LEFT JOIN chain_profiles receiver ON c.receiver_profile_id = receiver.id
-        WHERE c.caller_profile_id = %s OR c.receiver_profile_id = %s
-        ORDER BY c.started_at DESC
+        WHERE c.caller_profile_id = %s
+        UNION
+        SELECT c.id, c.conversation_id, c.call_type, c.call_status, c.started_at, c.ended_at, c.duration_seconds,
+               c.caller_profile_id, c.receiver_profile_id,
+               caller.username as caller_username, caller.avatar_url as caller_avatar,
+               receiver.username as receiver_username, receiver.avatar_url as receiver_avatar
+        FROM chain_call_sessions c
+        LEFT JOIN chain_profiles caller ON c.caller_profile_id = caller.id
+        LEFT JOIN chain_profiles receiver ON c.receiver_profile_id = receiver.id
+        WHERE c.receiver_profile_id = %s
+        ORDER BY started_at DESC
         LIMIT 50
     """
-    return fast_query(sql, (profile_id, profile_id))
+    results = fast_query(sql, (profile_id, profile_id), timeout_ms=2000, default=[]) or []
+    
+    # Cache for 10 seconds (recent calls are time-sensitive)
+    set_cache(cache_key_str, results, ttl=10)
+    return results
