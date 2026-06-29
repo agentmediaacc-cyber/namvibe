@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Creator Studio | NamVibe{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/namvibe_creator_studio.css">
+{% endblock %}
+{% block content %}
+<div class="studio-root">
+  <div class="studio-container">
+    <div class="studio-header">
+      <div class="studio-title">&#9889; Creator Studio</div>
+      <div class="studio-nav">
+        <button class="studio-nav-btn active" data-tab="dashboard">Overview</button>
+        <button class="studio-nav-btn" data-tab="analytics">Analytics</button>
+        <button class="studio-nav-btn" data-tab="earnings">Earnings</button>
+        <button class="studio-nav-btn" data-tab="content">Content</button>
+        <button class="studio-nav-btn" data-tab="moderation">Moderation</button>
+        <button class="studio-nav-btn" data-tab="business">Business</button>
+        <button class="studio-nav-btn" data-tab="milestones">Milestones</button>
+      </div>
+    </div>
+
+    <!-- Panels -->
+    <div id="studio-panel-dashboard" class="studio-panel active"></div>
+    <div id="studio-panel-analytics" class="studio-panel"></div>
+    <div id="studio-panel-earnings" class="studio-panel"></div>
+    <div id="studio-panel-content" class="studio-panel"></div>
+    <div id="studio-panel-moderation" class="studio-panel"></div>
+    <div id="studio-panel-business" class="studio-panel"></div>
+    <div id="studio-panel-milestones" class="studio-panel"></div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script src="/static/js/namvibe_creator_studio.js"></script>
+{% endblock %}

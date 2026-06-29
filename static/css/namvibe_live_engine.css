@@ -1,0 +1,905 @@
+/* ─── Live Engine Premium Styles ─── */
+
+.live-engine-root {
+  --live-accent: #ff2d55;
+  --live-accent-glow: rgba(255, 45, 85, 0.4);
+  --live-bg: #0a0a0f;
+  --live-card-bg: #151520;
+  --live-surface: #1c1c2e;
+  --live-border: #2a2a40;
+  --live-text: #f0f0f5;
+  --live-text-secondary: #8888a0;
+  --live-danger: #ff3b30;
+  --live-success: #34c759;
+  --live-warning: #ff9500;
+  --live-overlay: rgba(0, 0, 0, 0.7);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+}
+
+/* ─── Live Room Grid ─── */
+.live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.live-grid-card {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--live-card-bg);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.live-grid-card:active {
+  transform: scale(0.97);
+}
+
+.live-grid-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 24px rgba(255, 45, 85, 0.15);
+}
+
+.live-card-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.live-card-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: var(--live-text-secondary);
+  font-size: 48px;
+}
+
+.live-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 10px 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+}
+
+.live-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.live-card-host {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-card-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--live-accent);
+  color: #fff;
+}
+
+.live-card-badge .live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: livePulse 1.5s ease-in-out infinite;
+}
+
+.live-card-viewers {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ─── Live Section Header ─── */
+.live-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 8px;
+}
+
+.live-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--live-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-section-title .live-icon {
+  color: var(--live-accent);
+}
+
+.live-section-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--live-accent);
+  text-decoration: none;
+}
+
+/* ─── Featured / Trending ─── */
+.live-featured-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 0 16px 12px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.live-featured-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.live-featured-card {
+  flex: 0 0 200px;
+  scroll-snap-align: start;
+  aspect-ratio: 9 / 16;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--live-card-bg);
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.live-featured-card:active {
+  transform: scale(0.97);
+}
+
+/* ─── Create Room Button ─── */
+.live-create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 400px;
+  margin: 16px auto;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--live-accent), #ff6b6b);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px var(--live-accent-glow);
+}
+
+.live-create-btn:active {
+  transform: scale(0.97);
+}
+
+.live-create-btn.secondary {
+  background: var(--live-surface);
+  box-shadow: none;
+}
+
+/* ─── Loading / Skeleton ─── */
+.live-skeleton {
+  background: linear-gradient(90deg, var(--live-card-bg) 25%, var(--live-surface) 50%, var(--live-card-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 14px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ─── Fullscreen Room ─── */
+.live-room-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--live-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.live-room-video {
+  flex: 1;
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-room-video iframe,
+.live-room-video video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.live-room-video-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--live-text-secondary);
+  font-size: 64px;
+}
+
+.live-room-video-placeholder span {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* ─── Room Header ─── */
+.live-room-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent);
+  z-index: 10;
+}
+
+.live-room-back {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.live-room-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-room-host-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--live-accent);
+  object-fit: cover;
+}
+
+.live-room-host-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.live-room-host-status {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.live-room-options {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+/* ─── Chat Overlay ─── */
+.live-room-bottom {
+  height: 40%;
+  min-height: 200px;
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--live-bg);
+  border-top: 1px solid var(--live-border);
+}
+
+.live-chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.live-chat-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.live-chat-container::-webkit-scrollbar-thumb {
+  background: var(--live-border);
+  border-radius: 2px;
+}
+
+.live-chat-message {
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 85%;
+  word-wrap: break-word;
+  animation: chatSlideIn 0.2s ease;
+}
+
+.live-chat-message.self {
+  align-self: flex-end;
+  background: var(--live-accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.live-chat-message.other {
+  align-self: flex-start;
+  background: var(--live-surface);
+  color: var(--live-text);
+  border-bottom-left-radius: 4px;
+}
+
+.live-chat-message .chat-sender {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--live-accent);
+  margin-bottom: 2px;
+}
+
+.live-chat-message.self .chat-sender {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.live-chat-message .chat-body {
+  font-size: 13px;
+}
+
+.live-chat-message .chat-time {
+  font-size: 10px;
+  color: var(--live-text-secondary);
+  margin-top: 2px;
+  text-align: right;
+}
+
+.live-chat-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--live-text-secondary);
+  font-size: 14px;
+}
+
+.live-chat-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--live-border);
+  background: var(--live-bg);
+}
+
+.live-chat-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--live-border);
+  border-radius: 24px;
+  font-size: 14px;
+  background: var(--live-surface);
+  color: var(--live-text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.live-chat-input:focus {
+  border-color: var(--live-accent);
+}
+
+.live-chat-input::placeholder {
+  color: var(--live-text-secondary);
+}
+
+.live-chat-send {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--live-accent);
+  color: #fff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.live-chat-send:active {
+  transform: scale(0.9);
+}
+
+.live-chat-send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ─── Reactions ─── */
+.live-reaction-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--live-border);
+  overflow-x: auto;
+}
+
+.live-reaction-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.live-reaction-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--live-border);
+  background: var(--live-surface);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.live-reaction-btn:active {
+  transform: scale(1.3);
+  background: var(--live-accent);
+}
+
+/* ─── Floating Reaction Animation ─── */
+.live-floating-reaction {
+  position: absolute;
+  font-size: 32px;
+  pointer-events: none;
+  animation: floatUp 1.5s ease-out forwards;
+  z-index: 20;
+}
+
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-60px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120px) scale(0.8);
+  }
+}
+
+/* ─── Gift Drawer ─── */
+.live-gift-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--live-bg);
+  border-radius: 20px 20px 0 0;
+  padding: 16px;
+  z-index: 30;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.live-gift-drawer.open {
+  transform: translateY(0);
+}
+
+.live-gift-drawer-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--live-border);
+  margin: 0 auto 12px;
+}
+
+.live-gift-drawer-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--live-text);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.live-gift-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.live-gift-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 12px;
+  background: var(--live-surface);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.live-gift-item.selected {
+  border-color: var(--live-accent);
+  background: rgba(255, 45, 85, 0.1);
+}
+
+.live-gift-item:active {
+  transform: scale(0.95);
+}
+
+.live-gift-icon {
+  font-size: 28px;
+}
+
+.live-gift-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--live-text);
+}
+
+.live-gift-price {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--live-warning);
+}
+
+.live-gift-send-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--live-warning), #ff6347);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.live-gift-send-btn:active {
+  transform: scale(0.97);
+}
+
+.live-gift-send-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ─── Moderation Menu ─── */
+.live-moderation-menu {
+  position: absolute;
+  top: 50px;
+  right: 12px;
+  background: var(--live-surface);
+  border: 1px solid var(--live-border);
+  border-radius: 12px;
+  padding: 4px 0;
+  z-index: 40;
+  min-width: 180px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.live-moderation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  color: var(--live-text);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.live-moderation-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.live-moderation-item.danger {
+  color: var(--live-danger);
+}
+
+.live-moderation-item .mod-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* ─── Guest Request Drawer ─── */
+.live-guest-request-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--live-border);
+  border-radius: 20px;
+  background: var(--live-surface);
+  color: var(--live-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.live-guest-request-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Reconnecting State ─── */
+.live-reconnecting {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  z-index: 50;
+}
+
+.live-reconnecting .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--live-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Toast ─── */
+.live-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  z-index: 99999;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.5s forwards;
+}
+
+.live-toast.success {
+  background: var(--live-success);
+}
+
+.live-toast.error {
+  background: var(--live-danger);
+}
+
+.live-toast.info {
+  background: var(--live-accent);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}
+
+/* ─── Skeleton Loading ─── */
+.live-grid-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+
+.live-skeleton-card {
+  aspect-ratio: 9 / 16;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--live-card-bg) 25%, var(--live-surface) 50%, var(--live-card-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ─── Empty State ─── */
+.live-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: var(--live-text-secondary);
+  text-align: center;
+}
+
+.live-empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.live-empty-state .empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--live-text);
+  margin-bottom: 4px;
+}
+
+.live-empty-state .empty-subtitle {
+  font-size: 14px;
+}
+
+/* ─── Terms / Locked ─── */
+.live-locked-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 5;
+}
+
+.live-locked-content {
+  text-align: center;
+  color: #fff;
+  padding: 20px;
+}
+
+.live-locked-content .lock-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.live-locked-content .lock-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.live-locked-content .lock-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ─── Mobile Responsive ─── */
+@media (max-width: 768px) {
+  .live-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .live-featured-card {
+    flex: 0 0 160px;
+  }
+
+  .live-room-bottom {
+    height: 35%;
+    min-height: 180px;
+  }
+
+  .live-gift-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .live-section-title {
+    font-size: 18px;
+  }
+
+  .live-create-btn {
+    margin: 12px 16px;
+    width: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .live-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .live-grid-card {
+    border-radius: 10px;
+  }
+
+  .live-room-bottom {
+    height: 30%;
+    min-height: 150px;
+  }
+}
+
+/* ─── Moderation Backdrop ─── */
+.live-mod-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 35;
+}

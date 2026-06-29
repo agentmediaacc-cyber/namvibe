@@ -55,6 +55,34 @@ from services.live_streaming_service import (
     get_premium_rooms,
     get_room_metadata,
 )
+from services.live_engine import (
+    get_trending_live_rooms as _le_trending,
+    create_live_room as _le_create_room,
+    get_live_room as _le_get_room,
+    get_live_rooms as _le_list_rooms,
+    join_live_room as _le_join,
+    leave_live_room as _le_leave,
+    get_live_viewers as _le_viewers,
+    request_guest_slot as _le_guest_request,
+    approve_guest_request as _le_guest_approve,
+    reject_guest_request as _le_guest_reject,
+    remove_guest as _le_guest_remove,
+    add_cohost as _le_add_cohost,
+    remove_cohost as _le_remove_cohost,
+    get_cohosts as _le_get_cohosts,
+    send_live_chat as _le_send_chat,
+    get_live_chat_messages as _le_get_chat,
+    delete_live_chat_message as _le_delete_chat,
+    pin_live_chat_message as _le_pin_chat,
+    send_live_reaction as _le_send_reaction,
+    get_live_reactions as _le_get_reactions,
+    send_live_gift as _le_send_gift,
+    get_live_gift_leaderboard as _le_gift_leaderboard,
+    get_live_gift_catalog as _le_gift_catalog,
+    moderate_live_user as _le_moderate,
+    get_live_analytics as _le_analytics,
+    get_creator_live_analytics as _le_creator_analytics,
+)
 from services.logging_service import log_info
 
 live_bp = Blueprint("live", __name__, url_prefix="/live")
@@ -648,3 +676,101 @@ def api_rooms_settings(room_id):
         return jsonify({"ok": bool(result)})
     room = get_room(room_id)
     return jsonify({"ok": bool(room), "room": room})
+
+
+# ─── Phase 6: Live Engine Routes ───
+
+@live_bp.route("/api/live/trending")
+def api_live_trending():
+    resp = _le_trending()
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/viewers")
+def api_live_viewers(room_id):
+    resp = _le_viewers(room_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/reactions", methods=["GET", "POST"])
+@login_required
+def api_live_reactions(room_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        rtype = data.get("reaction_type", "heart")
+        resp = _le_send_reaction(room_id, profile["id"], rtype)
+        return jsonify(resp)
+    resp = _le_get_reactions(room_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/chat", methods=["GET"])
+def api_live_chat(room_id):
+    resp = _le_get_chat(room_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/chat/<message_id>/delete", methods=["POST"])
+@login_required
+def api_live_chat_delete(room_id, message_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    resp = _le_delete_chat(room_id, message_id, profile["id"])
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/chat/<message_id>/pin", methods=["POST"])
+@login_required
+def api_live_chat_pin(room_id, message_id):
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    resp = _le_pin_chat(room_id, message_id, profile["id"])
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/guest/<request_id>/approve", methods=["POST"])
+@login_required
+def api_guest_approve(request_id):
+    resp = _le_guest_approve(request_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/guest/<request_id>/reject", methods=["POST"])
+@login_required
+def api_guest_reject(request_id):
+    resp = _le_guest_reject(request_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/guest/<profile_id>/remove", methods=["POST"])
+@login_required
+def api_guest_remove(room_id, profile_id):
+    resp = _le_guest_remove(room_id, profile_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/gift/leaderboard")
+def api_gift_leaderboard(room_id):
+    resp = _le_gift_leaderboard(room_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/<room_id>/analytics")
+def api_live_analytics(room_id):
+    resp = _le_analytics(room_id)
+    return jsonify(resp)
+
+
+@live_bp.route("/api/live/analytics/creator")
+@login_required
+def api_creator_live_analytics():
+    profile = get_current_profile()
+    if not profile or not profile.get("id"):
+        return jsonify({"error": "Unauthorized"}), 401
+    resp = _le_creator_analytics(profile["id"])
+    return jsonify(resp)

@@ -57,6 +57,7 @@ from api_routes.mobile_api_routes import mobile_api_bp
 from api_routes.engagement_routes import engagement_bp
 from api_routes.marketplace_routes import marketplace_bp
 from api_routes.creator_routes import creator_bp
+from api_routes.creator_studio_routes import studio_bp
 from api_routes.social_routes import social_api_bp, social_bp
 from api_routes.post_routes import post_bp, media_bp
 from api_routes.metrics_routes import metrics_bp
@@ -524,6 +525,7 @@ def create_app():
     app.register_blueprint(homepage_api_bp)
     app.register_blueprint(feed_preload_bp)
     app.register_blueprint(creator_bp)
+    app.register_blueprint(studio_bp)
     app.register_blueprint(social_bp, url_prefix="/social")
     app.register_blueprint(social_api_bp)
     app.register_blueprint(push_bp)
