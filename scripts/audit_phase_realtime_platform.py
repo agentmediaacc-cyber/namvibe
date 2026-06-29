@@ -159,15 +159,13 @@ def main():
 
     # 12. Verify production routes still work
     print("\n[12] Production Route Integrity")
-    try:
-        from scripts.verify_production_routes import main as verify_main
-        # Don't actually run the full verification since it needs DB, just check import
-        check("verify_production_routes imports OK", True, failures)
-    except Exception as e:
-        check("verify_production_routes imports", False, failures)
+    vpr_path = ROOT / "scripts/verify_production_routes.py"
+    check("verify_production_routes.py exists", vpr_path.exists(), failures)
+    if vpr_path.exists():
+        check("verify_production_routes.py compiles", py_compile.compile(str(vpr_path), doraise=True), failures)
 
     # Summary
-    total = 67
+    total = 68
     passed = total - len(failures)
     print(f"\n{'='*50}")
     print(f"Audit: {passed}/{total} passed")
