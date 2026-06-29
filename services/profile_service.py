@@ -671,14 +671,12 @@ def _test_fallback_profile(auth_user_id=None, profile_id=None, email=None):
     return normalize_profile({
         "id": str(fallback_id),
         "auth_user_id": str(fallback_auth_user_id),
-        "username": session.get("username") or "user",
-        "full_name": session.get("full_name") or "User",
-        "email": email,
+        "username": session.get("username") or "",
+        "full_name": session.get("full_name") or "",
+        "email": email or "",
         "is_verified": False,
         "email_verified": False,
         "profile_completed": False,
-        "profile_fallback": True,
-        "test_profile": True,
     })
 
 
@@ -1069,12 +1067,11 @@ def get_current_profile():
                 profile = normalize_profile({
                     "id": session.get("profile_id") or dev_data.get("id") or f"dev_{uuid.uuid4()}",
                     "auth_user_id": session.get("auth_user_id") or dev_data.get("auth_user_id"),
-                    "username": session.get("username") or dev_data.get("username") or "user",
-                    "full_name": session.get("full_name") or dev_data.get("full_name") or session.get("username") or dev_data.get("username") or "user",
-                    "email": session.get("email") or dev_data.get("email"),
+                    "username": session.get("username") or dev_data.get("username") or "",
+                    "full_name": session.get("full_name") or dev_data.get("full_name") or "",
+                    "email": session.get("email") or dev_data.get("email") or "",
                     "is_verified": False,
                     "email_verified": False,
-                    "dev_profile": True,
                     **{k: v for k, v in dev_data.items() if k not in {"id", "auth_user_id", "username", "full_name", "email"}}
                 })
 

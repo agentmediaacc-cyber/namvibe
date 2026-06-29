@@ -1,495 +1,198 @@
 {% extends "profile/base_profile.html" %}
-
+{% block title %}{{ pv.display_name or 'Profile' }} | {{ APP_NAME }}{% endblock %}
 {% block profile_body %}
-{% set pv = profile_view or {} %}
-{% set own_profile = pv.own_profile %}
-{% set pa = action_policy or profile.action_policy or {} %}
-{% set content_data = content or {} %}
-{% set wallet_data = wallet or {} %}
-{% set creator_data = creator or creator_tools or {} %}
-{% set completion_data = pv.completion or completion or {'percent': 0, 'checklist': [], 'missing': []} %}
-{% set posts = content_data.get('posts', []) %}
-{% set reels = content_data.get('reels', []) %}
-{% set rooms = content_data.get('rooms', []) %}
-{% set stories = content_data.get('stories', []) %}
-{% set products = pv.products or [] %}
-{% set bio = profile.bio or '' %}
-{% set is_subscriber = subscriber_status == 'active' or false %}
-{% set can_view = own_profile or pa.can_view_full_profile is not sameas false %}
-{% set can_view_posts = own_profile or pa.can_view_posts is not sameas false %}
-{% set can_view_reels = own_profile or pa.can_view_reels is not sameas false %}
 
-<main class="nv-profile-pro" data-namvibe-profile-pro>
-  <section class="nv-profile-hero">
-    <div class="nv-cover" data-cover-fallback="{{ '0' if pv.cover_url else '1' }}">
-      {% if pv.cover_url %}
-      <img src="{{ pv.cover_url }}" alt="{{ pv.display_name }} cover" loading="eager">
+{% set p = pv or {} %}
+
+<main class="nv-profile-pro" data-profile-pro data-self="{{ 'true' if p.is_self else 'false' }}" data-profile-id="{{ p.id }}" data-username="{{ p.username }}">
+  <section class="nv-hero">
+    <div class="nv-cover-wrap">
+      {% if p.cover_url %}
+      <img class="nv-cover" src="{{ p.cover_url }}" alt="{{ p.display_name }} cover" loading="eager">
       {% else %}
-      <div class="nv-cover-fallback" aria-hidden="true"></div>
+      <div class="nv-cover nv-cover-fallback" data-gradient="1"></div>
       {% endif %}
-      {% if own_profile %}
-      <button class="nv-cover-action" type="button" data-file-trigger="cover-input">
-        <i class="fas fa-camera"></i><span>Update Cover</span>
-      </button>
-      <form action="/profile/cover" method="POST" enctype="multipart/form-data" hidden>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input id="cover-input" type="file" name="cover" accept="image/*" data-auto-submit>
-      </form>
+      {% if p.is_self %}
+      <button class="nv-cover-edit" type="button" data-action="change-cover" aria-label="Change cover photo"><i class="fas fa-camera"></i></button>
       {% endif %}
-    </div>
-
-    <div class="nv-identity-row">
       <div class="nv-avatar-wrap">
-        {% if pv.avatar_url %}
-        <img class="nv-avatar" src="{{ pv.avatar_url }}" alt="{{ pv.display_name }}">
+        {% if p.avatar_url %}
+        <img class="nv-avatar" src="{{ p.avatar_url }}" alt="{{ p.display_name }}" loading="eager">
         {% else %}
-        <div class="nv-avatar nv-avatar-fallback" data-avatar-fallback="initials">{{ pv.initials }}</div>
+        <div class="nv-avatar nv-avatar-initials">{{ p.initials }}</div>
         {% endif %}
-        {% if pv.active and pv.active.online %}<span class="nv-online-dot" aria-label="Active now"></span>{% endif %}
-        {% if own_profile %}
-        <button class="nv-avatar-action" type="button" data-file-trigger="avatar-input" aria-label="Update profile photo"><i class="fas fa-camera"></i></button>
-        <form action="/profile/avatar" method="POST" enctype="multipart/form-data" hidden>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input id="avatar-input" type="file" name="avatar" accept="image/*" data-auto-submit>
-        </form>
+        {% if p.is_online %}
+        <span class="nv-online-dot"></span>
         {% endif %}
-      </div>
-
-      <div class="nv-title-block">
-        <div class="nv-name-line">
-          <h1>{{ pv.display_name }}</h1>
-          {% if profile.is_verified or profile.verified or profile.identity_verified %}
-          <span class="nv-verified-badge" title="Verified"><i class="fas fa-check"></i></span>
-          {% endif %}
-          <span class="nv-member-badge">{{ pv.member_badge }}</span>
-        </div>
-        <div class="nv-handle-line">
-          <span>@{{ pv.username }}</span>
-          <span>{{ pv.privacy|replace('_', ' ')|title }}</span>
-          {% if pv.location %}<span><i class="fas fa-location-dot"></i>{{ pv.location }}</span>{% endif %}
-          <span><i class="fas fa-calendar"></i>Joined {{ pv.joined }}</span>
-          <span class="{{ 'is-online' if pv.active.online else '' }}"><i class="fas fa-circle"></i>{{ pv.active.label }}</span>
-        </div>
-        {% if bio %}
-        <p class="nv-hero-bio">{{ bio }}</p>
-        {% elif own_profile %}
-        <p class="nv-hero-bio is-muted">Add a short bio so people know what you create and care about.</p>
-        {% endif %}
-      </div>
-
-      <div class="nv-action-stack">
-        {% if own_profile %}
-        <a class="nv-btn primary" href="/profile/edit"><i class="fas fa-user-pen"></i>Edit Profile</a>
-        <a class="nv-btn" href="/posts/create"><i class="fas fa-plus"></i>Create</a>
-        <a class="nv-btn" href="/wallet"><i class="fas fa-wallet"></i>Wallet</a>
-        <a class="nv-btn" href="/security/privacy"><i class="fas fa-shield-halved"></i>Privacy</a>
-        {% else %}
-          <span class="nv-status-chip">{{ pv.friendship_status_label }}</span>
-          {% if pa.primary_action == 'request_follow' %}
-          <button class="nv-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-clock"></i>Request Follow</button>
-          {% elif pa.primary_action == 'requested' %}
-          <button class="nv-btn primary" type="button" disabled><i class="fas fa-clock"></i>Requested</button>
-          {% elif pa.primary_action == 'following' or is_following %}
-          <button class="nv-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="true"><i class="fas fa-user-check"></i>Following</button>
-          {% else %}
-          <button class="nv-btn primary" type="button" data-profile-follow data-profile-id="{{ profile.id }}" data-following="false"><i class="fas fa-user-plus"></i>Follow</button>
-          {% endif %}
-          {% if pa.can_chat or pv.can_message %}
-          <a class="nv-btn" href="/messages/start/{{ profile.id }}"><i class="fas fa-message"></i>Message</a>
-          {% else %}
-          <button class="nv-btn disabled" type="button" disabled title="Messaging is only available when the profile privacy rules allow it"><i class="fas fa-message"></i>Message locked</button>
-          {% endif %}
-          {% if pa.can_call or pv.can_call %}
-          <a class="nv-icon-btn" href="/calls/start/{{ profile.id }}/audio" title="Audio call"><i class="fas fa-phone"></i></a>
-          {% else %}
-          <button class="nv-icon-btn disabled" type="button" disabled title="Audio calls are only available when the profile privacy rules allow it"><i class="fas fa-phone"></i></button>
-          {% endif %}
-          {% if pa.can_video_call or pv.can_video_call %}
-          <a class="nv-icon-btn" href="/calls/start/{{ profile.id }}/video" title="Video call"><i class="fas fa-video"></i></a>
-          {% else %}
-          <button class="nv-icon-btn disabled" type="button" disabled title="Video calls are only available when the profile privacy rules allow it"><i class="fas fa-video"></i></button>
-          {% endif %}
-          <a class="nv-btn" href="/profile/@{{ profile.username }}#gallery-panel"><i class="fas fa-photo-film"></i>Gallery</a>
-          <a class="nv-btn" href="/wallet/gift?to={{ profile.id }}"><i class="fas fa-gift"></i>Send Gift</a>
+        {% if p.is_self %}
+        <button class="nv-avatar-edit" type="button" data-action="change-avatar" aria-label="Change profile photo"><i class="fas fa-camera"></i></button>
         {% endif %}
       </div>
     </div>
 
-    <div class="nv-stat-strip" data-profile-stats>
-      {% for item in pv.stats %}
-      <div class="nv-stat">
-        <strong>{{ item.value }}</strong>
-        <span>{{ item.label }}</span>
+    <div class="nv-hero-body">
+      <div class="nv-hero-main">
+        <h1 class="nv-display-name">
+          {{ p.display_name }}
+          {% if p.verified %}
+          <span class="nv-badge nv-badge-{{ p.badge_type }}" title="{{ p.badge_label }} Verified">
+            <i class="fas fa-check-circle"></i>
+          </span>
+          {% endif %}
+        </h1>
+        <div class="nv-handle-line">@{{ p.username }}</div>
+        <div class="nv-meta-line">
+          {% if p.location %}<span><i class="fas fa-location-dot"></i> {{ p.location }}</span>{% endif %}
+          <span><i class="fas fa-calendar"></i> Joined {{ p.joined }}</span>
+          <span class="{{ 'is-online' if p.is_online else 'is-offline' }}">
+            <i class="fas fa-circle"></i> {{ p.state_label }}
+          </span>
+          {% if p.category %}<span class="nv-category-tag">{{ p.category }}</span>{% endif %}
+        </div>
+        {% if p.bio %}
+        <p class="nv-bio">{{ p.bio }}</p>
+        {% elif p.is_self %}
+        <p class="nv-bio nv-bio-empty">Add a bio so people know what you create.</p>
+        {% endif %}
+        {% if p.website %}
+        <a class="nv-website" href="{{ p.website }}" target="_blank" rel="noopener"><i class="fas fa-link"></i> {{ p.website }}</a>
+        {% endif %}
       </div>
+
+      <div class="nv-actions">
+        {% if p.is_self %}
+        <a class="nv-btn nv-btn-primary" href="/profile/edit"><i class="fas fa-user-pen"></i> Edit Profile</a>
+        <a class="nv-btn" href="/creator-studio/"><i class="fas fa-rocket"></i> Studio</a>
+        <a class="nv-btn" href="/wallet"><i class="fas fa-wallet"></i> Wallet</a>
+        <a class="nv-btn nv-icon-only" href="/live/studio" title="Go Live"><i class="fas fa-tower-broadcast"></i></a>
+        <a class="nv-btn nv-icon-only" href="/status/create" title="Add Story"><i class="fas fa-circle-plus"></i></a>
+        <a class="nv-btn nv-icon-only" href="/reels/upload" title="Upload Reel"><i class="fas fa-clapperboard"></i></a>
+        {% else %}
+        <div class="nv-actions-primary">
+          {% if p.request_sent %}
+          <button class="nv-btn nv-btn-primary" disabled><i class="fas fa-clock"></i> Requested</button>
+          {% elif p.is_friend %}
+          <button class="nv-btn nv-btn-primary" data-action="friend" data-state="friends"><i class="fas fa-user-check"></i> Friends</button>
+          {% elif p.is_following %}
+          <button class="nv-btn nv-btn-primary" data-action="follow" data-state="following"><i class="fas fa-user-check"></i> Following</button>
+          {% else %}
+          <button class="nv-btn nv-btn-primary" data-action="follow" data-state="none"><i class="fas fa-user-plus"></i> Follow</button>
+          {% endif %}
+          {% if p.is_friend %}
+          <button class="nv-btn" data-action="message"><i class="fas fa-message"></i> Message</button>
+          {% elif p.can_message %}
+          <button class="nv-btn" data-action="message"><i class="fas fa-message"></i> Message</button>
+          {% else %}
+          <button class="nv-btn" disabled title="Messaging not available"><i class="fas fa-message"></i> <span class="nv-hide-mobile">Message</span></button>
+          {% endif %}
+          {% if p.can_call %}
+          <button class="nv-btn nv-icon-only" data-action="call" title="Audio Call"><i class="fas fa-phone"></i></button>
+          {% endif %}
+          {% if p.can_video_call %}
+          <button class="nv-btn nv-icon-only" data-action="video-call" title="Video Call"><i class="fas fa-video"></i></button>
+          {% endif %}
+        </div>
+        <div class="nv-actions-secondary">
+          <button class="nv-btn nv-icon-only" data-action="share" title="Share Profile"><i class="fas fa-share-alt"></i></button>
+          <div class="nv-more-menu" data-more-menu>
+            <button class="nv-btn nv-icon-only" data-action="more" title="More"><i class="fas fa-ellipsis"></i></button>
+            <div class="nv-more-dropdown" hidden>
+              {% if p.report_url %}<button data-action="report"><i class="fas fa-flag"></i> Report</button>{% endif %}
+              {% if not p.is_self %}<button data-action="block"><i class="fas fa-ban"></i> Block</button>{% endif %}
+              {% if not p.is_self %}<button data-action="restrict"><i class="fas fa-eye-slash"></i> Restrict</button>{% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="nv-stats">
+      <div class="nv-stat"><strong>{{ p.posts_count }}</strong><span>Posts</span></div>
+      <div class="nv-stat"><strong>{{ p.reels_count }}</strong><span>Reels</span></div>
+      <div class="nv-stat"><strong>{{ p.stories_count }}</strong><span>Stories</span></div>
+      <div class="nv-stat" data-action="followers"><strong>{{ p.followers_count }}</strong><span>Followers</span></div>
+      <div class="nv-stat" data-action="following"><strong>{{ p.following_count }}</strong><span>Following</span></div>
+      <div class="nv-stat" data-action="friends"><strong>{{ p.friends_count }}</strong><span>Friends</span></div>
+      <div class="nv-stat"><strong>{{ p.likes_count }}</strong><span>Likes</span></div>
+      <div class="nv-stat"><strong>{{ p.views_count }}</strong><span>Views</span></div>
+    </div>
+
+    {% if not p.is_self and p.mutual_friends %}
+    <div class="nv-mutual">
+      {% for mf in p.mutual_friends[:5] %}
+      <a href="/profile/@{{ mf.username }}" class="nv-mutual-avatar" title="{{ mf.display_name }}">
+        {% if mf.avatar_url %}<img src="{{ mf.avatar_url }}" alt="{{ mf.display_name }}">{% else %}<span>{{ mf.display_name[0]|upper }}</span>{% endif %}
+      </a>
       {% endfor %}
+      {% if p.mutual_friends_count > 5 %}
+      <span class="nv-mutual-count">+{{ p.mutual_friends_count - 5 }}</span>
+      {% endif %}
+      {% if p.mutual_friends_count > 0 %}
+      <span class="nv-mutual-text">{{ p.mutual_friends_count }} mutual {{ 'friend' if p.mutual_friends_count == 1 else 'friends' }}</span>
+      {% endif %}
     </div>
-    <div class="nv-social-insights">
-      <article class="nv-insight-card">
-        <p>Friendship status</p>
-        <h3>{{ pv.friendship_status_label }}</h3>
-        <span>{% if pv.mutual_friends_count %}{{ pv.mutual_friends_count }} mutual friends{% else %}Real-time relationship state from the social graph{% endif %}</span>
-      </article>
-      <article class="nv-insight-card">
-        <p>Profile strength</p>
-        <h3>{{ (pv.profile_strength.score or 0) }}% {{ pv.profile_strength.level or 'Fresh' }}</h3>
-        <span>
-          {% if pv.profile_strength.checks %}
-          {% set strength_labels = pv.profile_strength.checks | selectattr('complete') | map(attribute='label') | list %}
-          {{ strength_labels[:2]|join(' · ') if strength_labels else 'Add more profile details, media, and trust signals.' }}
-          {% else %}
-          Add more profile details, media, and trust signals.
-          {% endif %}
-        </span>
-      </article>
+    {% endif %}
+
+    {% if p.is_self and p.profile_strength is not none %}
+    <div class="nv-strength">
+      <div class="nv-strength-bar"><span style="width:{{ p.profile_strength }}%"></span></div>
+      <span class="nv-strength-label">Profile strength: {{ p.profile_strength }}%</span>
     </div>
-    {% if pv.all_stats_zero %}
-    <div class="nv-onboarding-note">Your profile is ready. Post your first update to start growing.</div>
     {% endif %}
   </section>
 
-  {% if pv.highlights %}
-  <section class="nv-highlights" aria-label="Story highlights">
-    {% for item in pv.highlights %}
-    <a class="nv-highlight {{ 'is-empty' if item.empty else '' }}" href="{{ item.url or '#' }}">
-      {% if item.cover_url %}<img src="{{ item.cover_url }}" alt="{{ item.label }}">{% else %}<i class="fas {{ item.icon or 'fa-circle-play' }}"></i>{% endif %}
-      <span>{{ item.label or item.title }}</span>
+  {% if p.highlights %}
+  <section class="nv-highlights">
+    {% for h in p.highlights[:8] %}
+    <a class="nv-highlight" href="#" data-highlight-id="{{ h.id }}">
+      {% if h.cover_url %}<img src="{{ h.cover_url }}" alt="{{ h.title }}">{% else %}<div class="nv-highlight-fallback"><i class="fas fa-star"></i></div>{% endif %}
+      <span>{{ h.title }}</span>
     </a>
     {% endfor %}
   </section>
   {% endif %}
 
-  <nav class="nv-profile-tabs" data-profile-tabbar aria-label="Profile sections">
-    {% for tab in pv.tabs %}
-    <button class="nv-tab {{ 'is-active' if loop.first else '' }}" type="button" data-tab-target="{{ tab.key }}">
-      <i class="fas {{ tab.icon }}"></i><span>{{ tab.label }}</span>
-    </button>
-    {% endfor %}
+  <nav class="nv-tabs" data-tabs>
+    <button class="nv-tab active" data-tab="posts"><i class="fas fa-th-large"></i><span>Posts</span></button>
+    <button class="nv-tab" data-tab="reels"><i class="fas fa-film"></i><span>Reels</span></button>
+    {% if p.has_active_stories %}<button class="nv-tab" data-tab="stories"><i class="fas fa-circle"></i><span>Stories</span></button>{% endif %}
+    <button class="nv-tab" data-tab="gallery"><i class="fas fa-photo-film"></i><span>Gallery</span></button>
+    <button class="nv-tab" data-tab="live"><i class="fas fa-tower-broadcast"></i><span>Live</span></button>
+    <button class="nv-tab" data-tab="highlights"><i class="fas fa-bookmark"></i><span>Highlights</span></button>
+    <button class="nv-tab" data-tab="friends"><i class="fas fa-users"></i><span>Friends</span></button>
+    <button class="nv-tab" data-tab="about"><i class="fas fa-info-circle"></i><span>About</span></button>
+    <button class="nv-tab" data-tab="activity"><i class="fas fa-clock-rotate-left"></i><span>Activity</span></button>
   </nav>
 
-  <section class="nv-tab-panels">
-    <div class="nv-tab-panel is-active" id="posts-panel" data-tab-panel="posts">
-      {% if can_view_posts %}
-      <div class="nv-content-grid">
-        {% for post in posts %}
-        {% set post_media = post.media_url or post.public_url or post.image_url or post.thumbnail_url %}
-        <article class="nv-content-tile">
-          {% if post.video_url %}
-          <video src="{{ post.video_url }}" poster="{{ post.thumbnail_url or post_media or '' }}" preload="metadata" muted playsinline></video>
-          {% elif post_media %}<img src="{{ post_media }}" alt="{{ post.caption or post.body or post.content or '' }}" loading="lazy" class="nvpro-post-media">{% endif %}
-          <p>{{ post.caption or post.body or post.content or '' }}</p>
-          {% if own_profile or post.sharing_enabled or true %}
-          <div style="position:absolute;bottom:8px;right:8px;display:flex;gap:4px">
-            <button style="background:rgba(0,0,0,.5);border:0;color:#fff;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer" data-share-post="{{ post.id }}" title="Share"><i class="fas fa-share"></i></button>
-          </div>
-          {% endif %}
-        </article>
-        {% else %}
-        <div class="nv-empty">{% if own_profile %}<h3>No posts yet</h3><p>Create your first update to start growing.</p><a class="nv-btn primary" href="/posts/create">Create Post</a>{% else %}<h3>No public posts yet</h3>{% endif %}</div>
-        {% endfor %}
+  <section class="nv-panels">
+    <div class="nv-panel active" data-panel="posts">
+      <div class="nv-grid nv-grid-3">
+        <div class="nv-skeleton"></div>
+        <div class="nv-skeleton"></div>
+        <div class="nv-skeleton"></div>
       </div>
-      {% else %}
-      <div class="nv-empty"><h3>Private posts</h3><p>This profile keeps posts private.</p></div>
-      {% endif %}
     </div>
-
-    <div class="nv-tab-panel" id="reels-panel" data-tab-panel="reels">
-      {% if can_view_reels %}
-      <div class="nv-reels-grid">
-        {% for reel in reels %}
-        {% set reel_media = reel.thumbnail_url or reel.media_url or reel.public_url or reel.image_url or reel.video_url %}
-        <article class="nv-reel-tile">
-          {% if reel_media %}<img src="{{ reel_media }}" alt="Reel thumbnail" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-play"></i></div>{% endif %}
-          <span><i class="fas fa-play"></i>{{ reel.views_count or 0 }}</span>
-        </article>
-        {% else %}
-        <div class="nv-empty">{% if own_profile %}<h3>No reels yet</h3><p>Upload a reel to reach more people.</p><a class="nv-btn primary" href="/reels/upload">Upload Reel</a>{% else %}<h3>No public reels yet</h3>{% endif %}</div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="nv-empty"><h3>Private reels</h3><p>This profile keeps reels private.</p></div>
-      {% endif %}
-    </div>
-
-    <div class="nv-tab-panel" id="media-panel" data-tab-panel="media">
-      <div class="nv-content-grid">
-        {% for post in posts if post.media_url or post.public_url or post.image_url or post.thumbnail_url or post.video_url %}
-        {% set post_media = post.media_url or post.public_url or post.image_url or post.thumbnail_url or post.video_url %}
-        <article class="nv-content-tile">
-          <img src="{{ post_media }}" alt="Media" loading="lazy">
-          {% if post.visibility == 'subscribers' and not own_profile and not is_subscriber %}
-          <div style="position:absolute;inset:0;background:rgba(15,23,42,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:6px;border-radius:16px">
-            <i class="fas fa-lock" style="font-size:24px;color:#f59e0b"></i>
-            <span style="font-size:12px;font-weight:700">Locked Content</span>
-            <small style="font-size:10px;color:#94a3b8">Subscribe To View</small>
-          </div>
-          {% endif %}
-        </article>
-        {% endfor %}
-        {% for reel in reels %}
-        {% set reel_media = reel.thumbnail_url or reel.media_url or reel.public_url or reel.image_url or reel.video_url %}
-        <article class="nv-content-tile">
-          {% if reel_media %}<img src="{{ reel_media }}" alt="Reel media" loading="lazy">{% else %}<div class="nv-reel-fallback"><i class="fas fa-film"></i></div>{% endif %}
-          {% if reel.visibility == 'subscribers' and not own_profile and not is_subscriber %}
-          <div style="position:absolute;inset:0;background:rgba(15,23,42,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:6px;border-radius:16px">
-            <i class="fas fa-lock" style="font-size:24px;color:#f59e0b"></i>
-            <span style="font-size:12px;font-weight:700">Locked Content</span>
-            <small style="font-size:10px;color:#94a3b8">Subscribe To View</small>
-          </div>
-          {% endif %}
-        </article>
-        {% endfor %}
-        {% if not posts and not reels %}<div class="nv-empty"><h3>No media yet</h3><p>{{ 'Add photos or reels to build your profile.' if own_profile else 'No public media yet.' }}</p></div>{% endif %}
-      </div>
-      {% if own_profile %}
-      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
-        <a class="nv-btn primary" href="/gallery/profile/{{ profile.id }}"><i class="fas fa-photo-film"></i> Open Full Gallery</a>
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="nv-tab-panel" id="gallery-panel" data-tab-panel="gallery">
-      {% if pv.mutual_friends_items or pv.recently_active_friends %}
-      <div class="nv-inline-insights">
-        {% if pv.mutual_friends_items %}
-        <article class="nv-card nv-mini-card">
-          <h3>Mutual friends</h3>
-          <div class="nv-mini-avatars">
-            {% for friend in pv.mutual_friends_items %}
-            <a href="/profile/@{{ friend.username }}" class="nv-mini-avatar" title="{{ friend.display_name or friend.username }}">
-              {% if friend.avatar_url %}
-              <img src="{{ friend.avatar_url }}" alt="{{ friend.display_name or friend.username }}">
-              {% else %}
-              <span>{{ (friend.display_name or friend.username or 'N')[0]|upper }}</span>
-              {% endif %}
-            </a>
-            {% endfor %}
-          </div>
-          <p>{{ pv.mutual_friends_count }} shared connection{{ '' if pv.mutual_friends_count == 1 else 's' }}</p>
-        </article>
-        {% endif %}
-        {% if pv.recently_active_friends %}
-        <article class="nv-card nv-mini-card">
-          <h3>Recently active friends</h3>
-          <div class="nv-recent-friends">
-            {% for friend in pv.recently_active_friends[:4] %}
-            <a href="/profile/@{{ friend.username }}" class="nv-recent-friend">
-              {% if friend.avatar_url %}
-              <img src="{{ friend.avatar_url }}" alt="{{ friend.display_name or friend.username }}">
-              {% else %}
-              <span>{{ (friend.display_name or friend.username or 'N')[0]|upper }}</span>
-              {% endif %}
-              <strong>{{ friend.display_name or friend.username }}</strong>
-            </a>
-            {% endfor %}
-          </div>
-        </article>
-        {% endif %}
-      </div>
-      {% endif %}
-      <div class="nv-content-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">
-        {% if pv.gallery_preview %}
-          {% for item in pv.gallery_preview %}
-          <article class="nv-content-tile" style="aspect-ratio:1">
-            {% if item.upload_type == 'video' %}
-            <video src="{{ item.public_url }}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:12px"></video>
-            {% else %}
-            <img src="{{ item.public_url }}" alt="Gallery" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:12px">
-            {% endif %}
-            {% if item.visibility == 'subscribers' and not own_profile and not is_subscriber %}
-            <div style="position:absolute;inset:0;background:rgba(15,23,42,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:6px;border-radius:12px">
-              <i class="fas fa-lock" style="font-size:20px;color:#f59e0b"></i>
-              <span style="font-size:11px;font-weight:700">Subscribe To View</span>
-            </div>
-            {% endif %}
-          </article>
-          {% endfor %}
-        {% endif %}
-        {% if own_profile or pv.gallery_preview %}
-        <div class="nv-empty" style="{% if pv.gallery_preview %}display:none{% endif %}">
-          <h3>Gallery</h3>
-          <p>View and manage all your photos and videos.</p>
-          <a class="nv-btn primary" href="/gallery/profile/{{ profile.id }}"><i class="fas fa-photo-film"></i> Open Gallery</a>
+    <div class="nv-panel" data-panel="reels"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
+    {% if p.has_active_stories %}<div class="nv-panel" data-panel="stories"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>{% endif %}
+    <div class="nv-panel" data-panel="gallery"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
+    <div class="nv-panel" data-panel="live"><div class="nv-grid nv-grid-2"><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
+    <div class="nv-panel" data-panel="highlights"><div class="nv-empty-inline"><h3>No highlights</h3><p>Story highlights will appear here.</p></div></div>
+    <div class="nv-panel" data-panel="friends"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
+    <div class="nv-panel" data-panel="about">
+      <div class="nv-about">
+        <div class="nv-about-section"><h3>About</h3>{% if p.bio %}<p>{{ p.bio }}</p>{% endif %}</div>
+        <div class="nv-about-grid">
+          <div class="nv-about-item"><strong>Joined</strong><span>{{ p.joined }}</span></div>
+          {% if p.location %}<div class="nv-about-item"><strong>Location</strong><span>{{ p.location }}</span></div>{% endif %}
+          {% if p.category %}<div class="nv-about-item"><strong>Category</strong><span>{{ p.category }}</span></div>{% endif %}
+          {% if p.website %}<div class="nv-about-item"><strong>Website</strong><span><a href="{{ p.website }}" target="_blank" rel="noopener">{{ p.website }}</a></span></div>{% endif %}
+          <div class="nv-about-item"><strong>Verification</strong><span>{{ 'Verified' if p.verified else 'Not verified' }}</span></div>
         </div>
-        {% if pv.gallery_preview %}
-        <div style="grid-column:1/-1;text-align:center;margin-top:8px">
-          <a class="nv-btn" href="/gallery/profile/{{ profile.id }}"><i class="fas fa-photo-film"></i> View Full Gallery</a>
-        </div>
-        {% endif %}
-        {% else %}
-        <div class="nv-empty">
-          <h3>No gallery yet</h3>
-          <p>This profile hasn't shared any gallery items yet.</p>
-        </div>
-        {% endif %}
       </div>
     </div>
-
-    <div class="nv-tab-panel" id="live-panel" data-tab-panel="live">
-      <div class="nv-card-grid">
-        {% for room in rooms %}
-        <article class="nv-card"><strong>{{ room.title }}</strong><span>{{ room.status or 'Live room' }}</span></article>
-        {% else %}
-        <div class="nv-empty">{% if own_profile %}<h3>No live rooms yet</h3><p>Go live when you are ready to connect with your audience.</p><a class="nv-btn primary" href="/live/studio">Go Live</a>{% else %}<h3>No active live sessions</h3>{% endif %}</div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="nv-tab-panel" id="about-panel" data-tab-panel="about">
-      <div class="nv-about-grid">
-        <article class="nv-card nv-about-card">
-          <h2>About</h2>
-          {% if bio %}<p>{{ bio }}</p>{% elif own_profile %}<p class="muted">Complete your About section.</p>{% endif %}
-          <dl>
-            {% if pv.location %}<div><dt>Location</dt><dd>{{ pv.location }}</dd></div>{% endif %}
-            <div><dt>Joined</dt><dd>{{ pv.joined }}</dd></div>
-            {% if profile.creator_category %}<div><dt>Creator category</dt><dd>{{ profile.creator_category }}</dd></div>{% endif %}
-            {% if profile.website %}<div><dt>Website</dt><dd><a href="{{ profile.website }}" target="_blank" rel="noopener">{{ profile.website }}</a></dd></div>{% endif %}
-            {% if profile.interests %}<div><dt>Interests</dt><dd>{{ profile.interests|join(', ') if profile.interests is sequence and profile.interests is not string else profile.interests }}</dd></div>{% endif %}
-          </dl>
-        </article>
-
-        {% if own_profile %}
-        <article class="nv-card nv-completion-card" data-profile-completion-card>
-          <div class="nv-card-head"><h2>Profile Completion</h2><strong>{{ completion_data.percent }}%</strong></div>
-          <div class="nv-progress"><span style="width: {{ completion_data.percent }}%"></span></div>
-          {% if completion_data.next_best_action %}<p>Next: {{ completion_data.next_best_action.label }}</p>{% endif %}
-          <ul class="nv-checklist">
-            {% for task in completion_data.checklist %}
-            <li class="{{ 'done' if task.complete else '' }}"><i class="fas {{ 'fa-check' if task.complete else 'fa-plus' }}"></i>{{ task.label }}</li>
-            {% endfor %}
-          </ul>
-        </article>
-        {% endif %}
-
-        <article class="nv-card nv-trust-card">
-          <h2>Verification & Trust</h2>
-          {% for item in pv.verification %}
-          <div class="nv-trust-row {{ item.state }}">
-            <i class="fas {{ 'fa-check-circle' if item.state == 'verified' else ('fa-clock' if item.state == 'pending' else 'fa-circle') }}"></i>
-            <span>{{ item.label }}</span>
-            <small>{{ item.state|replace('_', ' ')|title }}</small>
-          </div>
-          {% endfor %}
-        </article>
-      </div>
-    </div>
-
-    {% if own_profile %}
-    <div class="nv-tab-panel" id="saved-panel" data-tab-panel="saved"><div class="nv-empty"><h3>No saved items yet</h3><p>Saved posts, reels, and products will appear here.</p></div></div>
-    <div class="nv-tab-panel" id="liked-panel" data-tab-panel="liked"><div class="nv-empty"><h3>No liked content yet</h3><p>Content you like will appear here.</p></div></div>
-    {% endif %}
-
-    {% if pv.show_dashboard_tab %}
-    <div class="nv-tab-panel" id="dashboard-panel" data-tab-panel="dashboard">
-      <div class="nv-dashboard-grid">
-        {% if own_profile %}
-        <article class="nv-card">
-          <h2>Creator Tools</h2>
-          <div class="nv-tool-grid">
-            <a href="/reels/upload"><i class="fas fa-clapperboard"></i>Upload Reel</a>
-            <a href="/live/studio"><i class="fas fa-tower-broadcast"></i>Go Live</a>
-            <a href="/status/create"><i class="fas fa-circle-plus"></i>Create Story</a>
-            <a href="/posts/create"><i class="fas fa-pen"></i>Create Post</a>
-            <a href="/creator/dashboard"><i class="fas fa-chart-line"></i>Creator Dashboard</a>
-            <a href="/creator/monetization"><i class="fas fa-coins"></i>Monetization Setup</a>
-          </div>
-          {% if not wallet_data.gift_earnings %}<p class="muted">Start earning by uploading reels, going live, and receiving gifts.</p>{% endif %}
-        </article>
-        <article class="nv-card">
-          <h2>Wallet Snapshot</h2>
-          <div class="nv-wallet-metrics">
-            <div><span>Balance</span><strong>N$ {{ '%.2f'|format(wallet_data.coin_balance or 0) }}</strong></div>
-            <div><span>Earnings</span><strong>N$ {{ '%.2f'|format(wallet_data.gift_earnings or 0) }}</strong></div>
-            <div><span>Payouts</span><strong>N$ {{ '%.2f'|format(wallet_data.pending_withdrawal or 0) }}</strong></div>
-            <div><span>Gifts</span><strong>{{ creator_data.gifts_received or 0 }}</strong></div>
-          </div>
-          <div class="nv-inline-actions">
-            <a class="nv-btn" href="/wallet">Send Funds</a>
-            <a class="nv-btn {{ 'disabled' if not pv.withdrawal_ready else '' }}" href="{{ '/wallet/withdraw' if pv.withdrawal_ready else '#' }}">Withdraw</a>
-            <a class="nv-btn" href="/wallet/pin">Wallet Settings</a>
-          </div>
-          {% if not pv.withdrawal_ready %}<p class="muted">{{ pv.withdrawal_reason }}</p>{% endif %}
-        </article>
-        <article class="nv-card">
-          <h2>Privacy & Safety</h2>
-          <dl>
-            <div><dt>Visibility</dt><dd>{{ pv.privacy|replace('_', ' ')|title }}</dd></div>
-            <div><dt>Messages</dt><dd>{{ (profile.who_can_message or profile.who_can_message_me or 'friends')|replace('_', ' ')|title }}</dd></div>
-          </dl>
-          <div class="nv-inline-actions">
-            <a class="nv-btn" href="/security/privacy">Privacy Settings</a>
-            <a class="nv-btn" href="/security/blocked">Blocked Users</a>
-            <a class="nv-btn" href="/security">Manage Security</a>
-          </div>
-        </article>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    {% if pv.has_shop %}
-    <div class="nv-tab-panel" id="shop-panel" data-tab-panel="shop">
-      <div class="nv-card-grid">
-        {% for item in products %}
-        <article class="nv-card">{% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.title }}" loading="lazy">{% endif %}<strong>{{ item.title }}</strong><span>N$ {{ item.price or 0 }}</span></article>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
+    <div class="nv-panel" data-panel="activity"><div class="nv-empty-inline"><h3>No recent activity</h3><p>Public activity will appear here.</p></div></div>
   </section>
 </main>
 
-<div id="share-modal-profile" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#fff;border-radius:28px;padding:28px;width:100%;max-width:400px;box-shadow:0 25px 60px rgba(0,0,0,.3)">
-    <h2 style="margin:0 0 18px;font-size:22px;color:#0f172a"><i class="fas fa-share-alt"></i> Share</h2>
-    <input type="hidden" id="share-profile-id" value="">
-    <input type="hidden" id="share-profile-type" value="">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <button class="share-dest" data-share="namvibe" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fas fa-paper-plane" style="color:#6C5CE7;display:block;font-size:24px;margin-bottom:4px"></i> NamVibe</button>
-      <button class="share-dest" data-share="whatsapp" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fab fa-whatsapp" style="color:#25D366;display:block;font-size:24px;margin-bottom:4px"></i> WhatsApp</button>
-      <button class="share-dest" data-share="facebook" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fab fa-facebook" style="color:#1877F2;display:block;font-size:24px;margin-bottom:4px"></i> Facebook</button>
-      <button class="share-dest" data-share="email" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a"><i class="fas fa-envelope" style="color:#EA4335;display:block;font-size:24px;margin-bottom:4px"></i> Email</button>
-      <button class="share-dest" data-share="copy" style="padding:14px;border-radius:16px;border:1px solid #e2e8f0;background:#f8fafc;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:#0f172a;grid-column:1/-1"><i class="fas fa-link" style="color:#64748b;display:block;font-size:24px;margin-bottom:4px"></i> Copy Link</button>
-    </div>
-    <div style="margin-top:14px;text-align:right">
-      <button onclick="document.getElementById('share-modal-profile').style.display='none'" style="padding:10px 20px;border-radius:999px;border:0;font-weight:800;background:#f1f5f9;color:#0f172a;cursor:pointer">Close</button>
-    </div>
-  </div>
-</div>
-
-<script>
-(function() {
-document.querySelectorAll('[data-share-post]').forEach(btn => {
-  btn.onclick = function(e) {
-    e.stopPropagation();
-    const postId = this.dataset.sharePost;
-    const url = '{{ request.url_root }}posts/' + postId;
-    const modal = document.getElementById('share-modal-profile');
-    modal.style.display = 'flex';
-    modal.querySelector('#share-profile-id').value = postId;
-    modal.querySelector('#share-profile-type').value = 'post';
-  };
-});
-document.querySelectorAll('.share-dest').forEach(btn => {
-  btn.onclick = function() {
-    const type = document.getElementById('share-profile-type').value;
-    const id = document.getElementById('share-profile-id').value;
-    const dest = this.dataset.share;
-    const baseUrl = '{{ request.url_root }}';
-    let url = baseUrl;
-    if (type === 'post') url += 'posts/' + id;
-    else if (type === 'reel') url += 'reels/' + id;
-    else url += 'profile/@{{ profile.username }}';
-    switch(dest) {
-      case 'copy': navigator.clipboard.writeText(url).then(() => alert('Link copied!')); break;
-      case 'whatsapp': window.open('https://wa.me/?text=' + encodeURIComponent(url), '_blank'); break;
-      case 'facebook': window.open('https://facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url), '_blank'); break;
-      case 'email': window.open('mailto:?body=' + encodeURIComponent(url), '_blank'); break;
-      case 'namvibe': navigator.clipboard.writeText(url).then(() => alert('Link copied! Share it in NamVibe messages.')); break;
-    }
-    document.getElementById('share-modal-profile').style.display = 'none';
-  };
-});
-})();
-</script>
 {% endblock %}

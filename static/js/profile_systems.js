@@ -1,358 +1,446 @@
-/**
- * Phase 86 – Profile Systems
- * Posts/Reels/Followers/Following/Friends managers with cursor pagination.
- */
+/* ─── Profile 2026 JS ─── */
 (function () {
-  'use strict';
+  "use strict";
 
-  /* ── Helpers ─────────────────────────────────────────────── */
+  const root = document.querySelector("[data-profile-pro]");
+  if (!root) return;
 
-  function getCsrfToken() {
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    return meta ? meta.getAttribute('content') : '';
+  const PROFILE_ID = root.dataset.profileId;
+  const USERNAME = root.dataset.username;
+  const IS_SELF = root.dataset.self === "true";
+  const BASE = "/profile/api";
+
+  let currentTab = "posts";
+  const loadedTabs = new Set();
+
+  function $(sel) { return root.querySelector(sel); }
+  function $$(sel) { return root.querySelectorAll(sel); }
+
+  function showToast(msg, type) {
+    var t = document.createElement("div");
+    t.className = "nv-toast nv-toast-" + (type || "info");
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, 3000);
   }
 
-  const API = {
-    async get(url) { const r = await fetch(url); return r.json(); },
-    async post(url, body) {
-      const headers = { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken(), 'X-Requested-With': 'XMLHttpRequest' };
-      const r = await fetch(url, {
-        method: 'POST',
-        headers,
-        credentials: 'same-origin',
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      return r.json();
-    },
-    async del(url) { const r = await fetch(url, { method: 'DELETE' }); return r.json(); },
-  };
-
-  function toast(msg, type) {
-    const el = document.getElementById('sysToast');
-    if (el) { el.textContent = msg; el.className = 'sys-toast ' + (type || 'info'); el.style.display = 'block'; setTimeout(() => { el.style.display = 'none'; }, 3000); }
-    else { alert(msg); }
-  }
-
-  function confirmAction(msg) {
-    return window.confirm(msg);
-  }
-
-  /* ── Cursor Pagination Loader ────────────────────────────── */
-
-  const cursors = {};
-
-  async function loadMore(endpoint, listId, config) {
-    const list = document.getElementById(listId);
-    const btn = list?.querySelector('.load-more-btn');
-    if (!list || !btn) return;
-    const cursor = cursors[listId];
-    const url = endpoint + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : '') + `&limit=20`;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading…';
+  async function apiFetch(path, opts) {
     try {
-      const data = await API.get(url);
-      const items = data.items || data.friends || data.followers || data.following || data.requests || data.posts || data.reels || [];
-      const container = list.querySelector('.people-list') || list.querySelector('.manager-grid');
-      if (!container) return;
-      items.forEach(item => {
-        const card = config.renderCard(item);
-        if (card) container.appendChild(card);
+      var res = await fetch(BASE + path, {
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        credentials: "same-origin",
+        ...opts,
       });
-      if (data.next_cursor) {
-        cursors[listId] = data.next_cursor;
-        btn.style.display = 'inline-flex';
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load more';
-      } else {
-        btn.style.display = 'none';
-      }
-    } catch {
-      toast('Failed to load', 'error');
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-chevron-down"></i> Load more';
+      return await res.json();
+    } catch (e) {
+      return { ok: false, error: e.message };
     }
   }
 
-  /* ── Post Manager ────────────────────────────────────────── */
+  function escapeHtml(text) {
+    var d = document.createElement("div");
+    d.textContent = text;
+    return d.innerHTML;
+  }
 
-  window.Phase86 = window.Phase86 || {};
+  // ─── Tab Switching ───
 
-  Phase86.toggleComments = async (postId) => {
-    const d = await API.post(`/profile/api/posts/${postId}/comments-toggle`);
-    toast(d.comments_enabled ? 'Comments enabled' : 'Comments disabled');
-  };
+  function initTabs() {
+    $$("[data-tabs] .nv-tab").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var tab = this.dataset.tab;
+        $$("[data-tabs] .nv-tab").forEach(function (b) { b.classList.remove("active"); });
+        this.classList.add("active");
+        $$("[data-panel]").forEach(function (p) { p.classList.remove("active"); });
+        var panel = document.querySelector('[data-panel="' + tab + '"]');
+        if (panel) {
+          panel.classList.add("active");
+          currentTab = tab;
+          loadTab(tab);
+        }
+      });
+    });
+    // Load initial tab
+    loadTab("posts");
+  }
 
-  Phase86.toggleSharing = async (postId) => {
-    const d = await API.post(`/profile/api/posts/${postId}/share-toggle`);
-    toast(d.sharing_enabled ? 'Sharing enabled' : 'Sharing disabled');
-  };
-
-  Phase86.togglePin = async (itemId, type) => {
-    const ep = type === 'reel' ? `/profile/api/reels/${itemId}/pin` : `/profile/api/posts/${itemId}/pin`;
-    const d = await API.post(ep);
-    toast(d.pinned ? 'Pinned' : 'Unpinned');
-    if (d.pinned !== undefined) location.reload();
-  };
-
-  Phase86.toggleArchive = async (itemId, type) => {
-    const ep = type === 'reel' ? `/profile/api/reels/${itemId}/archive` : `/profile/api/posts/${itemId}/archive`;
-    const d = await API.post(ep);
-    toast(d.archived ? 'Archived' : 'Unarchived');
-    if (d.status === 'ok') location.reload();
-  };
-
-  Phase86.deleteItem = async (itemId, type) => {
-    if (!confirmAction(`Delete this ${type}?`)) return;
-    const ep = type === 'reel' ? `/profile/api/reels/${itemId}` : `/profile/api/posts/${itemId}`;
-    const d = await API.del(ep);
-    if (d.status === 'ok') {
-      const card = document.querySelector(`[data-item-id="${itemId}"]`);
-      if (card) card.remove();
-      toast(`${type} deleted`);
-    } else toast('Failed to delete', 'error');
-  };
-
-  Phase86.showVisibilityModal = (itemId, type, currentVis) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'vis-modal-overlay';
-    overlay.innerHTML = `
-      <div class="vis-modal">
-        <h3>Change Visibility</h3>
-        <select id="vis-select">
-          <option value="public" ${currentVis === 'public' ? 'selected' : ''}>Public</option>
-          <option value="followers" ${currentVis === 'followers' ? 'selected' : ''}>Followers</option>
-          <option value="friends" ${currentVis === 'friends' ? 'selected' : ''}>Friends</option>
-          <option value="private" ${currentVis === 'private' ? 'selected' : ''}>Private</option>
-        </select>
-        <div class="vis-modal-actions">
-          <button class="btn-cancel" onclick="this.closest('.vis-modal-overlay').remove()">Cancel</button>
-          <button class="btn-save" onclick="Phase86.saveVisibility('${itemId}', '${type}')">Save</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-  };
-
-  Phase86.saveVisibility = async (itemId, type) => {
-    const sel = document.getElementById('vis-select');
-    if (!sel) return;
-    const ep = type === 'reel' ? `/profile/api/reels/${itemId}/visibility` : `/profile/api/posts/${itemId}/visibility`;
-    const d = await API.post(ep, { visibility: sel.value });
-    if (d.status === 'ok') {
-      toast('Visibility updated');
-      const ov = document.querySelector('.vis-modal-overlay');
-      if (ov) ov.remove();
-      location.reload();
-    } else toast('Failed to update visibility', 'error');
-  };
-
-  Phase86.showReelAnalytics = async (reelId) => {
-    const d = await API.get(`/profile/api/reels/analytics/${reelId}`);
-    toast(`Views: ${d.views || 0}  Likes: ${d.likes || 0}  Comments: ${d.comments || 0}`, 'info');
-  };
-
-  /* ── Follower / Following ────────────────────────────────── */
-
-  Phase86.followUser = async (profileId, btn) => {
-    const d = await API.post(`/social/follow/${profileId}`);
-    if (d.status === 'ok') {
-      if (btn) { 
-        if (d.following) {
-          btn.innerHTML = '<i class="fas fa-user-check"></i> Following'; 
-          btn.dataset.following = 'true'; 
-        } else {
-          btn.innerHTML = '<i class="fas fa-user-plus"></i> Follow'; 
-          btn.dataset.following = 'false';
+  function loadTab(tab) {
+    if (loadedTabs.has(tab)) return;
+    if (tab === "about" || tab === "highlights") {
+      // Already rendered server-side, mark as loaded
+      if (tab === "highlights") {
+        var p = document.querySelector('[data-panel="highlights"]');
+        if (p) {
+          var items = p.querySelectorAll(".nv-highlight");
+          if (items.length > 0) loadedTabs.add("highlights");
         }
       }
-      toast(d.following ? 'Following' : 'Unfollowed');
-    } else toast(d.error || 'Failed', 'error');
-  };
+      loadedTabs.add(tab);
+      return;
+    }
 
-  Phase86.unfollowUser = async (profileId) => {
-    if (!confirmAction('Unfollow?')) return;
-    const d = await API.post(`/social/follow/${profileId}`);
-    if (d.status === 'ok') { toast('Unfollowed'); location.reload(); }
-    else toast('Failed to unfollow', 'error');
-  };
+    var panel = document.querySelector('[data-panel="' + tab + '"]');
+    if (!panel) return;
 
-  Phase86.removeFollower = async (profileId) => {
-    if (!confirmAction('Remove this follower?')) return;
-    const d = await API.post(`/social/followers/remove/${profileId}`);
-    if (d.status === 'ok') { toast('Follower removed'); location.reload(); }
-    else toast('Failed to remove', 'error');
-  };
-
-  Phase86.blockUser = async (profileId) => {
-    if (!confirmAction('Block this user?')) return;
-    const d = await API.post(`/social/block/${profileId}`);
-    if (d.status === 'ok' || d.ok) { toast('Blocked'); location.reload(); }
-    else toast('Failed to block', 'error');
-  };
-
-  Phase86.muteUser = async (profileId) => {
-    const type = prompt('Mute: posts, reels, stories, or all', 'posts');
-    if (!type) return;
-    const d = await API.post('/profile/api/mute', { profile_id: profileId, mute_type: type });
-    if (d.status === 'ok') toast('Muted');
-    else toast('Failed to mute', 'error');
-  };
-
-  /* ── Friend System ───────────────────────────────────────── */
-
-  Phase86.sendFriendRequest = async (profileId) => {
-    const d = await API.post('/social/friends/request', { recipient_id: profileId });
-    if (d.success || d.status === 'ok') { toast('Friend request sent!'); location.reload(); }
-    else toast(d.error || 'Failed to send request', 'error');
-  };
-
-  Phase86.acceptFriendRequest = async (requestId) => {
-    const d = await API.post(`/social/friends/accept`, { request_id: requestId });
-    if (d.success || d.status === 'ok') { toast('Friend request accepted!'); location.reload(); }
-    else toast('Failed to accept', 'error');
-  };
-
-  Phase86.declineFriendRequest = async (requestId) => {
-    if (!confirmAction('Decline friend request?')) return;
-    const d = await API.post(`/social/friends/decline`, { request_id: requestId });
-    if (d.success || d.status === 'ok') { toast('Declined'); location.reload(); }
-    else toast('Failed to decline', 'error');
-  };
-
-  Phase86.cancelFriendRequest = async (requestId) => {
-    if (!confirmAction('Cancel friend request?')) return;
-    const d = await API.post(`/social/friends/cancel`, { request_id: requestId });
-    if (d.success || d.status === 'ok') { toast('Request cancelled'); location.reload(); }
-    else toast('Failed to cancel', 'error');
-  };
-
-  Phase86.removeFriend = async (profileId) => {
-    if (!confirmAction('Remove this friend?')) return;
-    const d = await API.post(`/social/friends/remove`, { friend_id: profileId });
-    if (d.success || d.status === 'ok') { toast('Friend removed'); location.reload(); }
-    else toast('Failed to remove', 'error');
-  };
-
-  Phase86.toggleCloseFriend = async (friendId, enabled) => {
-    const d = await API.post(`/social/friends/${friendId}/close`, { enabled });
-    if (d.status === 'ok') toast(d.close_friend ? 'Marked as close friend' : 'Removed close friend');
-    else toast('Failed', 'error');
-  };
-
-  Phase86.toggleBestFriend = async (friendId, enabled) => {
-    const d = await API.post(`/social/friends/${friendId}/best`, { enabled });
-    if (d.status === 'ok') toast(d.best_friend ? 'Marked as best friend' : 'Removed best friend');
-    else toast('Failed', 'error');
-  };
-
-  /* ── Load More Helpers ───────────────────────────────────── */
-
-  Phase86.loadMoreFollowers = (profileId, listId) => {
-    return loadMore(`/social/api/followers?profile_id=${profileId}`, listId, {
-      renderCard: (item) => {
-        const div = document.createElement('div');
-        div.className = 'people-card';
-        div.innerHTML = `
-          <div class="people-avatar">${item.avatar_url ? `<img src="${item.avatar_url}" alt="">` : `<span>${(item.display_name || item.username || 'U')[0].toUpperCase()}</span>`}</div>
-          <div class="people-info"><strong>${item.display_name || item.username || 'User'}</strong><span>@${item.username || 'user'}</span></div>
-          <div class="people-actions">
-            <a href="/profile/@${item.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
-            <button class="action-btn" title="Message" onclick="window.location='/messages/start/${item.follower_profile_id || item.profile_id}'"><i class="fas fa-comment"></i></button>
-            <button class="action-btn" title="Follow" onclick="Phase86.followUser('${item.follower_profile_id || item.profile_id}', this)"><i class="fas fa-user-plus"></i></button>
-          </div>`;
-        return div;
-      },
-    });
-  };
-
-  Phase86.loadMoreFollowing = (profileId, listId, type) => {
-    return loadMore(`/social/api/following?profile_id=${profileId}&type=${type || 'all'}`, listId, {
-      renderCard: (item) => {
-        const div = document.createElement('div');
-        div.className = 'people-card';
-        div.innerHTML = `
-          <div class="people-avatar">${item.avatar_url ? `<img src="${item.avatar_url}" alt="">` : `<span>${(item.display_name || item.username || 'U')[0].toUpperCase()}</span>`}</div>
-          <div class="people-info"><strong>${item.display_name || item.username || 'User'}</strong><span>@${item.username || 'user'}</span></div>
-          <div class="people-actions">
-            <a href="/profile/@${item.username}" class="action-btn" title="View"><i class="fas fa-user"></i></a>
-            <button class="action-btn" title="Message" onclick="window.location='/messages/start/${item.following_profile_id || item.profile_id}'"><i class="fas fa-comment"></i></button>
-            <button class="action-btn danger" title="Unfollow" onclick="Phase86.unfollowUser('${item.following_profile_id || item.profile_id}')"><i class="fas fa-user-slash"></i></button>
-          </div>`;
-        return div;
-      },
-    });
-  };
-
-  /* ── Init ────────────────────────────────────────────────── */
-
-  Phase86.init = function () {
-    document.querySelectorAll('[data-action="toggle-comments"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.toggleComments(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="toggle-sharing"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.toggleSharing(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="toggle-pin"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.togglePin(el.dataset.id, el.dataset.type || 'post'));
-    });
-    document.querySelectorAll('[data-action="toggle-archive"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.toggleArchive(el.dataset.id, el.dataset.type || 'post'));
-    });
-    document.querySelectorAll('[data-action="delete-item"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.deleteItem(el.dataset.id, el.dataset.type || 'post'));
-    });
-    document.querySelectorAll('[data-action="show-visibility"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.showVisibilityModal(el.dataset.id, el.dataset.type || 'post', el.dataset.vis || 'public'));
-    });
-    document.querySelectorAll('[data-action="reel-analytics"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.showReelAnalytics(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="follow"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.followUser(el.dataset.id, el));
-    });
-    document.querySelectorAll('[data-action="unfollow"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.unfollowUser(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="remove-follower"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.removeFollower(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="block"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.blockUser(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="mute"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.muteUser(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="send-friend-request"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.sendFriendRequest(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="accept-friend"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.acceptFriendRequest(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="decline-friend"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.declineFriendRequest(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="cancel-friend-request"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.cancelFriendRequest(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="remove-friend"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.removeFriend(el.dataset.id));
-    });
-    document.querySelectorAll('[data-action="close-friend"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.toggleCloseFriend(el.dataset.id, el.dataset.enabled !== 'false'));
-    });
-    document.querySelectorAll('[data-action="best-friend"]').forEach(el => {
-      el.addEventListener('click', () => Phase86.toggleBestFriend(el.dataset.id, el.dataset.enabled !== 'false'));
-    });
-    document.querySelectorAll('[data-load-more]').forEach(el => {
-      const handler = window[el.dataset.loadMore];
-      if (typeof handler === 'function') {
-        el.addEventListener('click', () => handler());
-      }
-    });
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', Phase86.init);
-  } else {
-    Phase86.init();
+    switch (tab) {
+      case "posts": loadPosts(panel); break;
+      case "reels": loadReels(panel); break;
+      case "stories": loadStories(panel); break;
+      case "gallery": loadGallery(panel); break;
+      case "live": loadLive(panel); break;
+      case "friends": loadFriends(panel); break;
+      case "activity": loadActivity(panel); break;
+    }
   }
+
+  function renderGrid(items, type) {
+    if (!items || items.length === 0) {
+      return '<div class="nv-empty-inline"><h3>No ' + type + ' yet</h3><p>' +
+        (IS_SELF ? "Create your first " + type + " to get started." : "No public " + type + " available.") +
+        "</p></div>";
+    }
+    var html = '<div class="nv-grid nv-grid-3">';
+    items.forEach(function (item) {
+      var mediaUrl = item.thumbnail || item.media_url || "";
+      var caption = escapeHtml((item.caption || "").slice(0, 80));
+      html += '<div class="nv-tile' + (item.media_type === "video" ? " nv-tile-video" : "") + '" data-id="' + escapeHtml(item.id) + '">';
+      if (mediaUrl) html += '<img src="' + escapeHtml(mediaUrl) + '" alt="' + caption + '" loading="lazy">';
+      html += '<div class="nv-tile-overlay"><i class="fas fa-heart"></i> ' + (item.likes || 0) + ' <i class="fas fa-eye"></i> ' + (item.views || 0) + "</div>";
+      html += "</div>";
+    });
+    html += "</div>";
+    return html;
+  }
+
+  async function loadPosts(panel) {
+    loadedTabs.add("posts");
+    panel.innerHTML = '<div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div>';
+    var data = await apiFetch("/" + USERNAME + "/content?section=reels");
+    if (data.ok && data.items && data.items.length) {
+      panel.innerHTML = renderGrid(data.items, "posts");
+    } else {
+      panel.innerHTML = '<div class="nv-empty-inline"><h3>No posts yet</h3><p>' +
+        (IS_SELF ? "Share your first post to get started." : "No public posts available.") + "</p></div>";
+    }
+  }
+
+  async function loadReels(panel) {
+    loadedTabs.add("reels");
+    panel.innerHTML = '<div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div>';
+    var data = await apiFetch("/" + USERNAME + "/reels");
+    if (data.ok && data.items) {
+      panel.innerHTML = renderGrid(data.items, "reels");
+    } else {
+      panel.innerHTML = '<div class="nv-empty-inline"><h3>No reels yet</h3><p>' +
+        (IS_SELF ? "Upload a reel to share with your audience." : "No public reels available.") + "</p></div>";
+    }
+  }
+
+  async function loadStories(panel) {
+    loadedTabs.add("stories");
+    panel.innerHTML = '<div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div>';
+    var data = await apiFetch("/" + USERNAME + "/stories");
+    if (data.ok && data.items && data.items.length) {
+      var html = '<div class="nv-grid nv-grid-3">';
+      data.items.forEach(function (s) {
+        html += '<div class="nv-tile" data-story-id="' + escapeHtml(s.id) + '">';
+        if (s.media_url) html += '<img src="' + escapeHtml(s.media_url) + '" alt="Story" loading="lazy">';
+        if (s.viewed) html += '<div class="nv-viewed-badge">Viewed</div>';
+        html += "</div>";
+      });
+      html += "</div>";
+      panel.innerHTML = html;
+    } else {
+      panel.innerHTML = '<div class="nv-empty-inline"><h3>No stories</h3><p>No recent stories available.</p></div>';
+    }
+  }
+
+  async function loadGallery(panel) {
+    loadedTabs.add("gallery");
+    panel.innerHTML = '<div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div>';
+    var data = await apiFetch("/" + USERNAME + "/gallery");
+    if (data.ok && data.items && data.items.length) {
+      panel.innerHTML = renderGrid(data.items, "gallery");
+    } else {
+      panel.innerHTML = '<div class="nv-empty-inline"><h3>No gallery items</h3><p>' +
+        (IS_SELF ? "Add photos to your gallery." : "No public gallery available.") + "</p></div>";
+    }
+  }
+
+  async function loadLive(panel) {
+    loadedTabs.add("live");
+    panel.innerHTML = '<div class="nv-grid nv-grid-2"><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div>';
+    var data = await apiFetch("/" + USERNAME + "/live");
+    if (data.ok && data.items && data.items.length) {
+      var html = '<div class="nv-grid nv-grid-2">';
+      data.items.forEach(function (r) {
+        var isLive = r.status === "live";
+        html += '<div class="nv-tile" style="aspect-ratio:16/9">';
+        if (r.thumbnail) html += '<img src="' + escapeHtml(r.thumbnail) + '" alt="' + escapeHtml(r.title) + '" loading="lazy">';
+        html += '<div class="nv-tile-overlay">';
+        if (isLive) html += '<span class="nv-live-badge">LIVE</span>';
+        html += '<span>' + escapeHtml(r.title) + "</span>";
+        html += "</div></div>";
+      });
+      html += "</div>";
+      panel.innerHTML = html;
+    } else {
+      panel.innerHTML = '<div class="nv-empty-inline"><h3>No live sessions</h3><p>' +
+        (IS_SELF ? "Go live when you're ready to connect." : "No live sessions available.") + "</p></div>";
+    }
+  }
+
+  async function loadFriends(panel) {
+    loadedTabs.add("friends");
+    loadedTabs.add("friends");
+    panel.innerHTML = '<div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div>';
+    var data = await apiFetch("/" + USERNAME + "/content?section=friends");
+    if (data.ok && data.items && data.items.length) {
+      var html = '<div class="nv-grid nv-grid-3">';
+      data.items.forEach(function (f) {
+        html += '<a href="/profile/@' + escapeHtml(f.username) + '" class="nv-tile" style="display:flex;flex-direction:column;align-items:center;justify-content:center;aspect-ratio:auto;padding:16px;background:var(--p-surface);border:1px solid var(--p-border);border-radius:var(--p-radius-sm);text-decoration:none;color:var(--p-text)">';
+        if (f.avatar_url) {
+          html += '<img src="' + escapeHtml(f.avatar_url) + '" alt="' + escapeHtml(f.display_name) + '" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-bottom:6px">';
+        } else {
+          html += '<div style="width:48px;height:48px;border-radius:50%;background:var(--p-surface-2);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;margin-bottom:6px">' + (f.display_name ? f.display_name[0] : "?") + "</div>";
+        }
+        html += "<span style='font-size:12px;font-weight:600;text-align:center'>" + escapeHtml(f.display_name || f.username) + "</span>";
+        html += "</a>";
+      });
+      html += "</div>";
+      panel.innerHTML = html;
+    } else {
+      panel.innerHTML = '<div class="nv-empty-inline"><h3>No friends to show</h3></div>';
+    }
+  }
+
+  async function loadActivity(panel) {
+    loadedTabs.add("activity");
+    panel.innerHTML = '<div class="nv-empty-inline"><div class="nv-spinner" style="margin-bottom:12px"></div><p>Loading activity...</p></div>';
+    var data = await apiFetch("/" + USERNAME + "/activity");
+    if (data.ok && data.items && data.items.length) {
+      var html = '<div style="display:flex;flex-direction:column;gap:6px">';
+      data.items.forEach(function (a) {
+        html += '<div class="nv-activity-item" style="padding:10px 12px;background:var(--p-surface);border-radius:var(--p-radius-sm);border:1px solid var(--p-border);font-size:13px">';
+        html += "<strong>" + escapeHtml(a.event_type.replace(/_/g, " ")) + "</strong>";
+        if (a.created_at) html += " <span style='color:var(--p-secondary);font-size:11px'>" + new Date(a.created_at).toLocaleDateString() + "</span>";
+        html += "</div>";
+      });
+      html += "</div>";
+      panel.innerHTML = html;
+    } else {
+      panel.innerHTML = '<div class="nv-empty-inline"><h3>No recent activity</h3><p>Activity will appear here as you engage with the platform.</p></div>';
+    }
+  }
+
+  // ─── Actions (Follow / Friend / Message) ───
+
+  function initActions() {
+    // Follow button
+    var followBtn = root.querySelector('[data-action="follow"]');
+    if (followBtn) {
+      followBtn.addEventListener("click", function () {
+        var state = this.dataset.state;
+        if (state === "following" || state === "friends") {
+          // Unfollow
+          apiFetch("/profile/@" + USERNAME + "/follow", { method: "POST" }).then(function (d) {
+            if (d.ok) {
+              followBtn.dataset.state = "none";
+              followBtn.innerHTML = '<i class="fas fa-user-plus"></i> Follow';
+              showToast("Unfollowed", "info");
+            }
+          });
+        } else {
+          apiFetch("/profile/@" + USERNAME + "/follow", { method: "POST" }).then(function (d) {
+            if (d.ok) {
+              followBtn.dataset.state = "following";
+              followBtn.innerHTML = '<i class="fas fa-user-check"></i> Following';
+              showToast("Followed", "success");
+            }
+          });
+        }
+      });
+    }
+
+    // Message button
+    var msgBtn = root.querySelector('[data-action="message"]');
+    if (msgBtn && !msgBtn.disabled) {
+      msgBtn.addEventListener("click", function () {
+        window.location.href = "/messages/start/" + PROFILE_ID;
+      });
+    }
+
+    // Call buttons
+    var callBtn = root.querySelector('[data-action="call"]');
+    if (callBtn) {
+      callBtn.addEventListener("click", function () {
+        window.location.href = "/calls/start/" + PROFILE_ID + "/audio";
+      });
+    }
+    var videoBtn = root.querySelector('[data-action="video-call"]');
+    if (videoBtn) {
+      videoBtn.addEventListener("click", function () {
+        window.location.href = "/calls/start/" + PROFILE_ID + "/video";
+      });
+    }
+
+    // Share
+    var shareBtn = root.querySelector('[data-action="share"]');
+    if (shareBtn) {
+      shareBtn.addEventListener("click", function () {
+        var url = window.location.origin + "/profile/@" + USERNAME;
+        if (navigator.share) {
+          navigator.share({ title: document.title, url: url }).catch(function () {});
+        } else {
+          navigator.clipboard.writeText(url).then(function () {
+            showToast("Profile link copied!", "success");
+          });
+        }
+      });
+    }
+
+    // More menu
+    var moreBtn = root.querySelector('[data-action="more"]');
+    var moreMenu = root.querySelector("[data-more-menu]");
+    if (moreBtn && moreMenu) {
+      var dropdown = moreMenu.querySelector(".nv-more-dropdown");
+      moreBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var hidden = dropdown.hasAttribute("hidden");
+        document.querySelectorAll(".nv-more-dropdown").forEach(function (d) { d.hidden = true; });
+        dropdown.hidden = !hidden;
+      });
+      document.addEventListener("click", function () {
+        if (dropdown) dropdown.hidden = true;
+      });
+      // Report
+      var reportBtn = dropdown.querySelector('[data-action="report"]');
+      if (reportBtn) {
+        reportBtn.addEventListener("click", function () {
+          apiFetch("/profile/@" + USERNAME + "/report", { method: "POST" }).then(function (d) {
+            showToast(d.ok ? "Reported" : "Error reporting", d.ok ? "info" : "error");
+          });
+          dropdown.hidden = true;
+        });
+      }
+      // Block
+      var blockBtn = dropdown.querySelector('[data-action="block"]');
+      if (blockBtn) {
+        blockBtn.addEventListener("click", function () {
+          if (confirm("Block @" + USERNAME + "?")) {
+            apiFetch("/profile/@" + USERNAME + "/block", { method: "POST" }).then(function (d) {
+              showToast(d.ok ? "Blocked" : "Error", d.ok ? "info" : "error");
+            });
+          }
+          dropdown.hidden = true;
+        });
+      }
+    }
+
+    // Cover/avatar change
+    var coverBtn = root.querySelector('[data-action="change-cover"]');
+    if (coverBtn) {
+      coverBtn.addEventListener("click", function () {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = function () {
+          if (input.files && input.files[0]) {
+            var form = new FormData();
+            form.append("cover", input.files[0]);
+            form.append("csrf_token", document.querySelector('[name="csrf_token"]')?.value || "");
+            fetch("/profile/cover", { method: "POST", body: form }).then(function (r) {
+              if (r.ok) showToast("Cover updated", "success");
+              else showToast("Upload failed", "error");
+            });
+          }
+        };
+        input.click();
+      });
+    }
+
+    var avatarBtn = root.querySelector('[data-action="change-avatar"]');
+    if (avatarBtn) {
+      avatarBtn.addEventListener("click", function () {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = function () {
+          if (input.files && input.files[0]) {
+            var form = new FormData();
+            form.append("avatar", input.files[0]);
+            form.append("csrf_token", document.querySelector('[name="csrf_token"]')?.value || "");
+            fetch("/profile/avatar", { method: "POST", body: form }).then(function (r) {
+              if (r.ok) { showToast("Avatar updated", "success"); location.reload(); }
+              else showToast("Upload failed", "error");
+            });
+          }
+        };
+        input.click();
+      });
+    }
+
+    // Stats click (navigate to followers/following list)
+    var followersStat = root.querySelector('[data-action="followers"]');
+    if (followersStat) {
+      followersStat.style.cursor = "pointer";
+      followersStat.addEventListener("click", function () {
+        window.location.href = "/profile/@" + USERNAME + "/followers";
+      });
+    }
+    var followingStat = root.querySelector('[data-action="following"]');
+    if (followingStat) {
+      followingStat.style.cursor = "pointer";
+      followingStat.addEventListener("click", function () {
+        window.location.href = "/profile/@" + USERNAME + "/following";
+      });
+    }
+    var friendsStat = root.querySelector('[data-action="friends"]');
+    if (friendsStat) {
+      friendsStat.style.cursor = "pointer";
+      friendsStat.addEventListener("click", function () {
+        window.location.href = "/profile/@" + USERNAME + "/friends";
+      });
+    }
+  }
+
+  // ─── Realtime Presence ───
+  function initPresence() {
+    // Listen for presence updates via socket
+    if (typeof socket !== "undefined" && socket) {
+      socket.on("presence:update", function (data) {
+        if (data && data.profile_id === PROFILE_ID) {
+          var dot = root.querySelector(".nv-online-dot");
+          var label = root.querySelector(".nv-meta-line .is-online, .nv-meta-line .is-offline");
+          if (data.state === "online") {
+            if (!dot) {
+              var wrap = root.querySelector(".nv-avatar-wrap");
+              if (wrap) {
+                var d = document.createElement("span");
+                d.className = "nv-online-dot";
+                wrap.appendChild(d);
+              }
+            }
+            if (label) {
+              label.className = "is-online";
+              label.innerHTML = '<i class="fas fa-circle"></i> active now';
+            }
+          } else {
+            if (dot) dot.remove();
+            if (label) {
+              label.className = "is-offline";
+              label.innerHTML = '<i class="fas fa-circle"></i> offline';
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // ─── Init ───
+  document.addEventListener("DOMContentLoaded", function () {
+    initTabs();
+    initActions();
+    initPresence();
+  });
 })();

@@ -141,8 +141,8 @@ def _redirect_back(username=None):
 
 def _session_profile_stub():
     email = session.get("auth_email") or ""
-    username = session.get("username") or (email.split("@")[0] if "@" in email else "user")
-    full_name = session.get("full_name") or username.replace("_", " ").title()
+    username = session.get("username") or (email.split("@")[0] if "@" in email else "")
+    full_name = session.get("full_name") or ""
     return _with_profile_defaults({
         "id": session.get("profile_id"),
         "auth_user_id": session.get("auth_user_id"),
@@ -681,6 +681,8 @@ def my_profile_no_slash():
 
 @profile_bp.route("/<username>")
 def public_profile(username):
+    if username.startswith("@"):
+        return redirect(url_for("profile.view_profile", username=username[1:]), 301)
     try:
         return _resolve_profile_route(username=username)
     except Exception as error:
@@ -1867,3 +1869,104 @@ def security_delete_account():
     except Exception as e:
         flash(f"Error: {str(e)}", "error")
     return redirect(url_for("profile.security"))
+
+
+# ─── Profile 2026 API Endpoints ───
+
+@profile_bp.route("/api/<target>/overview")
+def api_profile_overview(target):
+    try:
+        viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
+        viewer_id = viewer.get("id") if viewer else None
+        from services.profile_2026_service import get_profile_2026, emit_profile_viewed
+        data = get_profile_2026(viewer_id, target)
+        if data.get("ok"):
+            emit_profile_viewed(viewer_id, data.get("id"))
+        return jsonify(data)
+    except Exception as e:
+        log_error("api_profile_overview_error", target=target, error=str(e))
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@profile_bp.route("/api/<target>/content")
+def api_profile_content(target):
+    try:
+        viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
+        viewer_id = viewer.get("id") if viewer else None
+        section = request.args.get("section", "reels")
+        page = int(request.args.get("page", 1))
+        per_page = int(request.args.get("per_page", 12))
+        from services.profile_2026_service import get_profile_content_section
+        data = get_profile_content_section(viewer_id, target, section, page, per_page)
+        return jsonify(data)
+    except Exception as e:
+        log_error("api_profile_content_error", target=target, error=str(e))
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@profile_bp.route("/api/<target>/reels")
+def api_profile_reels(target):
+    try:
+        viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
+        viewer_id = viewer.get("id") if viewer else None
+        page = int(request.args.get("page", 1))
+        from services.profile_2026_service import get_profile_content_section
+        data = get_profile_content_section(viewer_id, target, "reels", page, 12)
+        return jsonify(data)
+    except Exception as e:
+        log_error("api_profile_reels_error", target=target, error=str(e))
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@profile_bp.route("/api/<target>/stories")
+def api_profile_stories(target):
+    try:
+        viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
+        viewer_id = viewer.get("id") if viewer else None
+        from services.profile_2026_service import get_profile_content_section
+        data = get_profile_content_section(viewer_id, target, "stories", 1, 20)
+        return jsonify(data)
+    except Exception as e:
+        log_error("api_profile_stories_error", target=target, error=str(e))
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@profile_bp.route("/api/<target>/gallery")
+def api_profile_gallery(target):
+    try:
+        viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
+        viewer_id = viewer.get("id") if viewer else None
+        page = int(request.args.get("page", 1))
+        from services.profile_2026_service import get_profile_content_section
+        data = get_profile_content_section(viewer_id, target, "gallery", page, 12)
+        return jsonify(data)
+    except Exception as e:
+        log_error("api_profile_gallery_error", target=target, error=str(e))
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@profile_bp.route("/api/<target>/live")
+def api_profile_live(target):
+    try:
+        viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
+        viewer_id = viewer.get("id") if viewer else None
+        from services.profile_2026_service import get_profile_content_section
+        data = get_profile_content_section(viewer_id, target, "live", 1, 10)
+        return jsonify(data)
+    except Exception as e:
+        log_error("api_profile_live_error", target=target, error=str(e))
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@profile_bp.route("/api/<target>/activity")
+def api_profile_activity_target(target):
+    try:
+        viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
+        viewer_id = viewer.get("id") if viewer else None
+        page = int(request.args.get("page", 1))
+        from services.profile_2026_service import get_profile_content_section
+        data = get_profile_content_section(viewer_id, target, "activity", page, 20)
+        return jsonify(data)
+    except Exception as e:
+        log_error("api_profile_activity_error", target=target, error=str(e))
+        return jsonify({"ok": False, "error": str(e)})
