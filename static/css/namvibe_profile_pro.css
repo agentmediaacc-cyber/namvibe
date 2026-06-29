@@ -755,10 +755,18 @@ select {
   .nv-action-stack {
     gap: 8px;
   }
+  .nv-status-chip,
   .nv-btn {
-    flex: 1 1 auto;
+    flex: 1 1 calc(50% - 8px);
     white-space: normal;
     text-align: center;
+  }
+  .nv-icon-btn {
+    flex: 0 0 42px;
+  }
+  .nv-social-insights,
+  .nv-inline-insights {
+    grid-template-columns: 1fr;
   }
   .nv-stat-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
