@@ -4,6 +4,9 @@ import time
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, session
 from services.profile_service import get_current_profile
 from services.reels_engine import list_reels, get_reel, create_reel, create_reel_full, record_reel_view, share_reel, delete_reel
+from services.reels_engine import get_reels_feed, get_reel_detail, get_next_reels, track_reel_watch
+from services.reels_engine import get_creator_reel_stats, get_reel_comments_summary
+from services.reels_engine import like_reel_v2, unlike_reel, save_reel, unsave_reel, share_reel_v2, note_reel_comment
 from services.reels_service import track_reel_event, get_reel_comments, get_reel_feed, batch_is_following, toggle_reel_save, toggle_reel_like
 from services.engagement_service import add_comment, toggle_like, toggle_save
 from api_routes.profile_routes import login_required
@@ -339,3 +342,166 @@ def api_create_reel():
             pass
         return jsonify({"ok": True, "reel_id": reel.get("id"), "video_url": reel.get("video_url"), "media_url": reel.get("media_url")}), 201
     return jsonify({"ok": False, "error": "Failed to create reel"}), 400
+
+
+# =========== PHASE 4: Reels Engine Premium Endpoints ===========
+
+@reels_bp.route("/api/reels/<reel_id>/detail", methods=["GET"])
+def api_reel_detail(reel_id):
+    """Get reel detail with viewer interaction state."""
+    profile = get_current_profile()
+    viewer_id = (profile or {}).get("id")
+    reel = get_reel_detail(viewer_id, reel_id)
+    if not reel:
+        return jsonify({"error": "Reel not found"}), 404
+    return jsonify({"reel": reel}), 200
+
+
+@reels_bp.route("/api/reels/<reel_id>/next", methods=["GET"])
+def api_next_reels(reel_id):
+    """Get next reels for continuous play."""
+    profile = get_current_profile()
+    viewer_id = (profile or {}).get("id")
+    limit = min(int(request.args.get("limit", 5)), 20)
+    reels = get_next_reels(viewer_id, reel_id, limit=limit)
+    return jsonify({"reels": reels}), 200
+
+
+@reels_bp.route("/api/reels/<reel_id>/watch-v2", methods=["POST"])
+def api_watch_v2(reel_id):
+    """Enhanced watch tracking with completed/replayed signals."""
+    try:
+        data = request.get_json(silent=True) or {}
+        profile = get_current_profile()
+        viewer_id = (profile or {}).get("id")
+        watch_ms = int(data.get("watch_ms", data.get("watch_seconds", 0)) * 1000)
+        completed = bool(data.get("completed", False))
+        replayed = bool(data.get("replayed", False))
+        track_reel_watch(viewer_id, reel_id, watch_ms, completed=completed, replayed=replayed)
+        return jsonify({"ok": True}), 200
+    except Exception:
+        return jsonify({"ok": True}), 200
+
+
+@reels_bp.route("/api/reels/<reel_id>/like-v2", methods=["POST"])
+@login_required
+def api_like_v2(reel_id):
+    """Like/unlike a reel with state tracking."""
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id")
+    if not profile_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    action = data.get("action", "toggle")
+    if action == "unlike":
+        success, liked = unlike_reel(profile_id, reel_id)
+    else:
+        success, liked = like_reel_v2(profile_id, reel_id)
+    if not success:
+        return jsonify({"error": "Action failed"}), 400
+    return jsonify({"success": True, "liked": liked}), 200
+
+
+@reels_bp.route("/api/reels/<reel_id>/save-v2", methods=["POST"])
+@login_required
+def api_save_v2(reel_id):
+    """Save/unsave a reel with state tracking."""
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id")
+    if not profile_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    action = data.get("action", "toggle")
+    if action == "unsave":
+        success, saved = unsave_reel(profile_id, reel_id)
+    else:
+        success, saved = save_reel(profile_id, reel_id)
+    if not success:
+        return jsonify({"error": "Action failed"}), 400
+    return jsonify({"success": True, "saved": saved}), 200
+
+
+@reels_bp.route("/api/reels/<reel_id>/share-v2", methods=["POST"])
+def api_share_v2(reel_id):
+    """Enhanced share tracking."""
+    try:
+        profile = get_current_profile()
+        profile_id = (profile or {}).get("id")
+        data = request.get_json(silent=True) or {}
+        target = data.get("target", "link")
+        share_reel_v2(reel_id, profile_id, target=target)
+        return jsonify({"success": True}), 200
+    except Exception:
+        return jsonify({"success": False}), 200
+
+
+@reels_bp.route("/api/reels/<reel_id>/creator-stats", methods=["GET"])
+def api_creator_stats(reel_id):
+    """Get creator's reel analytics (own reels only)."""
+    profile = get_current_profile()
+    viewer_id = (profile or {}).get("id")
+    try:
+        reel = fast_query("SELECT profile_id FROM chain_reels WHERE id = %s", (reel_id,))
+        if not reel:
+            return jsonify({"error": "Reel not found"}), 404
+        creator_id = reel[0][0]
+        stats = get_creator_reel_stats(creator_id, requesting_profile_id=viewer_id)
+        return jsonify(stats), 200
+    except Exception:
+        return jsonify({"error": "Failed to load stats"}), 500
+
+
+@reels_bp.route("/api/reels/<reel_id>/comments-summary", methods=["GET"])
+def api_comments_summary(reel_id):
+    """Get comment count + latest commenters."""
+    summary = get_reel_comments_summary(reel_id)
+    return jsonify(summary), 200
+
+
+@reels_bp.route("/api/reels/feed-v2", methods=["GET"])
+def api_feed_v2():
+    """Enhanced cursor-based feed with ranking."""
+    feed_type = request.args.get("type", "for_you")
+    cursor = request.args.get("cursor")
+    limit = min(int(request.args.get("limit", 10)), 50)
+    profile = get_current_profile()
+    viewer_id = (profile or {}).get("id")
+    reels, next_cursor = get_reels_feed(viewer_id, feed_type=feed_type, cursor=cursor, limit=limit)
+
+    # Add viewer interaction states
+    if viewer_id and reels:
+        try:
+            from services.reels_service import batch_is_following
+            creator_ids = [r["profile_id"] for r in reels if r.get("profile_id")]
+            following = batch_is_following(viewer_id, creator_ids) if creator_ids else set()
+            for r in reels:
+                pid = r.get("profile_id")
+                r["viewer_follows_creator"] = pid in following if pid else False
+        except Exception:
+            pass
+
+    return jsonify({
+        "reels": reels,
+        "next_cursor": next_cursor,
+        "has_more": bool(next_cursor),
+    })
+
+
+@reels_bp.route("/api/reels/track", methods=["POST"])
+def api_track_activity():
+    """Generic activity tracking endpoint for client-side events."""
+    try:
+        data = request.get_json(silent=True) or {}
+        profile = get_current_profile()
+        profile_id = (profile or {}).get("id")
+        verb = data.get("verb", "reel_viewed")
+        reel_id = data.get("reel_id")
+        if reel_id and verb and profile_id:
+            try:
+                from services.reels_engine import _emit_reel_activity
+                _emit_reel_activity(profile_id, reel_id, verb, data.get("extra"))
+            except Exception:
+                pass
+        return jsonify({"ok": True}), 200
+    except Exception:
+        return jsonify({"ok": True}), 200

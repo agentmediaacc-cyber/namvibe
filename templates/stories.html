@@ -2,10 +2,21 @@
 {% block title %}Stories | NamVibe{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/stories.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_stories_engine.css') }}">
 {% endblock %}
 {% block content %}
 <main id="stories-app" class="stories-container">
-  <div class="stories-tray">
+  <!-- Premium story tray -->
+  <div class="nv-story-tray" id="nv-story-tray"></div>
+
+  <!-- Highlights section -->
+  <div class="nv-highlights-section" id="nv-highlights-section"></div>
+
+  <!-- Premium story viewer overlay -->
+  <div class="nv-story-viewer" id="nv-story-viewer"></div>
+
+  <!-- Legacy tray (kept for backward compat) -->
+  <div class="stories-tray" style="display:none">
     <a href="/status/create" class="story-avatar my-story">
       <div class="story-ring">
         {% if profile and profile.avatar_url %}
@@ -82,6 +93,8 @@
 {% block extra_js %}
 <script>
 window.__STORIES_DATA = {{ stories_json|safe }};
+window.__NV_PROFILE_ID = {{ (profile.id if profile else 'null')|safe }};
 </script>
 <script src="{{ url_for('static', filename='js/stories.js') }}"></script>
+<script src="{{ url_for('static', filename='js/namvibe_stories_engine.js') }}"></script>
 {% endblock %}

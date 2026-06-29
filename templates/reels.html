@@ -2,6 +2,7 @@
 {% block title %}Reels | NamVibe{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reels.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_reels_engine.css') }}">
 {% endblock %}
 {% block content %}
 <main id="reels-app" class="reels-fullscreen">
@@ -110,4 +111,5 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/reels.js') }}"></script>
+<script src="{{ url_for('static', filename='js/namvibe_reels_engine.js') }}"></script>
 {% endblock %}

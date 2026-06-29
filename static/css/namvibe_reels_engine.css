@@ -1,0 +1,227 @@
+/* ===== NamVibe Reels Engine Premium CSS ===== */
+
+/* Full-screen vertical viewport */
+.nv-reels-viewport {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  overflow-y: scroll; scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch; background: #000; z-index: 50;
+}
+.nv-reels-viewport::-webkit-scrollbar { display: none; }
+
+.nv-reel-slide {
+  scroll-snap-align: start;
+  width: 100%; height: 100dvh;
+  position: relative; display: flex;
+  align-items: center; justify-content: center;
+  background: #000;
+}
+
+.nv-reel-slide video {
+  width: 100%; height: 100%; object-fit: contain;
+}
+
+/* Skeleton loader */
+.nv-reel-skeleton {
+  width: 100%; height: 100dvh;
+  background: #111;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Gradient overlay */
+.nv-reel-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(transparent 50%, rgba(0,0,0,0.65) 100%);
+  pointer-events: none; z-index: 1;
+}
+
+/* Bottom info area */
+.nv-reel-info {
+  position: absolute; bottom: 40px; left: 16px; right: 80px;
+  color: #fff; z-index: 3;
+  text-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+.nv-reel-creator {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+}
+.nv-reel-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  object-fit: cover; border: 2px solid rgba(255,255,255,.2);
+}
+.nv-reel-username { font-weight: 700; font-size: 15px; }
+.nv-reel-caption {
+  font-size: 13px; opacity: .9;
+  line-height: 1.35; max-height: 3.6em; overflow: hidden;
+}
+.nv-reel-music {
+  font-size: 12px; opacity: .7; margin-top: 4px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* Right action rail */
+.nv-reel-actions {
+  position: absolute; bottom: 100px; right: 8px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; z-index: 3;
+}
+.nv-reel-action-btn {
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  border-radius: 50%; border: none;
+  background: rgba(255,255,255,.12);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  color: #fff; font-size: 20px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s;
+}
+.nv-reel-action-btn:active { transform: scale(.88); }
+.nv-reel-action-btn.liked { color: #ff3040; }
+.nv-reel-action-btn.saved { color: #facc15; }
+.nv-reel-action-label {
+  font-size: 10px; font-weight: 600; color: #fff;
+  text-align: center; line-height: 1; margin-top: -2px;
+}
+
+/* Mute/unmute top-right */
+.nv-reel-mute-btn {
+  position: absolute; top: 60px; right: 12px;
+  width: 36px; height: 36px;
+  border-radius: 50%; border: none;
+  background: rgba(0,0,0,.5); color: #fff;
+  font-size: 16px; cursor: pointer; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Progress bar at bottom edge */
+.nv-reel-progress {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 3px; background: rgba(255,255,255,.15); z-index: 4;
+}
+.nv-reel-progress-bar {
+  height: 100%; background: #fff; width: 0%;
+  transition: width .1s linear;
+}
+
+/* Double-tap heart animation */
+.nv-double-tap-heart {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  font-size: 80px; color: #fff;
+  pointer-events: none; z-index: 5;
+  opacity: 0;
+}
+.nv-double-tap-heart.pop {
+  animation: heartPop .5s ease-out forwards;
+}
+@keyframes heartPop {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  30% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+/* Comment drawer */
+.nv-comment-drawer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  max-height: 55vh; background: #fff;
+  border-radius: 16px 16px 0 0; z-index: 100;
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+  padding: 16px; padding-bottom: env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -4px 30px rgba(0,0,0,.15);
+}
+.nv-comment-drawer.open { transform: translateY(0); }
+.nv-comment-drawer-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  z-index: 99; opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+.nv-comment-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+.nv-comment-drawer-header {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 12px;
+  font-weight: 700; font-size: 16px;
+}
+.nv-drawer-close {
+  width: 36px; height: 36px; border: none;
+  background: transparent; font-size: 24px; cursor: pointer;
+  border-radius: 50%;
+}
+.nv-drawer-close:hover { background: #f0f0f0; }
+.nv-comment-list {
+  max-height: 35vh; overflow-y: auto; margin-bottom: 12px;
+}
+.nv-comment-item {
+  display: flex; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0; font-size: 14px;
+}
+.nv-comment-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+}
+.nv-comment-body { flex: 1; min-width: 0; }
+.nv-comment-username { font-weight: 600; font-size: 13px; }
+.nv-comment-text { word-break: break-word; }
+.nv-comment-time { font-size: 11px; color: #999; margin-top: 2px; }
+.nv-comment-form {
+  display: flex; gap: 8px; border-top: 1px solid #eee;
+  padding-top: 12px;
+}
+.nv-comment-input {
+  flex: 1; min-height: 40px; padding: 8px 12px;
+  border: 1px solid #ddd; border-radius: 20px;
+  font-size: 14px; outline: none;
+}
+.nv-comment-input:focus { border-color: #3b82f6; }
+.nv-comment-submit {
+  min-width: 44px; min-height: 40px; padding: 8px 16px;
+  background: #3b82f6; color: #fff; border: none;
+  border-radius: 20px; font-weight: 600; cursor: pointer;
+  font-size: 14px;
+}
+.nv-comment-submit:disabled { opacity: .5; cursor: default; }
+
+/* Share drawer (grid) */
+.nv-share-drawer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #fff; border-radius: 16px 16px 0 0;
+  z-index: 100; padding: 20px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  transform: translateY(100%);
+  transition: transform .3s cubic-bezier(.32,.72,0,1);
+  box-shadow: 0 -4px 30px rgba(0,0,0,.15);
+}
+.nv-share-drawer.open { transform: translateY(0); }
+.nv-share-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-top: 12px;
+}
+.nv-share-option {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; cursor: pointer; border: none; background: none;
+  font-size: 12px; color: #333;
+}
+.nv-share-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: #f0f0f0; display: flex; align-items: center;
+  justify-content: center; font-size: 22px;
+}
+
+/* Error/retry */
+.nv-reel-error {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #fff; gap: 12px; background: #111;
+  z-index: 2;
+}
+.nv-reel-error button {
+  padding: 8px 24px; border: none; border-radius: 20px;
+  background: #fff; color: #000; font-weight: 600;
+  cursor: pointer;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .nv-reel-info { bottom: 32px; left: 12px; right: 64px; }
+  .nv-reel-actions { bottom: 80px; right: 4px; gap: 2px; }
+  .nv-reel-action-btn { width: 40px; height: 40px; min-width: 40px; min-height: 40px; font-size: 18px; }
+  .nv-reel-username { font-size: 14px; }
+  .nv-reel-caption { font-size: 12px; }
+}
