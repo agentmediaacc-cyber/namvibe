@@ -62,7 +62,14 @@ def get_story_feed(viewer_id, limit=50):
     now = _utcnow_iso()
     params = [now]
     sql = """
-        SELECT s.*, p.display_name, p.username, p.avatar_url, p.is_verified
+        SELECT s.id, s.profile_id, s.body, s.media_url, s.thumbnail_url, s.media_type,
+               s.visibility, s.expires_at, s.created_at, s.updated_at,
+               s.background_color, s.text_content, s.music_title, s.music_url,
+               s.location_name, s.mentions, s.hashtags, s.link_url,
+               s.views_count, s.likes_count, s.reaction_count, s.reply_count,
+               s.forward_count, s.back_count, s.exit_count, s.completion_rate,
+               s.caption, s.duration_seconds,
+               p.display_name, p.username, p.avatar_url, p.is_verified
         FROM chain_status_posts s
         JOIN chain_profiles p ON p.id = s.profile_id
         WHERE s.expires_at > %s AND s.deleted_at IS NULL

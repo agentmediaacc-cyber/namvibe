@@ -250,19 +250,21 @@ def get_call(call_id):
     return _CALLS.get(call_id)
 
 
-def recent_calls(profile_id):
+def recent_calls(profile_id, limit=None, offset=None):
     profile_id = _uuid(profile_id)
+    row_limit = min(int(limit or 20), 100)
+    row_offset = max(int(offset or 0), 0)
     if _db_available():
         from engines.cache_engine import cache_key, get_cache, set_cache
-        cache_key_str = cache_key("recent_calls", profile_id)
+        cache_key_str = cache_key("recent_calls", profile_id, row_limit, row_offset)
         cached = get_cache(cache_key_str)
         if cached is not None:
             return cached
         rows = fast_query(
-            "SELECT id, caller_profile_id, receiver_profile_id, call_type, call_status, started_at, duration_seconds, is_group_call FROM chain_call_sessions WHERE caller_profile_id = %s OR receiver_profile_id = %s ORDER BY started_at DESC LIMIT 20",
-            (profile_id, profile_id), timeout_ms=500, default=[]
+            "SELECT id, caller_profile_id, receiver_profile_id, call_type, call_status, started_at, duration_seconds, is_group_call FROM chain_call_sessions WHERE caller_profile_id = %s OR receiver_profile_id = %s ORDER BY started_at DESC LIMIT %s OFFSET %s",
+            (profile_id, profile_id, row_limit, row_offset), timeout_ms=500, default=[]
         )
         if rows:
-            set_cache(cache_key_str, rows, ttl=15)
+            set_cache(cache_key_str, rows, ttl=30)
             return rows
-    return [call for call in list(_CALLS.values())[:20] if profile_id in {call.get("caller_profile_id"), call.get("receiver_profile_id")}]
+    return [call for call in list(_CALLS.values())[:row_limit] if profile_id in {call.get("caller_profile_id"), call.get("receiver_profile_id")}]

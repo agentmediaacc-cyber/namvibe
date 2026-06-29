@@ -185,10 +185,11 @@ def check_call_timeouts():
 
     return len(stale_calls)
 
-def list_recent_calls(profile_id):
-    """Get recent calls with caching for performance."""
-    # Check cache first (short TTL for recent calls)
-    cache_key_str = cache_key("recent_calls", profile_id, 10, 0)
+def list_recent_calls(profile_id, limit=None, offset=None):
+    """Get recent calls with caching and pagination."""
+    row_limit = min(int(limit or 50), 100)
+    row_offset = max(int(offset or 0), 0)
+    cache_key_str = cache_key("recent_calls", profile_id, row_limit, row_offset)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
@@ -214,10 +215,10 @@ def list_recent_calls(profile_id):
         LEFT JOIN chain_profiles receiver ON c.receiver_profile_id = receiver.id
         WHERE c.receiver_profile_id = %s
         ORDER BY started_at DESC
-        LIMIT 50
+        LIMIT %s OFFSET %s
     """
-    results = fast_query(sql, (profile_id, profile_id), timeout_ms=2000, default=[]) or []
+    results = fast_query(sql, (profile_id, profile_id, row_limit, row_offset), timeout_ms=2000, default=[]) or []
     
-    # Cache for 10 seconds (recent calls are time-sensitive)
-    set_cache(cache_key_str, results, ttl=10)
+    # Cache for 15 seconds (recent calls are time-sensitive, but 15s is safe)
+    set_cache(cache_key_str, results, ttl=15)
     return results

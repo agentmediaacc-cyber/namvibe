@@ -154,7 +154,7 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
                   text_content=None, music_url="", music_title="", music_artist="",
                   music_start_seconds=0, music_duration_seconds=0):
     """Create a story/status with optional media.
-    
+
     Status rules:
     - Default visibility is 'followers' (not public)
     - Video max 120 seconds
@@ -166,7 +166,7 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
     ok, error = validate_status_duration(duration_seconds)
     if not ok:
         return None, error
-    
+
     music_title = sanitize_text(music_title, max_len=160) if music_title else ""
     music_artist = sanitize_text(music_artist, max_len=120) if music_artist else ""
     music_duration_seconds = int(music_duration_seconds or 0)
@@ -175,14 +175,14 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
         music_duration_seconds = 90
     if music_start_seconds < 0:
         music_start_seconds = 0
-    
+
     media_url = None
     video_url = None
     storage_bucket = None
     storage_path = None
     mime_type = None
     size_bytes = None
-    
+
     if media_file:
         folder = "status" if media_type == "text" else "stories"
         result = upload_media_to_supabase(media_file, folder, profile_id)
@@ -194,14 +194,14 @@ def create_status(profile_id, caption="", media_file=None, visibility="followers
         mime_type = result.get("mime_type")
         size_bytes = result.get("size")
         storage_bucket = "supabase"
-    
+
     if not caption and not media_file and not text_content:
         return None, "Status cannot be empty."
-    
+
     status_id = str(uuid.uuid4())
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
     now = _utcnow_iso()
-    
+
     sql = """
         INSERT INTO chain_status_posts
             (id, profile_id, caption, media_url, video_url, media_type, storage_bucket, storage_path,
@@ -328,24 +328,38 @@ def list_viewers(status_id, requesting_profile_id=None):
         })
     return result
 
-def list_active_statuses(profile_id=None, viewer_profile_id=None):
+def list_active_statuses(profile_id=None, viewer_profile_id=None, limit=None, offset=None):
     """List active (non-expired) statuses with visibility filtering.
-    
-    Performance optimized: uses CTE to batch-follow lookups for the viewer
-    and avoids correlated subqueries by pushing all filtering into the JOIN conditions.
+
+    Performance optimized: uses CTE to batch-follow lookups for the viewer,
+    selects only required columns, and uses 30s cache.
     """
     now = _utcnow_iso()
-    cache_key_str = cache_key(f"status:active:{profile_id or 'all'}:viewer:{viewer_profile_id or 'anon'}")
+    cache_key_str = cache_key(f"status:active:{profile_id or 'all'}:viewer:{viewer_profile_id or 'anon'}:{limit or 50}:{offset or 0}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
-    
+
+    row_limit = min(int(limit or 50), 100)
+    row_offset = max(int(offset or 0), 0)
+
+    # Select only columns actually needed by serialize_status instead of s.*
+    story_cols = """
+        s.id, s.profile_id, s.body, s.media_url, s.video_url, s.media_type,
+        s.visibility, s.expires_at, s.created_at, s.updated_at,
+        s.duration_seconds, s.background_color, s.text_content,
+        s.music_url, s.music_title, s.music_artist,
+        s.music_start_seconds, s.music_duration_seconds,
+        s.thumbnail_url, s.views_count, s.comments_count,
+        s.likes_count, s.owner_id
+    """
+
     # Build optimized query based on view context
     if profile_id:
         # Single profile view - simpler query
         params = [now, profile_id]
-        sql = """
-            SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
+        sql = f"""
+            SELECT {story_cols}, p.username, p.avatar_url, p.display_name, p.is_verified,
                    COALESCE(s.views_count, 0) as views_count
             FROM chain_status_posts s
             JOIN chain_profiles p ON s.profile_id = p.id
@@ -353,7 +367,6 @@ def list_active_statuses(profile_id=None, viewer_profile_id=None):
               AND s.profile_id = %s
         """
         if viewer_profile_id and str(profile_id) != str(viewer_profile_id):
-            # Use EXISTS for visibility checks - more efficient than multiple OR branches
             viewer = str(viewer_profile_id)
             params.append(viewer)
             params.append(viewer)
@@ -370,17 +383,15 @@ def list_active_statuses(profile_id=None, viewer_profile_id=None):
                 OR s.visibility = 'private' AND s.profile_id = %s
             )"""
         elif viewer_profile_id and str(profile_id) == str(viewer_profile_id):
-            # Owner can see all their own statuses - no additional filter
             pass
         else:
-            # No viewer - only public/followers
             sql += """ AND s.visibility IN ('public', 'followers')"""
     else:
         # Feed view - optimized with follow_map CTE
         if viewer_profile_id:
             viewer = str(viewer_profile_id)
             params = [viewer, now, viewer, viewer, viewer]
-            sql = """
+            sql = f"""
                 WITH follow_map AS (
                     SELECT following_profile_id FROM chain_follows
                     WHERE follower_profile_id = %s AND deleted_at IS NULL
@@ -389,7 +400,7 @@ def list_active_statuses(profile_id=None, viewer_profile_id=None):
                     SELECT creator_profile_id FROM chain_creator_subscriptions
                     WHERE subscriber_profile_id = %s AND status = 'active'
                 )
-                SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
+                SELECT {story_cols}, p.username, p.avatar_url, p.display_name, p.is_verified,
                        COALESCE(s.views_count, 0) as views_count
                 FROM chain_status_posts s
                 JOIN chain_profiles p ON s.profile_id = p.id
@@ -403,9 +414,8 @@ def list_active_statuses(profile_id=None, viewer_profile_id=None):
             """
             params = [viewer, viewer, now, viewer]
         else:
-            # No viewer - no statuses visible (empty feed)
-            sql = """
-                SELECT s.*, p.username, p.avatar_url, p.display_name, p.is_verified,
+            sql = f"""
+                SELECT {story_cols}, p.username, p.avatar_url, p.display_name, p.is_verified,
                        COALESCE(s.views_count, 0) as views_count
                 FROM chain_status_posts s
                 JOIN chain_profiles p ON s.profile_id = p.id
@@ -413,10 +423,12 @@ def list_active_statuses(profile_id=None, viewer_profile_id=None):
             """
             params = [now]
 
-    sql += " ORDER BY s.created_at DESC LIMIT 50"
+    sql += " ORDER BY s.created_at DESC LIMIT %s OFFSET %s"
+    params.extend([row_limit, row_offset])
     rows = fast_query(sql, tuple(params), timeout_ms=2000, default=[])
     serialized = [serialize_status(row, viewer_profile_id=viewer_profile_id) for row in rows]
-    set_cache(cache_key_str, serialized, ttl=15)
+    # Cache for 30 seconds (stories are time-sensitive but 30s is safe)
+    set_cache(cache_key_str, serialized, ttl=30)
     return serialized
 
 def get_status(status_id, viewer_profile_id=None):

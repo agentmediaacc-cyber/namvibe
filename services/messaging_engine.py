@@ -156,7 +156,7 @@ def list_threads(profile_id, include_archived=False, folder='primary', limit=30,
         elif thread.get('other_member'):
             thread['display_name'] = thread['other_member'].get('full_name') or thread['other_member'].get('username')
             thread['display_avatar'] = thread['other_member'].get('avatar_url')
-    set_cache(cache_key_str, threads, ttl=10)
+    set_cache(cache_key_str, threads, ttl=30)
     return threads
 
 
