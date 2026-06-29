@@ -88,7 +88,7 @@ _SHARED_FEED_CACHE_PREFIX = "chain_homepage_feed_v1"
 _TIMING_ROOT = threading.local()
 _PERF_LOCAL = threading.local()
 _PERF_LOCK = threading.RLock()
-_SCHEMA_NEVER_ASSUME_COLUMNS = {"video_url", "host_id", "status"}
+_SCHEMA_NEVER_ASSUME_COLUMNS = {"video_url", "host_id"}
 
 
 def _new_perf_profile():
@@ -580,6 +580,13 @@ def _reel_select():
             "visibility",
             "created_at",
             "deleted_at",
+            "likes_count",
+            "comments_count",
+            "views_count",
+            "shares_count",
+            "music_title",
+            "status",
+            "processing_status",
         ],
     )
 
@@ -940,6 +947,41 @@ def _normalize_post(row, profile_map):
     }
 
 
+def _normalize_reel(row, profile_map):
+    """Normalize reel row with all engagement fields."""
+    if row and not isinstance(row, dict):
+        return {}
+    profile = profile_map.get(row.get("profile_id"))
+    if profile is None:
+        profile = _profile_from_row(row)
+    if not profile:
+        profile = {}
+    caption = _clean_text(row.get("caption"), "")
+    return {
+        "id": row.get("id"),
+        "display_name": profile.get("display_name") or profile.get("username") or "Creator",
+        "username": profile.get("username", ""),
+        "avatar_url": profile.get("avatar_url") or "",
+        "verified": profile.get("verified", False),
+        "caption": caption,
+        "excerpt": caption[:180] + ("..." if len(caption) > 180 else ""),
+        "media_url": _first_present(row, ["media_url", "thumbnail_url", "video_url"]) or "",
+        "video_url": row.get("video_url") or "",
+        "thumbnail_url": row.get("thumbnail_url") or row.get("media_url") or "",
+        "visibility": _clean_text(row.get("visibility"), "public"),
+        "likes_count": _safe_int(row.get("likes_count"), 0),
+        "comments_count": _safe_int(row.get("comments_count"), 0),
+        "views_count": _safe_int(row.get("views_count"), 0),
+        "shares_count": _safe_int(row.get("shares_count"), 0),
+        "saves_count": _safe_int(row.get("saves_count"), 0),
+        "duration_seconds": _safe_int(row.get("duration_seconds"), 0),
+        "music_title": _clean_text(row.get("music_title"), ""),
+        "created_label": _format_relative(row.get("created_at")),
+        "profile_url": f"/profile/@{profile.get('username')}" if profile.get("username") else "/discover/",
+        "reel_url": f"/reels/{row.get('id')}" if row.get("id") else "/reels/",
+    }
+
+
 def _wallet_snapshot(current):
     snapshot = {"coin_balance": 0, "gift_earnings": 0, "label_balance": "0"}
     if not current or not current.get("id"):
@@ -1277,6 +1319,10 @@ def build_homepage_payload(async_warm=False):
                     where.append("r.deleted_at IS NULL")
                 if "visibility" in available:
                     where.append("COALESCE(r.visibility, 'public') = 'public'")
+                if "status" in available:
+                    where.append("r.status = 'published'")
+                if "processing_status" in available:
+                    where.append("r.processing_status = 'ready'")
                 rows = fast_query(
                     f"SELECT {select_cols} FROM chain_reels r "
                     f"{'WHERE ' + ' AND '.join(where) if where else ''} "
@@ -1351,7 +1397,7 @@ def build_homepage_payload(async_warm=False):
     payload["trending_posts"] = [row for row in (_normalize_post(r, profile_map) for r in payload["trending_posts"]) if row.get("id")]
     payload["recommended_profiles"] = [row for row in (_normalize_profile(r) for r in payload["recommended_profiles"]) if row.get("id")]
     payload["dating_matches"] = [row for row in (_normalize_profile(r) for r in payload["dating_matches"]) if row.get("id")]
-    payload["reels"] = [row for row in (_normalize_post(r, profile_map) for r in payload["reels"]) if row.get("id")]
+    payload["reels"] = [row for row in (_normalize_reel(r, profile_map) for r in payload["reels"]) if row.get("id")]
 
     # ── Phase 73: Real data guard — filter test/demo content ──
     from services.homepage_real_data_guard import filter_feed_posts, filter_profiles
