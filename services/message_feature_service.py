@@ -298,6 +298,31 @@ def add_reaction(message_id, profile_id, reaction_type):
     return {"ok": True}
 
 
+def get_reactions(message_id):
+    message_id = _uuid(message_id)
+    rows = _safe_query(
+        """
+        SELECT reaction_type, profile_id, created_at
+        FROM chain_message_reactions
+        WHERE message_id = %s
+        ORDER BY created_at ASC
+        """,
+        (message_id,),
+        default=[],
+    )
+    reactions = rows or [
+        {
+            "reaction_type": reaction_type,
+            "profile_id": pid,
+            "created_at": None,
+        }
+        for pid, reaction_type in sorted(_REACTIONS.get(message_id, set()))
+    ]
+    for reaction in reactions:
+        reaction["profile_id"] = str(reaction.get("profile_id") or "")
+    return reactions
+
+
 def edit_message(message_id, editor_profile_id, new_body):
     message_id = _uuid(message_id)
     editor_profile_id = _uuid(editor_profile_id)
@@ -305,16 +330,24 @@ def edit_message(message_id, editor_profile_id, new_body):
     if not new_body:
         return {"ok": False, "error": "empty_message"}
     try:
-        rows = _safe_query("SELECT body, thread_id FROM chain_messages WHERE id = %s LIMIT 1", (message_id,), default=[])
-        old_body = rows[0].get("body") if rows else None
+        rows = _safe_query(
+            "SELECT body, thread_id FROM chain_messages WHERE id = %s AND sender_profile_id = %s AND deleted_at IS NULL LIMIT 1",
+            (message_id, editor_profile_id),
+            default=[],
+        )
+        if not rows:
+            return {"ok": False, "error": "forbidden"}
+        old_body = rows[0].get("body")
         _safe_write("UPDATE chain_messages SET body = %s, edited_at = now() WHERE id = %s AND sender_profile_id = %s", (new_body, message_id, editor_profile_id))
         _safe_write("INSERT INTO chain_message_edits (id, message_id, editor_profile_id, old_body, new_body) VALUES (%s, %s, %s, %s, %s)", (str(uuid.uuid4()), message_id, editor_profile_id, old_body, new_body), timeout_ms=500)
     except Exception:
         for messages in _MESSAGES.values():
             for message in messages:
-                if message.get("id") == message_id:
+                if message.get("id") == message_id and _uuid(message.get("sender_profile_id")) == editor_profile_id:
                     message["body"] = new_body
                     message["edited_at"] = _now()
+                    return {"ok": True, "message_id": message_id, "body": new_body}
+        return {"ok": False, "error": "forbidden"}
     return {"ok": True, "message_id": message_id, "body": new_body}
 
 
@@ -323,6 +356,13 @@ def delete_message(message_id, profile_id, for_everyone=False):
     profile_id = _uuid(profile_id)
     try:
         if for_everyone:
+            rows = _safe_query(
+                "SELECT id FROM chain_messages WHERE id = %s AND sender_profile_id = %s AND deleted_at IS NULL LIMIT 1",
+                (message_id, profile_id),
+                default=[],
+            )
+            if not rows:
+                return {"ok": False, "error": "forbidden"}
             _safe_write("UPDATE chain_messages SET deleted_at = now(), deleted_for_everyone = TRUE WHERE id = %s AND sender_profile_id = %s", (message_id, profile_id))
         else:
             _safe_write("INSERT INTO chain_message_deletions (message_id, profile_id, delete_scope) VALUES (%s, %s, 'me') ON CONFLICT DO NOTHING", (message_id, profile_id))
@@ -331,9 +371,18 @@ def delete_message(message_id, profile_id, for_everyone=False):
             for message in messages:
                 if message.get("id") == message_id:
                     if for_everyone:
+                        if _uuid(message.get("sender_profile_id")) != profile_id:
+                            return {"ok": False, "error": "forbidden"}
                         message["deleted_at"] = _now()
                     else:
                         message.setdefault("deleted_for", []).append(profile_id)
+                    thread_id = message.get("thread_id") or message_thread_id(message_id)
+                    payload = {"message_id": message_id, "thread_id": thread_id, "for_everyone": bool(for_everyone)}
+                    emit_to_thread(thread_id, "message:delete", payload)
+                    emit_to_thread(thread_id, "message:deleted", payload)
+                    return {"ok": True}
+        if for_everyone:
+            return {"ok": False, "error": "forbidden"}
     thread_id = message_thread_id(message_id)
     payload = {"message_id": message_id, "thread_id": thread_id, "for_everyone": bool(for_everyone)}
     emit_to_thread(thread_id, "message:delete", payload)

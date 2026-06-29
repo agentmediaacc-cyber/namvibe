@@ -52,7 +52,7 @@
       if (value !== undefined && value !== null) form.append(key, value);
     });
     if (file) form.append("file", file, file.name || "attachment");
-    const res = await fetch("/api/messages/send", {
+    const res = await fetch("/messages/api/messages/send", {
       method: "POST",
       body: form,
       credentials: "same-origin",
@@ -281,9 +281,9 @@
     if (!overlay) return;
     overlay.classList.remove("hidden");
     overlay.hidden = false;
-    const timer = $("vo-timer");
-    const wave = $("vo-wave");
-    const slideCancel = $("vo-slide-cancel");
+    const timer = $("vo-timer") || $("recording-timer");
+    const wave = $("vo-wave") || $("recording-waveform");
+    const slideCancel = $("vo-slide-cancel") || qs(".vo-slide-cancel", overlay) || $("voice-cancel-zone");
     const bars = generateWaveformBars(32);
 
     if (wave) renderWaveform(wave, bars, true);
@@ -416,11 +416,11 @@
     }
 
     const playBtn = $("vp-play");
-    const waveEl = $("vp-wave");
+    const waveEl = $("vp-wave") || qs(".voice-wave", preview);
     const durEl = $("vp-duration");
     const speedBtn = $("vp-speed");
-    const deleteBtn = $("vp-delete");
-    const sendBtn = $("vp-send");
+    const deleteBtn = $("vp-delete") || $("voice-preview-delete");
+    const sendBtn = $("vp-send") || $("voice-preview-send");
     const progressBar = $("vp-progress");
     const progressText = $("vp-progress-text");
     const cancelBtn = $("vp-cancel");
@@ -496,7 +496,9 @@
       formData.append("media_type", "voice");
       formData.append("duration_seconds", String(duration));
       formData.append("client_temp_id", uuid());
-      _uploadXHR.open("POST", "/messages/api/send");
+      _uploadXHR.open("POST", "/messages/api/messages/send");
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || window.chainCsrfToken?.();
+      if (csrfToken) _uploadXHR.setRequestHeader("X-CSRFToken", csrfToken);
       _uploadXHR.send(formData);
     };
 

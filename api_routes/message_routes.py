@@ -115,7 +115,12 @@ def api_send():
     body = request.form.get("body") or data.get("body")
     media_file = request.files.get("media") or request.files.get("file") or request.files.get("attachment")
     client_message_id = request.form.get("client_message_id") or data.get("client_message_id")
-    parent_message_id = request.form.get("parent_message_id") or data.get("parent_message_id")
+    parent_message_id = (
+        request.form.get("parent_message_id")
+        or request.form.get("reply_to_message_id")
+        or data.get("parent_message_id")
+        or data.get("reply_to_message_id")
+    )
     is_forwarded = request.form.get("is_forwarded") == 'true' or data.get("is_forwarded", False)
     status_id = request.form.get("status_id") or data.get("status_id")
     
@@ -217,13 +222,29 @@ def api_reaction(message_id):
     
     if not profile or not reaction_type:
         return jsonify({"error": "Missing data"}), 400
-        
-    if action == "add":
-        phase29_messages.add_reaction(message_id, profile["id"], reaction_type)
+    current_reactions = phase29_messages.get_reactions(message_id)
+    has_same_reaction = any(
+        str(row.get("profile_id") or "") == str(profile["id"])
+        and row.get("reaction_type") == reaction_type
+        for row in current_reactions
+    )
+
+    if action == "remove" or (action == "toggle" and has_same_reaction) or (action == "add" and has_same_reaction):
+        result = remove_reaction(message_id, profile["id"], reaction_type)
+        action = "remove"
     else:
-        remove_reaction(message_id, profile["id"], reaction_type)
-        
-    return jsonify({"success": True}), 200
+        result = phase29_messages.add_reaction(message_id, profile["id"], reaction_type)
+        action = "add"
+
+    refreshed = phase29_messages.get_reactions(message_id)
+    return jsonify({
+        "success": bool(result),
+        "ok": bool(result),
+        "action": action,
+        "message_id": message_id,
+        "reaction_type": reaction_type,
+        "reactions": refreshed,
+    }), 200 if result else 400
 
 
 
