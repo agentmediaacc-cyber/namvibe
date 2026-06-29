@@ -476,21 +476,21 @@ def _age_from_dob(date_of_birth):
     try:
         dob_str = str(date_of_birth).strip()
         dob = None
-        
+
         # Try DD/MM/YYYY
         if "/" in dob_str:
             try:
                 dob = datetime.strptime(dob_str, "%d/%m/%Y").date()
             except ValueError:
                 pass
-        
+
         # Try YYYY-MM-DD (ISO)
         if not dob:
             try:
                 dob = datetime.fromisoformat(dob_str).date()
             except ValueError:
                 pass
-                
+
         if not dob:
             return None
 
@@ -509,13 +509,13 @@ def profile_age(profile):
             return int(age)
         except (TypeError, ValueError):
             pass
-            
+
     dob = profile.get("date_of_birth")
     if not dob and has_request_context():
         # Fallback to session if DB is stale/missing
         from services.session_service import K_PENDING_DATE_OF_BIRTH
         dob = session.get(K_PENDING_DATE_OF_BIRTH) or session.get("date_of_birth")
-        
+
     return _age_from_dob(dob)
 
 
@@ -652,7 +652,7 @@ def _drop_missing_profile_column(column):
 
 def _neon_profile_columns():
     """Return optimized set of profile columns for lookups.
-    
+
     Uses lightweight columns by default to reduce query overhead.
     Full profile with all columns is only returned when explicitly needed.
     """
@@ -697,12 +697,12 @@ def get_lightweight_profile(profile_id):
     """Get minimal profile data for lists (username, avatar, verified) with caching."""
     if not profile_id:
         return None
-    
+
     cache_key_str = cache_key("profile_light", profile_id, 60, 0)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
-    
+
     try:
         row = fetch_one(
             f"SELECT {_LIGHTWEIGHT_PROFILE_COLUMNS} FROM chain_profiles WHERE id = %s AND deleted_at IS NULL LIMIT 1",
@@ -721,7 +721,7 @@ def get_lightweight_profile(profile_id):
             return result
     except Exception as error:
         print(f"[profile_service] lightweight profile lookup failed: {error}")
-    
+
     return None
 
 
@@ -759,7 +759,7 @@ def _direct_profile_lookup(field, value, timeout_ms=4000):
 
 def _neon_get_profile_by(field, value, use_lightweight=False):
     """Get profile by field with caching and adaptive column selection.
-    
+
     Args:
         field: Column to search by
         value: Value to search for
@@ -774,11 +774,11 @@ def _neon_get_profile_by(field, value, use_lightweight=False):
             uuid.UUID(str(value))
         except (ValueError, TypeError):
             return None
-    
+
     # Use lightweight columns when full profile isn't needed
     columns = _LIGHTWEIGHT_FULL_COLUMNS if use_lightweight else _neon_profile_columns()
     timeout = 2000 if use_lightweight else 10000
-    
+
     try:
         rows = fast_query(
             f"SELECT {columns} FROM chain_profiles WHERE {field} = %s AND deleted_at IS NULL LIMIT 1",
@@ -817,13 +817,13 @@ def _neon_insert_profile(payload):
         return None
     columns = list(payload.keys())
     placeholders = ", ".join(["%s"] * len(columns))
-    
+
     # Use ON CONFLICT to ensure one user = one profile
     sql = f"""
-        INSERT INTO chain_profiles ({', '.join(columns)}) 
-        VALUES ({placeholders}) 
-        ON CONFLICT (auth_user_id) DO UPDATE 
-        SET updated_at = now() 
+        INSERT INTO chain_profiles ({', '.join(columns)})
+        VALUES ({placeholders})
+        ON CONFLICT (auth_user_id) DO UPDATE
+        SET updated_at = now()
         RETURNING {_neon_profile_columns()}
     """
     try:
@@ -877,6 +877,28 @@ def _neon_update_profile(profile_id, payload):
         )
         print(f"[profile_service] _neon_update_profile failed: {error}")
         return None
+
+
+def bootstrap_profile_for_current_user(defaults=None):
+    """Backward-compatible wrapper: ensure profile for the current session user."""
+    if not has_request_context():
+        return None, "No request context"
+    auth_user_id = session.get("auth_user_id")
+    if not auth_user_id:
+        return None, "No auth_user_id in session"
+    return ensure_neon_profile(auth_user_id, defaults=defaults)
+
+
+def create_or_update_profile(profile_id, updates=None):
+    """Backward-compatible wrapper: update profile by ID."""
+    updates = updates or {}
+    if not profile_id:
+        return None
+    try:
+        uuid.UUID(str(profile_id))
+    except (ValueError, TypeError):
+        return None
+    return _neon_update_profile(profile_id, updates)
 
 
 def ensure_neon_profile(auth_user_id, defaults=None):
@@ -1057,35 +1079,35 @@ def get_current_profile():
         auth_user_id = session.get("auth_user_id") or session.get("user_id")
         profile_id = session.get("profile_id")
         email = session.get("auth_email") or session.get("email")
-        
+
         if not profile_id and not auth_user_id:
             return None
-        
+
         # Try to get from session cache first
         profile = session.get("profile_data")
         if profile and isinstance(profile, dict):
             return normalize_profile(profile)
-        
+
         # Try lightweight lookup first for performance
         if profile_id:
             profile = get_lightweight_profile(profile_id)
             if profile:
                 return profile
-        
+
         # Fallback to full lookup by auth_user_id
         if auth_user_id:
             profile = _neon_get_profile_by("auth_user_id", auth_user_id)
             if profile:
                 session["profile_data"] = profile
                 return profile
-        
+
         # Last resort: lookup by email
         if email:
             profile = _neon_get_profile_by("email", email)
             if profile:
                 session["profile_data"] = profile
                 return profile
-        
+
         return None
     except Exception as e:
         print(f"[profile_service] get_current_profile error: {e}")
@@ -1096,17 +1118,17 @@ def get_profile_by_id(profile_id):
     """Get full profile by ID with caching."""
     if not profile_id:
         return None
-    
+
     cache_key_str = cache_key("profile_full", profile_id, 60, 0)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
-    
+
     try:
         uuid.UUID(str(profile_id))
     except (ValueError, TypeError):
         return None
-    
+
     profile = _neon_get_profile_by("id", profile_id)
     if profile:
         set_cache(cache_key_str, profile, ttl=60)
@@ -1117,12 +1139,12 @@ def get_profile_by_username(username):
     """Get profile by username with caching."""
     if not username:
         return None
-    
+
     cache_key_str = cache_key("profile_username", username, 60, 0)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
-    
+
     profile = _neon_get_profile_by("username", username)
     if profile:
         set_cache(cache_key_str, profile, ttl=60)
@@ -1133,7 +1155,7 @@ def update_profile(profile_id, updates):
     """Update profile and invalidate caches."""
     if not profile_id or not updates:
         return None
-    
+
     updated = _neon_update_profile(profile_id, updates)
     if updated:
         # Invalidate all profile caches
@@ -1151,25 +1173,25 @@ def _find_existing_profile(uid=None, profile_id=None, username=None, email=None)
         profile = _neon_get_profile_by("id", profile_id)
         if profile:
             return profile
-    
+
     # Try by auth_user_id
     if uid:
         profile = _neon_get_profile_by("auth_user_id", uid)
         if profile:
             return profile
-    
+
     # Try by email
     if email:
         profile = _neon_get_profile_by("email", email)
         if profile:
             return profile
-    
+
     # Try by username
     if username:
         profile = _neon_get_profile_by("username", username)
         if profile:
             return profile
-    
+
     return None
 
 
@@ -1177,12 +1199,12 @@ def calculate_completion(profile):
     """Calculate profile completion percentage."""
     if not profile:
         return 0
-    
+
     fields = [
         "username", "full_name", "bio", "avatar_url", "date_of_birth",
         "phone", "email", "town", "region", "country_origin"
     ]
-    
+
     filled = sum(1 for field in fields if profile.get(field))
     return int((filled / len(fields)) * 100)
 
@@ -1198,15 +1220,15 @@ def get_profile_stats(profile_id):
     """Get aggregated stats for a profile."""
     if not profile_id:
         return {}
-    
+
     cache_key_str = cache_key("profile_stats", profile_id, 300, 0)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
-    
+
     try:
         stats = {}
-        
+
         # Follower count
         followers = fast_query(
             "SELECT COUNT(*) as count FROM chain_follows WHERE following_profile_id = %s AND deleted_at IS NULL",
@@ -1215,7 +1237,7 @@ def get_profile_stats(profile_id):
             default=[{"count": 0}]
         )
         stats["followers_count"] = followers[0]["count"] if followers else 0
-        
+
         # Following count
         following = fast_query(
             "SELECT COUNT(*) as count FROM chain_follows WHERE follower_profile_id = %s AND deleted_at IS NULL",
@@ -1224,7 +1246,7 @@ def get_profile_stats(profile_id):
             default=[{"count": 0}]
         )
         stats["following_count"] = following[0]["count"] if following else 0
-        
+
         # Posts count
         posts = fast_query(
             "SELECT COUNT(*) as count FROM chain_posts WHERE profile_id = %s AND deleted_at IS NULL",
@@ -1233,7 +1255,7 @@ def get_profile_stats(profile_id):
             default=[{"count": 0}]
         )
         stats["posts_count"] = posts[0]["count"] if posts else 0
-        
+
         set_cache(cache_key_str, stats, ttl=300)
         return stats
     except Exception as e:
@@ -1245,12 +1267,12 @@ def search_profiles(query, limit=20):
     """Search profiles by username or full_name."""
     if not query or len(query) < 2:
         return []
-    
+
     cache_key_str = cache_key("profile_search", query, 60, 0)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached[:limit] if len(cached) > limit else cached
-    
+
     try:
         results = fast_query(
             """
@@ -1258,8 +1280,8 @@ def search_profiles(query, limit=20):
             FROM chain_profiles
             WHERE (username ILIKE %s OR full_name ILIKE %s)
               AND deleted_at IS NULL
-            ORDER BY 
-                CASE 
+            ORDER BY
+                CASE
                     WHEN username = %s THEN 1
                     WHEN username ILIKE %s THEN 2
                     ELSE 3
@@ -1271,7 +1293,7 @@ def search_profiles(query, limit=20):
             timeout_ms=2000,
             default=[]
         )
-        
+
         set_cache(cache_key_str, results, ttl=60)
         return results
     except Exception as e:
@@ -1286,28 +1308,58 @@ def accept_friend_request(viewer_id, request_id):
     return _accept(request_id, viewer_id)
 
 
+def decline_friend_request(viewer_id, request_id):
+    """Re-exported from social_relationship_service for backward compatibility."""
+    from services.social_relationship_service import decline_friend_request as _decline
+    return _decline(viewer_id, request_id)
+
+
+def cancel_friend_request(viewer_id, request_id):
+    """Re-exported from social_relationship_service for backward compatibility."""
+    from services.social_relationship_service import cancel_friend_request as _cancel
+    return _cancel(viewer_id, request_id)
+
+
 def block_profile(username):
     """Re-exported from social_relationship_service for backward compatibility."""
     from services.social_relationship_service import block_profile as _block
     return _block(username)
 
 
+def delete_post(post_id, profile_id):
+    """Re-exported from post_service for backward compatibility."""
+    from services.post_service import delete_post as _delete
+    return _delete(post_id, profile_id)
+
+
+def delete_reel(reel_id, profile_id):
+    """Re-exported from reels_engine for backward compatibility."""
+    from services.reels_engine import delete_reel as _delete
+    return _delete(reel_id, profile_id)
+
+
+def invalidate_profile_cache(pid):
+    """Re-exported from profile_2026_service for backward compatibility."""
+    from services.profile_2026_service import invalidate_profile_cache as _invalidate
+    return _invalidate(pid)
+
+
 def batch_get_profiles(profile_ids):
     """Efficiently fetch multiple profiles at once."""
     if not profile_ids:
         return {}
-    
+
     # Remove duplicates and invalid IDs
     valid_ids = list(set(pid for pid in profile_ids if pid))
-    
+
     if not valid_ids:
         return {}
-    
+
     cache_key_str = cache_key("profiles_batch", ",".join(valid_ids[:50]), 60, 0)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
-    
+
     try:
         placeholders = ",".join("%s" for _ in valid_ids)
         rows = fast_query(
@@ -1316,10 +1368,193 @@ def batch_get_profiles(profile_ids):
             timeout_ms=2000,
             default=[]
         )
-        
+
         result = {row["id"]: row for row in rows}
         set_cache(cache_key_str, result, ttl=60)
         return result
     except Exception as e:
         print(f"[profile_service] batch_get_profiles error: {e}")
         return {}
+
+
+def get_wallet_snapshot(profile_id):
+    """Re-exported from wallet_service for backward compatibility."""
+    from services.wallet_service import get_or_create_wallet as _f
+    return _f(profile_id)
+
+
+def get_public_profiles(limit=20, offset=0, exclude_ids=None):
+    """Get public profiles for matching/discovery."""
+    exclude_ids = exclude_ids or []
+    cache_key_str = cache_key("public_profiles", limit, offset, ",".join(exclude_ids[:10]))
+    cached = get_cache(cache_key_str)
+    if cached is not None:
+        return cached
+
+    try:
+        params = []
+        sql = """
+            SELECT id, username, full_name, avatar_url, is_verified, bio, location, created_at
+            FROM chain_profiles
+            WHERE is_public = true AND deleted_at IS NULL
+        """
+        if exclude_ids:
+            placeholders = ",".join("%s" for _ in exclude_ids)
+            sql += f" AND id NOT IN ({placeholders})"
+            params.extend(exclude_ids)
+        sql += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+
+        results = fast_query(sql, params, timeout_ms=2000, default=[])
+        set_cache(cache_key_str, results, ttl=60)
+        return results
+    except Exception as e:
+        print(f"[profile_service] get_public_profiles error: {e}")
+        return []
+
+
+# Backward-compatible stubs for profile_routes imports
+# These delegate to the appropriate service modules
+def favorite_profile(viewer_id, target_id):
+    from services.engagement_service import favorite_profile as _f
+    return _f(viewer_id, target_id)
+
+def follow_profile(follower_id, following_id, toggle=True):
+    from services.engagement_service import follow_profile as _f
+    return _f(follower_id, following_id, toggle=toggle)
+
+def get_followers_page(profile_id, page=1, per_page=20):
+    from services.social_relationship_service import get_followers_page as _f
+    return _f(profile_id, page=page, per_page=per_page)
+
+def get_following_page(profile_id, page=1, per_page=20):
+    from services.social_relationship_service import get_following_page as _f
+    return _f(profile_id, page=page, per_page=per_page)
+
+def get_following_types(profile_id):
+    from services.social_relationship_service import get_following_types as _f
+    return _f(profile_id)
+
+def get_friend_requests(profile_id, page=1, per_page=20):
+    from services.friendship_service import get_friend_requests as _f
+    return _f(profile_id, page=page, per_page=per_page)
+
+def get_friend_status(profile_id, other_id):
+    from services.friendship_service import get_friendship_status as _f
+    return _f(profile_id, other_id)
+
+def get_friends(profile_id, page=1, per_page=20):
+    from services.friendship_service import get_friends as _f
+    return _f(profile_id, page=page, per_page=per_page)
+
+def get_profile_bundle(profile_id, viewer_id=None):
+    from services.profile_2026_service import get_profile_bundle as _f
+    return _f(profile_id, viewer_id=viewer_id)
+
+def get_profile_content(viewer_id, target_id, content_type, page=1, per_page=12):
+    from services.profile_2026_service import get_profile_content_section as _f
+    return _f(viewer_id, target_id, content_type, page=page, per_page=per_page)
+
+def get_profile_posts(profile_id, viewer_id=None, page=1, per_page=20):
+    from services.profile_2026_service import get_profile_content_section as _f
+    return _f(viewer_id, profile_id, "posts", page=page, per_page=per_page)
+
+def get_profile_privacy(profile_id):
+    from services.profile_2026_service import get_profile_privacy as _f
+    return _f(profile_id)
+
+def get_profile_reels(profile_id, viewer_id=None, page=1, per_page=20):
+    from services.profile_2026_service import get_profile_content_section as _f
+    return _f(viewer_id, profile_id, "reels", page=page, per_page=per_page)
+
+def get_profile_settings(profile_id):
+    from services.profile_2026_service import get_profile_settings as _f
+    return _f(profile_id)
+
+def get_reel_analytics(reel_id, profile_id):
+    from services.reels_engine import get_reel_analytics as _f
+    return _f(reel_id, profile_id)
+
+def get_sent_friend_requests(profile_id, page=1, per_page=20):
+    from services.friendship_service import get_sent_friend_requests as _f
+    return _f(profile_id, page=page, per_page=per_page)
+
+def like_profile(actor_id, target_id):
+    from services.dating_service import like_profile as _f
+    return _f(actor_id, target_id)
+
+def mute_profile(muter_profile_id, muted_profile_id):
+    from services.moderation_engine import mute_profile as _f
+    return _f(muter_profile_id, muted_profile_id)
+
+def record_profile_view(viewer_id, target_id):
+    from services.profile_2026_service import record_profile_view as _f
+    return _f(viewer_id, target_id)
+
+def remove_follower(profile_id, follower_id):
+    from services.social_relationship_service import remove_follower as _f
+    return _f(profile_id, follower_id)
+
+def remove_friend(profile_id, friend_id):
+    from services.friend_service import remove_friend as _f
+    return _f(profile_id, friend_id)
+
+def report_profile(reporter_id, target_id, reason, details=None):
+    from services.moderation_engine import report_profile as _f
+    return _f(reporter_id, target_id, reason, details=details)
+
+def send_friend_request(sender_id, recipient_id, message=None):
+    from services.friendship_service import send_friend_request as _f
+    return _f(sender_id, recipient_id, message=message)
+
+def toggle_post_comments(post_id, profile_id, enabled):
+    from services.post_service import toggle_post_comments as _f
+    return _f(post_id, profile_id, enabled)
+
+def toggle_post_pin(post_id, profile_id, pinned):
+    from services.post_service import toggle_post_pin as _f
+    return _f(post_id, profile_id, pinned)
+
+def toggle_post_sharing(post_id, profile_id, enabled):
+    from services.post_service import toggle_post_sharing as _f
+    return _f(post_id, profile_id, enabled)
+
+def toggle_reel_comments(reel_id, profile_id, enabled):
+    from services.reels_engine import toggle_reel_comments as _f
+    return _f(reel_id, profile_id, enabled)
+
+def toggle_reel_pin(reel_id, profile_id, pinned):
+    from services.reels_engine import toggle_reel_pin as _f
+    return _f(reel_id, profile_id, pinned)
+
+def toggle_reel_sharing(reel_id, profile_id, enabled):
+    from services.reels_engine import toggle_reel_sharing as _f
+    return _f(reel_id, profile_id, enabled)
+
+def unmute_profile(unmuter_profile_id, muted_profile_id):
+    from services.moderation_engine import unmute_profile as _f
+    return _f(unmuter_profile_id, muted_profile_id)
+
+def update_post_visibility(post_id, profile_id, visibility):
+    from services.post_service import update_post_visibility as _f
+    return _f(post_id, profile_id, visibility)
+
+def update_profile_privacy(profile_id, privacy_settings):
+    from services.profile_2026_service import update_profile_privacy as _f
+    return _f(profile_id, privacy_settings)
+
+def update_profile_setup(profile_id, setup_data):
+    from services.profile_2026_service import update_profile_setup as _f
+    return _f(profile_id, setup_data)
+
+def update_reel_visibility(reel_id, profile_id, visibility):
+    from services.reels_engine import update_reel_visibility as _f
+    return _f(reel_id, profile_id, visibility)
+
+def upload_profile_avatar(profile_id, file):
+    from services.profile_2026_service import upload_profile_avatar as _f
+    return _f(profile_id, file)
+
+def upload_profile_cover(profile_id, file):
+    from services.profile_2026_service import upload_profile_cover as _f
+    return _f(profile_id, file)

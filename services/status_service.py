@@ -345,7 +345,7 @@ def list_active_statuses(profile_id=None, viewer_profile_id=None, limit=None, of
 
     # Select only columns actually needed by serialize_status instead of s.*
     story_cols = """
-        s.id, s.profile_id, s.body, s.media_url, s.video_url, s.media_type,
+        s.id, s.profile_id, s.caption, s.media_url, s.video_url, s.media_type,
         s.visibility, s.expires_at, s.created_at, s.updated_at,
         s.duration_seconds, s.background_color, s.text_content,
         s.music_url, s.music_title, s.music_artist,
