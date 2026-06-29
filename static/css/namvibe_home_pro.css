@@ -47,7 +47,9 @@ a:hover { color: var(--nvpro-blue-hover); }
 /* ── HEADER ── */
 .nvpro-header {
   position: sticky; top: 0; z-index: 100;
-  background: rgba(10,22,40,0.92); backdrop-filter: blur(18px);
+  background: rgba(10,22,40,0.92);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--nvpro-border);
   height: var(--nvpro-header-h);
 }
@@ -333,7 +335,9 @@ a:hover { color: var(--nvpro-blue-hover); }
 
 .nvpro-video-play-icon {
   width: 56px; height: 56px; border-radius: 50%;
-  background: rgba(255,255,255,0.2); backdrop-filter: blur(6px);
+  background: rgba(255,255,255,0.2);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.2s;
 }
@@ -526,7 +530,9 @@ a:hover { color: var(--nvpro-blue-hover); }
 .nvpro-bottom-nav {
   display: none; position: fixed; bottom: 0; left: 0; right: 0;
   height: var(--nvpro-bottom-h); background: rgba(10,22,40,0.96);
-  backdrop-filter: blur(18px); border-top: 1px solid var(--nvpro-border);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid var(--nvpro-border);
   z-index: 200; justify-content: space-around; align-items: center;
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
@@ -558,7 +564,9 @@ a:hover { color: var(--nvpro-blue-hover); }
 /* ── UPLOAD MODAL ── */
 .nvpro-modal-overlay {
   display: none; position: fixed; inset: 0; z-index: 500;
-  background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.7);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   align-items: center; justify-content: center;
 }
 
