@@ -1,137 +1,162 @@
-"""Redis-only hot path for presence operations.
-
-Avoids Neon queries on the hot path by caching conversation peers in Redis.
-Syncs to Neon via background jobs (presence_engine.sync_presence_to_neon).
-"""
-
+import time
+import random
 from datetime import datetime, timezone
-from services.redis_service import (
-    get_redis, get_json, set_json, delete_key,
-    presence_key, typing_key,
-)
+from services.socketio_service import emit_to_profile
 
-PRESENCE_TTL = 60
-PEER_CACHE_TTL = 3600
+_PRESENCE_STATES = frozenset({
+    "online", "offline", "idle", "away",
+    "typing", "recording_voice", "uploading_media",
+    "in_call", "viewing_profile", "watching_reel",
+})
 
+_MEMORY_PRESENCE = {}
+_MEMORY_TTL = {}
 
-def _get_cached_peers(profile_id):
-    """Returns cached conversation peer IDs for a profile (Redis-only)."""
-    r = get_redis()
-    if not r:
-        return []
-    key = f"presence:peers:{profile_id}"
-    cached = r.smembers(key)
-    if cached:
-        return [pid.decode() if isinstance(pid, bytes) else pid for pid in cached]
-    return []
+_PRESENCE_TTL = 90
 
-
-def _cache_conversation_peers(profile_id):
-    """Warms the peer cache from Neon (called outside hot path)."""
-    from services.neon_service import fast_query
-    sql = """
-        SELECT DISTINCT tm2.profile_id
-        FROM chain_thread_members tm1
-        JOIN chain_thread_members tm2 ON tm1.thread_id = tm2.thread_id
-        JOIN chain_message_threads t ON tm1.thread_id = t.id
-        WHERE tm1.profile_id = %s
-          AND tm2.profile_id != %s
-          AND t.updated_at > now() - interval '24 hours'
-    """
-    peers = fast_query(sql, (profile_id, profile_id), default=[])
-    r = get_redis()
-    if r and peers:
-        key = f"presence:peers:{profile_id}"
-        r.delete(key)
-        r.sadd(key, *[p['profile_id'] for p in peers])
-        r.expire(key, PEER_CACHE_TTL)
-    return peers
+_PRESENCE_LABELS = {
+    "online": "Online",
+    "offline": "Offline",
+    "idle": "Idle",
+    "away": "Away",
+    "typing": "Typing...",
+    "recording_voice": "Recording...",
+    "uploading_media": "Uploading...",
+    "in_call": "On a call",
+    "viewing_profile": "Online",
+    "watching_reel": "Online",
+}
 
 
-def emit_presence_update(profile_id, status):
-    """Notifies active conversation peers via Redis-only peer cache."""
-    from services.socketio_service import emit_to_profile
-    peers = _get_cached_peers(profile_id)
-    if not peers:
-        _cache_conversation_peers(profile_id)
-        peers = _get_cached_peers(profile_id)
-    for peer_id in peers:
-        emit_to_profile(peer_id, "presence:update", {
-            "profile_id": profile_id,
-            "status": status,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+def _redis():
+    try:
+        from services.redis_service import get_redis
+        r = get_redis()
+        if r:
+            return r
+    except Exception:
+        pass
+    return None
 
 
-def set_online(profile_id):
-    """Redis-only set online. Enqueues Neon sync as background job."""
-    r = get_redis()
-    now_iso = datetime.now(timezone.utc).isoformat()
-    result = False
+def _now_ts():
+    return time.monotonic()
+
+
+def _key(profile_id):
+    return f"presence:{profile_id}"
+
+
+def set_presence(profile_id, state, context=None, ttl_seconds=None):
+    if state not in _PRESENCE_STATES:
+        return
+    ttl = ttl_seconds or _PRESENCE_TTL
+
+    r = _redis()
+    payload = {"state": state, "context": context, "updated_at": datetime.now(timezone.utc).isoformat()}
+
     if r:
-        r.setex(presence_key("online", profile_id), PRESENCE_TTL, "1")
-        set_json(f"presence:state:{profile_id}", {"status": "online", "last_seen_at": now_iso}, ttl=PRESENCE_TTL)
-        if not r.get(presence_key("synced", profile_id)):
-            from services.queue_service import enqueue_job
-            enqueue_job("services.presence_engine.sync_presence_to_neon", profile_id, "online")
-            r.setex(presence_key("synced", profile_id), 300, "1")
-        result = True
-    emit_presence_update(profile_id, "online")
+        try:
+            import json
+            r.setex(_key(profile_id), ttl, json.dumps(payload))
+        except Exception:
+            r = None
+
+    if not r:
+        _MEMORY_PRESENCE[profile_id] = payload
+        _MEMORY_TTL[profile_id] = _now_ts() + ttl
+
+    _emit_presence_update(profile_id, payload)
+
+
+def get_presence(profile_id):
+    r = _redis()
+    if r:
+        try:
+            import json
+            data = r.get(_key(profile_id))
+            if data:
+                return json.loads(data)
+        except Exception:
+            r = None
+
+    if profile_id in _MEMORY_PRESENCE:
+        if _MEMORY_TTL.get(profile_id, 0) > _now_ts():
+            return _MEMORY_PRESENCE[profile_id]
+        _MEMORY_PRESENCE.pop(profile_id, None)
+        _MEMORY_TTL.pop(profile_id, None)
+
+    return None
+
+
+def get_many_presence(profile_ids):
+    if not profile_ids:
+        return {}
+    r = _redis()
+    result = {}
+    if r:
+        try:
+            import json
+            keys = [_key(pid) for pid in profile_ids]
+            vals = r.mget(keys) if hasattr(r, "mget") else [r.get(k) for k in keys]
+            for pid, val in zip(profile_ids, vals):
+                if val:
+                    result[pid] = json.loads(val)
+        except Exception:
+            r = None
+
+    for pid in profile_ids:
+        if pid not in result:
+            p = _MEMORY_PRESENCE.get(pid)
+            if p and _MEMORY_TTL.get(pid, 0) > _now_ts():
+                result[pid] = p
     return result
 
 
-def set_offline(profile_id):
-    """Redis-only set offline. Enqueues Neon sync as background job."""
-    r = get_redis()
-    now_iso = datetime.now(timezone.utc).isoformat()
+def clear_presence(profile_id):
+    r = _redis()
     if r:
-        r.delete(presence_key("online", profile_id))
-        set_json(f"presence:state:{profile_id}", {"status": "offline", "last_seen_at": now_iso}, ttl=3600)
-    emit_presence_update(profile_id, "offline")
-    from services.queue_service import enqueue_job
-    enqueue_job("services.presence_engine.sync_presence_to_neon", profile_id, "offline")
-    return True
+        try:
+            r.delete(_key(profile_id))
+        except Exception:
+            pass
+    _MEMORY_PRESENCE.pop(profile_id, None)
+    _MEMORY_TTL.pop(profile_id, None)
+
+
+def heartbeat_presence(profile_id):
+    set_presence(profile_id, "online")
+
+
+def presence_label(profile_id):
+    p = get_presence(profile_id)
+    if not p:
+        return "Offline"
+    state = p.get("state", "offline")
+    return _PRESENCE_LABELS.get(state, "Offline")
+
+
+def _emit_presence_update(profile_id, payload):
+    emit_to_profile(profile_id, "presence:update", {
+        "profile_id": profile_id,
+        "state": payload.get("state"),
+        "context": payload.get("context"),
+        "label": _PRESENCE_LABELS.get(payload.get("state", ""), "Offline"),
+    })
 
 
 def heartbeat(profile_id):
-    """Updates presence TTL in Redis."""
-    return set_online(profile_id)
+    set_presence(profile_id, "online")
 
 
-def set_typing(profile_id, thread_id):
-    """Sets typing indicator in Redis."""
-    r = get_redis()
-    if r:
-        r.setex(typing_key(thread_id, profile_id), 10, "1")
-    return True
+def set_online(profile_id):
+    set_presence(profile_id, "online")
 
 
-def get_presence(profile_ids):
-    """Gets presence info from Redis first, falls back to Neon."""
-    if not profile_ids:
-        return []
-    r = get_redis()
-    results = []
-    missing_ids = []
-    for pid in profile_ids:
-        is_online = False
-        if r:
-            cached = get_json(f"presence:state:{pid}")
-            is_online = bool(r.get(presence_key("online", pid))) or bool(cached and cached.get("status") == "online")
-            if is_online:
-                results.append({
-                    "profile_id": pid,
-                    "status": "online",
-                    "last_seen_at": (cached.get("last_seen_at") if cached else datetime.now(timezone.utc).isoformat())
-                })
-                continue
-        missing_ids.append(pid)
-    if missing_ids:
-        from services.neon_service import fast_query
-        sql = "SELECT profile_id, status, last_seen_at FROM chain_presence WHERE profile_id = ANY(%s::uuid[])"
-        db_results = fast_query(sql, (missing_ids,))
-        for row in db_results:
-            if isinstance(row.get('last_seen_at'), datetime):
-                row['last_seen_at'] = row['last_seen_at'].isoformat()
-        results.extend(db_results)
-    return results
+def set_offline(profile_id):
+    set_presence(profile_id, "offline")
+    clear_presence(profile_id)
+
+
+def set_typing(profile_id, thread_id=None):
+    set_presence(profile_id, "typing", context=thread_id)

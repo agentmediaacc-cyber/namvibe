@@ -20,6 +20,7 @@ from services import group_feature_service as phase29_groups
 from services.relationship_gate_service import can_message, can_call, is_mutual_follow, relationship_status
 from services.friendship_service import require_friendship_or_403
 from services.socketio_service import emit_to_profile
+from services.activity_engine import emit_activity
 
 message_bp = Blueprint("messages", __name__, url_prefix="/messages")
 
@@ -174,6 +175,7 @@ def api_send():
             contact=contact
         )
         if result and result.get("success"):
+            emit_activity(profile_id, "message_sent", target_type="message", target_id=result.get("id"), recipient_profile_id=other_member[0]["profile_id"] if other_member else None, metadata={"thread_id": thread_id})
             return jsonify({"success": True, **result}), 200
         return jsonify(result or {"error": "Failed to send message"}), 400
 
@@ -186,6 +188,7 @@ def api_send():
         is_forwarded=is_forwarded,
     )
     if result and result.get("ok"):
+        emit_activity(profile_id, "message_sent", target_type="message", target_id=result.get("id"), recipient_profile_id=other_member[0]["profile_id"] if other_member else None, metadata={"thread_id": thread_id})
         return jsonify({"success": True, **result}), 200
     return jsonify(result or {"error": "Failed to send message"}), 400
 

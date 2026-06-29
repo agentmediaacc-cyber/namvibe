@@ -34,6 +34,7 @@ from services.webrtc_call_service import (
 from services.webrtc_turn_service import get_webrtc_ice_config
 from services.friendship_service import require_friendship_or_403
 from services.call_history_service import get_call_history as chs_get_history, delete_call_log as chs_delete_log
+from services.activity_engine import emit_activity
 
 call_bp = Blueprint("calls_v2", __name__, url_prefix="/calls")
 
@@ -79,6 +80,7 @@ def init_call():
     
     result = phase29_calls.start_call(profile["id"], receiver_id, call_type=call_type, conversation_id=conversation_id)
     if result.get("ok"):
+        emit_activity(profile["id"], "call_started", target_type="call", target_id=result["call"].get("id"), recipient_profile_id=receiver_id, metadata={"call_type": call_type})
         return render_template("calls/video.html", call=result["call"], profile=profile, role='caller')
     if result.get("status") == "busy":
         flash("User is busy on another call.", "error")
@@ -161,6 +163,8 @@ def api_status(call_id):
     else:
         result = phase29_calls.record_event(call_id, profile["id"], f"status:{status}", {"status": status})
     if result.get("ok"):
+        if status == "missed":
+            emit_activity(profile["id"], "call_missed", target_type="call", target_id=call_id)
         return jsonify({"success": True}), 200
     return jsonify({"error": "Failed"}), 400
 
@@ -367,6 +371,7 @@ def api_webrtc_start():
         return jsonify({"ok": False, "error": "receiver_required"}), 400
     result = w_create_call(profile["id"], receiver_id, thread_id=thread_id, call_type=call_type)
     if result.get("ok"):
+        emit_activity(profile["id"], "call_started", target_type="call", target_id=result["call"].get("id"), recipient_profile_id=receiver_id, metadata={"call_type": call_type})
         return jsonify({"ok": True, "call": result["call"]}), 200
     if result.get("status") == "busy" or result.get("error") == "duplicate_call":
         return jsonify({"ok": False, "error": result.get("error", "busy"), "status": "busy"}), 409
@@ -417,6 +422,7 @@ def api_webrtc_end(call_id):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     result = w_end_call(call_id, profile["id"])
     if result.get("ok"):
+        emit_activity(profile["id"], "call_ended", target_type="call", target_id=call_id, metadata={"call_id": call_id})
         return jsonify({"ok": True, "call": result["call"]}), 200
     return jsonify({"ok": False, "error": result.get("error", "not_found")}), 404
 

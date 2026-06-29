@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 
 from services.auth_service import refresh_chain_session, set_current_user_password
 from services.auth_service import best_effort_age_dob_update
+from services.activity_engine import emit_activity
 from services.session_service import (
     is_logged_in, 
     get_current_auth_user, 
@@ -399,6 +400,7 @@ def _resolve_profile_route(username=None, user_id=None):
 
     if viewer and viewer.get("id") != profile.get("id"):
         record_profile_view(profile.get("id"), viewer.get("id"))
+        emit_activity(viewer.get("id"), "profile_viewed", target_type="profile", target_id=profile.get("id"), recipient_profile_id=profile.get("id"))
 
     from services.social_action_policy import get_action_policy, can_view_profile
     viewer_id = viewer.get("id") if viewer else None
