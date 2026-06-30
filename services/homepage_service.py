@@ -60,6 +60,7 @@ _HOMEPAGE_LIMITS = {
     "trending_posts": 12,
     "recommended_profiles": 10,
     "live_rooms": 5,
+    "creator_product_cards": 6,
 }
 _HOMEPAGE_SECTION_TTLS = {
     "stories": 60,
@@ -69,6 +70,7 @@ _HOMEPAGE_SECTION_TTLS = {
     "live_rooms": 30,
     "popular_towns": 600,
     "suggested_people": 300,
+    "creator_product_cards": 120,
     "wallet": 30,
     "notifications_unread": 15,
 }
@@ -618,6 +620,32 @@ def _live_select():
     )
 
 
+def _marketplace_select():
+    return select_existing_columns(
+        "chain_marketplace_items",
+        [
+            "id",
+            "profile_id",
+            "title",
+            "description",
+            "price",
+            "currency",
+            "image_url",
+            "thumbnail_url",
+            "media_url",
+            "created_at",
+            "approval_status",
+            "status",
+            "likes_count",
+            "comments_count",
+            "views_count",
+            "shares_count",
+            "saves_count",
+            "is_featured",
+        ],
+    )
+
+
 def _build_where(columns, extra=None):
     clauses = []
     if "deleted_at" in columns:
@@ -982,6 +1010,43 @@ def _normalize_reel(row, profile_map):
     }
 
 
+def _normalize_creator_product_card(row, profile_map):
+    if row and not isinstance(row, dict):
+        return {}
+    profile = profile_map.get(row.get("profile_id"))
+    if profile is None:
+        profile = _profile_from_row(row)
+    if not profile:
+        profile = {}
+    title = _clean_text(_first_present(row, ["title", "name", "caption"]), "")
+    description = _clean_text(_first_present(row, ["description", "caption", "content"]), "")
+    return {
+        "id": row.get("id"),
+        "type": "product_card",
+        "profile_id": row.get("profile_id"),
+        "display_name": profile.get("display_name") or profile.get("username") or "",
+        "username": profile.get("username", ""),
+        "avatar_url": profile.get("avatar_url") or "",
+        "verified": profile.get("verified", False),
+        "title": title,
+        "caption": description or title,
+        "text": description or title,
+        "media_url": _first_present(row, ["image_url", "thumbnail_url", "media_url"]),
+        "thumbnail_url": _first_present(row, ["thumbnail_url", "image_url", "media_url"]),
+        "price": row.get("price"),
+        "currency": _clean_text(row.get("currency"), ""),
+        "likes_count": _safe_int(row.get("likes_count"), 0),
+        "comments_count": _safe_int(row.get("comments_count"), 0),
+        "views_count": _safe_int(row.get("views_count"), 0),
+        "shares_count": _safe_int(row.get("shares_count"), 0),
+        "saves_count": _safe_int(row.get("saves_count"), 0),
+        "is_featured": _boolish(row.get("is_featured")),
+        "created_at": row.get("created_at"),
+        "created_label": _format_relative(row.get("created_at")),
+        "profile_url": f"/profile/@{profile.get('username')}" if profile.get("username") else "/discover/",
+    }
+
+
 def _parse_created_at(value):
     if not value:
         return None
@@ -1164,7 +1229,16 @@ def _dedupe_homepage_items(items):
     deduped = []
     for item in items or []:
         item_id = str(item.get("id") or "")
-        dedupe_key = (item.get("_section") or item.get("type") or "", item_id)
+        item_type = str(
+            item.get("type")
+            or ("live_room" if item.get("_section") == "live_rooms" else "")
+            or ("reel" if "reel" in str(item.get("_section") or "") else "")
+            or ("story" if "story" in str(item.get("_section") or "") else "")
+            or ("post" if "post" in str(item.get("_section") or "") else "")
+            or ("profile" if "profile" in str(item.get("_section") or "") else "")
+            or ""
+        )
+        dedupe_key = (item_type, item_id)
         if not item_id or dedupe_key in seen:
             continue
         seen.add(dedupe_key)
@@ -1189,8 +1263,40 @@ def _avoid_back_to_back_creators(items):
     return arranged
 
 
+def _prefer_latest_public_reel(reels):
+    reels = list(reels or [])
+    if len(reels) < 2:
+        return reels
+    latest_index = None
+    latest_created = None
+    for index, reel in enumerate(reels):
+        created_at = _parse_created_at(reel.get("created_at"))
+        if created_at is None:
+            continue
+        if latest_created is None or created_at > latest_created:
+            latest_created = created_at
+            latest_index = index
+    if latest_index in (None, 0):
+        return reels
+    latest_reel = reels.pop(latest_index)
+    reels.insert(0, latest_reel)
+    return reels
+
+
 def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
     payload = dict(payload or {})
+    try:
+        payload["reels"] = filter_content(payload.get("reels") or [])
+        payload["stories"] = filter_content(payload.get("stories") or [])
+        payload["trending_posts"] = filter_content(payload.get("trending_posts") or [])
+        payload["creator_product_cards"] = filter_content(payload.get("creator_product_cards") or [])
+        payload["recommended_profiles"] = filter_profiles(payload.get("recommended_profiles") or [])
+        if payload.get("suggested_creators") is not None:
+            payload["suggested_creators"] = filter_profiles(payload.get("suggested_creators") or [])
+        if payload.get("suggested_users") is not None:
+            payload["suggested_users"] = filter_profiles(payload.get("suggested_users") or [])
+    except Exception:
+        pass
     relation_ctx = _homepage_relationship_context(
         viewer_id,
         [
@@ -1200,6 +1306,7 @@ def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
             *(row.get("id") for row in payload.get("recommended_profiles", []) if isinstance(row, dict)),
             *(row.get("id") for row in payload.get("suggested_creators", []) if isinstance(row, dict)),
             *(row.get("profile_id") for row in payload.get("live_rooms", []) if isinstance(row, dict)),
+            *(row.get("profile_id") for row in payload.get("creator_product_cards", []) if isinstance(row, dict)),
         ],
     )
 
@@ -1222,6 +1329,8 @@ def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
         (friend_reels if section == "friend_reels" else trending_reels).append(enriched)
     friend_reels.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
     trending_reels.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+    friend_reels = _prefer_latest_public_reel(friend_reels)
+    trending_reels = _prefer_latest_public_reel(trending_reels)
 
     friend_stories = []
     for item in payload.get("stories", []) or []:
@@ -1254,6 +1363,15 @@ def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
         creators.append(enriched)
     creators.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
 
+    creator_product_cards = []
+    for item in payload.get("creator_product_cards", []) or []:
+        enriched = dict(item)
+        enriched["_section"] = "creator_profiles"
+        enriched["type"] = enriched.get("type") or "product_card"
+        enriched["ranking_score"] = _homepage_rank_score(enriched, "creator_profiles", relation_ctx) + (15.0 if enriched.get("is_featured") else 0.0)
+        creator_product_cards.append(enriched)
+    creator_product_cards.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+
     suggestions = []
     for item in payload.get("suggested_users", []) or payload.get("nearby_users", []) or []:
         enriched = dict(item)
@@ -1268,6 +1386,7 @@ def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
     payload["stories"] = _dedupe_homepage_items(friend_stories)
     payload["trending_posts"] = _dedupe_homepage_items(friend_posts + trending_posts)
     payload["recommended_profiles"] = _dedupe_homepage_items(creators)
+    payload["creator_product_cards"] = _dedupe_homepage_items(creator_product_cards)
     if payload.get("suggested_creators") is not None:
         payload["suggested_creators"] = list(payload["recommended_profiles"])
     if payload.get("suggested_users") is not None:
@@ -1281,6 +1400,7 @@ def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
         payload["stories"],
         friend_posts,
         trending_posts,
+        payload.get("creator_product_cards", []),
         payload["recommended_profiles"],
         payload.get("suggested_users", []),
     ):
@@ -1433,6 +1553,7 @@ def build_homepage_payload(async_warm=False):
         return payload
 
     payload = _empty_homepage_payload()
+    payload["creator_product_cards"] = []
 
     # Fast exit if Neon circuit is open
     if is_circuit_open():
@@ -1651,6 +1772,36 @@ def build_homepage_payload(async_warm=False):
             ttl=60,
         )
 
+    def fetch_creator_product_cards():
+        cols = _marketplace_select()
+        if not cols:
+            return []
+        select_cols = ", ".join(f"mi.{c}" for c in cols)
+        def _load():
+            try:
+                available = set(cols)
+                where = []
+                if "approval_status" in available:
+                    where.append("mi.approval_status = 'approved'")
+                if "status" in available:
+                    where.append("COALESCE(mi.status, 'active') != 'deleted'")
+                rows = fast_query(
+                    f"SELECT {select_cols} FROM chain_marketplace_items mi "
+                    f"{'WHERE ' + ' AND '.join(where) if where else ''} "
+                    f"ORDER BY mi.created_at DESC NULLS LAST LIMIT {_HOMEPAGE_LIMITS['creator_product_cards']}",
+                    timeout_ms=20000,
+                    default=[],
+                )
+                return rows or []
+            except Exception:
+                return []
+        return timed_section(
+            "creator_product_cards",
+            "creator_product_cards",
+            _load,
+            ttl=_HOMEPAGE_SECTION_TTLS["creator_product_cards"],
+        )
+
     tasks = {
         "stories": fetch_stories,
         "live_rooms": fetch_live,
@@ -1658,6 +1809,7 @@ def build_homepage_payload(async_warm=False):
         "trending_posts": fetch_posts,
         "dating_matches": fetch_matches,
         "reels": fetch_reels,
+        "creator_product_cards": fetch_creator_product_cards,
     }
 
     parent_profile = _perf_profile()
@@ -1692,7 +1844,7 @@ def build_homepage_payload(async_warm=False):
 
     # 1. Build profile map via batch profile lookup (eliminates N+1 profile queries)
     profile_ids = set()
-    for section_name in ("stories", "trending_posts", "live_rooms", "reels"):
+    for section_name in ("stories", "trending_posts", "live_rooms", "reels", "creator_product_cards"):
         for row in payload.get(section_name, []):
             pid = row.get("profile_id")
             if pid:
@@ -1706,6 +1858,7 @@ def build_homepage_payload(async_warm=False):
     payload["recommended_profiles"] = [row for row in (_normalize_profile(r) for r in payload["recommended_profiles"]) if row.get("id")]
     payload["dating_matches"] = [row for row in (_normalize_profile(r) for r in payload["dating_matches"]) if row.get("id")]
     payload["reels"] = [row for row in (_normalize_reel(r, profile_map) for r in payload["reels"]) if row.get("id")]
+    payload["creator_product_cards"] = [row for row in (_normalize_creator_product_card(r, profile_map) for r in payload["creator_product_cards"]) if row.get("id")]
 
     # ── Phase 73: Real data guard — filter test/demo content ──
     from services.homepage_real_data_guard import filter_feed_posts, filter_profiles
@@ -1714,6 +1867,7 @@ def build_homepage_payload(async_warm=False):
     payload["trending_posts"] = filter_feed_posts(payload["trending_posts"], profile_map)
     payload["stories"] = filter_feed_posts(payload["stories"], profile_map)
     payload["reels"] = filter_feed_posts(payload["reels"], profile_map)
+    payload["creator_product_cards"] = filter_feed_posts(payload["creator_product_cards"], profile_map)
     payload = rank_homepage_sections(payload, viewer_id=None, feed_limit=_HOMEPAGE_LIMITS["trending_posts"])
     _cap_homepage_sections(payload)
 
@@ -3104,6 +3258,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         "feed_items": [],
         "reels": [],
         "live_rooms": [],
+        "creator_product_cards": [],
         "suggested_creators": [],
         "suggested_users": [],
         "nearby_users": [],
@@ -3148,7 +3303,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         reel_rows, _ = _fetch_reels()
         if reel_rows:
             rpmap = _profile_map_for_rows(reel_rows, ("profile_id",))
-            raw = [_normalize_post(r, rpmap) for r in reel_rows if r.get("id")]
+            raw = [_normalize_reel(r, rpmap) for r in reel_rows if r.get("id")]
             payload["reels"] = [r for r in raw if r.get("id")][:8]
 
         if not payload["reels"]:
@@ -3169,6 +3324,25 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         payload["suggested_creators"] = filter_profiles(suggested) if suggested else []
         payload["suggested_users"] = list(payload["suggested_creators"])
         payload["nearby_users"] = _feed_nearby(limit=5, offset=0)[:5]
+
+        product_rows = []
+        product_cols = _marketplace_select()
+        if product_cols:
+            try:
+                rows = fast_query(
+                    f"SELECT {', '.join(product_cols)} FROM chain_marketplace_items "
+                    f"WHERE {'approval_status = %s' if 'approval_status' in product_cols else 'TRUE'} "
+                    f"ORDER BY created_at DESC NULLS LAST LIMIT %s",
+                    (["approved"] if "approval_status" in product_cols else []) + [5],
+                    timeout_ms=1000,
+                    default=[],
+                )
+                product_rows = rows or []
+            except Exception:
+                product_rows = []
+        if product_rows:
+            ppmap = _profile_map_for_rows(product_rows, ("profile_id",))
+            payload["creator_product_cards"] = [item for item in (_normalize_creator_product_card(row, ppmap) for row in product_rows) if item.get("id")]
 
         if not payload["suggested_creators"]:
             payload["empty_states"]["suggested"] = True

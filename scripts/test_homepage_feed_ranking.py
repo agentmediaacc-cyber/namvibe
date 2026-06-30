@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify homepage feed ranking priorities and pagination stability."""
+"""Verify homepage feed ranking priorities, freshness, and pagination stability."""
 
 import os
 import sys
@@ -41,6 +41,16 @@ def test_rank_priorities():
             }
         ],
         "reels": [
+            {
+                "id": "reel-public-latest",
+                "profile_id": "public-2",
+                "caption": "Latest uploaded public reel",
+                "likes_count": 3,
+                "comments_count": 1,
+                "shares_count": 0,
+                "views_count": 25,
+                "created_at": iso(0.2),
+            },
             {
                 "id": "reel-friend-new",
                 "profile_id": "friend-1",
@@ -94,6 +104,26 @@ def test_rank_priorities():
                 "shares_count": 5,
                 "created_at": iso(10),
             },
+            {
+                "id": "post-demo-1",
+                "profile_id": "demo-1",
+                "caption": "demo test seeded content",
+                "likes_count": 999,
+                "comments_count": 999,
+                "created_at": iso(0.1),
+            },
+        ],
+        "creator_product_cards": [
+            {
+                "id": "product-1",
+                "type": "product_card",
+                "profile_id": "creator-shop",
+                "title": "Real product card",
+                "caption": "Business item",
+                "is_featured": True,
+                "likes_count": 4,
+                "created_at": iso(4),
+            }
         ],
         "recommended_profiles": [
             {"id": "creator-verified", "display_name": "Verified Creator", "verified": True, "followers_count": 50000},
@@ -111,13 +141,16 @@ def test_rank_priorities():
     }
 
     with patch("services.homepage_service._homepage_relationship_context", return_value=relationship_context):
-        ranked = rank_homepage_sections(payload, viewer_id="viewer-1", feed_limit=12)
+        with patch("services.homepage_real_data_guard.filter_feed_posts", side_effect=lambda items, *args, **kwargs: [item for item in items if "demo" not in str(item.get("caption", "")).lower()]):
+            ranked = rank_homepage_sections(payload, viewer_id="viewer-1", feed_limit=12)
 
     feed_ids = [item.get("id") for item in ranked.get("feed_items", [])]
     friend_reels = [item.get("id") for item in ranked.get("reels", [])]
+    feed_types = [item.get("type") or item.get("_section") for item in ranked.get("feed_items", [])]
 
     checks = [
         check("live appears first when active", feed_ids[:1] == ["live-1"], str(feed_ids[:3])),
+        check("latest public reel appears", "reel-public-latest" in friend_reels, str(friend_reels)),
         check(
             "new friend reel ranks above unrelated old reel",
             friend_reels.index("reel-friend-new") < friend_reels.index("reel-public-old"),
@@ -126,6 +159,21 @@ def test_rank_priorities():
         check(
             "duplicates removed",
             len(feed_ids) == len(set(feed_ids)),
+            str(feed_ids),
+        ),
+        check(
+            "feed has mixed content types when real data exists",
+            len(set(feed_types[:6])) >= 3,
+            str(feed_types[:6]),
+        ),
+        check(
+            "product cards included when real data exists",
+            "product-1" in feed_ids,
+            str(feed_ids),
+        ),
+        check(
+            "no fake/demo content",
+            "post-demo-1" not in feed_ids,
             str(feed_ids),
         ),
     ]
