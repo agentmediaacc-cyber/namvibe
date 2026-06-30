@@ -1,773 +1,1208 @@
-
 {% extends "base.html" %}
 
 {% block title %}NamVibe | Home{% endblock %}
-{% block body_class %}nv-home-pro-page{% endblock %}
-
+{% block body_class %}namvibe-social-home{% endblock %}
 {% block top_header %}{% endblock %}
 {% block mobile_nav %}{% endblock %}
 
 {% block extra_css %}
-<meta name="namvibe-build" content="phase158">
-<link rel="stylesheet" href="/static/css/namvibe_home_pro.css?v=phase158">
+<meta name="namvibe-build" content="phase163-social-home">
 <link rel="stylesheet" href="/static/css/namvibe_camera_creator.css?v=phase162">
+
 <style>
-/* Phase 156 — Mobile hamburger & TikTok-style feed */
-.nvpro-hamburger { display:none; background:none; border:none; cursor:pointer; padding:8px; color:var(--nvpro-text); }
-.nvpro-hamburger svg { width:24px; height:24px; }
-.nvpro-drawer-overlay { display:none; position:fixed; inset:0; z-index:99; background:rgba(0,0,0,0.5); }
-.nvpro-drawer-overlay.is-open { display:block; }
-.nvpro-drawer { position:fixed; top:0; left:-280px; width:280px; height:100%; z-index:100; background:var(--nvpro-surface); overflow-y:auto; transition:left 0.3s ease; box-shadow:2px 0 12px rgba(0,0,0,0.15); }
-.nvpro-drawer.is-open { left:0; }
-.nvpro-drawer-head { display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid var(--nvpro-border); }
-.nvpro-drawer-logo { display:flex; align-items:center; gap:8px; font-weight:700; font-size:18px; color:var(--nvpro-text); text-decoration:none; }
-.nvpro-drawer-logo svg { width:22px; height:22px; }
-.nvpro-drawer-close { background:none; border:none; cursor:pointer; padding:4px; color:var(--nvpro-text); }
-.nvpro-drawer-close svg { width:22px; height:22px; }
-.nvpro-drawer-items { padding:8px 0; }
-.nvpro-drawer-item { display:flex; align-items:center; gap:12px; padding:12px 16px; color:var(--nvpro-text); text-decoration:none; font-size:15px; }
-.nvpro-drawer-item svg { width:20px; height:20px; flex-shrink:0; }
-.nvpro-drawer-item.is-active { font-weight:600; background:var(--nvpro-hover-bg); }
-.nvpro-drawer-item:hover { background:var(--nvpro-hover-bg); }
-.nvpro-drawer-signout { margin-top:16px; border-top:1px solid var(--nvpro-border); padding-top:16px; color:var(--nvpro-danger); }
-body.nvpro-drawer-open { overflow:hidden; }
-/* Scroll hide header */
-.nvpro-header-hidden { transform:translateY(-100%); }
-.nvpro-header { transition:transform 0.3s ease; position:sticky; top:0; z-index:50; }
-/* Hero section desktop only */
-.nvpro-home-hero { display:block; }
-/* Mobile: hide hero, hide shortcuts, hide sidebar, show hamburger */
-@media (max-width:768px) {
-  .nvpro-hamburger { display:flex; align-items:center; }
-  .nvpro-home-hero { display:none !important; }
-  .nvpro-left-rail { display:none !important; }
-  .nvpro-sidebar { display:none !important; }
-  .nvpro-header-inner .nvpro-logo { font-size:16px; }
-  .nvpro-header-inner .nvpro-logo svg { width:18px; height:18px; }
-  .nvpro-header-actions .nvpro-create-btn span { display:none; }
-  .nvpro-search-wrap { max-width:160px; }
-  /* Full-width content */
-  .nvpro-center { max-width:100% !important; padding:0 !important; }
-  .nvpro-feed .nvpro-post-card { border-radius:0; border-left:none; border-right:none; }
-  /* Fix input contrast on mobile */
-  .nvpro-form-input, .nvpro-form-select, .nvpro-modal-body input, .nvpro-modal-body textarea, .nvpro-modal-body select {
-    font-size:16px !important; color:var(--nvpro-text) !important; background:var(--nvpro-input-bg) !important;
-    border:1px solid var(--nvpro-border) !important; padding:12px !important; border-radius:8px !important;
-  }
-  .nvpro-form-input::placeholder, .nvpro-modal-body input::placeholder, .nvpro-modal-body textarea::placeholder {
-    color:var(--nvpro-muted) !important; opacity:0.7;
-  }
-  /* Story strip full width */
-  .nvpro-stories-tray { margin:0 !important; padding:8px 4px !important; }
-  .nvpro-stories-scroll { gap:4px; }
-  /* Reels grid */
-  .nvpro-reels-grid { grid-template-columns:repeat(3,1fr) !important; gap:2px !important; }
-  /* Remove bottom padding for feed */
-  .nvpro-feed { padding-bottom:80px; }
-  }
-  /* Offline banner */
-  .nvpro-offline-banner { display:none; position:fixed; bottom:70px; left:0; right:0; z-index:999; background:var(--nvpro-danger,#e44); color:#fff; text-align:center; padding:8px 16px; font-size:13px; font-weight:500; }
-  .nvpro-offline-banner.is-offline { display:block; }
-  @media (max-width:768px) { .nvpro-offline-banner { bottom:60px; } }
+:root{
+  --nv-bg:#ffffff;
+  --nv-soft:#f6f7f9;
+  --nv-card:#ffffff;
+  --nv-text:#111111;
+  --nv-muted:#6b7280;
+  --nv-border:#e5e7eb;
+  --nv-border-soft:#f1f2f4;
+  --nv-blue:#2563eb;
+  --nv-purple:#7c3aed;
+  --nv-cyan:#06b6d4;
+  --nv-green:#16a34a;
+  --nv-red:#ef4444;
+  --nv-gold:#f59e0b;
+  --nv-shadow:0 10px 30px rgba(17,24,39,.08);
+  --nv-radius:22px;
+  --nv-gradient:linear-gradient(135deg,var(--nv-blue),var(--nv-purple),var(--nv-cyan));
+}
+
+*{box-sizing:border-box}
+body.namvibe-social-home{
+  margin:0;
+  background:var(--nv-bg);
+  color:var(--nv-text);
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  overflow-x:hidden;
+}
+
+.nv-app{min-height:100vh;background:var(--nv-bg);overflow-x:hidden}
+.nv-topbar{
+  position:sticky;
+  top:0;
+  z-index:100;
+  height:68px;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--nv-border-soft);
+}
+.nv-topbar-inner{
+  max-width:1480px;
+  margin:0 auto;
+  height:100%;
+  padding:0 18px;
+  display:flex;
+  align-items:center;
+  gap:18px;
+}
+.nv-logo{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-decoration:none;
+  color:var(--nv-text);
+  font-weight:900;
+  font-size:24px;
+  letter-spacing:-.04em;
+}
+.nv-logo-mark{
+  width:36px;
+  height:36px;
+  border-radius:13px;
+  background:var(--nv-gradient);
+  display:grid;
+  place-items:center;
+  color:#fff;
+  box-shadow:0 10px 24px rgba(37,99,235,.25);
+}
+.nv-search{
+  flex:1;
+  max-width:560px;
+  height:44px;
+  background:var(--nv-soft);
+  border:1px solid transparent;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:0 16px;
+  transition:.2s ease;
+}
+.nv-search:focus-within{
+  border-color:rgba(37,99,235,.3);
+  background:#fff;
+  box-shadow:0 0 0 4px rgba(37,99,235,.08);
+}
+.nv-search input{
+  border:0;
+  outline:0;
+  background:transparent;
+  width:100%;
+  font-size:16px;
+  color:var(--nv-text);
+}
+.nv-top-actions{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.nv-icon-btn,.nv-create-btn{
+  height:44px;
+  border:0;
+  text-decoration:none;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border-radius:999px;
+  font-weight:800;
+  color:var(--nv-text);
+  background:var(--nv-soft);
+  position:relative;
+}
+.nv-icon-btn{width:44px}
+.nv-create-btn{
+  padding:0 18px;
+  background:var(--nv-gradient);
+  color:#fff;
+}
+.nv-badge{
+  position:absolute;
+  top:-3px;
+  right:-3px;
+  min-width:18px;
+  height:18px;
+  border-radius:99px;
+  background:var(--nv-red);
+  color:#fff;
+  font-size:11px;
+  display:grid;
+  place-items:center;
+  border:2px solid #fff;
+}
+.nv-avatar{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  overflow:hidden;
+  background:var(--nv-gradient);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-weight:900;
+  text-decoration:none;
+}
+.nv-avatar img{width:100%;height:100%;object-fit:cover}
+
+.nv-layout{
+  max-width:1480px;
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:250px minmax(0,720px) 340px;
+  gap:24px;
+  padding:22px 18px 110px;
+}
+.nv-left{
+  position:sticky;
+  top:88px;
+  height:calc(100vh - 100px);
+  overflow:auto;
+  padding-right:4px;
+}
+.nv-nav-card{
+  background:#fff;
+  border:1px solid var(--nv-border-soft);
+  border-radius:var(--nv-radius);
+  padding:10px;
+}
+.nv-nav-item{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:13px 14px;
+  border-radius:16px;
+  color:var(--nv-text);
+  text-decoration:none;
+  font-weight:800;
+  transition:.18s ease;
+}
+.nv-nav-item:hover,.nv-nav-item.is-active{
+  background:var(--nv-soft);
+}
+.nv-nav-item.is-active svg{color:var(--nv-blue)}
+.nv-nav-item svg,.nv-icon{width:22px;height:22px;flex:0 0 auto}
+
+.nv-main{min-width:0}
+.nv-section{
+  background:#fff;
+  border:1px solid var(--nv-border-soft);
+  border-radius:var(--nv-radius);
+  box-shadow:0 8px 28px rgba(17,24,39,.04);
+  margin-bottom:18px;
+  overflow:hidden;
+}
+.nv-section-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 18px 8px;
+}
+.nv-section-title{
+  margin:0;
+  font-size:17px;
+  letter-spacing:-.02em;
+}
+.nv-section-link{
+  color:var(--nv-blue);
+  text-decoration:none;
+  font-weight:800;
+  font-size:13px;
+}
+
+.nv-stories{
+  display:flex;
+  gap:14px;
+  overflow-x:auto;
+  padding:16px 18px 18px;
+  scrollbar-width:none;
+}
+.nv-stories::-webkit-scrollbar{display:none}
+.nv-story{
+  width:78px;
+  flex:0 0 auto;
+  text-decoration:none;
+  color:var(--nv-text);
+  text-align:center;
+}
+.nv-story-ring{
+  width:72px;
+  height:72px;
+  border-radius:50%;
+  padding:3px;
+  background:var(--nv-gradient);
+  position:relative;
+}
+.nv-story-ring.seen{background:var(--nv-border)}
+.nv-story-ring.live:after{
+  content:"LIVE";
+  position:absolute;
+  bottom:-4px;
+  left:50%;
+  transform:translateX(-50%);
+  background:var(--nv-red);
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+  padding:2px 6px;
+  border-radius:999px;
+  border:2px solid #fff;
+}
+.nv-story-avatar{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  border:3px solid #fff;
+  background:var(--nv-soft);
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+  font-weight:900;
+}
+.nv-story-avatar img{width:100%;height:100%;object-fit:cover}
+.nv-story span{
+  display:block;
+  margin-top:8px;
+  font-size:12px;
+  font-weight:700;
+  color:var(--nv-muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.nv-story-create .nv-story-ring{
+  background:var(--nv-soft);
+  border:1px dashed var(--nv-border);
+}
+.nv-story-create .nv-story-avatar{
+  color:#fff;
+  background:var(--nv-gradient);
+}
+
+.nv-composer{
+  padding:16px;
+}
+.nv-composer-top{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.nv-composer-pill{
+  flex:1;
+  border:0;
+  background:var(--nv-soft);
+  color:var(--nv-muted);
+  min-height:46px;
+  border-radius:999px;
+  text-align:left;
+  padding:0 18px;
+  cursor:pointer;
+  font-weight:700;
+}
+.nv-composer-actions{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:14px;
+}
+.nv-composer-action{
+  border:0;
+  background:var(--nv-soft);
+  border-radius:16px;
+  padding:12px 8px;
+  cursor:pointer;
+  font-weight:800;
+  color:var(--nv-text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+}
+
+.nv-tabs{
+  display:flex;
+  gap:8px;
+  padding:12px 4px;
+  margin-bottom:8px;
+  overflow:auto;
+}
+.nv-tab{
+  border:0;
+  background:var(--nv-soft);
+  color:var(--nv-muted);
+  border-radius:999px;
+  padding:10px 18px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.nv-tab.is-active{
+  background:var(--nv-text);
+  color:#fff;
+}
+
+.nv-post{
+  overflow:hidden;
+}
+.nv-post-head{
+  padding:16px 18px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.nv-post-meta{min-width:0;flex:1}
+.nv-post-name{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  color:var(--nv-text);
+  text-decoration:none;
+  font-weight:900;
+}
+.nv-post-sub{
+  color:var(--nv-muted);
+  font-size:13px;
+  margin-top:2px;
+}
+.nv-verified{width:16px;height:16px;color:var(--nv-blue)}
+.nv-follow{
+  border:0;
+  border-radius:999px;
+  background:var(--nv-text);
+  color:#fff;
+  height:36px;
+  padding:0 15px;
+  font-weight:900;
+  cursor:pointer;
+}
+.nv-more{
+  border:0;
+  background:transparent;
+  cursor:pointer;
+  color:var(--nv-muted);
+}
+.nv-post-caption{
+  padding:0 18px 14px;
+  line-height:1.45;
+  font-size:15px;
+}
+.nv-media{
+  width:100%;
+  background:#000;
+  overflow:hidden;
+}
+.nv-media img,.nv-media video{
+  width:100%;
+  max-height:760px;
+  object-fit:cover;
+  display:block;
+}
+.nv-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px 6px;
+}
+.nv-action-left{display:flex;align-items:center;gap:8px}
+.nv-action{
+  border:0;
+  background:transparent;
+  padding:9px;
+  border-radius:999px;
+  cursor:pointer;
+  color:var(--nv-text);
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-weight:800;
+}
+.nv-action:hover{background:var(--nv-soft)}
+.nv-action.liked{
+  color:var(--nv-red);
+  animation:nv-pop .28s ease;
+}
+@keyframes nv-pop{
+  0%{transform:scale(.85)}
+  60%{transform:scale(1.18)}
+  100%{transform:scale(1)}
+}
+.nv-post-stats{
+  padding:0 18px 16px;
+  color:var(--nv-muted);
+  font-size:13px;
+  font-weight:700;
+}
+
+.nv-reels-row,.nv-horizontal{
+  display:flex;
+  gap:12px;
+  overflow:auto;
+  padding:0 18px 18px;
+  scrollbar-width:none;
+}
+.nv-reels-row::-webkit-scrollbar,.nv-horizontal::-webkit-scrollbar{display:none}
+.nv-reel{
+  width:150px;
+  height:235px;
+  flex:0 0 auto;
+  border-radius:22px;
+  overflow:hidden;
+  background:#111;
+  color:#fff;
+  position:relative;
+  text-decoration:none;
+}
+.nv-reel img,.nv-reel video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:.88;
+}
+.nv-reel-info{
+  position:absolute;
+  inset:auto 0 0;
+  padding:36px 12px 12px;
+  background:linear-gradient(transparent,rgba(0,0,0,.75));
+}
+.nv-reel-title{
+  font-weight:900;
+  font-size:13px;
+  line-height:1.25;
+}
+
+.nv-side{
+  position:sticky;
+  top:88px;
+  height:calc(100vh - 100px);
+  overflow:auto;
+}
+.nv-side-card{
+  background:#fff;
+  border:1px solid var(--nv-border-soft);
+  border-radius:var(--nv-radius);
+  box-shadow:0 8px 28px rgba(17,24,39,.04);
+  margin-bottom:16px;
+  overflow:hidden;
+}
+.nv-side-head{
+  padding:16px 16px 8px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:900;
+}
+.nv-side-body{padding:8px 12px 14px}
+.nv-person,.nv-live,.nv-trend{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:10px;
+  border-radius:16px;
+  text-decoration:none;
+  color:var(--nv-text);
+}
+.nv-person:hover,.nv-live:hover,.nv-trend:hover{background:var(--nv-soft)}
+.nv-mini-avatar{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  overflow:hidden;
+  background:var(--nv-gradient);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-weight:900;
+  flex:0 0 auto;
+}
+.nv-mini-avatar img{width:100%;height:100%;object-fit:cover}
+.nv-person-info,.nv-live-info,.nv-trend-info{min-width:0;flex:1}
+.nv-person-name,.nv-live-title,.nv-trend-title{
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.nv-person-sub,.nv-live-sub,.nv-trend-sub{
+  color:var(--nv-muted);
+  font-size:12px;
+  margin-top:2px;
+}
+.nv-live-badge{
+  background:var(--nv-red);
+  color:#fff;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:10px;
+  font-weight:900;
+  animation:nv-pulse 1.4s infinite;
+}
+@keyframes nv-pulse{
+  0%,100%{opacity:1}
+  50%{opacity:.55}
+}
+.nv-chip-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.nv-chip{
+  text-decoration:none;
+  background:var(--nv-soft);
+  color:var(--nv-text);
+  padding:9px 12px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:800;
+}
+
+.nv-empty{
+  padding:28px 18px;
+  text-align:center;
+  color:var(--nv-muted);
+}
+.nv-empty h3{
+  color:var(--nv-text);
+  margin:0 0 6px;
+}
+
+.nv-bottom{
+  display:none;
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:110;
+  height:68px;
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(18px);
+  border-top:1px solid var(--nv-border-soft);
+}
+.nv-bottom-inner{
+  height:100%;
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+}
+.nv-bottom a,.nv-bottom button{
+  border:0;
+  background:transparent;
+  color:var(--nv-muted);
+  text-decoration:none;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  font-size:11px;
+  font-weight:800;
+}
+.nv-bottom .is-active{color:var(--nv-blue)}
+.nv-bottom svg{width:22px;height:22px}
+.nv-floating-create{
+  width:44px;
+  height:34px;
+  border-radius:14px;
+  background:var(--nv-gradient)!important;
+  color:#fff!important;
+  margin:auto;
+}
+
+.nv-modal-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.45);
+  z-index:200;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+.nv-modal-overlay.is-open{display:flex}
+.nv-modal{
+  width:min(620px,100%);
+  max-height:90vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:28px;
+  box-shadow:0 25px 80px rgba(0,0,0,.25);
+}
+.nv-modal-head{
+  padding:18px;
+  border-bottom:1px solid var(--nv-border-soft);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.nv-modal-head h2{margin:0}
+.nv-close{
+  border:0;
+  background:var(--nv-soft);
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  cursor:pointer;
+}
+.nv-modal-body{padding:18px}
+.nv-upload-tabs{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-bottom:14px;
+}
+.nv-upload-tab{
+  border:0;
+  background:var(--nv-soft);
+  padding:12px;
+  border-radius:14px;
+  font-weight:900;
+  cursor:pointer;
+}
+.nv-upload-tab.is-active{
+  background:var(--nv-text);
+  color:#fff;
+}
+.nv-drop{
+  border:2px dashed var(--nv-border);
+  background:var(--nv-soft);
+  border-radius:22px;
+  padding:30px 16px;
+  text-align:center;
+  cursor:pointer;
+}
+.nv-input,.nv-select{
+  width:100%;
+  border:1px solid var(--nv-border);
+  background:#fff;
+  color:var(--nv-text);
+  border-radius:16px;
+  padding:14px;
+  font-size:16px;
+  margin-top:12px;
+}
+.nv-row{
+  display:grid;
+  grid-template-columns:1fr 180px;
+  gap:12px;
+}
+.nv-primary{
+  border:0;
+  background:var(--nv-gradient);
+  color:#fff;
+  border-radius:999px;
+  padding:13px 18px;
+  font-weight:900;
+  cursor:pointer;
+}
+.nv-outline{
+  border:1px solid var(--nv-border);
+  background:#fff;
+  color:var(--nv-text);
+  border-radius:999px;
+  padding:13px 18px;
+  font-weight:900;
+  cursor:pointer;
+}
+.nv-upload-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:16px;
+}
+
+@media(max-width:1180px){
+  .nv-layout{grid-template-columns:82px minmax(0,1fr) 310px}
+  .nv-nav-item span{display:none}
+  .nv-nav-item{justify-content:center}
+}
+@media(max-width:980px){
+  .nv-layout{grid-template-columns:1fr;padding:14px 0 90px}
+  .nv-left,.nv-side{display:none}
+  .nv-main{width:100%}
+  .nv-section{border-radius:0;border-left:0;border-right:0;margin-bottom:10px}
+  .nv-topbar-inner{padding:0 12px}
+  .nv-logo span{display:none}
+  .nv-search{max-width:none;height:42px}
+  .nv-create-btn span,.nv-hide-mobile{display:none}
+  .nv-bottom{display:block}
+}
+@media(max-width:560px){
+  .nv-topbar{height:62px}
+  .nv-topbar-inner{gap:8px}
+  .nv-icon-btn{width:40px;height:40px}
+  .nv-create-btn{width:40px;height:40px;padding:0}
+  .nv-stories{gap:10px;padding:14px 12px}
+  .nv-story{width:68px}
+  .nv-story-ring{width:64px;height:64px}
+  .nv-composer-actions{grid-template-columns:repeat(2,1fr)}
+  .nv-row{grid-template-columns:1fr}
+}
 </style>
 {% endblock %}
 
 {% block content %}
 {% set p = homepage_payload or {} %}
-{% set profile = p.get("profile") or current or {} %}
+{% set profile = p.get("profile") or current or g_current or {} %}
 {% set stories = p.get("stories") or stories or [] %}
-{% set home_feed_items = p.get("feed_items") or feed_items or feed_for_you or [] %}
+{% set feed_items = p.get("feed_items") or feed_items or feed_for_you or [] %}
 {% set reels_items = p.get("reels") or reels or [] %}
 {% set live_rooms = p.get("live_rooms") or live_rooms or [] %}
 {% set suggested = p.get("suggested_creators") or suggested_creators or suggested_people or [] %}
 {% set hashtags = p.get("trending_hashtags") or trending_hashtags or [] %}
-{% set wallet_data = p.get("wallet") or wallet or {} %}
 {% set unread = p.get("unread_counts") or {} %}
-{% set empty = p.get("empty_states") or {} %}
-{# Phase 141: Safe defaults for degraded mode - all variables use default([]) #}
-{% set feed_for_you = p.get("feed_for_you") or [] %}
-{% set trending_posts = p.get("trending_posts") or [] %}
-{% set suggested_people = p.get("suggested_people") or [] %}
-{# Phase 145: Safe defaults for degraded mode - all variables use default([]) #}
-{% if homepage_degraded is not defined %}
-    {% set homepage_degraded =
-        homepage_payload.get('homepage_degraded', False)
-        if homepage_payload else False %}
-{% endif %}
+{% set messages_route = "/messages/" %}
+{% set notifications_route = "/notifications/" %}
+{% set contacts_route = "/contacts/" %}
+{% set groups_route = "/messages/groups/empty" %}
+{% set marketplace_route = "/marketplace/" %}
+{% set saved_route = "/favorites/" %}
+{% set show_groups_link = true %}
+{% set show_marketplace_link = true %}
+{% set show_events_link = false %}
+{% set show_saved_link = true %}
+{% set show_music_link = false %}
 
-<div class="nvpro-shell">
-<div hidden data-namvibe-build="phase158"></div>
+<div class="nv-app">
 
-{# Phase 141: JS flag for degraded mode hydration #}
-<script>
-window.NAMVIBE_HOME_DEGRADED = {{ 'true' if homepage_degraded else 'false' }};
-</script>
-
-{# Phase 158a: Server data for JS hydration fallback #}
-<script>
-window.NAMVIBE_HOME = {
-    feed_items: {{ home_feed_items | tojson | safe }},
-    feed_for_you: {{ p.get("feed_for_you") or [] | tojson | safe }},
-    stories: {{ stories | tojson | safe }},
-    reels: {{ reels_items | tojson | safe }}
-};
-</script>
-    <button type="button" class="nvpro-hamburger" id="nvpro-hamburger" aria-label="Menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-      <div class="nvpro-header-inner">
-      <a href="/" class="nvpro-logo">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3L3 7v13l6-4V3zm6 0l6 4v13l-6-4V3zm-6 4l6-4v14l-6 4V7z"/></svg>
-        NamVibe
+  <header class="nv-topbar">
+    <div class="nv-topbar-inner">
+      <a href="/" class="nv-logo">
+        <span class="nv-logo-mark">N</span>
+        <span>NamVibe</span>
       </a>
-      <div class="nvpro-search-wrap">
-        <span class="nvpro-search-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </span>
-        <input type="text" class="nvpro-search-input" placeholder="Search creators, live rooms, hashtags…" onkeydown="if(event.key==='Enter'&&this.value.trim())window.location='/discover/?q='+encodeURIComponent(this.value.trim())">
-      </div>
-      <div class="nvpro-header-actions">
-        <button type="button" class="nvpro-create-btn" data-open-upload="post">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Create
+
+      <form class="nv-search" action="/discover/" method="get">
+        <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input name="q" placeholder="Search people, reels, places, hashtags..." autocomplete="off">
+      </form>
+
+      <div class="nv-top-actions">
+        <button class="nv-create-btn" type="button" data-nv-open-create>
+          <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Create</span>
         </button>
-        <a href="/notifications/" class="nvpro-header-icon" aria-label="Notifications" style="position:relative">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-          {% if unread.get("notifications") %}<span class="nvpro-badge">{{ unread["notifications"] }}</span>{% endif %}
+
+        <a class="nv-icon-btn nv-hide-mobile" href="/notifications/" aria-label="Notifications">
+          <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          {% if unread.get("notifications") %}<span class="nv-badge">{{ unread.get("notifications") }}</span>{% endif %}
         </a>
-        <a href="/inbox/" class="nvpro-header-icon" aria-label="Messages" style="position:relative">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          {% if unread.get("messages") %}<span class="nvpro-badge">{{ unread["messages"] }}</span>{% endif %}
+
+        <a class="nv-icon-btn" href="{{ messages_route }}" aria-label="Messages">
+          <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 01-4 4H7l-4 4V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
+          {% if unread.get("messages") %}<span class="nv-badge">{{ unread.get("messages") }}</span>{% endif %}
         </a>
-        <a href="/profile/" class="nvpro-header-avatar" aria-label="Profile">
+
+        <a class="nv-avatar" href="/profile/">
           {% if profile.get("avatar_url") %}
-          <img src="{{ profile['avatar_url'] }}" alt="">
+            <img src="{{ profile.get('avatar_url') }}" alt="">
           {% else %}
-          <span class="nvpro-avatar-initials">{{ (profile.get("display_name") or profile.get("username") or "U")[:1] }}</span>
+            {{ (profile.get("display_name") or profile.get("username") or "U")[:1] }}
           {% endif %}
         </a>
       </div>
     </div>
   </header>
 
-  {# MOBILE DRAWER OVERLAY #}
-  <div class="nvpro-drawer-overlay" id="nvpro-drawer-overlay"></div>
+  <div class="nv-layout">
 
-  {# MOBILE DRAWER #}
-  <nav class="nvpro-drawer" id="nvpro-drawer">
-    <div class="nvpro-drawer-head">
-      <a href="/" class="nvpro-drawer-logo">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3L3 7v13l6-4V3zm6 0l6 4v13l-6-4V3zm-6 4l6-4v14l-6 4V7z"/></svg>
-        NamVibe
-      </a>
-      <button type="button" class="nvpro-drawer-close" id="nvpro-drawer-close" aria-label="Close menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-    <div class="nvpro-drawer-items">
-      <a href="/" class="nvpro-drawer-item is-active">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-        <span>Home</span>
-      </a>
-      <a href="/discover/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>
-        <span>Discover</span>
-      </a>
-      <a href="/live/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-        <span>Live</span>
-      </a>
-      <a href="/reels/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-        <span>Reels</span>
-      </a>
-      <a href="/status/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>
-        <span>Stories</span>
-      </a>
-      <a href="/inbox/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
-        <span>Inbox</span>
-      </a>
-      <a href="/contacts/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-8-12a4 4 0 010 7.75"/></svg>
-        <span>Contacts</span>
-      </a>
-      <a href="/calls/recent" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-        <span>Calls</span>
-      </a>
-      <a href="/dating/discover" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-        <span>Dating</span>
-      </a>
-      <a href="/wallet/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><circle cx="18" cy="14" r="1"/></svg>
-        <span>Wallet</span>
-      </a>
-      <a href="/profile/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span>Profile</span>
-      </a>
-      <a href="/settings/" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-        <span>Settings</span>
-      </a>
-      {% if g_current %}
-      <a href="/auth/logout" class="nvpro-drawer-item nvpro-drawer-signout">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <span>Sign Out</span>
-      </a>
-      {% else %}
-      <a href="/auth/login" class="nvpro-drawer-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-        <span>Login</span>
-      </a>
-      {% endif %}
-    </div>
-  </nav>
+    <aside class="nv-left">
+      <nav class="nv-nav-card">
+        <a class="nv-nav-item is-active" href="/">🏠 <span>Home</span></a>
+        <a class="nv-nav-item" href="/discover/">🔎 <span>Discover</span></a>
+        <a class="nv-nav-item" href="/reels/">🎬 <span>Reels</span></a>
+        <a class="nv-nav-item" href="/live/">🔴 <span>Live</span></a>
+        <a class="nv-nav-item" href="{{ messages_route }}">💬 <span>Messages</span></a>
+        <a class="nv-nav-item" href="/calls/recent">📞 <span>Calls</span></a>
+        <a class="nv-nav-item" href="{{ contacts_route }}">👥 <span>Friends</span></a>
+        {% if show_groups_link %}<a class="nv-nav-item" href="{{ groups_route }}">🌍 <span>Groups</span></a>{% endif %}
+        {% if show_marketplace_link %}<a class="nv-nav-item" href="{{ marketplace_route }}">🛍️ <span>Marketplace</span></a>{% endif %}
+        {% if show_events_link %}<a class="nv-nav-item" href="/events/">📅 <span>Events</span></a>{% endif %}
+        {% if show_saved_link %}<a class="nv-nav-item" href="{{ saved_route }}">🔖 <span>Saved</span></a>{% endif %}
+        <a class="nv-nav-item" href="/profile/">👤 <span>Profile</span></a>
+      </nav>
+    </aside>
 
-  <div class="nvpro-body">
+    <main class="nv-main">
 
-    {# LEFT RAIL #}
-    <nav class="nvpro-left-rail">
-      <a href="/" class="nvpro-rail-item is-active">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-        <span>Home</span>
-      </a>
-      <a href="/discover/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>
-        <span>Discover</span>
-      </a>
-      <a href="/live/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-        <span>Live</span>
-      </a>
-      <a href="/reels/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-        <span>Reels</span>
-      </a>
-      <a href="/status/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>
-        <span>Stories</span>
-      </a>
-      <a href="/inbox/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
-        <span>Inbox</span>
-      </a>
-      <a href="/contacts/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-8-12a4 4 0 010 7.75"/></svg>
-        <span>Contacts</span>
-      </a>
-      <a href="/calls/recent" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
-        <span>Calls</span>
-      </a>
-      <a href="/dating/discover" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-        <span>Dating</span>
-      </a>
-      <a href="/wallet/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><circle cx="18" cy="14" r="1"/></svg>
-        <span>Wallet</span>
-      </a>
-      <a href="/profile/" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span>Profile</span>
-      </a>
-      {% if g_current %}
-      <a href="/auth/logout" class="nvpro-rail-item nvpro-rail-signout">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <span>Sign Out</span>
-      </a>
-      {% else %}
-      <a href="/auth/login" class="nvpro-rail-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-        <span>Login</span>
-      </a>
-      {% endif %}
-    </nav>
-
-    {# CENTER FEED #}
-    <main class="nvpro-center">
-
-      <section class="nvpro-home-hero" aria-label="NamVibe homepage overview">
-        <div class="nvpro-home-hero-copy">
-          <span class="nvpro-home-hero-kicker">Now on NamVibe</span>
-          <h1>NamVibe</h1>
-          <p>Messages, calls, live rooms, reels, and creator tools in one place.</p>
-          <div class="nvpro-home-hero-meta">
-            <span class="nvpro-home-hero-chip">{{ live_rooms|length }} live now</span>
-            <span class="nvpro-home-hero-chip">{{ unread.get("messages") or 0 }} unread messages</span>
-            <span class="nvpro-home-hero-chip">{{ wallet_data.get("label_balance") or "0" }} coins</span>
-          </div>
-        </div>
-        <div class="nvpro-home-hero-actions">
-          <a href="/inbox/" class="nvpro-btn nvpro-btn-primary">Open inbox</a>
-          <a href="/live/" class="nvpro-btn nvpro-btn-outline">Watch live</a>
-          <a href="/discover/" class="nvpro-btn nvpro-btn-outline">Discover</a>
-        </div>
-      </section>
-
-      {# STORIES TRAY #}
-      <section class="nvpro-stories-tray">
-        <div class="nvpro-stories-scroll" id="nvpro-stories">
-          <button type="button" class="nvpro-story-create" data-open-camera="story" aria-label="Create story">
-            <div class="nvpro-story-create-ring">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <section class="nv-section">
+        <div class="nv-stories">
+          <button class="nv-story nv-story-create" type="button" data-nv-open-create data-nv-create-type="story">
+            <div class="nv-story-ring">
+              <div class="nv-story-avatar">+</div>
             </div>
-            <span class="nvpro-story-label">Create</span>
+            <span>Create</span>
           </button>
-          {% if stories %}
+
           {% for s in stories %}
-          <a href="/stories/{{ s.get('id') }}" class="nvpro-story-item" data-story-id="{{ s.get('id') }}">
-            <div class="nvpro-story-ring{% if not s.get('viewed') %} is-unseen{% endif %}">
-              {% if s.get("avatar_url") %}
-              <img src="{{ s['avatar_url'] }}" alt="" class="nvpro-story-avatar" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-              <span class="nvpro-avatar-initials" style="display:none">{{ (s.get("display_name") or "?")[:1] }}</span>
-              {% else %}
-              <span class="nvpro-avatar-initials">{{ (s.get("display_name") or "?")[:1] }}</span>
-              {% endif %}
-            </div>
-            <span class="nvpro-story-label">{{ (s.get("display_name") or s.get("username") or "?")|truncate(10, True) }}</span>
-          </a>
-          {% endfor %}
-          {% else %}
-          <div class="nvpro-story-empty-card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>
-            <div>
-              <p style="margin:0;font-weight:600;font-size:14px">Start your first status</p>
-              <p style="margin:2px 0 0;font-size:12px;color:var(--nvpro-muted)">Share a 24-hour update with followers only</p>
-            </div>
-            <button type="button" class="nvpro-btn nvpro-btn-primary nvpro-btn-sm" data-open-camera="story">Create Story</button>
-          </div>
-          {% endif %}
-        </div>
-      </section>
-
-      {# FEED TABS #}
-      <div class="nvpro-tabs" id="nvpro-tabs">
-        <button type="button" class="nvpro-tab is-active" data-tab="for_you">For You</button>
-        <button type="button" class="nvpro-tab" data-tab="following">Following</button>
-        <button type="button" class="nvpro-tab" data-tab="trending">Trending</button>
-        <button type="button" class="nvpro-tab" data-tab="nearby">Nearby</button>
-      </div>
-
-      {# FEED ITEMS #}
-      <div class="nvpro-feed" id="nvpro-feed">
-        {% if home_feed_items %}
-        {% for item in home_feed_items %}
-        {% set media_url = item.get('media_url') or item.get('public_url') or item.get('image_url') or item.get('thumbnail_url') %}
-        {% set video_url = item.get('video_url') or '' %}
-        <article class="nvpro-post-card" data-item-id="{{ item.get('id') }}" data-type="{{ item.get('type', 'post') }}" data-href="/post/{{ item.get('id') }}" style="cursor:pointer">
-          <div class="nvpro-post-head">
-            <a href="/profile/@{{ item.get('username') }}" class="nvpro-post-avatar">
-              {% if item.get("avatar_url") %}
-              <img src="{{ item['avatar_url'] }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-              <span class="nvpro-avatar-initials" style="display:none">{{ (item.get("display_name") or "?")[:1] }}</span>
-              {% else %}
-              <span class="nvpro-avatar-initials">{{ (item.get("display_name") or "?")[:1] }}</span>
-              {% endif %}
-            </a>
-            <div class="nvpro-post-meta">
-              <a href="/profile/@{{ item.get('username') }}" class="nvpro-post-author">
-                {{ item.get("display_name") or item.get("username") or "Creator" }}
-                {% if item.get("verified") %}<svg class="nvpro-verified" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{% endif %}
-              </a>
-              <span class="nvpro-post-time">{{ item.get("created_label") or "Just now" }}</span>
-            </div>
-            {% if item.get("profile_id") and item.get("profile_id") != (profile.get("id") if profile else "") %}
-            <button type="button" class="nvpro-follow-pill" data-follow-id="{{ item.get('profile_id') }}">Follow</button>
-            {% endif %}
-          </div>
-          {% if item.get("text") or item.get("caption") %}
-          <div class="nvpro-post-body">{{ item.get("text") or item.get("caption") }}</div>
-          {% endif %}
-          {% if video_url %}
-          <div class="nvpro-post-media" data-nv-video="{{ video_url }}" data-nv-thumb="{{ item.get('thumbnail_url') or media_url or '' }}">
-            <div class="nvpro-loading-skeleton"></div>
-            <div class="nvpro-video-overlay">
-              <div class="nvpro-video-play-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <a class="nv-story" href="/stories/{{ s.get('id') }}">
+            <div class="nv-story-ring {% if s.get('viewed') %}seen{% endif %} {% if s.get('is_live') %}live{% endif %}">
+              <div class="nv-story-avatar">
+                {% if s.get("avatar_url") %}
+                  <img src="{{ s.get('avatar_url') }}" alt="">
+                {% else %}
+                  {{ (s.get("display_name") or s.get("username") or "?")[:1] }}
+                {% endif %}
               </div>
             </div>
-          </div>
-          {% elif media_url %}
-          <div class="nvpro-post-media">
-            <img src="{{ media_url }}" alt="{{ item.get('caption') or item.get('text') or '' }}" loading="{% if loop.index0 < 3 %}eager{% else %}lazy{% endif %}" class="nvpro-post-media">
-          </div>
-          {% endif %}
-          <div class="nvpro-post-actions">
-            <button type="button" class="nvpro-action-btn" data-action="like" data-id="{{ item.get('id') }}" data-type="{{ item.get('type', 'post') }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
-              <span>{{ item.get("likes_count") or 0 }}</span>
-            </button>
-            <button type="button" class="nvpro-action-btn" data-action="comment" data-id="{{ item.get('id') }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-              <span>{{ item.get("comments_count") or 0 }}</span>
-            </button>
-            <button type="button" class="nvpro-action-btn" data-action="share" data-id="{{ item.get('id') }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-              <span>Share</span>
-            </button>
-            <button type="button" class="nvpro-action-btn" data-action="save" data-id="{{ item.get('id') }}" data-type="{{ item.get('type', 'post') }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-            </button>
-          </div>
-        </article>
-        {% endfor %}
-        {% else %}
-        <div class="nvpro-empty-card">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14m-7-7h14"/></svg>
-          <h3>Fresh posts will land here</h3>
-          <p>Follow creators, watch reels, join live rooms, or share your first post.</p>
-          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-            <a href="/discover/" class="nvpro-btn nvpro-btn-primary">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>
-              Discover Creators
-            </a>
-            <button type="button" class="nvpro-btn nvpro-btn-outline" data-open-upload="post">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Create Post
-            </button>
-            <a href="/reels/" class="nvpro-btn nvpro-btn-outline">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-              Watch Reels
-            </a>
-          </div>
+            <span>{{ s.get("display_name") or s.get("username") or "Story" }}</span>
+          </a>
+          {% endfor %}
         </div>
-        {% endif %}
+      </section>
+
+      <section class="nv-section nv-composer">
+        <div class="nv-composer-top">
+          <a class="nv-avatar" href="/profile/">
+            {% if profile.get("avatar_url") %}
+              <img src="{{ profile.get('avatar_url') }}" alt="">
+            {% else %}
+              {{ (profile.get("display_name") or profile.get("username") or "U")[:1] }}
+            {% endif %}
+          </a>
+          <button class="nv-composer-pill" type="button" data-nv-open-create data-nv-create-type="post">
+            What is happening on NamVibe?
+          </button>
+        </div>
+        <div class="nv-composer-actions">
+          <button class="nv-composer-action" type="button" data-nv-open-create data-nv-create-type="post">📷 Photo</button>
+          <button class="nv-composer-action" type="button" data-nv-open-create data-nv-create-type="reel">🎬 Reel</button>
+          <a class="nv-composer-action" href="/live/studio">🔴 Live</a>
+          <button class="nv-composer-action" type="button" data-nv-open-create data-nv-create-type="story">📍 Story</button>
+        </div>
+      </section>
+
+      <div class="nv-tabs">
+        <button class="nv-tab is-active" type="button" data-feed-tab="for_you">For You</button>
+        <button class="nv-tab" type="button" data-feed-tab="following">Following</button>
+        <button class="nv-tab" type="button" data-feed-tab="nearby">Nearby</button>
+        <button class="nv-tab" type="button" data-feed-tab="trending">Trending</button>
+        <button class="nv-tab" type="button" data-feed-tab="friends">Friends</button>
       </div>
 
-      {# REELS PREVIEW #}
-      <section class="nvpro-reels-section">
-        <div class="nvpro-section-head">
-          <h2>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-            Reels
-          </h2>
-          <a href="/reels/" class="nvpro-section-link">View all</a>
+      {% if live_rooms %}
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <h2 class="nv-section-title">Live now</h2>
+          <a class="nv-section-link" href="/live/">See all</a>
         </div>
-        {% if reels_items %}
-        <div class="nvpro-reels-grid" id="nvpro-reels">
-          {% for reel in reels_items[:6] %}
-          {% set reel_thumb = reel.get('thumbnail_url') or reel.get('media_url') or reel.get('public_url') or reel.get('image_url') or reel.get('video_url') %}
-          <a href="/reels/{{ reel.get('id') }}" class="nvpro-reel-card" data-reel-id="{{ reel.get('id') }}">
-            <div class="nvpro-reel-thumb">
-              {% if reel_thumb %}
-              <img src="{{ reel_thumb }}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' width=\'36\' height=\'36\'><polygon points=\'23 7 16 12 23 17 23 7\'/><rect x=\'1\' y=\'5\' width=\'15\' height=\'14\' rx=\'2\' ry=\'2\'/></svg>'">
+        <div class="nv-horizontal">
+          {% for room in live_rooms[:6] %}
+          <a class="nv-live" href="/live/">
+            <div class="nv-mini-avatar">
+              {% if room.get("creator_avatar") %}
+              <img src="{{ room.get('creator_avatar') }}" alt="">
               {% else %}
-              <div class="nvpro-reel-thumb-fallback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="36" height="36"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
+              {{ (room.get("creator_name") or "L")[:1] }}
               {% endif %}
             </div>
-            <div class="nvpro-reel-info">
-              <span class="nvpro-reel-creator">{{ reel.get("display_name") or reel.get("username") or "Creator" }}</span>
-              {% if reel.get("caption") or reel.get("text") %}<span class="nvpro-reel-caption">{{ (reel.get("caption") or reel.get("text") or "")[:60] }}</span>{% endif %}
+            <div class="nv-live-info">
+              <div class="nv-live-title">{{ room.get("title") or room.get("creator_name") or "Live room" }}</div>
+              <div class="nv-live-sub">{{ room.get("viewer_count") or 0 }} watching</div>
+            </div>
+            <span class="nv-live-badge">LIVE</span>
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if reels_items %}
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <h2 class="nv-section-title">Reels for you</h2>
+          <a class="nv-section-link" href="/reels/">Watch all</a>
+        </div>
+        <div class="nv-reels-row">
+          {% for reel in reels_items[:8] %}
+          {% set reel_thumb = reel.get("thumbnail_url") or reel.get("media_url") or reel.get("public_url") or reel.get("image_url") or reel.get("video_url") %}
+          <a class="nv-reel" href="/reels/{{ reel.get('id') }}">
+            {% if reel_thumb %}
+              <img src="{{ reel_thumb }}" alt="" loading="lazy">
+            {% endif %}
+            <div class="nv-reel-info">
+              <div class="nv-reel-title">{{ reel.get("caption") or reel.get("display_name") or "Watch reel" }}</div>
             </div>
           </a>
           {% endfor %}
         </div>
-        {% else %}
-        <div class="nvpro-empty-card">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-          <h3>Upload the first reel</h3>
-          <p>Create and share short videos with the NamVibe community.</p>
-            <button type="button" class="nvpro-btn nvpro-btn-primary" data-open-camera="reel">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              Upload Reel
-            </button>
-        </div>
-        {% endif %}
       </section>
+      {% endif %}
+
+      <div id="nv-feed">
+        {% if feed_items %}
+          {% for item in feed_items %}
+          {% set item_type = item.get("type") or "post" %}
+          {% set media_url = item.get("media_url") or item.get("public_url") or item.get("image_url") or item.get("thumbnail_url") %}
+          {% set video_url = item.get("video_url") or "" %}
+          {% if item_type == "reel" %}
+            {% set detail_url = "/reels/" ~ item.get("id") %}
+          {% elif item_type == "story" %}
+            {% set detail_url = "/stories/" ~ item.get("id") %}
+          {% elif item_type == "live_room" or item_type == "live" %}
+            {% set detail_url = item.get("watch_url") or "/live/" %}
+          {% elif item_type == "product_card" %}
+            {% set detail_url = marketplace_route ~ "item/" ~ item.get("id") %}
+          {% elif item_type == "suggested_user" or item_type == "profile" %}
+            {% set detail_url = item.get("profile_url") or "/profile/" %}
+          {% else %}
+            {% set detail_url = "/post/" ~ item.get("id") %}
+          {% endif %}
+          {% set profile_link = item.get("profile_url") or ("/profile/@" ~ item.get("username") if item.get("username") else detail_url) %}
+          <article class="nv-section nv-post" data-item-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}" data-profile-id="{{ item.get('profile_id') or '' }}">
+            <div class="nv-post-head">
+              <a class="nv-avatar" href="{{ profile_link }}">
+                {% if item.get("avatar_url") %}
+                  <img src="{{ item.get('avatar_url') }}" alt="">
+                {% else %}
+                  {{ (item.get("display_name") or item.get("username") or "?")[:1] }}
+                {% endif %}
+              </a>
+
+              <div class="nv-post-meta">
+                <a class="nv-post-name" href="{{ profile_link }}">
+                  {{ item.get("display_name") or item.get("username") or "Creator" }}
+                  {% if item.get("verified") %}
+                  <svg class="nv-verified" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6 6.6.9-4.8 4.7 1.1 6.5L12 17l-5.8 3.1 1.1-6.5-4.8-4.7 6.6-.9z"/></svg>
+                  {% endif %}
+                </a>
+                <div class="nv-post-sub">
+                  {{ item.get("location") or item.get("category") or "Namibia" }} · {{ item.get("created_label") or "Just now" }}
+                </div>
+              </div>
+
+              {% if item.get("profile_id") and item.get("profile_id") != profile.get("id") %}
+              <button class="nv-follow" type="button" data-follow-id="{{ item.get('profile_id') }}">Follow</button>
+              {% endif %}
+
+              <button class="nv-more" type="button">•••</button>
+            </div>
+
+            {% if item_type == "product_card" and item.get("title") %}
+            <div class="nv-post-caption"><strong>{{ item.get("title") }}</strong>{% if item.get("price") %} · {{ item.get("price") }} {{ item.get("currency") or "" }}{% endif %}<br>{{ item.get("text") or item.get("caption") or "" }}</div>
+            {% elif item.get("text") or item.get("caption") %}
+            <div class="nv-post-caption">{{ item.get("text") or item.get("caption") }}</div>
+            {% endif %}
+
+            {% if item_type == "suggested_user" or item_type == "profile" %}
+            <div class="nv-post-stats" style="padding-top:8px">
+              {{ item.get("text") or item.get("location") or "Discover this profile" }}
+            </div>
+            {% elif video_url %}
+            <div class="nv-media">
+              <video src="{{ video_url }}" poster="{{ media_url or item.get('thumbnail_url') or '' }}" controls playsinline preload="metadata"></video>
+            </div>
+            {% elif media_url %}
+            <div class="nv-media">
+              <img src="{{ media_url }}" alt="" loading="{% if loop.index0 < 2 %}eager{% else %}lazy{% endif %}">
+            </div>
+            {% endif %}
+
+            <div class="nv-actions">
+              <div class="nv-action-left">
+                <button class="nv-action" type="button" data-action="like" data-id="{{ item.get('id') }}" data-type="{{ item_type }}">♡ <span>{{ item.get("likes_count") or 0 }}</span></button>
+                <button class="nv-action" type="button" data-action="comment" data-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}">💬 <span>{{ item.get("comments_count") or 0 }}</span></button>
+                <button class="nv-action" type="button" data-action="share" data-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}">↗ Share</button>
+              </div>
+              <button class="nv-action" type="button" data-action="save" data-id="{{ item.get('id') }}" data-type="{{ item_type }}">🔖</button>
+            </div>
+
+            <div class="nv-post-stats">
+              {{ item.get("views_count") or 0 }} views
+              {% if item.get("music_title") %} · 🎵 {{ item.get("music_title") }}{% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        {% else %}
+          <section class="nv-section nv-empty">
+            <h3>Your NamVibe feed is ready</h3>
+            <p>Follow people, upload a reel, join live rooms, or discover creators around Namibia.</p>
+            <button class="nv-primary" type="button" data-nv-open-create data-nv-create-type="post">Create your first post</button>
+          </section>
+        {% endif %}
+      </div>
+
+      {% if suggested %}
+      <section class="nv-section">
+        <div class="nv-section-head">
+          <h2 class="nv-section-title">People you may know</h2>
+          <a class="nv-section-link" href="/discover/">See all</a>
+        </div>
+        <div class="nv-horizontal">
+          {% for creator in suggested[:8] %}
+          <div class="nv-person" style="min-width:240px">
+            <a class="nv-mini-avatar" href="/profile/@{{ creator.get('username') }}">
+              {% if creator.get("avatar_url") %}
+              <img src="{{ creator.get('avatar_url') }}" alt="">
+              {% else %}
+              {{ (creator.get("display_name") or creator.get("username") or "?")[:1] }}
+              {% endif %}
+            </a>
+            <div class="nv-person-info">
+              <div class="nv-person-name">{{ creator.get("display_name") or creator.get("username") or "Creator" }}</div>
+              <div class="nv-person-sub">{{ creator.get("followers_count") or 0 }} followers</div>
+            </div>
+            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}">Follow</button>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
 
     </main>
 
-    {# RIGHT SIDEBAR #}
-    <aside class="nvpro-sidebar">
+    <aside class="nv-side">
 
-      {# LIVE ROOMS #}
-      <div class="nvpro-sidebar-card">
-        <div class="nvpro-sidebar-card-head">
-          <span>
-            <svg viewBox="0 0 24 24" fill="currentColor" class="nvpro-live-dot"><circle cx="12" cy="12" r="6"/></svg>
-            Live Now
-          </span>
-          {% if live_rooms %}<a href="/live/">Watch</a>{% endif %}
+      <section class="nv-side-card">
+        <div class="nv-side-head">
+          <span>Trending Namibia</span>
+          <a class="nv-section-link" href="/discover/">Explore</a>
         </div>
-        {% if live_rooms %}
-        {% for room in live_rooms[:3] %}
-        <a href="/live/" class="nvpro-sidebar-row">
-          <div class="nvpro-sidebar-avatar-sm">
-            {% if room.get("creator_avatar") %}
-            <img src="{{ room['creator_avatar'] }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <span class="nvpro-avatar-initials" style="display:none">{{ (room.get("creator_name") or "?")[:1] }}</span>
-            {% else %}
-            <span class="nvpro-avatar-initials">{{ (room.get("creator_name") or "?")[:1] }}</span>
-            {% endif %}
+        <div class="nv-side-body">
+          {% if hashtags %}
+          <div class="nv-chip-grid">
+            {% for ht in hashtags[:10] %}
+            <a class="nv-chip" href="/discover/?q=%23{{ ht.get('tag') }}">#{{ ht.get("tag") }}</a>
+            {% endfor %}
           </div>
-          <div class="nvpro-sidebar-row-info">
-            <span class="nvpro-sidebar-row-name">{{ room.get("creator_name") or "Live" }}</span>
-            <span class="nvpro-sidebar-row-meta">{{ room.get("viewer_count") or 0 }} watching</span>
-          </div>
-          <span class="nvpro-live-tag">LIVE</span>
-        </a>
-        {% endfor %}
-        {% else %}
-        <div class="nvpro-sidebar-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:36px;height:36px;color:var(--nvpro-muted);margin-bottom:8px"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-          <p>No one is live right now</p>
-          {% if live_available %}
-          <a href="/live/studio" class="nvpro-btn nvpro-btn-sm nvpro-btn-primary">Start Live</a>
+          {% else %}
+          <a class="nv-trend" href="/discover/">
+            <div class="nv-trend-info">
+              <div class="nv-trend-title">Discover Namibia</div>
+              <div class="nv-trend-sub">Find creators, places, music, events</div>
+            </div>
+          </a>
           {% endif %}
         </div>
-        {% endif %}
-      </div>
+      </section>
 
-      {# SUGGESTED CREATORS #}
-      <div class="nvpro-sidebar-card">
-        <div class="nvpro-sidebar-card-head">
-          <span>Suggested Creators</span>
-          <a href="/discover/">See all</a>
+      {% if suggested %}
+      <section class="nv-side-card">
+        <div class="nv-side-head">
+          <span>Suggested friends</span>
+          <a class="nv-section-link" href="/discover/">See all</a>
         </div>
-        {% if suggested %}
-        {% for creator in suggested[:5] %}
-        <div class="nvpro-sidebar-row">
-          <a href="/profile/@{{ creator.get('username') }}" class="nvpro-sidebar-avatar-sm">
-            {% if creator.get("avatar_url") %}
-            <img src="{{ creator['avatar_url'] }}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-            <span class="nvpro-avatar-initials" style="display:none">{{ (creator.get("display_name") or "?")[:1] }}</span>
-            {% else %}
-            <span class="nvpro-avatar-initials">{{ (creator.get("display_name") or "?")[:1] }}</span>
-            {% endif %}
-          </a>
-          <div class="nvpro-sidebar-row-info">
-            <a href="/profile/@{{ creator.get('username') }}" class="nvpro-sidebar-row-name">
-              {{ creator.get("display_name") or creator.get("username") or "Creator" }}
-              {% if creator.get("verified") %}<svg class="nvpro-verified" viewBox="0 0 24 24" fill="currentColor" style="width:12px;height:12px"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{% endif %}
+        <div class="nv-side-body">
+          {% for creator in suggested[:5] %}
+          <div class="nv-person">
+            <a class="nv-mini-avatar" href="/profile/@{{ creator.get('username') }}">
+              {% if creator.get("avatar_url") %}
+              <img src="{{ creator.get('avatar_url') }}" alt="">
+              {% else %}
+              {{ (creator.get("display_name") or creator.get("username") or "?")[:1] }}
+              {% endif %}
             </a>
-            {% if creator.get("followers_count") %}
-            <span class="nvpro-sidebar-row-meta">{{ creator["followers_count"] }} followers</span>
-            {% endif %}
+            <div class="nv-person-info">
+              <div class="nv-person-name">{{ creator.get("display_name") or creator.get("username") or "Creator" }}</div>
+              <div class="nv-person-sub">{{ creator.get("mutual_count") or creator.get("followers_count") or 0 }} connections</div>
+            </div>
+            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}">Follow</button>
           </div>
-          <button type="button" class="nvpro-follow-btn" data-follow-id="{{ creator.get('id') }}">Follow</button>
-        </div>
-        {% endfor %}
-        {% else %}
-        <div class="nvpro-sidebar-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:36px;height:36px;color:var(--nvpro-muted);margin-bottom:8px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          <p>No suggestions yet. Explore Namibia's creators!</p>
-          <a href="/discover/" class="nvpro-btn nvpro-btn-sm nvpro-btn-outline">Discover</a>
-        </div>
-        {% endif %}
-      </div>
-
-      {# TRENDING HASHTAGS #}
-      <div class="nvpro-sidebar-card">
-        <div class="nvpro-sidebar-card-head">
-          <span>Trending Hashtags</span>
-        </div>
-        {% if hashtags %}
-        <div class="nvpro-hashtag-list">
-          {% for ht in hashtags[:6] %}
-          <a href="/discover/?q=%23{{ ht.get('tag') }}" class="nvpro-hashtag">#{{ ht.get("tag") }}</a>
           {% endfor %}
         </div>
-        {% else %}
-        <div class="nvpro-sidebar-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:36px;height:36px;color:var(--nvpro-muted);margin-bottom:8px"><path d="M7 20l4-16m2 0l4 16M3 8h18M3 16h18"/></svg>
-          <p>No trending hashtags yet</p>
-        </div>
-        {% endif %}
-      </div>
+      </section>
+      {% endif %}
 
-      {# WALLET QUICK CARD #}
-      <div class="nvpro-sidebar-card">
-        <div class="nvpro-sidebar-card-head">
-          <span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;margin-right:4px;vertical-align:middle"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/><circle cx="18" cy="14" r="1"/></svg>
-            Wallet
-          </span>
-          <a href="/wallet/">Manage</a>
+      {% if live_rooms %}
+      <section class="nv-side-card">
+        <div class="nv-side-head">
+          <span>Live activity</span>
+          <a class="nv-section-link" href="/live/">Join</a>
         </div>
-        <div class="nvpro-wallet-mini">
-          <span class="nvpro-wallet-balance">{{ wallet_data.get("label_balance") or "0" }}</span>
-          <span class="nvpro-wallet-label">coins</span>
+        <div class="nv-side-body">
+          {% for room in live_rooms[:4] %}
+          <a class="nv-live" href="/live/">
+            <div class="nv-mini-avatar">
+              {% if room.get("creator_avatar") %}
+              <img src="{{ room.get('creator_avatar') }}" alt="">
+              {% else %}
+              {{ (room.get("creator_name") or "L")[:1] }}
+              {% endif %}
+            </div>
+            <div class="nv-live-info">
+              <div class="nv-live-title">{{ room.get("title") or room.get("creator_name") or "Live" }}</div>
+              <div class="nv-live-sub">{{ room.get("viewer_count") or 0 }} watching</div>
+            </div>
+            <span class="nv-live-badge">LIVE</span>
+          </a>
+          {% endfor %}
         </div>
-      </div>
+      </section>
+      {% endif %}
 
-      {# SAFETY & FEEDBACK #}
-      <div class="nvpro-sidebar-card nvpro-sidebar-footer">
-        <a href="/safety/" class="nvpro-sidebar-footer-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          Safety Center
-        </a>
-        <a href="/feedback/" class="nvpro-sidebar-footer-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          Beta Feedback
-        </a>
-      </div>
+      <section class="nv-side-card">
+        <div class="nv-side-head">
+          <span>Quick links</span>
+        </div>
+        <div class="nv-side-body">
+          {% if show_marketplace_link %}<a class="nv-trend" href="{{ marketplace_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Marketplace</div><div class="nv-trend-sub">Cars, phones, services, jobs</div></div></a>{% endif %}
+          {% if show_groups_link %}<a class="nv-trend" href="{{ groups_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Communities</div><div class="nv-trend-sub">Schools, businesses, creators</div></div></a>{% endif %}
+          {% if show_saved_link %}<a class="nv-trend" href="{{ saved_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Saved</div><div class="nv-trend-sub">Profiles, posts, live rooms, and more</div></div></a>{% endif %}
+          <a class="nv-trend" href="/discover/"><div class="nv-trend-info"><div class="nv-trend-title">Discover more</div><div class="nv-trend-sub">Creators, trends, places, and culture</div></div></a>
+        </div>
+      </section>
 
     </aside>
   </div>
 
-  {# MOBILE BOTTOM NAV #}
-  <nav class="nvpro-bottom-nav">
-    <a href="/" class="nvpro-bottom-item is-active">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-      <span>Home</span>
-    </a>
-    <a href="/discover/" class="nvpro-bottom-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>
-      <span>Discover</span>
-    </a>
-    <button type="button" class="nvpro-bottom-item" data-open-upload="post" style="background:none;border:none;cursor:pointer;font-family:inherit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span>Create</span>
-    </button>
-    <a href="/inbox/" class="nvpro-bottom-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
-      <span>Inbox</span>
-    </a>
-    <a href="/profile/" class="nvpro-bottom-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span>Profile</span>
-    </a>
+  <nav class="nv-bottom">
+    <div class="nv-bottom-inner">
+      <a class="is-active" href="/">🏠<span>Home</span></a>
+      <a href="/discover/">🔎<span>Discover</span></a>
+      <button class="nv-floating-create" type="button" data-nv-open-create>＋</button>
+      <a href="/reels/">🎬<span>Reels</span></a>
+      <a href="{{ messages_route }}">💬<span>Messages</span></a>
+      <a href="/profile/">👤<span>Profile</span></a>
+    </div>
   </nav>
 
-  {# UPLOAD MODAL #}
-  <div class="nvpro-modal-overlay" id="nvpro-upload-modal">
-    <div class="nvpro-modal">
-      <div class="nvpro-modal-head">
-        <h2>Create</h2>
-        <button type="button" class="nvpro-modal-close" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="nvpro-modal-tabs">
-        <button type="button" class="nvpro-modal-tab is-active" data-upload-tab="post">Post</button>
-        <button type="button" class="nvpro-modal-tab" data-upload-tab="reel">Reel</button>
-        <button type="button" class="nvpro-modal-tab" data-upload-tab="story">Story</button>
+  <div class="nv-modal-overlay" id="nv-create-modal">
+    <div class="nv-modal">
+      <div class="nv-modal-head">
+        <h2>Create on NamVibe</h2>
+        <button class="nv-close" type="button" data-nv-close-create>✕</button>
       </div>
 
-      {# POST TAB #}
-      <div class="nvpro-modal-body" id="nvpro-upload-post">
-        <div class="nvpro-drop-zone" id="nvpro-drop-post">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <p>Drag & drop or tap to upload</p>
-          <span>JPG, PNG, WebP, MP4, MOV, WebM · Max 700MB</span>
+      <div class="nv-modal-body">
+        <div class="nv-upload-tabs">
+          <button class="nv-upload-tab is-active" type="button" data-upload-tab="post">Post</button>
+          <button class="nv-upload-tab" type="button" data-upload-tab="reel">Reel</button>
+          <button class="nv-upload-tab" type="button" data-upload-tab="story">Story</button>
         </div>
-        <input type="file" class="nvpro-file-input" id="nvpro-file-post" accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/jpg,image/png,image/webp">
-        <div class="nvpro-preview-area" id="nvpro-preview-post" style="display:none"></div>
-        <div class="nvpro-form-field">
-          <input type="text" class="nvpro-form-input" id="nvpro-caption-post" placeholder="Write a caption…" maxlength="2200">
-        </div>
-        <div class="nvpro-form-row">
-          <div class="nvpro-form-field">
-            <label>Location (optional)</label>
-            <input type="text" class="nvpro-form-input" id="nvpro-location-post" placeholder="Add location">
-          </div>
-          <div class="nvpro-form-field">
-            <label>Privacy</label>
-            <select class="nvpro-form-select" id="nvpro-visibility-post">
-              <option value="public">Public</option>
-              <option value="followers">Followers</option>
-              <option value="private">Private</option>
-            </select>
-          </div>
-        </div>
-        <div class="nvpro-progress-wrap" id="nvpro-progress-post">
-          <div class="nvpro-progress-bar"><div class="nvpro-progress-fill"></div></div>
-          <span class="nvpro-progress-text">0%</span>
-        </div>
-        <div class="nvpro-upload-result" id="nvpro-result-post"></div>
-        <div class="nvpro-upload-actions">
-          <button type="button" class="nvpro-btn nvpro-btn-outline" data-cancel-upload="post">Cancel</button>
-          <button type="button" class="nvpro-btn nvpro-btn-primary" id="nvpro-submit-post">Upload</button>
-        </div>
-      </div>
 
-      {# REEL TAB #}
-      <div class="nvpro-modal-body" id="nvpro-upload-reel" style="display:none">
-        <div class="nvpro-drop-zone" id="nvpro-drop-reel">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-          <p>Drag & drop or tap to upload</p>
-          <span>MP4, MOV, WebM · Max 250MB · Max 90 seconds</span>
+        <div class="nv-drop" id="nv-create-drop">
+          <strong>Upload photo or video</strong>
+          <p style="margin:8px 0 0;color:var(--nv-muted)">Post, reel, story, camera, or media upload.</p>
         </div>
-        <input type="file" class="nvpro-file-input" id="nvpro-file-reel" accept="video/mp4,video/webm,video/quicktime">
-        <div class="nvpro-preview-area" id="nvpro-preview-reel" style="display:none"></div>
-        <div class="nvpro-form-field">
-          <input type="text" class="nvpro-form-input" id="nvpro-caption-reel" placeholder="Write a caption…" maxlength="2200">
-        </div>
-        <div class="nvpro-form-row">
-          <div class="nvpro-form-field">
-            <label>Location (optional)</label>
-            <input type="text" class="nvpro-form-input" id="nvpro-location-reel" placeholder="Add location">
-          </div>
-          <div class="nvpro-form-field">
-            <label>Privacy</label>
-            <select class="nvpro-form-select" id="nvpro-visibility-reel">
-              <option value="public">Public</option>
-              <option value="followers">Followers</option>
-              <option value="private">Private</option>
-            </select>
-          </div>
-        </div>
-        <div class="nvpro-progress-wrap" id="nvpro-progress-reel">
-          <div class="nvpro-progress-bar"><div class="nvpro-progress-fill"></div></div>
-          <span class="nvpro-progress-text">0%</span>
-        </div>
-        <div class="nvpro-upload-result" id="nvpro-result-reel"></div>
-        <div class="nvpro-upload-actions">
-          <button type="button" class="nvpro-btn nvpro-btn-outline" data-cancel-upload="reel">Cancel</button>
-          <button type="button" class="nvpro-btn nvpro-btn-primary" id="nvpro-submit-reel">Upload</button>
-        </div>
-      </div>
 
-      {# STORY TAB #}
-      <div class="nvpro-modal-body" id="nvpro-upload-story" style="display:none">
-        <div class="nvpro-drop-zone" id="nvpro-drop-story">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 6v6l4 2"/></svg>
-          <p>Drag & drop or tap to upload</p>
-          <span>JPG, PNG, WebP, MP4, MOV, WebM · Max 100MB · Max 120 seconds</span>
+        <input class="nv-input" id="nv-caption-post" placeholder="Write a caption...">
+
+        <div class="nv-row">
+          <input class="nv-input" id="nv-location-post" placeholder="Location">
+          <select class="nv-select" id="nv-visibility-post">
+            <option value="public">Public</option>
+            <option value="followers">Followers</option>
+            <option value="private">Private</option>
+          </select>
         </div>
-        <input type="file" class="nvpro-file-input" id="nvpro-file-story" accept="video/mp4,video/webm,video/quicktime,image/jpeg,image/jpg,image/png,image/webp">
-        <div class="nvpro-preview-area" id="nvpro-preview-story" style="display:none"></div>
-        <div class="nvpro-form-field">
-          <input type="text" class="nvpro-form-input" id="nvpro-caption-story" placeholder="Add a caption…" maxlength="2200">
-        </div>
-        <div class="nvpro-form-row">
-          <div class="nvpro-form-field">
-            <label>Location (optional)</label>
-            <input type="text" class="nvpro-form-input" id="nvpro-location-story" placeholder="Add location">
-          </div>
-          <div class="nvpro-form-field">
-            <label>Privacy</label>
-            <select class="nvpro-form-select" id="nvpro-visibility-story">
-              <option value="followers" selected>Followers</option>
-              <option value="private">Private</option>
-            </select>
-          </div>
-        </div>
-        <div class="nvpro-progress-wrap" id="nvpro-progress-story">
-          <div class="nvpro-progress-bar"><div class="nvpro-progress-fill"></div></div>
-          <span class="nvpro-progress-text">0%</span>
-        </div>
-        <div class="nvpro-upload-result" id="nvpro-result-story"></div>
-        <div class="nvpro-upload-actions">
-          <button type="button" class="nvpro-btn nvpro-btn-outline" data-cancel-upload="story">Cancel</button>
-          <button type="button" class="nvpro-btn nvpro-btn-primary" id="nvpro-submit-story">Upload</button>
+
+        <div class="nv-upload-actions">
+          <button class="nv-outline" type="button" data-nv-close-create>Cancel</button>
+          <button class="nv-primary" id="nv-create-continue" type="button">Continue Upload</button>
         </div>
       </div>
     </div>
   </div>
-
-  {# OFFLINE BANNER #}
-  <div class="nvpro-offline-banner" id="nvpro-offline-banner">
-    <span class="nvpro-offline-text">You are offline — showing cached content</span>
-  </div>
-
-  {# TOAST #}
-  <div class="nvpro-toast" id="nvpro-toast"></div>
 
 </div>
 
@@ -775,17 +1210,175 @@ window.NAMVIBE_HOME = {
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/namvibe_home_pro.js?v=158a"></script>
 <script src="/static/js/namvibe_camera_creator.js?v=phase162"></script>
 <script src="/static/js/namvibe_offline_cache.js?v=phase162b"></script>
 <script src="/static/js/namvibe_pwa_register.js" defer></script>
+
 <script>
-document.addEventListener("click", function(e) {
-  var card = e.target.closest(".nvpro-post-card");
-  if (!card) return;
-  if (e.target.closest("button, a, input, textarea, select, video, [data-action], [data-follow-id], [data-open-upload], [data-open-camera]")) return;
-  var href = card.dataset.href;
-  if (href) window.location.href = href;
-});
+(function(){
+  const modal = document.getElementById("nv-create-modal");
+  const uploadTabs = Array.from(document.querySelectorAll(".nv-upload-tab"));
+  const createDrop = document.getElementById("nv-create-drop");
+  const createContinue = document.getElementById("nv-create-continue");
+  let selectedCreateType = "post";
+  const detailForItem = (button) => button.dataset.detailUrl || button.closest("[data-detail-url]")?.dataset.detailUrl || "/";
+  const typeForItem = (button) => button.dataset.type || button.closest("[data-type]")?.dataset.type || "post";
+
+  function applyCreateType(type){
+    selectedCreateType = type || "post";
+    uploadTabs.forEach(tab=>tab.classList.toggle("is-active", tab.dataset.uploadTab === selectedCreateType));
+  }
+
+  async function postJson(url){
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {"X-Requested-With":"XMLHttpRequest"},
+      credentials: "same-origin"
+    });
+    return response;
+  }
+
+  document.querySelectorAll("[data-nv-open-create]").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      applyCreateType(btn.dataset.nvCreateType || "post");
+      modal && modal.classList.add("is-open");
+    });
+  });
+
+  document.querySelectorAll("[data-nv-close-create]").forEach(btn=>{
+    btn.addEventListener("click",()=>modal && modal.classList.remove("is-open"));
+  });
+
+  if(modal){
+    modal.addEventListener("click",e=>{
+      if(e.target === modal) modal.classList.remove("is-open");
+    });
+  }
+
+  document.querySelectorAll(".nv-tab").forEach(tab=>{
+    tab.addEventListener("click",()=>{
+      document.querySelectorAll(".nv-tab").forEach(t=>t.classList.remove("is-active"));
+      tab.classList.add("is-active");
+    });
+  });
+
+  uploadTabs.forEach(tab=>{
+    tab.addEventListener("click",()=>applyCreateType(tab.dataset.uploadTab || "post"));
+  });
+
+  function openCreator(){
+    if (typeof window.openCameraCreator === "function"){
+      modal && modal.classList.remove("is-open");
+      window.openCameraCreator(selectedCreateType);
+    }
+  }
+
+  if (createDrop) createDrop.addEventListener("click", openCreator);
+  if (createContinue) createContinue.addEventListener("click", openCreator);
+
+  document.querySelectorAll("[data-action='like']").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const type = typeForItem(btn);
+      const id = btn.dataset.id;
+      if (!id) return;
+      const url = type === "reel" ? `/api/reels/${id}/like` : type === "post" ? `/api/home/post/${id}/like` : null;
+      if (!url) return window.location.href = detailForItem(btn);
+      const response = await postJson(url);
+      if (response.ok) {
+        btn.classList.toggle("liked");
+        const label = btn.querySelector("span");
+        if (label) {
+          const count = parseInt(label.textContent || "0", 10) || 0;
+          label.textContent = String(btn.classList.contains("liked") ? count + 1 : Math.max(0, count - 1));
+        }
+        btn.childNodes[0].textContent = btn.classList.contains("liked") ? "♥ " : "♡ ";
+      } else if (response.status === 401) {
+        window.location.href = "/auth/login";
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-action='comment']").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      window.location.href = detailForItem(btn);
+    });
+  });
+
+  document.querySelectorAll("[data-action='share']").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const type = typeForItem(btn);
+      const id = btn.dataset.id;
+      const detailUrl = `${window.location.origin}${detailForItem(btn)}`;
+      const url = type === "reel" ? `/api/reels/${id}/share` : type === "post" ? `/api/home/post/${id}/share` : null;
+      if (navigator.share) {
+        try { await navigator.share({url: detailUrl}); } catch (_) {}
+      } else {
+        try { await navigator.clipboard.writeText(detailUrl); } catch (_) {}
+      }
+      if (url) {
+        const response = await postJson(url);
+        if (response.status === 401) window.location.href = "/auth/login";
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-action='save']").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const type = typeForItem(btn);
+      const id = btn.dataset.id;
+      let url = null;
+      if (type === "reel") url = `/api/reels/${id}/save`;
+      else if (type === "post") url = `/api/home/post/${id}/save`;
+      else if (type === "product_card") url = "/marketplace/api/saved/toggle";
+      if (!url) return;
+      let response;
+      if (type === "product_card") {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {"Content-Type":"application/json","X-Requested-With":"XMLHttpRequest"},
+          credentials: "same-origin",
+          body: JSON.stringify({item_id: id})
+        });
+      } else {
+        response = await postJson(url);
+      }
+      if (response.ok) btn.classList.toggle("liked");
+      else if (response.status === 401) window.location.href = "/auth/login";
+    });
+  });
+
+  document.querySelectorAll("[data-follow-id]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const profileId = btn.dataset.followId;
+      if (!profileId) return;
+      const following = btn.dataset.following === "true";
+      const response = await postJson(following ? `/api/home/unfollow/${profileId}` : `/api/home/follow/${profileId}`);
+      if (response.ok) {
+        const isFollowing = !following;
+        btn.dataset.following = isFollowing ? "true" : "false";
+        btn.textContent = isFollowing ? "Following" : "Follow";
+        btn.style.background = isFollowing ? "var(--nv-soft)" : "var(--nv-text)";
+        btn.style.color = isFollowing ? "var(--nv-text)" : "#fff";
+      } else if (response.status === 401) {
+        window.location.href = "/auth/login";
+      }
+    });
+  });
+
+  const videos = document.querySelectorAll("video");
+  if("IntersectionObserver" in window){
+    const io = new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        const video = entry.target;
+        if(entry.isIntersecting){
+          video.play && video.play().catch(()=>{});
+        }else{
+          video.pause && video.pause();
+        }
+      });
+    },{threshold:.6});
+    videos.forEach(v=>io.observe(v));
+  }
+})();
 </script>
 {% endblock %}
