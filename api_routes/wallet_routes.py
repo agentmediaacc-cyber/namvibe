@@ -2,8 +2,8 @@ import json
 import os
 from concurrent.futures import ThreadPoolExecutor
 
-from flask import Blueprint, jsonify, request, session, render_template
-from api_routes.profile_routes import login_required
+from flask import Blueprint, jsonify, request, session, render_template, redirect, url_for
+from api_routes.profile_routes import login_required, save_upload
 from services.admin_auth_service import require_admin
 from services.profile_service import get_current_profile, get_lightweight_profile
 from services.wallet_service import (
@@ -26,6 +26,7 @@ from services.creator_monetization_service import (
     get_creator_earnings,
 )
 from services.friendship_service import require_friendship_or_403
+from services.wallet_action_service import set_wallet_pin, create_pin_reset_request
 from services.payout_service import (
     request_payout,
     get_payout_requests,
@@ -494,3 +495,36 @@ def payouts_page():
     payouts = get_creator_payouts(profile['id'], limit=50)
     wallet = get_wallet(profile['id'])
     return render_template('wallet/payouts.html', profile=profile, payouts=payouts, wallet=wallet)
+
+
+@wallet_bp.route('/pin', methods=['GET', 'POST'])
+@login_required
+def pin_page():
+    profile = get_current_profile()
+    if not profile or not profile.get('id'):
+        return redirect(url_for('auth.login'))
+    if request.method == 'POST':
+        pin = request.form.get('pin', '').strip()
+        if not pin or not pin.isdigit() or len(pin) < 4:
+            return render_template('wallet/pin.html', profile=profile, error='PIN must be at least 4 digits.')
+        set_wallet_pin(profile['id'], pin)
+        return redirect(url_for('wallet.index'))
+    return render_template('wallet/pin.html', profile=profile, reset_mode=False)
+
+
+@wallet_bp.route('/pin/reset', methods=['POST'])
+@login_required
+def pin_reset():
+    profile = get_current_profile()
+    if not profile or not profile.get('id'):
+        return redirect(url_for('auth.login'))
+    id_copy = request.files.get('id_copy')
+    reason = request.form.get('reason', '').strip()
+    if not id_copy or not reason:
+        return render_template('wallet/pin.html', profile=profile, reset_mode=True, error='ID copy and reason are required.')
+    uploads_dir = os.path.join(os.getcwd(), 'static/uploads/verification')
+    id_copy_url = save_upload(id_copy, uploads_dir)
+    if not id_copy_url:
+        return render_template('wallet/pin.html', profile=profile, reset_mode=True, error='Failed to upload ID copy.')
+    ok, result = create_pin_reset_request(profile['id'], id_copy_url, reason)
+    return redirect(url_for('wallet.index'))

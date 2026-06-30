@@ -422,7 +422,7 @@
                         {% endif %}
 
                         {% if msg.sticker_id %}
-                            <img src="/static/stickers/{{ msg.sticker_id }}.webp" style="width: 120px; height: 120px;">
+                            <img src="/static/stickers/{{ msg.sticker_id }}.webp" style="width: 120px; height: 120px;" onerror="this.style.display='none'" alt="Sticker">
                         {% elif msg.gif_url %}
                             <img src="{{ msg.gif_url }}" style="width: 200px; border-radius: 8px;">
                         {% elif msg.location_lat %}

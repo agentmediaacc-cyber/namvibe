@@ -659,7 +659,7 @@
         if (tabPanes[k]) tabPanes[k].style.display = k === tab ? "flex" : "none";
       });
       // Reset file previews
-      resetPreview(tab);
+      window.resetPreview(tab);
     }
 
     window.switchUploadTab = switchUploadTab;
@@ -669,9 +669,13 @@
     });
 
     // File drop zones
+    window.__resetPreviewFns = {};
     ["post", "reel", "story"].forEach(function (type) {
       initDropZone(type);
     });
+    window.resetPreview = function (t) {
+      if (window.__resetPreviewFns[t]) window.__resetPreviewFns[t]();
+    };
 
     // Cancel buttons
     overlay.querySelectorAll("[data-cancel-upload]").forEach(function (btn) {
@@ -704,7 +708,7 @@
       zone.style.display = "block";
     }
 
-    window.resetPreview = resetPreview;
+    window.__resetPreviewFns[type] = resetPreview;
 
     function showError(msg) {
       if (result) {
