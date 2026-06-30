@@ -15,6 +15,20 @@ from app import create_app
 
 TEST_AUTH_USER_ID = "11111111-1111-4111-8111-111111111111"
 TEST_PROFILE_ID = "22222222-2222-4222-8222-222222222222"
+TEST_EMAIL = "route-check@example.com"
+TEST_USERNAME = "routecheck"
+TEST_PROFILE_DATA = {
+    "id": TEST_PROFILE_ID,
+    "auth_user_id": TEST_AUTH_USER_ID,
+    "email": TEST_EMAIL,
+    "username": TEST_USERNAME,
+    "display_name": "Route Check",
+    "full_name": "Route Check",
+    "avatar_url": "",
+    "is_verified": False,
+    "verified": False,
+    "profile_completed": True,
+}
 
 
 PUBLIC_ROUTES = [
@@ -57,10 +71,22 @@ def main():
         for route in AUTH_ROUTES:
             check(client.get(route), {302}, f"GET {route} unauth", failures)
 
+        api_unauth_checks = [
+            ("/calls/api/history", {302}),
+        ]
+        for route, allowed in api_unauth_checks:
+            check(client.get(route), allowed, f"GET {route} unauth", failures)
+
         with client.session_transaction() as sess:
             sess["auth_user_id"] = TEST_AUTH_USER_ID
             sess["profile_id"] = TEST_PROFILE_ID
             sess["user_id"] = TEST_PROFILE_ID
+            sess["auth_email"] = TEST_EMAIL
+            sess["email"] = TEST_EMAIL
+            sess["username"] = TEST_USERNAME
+            sess["full_name"] = "Route Check"
+            sess["profile_completed"] = True
+            sess["profile_data"] = dict(TEST_PROFILE_DATA)
 
         for route in AUTH_ROUTES:
             check(client.get(route), {200, 302}, f"GET {route} auth", failures)
