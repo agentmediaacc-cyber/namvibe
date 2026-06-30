@@ -767,11 +767,13 @@ body.namvibe-social-home{
 {% set groups_route = "/messages/groups/empty" %}
 {% set marketplace_route = "/marketplace/" %}
 {% set saved_route = "/favorites/" %}
+{% set events_route = "/discover/" %}
+{% set music_route = "/discover/" %}
 {% set show_groups_link = true %}
 {% set show_marketplace_link = true %}
-{% set show_events_link = false %}
+{% set show_events_link = true %}
 {% set show_saved_link = true %}
-{% set show_music_link = false %}
+{% set show_music_link = true %}
 
 <div class="nv-app">
 
@@ -827,7 +829,7 @@ body.namvibe-social-home{
         <a class="nv-nav-item" href="{{ contacts_route }}">👥 <span>Friends</span></a>
         {% if show_groups_link %}<a class="nv-nav-item" href="{{ groups_route }}">🌍 <span>Groups</span></a>{% endif %}
         {% if show_marketplace_link %}<a class="nv-nav-item" href="{{ marketplace_route }}">🛍️ <span>Marketplace</span></a>{% endif %}
-        {% if show_events_link %}<a class="nv-nav-item" href="/events/">📅 <span>Events</span></a>{% endif %}
+        {% if show_events_link %}<a class="nv-nav-item" href="{{ events_route }}">📅 <span>Events</span></a>{% endif %}
         {% if show_saved_link %}<a class="nv-nav-item" href="{{ saved_route }}">🔖 <span>Saved</span></a>{% endif %}
         <a class="nv-nav-item" href="/profile/">👤 <span>Profile</span></a>
       </nav>
@@ -1145,10 +1147,10 @@ body.namvibe-social-home{
           <span>Quick links</span>
         </div>
         <div class="nv-side-body">
+          {% if show_events_link %}<a class="nv-trend" href="{{ events_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Events near you</div><div class="nv-trend-sub">Concerts, sports, church, meetups</div></div></a>{% endif %}
           {% if show_marketplace_link %}<a class="nv-trend" href="{{ marketplace_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Marketplace</div><div class="nv-trend-sub">Cars, phones, services, jobs</div></div></a>{% endif %}
           {% if show_groups_link %}<a class="nv-trend" href="{{ groups_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Communities</div><div class="nv-trend-sub">Schools, businesses, creators</div></div></a>{% endif %}
-          {% if show_saved_link %}<a class="nv-trend" href="{{ saved_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Saved</div><div class="nv-trend-sub">Profiles, posts, live rooms, and more</div></div></a>{% endif %}
-          <a class="nv-trend" href="/discover/"><div class="nv-trend-info"><div class="nv-trend-title">Discover more</div><div class="nv-trend-sub">Creators, trends, places, and culture</div></div></a>
+          {% if show_music_link %}<a class="nv-trend" href="{{ music_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Music</div><div class="nv-trend-sub">Trending songs and artists</div></div></a>{% endif %}
         </div>
       </section>
 
