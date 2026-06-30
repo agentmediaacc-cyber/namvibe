@@ -42,6 +42,150 @@
 
   var likeErrorLogged = false;
 
+  /* ── Phase 168: Real-time badge updates via Socket.IO ── */
+  function initRealtimeHooks() {
+    if (window.NamVibeRealtime && window.NamVibeRealtime.isConnected()) {
+      window.NamVibeRealtime.on("notification:new", function (data) {
+        var badge = document.getElementById("nvpro-notif-badge");
+        if (badge) {
+          var c = parseInt(badge.textContent, 10) || 0;
+          badge.textContent = c + 1;
+          badge.classList.add("nvpro-badge-pulse");
+          setTimeout(function () { badge.classList.remove("nvpro-badge-pulse"); }, 600);
+        }
+      });
+      window.NamVibeRealtime.on("chat:message", function (data) {
+        var badge = document.getElementById("nvpro-msg-badge");
+        if (badge) {
+          var c = parseInt(badge.textContent, 10) || 0;
+          badge.textContent = c + 1;
+          badge.classList.add("nvpro-badge-pulse");
+          setTimeout(function () { badge.classList.remove("nvpro-badge-pulse"); }, 600);
+        }
+      });
+      return true;
+    }
+    return false;
+  }
+
+  /* ── Phase 168: Polling with exponential backoff for feed refresh ── */
+  var pollDelay = 30000;
+  var pollMaxDelay = 120000;
+  var pollTimer = null;
+  var pollFailCount = 0;
+
+  function startFeedPolling() {
+    if (pollTimer) return;
+    function poll() {
+      fetch("/api/feed/check?t=" + Date.now(), {
+        credentials: "same-origin",
+        headers: { "X-CSRFToken": csrfToken() }
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          pollFailCount = 0;
+          if (data && data.has_new) {
+            if (window.NamVibeToast) {
+              window.NamVibeToast.info("New posts available — scroll to refresh");
+            }
+          }
+          pollDelay = Math.min(pollDelay, pollMaxDelay);
+          pollTimer = setTimeout(poll, pollDelay);
+        })
+        .catch(function () {
+          pollFailCount++;
+          pollDelay = Math.min(pollDelay * 1.5, pollMaxDelay);
+          pollTimer = setTimeout(poll, pollDelay);
+        });
+    }
+    pollTimer = setTimeout(poll, pollDelay);
+  }
+
+  function stopFeedPolling() {
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  }
+
+  /* ── Phase 168: Pull-to-refresh for mobile ── */
+  function setupPullToRefresh() {
+    var feedEl = document.getElementById("nvpro-feed");
+    if (!feedEl) return;
+    var startY = 0;
+    var pulling = false;
+    var ptrEl = document.createElement("div");
+    ptrEl.className = "nvpro-ptr";
+    ptrEl.innerHTML = '<div class="nvpro-ptr-indicator"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg><span>Pull to refresh</span></div>';
+    feedEl.parentNode.insertBefore(ptrEl, feedEl);
+    feedEl.addEventListener("touchstart", function (e) {
+      if (feedEl.scrollTop <= 0) {
+        startY = e.touches[0].clientY;
+        pulling = true;
+      }
+    }, { passive: true });
+    feedEl.addEventListener("touchmove", function (e) {
+      if (!pulling) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy > 0) {
+        ptrEl.style.transform = "translateY(" + Math.min(dy * 0.4, 80) + "px)";
+        ptrEl.classList.toggle("nvpro-ptr-ready", dy > 60);
+      }
+    }, { passive: true });
+    feedEl.addEventListener("touchend", function () {
+      if (!pulling) return;
+      pulling = false;
+      if (ptrEl.classList.contains("nvpro-ptr-ready")) {
+        ptrEl.classList.add("nvpro-ptr-refreshing");
+        ptrEl.querySelector("span").textContent = "Refreshing…";
+        window.location.reload();
+      } else {
+        ptrEl.style.transform = "";
+      }
+    }, { passive: true });
+  }
+
+  /* ── Phase 168: Escape key closes modals ── */
+  function setupEscapeKey() {
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      document.querySelectorAll(".nvpro-modal-overlay.is-open, .nvpro-upload-modal.is-open").forEach(function (m) {
+        m.classList.remove("is-open");
+        m.classList.remove("show");
+        m.style.display = "none";
+      });
+      document.body.classList.remove("nvpro-modal-open");
+    });
+  }
+
+  /* ── Phase 168: Basic focus trap for upload modal ── */
+  function setupFocusTrap() {
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab") return;
+      var modal = document.querySelector(".nvpro-upload-modal.is-open, .nvpro-modal-overlay.is-open");
+      if (!modal) return;
+      var focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (!focusable.length) return;
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
+  /* ── Phase 168: Upload progress animation integration ── */
+  function patchUploadProgress() {
+    var origXhr = window.XMLHttpRequest;
+    if (!origXhr) return;
+    var open = origXhr.prototype.open;
+    origXhr.prototype.open = function () {
+      this._uploadUrl = arguments[1] || "";
+      return open.apply(this, arguments);
+    };
+  }
+
   function apiFetch(url, opts) {
     opts = opts || {};
     var headers = opts.headers || {};
@@ -870,6 +1014,9 @@
     setupVideoObserver();
     setupScrollHeader();
     setupHamburgerMenu();
+    setupEscapeKey();
+    setupFocusTrap();
+    patchUploadProgress();
     // Lazy-load initial videos
     setTimeout(lazyLoadVideos, 100);
     // Handle tab-based upload opening
@@ -879,6 +1026,21 @@
     }
     // Always hydrate from API to ensure freshest content
     hydrateHomepage();
+    // Phase 168: Real-time hooks (delayed to let socket connect)
+    setTimeout(function () {
+      if (!initRealtimeHooks()) {
+        var retries = 0;
+        var retryInterval = setInterval(function () {
+          retries++;
+          if (initRealtimeHooks() || retries > 10) clearInterval(retryInterval);
+        }, 2000);
+      }
+      startFeedPolling();
+    }, 500);
+    // Phase 168: Pull-to-refresh on mobile
+    if ("ontouchstart" in window) {
+      setTimeout(setupPullToRefresh, 1000);
+    }
   });
 
   /* ── Phase 156: Scroll header show/hide + infinite scroll ── */

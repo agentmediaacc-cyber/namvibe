@@ -677,6 +677,73 @@ button, [role="button"], .clickable, a, input, select, textarea {
   color: #000;
 }
 
+.nv-toast-info {
+  background: var(--nv-color-bg-elevated);
+  color: var(--nv-color-text-primary);
+}
+
+/* Toast stacked container */
+.nv-toast-container {
+  position: fixed;
+  bottom: calc(var(--nv-bottom-nav-height) + var(--nv-space-4) + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--nv-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  max-width: calc(100vw - var(--nv-space-8));
+}
+
+.nv-toast-container .nv-toast {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.25s ease;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--nv-space-3) var(--nv-space-4);
+}
+
+.nv-toast-container .nv-toast.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.nv-toast-container .nv-toast.is-hiding {
+  transform: translateY(-10px);
+  opacity: 0;
+}
+
+.nv-toast-msg {
+  flex: 1;
+  text-align: left;
+}
+
+.nv-toast-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.nv-toast-close:hover {
+  opacity: 1;
+}
+
 /* ── MODAL ── */
 .nv-modal-overlay {
   display: none;

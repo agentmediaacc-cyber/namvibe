@@ -794,3 +794,223 @@ textarea.nvpro-form-input { min-height: 70px; resize: vertical; }
 
 .nvpro-skeleton-card { height: 200px; margin-bottom: 14px; border-radius: var(--nvpro-radius); }
 .nvpro-skeleton-row { height: 44px; margin-bottom: 6px; border-radius: var(--nvpro-radius-sm); }
+
+/* ═══════════════════════════════════════════════
+   Phase 168 — Premium Social UX Polish
+   ═══════════════════════════════════════════════ */
+
+/* ── Like pop animation for action button ── */
+.nvpro-action-btn.is-liked svg {
+  animation: nvpro-like-pop 0.35s ease;
+}
+
+@keyframes nvpro-like-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+/* ── Follow button transition ── */
+.nvpro-follow-btn,
+[data-follow-id] {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.nvpro-follow-btn.is-following,
+[data-follow-id].is-following {
+  background: var(--nvpro-card);
+  color: var(--nvpro-muted);
+  border: 1px solid var(--nvpro-border);
+}
+
+/* ── Notification badge pulse ── */
+.nvpro-badge-pulse {
+  animation: nvpro-badge-pop 0.5s ease;
+}
+
+@keyframes nvpro-badge-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.4); }
+  60%  { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+
+/* ── Live badge pulse ── */
+.nvpro-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #ef4444;
+  color: #fff;
+}
+
+.nvpro-live-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  animation: nvpro-live-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes nvpro-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Story ring: gradient ring for unseen stories ── */
+.nvpro-story-ring.is-unseen {
+  background: conic-gradient(var(--nvpro-blue), #a855f7, #ec4899, var(--nvpro-blue));
+  animation: nvpro-story-spin 3s linear infinite;
+}
+
+@keyframes nvpro-story-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Upload progress animation ── */
+.nvpro-progress-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--nvpro-border);
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.nvpro-progress-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--nvpro-blue);
+  width: 0%;
+  transition: width 0.15s ease;
+}
+
+.nvpro-progress-bar-fill.is-paused {
+  background: var(--nvpro-gold);
+}
+
+/* ── Toast slide/fade (shared) ── */
+.nvpro-toast {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* ── Pull-to-refresh ── */
+.nvpro-ptr {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+
+.nvpro-ptr-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nvpro-muted);
+  font-size: 13px;
+  padding: 10px 0;
+}
+
+.nvpro-ptr-indicator svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.nvpro-ptr-ready .nvpro-ptr-indicator svg {
+  transform: rotate(180deg);
+}
+
+.nvpro-ptr-refreshing .nvpro-ptr-indicator svg {
+  animation: nvpro-ptr-spin 0.6s linear infinite;
+}
+
+@keyframes nvpro-ptr-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Skeleton-to-content fade in ── */
+.nvpro-post-card,
+.nvpro-story-item,
+.nvpro-reel-card {
+  animation: nvpro-content-fade-in 0.3s ease;
+}
+
+@keyframes nvpro-content-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Offline banner polish ── */
+.nvpro-offline-banner {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* ── Media lazy-load transition ── */
+.nvpro-post-card img,
+.nvpro-post-card video {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.nvpro-post-card img[src]:not([src=""]),
+.nvpro-post-card video[src]:not([src=""]) {
+  opacity: 1;
+}
+
+/* ── Aspect-ratio containers to prevent layout shift ── */
+.nvpro-post-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: var(--nvpro-surface);
+  border-radius: var(--nvpro-radius-sm);
+}
+
+.nvpro-post-media img,
+.nvpro-post-media video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Safe-area bottom padding for mobile nav ── */
+.nvpro-body {
+  padding-bottom: calc(var(--nvpro-bottom-h) + env(safe-area-inset-bottom, 0px) + 12px);
+}
+
+/* ── Touch target minimum 44px ── */
+.nvpro-action-btn,
+.nvpro-tab,
+.nvpro-bottom-item,
+.nvpro-header-icon,
+.nvpro-btn,
+[data-follow-id],
+.nvpro-modal-tab {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* ── No horizontal overflow guard ── */
+.nvpro-body,
+.nvpro-home-page,
+.nvpro-center,
+.nvpro-header,
+.nvpro-modal,
+.nvpro-upload-modal {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
