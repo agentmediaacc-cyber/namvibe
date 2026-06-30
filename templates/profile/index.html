@@ -3,6 +3,8 @@
 {% block profile_body %}
 
 {% set p = pv or {} %}
+{% set action_policy = action_policy or p.action_policy or {} %}
+{% set own_profile = p.is_self %}
 
 <main class="nv-profile-pro" data-profile-pro data-self="{{ 'true' if p.is_self else 'false' }}" data-profile-id="{{ p.id }}" data-username="{{ p.username }}">
   <section class="nv-hero">

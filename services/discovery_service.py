@@ -8,6 +8,7 @@ from services.request_cache import get_or_set
 from services.homepage_real_data_guard import filter_feed_posts, public_profile_sql, public_profile_subquery
 from services.relationship_cache_service import get_many_relationship_states
 from services.logging_service import log_info
+from services.social_action_policy import get_action_policy
 
 
 DISCOVERY_PROFILE_COLUMNS = [
@@ -364,6 +365,7 @@ def get_discovery_data(section, viewer_id=None, limit=50, offset=0, q=""):
                 item["relationship"] = state.get("relationship", "none")
                 item["follow_status"] = _follow_status_from_state(state)
                 item["primary_action"] = primary_action
+                item["action_policy"] = get_action_policy(viewer_id, item)
                 item["can_send_friend_request"] = bool(viewer_id and account_kind == "person" and primary_action == "friend_request")
                 item["can_follow"] = bool(viewer_id and primary_action in {"follow", "request_follow", "following"})
                 item["mutual_friends_count"] = int(mutual_counts.get(str(pid), 0))
@@ -495,6 +497,7 @@ def search_profiles(query, viewer_id=None, limit=50, offset=0, timeout_ms=5000):
             item["relationship"] = state.get("relationship", "none")
             item["follow_status"] = _follow_status_from_state(state)
             item["primary_action"] = primary_action
+            item["action_policy"] = get_action_policy(viewer_id, item)
             item["can_send_friend_request"] = bool(viewer_id and account_kind == "person" and primary_action == "friend_request")
             item["can_follow"] = bool(viewer_id and primary_action in {"follow", "request_follow", "following"})
             

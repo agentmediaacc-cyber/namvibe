@@ -1,5 +1,11 @@
+import os
+import sys
 import unittest
 import json
+
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE)
+
 from app import create_app
 
 class TestMobileAPIv1(unittest.TestCase):

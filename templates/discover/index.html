@@ -114,7 +114,7 @@
     </section>
     <section class="discover-grid">
         {% for profile in items %}
-        <article class="discover-card" id="discover-card-{{ profile.id }}" data-profile-card="discover">
+        <article class="discover-card" id="discover-card-{{ profile.id }}" data-profile-card="discover" data-profile-follow="{{ profile.follow_status or 'none' }}" data-friend-response="{{ profile.primary_action or 'none' }}">
             <!-- Clickable profile link area -->
             <a href="/profile/@{{ profile.username }}" class="discover-card-link"></a>
             
@@ -187,19 +187,19 @@
                         <button type="button" class="px-btn is-active" style="width:100%;" data-social-action="unfriend" data-profile-id="{{ profile.id }}" data-social-state="friends"><i class="fas fa-user-check"></i> Friends</button>
                         <button type="button" class="px-btn" style="width:100%;" data-social-action="{{ 'unfollow' if profile.follow_status == 'following' else 'follow' }}" data-profile-id="{{ profile.id }}" data-social-state="{{ profile.follow_status or 'none' }}"><i class="fas fa-user-plus"></i> {{ 'Following' if profile.follow_status == 'following' else 'Follow' }}</button>
                         {% elif profile.primary_action == 'request_sent' %}
-                        <button type="button" class="px-btn is-active" style="width:100%;opacity:.8;" data-social-state="friend_requested" disabled><i class="fas fa-clock"></i> Friend Requested</button>
+                        <button type="button" class="px-btn is-active" style="width:100%;opacity:.8;" data-social-state="friend_requested" data-friend-action disabled><i class="fas fa-clock"></i> Friend Requested</button>
                         {% elif profile.primary_action == 'accept_request' %}
-                        <a href="/social/friend-requests" class="px-btn" style="width:100%;display:block;text-align:center;" onclick="event.stopPropagation();">Respond</a>
+                        <a href="/social/friend-requests" class="px-btn" style="width:100%;display:block;text-align:center;" data-friend-response onclick="event.stopPropagation();">Respond</a>
                         {% elif profile.primary_action == 'requested' %}
                         <button type="button" class="px-btn is-active" style="width:100%;opacity:.8;" data-social-state="requested" disabled><i class="fas fa-clock"></i> Requested</button>
                         {% elif profile.primary_action == 'approve_follow' %}
                         <a href="/social/friend-requests" class="px-btn" style="width:100%;display:block;text-align:center;" onclick="event.stopPropagation();">Approve Follow</a>
                         {% else %}
                             {% if profile.can_follow %}
-                            <button type="button" class="px-btn {% if profile.primary_action == 'following' %}is-active{% endif %}" style="width:100%;" data-social-action="{{ 'unfollow' if profile.primary_action == 'following' else 'follow' }}" data-profile-id="{{ profile.id }}" data-social-state="{{ 'following' if profile.primary_action == 'following' else 'none' }}"><i class="fas fa-user-plus"></i> {{ 'Following' if profile.primary_action == 'following' else 'Follow' }}</button>
+                            <button type="button" class="px-btn {% if profile.primary_action == 'following' %}is-active{% endif %}" style="width:100%;" data-social-action="{{ 'unfollow' if profile.primary_action == 'following' else 'follow' }}" data-profile-id="{{ profile.id }}" data-social-state="{{ 'following' if profile.primary_action == 'following' else 'none' }}" data-follow-profile="{{ profile.id }}"><i class="fas fa-user-plus"></i> {{ 'Following' if profile.primary_action == 'following' else 'Follow' }}</button>
                             {% endif %}
                             {% if profile.can_send_friend_request %}
-                            <button type="button" class="px-btn" style="width:100%;" data-social-action="friend-request" data-profile-id="{{ profile.id }}" data-social-state="none"><i class="fas fa-user-friends"></i> Add Friend</button>
+                            <button type="button" class="px-btn" style="width:100%;" data-social-action="friend-request" data-profile-id="{{ profile.id }}" data-social-state="none" data-friend-action><i class="fas fa-user-friends"></i> Add Friend</button>
                             {% endif %}
                             {% if not profile.can_follow and not profile.can_send_friend_request %}
                             <button type="button" class="px-btn" style="width:100%;opacity:.7;" disabled>Unavailable</button>
@@ -285,7 +285,7 @@
         const urls = {
             follow: `/api/social/follow/${profileId}`,
             unfollow: `/api/social/unfollow/${profileId}`,
-            'friend-request': `/api/social/friend-request/${profileId}`,
+            'friend-request': `/social/friends/request`,
             unfriend: `/api/social/unfriend/${profileId}`
         };
         const url = urls[action];
@@ -299,7 +299,8 @@
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                body: action === 'friend-request' ? JSON.stringify({ recipient_id: profileId }) : null
             });
             if (response.redirected) {
                 window.location.href = response.url;
