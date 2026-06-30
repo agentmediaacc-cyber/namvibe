@@ -1,8 +1,8 @@
 {% extends "profile/base_profile.html" %}
-{% block title %}{{ pv.display_name or 'Profile' }} | {{ APP_NAME }}{% endblock %}
+{% block title %}{{ (pv|default({})).get('display_name') or 'Profile' }} | {{ APP_NAME }}{% endblock %}
 {% block profile_body %}
 
-{% set p = pv or {} %}
+{% set p = pv|default({}) %}
 {% set action_policy = action_policy or p.action_policy or {} %}
 {% set own_profile = p.is_self %}
 
