@@ -847,7 +847,7 @@ body.namvibe-social-home{
           </button>
 
           {% for s in stories %}
-          <a class="nv-story" href="/stories/{{ s.get('id') }}">
+          <a class="nv-story" href="{{ '/stories/' ~ (s.get('id') or '') }}">
             <div class="nv-story-ring {% if s.get('viewed') %}seen{% endif %} {% if s.get('is_live') %}live{% endif %}">
               <div class="nv-story-avatar">
                 {% if s.get("avatar_url") %}
@@ -928,7 +928,7 @@ body.namvibe-social-home{
         <div class="nv-reels-row">
           {% for reel in reels_items[:8] %}
           {% set reel_thumb = reel.get("thumbnail_url") or reel.get("media_url") or reel.get("public_url") or reel.get("image_url") or reel.get("video_url") %}
-          <a class="nv-reel" href="/reels/{{ reel.get('id') }}">
+          <a class="nv-reel" href="{{ '/reels/' ~ (reel.get('id') or '') }}">
             {% if reel_thumb %}
               <img src="{{ reel_thumb }}" alt="" loading="lazy">
             {% endif %}
@@ -1043,7 +1043,7 @@ body.namvibe-social-home{
         <div class="nv-horizontal">
           {% for creator in suggested[:8] %}
           <div class="nv-person" style="min-width:240px">
-            <a class="nv-mini-avatar" href="/profile/@{{ creator.get('username') }}">
+            <a class="nv-mini-avatar" href="{{ creator.get('profile_url') or ('/profile/@' ~ (creator.get('username') or '')) }}">
               {% if creator.get("avatar_url") %}
               <img src="{{ creator.get('avatar_url') }}" alt="">
               {% else %}
@@ -1097,7 +1097,7 @@ body.namvibe-social-home{
         <div class="nv-side-body">
           {% for creator in suggested[:5] %}
           <div class="nv-person">
-            <a class="nv-mini-avatar" href="/profile/@{{ creator.get('username') }}">
+            <a class="nv-mini-avatar" href="{{ creator.get('profile_url') or ('/profile/@' ~ (creator.get('username') or '')) }}">
               {% if creator.get("avatar_url") %}
               <img src="{{ creator.get('avatar_url') }}" alt="">
               {% else %}
