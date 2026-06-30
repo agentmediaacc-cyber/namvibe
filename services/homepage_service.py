@@ -982,6 +982,314 @@ def _normalize_reel(row, profile_map):
     }
 
 
+def _parse_created_at(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def _age_hours_from_value(value, default=9999.0):
+    parsed = _parse_created_at(value)
+    if not parsed:
+        return default
+    return max(0.0, (_utcnow() - parsed.astimezone(timezone.utc)).total_seconds() / 3600.0)
+
+
+def _homepage_relationship_context(viewer_id, creator_ids):
+    creator_ids = [str(cid) for cid in set(creator_ids or []) if cid]
+    context = {"following_ids": set(), "friend_ids": set(), "creator_history": {}, "video_history": {}}
+    if not viewer_id or not creator_ids:
+        return context
+    try:
+        rows = fast_query(
+            """
+            SELECT following_profile_id
+            FROM chain_follows
+            WHERE follower_profile_id = %s
+              AND following_profile_id = ANY(%s)
+            """,
+            (str(viewer_id), creator_ids),
+            timeout_ms=700,
+            default=[],
+        )
+        context["following_ids"] = {str(row.get("following_profile_id")) for row in rows if row.get("following_profile_id")}
+    except Exception:
+        context["following_ids"] = set()
+    try:
+        rows = fast_query(
+            """
+            SELECT
+                CASE
+                    WHEN profile_id_1::text = %s THEN profile_id_2::text
+                    ELSE profile_id_1::text
+                END AS friend_profile_id
+            FROM chain_friends
+            WHERE status = 'accepted'
+              AND (profile_id_1::text = %s OR profile_id_2::text = %s)
+              AND (
+                    profile_id_1::text = ANY(%s)
+                 OR profile_id_2::text = ANY(%s)
+              )
+            """,
+            (str(viewer_id), str(viewer_id), str(viewer_id), creator_ids, creator_ids),
+            timeout_ms=700,
+            default=[],
+        )
+        context["friend_ids"] = {str(row.get("friend_profile_id")) for row in rows if row.get("friend_profile_id")}
+    except Exception:
+        context["friend_ids"] = set()
+    try:
+        rows = fast_query(
+            """
+            SELECT creator_profile_id::text AS creator_profile_id,
+                   video_id::text AS video_id,
+                   event_type,
+                   COALESCE(watch_ms, 0) AS watch_ms
+            FROM chain_video_events
+            WHERE viewer_profile_id = %s
+              AND created_at > now() - interval '30 days'
+              AND creator_profile_id = ANY(%s)
+            ORDER BY created_at DESC
+            LIMIT 500
+            """,
+            (str(viewer_id), creator_ids),
+            timeout_ms=700,
+            default=[],
+        )
+        creator_history = {}
+        video_history = {}
+        for row in rows or []:
+            creator_id = str(row.get("creator_profile_id") or "")
+            video_id = str(row.get("video_id") or "")
+            event_type = str(row.get("event_type") or "")
+            watch_ms = _safe_int(row.get("watch_ms"), 0)
+            weight = {
+                "impression": 0.1,
+                "view": 0.8,
+                "watch_3s": 2.0,
+                "watch_10s": 4.0,
+                "complete": 7.0,
+                "like": 5.0,
+                "comment": 6.0,
+                "share": 8.0,
+                "save": 9.0,
+                "follow_creator": 10.0,
+                "skip": -5.0,
+            }.get(event_type, 0.0)
+            weight += min(max(watch_ms, 0), 120000) / 30000.0
+            if creator_id:
+                creator_history[creator_id] = round(creator_history.get(creator_id, 0.0) + weight, 2)
+            if video_id:
+                video_history[video_id] = round(video_history.get(video_id, 0.0) + weight, 2)
+        context["creator_history"] = creator_history
+        context["video_history"] = video_history
+    except Exception:
+        context["creator_history"] = {}
+        context["video_history"] = {}
+    return context
+
+
+def _homepage_creator_quality(item):
+    quality = 0.0
+    if item.get("verified") or item.get("creator_verified"):
+        quality += 18.0
+    quality += min(_safe_int(item.get("followers_count"), 0), 100000) / 5000.0
+    quality += min(_safe_int(item.get("likes_count"), 0), 10000) / 1000.0
+    quality += min(_safe_int(item.get("comments_count"), 0), 5000) / 800.0
+    quality += min(_safe_int(item.get("shares_count"), 0), 5000) / 600.0
+    quality += min(_safe_int(item.get("saves_count"), 0), 5000) / 500.0
+    return quality
+
+
+def _homepage_rank_score(item, section, relation_ctx):
+    creator_id = str(item.get("profile_id") or item.get("id") or "")
+    item_id = str(item.get("id") or "")
+    age_hours = _age_hours_from_value(item.get("created_at"))
+    recency = max(0.0, 48.0 - min(age_hours, 48.0))
+    engagement = (
+        _safe_int(item.get("likes_count"), 0) * 1.0
+        + _safe_int(item.get("comments_count"), 0) * 2.0
+        + _safe_int(item.get("shares_count"), 0) * 3.0
+        + _safe_int(item.get("saves_count"), 0) * 4.0
+        + _safe_int(item.get("views_count") or item.get("view_count"), 0) * 0.04
+        + _safe_int(item.get("viewer_count"), 0) * 0.2
+    )
+    friendship = 80.0 if creator_id and creator_id in relation_ctx.get("friend_ids", set()) else 0.0
+    following = 45.0 if creator_id and creator_id in relation_ctx.get("following_ids", set()) else 0.0
+    history = relation_ctx.get("creator_history", {}).get(creator_id, 0.0) + relation_ctx.get("video_history", {}).get(item_id, 0.0)
+    creator_quality = _homepage_creator_quality(item)
+
+    base_priority = {
+        "live_rooms": 800.0,
+        "friend_reels": 700.0,
+        "trending_reels": 600.0,
+        "friend_stories": 500.0,
+        "friend_posts": 400.0,
+        "trending_posts": 300.0,
+        "creator_profiles": 200.0,
+        "suggested_profiles": 100.0,
+    }.get(section, 0.0)
+    live_bonus = 120.0 if section == "live_rooms" and (_boolish(item.get("is_live")) or item.get("watch_url")) else 0.0
+    freshness_multiplier = {
+        "friend_reels": 2.5,
+        "friend_stories": 2.3,
+        "friend_posts": 1.8,
+        "trending_reels": 1.6,
+        "trending_posts": 1.2,
+        "live_rooms": 0.8,
+        "creator_profiles": 0.4,
+        "suggested_profiles": 0.3,
+    }.get(section, 1.0)
+    return round(
+        base_priority
+        + live_bonus
+        + friendship
+        + following
+        + history
+        + creator_quality
+        + engagement
+        + (recency * freshness_multiplier),
+        4,
+    )
+
+
+def _dedupe_homepage_items(items):
+    seen = set()
+    deduped = []
+    for item in items or []:
+        item_id = str(item.get("id") or "")
+        dedupe_key = (item.get("_section") or item.get("type") or "", item_id)
+        if not item_id or dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        deduped.append(item)
+    return deduped
+
+
+def _avoid_back_to_back_creators(items):
+    pending = list(items or [])
+    arranged = []
+    while pending:
+        placed = False
+        previous_creator = str(arranged[-1].get("profile_id") or "") if arranged else ""
+        for index, item in enumerate(pending):
+            creator_id = str(item.get("profile_id") or "")
+            if not previous_creator or not creator_id or creator_id != previous_creator:
+                arranged.append(pending.pop(index))
+                placed = True
+                break
+        if not placed:
+            arranged.append(pending.pop(0))
+    return arranged
+
+
+def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
+    payload = dict(payload or {})
+    relation_ctx = _homepage_relationship_context(
+        viewer_id,
+        [
+            *(row.get("profile_id") for row in payload.get("reels", []) if isinstance(row, dict)),
+            *(row.get("profile_id") for row in payload.get("stories", []) if isinstance(row, dict)),
+            *(row.get("profile_id") for row in payload.get("trending_posts", []) if isinstance(row, dict)),
+            *(row.get("id") for row in payload.get("recommended_profiles", []) if isinstance(row, dict)),
+            *(row.get("id") for row in payload.get("suggested_creators", []) if isinstance(row, dict)),
+            *(row.get("profile_id") for row in payload.get("live_rooms", []) if isinstance(row, dict)),
+        ],
+    )
+
+    live_rooms = []
+    for item in payload.get("live_rooms", []) or []:
+        enriched = dict(item)
+        enriched["_section"] = "live_rooms"
+        enriched["ranking_score"] = _homepage_rank_score(enriched, "live_rooms", relation_ctx)
+        live_rooms.append(enriched)
+    live_rooms.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+
+    friend_reels = []
+    trending_reels = []
+    for item in payload.get("reels", []) or []:
+        creator_id = str(item.get("profile_id") or "")
+        section = "friend_reels" if creator_id in relation_ctx.get("friend_ids", set()) or creator_id in relation_ctx.get("following_ids", set()) else "trending_reels"
+        enriched = dict(item)
+        enriched["_section"] = section
+        enriched["ranking_score"] = _homepage_rank_score(enriched, section, relation_ctx)
+        (friend_reels if section == "friend_reels" else trending_reels).append(enriched)
+    friend_reels.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+    trending_reels.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+
+    friend_stories = []
+    for item in payload.get("stories", []) or []:
+        creator_id = str(item.get("profile_id") or "")
+        enriched = dict(item)
+        enriched["_section"] = "friend_stories"
+        enriched["ranking_score"] = _homepage_rank_score(enriched, "friend_stories", relation_ctx)
+        if creator_id in relation_ctx.get("friend_ids", set()) or creator_id in relation_ctx.get("following_ids", set()):
+            friend_stories.append(enriched)
+    friend_stories.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+
+    friend_posts = []
+    trending_posts = []
+    for item in payload.get("trending_posts", []) or []:
+        creator_id = str(item.get("profile_id") or "")
+        section = "friend_posts" if creator_id in relation_ctx.get("friend_ids", set()) or creator_id in relation_ctx.get("following_ids", set()) else "trending_posts"
+        enriched = dict(item)
+        enriched["_section"] = section
+        enriched["ranking_score"] = _homepage_rank_score(enriched, section, relation_ctx)
+        (friend_posts if section == "friend_posts" else trending_posts).append(enriched)
+    friend_posts.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+    trending_posts.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+
+    creators = []
+    for item in payload.get("recommended_profiles", []) or payload.get("suggested_creators", []) or []:
+        enriched = dict(item)
+        enriched["profile_id"] = str(item.get("id") or item.get("profile_id") or "")
+        enriched["_section"] = "creator_profiles"
+        enriched["ranking_score"] = _homepage_rank_score(enriched, "creator_profiles", relation_ctx)
+        creators.append(enriched)
+    creators.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+
+    suggestions = []
+    for item in payload.get("suggested_users", []) or payload.get("nearby_users", []) or []:
+        enriched = dict(item)
+        enriched["profile_id"] = str(item.get("id") or item.get("profile_id") or "")
+        enriched["_section"] = "suggested_profiles"
+        enriched["ranking_score"] = _homepage_rank_score(enriched, "suggested_profiles", relation_ctx)
+        suggestions.append(enriched)
+    suggestions.sort(key=lambda row: row.get("ranking_score", 0), reverse=True)
+
+    payload["live_rooms"] = _dedupe_homepage_items(live_rooms)
+    payload["reels"] = _dedupe_homepage_items(friend_reels + trending_reels)
+    payload["stories"] = _dedupe_homepage_items(friend_stories)
+    payload["trending_posts"] = _dedupe_homepage_items(friend_posts + trending_posts)
+    payload["recommended_profiles"] = _dedupe_homepage_items(creators)
+    if payload.get("suggested_creators") is not None:
+        payload["suggested_creators"] = list(payload["recommended_profiles"])
+    if payload.get("suggested_users") is not None:
+        payload["suggested_users"] = _dedupe_homepage_items(suggestions or list(payload["recommended_profiles"]))
+
+    merged_feed = []
+    for section_items in (
+        payload["live_rooms"],
+        friend_reels,
+        trending_reels,
+        payload["stories"],
+        friend_posts,
+        trending_posts,
+        payload["recommended_profiles"],
+        payload.get("suggested_users", []),
+    ):
+        merged_feed.extend(section_items)
+    merged_feed = _avoid_back_to_back_creators(_dedupe_homepage_items(merged_feed))
+    payload["feed_items"] = merged_feed[: max(1, int(feed_limit or 20))]
+    return payload
+
+
 def _wallet_snapshot(current):
     snapshot = {"coin_balance": 0, "gift_earnings": 0, "label_balance": "0"}
     if not current or not current.get("id"):
@@ -1406,6 +1714,7 @@ def build_homepage_payload(async_warm=False):
     payload["trending_posts"] = filter_feed_posts(payload["trending_posts"], profile_map)
     payload["stories"] = filter_feed_posts(payload["stories"], profile_map)
     payload["reels"] = filter_feed_posts(payload["reels"], profile_map)
+    payload = rank_homepage_sections(payload, viewer_id=None, feed_limit=_HOMEPAGE_LIMITS["trending_posts"])
     _cap_homepage_sections(payload)
 
     # Final check: if circuit is open or we have no data due to slowness
@@ -2867,6 +3176,8 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         # ── Trending hashtags ──
         all_posts = payload["feed_items"] + [_normalize_post(r, {}) for r in reel_rows[:20] if r.get("id")]
         payload["trending_hashtags"] = _trending_hashtags(all_posts, limit=8)
+
+        payload = rank_homepage_sections(payload, viewer_id=pid, feed_limit=limit)
 
         if not payload["trending_hashtags"]:
             payload["empty_states"]["hashtags"] = True

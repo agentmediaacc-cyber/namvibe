@@ -9,6 +9,7 @@ from services.homepage_service import (
     get_feed_tab,
     get_homepage_payload,
     get_homepage_sidebar_payload,
+    rank_homepage_sections,
 )
 from services.homepage_phase141_service import (
     fetch_posts_v2,
@@ -119,6 +120,33 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
             payload["reels"] = reels[: min(limit, 8)]
     except Exception:
         return _safe_degraded_homepage_payload()
+
+    try:
+        live_rooms, _, _ = fetch_live_rooms_v2(
+            ["id", "profile_id", "category", "status", "is_live", "viewer_count", "cover_url", "thumbnail_url", "entry_fee", "created_at"],
+            timeout_ms=20000,
+            limit=min(limit, 5),
+        )
+        if budget_left() > 0:
+            payload["live_rooms"] = live_rooms[: min(limit, 5)]
+    except Exception:
+        payload["live_rooms"] = []
+
+    try:
+        suggested_creators, _ = fetch_suggested_people_v2(
+            ["id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified", "followers_count", "town", "location"],
+            timeout_ms=20000,
+            limit=min(limit, 5),
+        )
+        if budget_left() > 0:
+            payload["suggested_creators"] = suggested_creators[: min(limit, 5)]
+            payload["suggested_users"] = list(payload["suggested_creators"])
+            payload["recommended_profiles"] = list(payload["suggested_creators"])
+    except Exception:
+        payload["suggested_creators"] = []
+
+    payload["trending_posts"] = list(payload.get("feed_items") or [])
+    payload = rank_homepage_sections(payload, viewer_id=viewer_id, feed_limit=limit)
 
     payload["homepage_degraded"] = not bool(payload.get("feed_items") or payload.get("stories") or payload.get("reels"))
     return payload
