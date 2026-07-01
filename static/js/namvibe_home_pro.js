@@ -1,6 +1,18 @@
 (function () {
   "use strict";
 
+  function logRuntimeGuard(scope, error) {
+    var message = error && error.message ? error.message : String(error);
+    console.error("[nvpro-homepage:" + scope + "]", message);
+    if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
+      console.error(error);
+    }
+  }
+
+  if (!document.getElementById("nvpro-feed") && !document.querySelector(".nvpro-tab, .nvpro-post-card, .nvpro-header")) {
+    return;
+  }
+
   var csrfToken = function () {
     var m = document.querySelector('meta[name="csrf-token"]');
     return m ? m.getAttribute("content") : "";

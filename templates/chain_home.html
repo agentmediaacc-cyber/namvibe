@@ -790,7 +790,7 @@ body.namvibe-social-home{
       </form>
 
       <div class="nv-top-actions">
-        <button class="nv-create-btn" type="button" data-nv-open-create>
+        <button class="nv-create-btn" type="button" data-nv-open-create data-nv-create-type="post" aria-label="Create post">
           <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           <span>Create</span>
         </button>
@@ -839,7 +839,7 @@ body.namvibe-social-home{
 
       <section class="nv-section">
         <div class="nv-stories">
-          <button class="nv-story nv-story-create" type="button" data-nv-open-create data-nv-create-type="story">
+          <button class="nv-story nv-story-create" type="button" data-nv-open-create data-nv-create-type="story" aria-label="Create story">
             <div class="nv-story-ring">
               <div class="nv-story-avatar">+</div>
             </div>
@@ -872,7 +872,7 @@ body.namvibe-social-home{
               {{ (profile.get("display_name") or profile.get("username") or "U")[:1] }}
             {% endif %}
           </a>
-          <button class="nv-composer-pill" type="button" data-nv-open-create data-nv-create-type="post">
+          <button class="nv-composer-pill" type="button" data-nv-open-create data-nv-create-type="post" aria-label="Create post">
             What is happening on NamVibe?
           </button>
         </div>
@@ -1159,7 +1159,7 @@ body.namvibe-social-home{
     <div class="nv-bottom-inner">
       <a class="is-active" href="/">🏠<span>Home</span></a>
       <a href="/discover/">🔎<span>Discover</span></a>
-      <button class="nv-floating-create" type="button" data-nv-open-create>＋</button>
+      <button class="nv-floating-create" type="button" data-nv-open-create data-nv-create-type="post" aria-label="Create post">＋</button>
       <a href="/reels/">🎬<span>Reels</span></a>
       <a href="{{ messages_route }}">💬<span>Messages</span></a>
       <a href="/profile/">👤<span>Profile</span></a>
@@ -1216,6 +1216,15 @@ body.namvibe-social-home{
 
 <script>
 (function(){
+  const reportHomepageError = (scope, error) => {
+    const message = error && error.message ? error.message : String(error);
+    console.error(`[homepage-runtime:${scope}]`, message);
+    if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
+      console.error(error);
+    }
+  };
+
+  try {
   const modal = document.getElementById("nv-create-modal");
   const uploadTabs = Array.from(document.querySelectorAll(".nv-upload-tab"));
   const createDrop = document.getElementById("nv-create-drop");
@@ -1239,6 +1248,18 @@ body.namvibe-social-home{
   const logDevError = (scope, error) => {
     if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
       console.error(`[homepage:${scope}]`, error);
+    }
+  };
+  const safeHandler = (scope, handler) => (event) => {
+    try {
+      const result = handler(event);
+      if (result && typeof result.catch === "function") {
+        result.catch((error) => reportHomepageError(scope, error));
+      }
+      return result;
+    } catch (error) {
+      reportHomepageError(scope, error);
+      return undefined;
     }
   };
   const loginUrl = () => `/auth/login?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
@@ -1331,32 +1352,32 @@ body.namvibe-social-home{
   }
 
   document.querySelectorAll("[data-nv-open-create]").forEach(btn=>{
-    btn.addEventListener("click",()=>{
+    btn.addEventListener("click", safeHandler("open-create", () => {
       if (requireAuth()) return;
       applyCreateType(btn.dataset.nvCreateType || "post");
       modal && modal.classList.add("is-open");
-    });
+    }));
   });
 
   document.querySelectorAll("[data-nv-close-create]").forEach(btn=>{
-    btn.addEventListener("click",()=>modal && modal.classList.remove("is-open"));
+    btn.addEventListener("click", safeHandler("close-create", () => modal && modal.classList.remove("is-open")));
   });
 
   if(modal){
-    modal.addEventListener("click",e=>{
+    modal.addEventListener("click", safeHandler("modal-overlay", e => {
       if(e.target === modal) modal.classList.remove("is-open");
-    });
+    }));
   }
 
   document.querySelectorAll(".nv-tab").forEach(tab=>{
-    tab.addEventListener("click",()=>{
+    tab.addEventListener("click", safeHandler("feed-tab", () => {
       document.querySelectorAll(".nv-tab").forEach(t=>t.classList.remove("is-active"));
       tab.classList.add("is-active");
-    });
+    }));
   });
 
   uploadTabs.forEach(tab=>{
-    tab.addEventListener("click",()=>applyCreateType(tab.dataset.uploadTab || "post"));
+    tab.addEventListener("click", safeHandler("upload-tab", () => applyCreateType(tab.dataset.uploadTab || "post")));
   });
 
   function openCreator(){
@@ -1369,14 +1390,14 @@ body.namvibe-social-home{
     }
   }
 
-  if (createDrop) createDrop.addEventListener("click", openCreator);
-  if (createContinue) createContinue.addEventListener("click", openCreator);
+  if (createDrop) createDrop.addEventListener("click", safeHandler("create-drop", openCreator));
+  if (createContinue) createContinue.addEventListener("click", safeHandler("create-continue", openCreator));
 
   document.querySelectorAll("[data-follow-id]").forEach(btn => {
     setFollowVisual(btn, btn.dataset.following === "true");
   });
 
-  document.addEventListener("click", async (event) => {
+  document.addEventListener("click", safeHandler("delegated-click", async (event) => {
     const followButton = event.target.closest("[data-follow-id]");
     if (followButton) {
       event.preventDefault();
@@ -1499,7 +1520,7 @@ body.namvibe-social-home{
         showToast("Could not share this item.", "error");
       }
     }
-  });
+  }));
 
   const videos = document.querySelectorAll("video");
   if("IntersectionObserver" in window){
@@ -1514,6 +1535,9 @@ body.namvibe-social-home{
       });
     },{threshold:.6});
     videos.forEach(v=>io.observe(v));
+  }
+  } catch (error) {
+    reportHomepageError("bootstrap", error);
   }
 })();
 </script>
