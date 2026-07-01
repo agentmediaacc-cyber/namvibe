@@ -1471,9 +1471,16 @@ def get_friends(profile_id, page=1, per_page=20):
     from services.friendship_service import get_friends as _f
     return _f(profile_id, page=page, per_page=per_page)
 
-def get_profile_bundle(profile_id, viewer_id=None):
+def get_profile_bundle(profile_id=None, viewer_id=None, viewer=None, username=None):
     from services.profile_2026_service import get_profile_bundle as _f
-    return _f(profile_id, viewer_id=viewer_id)
+
+    if viewer_id is None and viewer is not None:
+        if isinstance(viewer, dict):
+            viewer_id = viewer.get("id")
+        else:
+            viewer_id = viewer
+
+    return _f(profile_id=profile_id, viewer_id=viewer_id, username=username)
 
 def get_profile_content(viewer_id, target_id, content_type, page=1, per_page=12):
     from services.profile_2026_service import get_profile_content_section as _f
