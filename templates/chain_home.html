@@ -764,16 +764,16 @@ body.namvibe-social-home{
 {% set messages_route = "/messages/" %}
 {% set notifications_route = "/notifications/" %}
 {% set contacts_route = "/contacts/" %}
-{% set groups_route = "/messages/groups/empty" %}
+{% set groups_route = "/messages/upgrade/groups/empty" %}
 {% set marketplace_route = "/marketplace/" %}
 {% set saved_route = "/favorites/" %}
 {% set events_route = "/discover/" %}
 {% set music_route = "/discover/" %}
-{% set show_groups_link = true %}
+{% set show_groups_link = false %}
 {% set show_marketplace_link = true %}
-{% set show_events_link = true %}
+{% set show_events_link = false %}
 {% set show_saved_link = true %}
-{% set show_music_link = true %}
+{% set show_music_link = false %}
 
 <div class="nv-app">
 
@@ -847,7 +847,7 @@ body.namvibe-social-home{
           </button>
 
           {% for s in stories %}
-          <a class="nv-story" href="{{ '/stories/' ~ (s.get('id') or '') }}">
+          <a class="nv-story" href="{{ '/stories/' ~ (s.get('id') or '') if s.get('id') else '/stories/' }}">
             <div class="nv-story-ring {% if s.get('viewed') %}seen{% endif %} {% if s.get('is_live') %}live{% endif %}">
               <div class="nv-story-avatar">
                 {% if s.get("avatar_url") %}
@@ -900,7 +900,7 @@ body.namvibe-social-home{
         </div>
         <div class="nv-horizontal">
           {% for room in live_rooms[:6] %}
-          <a class="nv-live" href="/live/">
+          <a class="nv-live" href="{{ room.get('watch_url') or '/live/' }}">
             <div class="nv-mini-avatar">
               {% if room.get("creator_avatar") %}
               <img src="{{ room.get('creator_avatar') }}" alt="">
@@ -928,7 +928,7 @@ body.namvibe-social-home{
         <div class="nv-reels-row">
           {% for reel in reels_items[:8] %}
           {% set reel_thumb = reel.get("thumbnail_url") or reel.get("media_url") or reel.get("public_url") or reel.get("image_url") or reel.get("video_url") %}
-          <a class="nv-reel" href="{{ '/reels/' ~ (reel.get('id') or '') }}">
+          <a class="nv-reel" href="{{ '/reels/' ~ (reel.get('id') or '') if reel.get('id') else '/reels/' }}">
             {% if reel_thumb %}
               <img src="{{ reel_thumb }}" alt="" loading="lazy">
             {% endif %}
@@ -984,10 +984,8 @@ body.namvibe-social-home{
               </div>
 
               {% if item.get("profile_id") and item.get("profile_id") != profile.get("id") %}
-              <button class="nv-follow" type="button" data-follow-id="{{ item.get('profile_id') }}">Follow</button>
+              <button class="nv-follow" type="button" data-follow-id="{{ item.get('profile_id') }}" data-following="{{ 'true' if item.get('viewer_is_following') else 'false' }}">{{ 'Following' if item.get('viewer_is_following') else 'Follow' }}</button>
               {% endif %}
-
-              <button class="nv-more" type="button">•••</button>
             </div>
 
             {% if item_type == "product_card" and item.get("title") %}
@@ -1054,7 +1052,7 @@ body.namvibe-social-home{
               <div class="nv-person-name">{{ creator.get("display_name") or creator.get("username") or "Creator" }}</div>
               <div class="nv-person-sub">{{ creator.get("followers_count") or 0 }} followers</div>
             </div>
-            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}">Follow</button>
+            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}" data-following="{{ 'true' if creator.get('viewer_is_following') else 'false' }}">{{ 'Following' if creator.get('viewer_is_following') else 'Follow' }}</button>
           </div>
           {% endfor %}
         </div>
@@ -1105,10 +1103,10 @@ body.namvibe-social-home{
               {% endif %}
             </a>
             <div class="nv-person-info">
-              <div class="nv-person-name">{{ creator.get("display_name") or creator.get("username") or "Creator" }}</div>
+              <a class="nv-person-name" href="{{ creator.get('profile_url') or ('/profile/@' ~ (creator.get('username') or '')) }}">{{ creator.get("display_name") or creator.get("username") or "Creator" }}</a>
               <div class="nv-person-sub">{{ creator.get("mutual_count") or creator.get("followers_count") or 0 }} connections</div>
             </div>
-            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}">Follow</button>
+            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}" data-following="{{ 'true' if creator.get('viewer_is_following') else 'false' }}">{{ 'Following' if creator.get('viewer_is_following') else 'Follow' }}</button>
           </div>
           {% endfor %}
         </div>
@@ -1123,7 +1121,7 @@ body.namvibe-social-home{
         </div>
         <div class="nv-side-body">
           {% for room in live_rooms[:4] %}
-          <a class="nv-live" href="/live/">
+          <a class="nv-live" href="{{ room.get('watch_url') or '/live/' }}">
             <div class="nv-mini-avatar">
               {% if room.get("creator_avatar") %}
               <img src="{{ room.get('creator_avatar') }}" alt="">
@@ -1222,26 +1220,119 @@ body.namvibe-social-home{
   const uploadTabs = Array.from(document.querySelectorAll(".nv-upload-tab"));
   const createDrop = document.getElementById("nv-create-drop");
   const createContinue = document.getElementById("nv-create-continue");
+  const isAuthenticated = document.body.dataset.authenticated === "true";
   let selectedCreateType = "post";
   const detailForItem = (button) => button.dataset.detailUrl || button.closest("[data-detail-url]")?.dataset.detailUrl || "/";
   const typeForItem = (button) => button.dataset.type || button.closest("[data-type]")?.dataset.type || "post";
+  const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+  const showToast = (message, type = "info") => {
+    if (window.NamVibeToast && typeof window.NamVibeToast[type] === "function") {
+      window.NamVibeToast[type](message);
+      return;
+    }
+    if (window.NamVibeToast && typeof window.NamVibeToast.show === "function") {
+      window.NamVibeToast.show(message, type);
+      return;
+    }
+    console[type === "error" ? "error" : "log"](message);
+  };
+  const logDevError = (scope, error) => {
+    if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
+      console.error(`[homepage:${scope}]`, error);
+    }
+  };
+  const loginUrl = () => `/auth/login?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
+  const requireAuth = () => {
+    if (isAuthenticated) return false;
+    showToast("Please log in to use this action.", "warning");
+    window.location.href = loginUrl();
+    return true;
+  };
+  const apiRequest = async (url, options = {}) => {
+    const headers = new Headers(options.headers || {});
+    headers.set("X-CSRFToken", csrfToken());
+    headers.set("X-Requested-With", "XMLHttpRequest");
+    if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      headers
+    });
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (_) {
+      data = null;
+    }
+    if (response.status === 401) {
+      window.location.href = loginUrl();
+      throw new Error("AUTH_REQUIRED");
+    }
+    if (!response.ok) {
+      throw new Error((data && (data.error || data.message)) || `HTTP ${response.status}`);
+    }
+    return data;
+  };
+
+  const actionConfig = {
+    post: {
+      like: (id) => `/api/home/post/${id}/like`,
+      save: (id) => `/api/home/post/${id}/save`,
+      share: (id) => `/api/home/post/${id}/share`,
+      detail: (id) => `/post/${id}`
+    },
+    reel: {
+      like: (id) => `/reels/api/reels/${id}/like`,
+      save: (id) => `/reels/api/reels/${id}/save`,
+      share: (id) => `/reels/api/reels/${id}/share`,
+      detail: (id) => `/reels/${id}`
+    },
+    story: {
+      detail: (id) => `/stories/${id}`
+    },
+    live_room: {
+      detail: (_id, button) => detailForItem(button)
+    },
+    live: {
+      detail: (_id, button) => detailForItem(button)
+    },
+    product_card: {
+      save: () => "/marketplace/api/saved/toggle",
+      detail: (_id, button) => detailForItem(button)
+    },
+    suggested_user: {
+      detail: (_id, button) => detailForItem(button)
+    },
+    profile: {
+      detail: (_id, button) => detailForItem(button)
+    }
+  };
+
+  function updateCount(button, value) {
+    const label = button.querySelector("span");
+    if (label && typeof value === "number" && Number.isFinite(value)) {
+      label.textContent = String(value);
+    }
+  }
+
+  function setFollowVisual(button, following) {
+    button.dataset.following = following ? "true" : "false";
+    button.textContent = following ? "Following" : "Follow";
+    button.style.background = following ? "var(--nv-soft)" : "var(--nv-text)";
+    button.style.color = following ? "var(--nv-text)" : "#fff";
+    button.classList.toggle("is-following", following);
+  }
 
   function applyCreateType(type){
     selectedCreateType = type || "post";
     uploadTabs.forEach(tab=>tab.classList.toggle("is-active", tab.dataset.uploadTab === selectedCreateType));
   }
 
-  async function postJson(url){
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {"X-Requested-With":"XMLHttpRequest"},
-      credentials: "same-origin"
-    });
-    return response;
-  }
-
   document.querySelectorAll("[data-nv-open-create]").forEach(btn=>{
     btn.addEventListener("click",()=>{
+      if (requireAuth()) return;
       applyCreateType(btn.dataset.nvCreateType || "post");
       modal && modal.classList.add("is-open");
     });
@@ -1272,99 +1363,142 @@ body.namvibe-social-home{
     if (typeof window.openCameraCreator === "function"){
       modal && modal.classList.remove("is-open");
       window.openCameraCreator(selectedCreateType);
+    } else {
+      const fallbackRoute = selectedCreateType === "story" ? "/stories/create" : selectedCreateType === "reel" ? "/reels/upload" : "/profile/";
+      window.location.href = fallbackRoute;
     }
   }
 
   if (createDrop) createDrop.addEventListener("click", openCreator);
   if (createContinue) createContinue.addEventListener("click", openCreator);
 
-  document.querySelectorAll("[data-action='like']").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const type = typeForItem(btn);
-      const id = btn.dataset.id;
-      if (!id) return;
-      const url = type === "reel" ? `/api/reels/${id}/like` : type === "post" ? `/api/home/post/${id}/like` : null;
-      if (!url) return window.location.href = detailForItem(btn);
-      const response = await postJson(url);
-      if (response.ok) {
-        btn.classList.toggle("liked");
-        const label = btn.querySelector("span");
-        if (label) {
-          const count = parseInt(label.textContent || "0", 10) || 0;
-          label.textContent = String(btn.classList.contains("liked") ? count + 1 : Math.max(0, count - 1));
+  document.querySelectorAll("[data-follow-id]").forEach(btn => {
+    setFollowVisual(btn, btn.dataset.following === "true");
+  });
+
+  document.addEventListener("click", async (event) => {
+    const followButton = event.target.closest("[data-follow-id]");
+    if (followButton) {
+      event.preventDefault();
+      if (requireAuth()) return;
+      const profileId = followButton.dataset.followId;
+      const following = followButton.dataset.following === "true";
+      const endpoint = following ? `/api/home/unfollow/${profileId}` : `/api/home/follow/${profileId}`;
+      try {
+        const payload = await apiRequest(endpoint, { method: "POST" });
+        const result = payload.result || {};
+        const isFollowing = result.following === true || result.status === "following" || result.status === "requested" || (!following && payload.ok);
+        setFollowVisual(followButton, isFollowing);
+        showToast(isFollowing ? "Follow request sent." : "Unfollowed.", "success");
+      } catch (error) {
+        if (error.message !== "AUTH_REQUIRED") {
+          logDevError("follow", error);
+          showToast("Could not update follow status.", "error");
         }
-        btn.childNodes[0].textContent = btn.classList.contains("liked") ? "♥ " : "♡ ";
-      } else if (response.status === 401) {
-        window.location.href = "/auth/login";
       }
-    });
-  });
+      return;
+    }
 
-  document.querySelectorAll("[data-action='comment']").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      window.location.href = detailForItem(btn);
-    });
-  });
+    const actionButton = event.target.closest("[data-action]");
+    if (!actionButton) return;
 
-  document.querySelectorAll("[data-action='share']").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const type = typeForItem(btn);
-      const id = btn.dataset.id;
-      const detailUrl = `${window.location.origin}${detailForItem(btn)}`;
-      const url = type === "reel" ? `/api/reels/${id}/share` : type === "post" ? `/api/home/post/${id}/share` : null;
-      if (navigator.share) {
-        try { await navigator.share({url: detailUrl}); } catch (_) {}
-      } else {
-        try { await navigator.clipboard.writeText(detailUrl); } catch (_) {}
-      }
-      if (url) {
-        const response = await postJson(url);
-        if (response.status === 401) window.location.href = "/auth/login";
-      }
-    });
-  });
+    const action = actionButton.dataset.action;
+    const id = actionButton.dataset.id;
+    const type = typeForItem(actionButton);
+    const typeConfig = actionConfig[type] || {};
+    const detailRoute = typeConfig.detail ? typeConfig.detail(id, actionButton) : detailForItem(actionButton);
 
-  document.querySelectorAll("[data-action='save']").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const type = typeForItem(btn);
-      const id = btn.dataset.id;
-      let url = null;
-      if (type === "reel") url = `/api/reels/${id}/save`;
-      else if (type === "post") url = `/api/home/post/${id}/save`;
-      else if (type === "product_card") url = "/marketplace/api/saved/toggle";
-      if (!url) return;
-      let response;
-      if (type === "product_card") {
-        response = await fetch(url, {
-          method: "POST",
-          headers: {"Content-Type":"application/json","X-Requested-With":"XMLHttpRequest"},
-          credentials: "same-origin",
-          body: JSON.stringify({item_id: id})
-        });
-      } else {
-        response = await postJson(url);
-      }
-      if (response.ok) btn.classList.toggle("liked");
-      else if (response.status === 401) window.location.href = "/auth/login";
-    });
-  });
+    if (action === "comment") {
+      event.preventDefault();
+      window.location.href = detailRoute;
+      return;
+    }
 
-  document.querySelectorAll("[data-follow-id]").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
-      const profileId = btn.dataset.followId;
-      if (!profileId) return;
-      const following = btn.dataset.following === "true";
-      const response = await postJson(following ? `/api/home/unfollow/${profileId}` : `/api/home/follow/${profileId}`);
-      if (response.ok) {
-        const isFollowing = !following;
-        btn.dataset.following = isFollowing ? "true" : "false";
-        btn.textContent = isFollowing ? "Following" : "Follow";
-        btn.style.background = isFollowing ? "var(--nv-soft)" : "var(--nv-text)";
-        btn.style.color = isFollowing ? "var(--nv-text)" : "#fff";
-      } else if (response.status === 401) {
-        window.location.href = "/auth/login";
+    if (!id && action !== "share") {
+      window.location.href = detailRoute;
+      return;
+    }
+
+    if ((action === "like" || action === "save") && requireAuth()) return;
+
+    if (action === "like") {
+      event.preventDefault();
+      if (!typeConfig.like) {
+        window.location.href = detailRoute;
+        return;
       }
-    });
+      try {
+        const payload = await apiRequest(typeConfig.like(id), { method: "POST" });
+        const result = payload.result || payload;
+        const liked = Boolean(result.liked ?? result.success ?? payload.ok);
+        actionButton.classList.toggle("liked", liked);
+        actionButton.dataset.liked = liked ? "true" : "false";
+        const count = result.count ?? result.likes_count ?? result.like_count;
+        if (typeof count === "number") updateCount(actionButton, count);
+        else {
+          const current = parseInt(actionButton.querySelector("span")?.textContent || "0", 10) || 0;
+          updateCount(actionButton, liked ? current + 1 : Math.max(0, current - 1));
+        }
+        actionButton.childNodes[0].textContent = liked ? "♥ " : "♡ ";
+        showToast(liked ? "Liked." : "Unliked.", "success");
+      } catch (error) {
+        if (error.message !== "AUTH_REQUIRED") {
+          logDevError("like", error);
+          showToast("Could not like this item.", "error");
+        }
+      }
+      return;
+    }
+
+    if (action === "save") {
+      event.preventDefault();
+      const endpoint = typeConfig.save;
+      if (!endpoint) {
+        window.location.href = detailRoute;
+        return;
+      }
+      try {
+        const request = type === "product_card"
+          ? apiRequest(endpoint(id), { method: "POST", body: { item_id: id } })
+          : apiRequest(endpoint(id), { method: "POST" });
+        const payload = await request;
+        const result = payload.result || payload;
+        const saved = Boolean(result.saved ?? result.success ?? payload.ok);
+        actionButton.classList.toggle("liked", saved);
+        actionButton.dataset.saved = saved ? "true" : "false";
+        showToast(saved ? "Saved." : "Removed from saved.", "success");
+      } catch (error) {
+        if (error.message !== "AUTH_REQUIRED") {
+          logDevError("save", error);
+          showToast("Could not save this item.", "error");
+        }
+      }
+      return;
+    }
+
+    if (action === "share") {
+      event.preventDefault();
+      const absoluteUrl = new URL(detailRoute, window.location.origin).toString();
+      try {
+        if (typeConfig.share) {
+          try {
+            await apiRequest(typeConfig.share(id), { method: "POST" });
+          } catch (error) {
+            logDevError("share-track", error);
+          }
+        }
+        if (navigator.share) {
+          await navigator.share({ url: absoluteUrl });
+          showToast("Shared.", "success");
+          return;
+        }
+        await navigator.clipboard.writeText(absoluteUrl);
+        showToast("Link copied.", "success");
+      } catch (error) {
+        logDevError("share", error);
+        showToast("Could not share this item.", "error");
+      }
+    }
   });
 
   const videos = document.querySelectorAll("video");
