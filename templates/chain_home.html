@@ -917,7 +917,7 @@ body.namvibe-social-home{
 {% set messages_route = "/messages/" %}
 {% set notifications_route = "/notifications/" %}
 {% set contacts_route = "/contacts/" %}
-{% set groups_route = "/messages/upgrade/groups/empty" %}
+{% set groups_route = "/messages/" %}
 {% set marketplace_route = "/marketplace/" %}
 {% set saved_route = "/favorites/" %}
 {% set events_route = "/discover/" %}
@@ -1303,7 +1303,7 @@ body.namvibe-social-home{
         </div>
         <div class="nv-side-body">
           {% for act in friend_activity[:8] %}
-          <a class="nv-trend" href="{{ act.get('url') or '#' }}">
+          <a class="nv-trend" href="{{ act.get('url') or '/discover/' }}">
             <div class="nv-trend-info">
               <div class="nv-trend-title">{{ act.get('actor_display_name') or act.get('actor_username') or 'Someone' }}</div>
               <div class="nv-trend-sub">{{ act.get('message') or act.get('event_type','') }}</div>
