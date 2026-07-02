@@ -278,11 +278,24 @@ def create_app():
         from services.schema_registry import warm_schema_cache
         warm_schema_cache()
 
+    def _is_fast_public_request():
+        if request.method != "GET":
+            return False
+        return (
+            request.path == "/"
+            or request.path == "/healthz"
+            or request.path.startswith("/health/")
+            or request.path.startswith("/discover/")
+            or request.path in {"/reels/", "/reels", "/live/"}
+        )
+
     @app.before_request
     def before_req():
         if request.path.startswith("/static/"):
             return None
         start_request_timer()
+        if request.path == "/healthz" or request.path.startswith("/health/"):
+            return None
         check_ip_reputation()
 
     @app.after_request
@@ -618,7 +631,12 @@ def create_app():
         g.request_started_at = time.perf_counter()
         g.request_id = str(uuid.uuid4())
         g.current_profile_id = session.get("auth_user_id")
-        if session.get("refresh_token") and not session.get("access_token") and request.endpoint != "static":
+        if (
+            session.get("refresh_token")
+            and not session.get("access_token")
+            and request.endpoint != "static"
+            and not _is_fast_public_request()
+        ):
             refresh_chain_session()
 
     @app.context_processor
@@ -1086,7 +1104,17 @@ def create_app():
             data = dict(shell)
             data.update(base_routes)
             response = render_template("chain_home.html", **data)
-            log_info("homepage_route_total", duration_ms=round((time.perf_counter() - home_start) * 1000, 2))
+            total_ms = round((time.perf_counter() - home_start) * 1000, 2)
+            log_info(
+                "homepage_timing",
+                homepage_total_ms=total_ms,
+                homepage_feed_ms=0,
+                homepage_stories_ms=0,
+                homepage_reels_ms=0,
+                homepage_suggestions_ms=0,
+                homepage_profile_ms=0,
+            )
+            log_info("homepage_route_total", duration_ms=total_ms)
             return response, 200
 
     @app.route("/login")

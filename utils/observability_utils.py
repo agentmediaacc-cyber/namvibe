@@ -1,10 +1,23 @@
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from flask import request, g
 from services.neon_service import get_pool_status, write_query
 
+_PERF_LOG_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="perf-log")
+
+
 def start_request_timer():
     g.start_time = time.time()
+
+
+def _write_performance_log(path, method, status, latency, profile_id):
+    sql = "INSERT INTO chain_performance_logs (request_path, method, status_code, latency_ms, profile_id) VALUES (%s, %s, %s, %s, %s)"
+    try:
+        write_query(sql, (path, method, status, latency, profile_id), timeout_ms=150)
+    except Exception:
+        pass
+
 
 def log_request_performance(response):
 
@@ -12,6 +25,9 @@ def log_request_performance(response):
         return response
 
     if request.path.startswith("/static/"):
+        return response
+
+    if request.path == "/healthz" or request.path.startswith("/health/"):
         return response
 
     if not hasattr(g, 'start_time'):
@@ -26,12 +42,10 @@ def log_request_performance(response):
     method = request.method
     status = response.status_code
     profile_id = g.get('profile_id') or getattr(g, 'current_profile', {}).get('id')
-    
-    # Async log to DB (Simulated by direct write for now, but should be a background job)
-    sql = "INSERT INTO chain_performance_logs (request_path, method, status_code, latency_ms, profile_id) VALUES (%s, %s, %s, %s, %s)"
+
     try:
-        write_query(sql, (path, method, status, latency, profile_id))
-    except:
+        _PERF_LOG_EXECUTOR.submit(_write_performance_log, path, method, status, latency, profile_id)
+    except Exception:
         pass
         
     return response
