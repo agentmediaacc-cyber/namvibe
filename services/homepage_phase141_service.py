@@ -247,7 +247,10 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
             ) ORDER BY created_at DESC LIMIT %s"""
             rows = fast_query(query, [profile_id_param, profile_id_param, profile_id_param, limit], timeout_ms=timeout_ms, default=[])
         else:
-            return [], False, None
+            # Anonymous: show only public stories
+            query = base_query + """ AND (visibility IS NULL OR visibility = 'public')
+                ORDER BY created_at DESC LIMIT %s"""
+            rows = fast_query(query, [limit], timeout_ms=timeout_ms, default=[])
 
         if not rows:
             return [], False, None

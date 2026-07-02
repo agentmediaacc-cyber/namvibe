@@ -1069,7 +1069,7 @@ def _normalize_live_room(row, profile_map):
         "creator_verified": profile.get("verified", False),
         "creator_location": profile.get("town") or profile.get("location") or "",
         "created_label": _format_relative(row.get("created_at")),
-        "watch_url": "/live/",
+        "watch_url": f"/live/room/{row.get('id')}" if row.get("id") else "/live/",
     }
 
 

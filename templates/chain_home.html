@@ -1154,7 +1154,7 @@ body.namvibe-social-home{
             </div>
             {% elif video_url %}
             <div class="nv-media">
-              <video src="{{ video_url }}" poster="{{ media_url or item.get('thumbnail_url') or '' }}" controls playsinline preload="metadata"></video>
+              <video src="{{ video_url }}" poster="{{ media_url or item.get('thumbnail_url') or '' }}" controls playsinline preload="metadata" muted></video>
             </div>
             {% elif media_url %}
             <div class="nv-media">
@@ -1739,13 +1739,14 @@ body.namvibe-social-home{
       entries.forEach(entry=>{
         const video = entry.target;
         if(entry.isIntersecting){
+          video.muted = true;
           video.play && video.play().catch(()=>{});
         }else{
           video.pause && video.pause();
         }
       });
     },{threshold:.6});
-    videos.forEach(v=>io.observe(v));
+    videos.forEach(v=>{v.muted=true; io.observe(v);});
   }
   } catch (error) {
     reportHomepageError("bootstrap", error);

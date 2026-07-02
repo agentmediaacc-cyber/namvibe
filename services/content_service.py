@@ -857,18 +857,31 @@ def active_local_stories(profile_id=None):
 
 
 def get_post_by_id(post_id, viewer_profile_id=None):
-    """Fetch a single post by ID with profile info."""
-    rows = fast_query("""
+    """Fetch a single post by ID with profile info and visibility check."""
+    visibility_condition = "AND (p.visibility IS NULL OR p.visibility = 'public')"
+    params = [post_id]
+    if viewer_profile_id:
+        visibility_condition = """AND (
+            p.visibility IS NULL OR p.visibility = 'public'
+            OR p.profile_id = %s
+            OR (p.visibility = 'followers' AND EXISTS (
+                SELECT 1 FROM chain_follows
+                WHERE follower_profile_id = %s AND following_profile_id = p.profile_id AND deleted_at IS NULL
+            ))
+        )"""
+        params = [post_id, viewer_profile_id, viewer_profile_id]
+    rows = fast_query(f"""
         SELECT p.*, pr.username, pr.avatar_url, pr.display_name
         FROM chain_posts p
         JOIN chain_profiles pr ON p.profile_id = pr.id
-        WHERE p.id = %s AND p.deleted_at IS NULL
-    """, (post_id,), timeout_ms=2000, default=[])
+        WHERE p.id = %s AND p.deleted_at IS NULL {visibility_condition}
+    """, tuple(params), timeout_ms=2000, default=[])
     if rows:
         return rows[0]
     for post in _LOCAL_STORE["posts"]:
         if post.get("id") == post_id:
-            return post
+            if viewer_profile_id or post.get("visibility") in (None, "public"):
+                return post
     return None
 
 

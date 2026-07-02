@@ -153,18 +153,21 @@ def check_readiness():
         return True
 
     from services.neon_service import get_neon_health
-    from services.redis_service import get_redis_health
+    from services.redis_service import get_redis_health, _REDIS_URL
     from services.logging_service import log_info, log_error
-    
+
     neon = get_neon_health()
     redis = get_redis_health()
-    
-    is_ready = neon.get("status") == "ok" and redis.get("status") == "ok"
+
+    # Redis is optional — skip check if no URL configured
+    redis_configured = bool(_REDIS_URL)
+    redis_ok = redis.get("status") == "ok" or not redis_configured
+    is_ready = neon.get("status") == "ok" and redis_ok
     if is_ready:
         log_info("startup_readiness_check_passed", neon_latency=neon.get("latency_ms"), redis_latency=redis.get("latency_ms"))
     else:
         log_error("startup_readiness_check_failed", neon_status=neon.get("status"), redis_status=redis.get("status"))
-    
+
     return is_ready
 
 
@@ -1248,6 +1251,22 @@ def create_app():
             return render_template("errors/post_not_found.html",
                 message="This reel could not be found. It may have been deleted or made private.",
                 profile=profile), 404
+        # Visibility check: anonymous users see only public reels
+        reel_visibility = reel.get("visibility") or "public"
+        pid = (profile or {}).get("id")
+        if not pid and reel_visibility != "public":
+            return render_template("errors/post_not_found.html",
+                message="This reel is not publicly available.",
+                profile=profile), 404
+        if pid and reel_visibility not in ("public", None):
+            if reel_visibility == "private" and reel.get("profile_id") != pid:
+                return render_template("errors/post_not_found.html",
+                    message="This reel is private.", profile=profile), 404
+            if reel_visibility == "followers" and reel.get("profile_id") != pid:
+                from services.relationship_privacy_service import can_view_posts
+                if not can_view_posts(pid, reel.get("profile_id")):
+                    return render_template("errors/post_not_found.html",
+                        message="This reel is for followers only.", profile=profile), 404
         comments = get_reel_comments(reel_id, limit=30)
         has_liked = False
         if profile:
