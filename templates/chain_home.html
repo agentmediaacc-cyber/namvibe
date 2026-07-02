@@ -930,7 +930,7 @@ body.namvibe-social-home{
 
 <div class="nv-app">
 
-  <header class="nv-topbar">
+  <header class="nv-topbar nv2026-glass">
     <div class="nv-topbar-inner">
       <a href="/" class="nv-logo">
         <span class="nv-logo-mark">N</span>
@@ -990,7 +990,7 @@ body.namvibe-social-home{
 
     <main class="nv-main">
 
-      <section class="nv-section">
+      <section class="nv-section nv2026-card">
         <div class="nv-stories">
           <button class="nv-story nv-story-create" type="button" data-nv-open-create data-nv-create-type="story" aria-label="Create story">
             <div class="nv-story-ring">
@@ -1016,7 +1016,7 @@ body.namvibe-social-home{
         </div>
       </section>
 
-      <section class="nv-section nv-composer">
+      <section class="nv-section nv-composer nv2026-card">
         <div class="nv-composer-top">
           <a class="nv-avatar" href="/profile/">
             {% if profile.get("avatar_url") %}
@@ -1046,7 +1046,7 @@ body.namvibe-social-home{
       </div>
 
       {% if live_rooms %}
-      <section class="nv-section">
+      <section class="nv-section nv2026-card">
         <div class="nv-section-head">
           <h2 class="nv-section-title">Live now</h2>
           <a class="nv-section-link" href="/live/">See all</a>
@@ -1073,7 +1073,7 @@ body.namvibe-social-home{
       {% endif %}
 
       {% if reels_items %}
-      <section class="nv-section">
+      <section class="nv-section nv2026-card">
         <div class="nv-section-head">
           <h2 class="nv-section-title">Reels for you</h2>
           <a class="nv-section-link" href="/reels/">Watch all</a>
@@ -1114,7 +1114,7 @@ body.namvibe-social-home{
             {% set detail_url = "/post/" ~ item.get("id") %}
           {% endif %}
           {% set profile_link = item.get("profile_url") or ("/profile/@" ~ item.get("username") if item.get("username") else detail_url) %}
-          <article class="nv-section nv-post" data-item-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}" data-profile-id="{{ item.get('profile_id') or '' }}">
+          <article class="nv-section nv-post nv2026-card" data-item-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}" data-profile-id="{{ item.get('profile_id') or '' }}">
             <div class="nv-post-head">
               <a class="nv-avatar" href="{{ profile_link }}">
                 {% if item.get("avatar_url") %}
@@ -1178,7 +1178,7 @@ body.namvibe-social-home{
           </article>
           {% endfor %}
         {% else %}
-          <section class="nv-section nv-empty">
+          <section class="nv-section nv-empty nv2026-card">
             <h3>Your NamVibe feed is ready</h3>
             <p>Follow people, upload a reel, join live rooms, or discover creators around Namibia.</p>
             <button class="nv-primary" type="button" data-nv-open-create data-nv-create-type="post">Create your first post</button>
@@ -1187,7 +1187,7 @@ body.namvibe-social-home{
       </div>
 
       {% if suggested %}
-      <section class="nv-section">
+      <section class="nv-section nv2026-card">
         <div class="nv-section-head">
           <h2 class="nv-section-title">People you may know</h2>
           <a class="nv-section-link" href="/discover/">See all</a>
@@ -1340,7 +1340,7 @@ body.namvibe-social-home{
     </div>
   </nav>
 
-  <div class="nv-modal-overlay" id="nv-create-modal">
+    <div class="nv-modal-overlay nv2026-modal-overlay" id="nv-create-modal">
     <div class="nv-modal">
       <div class="nv-modal-head">
         <h2>Create on NamVibe</h2>
@@ -1382,7 +1382,7 @@ body.namvibe-social-home{
 
 <div class="nv-toast" id="nv-toast"></div>
 
-  <div class="nv-bottom-sheet-overlay" id="nv-bottom-sheet-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Action menu">
+  <div class="nv-bottom-sheet-overlay nv2026-bottom-sheet-overlay" id="nv-bottom-sheet-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Action menu">
     <div class="nv-bottom-sheet" id="nv-bottom-sheet">
       <div class="nv-bottom-sheet-handle" aria-hidden="true"></div>
       <div class="nv-bottom-sheet-head">

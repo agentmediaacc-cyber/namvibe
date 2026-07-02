@@ -31,21 +31,21 @@
     </nav>
 
     <section class="discover-rail">
-        <article class="px-card" style="padding:16px;">
+        <article class="px-card nv2026-card" style="padding:16px;">
             <div class="px-section-head" style="margin:0 0 12px;"><div><p>Trending hashtags</p><h2>Now on NamVibe</h2></div></div>
             <div style="display:flex; flex-wrap:wrap; gap:10px;">
                 {% for tag in trending_hashtags or [] %}
-                <a class="px-chip" href="/search?q=%23{{ tag.hashtag|replace('#','') }}">#{{ tag.hashtag|replace('#','') }}</a>
+                <a class="px-chip nv2026-chip" href="/search?q=%23{{ tag.hashtag|replace('#','') }}">#{{ tag.hashtag|replace('#','') }}</a>
                 {% else %}
                 <span class="px-muted">No trending hashtags available yet.</span>
                 {% endfor %}
             </div>
         </article>
-        <article class="px-card" style="padding:16px;">
+        <article class="px-card nv2026-card" style="padding:16px;">
             <div class="px-section-head" style="margin:0 0 12px;"><div><p>Popular towns</p><h2>Local pulse</h2></div></div>
             <div style="display:flex; flex-wrap:wrap; gap:10px;">
                 {% for town in trending_locations or [] %}
-                <a class="px-chip" href="/search?q={{ town.location }}">{{ town.location }}</a>
+                <a class="px-chip nv2026-chip" href="/search?q={{ town.location }}">{{ town.location }}</a>
                 {% else %}
                 <span class="px-muted">No active locations available yet.</span>
                 {% endfor %}
@@ -84,7 +84,7 @@
             </div>
         </a>
         {% else %}
-        <article class="premium-empty"><i class="fas fa-video"></i><h3>No live rooms</h3><p>Creators will appear here when they go live.</p><a class="px-btn" href="/live/studio">Start Live</a></article>
+        <article class="premium-empty nv2026-empty"><i class="fas fa-video"></i><h3>No live rooms</h3><p>Creators will appear here when they go live.</p><a class="px-btn nv2026-btn nv2026-btn-primary" href="/live/studio">Start Live</a></article>
         {% endfor %}
     </section>
     {% elif section == 'trending' %}
