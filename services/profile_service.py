@@ -1139,13 +1139,60 @@ def get_profile_by_username(username):
     """Get profile by username with caching."""
     if not username:
         return None
-
-    cache_key_str = cache_key("profile_username", username, 60, 0)
+    normalized_username = normalize_username(username)
+    cache_key_str = cache_key("profile_username", normalized_username or username, 60, 0)
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached
 
-    profile = _neon_get_profile_by("username", username)
+    candidates = []
+    for candidate in (username, normalized_username):
+        candidate_str = str(candidate or "").strip().lower()
+        if candidate_str and candidate_str not in candidates:
+            candidates.append(candidate_str)
+    if normalized_username:
+        if normalized_username.endswith("_user"):
+            trimmed = normalized_username[: -len("_user")]
+            if trimmed and trimmed not in candidates:
+                candidates.append(trimmed)
+        else:
+            suffixed = f"{normalized_username}_user"
+            if suffixed not in candidates:
+                candidates.append(suffixed)
+
+    profile = None
+    for candidate in candidates:
+        profile = _neon_get_profile_by("username", candidate)
+        if profile:
+            break
+    if not profile:
+        for candidate in candidates:
+            profile = _neon_get_profile_by("username_slug", candidate)
+            if profile:
+                break
+    if not profile:
+        try:
+            predicates = []
+            params = []
+            for candidate in candidates:
+                predicates.append("lower(split_part(coalesce(email, ''), '@', 1)) = %s")
+                params.append(candidate)
+            rows = fast_query(
+                f"""
+                SELECT {_neon_profile_columns()}
+                FROM chain_profiles
+                WHERE deleted_at IS NULL
+                  AND ({' OR '.join(predicates)})
+                LIMIT 1
+                """,
+                params,
+                timeout_ms=1200,
+                default=[],
+            )
+            if rows:
+                profile = normalize_profile(rows[0])
+        except Exception as error:
+            print(f"[profile_service] email-local username lookup failed: {error}")
     if profile:
         set_cache(cache_key_str, profile, ttl=60)
     return profile
@@ -1405,6 +1452,46 @@ def get_creator_tools(profile_id):
         "creator_notes": "",
         "featured_links": [],
     }
+
+
+def get_profile_counts(profile_id):
+    """Return bounded profile counters for bundle builders."""
+    profile = get_profile_by_id(profile_id) or {}
+    return {
+        "posts": safe_int(profile.get("posts_count"), 0),
+        "reels": safe_int(profile.get("reels_count"), 0),
+        "stories": safe_int(profile.get("stories_count"), 0),
+        "followers": safe_int(profile.get("followers_count"), 0),
+        "following": safe_int(profile.get("following_count"), 0),
+        "friends": safe_int(profile.get("friends_count"), 0),
+        "likes": safe_int(profile.get("likes_count") or profile.get("total_likes"), 0),
+        "views": safe_int(profile.get("views_count") or profile.get("profile_views"), 0),
+    }
+
+
+def build_profile_strength(profile, stats=None):
+    """Return a lightweight completion score for profile surfaces."""
+    source_profile = profile or {}
+    completion = safe_int(source_profile.get("profile_completion"), 0)
+    if not completion:
+        completion = calculate_completion(source_profile)
+    return completion
+
+
+def get_mutual_friends_summary(viewer_id, profile_id, limit=6):
+    """Provide a small mutual friends payload without expensive fan-out."""
+    from services.friend_service import get_mutual_friends as _f
+
+    items = _f(viewer_id, profile_id, limit, 0) if viewer_id and profile_id else []
+    return {
+        "count": len(items or []),
+        "items": items or [],
+    }
+
+
+def get_recently_active_friends(profile_id, limit=6):
+    """Best-effort recently active friends placeholder."""
+    return []
 
 
 def get_public_profiles(limit=20, offset=0, exclude_ids=None):

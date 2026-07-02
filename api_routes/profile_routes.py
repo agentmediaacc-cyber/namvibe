@@ -366,7 +366,11 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
 
 def _resolve_profile_route(username=None, user_id=None):
     start = time.perf_counter()
+    public_identifier_route = bool(username or user_id)
     fast_profile_shell = (
+        public_identifier_route
+        or request.args.get("shell") == "1"
+        or
         os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
         or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
         or "namvibe.com" in (request.host or "").lower()
