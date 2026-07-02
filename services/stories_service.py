@@ -37,7 +37,7 @@ def get_stories_feed(viewer_id=None):
                 SELECT following_profile_id FROM chain_follows
                 WHERE follower_profile_id = %s AND deleted_at IS NULL
             )
-            SELECT s.id, s.profile_id, s.body, s.media_url, s.media_type, s.visibility,
+            SELECT s.id, s.profile_id, s.caption, s.media_url, s.media_type, s.visibility,
                    s.expires_at, s.created_at, s.updated_at,
                    p.username, p.avatar_url, p.is_verified,
                    COALESCE(s.likes_count, 0) AS likes_count,
@@ -53,7 +53,7 @@ def get_stories_feed(viewer_id=None):
                   OR s.visibility = 'public'
                   OR (s.visibility = 'followers' AND s.profile_id IN (SELECT following_profile_id FROM follow_map))
               )
-            GROUP BY s.id, s.profile_id, s.body, s.media_url, s.media_type, s.visibility,
+            GROUP BY s.id, s.profile_id, s.caption, s.media_url, s.media_type, s.visibility,
                      s.expires_at, s.created_at, s.updated_at,
                      p.username, p.avatar_url, p.is_verified,
                      s.likes_count, s.comments_count, s.views_count
@@ -64,7 +64,7 @@ def get_stories_feed(viewer_id=None):
     else:
         # No viewer - only public stories, simplified query
         query = """
-            SELECT s.id, s.profile_id, s.body, s.media_url, s.media_type, s.visibility,
+            SELECT s.id, s.profile_id, s.caption, s.media_url, s.media_type, s.visibility,
                    s.expires_at, s.created_at, s.updated_at,
                    p.username, p.avatar_url, p.is_verified,
                    COALESCE(s.likes_count, 0) AS likes_count,
@@ -76,7 +76,7 @@ def get_stories_feed(viewer_id=None):
             LEFT JOIN chain_story_views sv ON sv.story_id = s.id
             WHERE s.expires_at > %s AND s.deleted_at IS NULL
               AND s.visibility = 'public'
-            GROUP BY s.id, s.profile_id, s.body, s.media_url, s.media_type, s.visibility,
+            GROUP BY s.id, s.profile_id, s.caption, s.media_url, s.media_type, s.visibility,
                      s.expires_at, s.created_at, s.updated_at,
                      p.username, p.avatar_url, p.is_verified,
                      s.likes_count, s.comments_count, s.views_count
