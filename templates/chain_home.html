@@ -1185,6 +1185,25 @@ body.namvibe-social-home{
       </section>
       {% endif %}
 
+      {% set friend_activity = p.get("friend_activity") or friend_activity or [] %}
+      {% if friend_activity %}
+      <section class="nv-side-card">
+        <div class="nv-side-head">
+          <span>Friend activity</span>
+        </div>
+        <div class="nv-side-body">
+          {% for act in friend_activity[:8] %}
+          <a class="nv-trend" href="{{ act.get('url') or '#' }}">
+            <div class="nv-trend-info">
+              <div class="nv-trend-title">{{ act.get('actor_display_name') or act.get('actor_username') or 'Someone' }}</div>
+              <div class="nv-trend-sub">{{ act.get('message') or act.get('event_type','') }}</div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
       <section class="nv-side-card">
         <div class="nv-side-head">
           <span>Quick links</span>

@@ -762,7 +762,28 @@ def _fetch_stories(viewer_profile_id=None):
         row.setdefault("status", None)
         row.setdefault("thumbnail_url", None)
         row.setdefault("media_url", None)
-    combined.sort(key=lambda row: str(row.get("created_at") or ""), reverse=True)
+
+    # ── Sort: followed stories first, then by recency ──
+    followed_set = set()
+    if viewer_profile_id:
+        try:
+            frows, _ = _run_sql(
+                "follows_check",
+                "SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s",
+                [viewer_profile_id],
+            )
+            if isinstance(frows, (list, tuple)):
+                followed_set = {r.get("following_profile_id") for r in frows if r.get("following_profile_id")}
+        except Exception:
+            followed_set = set()
+
+    def _story_sort_key(row):
+        pid = row.get("profile_id")
+        is_followed = int(pid in followed_set) if followed_set else 0
+        created = str(row.get("created_at") or "")
+        return (is_followed, created)
+
+    combined.sort(key=_story_sort_key, reverse=True)
     return combined[:_HOMEPAGE_LIMITS["stories"]], issues
 
 
@@ -806,6 +827,114 @@ def _fetch_live_rooms():
         row.setdefault("profile_id", _first_present(row, ["profile_id", "creator_id"]))
     live_only = [row for row in rows if _boolish(row.get("is_live")) or _clean_text(row.get("status")).lower() == "live"]
     return live_only[:_HOMEPAGE_LIMITS["live_rooms"]], [issue] if issue else []
+
+
+def _activity_select():
+    return select_existing_columns(
+        "chain_activity_events",
+        ["id", "actor_profile_id", "recipient_profile_id", "event_type",
+         "target_type", "target_id", "metadata", "visibility", "created_at"],
+    )
+
+
+def _fetch_friend_activity(viewer_id=None, limit=10):
+    """Return recent public activity from profiles the viewer follows."""
+    if not viewer_id:
+        return []
+    columns = _activity_select()
+    if not columns or "actor_profile_id" not in set(columns):
+        return []
+    available = set(columns)
+    where = ["ae.deleted_at IS NULL", "ae.created_at > now() - interval '7 days'"]
+    if "visibility" in available:
+        where.append("ae.visibility = 'public'")
+    select_cols = [col for col in columns if col in available]
+    prefix_cols = ", ".join(f"ae.{col}" for col in select_cols)
+    clauses = " AND ".join(where)
+    query = f"""
+        SELECT {prefix_cols},
+               p.username AS p_username,
+               p.display_name AS p_display_name,
+               p.avatar_url AS p_avatar_url,
+               p.is_verified AS p_is_verified,
+               p.verified AS p_verified
+        FROM chain_activity_events ae
+        JOIN chain_profiles p ON p.id = ae.actor_profile_id
+        JOIN chain_follows f ON f.following_profile_id = ae.actor_profile_id
+        WHERE f.follower_profile_id = %s
+          AND f.deleted_at IS NULL
+          AND ({clauses})
+        ORDER BY ae.created_at DESC NULLS LAST
+        LIMIT %s
+    """
+    try:
+        rows = fast_query(query, (str(viewer_id), limit), timeout_ms=800, default=[])
+    except Exception:
+        return []
+    if not rows:
+        return []
+    return [_normalize_friend_activity(r) for r in rows if r.get("id")]
+
+
+def _normalize_friend_activity(row):
+    if not row or not isinstance(row, dict):
+        return {}
+    event_type = str(row.get("event_type") or "")
+    target_type = str(row.get("target_type") or "")
+    target_id = str(row.get("target_id") or "")
+    username = str(row.get("p_username") or "")
+    display_name = str(row.get("p_display_name") or username)
+    verb = _ACTIVITY_VERB_MAP.get(event_type, "interacted with")
+    return {
+        "id": row.get("id"),
+        "actor_profile_id": row.get("actor_profile_id"),
+        "event_type": event_type,
+        "target_type": target_type,
+        "target_id": target_id,
+        "username": username,
+        "display_name": display_name,
+        "avatar_url": str(row.get("p_avatar_url") or ""),
+        "verified": bool(row.get("p_is_verified") or row.get("p_verified")),
+        "text": f"{display_name} {verb}",
+        "created_at": row.get("created_at"),
+        "created_label": _format_relative(row.get("created_at")),
+        "profile_url": f"/profile/@{username}" if username else "/discover/",
+        "action_url": _activity_action_url(event_type, target_type, target_id),
+    }
+
+
+_ACTIVITY_VERB_MAP = {
+    "post_liked": "liked a post",
+    "post_commented": "commented on a post",
+    "story_created": "created a story",
+    "reel_watched": "watched a reel",
+    "friend_request_accepted": "accepted a friend request",
+    "friend_request_sent": "sent a friend request",
+    "message_sent": "sent a message",
+    "call_started": "started a call",
+    "call_ended": "ended a call",
+    "user_online": "is now online",
+    "upload_completed": "uploaded a video",
+    "profile_viewed": "viewed a profile",
+}
+
+
+def _activity_action_url(event_type, target_type, target_id):
+    if not target_id:
+        return "/discover/"
+    if event_type in ("post_liked", "post_commented"):
+        target_type = "post"
+    if target_type == "post":
+        return f"/post/{target_id}"
+    if target_type == "reel":
+        return f"/reels/{target_id}"
+    if target_type == "story":
+        return f"/stories/{target_id}"
+    if target_type == "profile":
+        return f"/profile/{target_id}"
+    if event_type == "friend_request_accepted" and target_id:
+        return f"/profile/{target_id}"
+    return "/discover/"
 
 
 _PROFILE_JOIN_COLS = [
@@ -1406,6 +1535,23 @@ def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
     ):
         merged_feed.extend(section_items)
     merged_feed = _avoid_back_to_back_creators(_dedupe_homepage_items(merged_feed))
+
+    # ── Intersperse reels every 4–6 feed items ──
+    reel_pool = list(payload.get("reels", []) or [])
+    if reel_pool:
+        reel_pool = [dict(r) for r in reel_pool]
+        for r in reel_pool:
+            r["type"] = r.get("type") or "reel"
+            r["_section"] = "inline_reel"
+        spaced = []
+        reel_index = 0
+        for i, item in enumerate(merged_feed):
+            spaced.append(item)
+            if reel_index < len(reel_pool) and (i + 1) % 5 == 0:
+                spaced.append(reel_pool[reel_index])
+                reel_index += 1
+        merged_feed = spaced
+
     payload["feed_items"] = merged_feed[: max(1, int(feed_limit or 20))]
     return payload
 
@@ -3275,6 +3421,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         "suggested_users": [],
         "nearby_users": [],
         "trending_hashtags": [],
+        "friend_activity": [],
         "wallet": {"coin_balance": 0, "label_balance": "0"},
         "unread_counts": {"notifications": 0, "messages": 0},
         "empty_states": {},
@@ -3395,6 +3542,15 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
                 payload["unread_counts"]["messages"] = msg_count or 0
             except Exception:
                 pass
+
+        # ── Friend activity ──
+        if pid:
+            activity_rows = _fetch_friend_activity(viewer_id=pid, limit=10)
+            if activity_rows:
+                payload["friend_activity"] = activity_rows
+
+        if not payload["friend_activity"]:
+            payload["empty_states"]["friend_activity"] = True
 
     except Exception as e:
         _log(f"get_homepage_payload error: {e}")

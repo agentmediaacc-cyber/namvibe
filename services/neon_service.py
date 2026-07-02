@@ -166,6 +166,11 @@ CHAIN_STATIC_COLUMNS = {
         "id", "profile_id", "studio_enabled", "monetization_enabled",
         "creator_notes", "featured_links", "created_at", "updated_at"
     },
+    "chain_activity_events": {
+        "id", "actor_profile_id", "recipient_profile_id", "event_type",
+        "target_type", "target_id", "metadata", "visibility",
+        "created_at", "deleted_at"
+    },
     "chain_user_settings": {
         "id", "profile_id", "allow_messages", "allow_video_calls",
         "show_online_status", "profile_visibility", "created_at", "updated_at"

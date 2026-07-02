@@ -1074,6 +1074,7 @@ def create_app():
             "stories": [],
             "suggested_people": [],
             "live_rooms": [],
+            "friend_activity": [],
             "homepage_degraded": True,
             "homepage_message": "Loading latest NamVibe content...",
             **base_routes,
@@ -1094,6 +1095,7 @@ def create_app():
             data["posts"] = list(data["feed_items"])
             data["stories"] = fast_payload.get("stories") or []
             data["reels"] = fast_payload.get("reels") or []
+            data["friend_activity"] = fast_payload.get("friend_activity") or []
             data["homepage_degraded"] = True
             data["homepage_message"] = "Loading latest NamVibe content..."
             return data

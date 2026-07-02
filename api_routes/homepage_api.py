@@ -10,6 +10,7 @@ from services.homepage_service import (
     get_homepage_payload,
     get_homepage_sidebar_payload,
     rank_homepage_sections,
+    _fetch_friend_activity,
 )
 from services.homepage_phase141_service import (
     fetch_posts_v2,
@@ -56,6 +57,7 @@ def _safe_degraded_homepage_payload():
         "suggested_people": [],
         "suggested_creators": [],
         "trending_hashtags": [],
+        "friend_activity": [],
         "wallet": {"coin_balance": 0, "label_balance": "0"},
         "unread_counts": {},
         "empty_states": {},
@@ -67,6 +69,7 @@ def _minimal_feed_payload():
         "feed_items": [],
         "stories": [],
         "reels": [],
+        "friend_activity": [],
         "homepage_degraded": True,
     }
 
@@ -144,6 +147,14 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
             payload["recommended_profiles"] = list(payload["suggested_creators"])
     except Exception:
         payload["suggested_creators"] = []
+
+    # ── Friend activity ──
+    try:
+        activity = _fetch_friend_activity(viewer_id=viewer_id, limit=10)
+        if activity:
+            payload["friend_activity"] = activity
+    except Exception:
+        payload["friend_activity"] = []
 
     payload["trending_posts"] = list(payload.get("feed_items") or [])
     payload = rank_homepage_sections(payload, viewer_id=viewer_id, feed_limit=limit)
