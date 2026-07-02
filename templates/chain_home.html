@@ -793,6 +793,114 @@ body.namvibe-social-home{
 /* ── Premium: Scrollbar ── */
 .nv-left::-webkit-scrollbar,.nv-side::-webkit-scrollbar{width:4px}
 .nv-left::-webkit-scrollbar-thumb,.nv-side::-webkit-scrollbar-thumb{background:var(--nv-border);border-radius:99px}
+
+/* ── Phase 179: Heart burst ── */
+.nv-heart-burst{position:absolute;width:80px;height:80px;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:20;opacity:0}
+.nv-heart-burst svg{width:100%;height:100%;color:var(--nv-red);filter:drop-shadow(0 0 12px rgba(239,68,68,.5))}
+.nv-heart-burst.is-active{animation:nv-heart-burst-kf .65s ease-out forwards}
+@keyframes nv-heart-burst-kf{
+  0%{opacity:1;transform:translate(-50%,-50%) scale(.3)}
+  40%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}
+}
+.nv-media{position:relative;cursor:pointer}
+
+/* ── Phase 179: Bottom sheet ── */
+.nv-bottom-sheet-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;
+  align-items:flex-end;justify-content:center;
+}
+.nv-bottom-sheet-overlay.is-open{display:flex}
+.nv-bottom-sheet{
+  width:100%;max-width:520px;max-height:80vh;overflow-y:auto;
+  background:#fff;border-radius:24px 24px 0 0;
+  box-shadow:0 -8px 40px rgba(0,0,0,.15);
+  animation:nv-sheet-up .32s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes nv-sheet-up{
+  from{transform:translateY(100%)}to{transform:translateY(0)}
+}
+.nv-bottom-sheet-handle{
+  width:40px;height:4px;border-radius:4px;background:var(--nv-border);
+  margin:12px auto 4px;
+}
+.nv-bottom-sheet-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 18px 8px;
+  border-bottom:1px solid var(--nv-border-soft);
+  font-weight:900;font-size:16px;
+}
+.nv-bottom-sheet-close{
+  border:0;background:var(--nv-soft);width:36px;height:36px;
+  border-radius:50%;cursor:pointer;display:grid;place-items:center;
+}
+.nv-bottom-sheet-body{padding:8px 0}
+.nv-sheet-item{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 18px;text-decoration:none;color:var(--nv-text);
+  border:0;background:transparent;width:100%;text-align:left;
+  font-weight:700;font-size:15px;cursor:pointer;
+}
+.nv-sheet-item:hover{background:var(--nv-soft)}
+.nv-sheet-item svg{width:20px;height:20px;flex:0 0 auto;color:var(--nv-muted)}
+
+/* ── Phase 179: Infinite scroll sentinel ── */
+.nv-sentinel{height:1px;width:100%;pointer-events:none}
+.nv-sentinel-loading{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:20px;color:var(--nv-muted);font-weight:700;font-size:14px;
+}
+.nv-spinner{
+  width:22px;height:22px;border:3px solid var(--nv-border);
+  border-top-color:var(--nv-blue);border-radius:50%;
+  animation:nv-spin .7s linear infinite;
+}
+@keyframes nv-spin{to{transform:rotate(360deg)}}
+
+/* ── Phase 179: Disabled/loading states ── */
+.nv-action:disabled,.nv-follow:disabled,.nv-sheet-item:disabled{
+  opacity:.5;pointer-events:none;
+}
+.nv-action.is-loading svg{animation:nv-spin .7s linear infinite;width:18px;height:18px}
+.nv-follow.is-loading{pointer-events:none;position:relative}
+.nv-follow.is-loading::after{
+  content:'';position:absolute;inset:0;
+  background:rgba(255,255,255,.5);border-radius:999px;
+}
+
+/* ── Phase 179: Badge pulse ── */
+.nv-badge-pulse{animation:nv-pulse .4s ease 2}
+
+/* ── Phase 179: Focus & keyboard ── */
+.nv-focus-ring:focus-visible{
+  outline:3px solid var(--nv-blue);outline-offset:2px;
+  border-radius:8px;
+}
+.nv-action:focus-visible,.nv-follow:focus-visible,.nv-close:focus-visible,
+.nv-icon-btn:focus-visible,.nv-tab:focus-visible,.nav-sheet-item:focus-visible{
+  outline:2px solid var(--nv-blue);outline-offset:2px;
+}
+
+/* ── Phase 179: Reduced motion ── */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+  .nv-heart-burst.is-active{display:none}
+  .nv-bottom-sheet{animation:none}
+}
+
+/* ── Phase 179: New content toast ── */
+.nv-new-content-toast{
+  position:fixed;top:78px;left:50%;transform:translateX(-50%);z-index:150;
+  background:var(--nv-text);color:#fff;padding:12px 22px;border-radius:999px;
+  font-weight:800;font-size:14px;cursor:pointer;
+  opacity:0;pointer-events:none;
+  transition:all .3s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:0 8px 32px rgba(0,0,0,.18);
+}
+.nv-new-content-toast.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
 </style>
 {% endblock %}
 
@@ -1031,6 +1139,7 @@ body.namvibe-social-home{
               {% if item.get("profile_id") and item.get("profile_id") != profile.get("id") %}
               <button class="nv-follow" type="button" data-follow-id="{{ item.get('profile_id') }}" data-following="{{ 'true' if item.get('viewer_is_following') else 'false' }}">{{ 'Following' if item.get('viewer_is_following') else 'Follow' }}</button>
               {% endif %}
+              <button class="nv-more" type="button" aria-label="More options"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
             </div>
 
             {% if item_type == "product_card" and item.get("title") %}
@@ -1104,6 +1213,7 @@ body.namvibe-social-home{
       </section>
       {% endif %}
 
+      <div class="nv-sentinel" id="nv-feed-sentinel" aria-hidden="true"></div>
     </main>
 
     <aside class="nv-side">
@@ -1272,7 +1382,18 @@ body.namvibe-social-home{
 
 <div class="nv-toast" id="nv-toast"></div>
 
-{% include "partials/camera_creator.html" %}
+  <div class="nv-bottom-sheet-overlay" id="nv-bottom-sheet-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Action menu">
+    <div class="nv-bottom-sheet" id="nv-bottom-sheet">
+      <div class="nv-bottom-sheet-handle" aria-hidden="true"></div>
+      <div class="nv-bottom-sheet-head">
+        <span id="nv-bottom-sheet-title">Actions</span>
+        <button class="nv-bottom-sheet-close nv-close" id="nv-bottom-sheet-close" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="nv-bottom-sheet-body" id="nv-bottom-sheet-body" role="menu"></div>
+    </div>
+  </div>
+
+  {% include "partials/camera_creator.html" %}
 {% endblock %}
 
 {% block extra_js %}
@@ -1501,6 +1622,21 @@ body.namvibe-social-home{
       return;
     }
 
+    const moreButton = event.target.closest(".nv-more");
+    if (moreButton) {
+      event.preventDefault();
+      var postEl = moreButton.closest(".nv-post");
+      if (postEl) {
+        var detailUrl = postEl.dataset.detailUrl || "/";
+        var itemType = postEl.dataset.type || "post";
+        var itemId = postEl.dataset.itemId || "";
+        if (typeof window.nvPostMoreMenu === "function") {
+          window.nvPostMoreMenu(detailUrl, itemType, itemId);
+        }
+      }
+      return;
+    }
+
     const actionButton = event.target.closest("[data-action]");
     if (!actionButton) return;
 
@@ -1579,25 +1715,20 @@ body.namvibe-social-home{
 
     if (action === "share") {
       event.preventDefault();
-      const absoluteUrl = new URL(detailRoute, window.location.origin).toString();
-      try {
-        if (typeConfig.share) {
-          try {
-            await apiRequest(typeConfig.share(id), { method: "POST" });
-          } catch (error) {
-            logDevError("share-track", error);
+      if (typeof nvShareAction === "function") {
+        try {
+          if (typeConfig.share) {
+            apiRequest(typeConfig.share(id), { method: "POST" }).catch(function () {});
           }
-        }
+        } catch (_) {}
+        nvShareAction(detailRoute, type, id, typeConfig);
+      } else {
+        const absoluteUrl = new URL(detailRoute, window.location.origin).toString();
         if (navigator.share) {
-          await navigator.share({ url: absoluteUrl });
-          showToast("Shared.", "success");
-          return;
+          navigator.share({ url: absoluteUrl }).then(function () { showToast("Shared.", "success"); }).catch(function () {});
+        } else {
+          navigator.clipboard.writeText(absoluteUrl).then(function () { showToast("Link copied.", "success"); }).catch(function () { showToast("Could not copy link.", "error"); });
         }
-        await navigator.clipboard.writeText(absoluteUrl);
-        showToast("Link copied.", "success");
-      } catch (error) {
-        logDevError("share", error);
-        showToast("Could not share this item.", "error");
       }
     }
   }));
@@ -1619,6 +1750,294 @@ body.namvibe-social-home{
   } catch (error) {
     reportHomepageError("bootstrap", error);
   }
+
+  /* ════════════════════════════════════════════════
+     Phase 179 — Premium Social Interaction Engine
+     ════════════════════════════════════════════════ */
+
+  /* ── Debounce ── */
+  function nvDebounce(fn, ms) {
+    var timer = null;
+    return function () {
+      var args = arguments, ctx = this;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(function () { fn.apply(ctx, args); timer = null; }, ms);
+    };
+  }
+
+  /* ── Bottom Sheet ── */
+  var bottomSheetOverlay = document.getElementById("nv-bottom-sheet-overlay");
+  var bottomSheetBody = document.getElementById("nv-bottom-sheet-body");
+  var bottomSheetTitle = document.getElementById("nv-bottom-sheet-title");
+
+  function openBottomSheet(title, items) {
+    if (!bottomSheetOverlay || !bottomSheetBody) return;
+    if (bottomSheetTitle) bottomSheetTitle.textContent = title || "Actions";
+    bottomSheetBody.innerHTML = "";
+    (items || []).forEach(function (it) {
+      var btn = document.createElement("button");
+      btn.className = "nv-sheet-item";
+      btn.setAttribute("role", "menuitem");
+      btn.innerHTML = (it.icon || "") + "<span>" + (it.label || "") + "</span>";
+      if (it.disabled) btn.disabled = true;
+      if (it.href) {
+        var a = document.createElement("a");
+        a.className = "nv-sheet-item";
+        a.href = it.href;
+        a.setAttribute("role", "menuitem");
+        a.innerHTML = btn.innerHTML;
+        bottomSheetBody.appendChild(a);
+      } else {
+        btn.addEventListener("click", function () {
+          closeBottomSheet();
+          if (typeof it.action === "function") it.action();
+        });
+        bottomSheetBody.appendChild(btn);
+      }
+    });
+    bottomSheetOverlay.classList.add("is-open");
+    bottomSheetOverlay.setAttribute("aria-hidden", "false");
+    var firstItem = bottomSheetBody.querySelector("button, a");
+    if (firstItem) setTimeout(function () { firstItem.focus(); }, 100);
+  }
+
+  function closeBottomSheet() {
+    if (!bottomSheetOverlay) return;
+    bottomSheetOverlay.classList.remove("is-open");
+    bottomSheetOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  if (bottomSheetOverlay) {
+    bottomSheetOverlay.addEventListener("click", function (e) {
+      if (e.target === bottomSheetOverlay) closeBottomSheet();
+    });
+    document.getElementById("nv-bottom-sheet-close").addEventListener("click", closeBottomSheet);
+  }
+
+  /* ──  Share bottom sheet instead of native share ── */
+  var nvShareAction = window.nvShareAction = function (detailRoute, type, id, typeConfig) {
+    var absoluteUrl = new URL(detailRoute, window.location.origin).toString();
+    var items = [
+      { label: "Share link", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg>', action: function () {
+        if (navigator.share) {
+          navigator.share({ url: absoluteUrl }).then(function () { showToast("Shared.", "success"); }).catch(function () {});
+        } else {
+          navigator.clipboard.writeText(absoluteUrl).then(function () { showToast("Link copied.", "success"); }).catch(function () { showToast("Could not copy link.", "error"); });
+        }
+      }},
+      { label: "Copy link", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>', action: function () {
+        navigator.clipboard.writeText(absoluteUrl).then(function () { showToast("Link copied.", "success"); }).catch(function () { showToast("Could not copy link.", "error"); });
+      }},
+    ];
+    if (typeConfig && typeConfig.share) {
+      items.push({ label: "Share on NamVibe", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/></svg>', action: function () {
+        apiRequest(typeConfig.share(id), { method: "POST" }).then(function () { showToast("Shared.", "success"); }).catch(function () {});
+      }});
+    }
+    openBottomSheet("Share", items);
+  }
+
+  /* ── Post more menu bottom sheet ── */
+  var nvPostMoreMenu = window.nvPostMoreMenu = function (detailRoute, type, id) {
+    var items = [
+      { label: "View post", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>', href: detailRoute },
+      { label: "Report", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>', action: function () {
+        window.location.href = detailRoute;
+      }},
+    ];
+    openBottomSheet("More", items);
+  };
+
+  /* ── Double-tap to like media with heart burst ── */
+  document.querySelectorAll(".nv-media").forEach(function (mediaEl) {
+    var lastTap = 0;
+    var burstEl = null;
+    mediaEl.addEventListener("click", function (e) {
+      var now = Date.now();
+      if (now - lastTap < 350) {
+        var likeBtn = mediaEl.closest(".nv-post").querySelector('[data-action="like"]');
+        if (likeBtn && !likeBtn.disabled && !likeBtn.dataset.liked === "true") {
+          likeBtn.click();
+          /* Heart burst */
+          if (!burstEl) {
+            burstEl = document.createElement("div");
+            burstEl.className = "nv-heart-burst";
+            burstEl.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
+            mediaEl.appendChild(burstEl);
+          }
+          burstEl.classList.remove("is-active");
+          void burstEl.offsetWidth;
+          burstEl.classList.add("is-active");
+        }
+      }
+      lastTap = now;
+    });
+  });
+
+  /* ── Infinite scroll via sentinel ── */
+  var feedSentinel = document.getElementById("nv-feed-sentinel");
+  var feedMain = document.querySelector(".nv-main");
+  var scrollLoading = false;
+  var scrollHasMore = true;
+  var scrollPage = 1;
+
+  if (feedSentinel && "IntersectionObserver" in window) {
+    var scrollIo = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && !scrollLoading && scrollHasMore) {
+          scrollLoading = true;
+          var loadingEl = document.createElement("div");
+          loadingEl.className = "nv-sentinel-loading";
+          loadingEl.innerHTML = '<div class="nv-spinner"></div><span>Loading more...</span>';
+          feedSentinel.parentNode.insertBefore(loadingEl, feedSentinel);
+          scrollPage++;
+          var url = "/api/homepage/feed?tab=for_you&limit=10&page=" + scrollPage;
+          fetch(url, { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+              if (loadingEl.parentNode) loadingEl.remove();
+              var items = (data && (data.feed_items || data.posts || data["items"])) || [];
+              if (items.length === 0) {
+                scrollHasMore = false;
+                var endEl = document.createElement("div");
+                endEl.style.cssText = "text-align:center;padding:24px;color:var(--nv-muted);font-weight:700;font-size:14px";
+                endEl.textContent = "You are all caught up";
+                feedSentinel.parentNode.insertBefore(endEl, feedSentinel);
+                return;
+              }
+              scrollLoading = false;
+              showToast(items.length + " new posts loaded.", "success");
+            })
+            .catch(function () {
+              if (loadingEl.parentNode) loadingEl.remove();
+              scrollLoading = false;
+              showToast("Could not load more posts.", "error");
+            });
+        }
+      });
+    }, { rootMargin: "0px 0px 200px 0px" });
+    scrollIo.observe(feedSentinel);
+  }
+
+  /* ── Socket.IO real-time UI hooks ── */
+  if (window.NamVibeRealtime && typeof window.NamVibeRealtime.on === "function") {
+    window.NamVibeRealtime.on("notification:new", function () {
+      var badge = document.getElementById("nv-notif-badge") || document.querySelector("[data-notif-badge]");
+      if (badge) {
+        var c = parseInt(badge.textContent, 10) || 0;
+        badge.textContent = c + 1;
+        badge.classList.add("nv-badge-pulse");
+        setTimeout(function () { badge.classList.remove("nv-badge-pulse"); }, 800);
+      }
+    });
+    window.NamVibeRealtime.on("chat:message", function () {
+      var badge = document.getElementById("nv-msg-badge") || document.querySelector("[data-msg-badge]");
+      if (badge) {
+        var c = parseInt(badge.textContent, 10) || 0;
+        badge.textContent = c + 1;
+        badge.classList.add("nv-badge-pulse");
+        setTimeout(function () { badge.classList.remove("nv-badge-pulse"); }, 800);
+      }
+    });
+    window.NamVibeRealtime.on("post:liked", function () {});
+    window.NamVibeRealtime.on("story:new", function () {
+      showToast("New story available.", "info");
+    });
+    window.NamVibeRealtime.on("live:started", function () {
+      showToast("A live stream just started!", "info");
+    });
+    window.NamVibeRealtime.on("live:ended", function () {});
+  } else {
+    var rtInterval = setInterval(function () {
+      if (window.NamVibeRealtime && typeof window.NamVibeRealtime.on === "function") {
+        clearInterval(rtInterval);
+      }
+    }, 3000);
+  }
+
+  /* ── Pull-to-refresh (mobile) ── */
+  var ptrFeed = document.querySelector(".nv-main");
+  if (ptrFeed) {
+    var ptrStartY = 0, ptrPulling = false;
+    var ptrEl = document.createElement("div");
+    ptrEl.style.cssText = "display:flex;align-items:center;justify-content:center;overflow:hidden;height:0;transition:height .3s ease;color:var(--nv-muted);font-weight:700;font-size:13px";
+    ptrEl.innerHTML = '<div class="nv-spinner"></div><span style="margin-left:10px">Pull to refresh</span>';
+    ptrFeed.parentNode.insertBefore(ptrEl, ptrFeed);
+    document.addEventListener("touchstart", function (e) {
+      if (ptrFeed.scrollTop <= 0) { ptrStartY = e.touches[0].clientY; ptrPulling = true; }
+    }, { passive: true });
+    document.addEventListener("touchmove", function (e) {
+      if (!ptrPulling) return;
+      var dy = e.touches[0].clientY - ptrStartY;
+      if (dy > 0) {
+        ptrEl.style.height = Math.min(dy * 0.3, 60) + "px";
+        ptrEl.querySelector("span").textContent = dy > 80 ? "Release to refresh" : "Pull to refresh";
+      }
+    }, { passive: true });
+    document.addEventListener("touchend", function () {
+      if (!ptrPulling) return;
+      ptrPulling = false;
+      if (parseInt(ptrEl.style.height, 10) > 24) {
+        ptrEl.querySelector("span").textContent = "Refreshing...";
+        window.location.reload();
+      } else {
+        ptrEl.style.height = "0";
+      }
+    }, { passive: true });
+  }
+
+  /* ── Escape key ── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      if (bottomSheetOverlay && bottomSheetOverlay.classList.contains("is-open")) {
+        closeBottomSheet();
+        return;
+      }
+      if (modal && modal.classList.contains("is-open")) {
+        modal.classList.remove("is-open");
+      }
+    }
+  });
+
+  /* ── Focus trap for create modal ── */
+  if (modal) {
+    modal.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab") return;
+      var focusable = modal.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if (!focusable.length) return;
+      var first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  }
+
+  /* ── Loading state on action buttons ── */
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-action]");
+    if (btn && (btn.dataset.action === "like" || btn.dataset.action === "save")) {
+      btn.disabled = true;
+      btn.classList.add("is-loading");
+      setTimeout(function () { btn.disabled = false; btn.classList.remove("is-loading"); }, 2000);
+    }
+  });
+
+  /* ── aria-label coverage ── */
+  document.querySelectorAll(".nv-action[data-action='like']").forEach(function (b) {
+    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Like");
+  });
+  document.querySelectorAll(".nv-action[data-action='comment']").forEach(function (b) {
+    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Comment");
+  });
+  document.querySelectorAll(".nv-action[data-action='share']").forEach(function (b) {
+    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Share");
+  });
+  document.querySelectorAll(".nv-action[data-action='save']").forEach(function (b) {
+    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Save");
+  });
+  document.querySelectorAll(".nv-more").forEach(function (b) {
+    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "More options");
+  });
+
 })();
 </script>
 {% endblock %}

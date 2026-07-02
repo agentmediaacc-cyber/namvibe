@@ -31,6 +31,7 @@ python scripts/test_phase175_full_social_app_audit.py
 python scripts/audit_homepage_real_actions.py
 python scripts/test_homepage_click_hooks.py
 python scripts/test_phase178_homepage_experience_engine.py
+python scripts/test_phase179_social_interactions.py
 ```
 
 ### Restart services
