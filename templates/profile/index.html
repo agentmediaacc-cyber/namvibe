@@ -147,10 +147,10 @@
   {% if p.highlights %}
   <section class="nv-highlights">
     {% for h in p.highlights[:8] %}
-    <a class="nv-highlight" href="#" data-highlight-id="{{ h.id }}">
+    <button class="nv-highlight" type="button" data-highlight-id="{{ h.id }}">
       {% if h.cover_url %}<img src="{{ h.cover_url }}" alt="{{ h.title }}">{% else %}<div class="nv-highlight-fallback"><i class="fas fa-star"></i></div>{% endif %}
       <span>{{ h.title }}</span>
-    </a>
+    </button>
     {% endfor %}
   </section>
   {% endif %}

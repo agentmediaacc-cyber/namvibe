@@ -103,10 +103,11 @@
     items.forEach(function (item) {
       var mediaUrl = item.thumbnail || item.media_url || "";
       var caption = escapeHtml((item.caption || "").slice(0, 80));
-      html += '<div class="nv-tile' + (item.media_type === "video" ? " nv-tile-video" : "") + '" data-id="' + escapeHtml(item.id) + '">';
+      var detailUrl = item.detail_url || (type === "posts" ? (item.id ? "/post/" + encodeURIComponent(item.id) : "/profile/") : type === "reels" ? (item.id ? "/reels/" + encodeURIComponent(item.id) : "/reels/") : type === "gallery" ? (item.media_url || "/profile/") : "/profile/");
+      html += '<a class="nv-tile' + (item.media_type === "video" ? " nv-tile-video" : "") + '" href="' + escapeHtml(detailUrl) + '" data-id="' + escapeHtml(item.id) + '">';
       if (mediaUrl) html += '<img src="' + escapeHtml(mediaUrl) + '" alt="' + caption + '" loading="lazy">';
       html += '<div class="nv-tile-overlay"><i class="fas fa-heart"></i> ' + (item.likes || 0) + ' <i class="fas fa-eye"></i> ' + (item.views || 0) + "</div>";
-      html += "</div>";
+      html += "</a>";
     });
     html += "</div>";
     return html;
@@ -115,7 +116,7 @@
   async function loadPosts(panel) {
     loadedTabs.add("posts");
     panel.innerHTML = '<div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div>';
-    var data = await apiFetch("/" + USERNAME + "/content?section=reels");
+    var data = await apiFetch("/" + USERNAME + "/content?section=posts");
     if (data.ok && data.items && data.items.length) {
       panel.innerHTML = renderGrid(data.items, "posts");
     } else {
@@ -143,10 +144,10 @@
     if (data.ok && data.items && data.items.length) {
       var html = '<div class="nv-grid nv-grid-3">';
       data.items.forEach(function (s) {
-        html += '<div class="nv-tile" data-story-id="' + escapeHtml(s.id) + '">';
+        html += '<button type="button" class="nv-tile" data-story-id="' + escapeHtml(s.id) + '">';
         if (s.media_url) html += '<img src="' + escapeHtml(s.media_url) + '" alt="Story" loading="lazy">';
         if (s.viewed) html += '<div class="nv-viewed-badge">Viewed</div>';
-        html += "</div>";
+        html += "</button>";
       });
       html += "</div>";
       panel.innerHTML = html;
@@ -175,12 +176,12 @@
       var html = '<div class="nv-grid nv-grid-2">';
       data.items.forEach(function (r) {
         var isLive = r.status === "live";
-        html += '<div class="nv-tile" style="aspect-ratio:16/9">';
+        html += '<a class="nv-tile" href="' + escapeHtml(r.room_url || "/live/") + '" style="aspect-ratio:16/9">';
         if (r.thumbnail) html += '<img src="' + escapeHtml(r.thumbnail) + '" alt="' + escapeHtml(r.title) + '" loading="lazy">';
         html += '<div class="nv-tile-overlay">';
         if (isLive) html += '<span class="nv-live-badge">LIVE</span>';
         html += '<span>' + escapeHtml(r.title) + "</span>";
-        html += "</div></div>";
+        html += "</div></a>";
       });
       html += "</div>";
       panel.innerHTML = html;
@@ -238,6 +239,7 @@
   function initActions() {
     // Follow button
     var followBtn = root.querySelector('[data-action="follow"]');
+    var friendBtn = root.querySelector('[data-action="friend"]');
     if (followBtn) {
       followBtn.addEventListener("click", function () {
         var state = this.dataset.state;
@@ -259,6 +261,25 @@
             }
           });
         }
+      });
+    }
+    if (friendBtn) {
+      friendBtn.addEventListener("click", function () {
+        if (!window.confirm("Remove @" + USERNAME + " from friends?")) return;
+        fetch("/api/social/unfriend/" + PROFILE_ID, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" }
+        }).then(function (r) { return r.json(); }).then(function (d) {
+          if (d && d.ok) {
+            showToast("Friend removed", "info");
+            window.location.reload();
+          } else {
+            showToast((d && (d.error || d.message)) || "Could not update friendship.", "error");
+          }
+        }).catch(function () {
+          showToast("Could not update friendship.", "error");
+        });
       });
     }
 
@@ -335,6 +356,21 @@
           dropdown.hidden = true;
         });
       }
+      var restrictBtn = dropdown.querySelector('[data-action="restrict"]');
+      if (restrictBtn) {
+        restrictBtn.addEventListener("click", function () {
+          fetch("/api/restrict/" + PROFILE_ID, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { Accept: "application/json" }
+          }).then(function (r) { return r.json(); }).then(function (d) {
+            showToast(d && d.success ? "Restricted" : ((d && d.error) || "Could not restrict profile."), d && d.success ? "info" : "error");
+          }).catch(function () {
+            showToast("Could not restrict profile.", "error");
+          });
+          dropdown.hidden = true;
+        });
+      }
     }
 
     // Cover/avatar change
@@ -402,6 +438,22 @@
         window.location.href = "/profile/@" + USERNAME + "/friends";
       });
     }
+    root.querySelectorAll("[data-highlight-id]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var highlightId = this.dataset.highlightId;
+        if (window.NamVibeStories && typeof window.NamVibeStories.openHighlight === "function" && highlightId) {
+          window.NamVibeStories.openHighlight(highlightId);
+          return;
+        }
+        window.location.href = "/stories/";
+      });
+    });
+    root.addEventListener("click", function (event) {
+      var storyTile = event.target.closest("[data-story-id]");
+      if (!storyTile) return;
+      event.preventDefault();
+      window.location.href = "/stories/";
+    });
   }
 
   // ─── Realtime Presence ───

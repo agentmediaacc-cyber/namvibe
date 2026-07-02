@@ -770,26 +770,26 @@
 
     <!-- Message Context Menu -->
     <div id="msg-context-menu" class="dropdown-menu shadow-lg" style="display: none; position: fixed; z-index: 1000; min-width: 200px; border-radius: 12px;">
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="copyMessage()" style="gap:8px;"><i class="far fa-copy mr-3 text-muted" style="width:18px;"></i> Copy</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initReply()" style="gap:8px;"><i class="fas fa-reply mr-3 text-muted" style="width:18px;"></i> Reply</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initForward()" style="gap:8px;"><i class="fas fa-share mr-3 text-muted" style="width:18px;"></i> Forward</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="quoteSelectedMessage()" style="gap:8px;"><i class="fas fa-quote-left mr-3 text-muted" style="width:18px;"></i> Quote selected message</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="copySelectedQuote()" style="gap:8px;"><i class="far fa-copy mr-3 text-muted" style="width:18px;"></i> Copy selected message quote</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initPin()" style="gap:8px;"><i class="fas fa-thumbtack mr-3 text-muted" style="width:18px;"></i> Pin Message</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="saveDraftNow()" style="gap:8px;"><i class="fas fa-pen mr-3 text-muted" style="width:18px;"></i> Save Draft</a>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="copyMessage()" style="gap:8px;"><i class="far fa-copy mr-3 text-muted" style="width:18px;"></i> Copy</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="initReply()" style="gap:8px;"><i class="fas fa-reply mr-3 text-muted" style="width:18px;"></i> Reply</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="initForward()" style="gap:8px;"><i class="fas fa-share mr-3 text-muted" style="width:18px;"></i> Forward</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="quoteSelectedMessage()" style="gap:8px;"><i class="fas fa-quote-left mr-3 text-muted" style="width:18px;"></i> Quote selected message</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="copySelectedQuote()" style="gap:8px;"><i class="far fa-copy mr-3 text-muted" style="width:18px;"></i> Copy selected message quote</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="initPin()" style="gap:8px;"><i class="fas fa-thumbtack mr-3 text-muted" style="width:18px;"></i> Pin Message</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="saveDraftNow()" style="gap:8px;"><i class="fas fa-pen mr-3 text-muted" style="width:18px;"></i> Save Draft</button>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="initEdit()" style="gap:8px;"><i class="fas fa-pen mr-3 text-muted" style="width:18px;"></i> Edit</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="showReactionPicker(event, selectedMsgId)" style="gap:8px;"><i class="far fa-face-smile mr-3 text-muted" style="width:18px;"></i> React</a>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="initEdit()" style="gap:8px;"><i class="fas fa-pen mr-3 text-muted" style="width:18px;"></i> Edit</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="showReactionPicker(event, selectedMsgId)" style="gap:8px;"><i class="far fa-face-smile mr-3 text-muted" style="width:18px;"></i> React</button>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="shareAsStory()" style="gap:8px;"><i class="fas fa-story mr-3 text-muted" style="width:18px;"></i> Share as Story</a>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="shareAsPost()" style="gap:8px;"><i class="fas fa-newspaper mr-3 text-muted" style="width:18px;"></i> Share as Post</a>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="shareAsStory()" style="gap:8px;"><i class="fas fa-story mr-3 text-muted" style="width:18px;"></i> Share as Story</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="shareAsPost()" style="gap:8px;"><i class="fas fa-newspaper mr-3 text-muted" style="width:18px;"></i> Share as Post</button>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center" href="#" onclick="showMessageInfo()" style="gap:8px;"><i class="fas fa-info-circle mr-3 text-muted" style="width:18px;"></i> Message Info</a>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center" onclick="showMessageInfo()" style="gap:8px;"><i class="fas fa-info-circle mr-3 text-muted" style="width:18px;"></i> Message Info</button>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteMe()" style="gap:8px;"><i class="far fa-trash-can mr-3" style="width:18px;"></i> Delete for me</a>
-        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="initDeleteEveryone()" style="gap:8px;"><i class="fas fa-user-slash mr-3" style="width:18px;"></i> Delete for everyone</a>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center text-danger" onclick="initDeleteMe()" style="gap:8px;"><i class="far fa-trash-can mr-3" style="width:18px;"></i> Delete for me</button>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center text-danger" onclick="initDeleteEveryone()" style="gap:8px;"><i class="fas fa-user-slash mr-3" style="width:18px;"></i> Delete for everyone</button>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item p-3 d-flex align-items-center text-danger" href="#" onclick="blockUser()" style="gap:8px;"><i class="fas fa-ban mr-3" style="width:18px;"></i> Block User</a>
+        <button type="button" class="dropdown-item p-3 d-flex align-items-center text-danger" onclick="blockUser()" style="gap:8px;"><i class="fas fa-ban mr-3" style="width:18px;"></i> Block User</button>
     </div>
 
     <!-- Message Info Modal -->
@@ -1590,7 +1590,7 @@
         selectedMsgId = msgId || selectedMsgId;
         const reactions = ['❤️','😂','😮','😢','🙏','🔥'];
         const menu = document.getElementById('msg-context-menu');
-        menu.innerHTML = reactions.map(r => `<a class="dropdown-item p-3" href="#" onclick="toggleReaction('${selectedMsgId}','${r}'); return false;">${r}</a>`).join('');
+        menu.innerHTML = reactions.map(r => `<button type="button" class="dropdown-item p-3" onclick="toggleReaction('${selectedMsgId}','${r}')">${r}</button>`).join('');
         menu.style.display = 'block';
         menu.style.left = `${event.pageX}px`;
         menu.style.top = `${event.pageY}px`;

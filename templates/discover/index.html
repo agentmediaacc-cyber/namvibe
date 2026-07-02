@@ -34,16 +34,20 @@
         <article class="px-card" style="padding:16px;">
             <div class="px-section-head" style="margin:0 0 12px;"><div><p>Trending hashtags</p><h2>Now on NamVibe</h2></div></div>
             <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                {% for tag in ['#chainlive', '#windhoek', '#creatorpay', '#namibiatiktok', '#dating', '#business'] %}
-                <a class="px-chip" href="/search?q={{ tag|replace('#','%23') }}">{{ tag }}</a>
+                {% for tag in trending_hashtags or [] %}
+                <a class="px-chip" href="/search?q=%23{{ tag.hashtag|replace('#','') }}">#{{ tag.hashtag|replace('#','') }}</a>
+                {% else %}
+                <span class="px-muted">No trending hashtags available yet.</span>
                 {% endfor %}
             </div>
         </article>
         <article class="px-card" style="padding:16px;">
             <div class="px-section-head" style="margin:0 0 12px;"><div><p>Popular towns</p><h2>Local pulse</h2></div></div>
             <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                {% for town in ['Windhoek','Swakopmund','Walvis Bay','Ongwediva','Rundu','Keetmanshoop'] %}
-                <a class="px-chip" href="/search?q={{ town }}">{{ town }}</a>
+                {% for town in trending_locations or [] %}
+                <a class="px-chip" href="/search?q={{ town.location }}">{{ town.location }}</a>
+                {% else %}
+                <span class="px-muted">No active locations available yet.</span>
                 {% endfor %}
             </div>
         </article>
@@ -235,14 +239,16 @@
         <div><p>Businesses</p><h2>Suggested businesses</h2></div>
         <a class="px-chip" href="/marketplace/">Open marketplace</a>
     </section>
+    {% if suggested_businesses %}
     <section class="discover-grid">
-        {% for label in ['Creative Studio','Food Vendor','Tour Guide','Event Host'] %}
+        {% for item in suggested_businesses %}
         <a href="/marketplace/" class="explore-card">
-            <div class="explore-card__media"><i class="fas fa-store"></i></div>
-            <div class="explore-card__body"><h3>{{ label }}</h3><p class="px-muted">Premium local business</p></div>
+            <div class="explore-card__media">{% if item.cover_url %}<img src="{{ item.cover_url }}" alt="{{ item.title }}">{% else %}<i class="fas fa-store"></i>{% endif %}</div>
+            <div class="explore-card__body"><h3>{{ item.title }}</h3><p class="px-muted">{{ item.item_type|default('Marketplace item')|replace('_',' ')|title }}</p></div>
         </a>
         {% endfor %}
     </section>
+    {% endif %}
 </main>
 
 <script src="/static/js/follow_request_controls.js"></script>
@@ -315,7 +321,11 @@
             button.innerHTML = original;
             button.disabled = false;
             console.error('Discovery social action failed:', error);
-            alert(error.message || 'Social action failed.');
+            if (window.NamVibeToast && typeof window.NamVibeToast.error === 'function') {
+                window.NamVibeToast.error(error.message || 'Social action failed.');
+            } else {
+                alert(error.message || 'Social action failed.');
+            }
         }
     });
 })();

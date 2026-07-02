@@ -1897,7 +1897,7 @@ def api_profile_content(target):
     try:
         viewer = get_current_profile() if (session.get("profile_id") or session.get("user_id")) else None
         viewer_id = viewer.get("id") if viewer else None
-        section = request.args.get("section", "reels")
+        section = request.args.get("section", "posts")
         page = int(request.args.get("page", 1))
         per_page = int(request.args.get("per_page", 12))
         from services.profile_2026_service import get_profile_content_section

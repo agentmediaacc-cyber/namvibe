@@ -431,7 +431,9 @@ def get_profile_content_section(viewer_id, target, section, page=1, per_page=12)
     viewer_id = _uuid_or_none(viewer_id) if viewer_id else None
     is_self = viewer_id and viewer_id == pid
 
-    if section == "reels":
+    if section == "posts":
+        return _get_profile_posts(pid, viewer_id or pid, page, per_page)
+    elif section == "reels":
         return _get_profile_reels(pid, viewer_id or pid, page, per_page)
     elif section == "stories":
         return _get_profile_stories(pid, viewer_id or pid, page, per_page)
@@ -448,6 +450,32 @@ def get_profile_content_section(viewer_id, target, section, page=1, per_page=12)
     elif section == "highlights":
         return _get_profile_highlights(pid, viewer_id or pid)
     return {"ok": False, "error": "Unknown section"}
+
+
+def _get_profile_posts(pid, viewer_id, page, per_page):
+    from services.profile_service import get_profile_bundle
+    try:
+        offset = max(0, (page - 1) * per_page)
+        viewer = {"id": viewer_id} if viewer_id else None
+        bundle = get_profile_bundle(profile_id=pid, viewer=viewer) or {}
+        rows = list(bundle.get("posts") or [])
+        items = []
+        for post in rows[offset: offset + per_page]:
+            items.append({
+                "id": post.get("id"),
+                "caption": post.get("caption") or post.get("body") or post.get("content") or "",
+                "thumbnail": post.get("thumbnail_url") or post.get("media_url") or "",
+                "media_url": post.get("media_url") or "",
+                "media_type": post.get("media_type") or ("video" if post.get("video_url") else "image"),
+                "views": post.get("views_count", 0),
+                "likes": post.get("likes_count", 0),
+                "comments": post.get("comments_count", 0),
+                "created_at": post.get("created_at"),
+                "detail_url": f"/post/{post.get('id')}" if post.get("id") else "/profile/",
+            })
+        return {"ok": True, "items": items, "has_more": len(rows) > offset + per_page}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 def _get_profile_reels(pid, viewer_id, page, per_page):
@@ -527,6 +555,7 @@ def _get_profile_live(pid):
                 "started_at": r.get("started_at") or r.get("created_at"),
                 "viewer_count": rd.get("viewer_count", 0),
                 "thumbnail": rd.get("thumbnail_url", ""),
+                "room_url": f"/live/room/{rid}" if rid else "/live/",
             })
         return {"ok": True, "items": items, "is_live": any(i.get("status") == "live" for i in items)}
     except Exception as e:
