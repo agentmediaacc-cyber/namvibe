@@ -37,7 +37,9 @@ body:has(.premium-profile-shell) .app-floating-create,
 body.has-premium-profile .mobile-nav,
 body.has-premium-profile .app-floating-create,
 body:has(.premium-profile-shell) #chainSoundUnlockBtn,
-body.has-premium-profile #chainSoundUnlockBtn { display: none !important; }
+body.has-premium-profile #chainSoundUnlockBtn,
+body:has(.premium-profile-shell) .top-header,
+body.has-premium-profile .top-header { display: none !important; }
 body.has-premium-profile { overflow-x: hidden; }
 body.has-premium-profile .premium-profile-shell { padding-bottom: 152px; }
 
