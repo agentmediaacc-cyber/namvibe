@@ -6,7 +6,7 @@
 {% set action_policy = action_policy or p.action_policy or {} %}
 {% set own_profile = p.is_self %}
 
-<main class="nv-profile-pro" data-profile-pro data-self="{{ 'true' if p.is_self else 'false' }}" data-profile-id="{{ p.id }}" data-username="{{ p.username }}">
+<div class="nv-profile-pro" role="main" data-profile-pro data-self="{{ 'true' if p.is_self else 'false' }}" data-profile-id="{{ p.id }}" data-username="{{ p.username }}">
   <section class="nv-hero">
     <div class="nv-cover-wrap">
       {% if p.cover_url %}
@@ -195,6 +195,6 @@
     </div>
     <div class="nv-panel" data-panel="activity"><div class="nv-empty-inline"><h3>No recent activity</h3><p>Public activity will appear here.</p></div></div>
   </section>
-</main>
+</div>
 
 {% endblock %}

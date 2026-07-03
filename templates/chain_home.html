@@ -38,7 +38,7 @@ body.namvibe-social-home{
   overflow-x:hidden;
 }
 
-.nv-app{min-height:100vh;background:var(--nv-bg);overflow-x:hidden}
+.nv-app{min-height:100vh;min-height:100dvh;background:var(--nv-bg);overflow-x:hidden}
 .nv-topbar{
   position:sticky;
   top:0;
@@ -586,6 +586,7 @@ body.namvibe-social-home{
   bottom:0;
   z-index:110;
   height:68px;
+  padding-bottom:env(safe-area-inset-bottom,0);
   background:rgba(255,255,255,.96);
   backdrop-filter:blur(18px);
   border-top:1px solid var(--nv-border-soft);
