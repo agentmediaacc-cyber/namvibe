@@ -831,8 +831,8 @@
         body: formData
       });
       const data = await res.json();
-      if (res.ok && data.room_id) {
-        roomId = data.room_id;
+      if (res.ok && data.room && data.room.id) {
+        roomId = data.room.id;
         goLive();
       } else {
         startBtn.disabled = false;
@@ -988,9 +988,10 @@
 
   async function respondGuest(requestId, action) {
     try {
-      await fetch('/live/api/rooms/' + roomId + '/guest-requests/' + requestId + '/' + action, {
-        method: 'POST'
-      });
+      const url = action === 'accept'
+        ? '/live/api/live/guest/' + requestId + '/approve'
+        : '/live/api/live/guest/' + requestId + '/reject';
+      await fetch(url, { method: 'POST' });
       pollGuestRequests();
     } catch (e) {}
   }
@@ -1010,7 +1011,7 @@
       return;
     }
     try {
-      await fetch('/live/api/rooms/' + roomId + '/polls', {
+      await fetch('/live/api/live/' + roomId + '/poll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, options: [optionA, optionB] })

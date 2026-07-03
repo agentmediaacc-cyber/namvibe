@@ -307,6 +307,12 @@ def react_api(room_id):
 
 # ─── Guest Requests ───
 
+@live_bp.route("/api/rooms/<room_id>/guest-requests", methods=["GET"])
+@login_required
+def api_rooms_guest_requests(room_id):
+    data = phase29_live.get_guest_requests(room_id)
+    return jsonify({"requests": data.get("requests", [])}), 200
+
 @live_bp.route("/api/live/<room_id>/guest-request", methods=["POST"])
 @login_required
 def api_guest_request(room_id):
@@ -323,6 +329,12 @@ def api_guest_request_status(request_id):
     return jsonify({"success": bool(result.get("ok")), **result}), 200
 
 # ─── Polls ───
+
+@live_bp.route("/api/rooms/<room_id>/polls", methods=["GET"])
+@login_required
+def api_rooms_polls(room_id):
+    data = phase29_live.get_polls(room_id)
+    return jsonify({"polls": data.get("polls", [])}), 200
 
 @live_bp.route("/api/live/<room_id>/poll", methods=["POST"])
 @login_required

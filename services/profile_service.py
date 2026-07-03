@@ -1587,13 +1587,19 @@ def get_profile_bundle(profile_id=None, viewer_id=None, viewer=None, username=No
     stories = get_stories_by_creator(pid, viewer_id=viewer_id) if pid else []
     highlights = get_highlights(pid, viewer_id=viewer_id) if pid else []
 
-    from services.live_engine import get_live_room
-    live_room = get_live_room(pid) if pid else None
+    live_rooms = []
+    if pid and neon_table_exists("chain_live_rooms"):
+        live_rooms = fast_query(
+            "SELECT id, profile_id, host_profile_id, title, category, is_live, status, viewer_count, cover_url, thumbnail_url, created_at FROM chain_live_rooms WHERE (host_profile_id = %s OR profile_id = %s) AND (is_live = TRUE OR status = 'live') ORDER BY viewer_count DESC LIMIT 5",
+            (pid, pid),
+            timeout_ms=2000,
+            default=[]
+        ) or []
 
     content = {
         "posts": [],
         "reels": [],
-        "rooms": [live_room] if live_room else [],
+        "rooms": live_rooms,
         "stories": stories,
         "highlights": highlights,
         "mutual_friends": mutual_friends if isinstance(mutual_friends, dict) else {"count": 0, "items": []},

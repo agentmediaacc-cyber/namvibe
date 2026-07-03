@@ -175,6 +175,19 @@ def request_guest(room_id, profile_id, note=None):
     return {"ok": True, "guest_request": record}
 
 
+def get_guest_requests(room_id):
+    room_id = _uuid(room_id)
+    requests = []
+    try:
+        rows = fast_query("SELECT id, room_id, profile_id, status, note, created_at FROM chain_live_guest_requests WHERE room_id = %s AND status = 'pending'", (room_id,), timeout_ms=500, default=[])
+        for row in rows:
+            requests.append({"id": row["id"], "room_id": row["room_id"], "profile_id": row["profile_id"], "status": row.get("status", "pending"), "note": row.get("note", "")})
+    except Exception:
+        pass
+    if not requests:
+        requests = [r for r in _GUEST_REQUESTS.values() if r.get("room_id") == room_id and r.get("status") == "pending"]
+    return {"ok": True, "requests": requests}
+
 def update_guest_request(request_id, status):
     request_id = _uuid(request_id)
     status = status if status in {"accepted", "rejected", "pending"} else "pending"
@@ -197,6 +210,36 @@ def create_poll(room_id, profile_id, question, options):
     emit_to_live_room(room_id, "live:poll", record)
     return {"ok": True, "poll": record}
 
+
+def get_polls(room_id):
+    room_id = _uuid(room_id)
+    polls = []
+    try:
+        rows = fast_query("SELECT id, room_id, profile_id, question, options, votes, status, created_at FROM chain_live_polls WHERE room_id = %s ORDER BY created_at DESC", (room_id,), timeout_ms=500, default=[])
+        for row in rows:
+            opts = row.get("options") or []
+            if isinstance(opts, str):
+                try:
+                    opts = json.loads(opts)
+                except Exception:
+                    opts = []
+            votes = row.get("votes") or {}
+            if isinstance(votes, str):
+                try:
+                    votes = json.loads(votes)
+                except Exception:
+                    votes = {}
+            poll_opts = [{"text": o, "votes": sum(1 for v in votes.values() if v == o)} for o in opts]
+            polls.append({"id": row["id"], "room_id": row["room_id"], "question": row.get("question", ""), "options": poll_opts, "status": row.get("status", "open")})
+    except Exception:
+        pass
+    if not polls:
+        for p in _POLLS.values():
+            if p.get("room_id") == room_id:
+                votes = p.get("votes") or {}
+                poll_opts = [{"text": o, "votes": sum(1 for v in votes.values() if v == o)} for o in (p.get("options") or [])]
+                polls.append({"id": p["id"], "room_id": p["room_id"], "question": p.get("question", ""), "options": poll_opts, "status": p.get("status", "open")})
+    return {"ok": True, "polls": polls}
 
 def vote_poll(poll_id, profile_id, option):
     poll_id = _uuid(poll_id)

@@ -275,11 +275,15 @@ def join_live_room(room_id, display_name=None):
     profile_id = profile.get("id") if profile else None
 
     if profile_id:
-        blocked = is_blocked(profile_id, profile_id)
-        if blocked:
-            return {"ok": False, "error": "blocked"}
-
-    room_resp = get_live_room(room_id)
+        room_resp = get_live_room(room_id)
+        if room_resp.get("ok"):
+            host_id = room_resp["room"].get("host_profile_id") or room_resp["room"].get("profile_id")
+            if host_id:
+                blocked = is_blocked(host_id, profile_id)
+                if blocked:
+                    return {"ok": False, "error": "blocked"}
+    else:
+        room_resp = get_live_room(room_id)
     if not room_resp.get("ok"):
         return {"ok": False, "error": "room_not_found"}
 
