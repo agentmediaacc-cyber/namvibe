@@ -830,11 +830,15 @@ def _fetch_live_rooms():
 
 
 def _activity_select():
-    return select_existing_columns(
-        "chain_activity_events",
-        ["id", "actor_profile_id", "recipient_profile_id", "event_type",
-         "target_type", "target_id", "metadata", "visibility", "created_at"],
-    )
+    snapshot = _table_column_snapshot("chain_activity_events")
+    if snapshot.get("source") != "live":
+        return []
+    available = set(snapshot.get("columns") or set())
+    wanted = [
+        "id", "actor_profile_id", "recipient_profile_id", "event_type",
+        "target_type", "target_id", "metadata", "visibility", "created_at",
+    ]
+    return [column for column in wanted if column in available]
 
 
 def _fetch_friend_activity(viewer_id=None, limit=10):
@@ -842,38 +846,48 @@ def _fetch_friend_activity(viewer_id=None, limit=10):
     if not viewer_id:
         return []
     columns = _activity_select()
-    if not columns or "actor_profile_id" not in set(columns):
+    if not columns:
         return []
     available = set(columns)
-    where = ["ae.deleted_at IS NULL", "ae.created_at > now() - interval '7 days'"]
+    actor_candidates = []
+    for col in ("actor_profile_id", "profile_id", "user_profile_id", "user_id"):
+        if col not in actor_candidates and (col in available or True):
+            actor_candidates.append(col)
+    base_where = ["ae.created_at > now() - interval '7 days'"]
+    if "deleted_at" in available:
+        base_where.insert(0, "ae.deleted_at IS NULL")
     if "visibility" in available:
-        where.append("ae.visibility = 'public'")
-    select_cols = [col for col in columns if col in available]
-    prefix_cols = ", ".join(f"ae.{col}" for col in select_cols)
-    clauses = " AND ".join(where)
-    query = f"""
-        SELECT {prefix_cols},
-               p.username AS p_username,
-               p.display_name AS p_display_name,
-               p.avatar_url AS p_avatar_url,
-               p.is_verified AS p_is_verified,
-               p.verified AS p_verified
-        FROM chain_activity_events ae
-        JOIN chain_profiles p ON p.id = ae.actor_profile_id
-        JOIN chain_follows f ON f.following_profile_id = ae.actor_profile_id
-        WHERE f.follower_profile_id = %s
-          AND f.deleted_at IS NULL
-          AND ({clauses})
-        ORDER BY ae.created_at DESC NULLS LAST
-        LIMIT %s
-    """
-    try:
-        rows = fast_query(query, (str(viewer_id), limit), timeout_ms=800, default=[])
-    except Exception:
-        return []
-    if not rows:
-        return []
-    return [_normalize_friend_activity(r) for r in rows if r.get("id")]
+        base_where.append("ae.visibility = 'public'")
+    select_cols = [col for col in columns if col in available and col not in {"actor_profile_id"}]
+
+    for actor_col in actor_candidates:
+        prefix_parts = [f"ae.{actor_col} AS actor_profile_id"]
+        prefix_parts.extend(f"ae.{col}" for col in select_cols)
+        prefix_cols = ", ".join(prefix_parts)
+        clauses = " AND ".join(base_where)
+        query = f"""
+            SELECT {prefix_cols},
+                   p.username AS p_username,
+                   p.display_name AS p_display_name,
+                   p.avatar_url AS p_avatar_url,
+                   p.is_verified AS p_is_verified,
+                   p.verified AS p_verified
+            FROM chain_activity_events ae
+            JOIN chain_profiles p ON p.id::text = ae.{actor_col}::text
+            JOIN chain_follows f ON f.following_profile_id::text = ae.{actor_col}::text
+            WHERE f.follower_profile_id::text = %s
+              AND f.deleted_at IS NULL
+              AND ({clauses})
+            ORDER BY ae.created_at DESC NULLS LAST
+            LIMIT %s
+        """
+        try:
+            rows = fast_query(query, (str(viewer_id), limit), timeout_ms=800, default=[])
+        except Exception:
+            continue
+        if rows:
+            return [_normalize_friend_activity(r) for r in rows if r.get("id")]
+    return []
 
 
 def _normalize_friend_activity(row):
@@ -1205,8 +1219,8 @@ def _homepage_relationship_context(viewer_id, creator_ids):
             """
             SELECT following_profile_id
             FROM chain_follows
-            WHERE follower_profile_id = %s
-              AND following_profile_id = ANY(%s)
+            WHERE follower_profile_id::text = %s
+              AND following_profile_id::text = ANY(%s)
             """,
             (str(viewer_id), creator_ids),
             timeout_ms=700,
@@ -1246,9 +1260,9 @@ def _homepage_relationship_context(viewer_id, creator_ids):
                    event_type,
                    COALESCE(watch_ms, 0) AS watch_ms
             FROM chain_video_events
-            WHERE viewer_profile_id = %s
+            WHERE viewer_profile_id::text = %s
               AND created_at > now() - interval '30 days'
-              AND creator_profile_id = ANY(%s)
+              AND creator_profile_id::text = ANY(%s)
             ORDER BY created_at DESC
             LIMIT 500
             """,

@@ -17,10 +17,12 @@ Tests without browser:
 12. Cleanup test rows/files if possible.
 """
 import io
+import json
 import os
 import sys
 import uuid
 import tempfile
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -56,6 +58,23 @@ def check_buckets():
     ok, msg = check_bucket_exists()
     return ok, msg
 
+def resolve_test_profile_id():
+    profile_id = os.getenv("AUDIT_PROFILE_ID") or os.getenv("TEST_PROFILE_ID")
+    if profile_id:
+        return profile_id, "env"
+    creds_path = Path(__file__).resolve().parents[1] / "secrets" / "test_credentials.json"
+    if not creds_path.exists():
+        return None, "missing secrets/test_credentials.json"
+    try:
+        creds = json.loads(creds_path.read_text())
+    except Exception as exc:
+        return None, f"invalid credentials file: {exc}"
+    for key in ("chain_star", "chain_moon", "chain_gold", "chain_million", "chain_premium"):
+        record = creds.get(key) or {}
+        if record.get("profile_id"):
+            return record["profile_id"], f"credentials:{key}"
+    return None, "no seeded profile_id found"
+
 def generate_test_image():
     """Generate a tiny PNG test image."""
     try:
@@ -78,6 +97,48 @@ def generate_test_image():
 
 def generate_test_video():
     """Generate a tiny valid MP4. Returns BytesIO or None if impossible."""
+    try:
+        import numpy as np
+        try:
+            from moviepy import VideoClip
+        except ImportError:
+            from moviepy.editor import VideoClip
+
+        duration = 1.2
+        fps = 12
+        width, height = 240, 426
+        seed = int(datetime.now(timezone.utc).timestamp() * 1000) % 255
+
+        def make_frame(t):
+            progress = t / duration
+            frame = np.zeros((height, width, 3), dtype=np.uint8)
+            frame[:, :, 0] = (40 + seed + int(progress * 120)) % 255
+            frame[:, :, 1] = (100 + seed // 2 + int(progress * 80)) % 255
+            frame[:, :, 2] = (180 + int(progress * 60)) % 255
+            bar_width = 30 + int(progress * (width - 60))
+            frame[height // 2 - 18:height // 2 + 18, 30:bar_width, :] = [255, 255, 255]
+            frame[0, 0, :] = [seed, (seed * 2) % 255, (seed * 3) % 255]
+            return frame
+
+        clip = VideoClip(make_frame, duration=duration).with_fps(fps)
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        clip.write_videofile(
+            tmp_path,
+            codec="libx264",
+            audio=False,
+            fps=fps,
+            logger=None,
+            preset="ultrafast",
+            ffmpeg_params=["-crf", "36"],
+        )
+        with open(tmp_path, "rb") as f:
+            data = f.read()
+        os.unlink(tmp_path)
+        return io.BytesIO(data)
+    except Exception:
+        pass
     try:
         import subprocess
         tmp_in = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -146,7 +207,11 @@ def main():
     report("Supabase bucket access", PASS if buckets_ok else FAIL, buckets_msg)
 
     # Get a profile ID for testing
-    profile_id = os.getenv("AUDIT_PROFILE_ID") or os.getenv("TEST_PROFILE_ID")
+    profile_id, profile_id_source = resolve_test_profile_id()
+    if profile_id:
+        report("Audit profile resolved", PASS, f"{profile_id} via {profile_id_source}")
+    else:
+        report("Audit profile resolved", SKIP, profile_id_source)
 
     # 3. Test image
     print("\n3. Generating test image...")

@@ -25,7 +25,13 @@ _TEST_EMAIL_PATTERNS = [
     re.compile(r"\.local$", re.I),
 ]
 
-_SHOW_ALL = os.environ.get("CHAIN_SHOW_TEST_CONTENT", "0").lower() in ("1", "true", "yes")
+_SHOW_ALL = (
+    os.environ.get("CHAIN_SHOW_TEST_CONTENT", "0").lower() in ("1", "true", "yes")
+    or (
+        os.environ.get("CHAIN_FAST_LOCAL") == "1"
+        and os.environ.get("FLASK_ENV", "development") != "production"
+    )
+)
 
 
 def is_test_profile(profile):

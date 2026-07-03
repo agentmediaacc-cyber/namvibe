@@ -318,9 +318,21 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
         
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
-        
-        ranked = rank_feed(normalized, viewer_id=viewer_id, tab="for_you", limit=limit)
-        result = ranked[:limit]
+
+        # Keep the newest reels visible on homepage so fresh uploads reflect immediately.
+        newest = normalized[: min(5, len(normalized))]
+        ranked = rank_feed(normalized, viewer_id=viewer_id, tab="for_you", limit=max(limit, len(normalized)))
+        merged = []
+        seen = set()
+        for item in newest + ranked:
+            item_id = str(item.get("id") or "")
+            if not item_id or item_id in seen:
+                continue
+            seen.add(item_id)
+            merged.append(item)
+            if len(merged) >= limit:
+                break
+        result = merged[:limit]
         set_cache(cache_key_str, result, ttl=30)
         return result, False, None
         
