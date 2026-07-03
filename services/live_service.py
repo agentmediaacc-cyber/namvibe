@@ -435,10 +435,16 @@ def get_room(room_id):
             profile = _load_profile_map([room["host_profile_id"]]).get(room["host_profile_id"])
             if profile:
                 room["host_name"] = room.get("host_name") or profile.get("full_name") or profile.get("username") or "NamVibe Host"
-        return room
+        if room:
+            return room
     except Exception as error:
         print(f"[live_service] get_room failed: {error}")
-        return None
+
+    from services.live_feature_service import _ROOMS as _phase29_rooms
+    for rid, r in _phase29_rooms.items():
+        if str(rid) == str(room_id):
+            return _normalize_room(r)
+    return None
 
 
 def join_room(room_id, display_name):
@@ -531,7 +537,7 @@ def add_comment(room_id, body, display_name):
             return
 
         viewer_name = _viewer_name(display_name)
-        _insert_first(
+        ok = _insert_first(
             "chain_live_comments",
             [
                 {"room_id": room_id, "profile_id": (current or {}).get("id"), "display_name": viewer_name, "body": message, "created_at": _utcnow_iso()},
@@ -540,6 +546,15 @@ def add_comment(room_id, body, display_name):
                 {"room_id": room_id, "display_name": viewer_name, "comment": message, "created_at": _utcnow_iso()},
             ],
         )
+        if not ok:
+            from services.live_feature_service import _COMMENTS
+            _COMMENTS.setdefault(room_id, []).append({
+                "room_id": room_id,
+                "profile_id": (current or {}).get("id"),
+                "display_name": viewer_name,
+                "body": message,
+                "created_at": _utcnow_iso(),
+            })
     except Exception as error:
         print(f"[live_service] add_comment failed: {error}")
 

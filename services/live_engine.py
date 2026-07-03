@@ -452,6 +452,9 @@ def get_live_chat_messages(room_id, limit=50):
         order_by="created_at",
         desc=False,
     )
+    if not messages:
+        from services.live_feature_service import _COMMENTS
+        messages = _COMMENTS.get(room_id, [])
     return {"ok": True, "messages": messages}
 
 

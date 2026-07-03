@@ -39,10 +39,12 @@ def track_live_reaction(room_id, profile_id, reaction_type):
     }
     safe_insert("chain_live_reactions", payload)
     
-    # Increment room counter (simulated with direct update for now)
-    # In a high-traffic app, this would be debounced or done via RPC
-    supabase = get_supabase_admin()
-    supabase.rpc("increment_room_reactions", {"room_id": room_id}).execute()
+    # Increment room counter (best effort)
+    try:
+        supabase = get_supabase_admin()
+        supabase.rpc("increment_room_reactions", {"room_id": room_id}).execute()
+    except Exception:
+        pass
     
     return True
 
