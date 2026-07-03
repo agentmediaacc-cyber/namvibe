@@ -1,6 +1,4 @@
 // NamVibe Authentication JS
-console.log("NamVibe Auth System Initialized");
-
 document.addEventListener('DOMContentLoaded', () => {
     // Handle form loading states
     const authForm = document.querySelector('.auth-form');

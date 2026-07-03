@@ -1245,9 +1245,6 @@
 
   /* ── Phase 158a: Hydrate homepage from API or server data ── */
   function hydrateHomepage() {
-    console.log("NAMVIBE HYDRATE START");
-    console.log("window.NAMVIBE_HOME:", window.NAMVIBE_HOME);
-
     // Helper: get data from payload with fallback shapes
     function getFeedItems(p) { return p.feed_items || p.feed_for_you || []; }
     function getStories(p)   { return p.stories || []; }
@@ -1269,11 +1266,6 @@
       var storiesList = getStories(p);
       var feedList    = injectAds(getFeedItems(p), p.ads);
       var reelsList   = getReels(p);
-
-      console.log("stories:", storiesList.length);
-      console.log("feed_items:", feedList.length);
-      console.log("reels:", reelsList.length);
-      console.log("ads:", (p.ads || []).length);
 
       // ── Stories ──
       var storiesEl = document.getElementById("nvpro-stories");
@@ -1382,12 +1374,10 @@
           } else {
             try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {}
           }
-          console.log("NAMVIBE HYDRATE COMPLETE (API)");
         }
       })
       .catch(function (err) {
         clearTimeout(timeoutId);
-        console.log("NAMVIBE HYDRATE API FAILED, using server data", err);
         if (window.NAMVIBE_HOME && (!window.NAMVIBE_HOME.feed_items || !window.NAMVIBE_HOME.feed_items.length)) {
           if (window.NamVibeCache) {
             window.NamVibeCache.loadFeed().then(function (cached) {

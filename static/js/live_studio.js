@@ -54,6 +54,7 @@ function stopMedia(reset=true){
 
 function moveLogo(){
   const logo = document.getElementById("chainLogo");
+  if (!logo) return;
   logo.classList.remove("left","bottom");
 
   logoPosition = (logoPosition + 1) % 4;

@@ -57,14 +57,12 @@
     socket.on('connect', function () {
       _state.socketConnected = true;
       _state.reconnectAttempt = 0;
-      console.log('[LiveEngine] Socket connected');
       if (_state.currentRoomId) {
         joinSocketRoom(_state.currentRoomId);
       }
     });
     socket.on('disconnect', function () {
       _state.socketConnected = false;
-      console.log('[LiveEngine] Socket disconnected');
       attemptReconnect();
     });
     socket.on('live:chat', function (msg) {
@@ -88,7 +86,6 @@
       setTimeout(function () { window.location.href = '/live/'; }, 3000);
     });
     socket.on('live:join-token', function (data) {
-      console.log('[LiveEngine] Live join token:', data);
       showToast('Joined the room!', 'success');
     });
     _state.socket = socket;

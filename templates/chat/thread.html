@@ -248,7 +248,6 @@
     const socket = io();
 
     socket.on('connect', () => {
-        console.log("Socket connected");
         socket.emit('room:join', {room: 'thread:' + threadId});
         socket.emit('message:seen', {thread_id: threadId});
     });

@@ -28,10 +28,12 @@
     DOM.toastContainer = document.getElementById('notifToastContainer');
     DOM.unreadBadge = document.getElementById('unreadTabBadge');
 
-    DOM.tabs.addEventListener('click', onTabClick);
-    DOM.markAllBtn.addEventListener('click', onMarkAllRead);
-    DOM.bulkDeleteBtn.addEventListener('click', onBulkDelete);
-    DOM.settingsBtn.addEventListener('click', toggleSettingsModal);
+    if (!DOM.list) return;
+
+    if (DOM.tabs) DOM.tabs.addEventListener('click', onTabClick);
+    if (DOM.markAllBtn) DOM.markAllBtn.addEventListener('click', onMarkAllRead);
+    if (DOM.bulkDeleteBtn) DOM.bulkDeleteBtn.addEventListener('click', onBulkDelete);
+    if (DOM.settingsBtn) DOM.settingsBtn.addEventListener('click', toggleSettingsModal);
 
     setupInfiniteScroll();
     connectSocket();

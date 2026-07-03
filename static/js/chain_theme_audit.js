@@ -69,26 +69,8 @@
     check: check,
     report: function() {
       var r = check();
-      console.log('[NamVibe Theme Audit]');
-      console.log('  OK:', r.ok);
-      console.log('  Checked:', r.checked, 'variables');
-      if (r.missing) console.log('  MISSING:', r.missing);
-      if (r.mismatched) console.log('  MISMATCHED:', r.mismatched);
-      console.log('  Theme:', r.theme);
-      console.log('  Body BG:', r.body_bg);
-      if (r.potential_light_cards_dark_bg) {
-        console.log('  WARN:', r.potential_light_cards_dark_bg, 'cards may be light on dark bg');
-      }
       r.issues = r.variables;
       return r;
     }
   };
-
-  if (document.readyState === 'complete') {
-    window.chainThemeAudit.report();
-  } else {
-    window.addEventListener('load', function() {
-      setTimeout(function() { window.chainThemeAudit.report(); }, 500);
-    });
-  }
 })();

@@ -54,13 +54,16 @@
     currentIndex = index;
     const story = stories[index];
     if (!story) return;
-    usernameLabel.textContent = story.username || 'User';
+    if (!viewer) return;
+    if (usernameLabel) usernameLabel.textContent = story.username || 'User';
     const uploaded = story.uploaded_label || timeAgo(story.created_at);
     const expires = story.expires_in_label || '';
-    timeLabel.textContent = expires ? `${uploaded} · ${expires}` : uploaded;
-    userAvatar.src = story.avatar_url || '';
-    storyText.textContent = story.text_content || story.caption || '';
-    storyText.style.background = story.background_color || 'transparent';
+    if (timeLabel) timeLabel.textContent = expires ? `${uploaded} · ${expires}` : uploaded;
+    if (userAvatar) userAvatar.src = story.avatar_url || '';
+    if (storyText) {
+      storyText.textContent = story.text_content || story.caption || '';
+      storyText.style.background = story.background_color || 'transparent';
+    }
     if (viewerCountBtn) {
       if (story.is_owner) {
         viewerCountBtn.style.display = 'inline-flex';
@@ -96,8 +99,8 @@
 
   function hideViewer() {
     clearInterval(progressTimer);
-    storyVideo.pause();
-    viewer.style.display = 'none';
+    if (storyVideo) storyVideo.pause();
+    if (viewer) viewer.style.display = 'none';
   }
 
   function startProgress() {
