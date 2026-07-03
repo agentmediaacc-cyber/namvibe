@@ -922,7 +922,7 @@ body.namvibe-social-home{
 {% set saved_route = "/favorites/" %}
 {% set events_route = "/discover/" %}
 {% set music_route = "/discover/" %}
-{% set show_groups_link = false %}
+{% set show_groups_link = true %}
 {% set show_marketplace_link = true %}
 {% set show_events_link = false %}
 {% set show_saved_link = true %}
@@ -1265,6 +1265,26 @@ body.namvibe-social-home{
             </div>
             <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}" data-following="{{ 'true' if creator.get('viewer_is_following') else 'false' }}">{{ 'Following' if creator.get('viewer_is_following') else 'Follow' }}</button>
           </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% set public_groups = public_groups or [] %}
+      {% if public_groups %}
+      <section class="nv-side-card">
+        <div class="nv-side-head">
+          <span>Discover Groups</span>
+          <a class="nv-section-link" href="/messages/">Browse</a>
+        </div>
+        <div class="nv-side-body">
+          {% for g in public_groups[:5] %}
+          <a class="nv-trend" href="/messages/">
+            <div class="nv-trend-info">
+              <div class="nv-trend-title">{{ g.get("name") or "Group" }}</div>
+              <div class="nv-trend-sub">{{ g.get("member_count") or 0 }} members</div>
+            </div>
+          </a>
           {% endfor %}
         </div>
       </section>

@@ -184,6 +184,22 @@ with app.test_client() as c:
     check("reply 200", rr2.status_code == 200, str(rr2.status_code))
     check("reply success", rd.get("success") is True, str(rd))
 
+    # === STEP 11: Group discovery ===
+    print("\n--- STEP 11: Group discovery ---")
+    gd = c.get("/messages/api/groups/discover")
+    gdd = gd.get_json() or {}
+    check("discover 200", gd.status_code == 200, str(gd.status_code))
+    check("discover ok", gdd.get("ok") is True or gdd.get("success") is True, str(gdd))
+    discovered = gdd.get("groups", [])
+    check("discover has groups", len(discovered) > 0, str(len(discovered)))
+    check("group has member_count", discovered[0].get("member_count") is not None if discovered else True, str(discovered[0] if discovered else ""))
+
+    gm = c.get("/messages/api/groups/mine")
+    gmd = gm.get_json() or {}
+    check("mine 200", gm.status_code == 200)
+    mine = gmd.get("groups", [])
+    check("mine has joined groups", len(mine) > 0, str(len(mine)))
+
 print("\n" + "=" * 72)
 print(f"RESULTS:  PASS: {PASS}  FAIL: {FAIL}  WARN: {WARN}  TOTAL: {PASS + FAIL + WARN}")
 if FAIL == 0:

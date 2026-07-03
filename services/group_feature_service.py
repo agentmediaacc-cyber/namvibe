@@ -36,7 +36,7 @@ def _db_available():
     if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
         return False
     status = get_pool_status()
-    return bool(status.get("pool_ready") or status.get("recent_success") or status.get("configured"))
+    return bool(status.get("pool_ready") or status.get("configured"))
 
 
 def _write(sql, params=(), timeout_ms=900):
@@ -80,6 +80,7 @@ def create_group(owner_profile_id, name, visibility="public", **settings):
         )
         _write("INSERT INTO chain_group_members (group_id, profile_id, role, status) VALUES (%s, %s, 'admin', 'active') ON CONFLICT DO NOTHING", (group_id, owner_profile_id))
     except Exception:
+        payload["members"] = [owner_profile_id]
         _GROUPS[group_id] = payload
     return {"ok": True, "group": payload, "invite_link": f"/messages/groups/join/{invite_code}"}
 
@@ -93,7 +94,11 @@ def join_public_group(group_id, profile_id):
     try:
         _write("INSERT INTO chain_group_members (group_id, profile_id, role, status) VALUES (%s, %s, 'member', 'active') ON CONFLICT DO NOTHING", (group_id, profile_id))
     except Exception:
-        _GROUPS.setdefault(group_id, {"id": group_id, "members": []}).setdefault("members", []).append(profile_id)
+        if group_id not in _GROUPS or not isinstance(_GROUPS[group_id], dict):
+            _GROUPS[group_id] = {"members": []}
+        if "members" not in _GROUPS[group_id]:
+            _GROUPS[group_id]["members"] = []
+        _GROUPS[group_id]["members"].append(profile_id)
     return {"ok": True, "status": "joined", "group_id": group_id}
 
 
@@ -231,7 +236,15 @@ def get_public_groups(limit=8):
         )
         return rows or []
     except Exception:
-        return []
+        groups = list(_GROUPS.values())
+        groups = [g for g in groups if isinstance(g, dict) and g.get("visibility") == "public"]
+        groups.sort(key=lambda g: g.get("created_at", ""), reverse=True)
+        result = []
+        for g in groups[:limit]:
+            g = dict(g)
+            g["member_count"] = len(_GROUPS.get(g["id"], {}).get("members", [])) if g.get("id") else 0
+            result.append(g)
+        return result
 
 
 def invite_link(group_id):
@@ -329,7 +342,15 @@ def my_groups(profile_id, limit=20):
         )
         return rows or []
     except Exception:
-        return []
+        result = []
+        for gid, g in _GROUPS.items():
+            if isinstance(g, dict):
+                members = g.get("members", [])
+                if profile_id in members or g.get("owner_profile_id") == profile_id:
+                    result.append({**g, "id": gid, "role": "admin" if g.get("owner_profile_id") == profile_id else "member"})
+                elif isinstance(members, list) and profile_id in members:
+                    result.append({**g, "id": gid, "role": "member"})
+        return result[:limit]
 
 
 def _insert_group_record(table, store, group_id, profile_id, data, key):

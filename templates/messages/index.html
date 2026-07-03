@@ -1987,12 +1987,93 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
             }
             document.getElementById('threadList').style.display = '';
             document.getElementById('friendRequestsPanel').style.display = 'none';
+            if (tab === 'groups') {
+                loadGroupsTab();
+                return;
+            }
             document.querySelectorAll('.thread-card').forEach(card=>{
-                const type = card.dataset.type || 'direct';
-                card.style.display = tab === 'all' || (tab === 'groups' && type === 'group') || tab === 'unread' ? 'flex':'none';
+                card.style.display = tab === 'all' || tab === 'unread' ? 'flex':'none';
             });
         });
     });
+
+    async function loadGroupsTab() {
+        const list = $('threadList');
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:#aaa;"><i class="fas fa-spinner fa-spin"></i> Loading groups...</div>';
+        const [mineRes, discoverRes] = await Promise.all([
+            fetch('/messages/api/groups/mine').catch(()=>null),
+            fetch('/messages/api/groups/discover').catch(()=>null)
+        ]);
+        const mine = mineRes ? (await mineRes.json()).groups || [] : [];
+        const discover = discoverRes ? (await discoverRes.json()).groups || [] : [];
+        let html = '';
+        if (mine.length) {
+            html += '<div style="padding:10px 14px 4px;font-size:12px;font-weight:900;color:#aaa;text-transform:uppercase;">My Groups</div>';
+            mine.forEach(g => {
+                const mc = g.member_count || 0;
+                html += '<div class="thread-card" data-id="' + escapeHtml(g.id) + '" data-name="' + escapeHtml(g.name) + '" data-type="group">' +
+                    '<div class="thread-avatar"><i class="fas fa-users"></i></div>' +
+                    '<div class="thread-body"><div class="thread-line"><span class="thread-name">' + escapeHtml(g.name) + '</span></div>' +
+                    '<div class="thread-preview">' + mc + ' member' + (mc !== 1 ? 's' : '') + ' · ' + escapeHtml(g.visibility || 'public') + '</div>' +
+                    '<div class="thread-meta"><span class="thread-pill">Group</span></div></div></div>';
+            });
+        }
+        if (discover.length) {
+            html += '<div style="padding:10px 14px 4px;font-size:12px;font-weight:900;color:#aaa;text-transform:uppercase;margin-top:12px;">Discover Groups</div>';
+            discover.forEach(g => {
+                const mc = g.member_count || 0;
+                const isMember = mine.some(m => m.id === g.id);
+                html += '<div class="thread-card" data-id="' + escapeHtml(g.id) + '" data-name="' + escapeHtml(g.name) + '" data-type="group" data-discover="1">' +
+                    '<div class="thread-avatar"><i class="fas fa-users"></i></div>' +
+                    '<div class="thread-body"><div class="thread-line"><span class="thread-name">' + escapeHtml(g.name) + '</span></div>' +
+                    '<div class="thread-preview">' + mc + ' member' + (mc !== 1 ? 's' : '') + ' · public</div>' +
+                    '<div class="thread-meta"><button class="premium-btn ' + (isMember ? '' : 'primary') + ' join-group-btn" data-gid="' + escapeHtml(g.id) + '" style="padding:4px 12px;font-size:11px;">' + (isMember ? 'Joined' : 'Join') + '</button></div></div></div>';
+            });
+        }
+        if (!mine.length && !discover.length) {
+            html = '<div class="group-empty-card"><h3>No groups yet</h3><p>Create a new group or discover public communities.</p><button class="premium-btn primary" id="openGroupMainDiscover" type="button">Create Group</button></div>';
+        }
+        list.innerHTML = html;
+
+        list.querySelectorAll('.thread-card[data-discover]').forEach(c => {
+            c.addEventListener('click', function(e) {
+                if (e.target.closest('.join-group-btn')) return;
+                openThread(this.dataset.id, this.dataset.name, 'group');
+            });
+        });
+        list.querySelectorAll('.thread-card:not([data-discover])').forEach(c => {
+            c.addEventListener('click', function() {
+                openThread(this.dataset.id, this.dataset.name, 'group');
+            });
+        });
+        document.querySelectorAll('.join-group-btn').forEach(btn => {
+            btn.addEventListener('click', async function(e) {
+                e.stopPropagation();
+                const gid = this.dataset.gid;
+                const csrf = document.querySelector('meta[name=\"csrf-token\"]')?.content;
+                this.textContent = 'Joining...';
+                try {
+                    const res = await fetch('/messages/api/groups/' + encodeURIComponent(gid) + '/join', {
+                        method: 'POST',
+                        headers: {'X-CSRFToken': csrf || '', 'Content-Type': 'application/json'}
+                    });
+                    const data = await res.json();
+                    if (data.success || data.ok) {
+                        this.textContent = 'Joined';
+                        this.classList.remove('primary');
+                    } else {
+                        this.textContent = 'Join';
+                        alert(data.error || 'Failed to join');
+                    }
+                } catch(e) {
+                    this.textContent = 'Join';
+                    alert('Failed to join group');
+                }
+            });
+        });
+        const discoverBtn = $('#openGroupMainDiscover');
+        if (discoverBtn) discoverBtn.addEventListener('click', () => open('groupModal'));
+    }
 
     const params = new URLSearchParams(location.search);
     const openId = params.get('open');

@@ -1116,6 +1116,11 @@ def create_app():
                 "trending_hashtags": data["trending_hashtags"],
                 "friend_activity": data["friend_activity"],
             }
+            try:
+                from services.group_feature_service import get_public_groups
+                data["public_groups"] = get_public_groups(limit=5)
+            except Exception:
+                data["public_groups"] = []
             return data
 
         with timed("home"):

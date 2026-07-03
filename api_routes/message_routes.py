@@ -632,6 +632,24 @@ def api_group_marketplace(group_id):
     return jsonify({"success": bool(result.get("ok")), **result}), 200
 
 
+@message_bp.route("/api/groups/discover")
+@login_required
+def api_group_discover():
+    groups = phase29_groups.get_public_groups(limit=20)
+    return jsonify({"ok": True, "groups": groups})
+
+
+@message_bp.route("/api/groups/mine")
+@login_required
+def api_my_groups():
+    profile = get_current_profile()
+    profile_id = (profile or {}).get("id") or session.get("profile_id")
+    if not profile_id:
+        return jsonify({"ok": False, "groups": []}), 200
+    groups = phase29_groups.my_groups(profile_id)
+    return jsonify({"ok": True, "groups": groups})
+
+
 @message_bp.route("/start/<profile_id>", methods=["GET", "POST"])
 @login_required
 def start_direct_message_from_profile(profile_id):
