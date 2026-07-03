@@ -319,12 +319,27 @@
       "</div></div>";
   }
 
+  function renderAdCard(item) {
+    var t = item.title || item.display_name || 'Sponsored';
+    var b = item.body || item.text || '';
+    var u = item.target_url || item.link_url || '#';
+    return '<div class="nvpro-post-card nvpro-ad-card" data-item-id="' + (item.id || item.campaign_id || '') + '" data-type="ad">' +
+      '<div class="nvpro-post-head"><div class="nvpro-post-meta"><span class="nvpro-post-author">' + escapeHtml(t) + '</span><span class="nvpro-post-time">Sponsored</span></div></div>' +
+      '<div class="nvpro-post-body" style="padding:12px 16px;color:#94a3b8;font-size:14px">' + (b || 'Promoted content') + '</div>' +
+      '<a href="' + escapeHtml(u) + '" target="_blank" rel="noopener" class="nvpro-action-btn" style="display:inline-flex;margin:0 16px 12px;padding:8px 20px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;width:auto">Learn More</a>' +
+      '</div>';
+  }
+
   function renderFeedItems(feedEl, items) {
     if (!feedEl) return;
     if (!items || items.length === 0) { renderEmpty(feedEl); return; }
     feedEl.innerHTML = "";
     var html = "";
     items.forEach(function (item, index) {
+      if (item.type === 'ad' || item.type === 'sponsored' || item.is_ad) {
+        html += renderAdCard(item);
+        return;
+      }
       var text = item.text || item.caption || "";
       var mediaUrl = item.media_url || item.public_url || item.image_url || item.thumbnail_url || "";
       var videoUrl = item.video_url || "";
@@ -376,6 +391,35 @@
     feedEl.innerHTML = html;
     // Lazy-load videos after rendering
     lazyLoadVideos();
+    // Wire ad dismiss buttons
+    feedEl.querySelectorAll('.nvpro-ad-card').forEach(function (card) {
+      var dismissBtn = card.querySelector('.ad-card-dismiss');
+      if (dismissBtn) return; // already handled in premium
+      // Add close button if not present
+      var head = card.querySelector('.nvpro-post-head');
+      if (head) {
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'ad-card-dismiss';
+        closeBtn.setAttribute('aria-label', 'Dismiss');
+        closeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+        closeBtn.style.cssText = 'background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;margin-left:auto';
+        head.appendChild(closeBtn);
+      }
+    });
+    feedEl.querySelectorAll('.nvpro-ad-card .ad-card-dismiss:not([data-wired])').forEach(function (btn) {
+      btn.setAttribute('data-wired', '1');
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var card = btn.closest('.nvpro-ad-card');
+        if (card) {
+          card.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(-8px)';
+          setTimeout(function () { card.remove(); }, 220);
+        }
+      });
+    });
   }
 
   /* ── Tab switching ── */
@@ -1209,14 +1253,27 @@
     function getStories(p)   { return p.stories || []; }
     function getReels(p)     { return p.reels || []; }
 
+    function injectAds(feed, ads) {
+      if (!ads || !ads.length) return feed;
+      var out = feed.slice();
+      var inserted = 0;
+      ads.forEach(function (ad) {
+        var pos = Math.min(inserted * 5 + 3, out.length);
+        out.splice(pos, 0, ad);
+        inserted++;
+      });
+      return out;
+    }
+
     function doHydrate(p) {
       var storiesList = getStories(p);
-      var feedList    = getFeedItems(p);
+      var feedList    = injectAds(getFeedItems(p), p.ads);
       var reelsList   = getReels(p);
 
       console.log("stories:", storiesList.length);
       console.log("feed_items:", feedList.length);
       console.log("reels:", reelsList.length);
+      console.log("ads:", (p.ads || []).length);
 
       // ── Stories ──
       var storiesEl = document.getElementById("nvpro-stories");

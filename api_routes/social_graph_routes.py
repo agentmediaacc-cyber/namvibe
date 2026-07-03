@@ -196,17 +196,18 @@ def view_advertising():
 def api_create_campaign():
     profile = get_current_profile()
     data = request.get_json(silent=True) or request.form
-    name = data.get("name", "Campaign")
+    title = data.get("title") or data.get("name", "Campaign")
     objective = data.get("objective", "reach")
-    media_url = data.get("media_url")
+    content_url = data.get("content_url") or data.get("media_url")
     media_type = data.get("media_type", "image")
+    target_url = data.get("target_url")
     budget = float(data.get("budget", 0))
-    start_date = data.get("start_date")
-    end_date = data.get("end_date")
+    start_date = data.get("start_date") or data.get("starts_at")
+    end_date = data.get("end_date") or data.get("ends_at")
     target_audience = data.get("target_audience", {})
-    result = create_campaign(profile["id"], name, objective=objective, media_url=media_url,
+    result = create_campaign(profile["id"], title, objective=objective, content_url=content_url,
                              media_type=media_type, target_audience=target_audience,
-                             budget=budget, start_date=start_date, end_date=end_date)
+                             budget=budget, start_date=start_date, end_date=end_date, target_url=target_url)
     return jsonify(result)
 
 @social_graph_bp.route("/api/campaign/<campaign_id>/pause", methods=["POST"])

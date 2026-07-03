@@ -314,16 +314,16 @@
   }
 
   function renderAdItem(item) {
-    var title = item.display_name || 'Sponsored';
-    var body = item.text || 'Promoted content from our partners.';
-    var ctaUrl = item.link_url || '#';
+    var title = item.title || item.display_name || 'Sponsored';
+    var body = item.body || item.text || 'Promoted content from our partners.';
+    var ctaUrl = item.target_url || item.link_url || '#';
     return '' +
-      '<div class="ad-card" data-ad-id="' + escapeHtml(item.id || '') + '">' +
+      '<div class="ad-card" data-ad-id="' + escapeHtml(item.id || item.campaign_id || '') + '">' +
         '<div class="ad-card-sponsored"><span>Sponsored</span><button type="button" class="ad-card-dismiss" aria-label="Dismiss"><i class="fas fa-times"></i></button></div>' +
         '<div class="ad-card-image"><i class="fas fa-bolt"></i></div>' +
         '<div class="ad-card-title">' + escapeHtml(title) + '</div>' +
         '<div class="ad-card-body">' + escapeHtml(body) + '</div>' +
-        '<a href="' + escapeHtml(ctaUrl) + '" class="ad-card-cta">Learn More</a>' +
+        '<a href="' + escapeHtml(ctaUrl) + '" target="_blank" rel="noopener" class="ad-card-cta">Learn More</a>' +
       '</div>';
   }
 

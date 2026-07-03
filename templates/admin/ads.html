@@ -1,0 +1,62 @@
+{% extends "admin/dashboard.html" %}
+{% block title %}Ad Campaigns | {{ super() }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+  <h1 class="h2">Ad Campaigns</h1>
+  <div class="btn-toolbar mb-2 mb-md-0">
+    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">Refresh</button>
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-striped table-sm">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Owner</th>
+        <th>Type</th>
+        <th>Budget</th>
+        <th>Status</th>
+        <th>Impressions</th>
+        <th>Clicks</th>
+        <th>Starts</th>
+        <th>Ends</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in campaigns %}
+      <tr>
+        <td>{{ c.title or c.name or '—' }}</td>
+        <td>
+          <a href="/profile/{{ c.owner_id or c.profile_id }}">{{ c.display_name or c.username or c.owner_id }}</a>
+        </td>
+        <td>{{ c.ad_type or c.objective or 'feed' }}</td>
+        <td>{{ c.budget or 0 }}</td>
+        <td>
+          <span class="badge bg-{{ 'success' if c.status == 'active' else 'warning' if c.status == 'pending' else 'secondary' }}">{{ c.status }}</span>
+        </td>
+        <td>{{ c.impressions_count or c.impressions or 0 }}</td>
+        <td>{{ c.clicks_count or c.clicks or 0 }}</td>
+        <td>{{ c.starts_at or c.start_date or '—' }}</td>
+        <td>{{ c.ends_at or c.end_date or '—' }}</td>
+        <td>
+          {% if c.status == 'pending' %}
+          <form method="POST" action="{{ url_for('ad_admin.api_approve') }}" style="display:inline">
+            <input type="hidden" name="campaign_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('ad_admin.api_reject') }}" style="display:inline">
+            <input type="hidden" name="campaign_id" value="{{ c.id }}">
+            <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="text-center text-muted">No campaigns found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
