@@ -239,11 +239,48 @@ def list_notifications(profile_id, tab="all", page=1, limit=30):
         if cached is not None:
             return cached
         items, has_more = list_notifications_tab(profile_id, tab=tab, page=page, limit=limit)
-        result = ([format_notification(item) for item in items], has_more)
+        formatted = [format_notification(item) for item in items]
+        ranked = _rank_notification_list(formatted)
+        result = (ranked, has_more)
         set_cache(cache_key_str, result, ttl=15)
         return result
     except Exception:
         return [], False
+
+
+_NOTIF_PRIORITY = {
+    "new_message": 100,
+    "friend_request": 90,
+    "friend_request_accepted": 85,
+    "mention": 80,
+    "story_mention": 80,
+    "comment": 65,
+    "reply": 65,
+    "post_like": 45,
+    "reel_like": 45,
+    "comment_like": 45,
+    "live_started": 55,
+    "follow": 35,
+    "follow_accepted": 35,
+    "system_announcement": 20,
+    "security_alert": 90,
+    "verification_approved": 70,
+    "story_reaction": 40,
+    "story_view": 25,
+}
+
+
+def _rank_notification_list(items):
+    if not items:
+        return items
+    scored = []
+    for item in items:
+        etype = (item.get("event_type") or item.get("type") or "").lower()
+        priority = _NOTIF_PRIORITY.get(etype, 10)
+        created = item.get("created_at") or item.get("timestamp") or ""
+        scored.append((-priority, created, item))
+    scored.sort(key=lambda x: (x[0], x[1] if isinstance(x[1], str) else ""))
+    return [s[2] for s in scored]
 
 
 def unread_count(profile_id):

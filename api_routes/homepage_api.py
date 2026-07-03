@@ -99,7 +99,7 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
 
     try:
         posts, _, _ = fetch_posts_v2(
-            ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "mime_type", "post_type", "likes_count", "comments_count", "created_at"],
+            ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "mime_type", "post_type", "likes_count", "comments_count", "views_count", "shares_count", "created_at"],
             timeout_ms=20000,
             limit=min(limit, 12),
             viewer_id=viewer_id,
@@ -114,7 +114,7 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
 
     try:
         reels, _, _ = fetch_reels_v2(
-            ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "created_at"],
+            ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "likes_count", "comments_count", "views_count", "shares_count", "music_title", "created_at"],
             timeout_ms=20000,
             limit=min(limit, 8),
             viewer_id=viewer_id,

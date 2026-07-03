@@ -306,20 +306,42 @@ def _build_feed_uncached(profile_id=None, limit=_DEFAULT_FEED_LIMIT, feed_type="
     if not rows:
         return []
 
+    ai_feed_types = {"for_you", "homepage", "explore", "trending", "following", "nearby"}
+
+    if feed_type in ai_feed_types and profile_id:
+        try:
+            from services.recommendation_service import score_feed_items, detect_viral_items
+            scored = score_feed_items(profile_id, rows, feed_type=feed_type)
+            viral_items = detect_viral_items(scored) if scored else []
+            ranked = []
+            seen = set()
+            for item, vstatus in viral_items:
+                item_key = (item.get("type"), item.get("id"))
+                if item_key in seen:
+                    continue
+                seen.add(item_key)
+                rank_score = item.pop("_score", 0) or 0
+                norm = _normalize_item(item, rank_score)
+                norm["recommendation_score"] = round(rank_score, 4)
+                norm["viral_status"] = vstatus
+                ranked.append(norm)
+            ranked.sort(key=lambda x: x["rank_score"], reverse=True)
+            return ranked[:int(limit)]
+        except Exception:
+            pass
+
     diversity_counts = {}
     ranked = []
     seen = set()
-    
-    # Pre-fetch quality scores if needed (Omitted for brevity, assuming row might have it soon)
 
     for row in rows:
         item_key = (row.get("type"), row.get("id"))
         if item_key in seen:
             continue
         seen.add(item_key)
-        
+
         score = _rank_item(row, feed_type=feed_type, diversity_counts=diversity_counts)
-        if score > -500: # Filter out penalized content
+        if score > -500:
             ranked.append(_normalize_item(row, score))
 
     ranked.sort(key=lambda item: item["rank_score"], reverse=True)
@@ -402,6 +424,11 @@ def _normalize_item(row, score):
         "comments_count": _safe_int(row.get("comments_count")),
         "shares_count": _safe_int(row.get("shares_count")),
         "views_count": _safe_int(row.get("views_count")),
+        "saves_count": _safe_int(row.get("saves_count", row.get("saves_count", 0))),
         "rank_score": score,
+        "recommendation_score": row.get("recommendation_score") if isinstance(row, dict) else None,
+        "viral_status": row.get("viral_status") if isinstance(row, dict) else None,
+        "author_region": row.get("author_region") if isinstance(row, dict) else None,
+        "creator_trust": _safe_float(row.get("creator_trust", row.get("engagement_score", 0))),
         "target_url": target,
     }

@@ -104,8 +104,28 @@ def get_trending_items(item_type="hashtag", limit=20, *args, **kwargs):
             return get_trending_hashtags(limit=limit)
         if item_type in ("location", "locations"):
             return get_trending_locations(limit=limit)
-
-        # Unknown types like live_room should return safe empty list
+        if item_type in ("live", "live_room", "live_rooms"):
+            from services.recommendation_service import get_trending
+            data = get_trending(window_hours=6, limit=limit, content_type="live")
+            return data.get("live", [])
+        if item_type in ("post", "posts"):
+            from services.recommendation_service import get_trending
+            data = get_trending(window_hours=24, limit=limit, content_type="posts")
+            return data.get("posts", [])
+        if item_type in ("reel", "reels"):
+            from services.recommendation_service import get_trending
+            data = get_trending(window_hours=24, limit=limit, content_type="reels")
+            return data.get("reels", [])
+        if item_type in ("creator", "creators"):
+            from services.recommendation_service import get_trending
+            data = get_trending(window_hours=168, limit=limit, content_type="creators")
+            return data.get("creators", [])
         return []
     except Exception:
         return []
+
+
+def get_trending_with_windows(limit=10):
+    """Return trending for 1h, 6h, 24h, 7d rolling windows."""
+    from services.recommendation_service import get_trending_windows
+    return get_trending_windows(limit=limit)

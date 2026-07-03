@@ -696,6 +696,30 @@ def create_reel_record(profile_id, video_file, caption="", music_title="", visib
     music_title = sanitize_text(music_title, max_len=160)
     music_artist = sanitize_text(music_artist, max_len=120)
     visibility = normalize_visibility(visibility)
+
+    # ── Dedup: SHA256 content fingerprint ──
+    import hashlib
+    file_content = video_file.read()
+    content_hash = hashlib.sha256(file_content).hexdigest()
+    video_file.seek(0)
+    from services.redis_service import cache_get, cache_set as _cache_set
+    dedup_key = f"reel_content_hash:{profile_id}:{content_hash}"
+    existing_reel_id = cache_get(dedup_key)
+    if existing_reel_id:
+        rows = fast_query("SELECT * FROM chain_reels WHERE id = %s AND deleted_at IS NULL", [existing_reel_id], timeout_ms=5000, default=None)
+        if rows:
+            log_info("reel_duplicate_skipped", profile_id=profile_id, content_hash=content_hash[:12])
+            return rows[0], None
+    # DB-level check (catches cases where Redis was flushed)
+    if not existing_reel_id:
+        sql = "SELECT id FROM chain_reels WHERE profile_id = %s AND deleted_at IS NULL AND size_bytes = %s"
+        params = [profile_id, len(file_content)]
+        dup_rows = fast_query(sql, params, timeout_ms=5000, default=[])
+        for r in dup_rows:
+            _cache_set(dedup_key, r["id"], ttl=3600)
+            log_info("reel_duplicate_skipped_db", profile_id=profile_id, content_hash=content_hash[:12])
+            return r, None
+
     media, error = save_media_file(video_file, "reel", media_kind="video", profile_id=profile_id)
     if error:
         return None, error
@@ -742,6 +766,7 @@ def create_reel_record(profile_id, video_file, caption="", music_title="", visib
         _LOCAL_STORE["reels"].insert(0, record)
     _store_hashtags(parse_hashtags(caption), "reel", reel_id)
     invalidate_content_caches()
+    _cache_set(dedup_key, reel_id, ttl=3600)
     return record, None
 
 

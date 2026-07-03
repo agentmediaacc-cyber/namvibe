@@ -611,13 +611,19 @@ def delivery_acknowledged(message_id, profile_id):
 def set_typing(thread_id, profile_id, is_typing=True):
     """Sets typing status with expiry and emits update."""
     key = _typing_key(thread_id, profile_id)
-    if is_typing:
-        cache_set(key, {"profile_id": profile_id, "thread_id": thread_id, "expires_at": _utcnow_iso()}, ttl=_TYPING_TTL_SECONDS)
-    else:
-        cache_delete(key)
+    try:
+        if is_typing:
+            cache_set(key, {"profile_id": profile_id, "thread_id": thread_id, "expires_at": _utcnow_iso()}, ttl=_TYPING_TTL_SECONDS)
+        else:
+            cache_delete(key)
+    except Exception:
+        pass
     payload = {"profile_id": profile_id, "thread_id": thread_id, "typing": bool(is_typing)}
-    emit_to_thread(thread_id, "typing:update", payload)
-    emit_to_thread(thread_id, "typing:start" if is_typing else "typing:stop", payload)
+    try:
+        emit_to_thread(thread_id, "typing:update", payload)
+        emit_to_thread(thread_id, "typing:start" if is_typing else "typing:stop", payload)
+    except Exception:
+        pass
     return True
 
 

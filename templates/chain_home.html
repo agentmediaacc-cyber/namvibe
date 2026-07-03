@@ -1139,7 +1139,7 @@ body.namvibe-social-home{
               {% if item.get("profile_id") and item.get("profile_id") != profile.get("id") %}
               <button class="nv-follow" type="button" data-follow-id="{{ item.get('profile_id') }}" data-following="{{ 'true' if item.get('viewer_is_following') else 'false' }}">{{ 'Following' if item.get('viewer_is_following') else 'Follow' }}</button>
               {% endif %}
-              <button class="nv-more" type="button" aria-label="More options"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+              <button class="nv-more" type="button" data-action="more" aria-label="More options"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
             </div>
 
             {% if item_type == "product_card" and item.get("title") %}
@@ -1153,12 +1153,14 @@ body.namvibe-social-home{
               {{ item.get("text") or item.get("location") or "Discover this profile" }}
             </div>
             {% elif video_url %}
-            <div class="nv-media">
-              <video src="{{ video_url }}" poster="{{ media_url or item.get('thumbnail_url') or '' }}" controls playsinline preload="metadata" muted></video>
+            <div class="nv-media" data-detail-href="{{ detail_url }}">
+              <video src="{{ video_url }}" poster="{{ media_url or item.get('thumbnail_url') or '' }}" controls playsinline preload="metadata" muted controlsList="nodownload" oncontextmenu="return false;"></video>
             </div>
             {% elif media_url %}
-            <div class="nv-media">
-              <img src="{{ media_url }}" alt="" loading="{% if loop.index0 < 2 %}eager{% else %}lazy{% endif %}">
+            <div class="nv-media" data-detail-href="{{ detail_url }}">
+              <a href="{{ detail_url }}" tabindex="-1">
+                <img src="{{ media_url }}" alt="" loading="{% if loop.index0 < 2 %}eager{% else %}lazy{% endif %}">
+              </a>
             </div>
             {% endif %}
 
@@ -1622,10 +1624,11 @@ body.namvibe-social-home{
       return;
     }
 
-    const moreButton = event.target.closest(".nv-more");
-    if (moreButton) {
+    const actionButton = event.target.closest("[data-action]");
+
+    if (actionButton && actionButton.dataset.action === "more") {
       event.preventDefault();
-      var postEl = moreButton.closest(".nv-post");
+      var postEl = actionButton.closest(".nv-post");
       if (postEl) {
         var detailUrl = postEl.dataset.detailUrl || "/";
         var itemType = postEl.dataset.type || "post";
@@ -1637,7 +1640,6 @@ body.namvibe-social-home{
       return;
     }
 
-    const actionButton = event.target.closest("[data-action]");
     if (!actionButton) return;
 
     const action = actionButton.dataset.action;
@@ -1849,26 +1851,40 @@ body.namvibe-social-home{
     openBottomSheet("More", items);
   };
 
-  /* ── Double-tap to like media with heart burst ── */
+  /* ── Prevent video downloads ── */
+  document.addEventListener("contextmenu", function (e) {
+    if (e.target.closest("video")) {
+      e.preventDefault();
+    }
+  });
+
+  /* ── Click on media to navigate to detail (single tap on image, or tap on video container background) ── */
   document.querySelectorAll(".nv-media").forEach(function (mediaEl) {
     var lastTap = 0;
     var burstEl = null;
     mediaEl.addEventListener("click", function (e) {
+      if (e.target.closest("video") || e.target.closest("a")) return;
+      var detailHref = mediaEl.dataset.detailHref;
       var now = Date.now();
       if (now - lastTap < 350) {
+        /* Double-tap: like */
         var likeBtn = mediaEl.closest(".nv-post").querySelector('[data-action="like"]');
-        if (likeBtn && !likeBtn.disabled && !likeBtn.dataset.liked === "true") {
+        if (likeBtn && !likeBtn.disabled && likeBtn.dataset.liked !== "true") {
           likeBtn.click();
-          /* Heart burst */
-          if (!burstEl) {
-            burstEl = document.createElement("div");
-            burstEl.className = "nv-heart-burst";
-            burstEl.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
-            mediaEl.appendChild(burstEl);
-          }
-          burstEl.classList.remove("is-active");
-          void burstEl.offsetWidth;
-          burstEl.classList.add("is-active");
+        }
+        if (!burstEl) {
+          burstEl = document.createElement("div");
+          burstEl.className = "nv-heart-burst";
+          burstEl.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
+          mediaEl.appendChild(burstEl);
+        }
+        burstEl.classList.remove("is-active");
+        void burstEl.offsetWidth;
+        burstEl.classList.add("is-active");
+      } else {
+        /* Single tap: navigate to detail */
+        if (detailHref && detailHref !== "/" && !e.target.closest("video")) {
+          window.location.href = detailHref;
         }
       }
       lastTap = now;

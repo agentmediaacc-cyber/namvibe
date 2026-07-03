@@ -1098,15 +1098,29 @@ def create_app():
             data["posts"] = list(data["feed_items"])
             data["stories"] = fast_payload.get("stories") or []
             data["reels"] = fast_payload.get("reels") or []
+            data["reels_items"] = fast_payload.get("reels") or []
+            data["live_rooms"] = fast_payload.get("live_rooms") or []
+            data["suggested_people"] = fast_payload.get("suggested_creators") or fast_payload.get("suggested_people") or []
+            data["suggested_creators"] = list(data["suggested_people"])
+            data["trending_hashtags"] = fast_payload.get("trending_hashtags") or []
+            data["hashtags"] = list(data["trending_hashtags"])
             data["friend_activity"] = fast_payload.get("friend_activity") or []
-            data["homepage_degraded"] = True
-            data["homepage_message"] = "Loading latest NamVibe content..."
+            data["homepage_degraded"] = False
+            data["homepage_message"] = ""
+            data["homepage_payload"] = {
+                "stories": data["stories"],
+                "feed_items": data["feed_items"],
+                "reels": data["reels"],
+                "live_rooms": data["live_rooms"],
+                "suggested_creators": data["suggested_creators"],
+                "trending_hashtags": data["trending_hashtags"],
+                "friend_activity": data["friend_activity"],
+            }
             return data
 
         with timed("home"):
             home_start = time.perf_counter()
-            # Return shell immediately - sections load via AJAX after page render
-            data = dict(shell)
+            data = build_fast_shell()
             data.update(base_routes)
             response = render_template("chain_home.html", **data)
             total_ms = round((time.perf_counter() - home_start) * 1000, 2)
