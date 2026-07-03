@@ -140,7 +140,8 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
     highlights = content.get("highlights") or profile.get("highlights") or []
     gallery_preview = content.get("gallery_preview") or content.get("albums_preview") or []
     mutual_friends = content.get("mutual_friends") or {}
-    profile_strength = content.get("profile_strength") or {}
+    profile_strength_raw = content.get("profile_strength") or {}
+    profile_strength = _as_int(profile_strength_raw.get("score") or profile_strength_raw.get("percent") or 0) if isinstance(profile_strength_raw, dict) else _as_int(profile_strength_raw or 0)
     recently_active_friends = content.get("recently_active_friends") or []
     if own_profile and not highlights:
         highlights = [
@@ -151,6 +152,7 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         ]
 
     completion_profile = {**profile, "posts_count": posts_count, "reels_count": reels_count, "stories_count": _as_int(stats.get("stories") or len(content.get("stories") or []))}
+    active = _relative_active(profile, presence)
     return {
         "own_profile": own_profile,
         "display_name": profile.get("display_name") or profile.get("full_name") or profile.get("username") or "NamVibe Member",
@@ -158,7 +160,7 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "initials": _initials(profile),
         "location": _location(profile),
         "joined": _joined(profile),
-        "active": _relative_active(profile, presence),
+        "active": active,
         "avatar_url": profile.get("avatar_url") or profile.get("photo_url") or profile.get("thumbnail_url"),
         "cover_url": profile.get("cover_url") or profile.get("banner_url"),
         "gallery_preview": gallery_preview,
@@ -190,4 +192,30 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
             "follower": "Following",
             "blocked": "Blocked",
         }.get(action_policy.get("relationship"), "Discover"),
+
+        # Flat convenience keys for template compatibility
+        "id": profile.get("id"),
+        "is_self": own_profile,
+        "is_online": bool(active.get("online")),
+        "state_label": active.get("label", ""),
+        "verified": bool(profile.get("verified") or profile.get("is_verified")),
+        "badge_type": "creator" if is_creator else ("blue" if profile.get("is_verified") or profile.get("verified") else ""),
+        "badge_label": "Creator" if is_creator else "Verified",
+        "bio": profile.get("bio") or "",
+        "website": profile.get("website") or "",
+        "category": profile.get("category") or profile.get("profile_type") or "",
+        "is_friend": action_policy.get("relationship") == "friend",
+        "is_following": action_policy.get("relationship") in ("following", "friend"),
+        "request_sent": action_policy.get("relationship") == "pending_sent",
+        "posts_count": posts_count,
+        "reels_count": reels_count,
+        "stories_count": _as_int(stats.get("stories") or len(content.get("stories") or [])),
+        "followers_count": _as_int(stats.get("followers") or profile.get("followers_count")),
+        "following_count": _as_int(stats.get("following") or profile.get("following_count")),
+        "friends_count": _as_int(stats.get("friends") or profile.get("friends_count")),
+        "likes_count": _as_int(stats.get("likes") or profile.get("total_likes")),
+        "views_count": views_count,
+        "has_active_stories": bool(content.get("stories") if isinstance(content, dict) else False),
+        "mutual_friends": mutual_friends.get("items") or [],
+        "report_url": f"/report/profile/{profile.get('id')}" if profile.get("id") else None,
     }

@@ -293,7 +293,8 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         fallback["completion"] = calculate_profile_completion(fallback["profile"])
         try:
             from services.profile_service import get_profile_content, get_profile_stats
-            fallback["content"] = get_profile_content(profile.get("id"))
+            viewer_id = fallback["viewer"].get("id") if fallback.get("viewer") else None
+            fallback["content"] = get_profile_content(viewer_id, profile.get("id"), "posts")
             fallback["stats"] = get_profile_stats(profile.get("id"))
         except Exception:
             pass

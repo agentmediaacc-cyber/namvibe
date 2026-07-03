@@ -1559,15 +1559,69 @@ def get_friends(profile_id, page=1, per_page=20):
     return _f(profile_id, page=page, per_page=per_page)
 
 def get_profile_bundle(profile_id=None, viewer_id=None, viewer=None, username=None):
-    from services.profile_2026_service import get_profile_bundle as _f
-
     if viewer_id is None and viewer is not None:
         if isinstance(viewer, dict):
             viewer_id = viewer.get("id")
         else:
             viewer_id = viewer
 
-    return _f(profile_id=profile_id, viewer_id=viewer_id, username=username)
+    profile = None
+    if username:
+        profile = get_profile_by_username(username)
+    elif profile_id:
+        profile = get_profile_by_id(profile_id)
+
+    if not profile:
+        return {}
+
+    pid = profile.get("id")
+    stats = get_profile_stats(pid) or {}
+
+    from services.presence_service import get_presence
+    presence = get_presence(pid) or {}
+
+    from services.friend_service import get_mutual_friends
+    mutual_friends = get_mutual_friends(viewer_id or pid, pid) if viewer_id else {}
+
+    from services.stories_engine import get_stories_by_creator, get_highlights
+    stories = get_stories_by_creator(pid, viewer_id=viewer_id) if pid else []
+    highlights = get_highlights(pid, viewer_id=viewer_id) if pid else []
+
+    from services.live_engine import get_live_room
+    live_room = get_live_room(pid) if pid else None
+
+    content = {
+        "posts": [],
+        "reels": [],
+        "rooms": [live_room] if live_room else [],
+        "stories": stories,
+        "highlights": highlights,
+        "mutual_friends": mutual_friends if isinstance(mutual_friends, dict) else {"count": 0, "items": []},
+    }
+
+    recently_active = get_recently_active_friends(pid, limit=6)
+    profile_strength = build_profile_strength(profile, stats=stats)
+    wallet = get_wallet_snapshot(pid) or {}
+    creator_tools = get_creator_tools(pid) or {}
+
+    from services.relationship_cache_service import get_relationship_state
+    from services.relationship_gate_service import can_message, can_call
+    viewer_rel = get_relationship_state(viewer_id or pid, pid) if viewer_id else {}
+    actions = [{"can_message": can_message(viewer_id or pid, pid) if viewer_id else False}]
+
+    return {
+        "profile": profile,
+        "stats": stats,
+        "content": content,
+        "wallet": wallet,
+        "creator_tools": creator_tools,
+        "activity": [],
+        "actions": actions,
+        "presence": presence,
+        "mutual_friends": mutual_friends if isinstance(mutual_friends, dict) else {"count": 0, "items": []},
+        "profile_strength": profile_strength,
+        "recently_active_friends": recently_active,
+    }
 
 def get_profile_content(viewer_id, target_id, content_type, page=1, per_page=12):
     from services.profile_2026_service import get_profile_content_section as _f
