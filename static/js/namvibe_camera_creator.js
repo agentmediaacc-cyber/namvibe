@@ -578,13 +578,18 @@
           var resp = JSON.parse(xhr.responseText);
           if (resp.ok || resp.success) {
             showToast("Uploaded successfully!");
-            var itemUrl = resp.story && resp.story.id ? "/status/" + resp.story.id
+            var createdStory = resp.story || null;
+            var itemUrl = createdStory && createdStory.id ? "/status/" + createdStory.id
               : resp.post && resp.post.id ? "/post/" + resp.post.id
               : resp.reel_id ? "/reels/" + resp.reel_id
               : resp.reel && resp.reel.id ? "/reels/" + resp.reel.id
               : "/";
             setTimeout(function () {
               closeCreator();
+              if (state.type === "story" && createdStory) {
+                window.dispatchEvent(new CustomEvent("namvibe:story-created", { detail: { story: createdStory, response: resp } }));
+                return;
+              }
               window.location.href = itemUrl;
             }, 500);
             return;

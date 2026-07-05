@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.display_name or profile.username }} — Promo Videos{% endblock %}
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="/static/css/rpromo.css">
+{% endblock %}
+{% block content %}
+<div class="rp-container">
+  <div class="rp-header">
+    <div class="rp-header-top">
+      <a href="/profile/@{{ profile.username }}" class="rp-back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+        {{ profile.display_name or profile.username }}
+      </a>
+    </div>
+    <h1 class="rp-title">Promo Videos</h1>
+    <p class="rp-subtitle">{{ video_count }} video{% if video_count != 1 %}s{% endif %}</p>
+    {% if is_owner %}
+    <div class="rp-upload-bar" id="rp-upload-bar">
+      <button class="rp-btn rp-btn-primary" id="rp-upload-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Promo Video
+      </button>
+      <div class="rp-count">{{ video_count }}/20 videos</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if is_owner and video_count < 5 %}
+  <div class="rp-min-notice">
+    Upload at least 5 promo videos to make your promo page visible to others.
+    {% if video_count < 5 %}({{ 5 - video_count }} more needed){% endif %}
+  </div>
+  {% endif %}
+
+  <div class="rp-grid" id="rp-grid">
+    {% for video in videos %}
+    <div class="rp-card" data-video-id="{{ video.id }}">
+      <div class="rp-card-video-wrap">
+        <video class="rp-video" src="{{ video.video_url }}" preload="metadata" muted playsinline
+          poster="{{ video.thumbnail_url if video.thumbnail_url else '' }}"
+          data-id="{{ video.id }}"></video>
+        <div class="rp-card-overlay">
+          <button class="rp-play-btn" type="button" aria-label="Play">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><polygon points="8,5 20,12 8,19"/></svg>
+          </button>
+        </div>
+        {% if is_owner %}
+        <button class="rp-delete-btn" type="button" aria-label="Delete video" data-id="{{ video.id }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+        {% endif %}
+      </div>
+      <div class="rp-card-body">
+        <h3 class="rp-card-title">{{ video.title }}</h3>
+        {% if video.description %}
+        <p class="rp-card-desc">{{ video.description }}</p>
+        {% endif %}
+        <div class="rp-card-stats">
+          <button class="rp-like-btn{% if video.is_liked %} is-liked{% endif %}" type="button" aria-label="Like" data-id="{{ video.id }}">
+            <svg viewBox="0 0 24 24" fill="{% if video.is_liked %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span class="rp-like-count">{{ video.likes_count }}</span>
+          </button>
+          <span class="rp-view-count">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            {{ video.views_count }}
+          </span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if not videos %}
+  <div class="rp-empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>
+    <p>No promo videos yet.</p>
+    {% if is_owner %}
+    <p class="rp-empty-hint">Upload your first promo video to showcase your work!</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if is_owner %}
+<div class="rp-modal-overlay" id="rp-upload-modal">
+  <div class="rp-modal" role="dialog" aria-modal="true" aria-label="Upload promo video">
+    <div class="rp-modal-head">
+      <h2>Upload Promo Video</h2>
+      <button class="rp-modal-close" type="button" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form id="rp-upload-form" class="rp-form" enctype="multipart/form-data">
+      <div class="rp-form-group">
+        <label for="rp-video-title">Title</label>
+        <input type="text" id="rp-video-title" name="title" maxlength="200" required placeholder="Enter a title for your promo">
+      </div>
+      <div class="rp-form-group">
+        <label for="rp-video-desc">Description <span class="rp-optional">(optional)</span></label>
+        <textarea id="rp-video-desc" name="description" rows="3" maxlength="1000" placeholder="Tell viewers about this video"></textarea>
+      </div>
+      <div class="rp-form-group">
+        <label for="rp-video-file">Video File</label>
+        <div class="rp-file-input">
+          <input type="file" id="rp-video-file" name="video" accept="video/mp4,video/quicktime,video/webm" required>
+          <span class="rp-file-label">Choose video...</span>
+        </div>
+        <p class="rp-form-hint">MP4, MOV, or WebM. Max 100MB.</p>
+      </div>
+      <div class="rp-form-actions">
+        <button type="button" class="rp-btn rp-btn-secondary" id="rp-cancel-upload">Cancel</button>
+        <button type="submit" class="rp-btn rp-btn-primary" id="rp-submit-upload">
+          <span class="rp-btn-text">Upload</span>
+          <span class="rp-btn-loading" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" class="rp-spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Uploading...
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="rp-lightbox-overlay" id="rp-lightbox">
+  <div class="rp-lightbox" role="dialog" aria-modal="true" aria-label="Video player">
+    <button class="rp-lightbox-close" type="button" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <video class="rp-lightbox-video" controls playsinline></video>
+    <div class="rp-lightbox-info">
+      <h3 id="rp-lightbox-title"></h3>
+      <p id="rp-lightbox-desc"></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="/static/js/rpromo.js"></script>
+{% endblock %}

@@ -141,7 +141,7 @@ def api_comment(reel_id):
     if not profile_id:
         return jsonify({"error": "Profile not found"}), 404
     data = request.get_json(silent=True) or {}
-    result = add_comment(profile_id, "reel", reel_id, request.form.get("body") or data.get("body"))
+    result = add_comment("reel", reel_id, profile_id, request.form.get("body") or data.get("body"))
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 

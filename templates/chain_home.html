@@ -836,6 +836,24 @@ body.namvibe-social-home{
   border-radius:50%;cursor:pointer;display:grid;place-items:center;
 }
 .nv-bottom-sheet-body{padding:8px 0}
+.nv-comment-sheet{display:flex;flex-direction:column;gap:14px;padding:4px 0 10px}
+.nv-comment-list{display:flex;flex-direction:column;gap:14px;max-height:min(52vh,420px);overflow:auto;padding:0 18px}
+.nv-comment-empty{padding:24px 18px;color:var(--nv-muted);text-align:center;font-weight:700}
+.nv-comment-item{display:flex;gap:12px;align-items:flex-start}
+.nv-comment-avatar{width:42px;height:42px;border-radius:50%;overflow:hidden;flex:0 0 42px;background:var(--nv-soft);display:grid;place-items:center;font-weight:800;color:var(--nv-text)}
+.nv-comment-avatar img{width:100%;height:100%;object-fit:cover}
+.nv-comment-bubble{flex:1;min-width:0}
+.nv-comment-card{background:var(--nv-soft);border:1px solid var(--nv-border);border-radius:18px;padding:10px 12px}
+.nv-comment-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--nv-muted);margin-top:6px}
+.nv-comment-author{font-weight:800;color:var(--nv-text);display:block;margin-bottom:4px}
+.nv-comment-body{margin:0;color:var(--nv-text);white-space:pre-wrap;word-break:break-word}
+.nv-comment-form{display:flex;gap:10px;align-items:flex-end;padding:14px 18px 8px;border-top:1px solid var(--nv-border)}
+.nv-comment-input{flex:1;min-height:46px;max-height:120px;border-radius:16px;border:1px solid var(--nv-border);background:var(--nv-soft);padding:12px 14px;font:inherit;color:var(--nv-text);resize:vertical}
+.nv-comment-login{padding:0 18px 8px}
+.nv-comment-submit{white-space:nowrap}
+.nv-story-media-thumb{width:100%;height:100%;object-fit:cover}
+.nv-story-avatar.has-media{padding:0;background:#000}
+.nv-story-label{display:block;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nv-sheet-item{
   display:flex;align-items:center;gap:14px;
   padding:14px 18px;text-decoration:none;color:var(--nv-text);
@@ -844,6 +862,10 @@ body.namvibe-social-home{
 }
 .nv-sheet-item:hover{background:var(--nv-soft)}
 .nv-sheet-item svg{width:20px;height:20px;flex:0 0 auto;color:var(--nv-muted)}
+@media (max-width: 680px){
+  .nv-comment-list{max-height:44vh;padding:0 14px}
+  .nv-comment-form,.nv-comment-login{padding-left:14px;padding-right:14px}
+}
 
 /* ── Phase 179: Infinite scroll sentinel ── */
 .nv-sentinel{height:1px;width:100%;pointer-events:none}
@@ -994,7 +1016,7 @@ body.namvibe-social-home{
     <main class="nv-main">
 
       <section class="nv-section nv2026-card">
-        <div class="nv-stories">
+        <div class="nv-stories" id="nv-stories-row">
           <button class="nv-story nv-story-create" type="button" data-nv-open-create data-nv-create-type="story" aria-label="Create story">
             <div class="nv-story-ring">
               <div class="nv-story-avatar">+</div>
@@ -1498,14 +1520,25 @@ body.namvibe-social-home{
   };
   const apiRequest = async (url, options = {}) => {
     const headers = new Headers(options.headers || {});
+    let requestBody = options.body;
     headers.set("X-CSRFToken", csrfToken());
     headers.set("X-Requested-With", "XMLHttpRequest");
-    if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+    if (
+      requestBody &&
+      !(requestBody instanceof FormData) &&
+      typeof requestBody !== "string" &&
+      !(requestBody instanceof URLSearchParams) &&
+      !(requestBody instanceof Blob)
+    ) {
+      requestBody = JSON.stringify(requestBody);
+    }
+    if (requestBody && !(requestBody instanceof FormData) && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
     const response = await fetch(url, {
       credentials: "same-origin",
       ...options,
+      body: requestBody,
       headers
     });
     let data = null;
@@ -1555,6 +1588,191 @@ body.namvibe-social-home{
     },
     profile: {
       detail: (_id, button) => detailForItem(button)
+    }
+  };
+  const commentState = { id: null, type: null, detailRoute: "/", trigger: null };
+  const storiesRow = document.getElementById("nv-stories-row");
+
+  const escapeHtml = (value) => String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+  const formatRelativeTime = (value) => {
+    if (!value) return "Just now";
+    const stamp = new Date(value);
+    if (Number.isNaN(stamp.getTime())) return "Just now";
+    const diffMs = Date.now() - stamp.getTime();
+    const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+    if (diffMinutes < 1) return "Just now";
+    if (diffMinutes < 60) return `${diffMinutes}m`;
+    const diffHours = Math.round(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h`;
+    const diffDays = Math.round(diffHours / 24);
+    return `${diffDays}d`;
+  };
+
+  const currentViewerMeta = () => {
+    const avatar = document.querySelector('.nv-top-actions .nv-avatar');
+    const img = avatar?.querySelector("img");
+    const initial = (avatar?.textContent || "Y").trim().slice(0, 1).toUpperCase() || "Y";
+    return {
+      displayName: "You",
+      avatarUrl: img?.getAttribute("src") || "",
+      initial,
+    };
+  };
+
+  const commentEndpoint = (type, id) => {
+    if (!type || !id) return null;
+    if (type === "post" || type === "reel" || type === "story") {
+      return `/api/comments/${type}/${id}`;
+    }
+    return null;
+  };
+
+  const renderCommentItem = (comment) => {
+    const author = comment.display_name || comment.username || comment.author_name || "NamVibe";
+    const avatarUrl = comment.avatar_url || "";
+    const initial = escapeHtml((author || "N").slice(0, 1).toUpperCase());
+    return `
+      <div class="nv-comment-item" data-comment-id="${escapeHtml(comment.id || "")}">
+        <div class="nv-comment-avatar">${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="">` : initial}</div>
+        <div class="nv-comment-bubble">
+          <div class="nv-comment-card">
+            <span class="nv-comment-author">${escapeHtml(author)}</span>
+            <p class="nv-comment-body">${escapeHtml(comment.body || "")}</p>
+          </div>
+          <div class="nv-comment-meta">
+            <span>${escapeHtml(formatRelativeTime(comment.created_at))}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  const getActionButton = (type, id, action) => document.querySelector(`.nv-post[data-type="${type}"][data-item-id="${id}"] [data-action="${action}"]`);
+
+  const prependStoryCard = (story) => {
+    if (!storiesRow || !story || !story.id) return;
+    const existing = storiesRow.querySelector(`[data-story-id="${CSS.escape(String(story.id))}"]`);
+    if (existing) existing.remove();
+    const label = escapeHtml(story.display_name || story.username || "Your Story");
+    const storyUrl = `/status/${encodeURIComponent(story.id)}`;
+    const thumbUrl = story.media_url || story.thumbnail_url || story.video_url || "";
+    const avatarUrl = story.avatar_url || currentViewerMeta().avatarUrl || "";
+    const avatarFallback = escapeHtml((label || "Y").slice(0, 1).toUpperCase());
+    const card = document.createElement("a");
+    card.className = "nv-story";
+    card.href = storyUrl;
+    card.dataset.storyId = story.id;
+    card.innerHTML = `
+      <div class="nv-story-ring">
+        <div class="nv-story-avatar ${thumbUrl ? "has-media" : ""}">
+          ${thumbUrl ? `<img class="nv-story-media-thumb" src="${escapeHtml(thumbUrl)}" alt="">` : avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="">` : avatarFallback}
+        </div>
+      </div>
+      <span class="nv-story-label">${label}</span>
+    `;
+    const createCard = storiesRow.querySelector(".nv-story-create");
+    if (createCard?.nextSibling) {
+      storiesRow.insertBefore(card, createCard.nextSibling);
+    } else {
+      storiesRow.appendChild(card);
+    }
+  };
+
+  const openCommentSheet = async ({ id, type, detailRoute, trigger }) => {
+    const endpoint = commentEndpoint(type, id);
+    if (!endpoint) {
+      window.location.href = detailRoute || "/";
+      return;
+    }
+    commentState.id = id;
+    commentState.type = type;
+    commentState.detailRoute = detailRoute;
+    commentState.trigger = trigger || null;
+    const canComment = isAuthenticated;
+    openBottomSheet("Comments", [{
+      label: "Open full post",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>',
+      href: detailRoute
+    }]);
+    bottomSheetBody.innerHTML = `
+      <div class="nv-comment-sheet">
+        <div class="nv-comment-list" id="nv-comment-list">
+          <div class="nv-comment-empty">Loading comments...</div>
+        </div>
+        ${canComment ? `
+          <form class="nv-comment-form" id="nv-comment-form">
+            <textarea class="nv-comment-input" id="nv-comment-input" placeholder="Write a comment..." maxlength="2000" required></textarea>
+            <button class="nv-primary nv-comment-submit" type="submit">Send</button>
+          </form>
+        ` : `
+          <div class="nv-comment-login">
+            <a class="nv-primary" href="${escapeHtml(loginUrl())}">Log in to comment</a>
+          </div>
+        `}
+      </div>
+    `;
+    const listEl = document.getElementById("nv-comment-list");
+    const formEl = document.getElementById("nv-comment-form");
+    const inputEl = document.getElementById("nv-comment-input");
+    const loadComments = async () => {
+      try {
+        const payload = await apiRequest(endpoint, { method: "GET" });
+        const comments = Array.isArray(payload.comments) ? payload.comments : [];
+        listEl.innerHTML = comments.length
+          ? comments.map(renderCommentItem).join("")
+          : '<div class="nv-comment-empty">No comments yet. Start the conversation.</div>';
+      } catch (error) {
+        logDevError("comments-load", error);
+        listEl.innerHTML = `<div class="nv-comment-empty">${escapeHtml(error.message || "Could not load comments.")}</div>`;
+      }
+    };
+    await loadComments();
+    if (formEl && inputEl) {
+      formEl.addEventListener("submit", safeHandler("comment-submit", async (submitEvent) => {
+        submitEvent.preventDefault();
+        const body = inputEl.value.trim();
+        if (!body) return;
+        if (requireAuth()) return;
+        const viewer = currentViewerMeta();
+        const tempId = `temp-${Date.now()}`;
+        const optimistic = {
+          id: tempId,
+          body,
+          username: viewer.displayName,
+          display_name: viewer.displayName,
+          avatar_url: viewer.avatarUrl,
+          created_at: new Date().toISOString(),
+        };
+        const existingEmpty = listEl.querySelector(".nv-comment-empty");
+        if (existingEmpty) existingEmpty.remove();
+        listEl.insertAdjacentHTML("afterbegin", renderCommentItem(optimistic));
+        inputEl.value = "";
+        formEl.querySelector("button[type='submit']").disabled = true;
+        const commentButton = getActionButton(type, id, "comment");
+        const currentCount = parseInt(commentButton?.querySelector("span")?.textContent || "0", 10) || 0;
+        if (commentButton) updateCount(commentButton, currentCount + 1);
+        try {
+          await apiRequest(endpoint, { method: "POST", body: { body } });
+          showToast("Comment posted.", "success");
+          await loadComments();
+        } catch (error) {
+          const tempEl = listEl.querySelector(`[data-comment-id="${tempId}"]`);
+          if (tempEl) tempEl.remove();
+          if (commentButton) updateCount(commentButton, Math.max(0, currentCount));
+          if (error.message !== "AUTH_REQUIRED") {
+            logDevError("comment-submit", error);
+            showToast(error.message || "Could not post comment.", "error");
+          }
+        } finally {
+          formEl.querySelector("button[type='submit']").disabled = false;
+        }
+      }));
     }
   };
 
@@ -1623,6 +1841,12 @@ body.namvibe-social-home{
 
   if (createDrop) createDrop.addEventListener("click", safeHandler("create-drop", openCreator));
   if (createContinue) createContinue.addEventListener("click", safeHandler("create-continue", openCreator));
+  window.addEventListener("namvibe:story-created", safeHandler("story-created", (event) => {
+    const story = event?.detail?.story;
+    if (!story) return;
+    prependStoryCard(story);
+    showToast("Story published.", "success");
+  }));
 
   document.querySelectorAll("[data-follow-id]").forEach(btn => {
     setFollowVisual(btn, btn.dataset.following === "true");
@@ -1677,7 +1901,7 @@ body.namvibe-social-home{
 
     if (action === "comment") {
       event.preventDefault();
-      window.location.href = detailRoute;
+      await openCommentSheet({ id, type, detailRoute, trigger: actionButton });
       return;
     }
 
