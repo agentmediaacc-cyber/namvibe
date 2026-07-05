@@ -24,7 +24,7 @@ def prime_supabase_schema(table_names):
 
 
 def _fast_local_enabled():
-    return os.getenv("CHAIN_FAST_LOCAL") == "1" and os.getenv("FLASK_ENV", "development") != "production"
+    return os.getenv("CHAIN_FAST_LOCAL") == "1" or os.getenv("CHAIN_DISABLE_SCHEMA_CHECK") == "1"
 
 
 def _schema_log(event, table, kind):

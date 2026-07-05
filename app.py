@@ -1,10 +1,29 @@
-try:
-    import gevent.monkey
-    gevent.monkey.patch_all()
-except ImportError:
-    pass
-
 import os
+
+def _apply_async_monkey_patch():
+    if os.getenv("CHAIN_ASYNC_PATCHED") == "1":
+        return
+
+    async_worker = (os.getenv("CHAIN_GUNICORN_WORKER") or "").strip().lower()
+    if async_worker == "eventlet":
+        try:
+            import eventlet
+            eventlet.monkey_patch()
+            os.environ["CHAIN_ASYNC_PATCHED"] = "1"
+        except ImportError:
+            pass
+        return
+
+    try:
+        import gevent.monkey
+        gevent.monkey.patch_all()
+        os.environ["CHAIN_ASYNC_PATCHED"] = "1"
+    except ImportError:
+        pass
+
+
+_apply_async_monkey_patch()
+
 import hmac
 import threading
 import time
@@ -82,6 +101,7 @@ from api_routes.gallery_routes import gallery_bp
 from api_routes.social_graph_routes import social_graph_bp, profile_extra_bp
 from api_routes.verification_admin_routes import verification_admin_bp
 from api_routes.ad_admin_routes import ad_admin_bp
+from api_routes.rpromo_routes import rpromo_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
@@ -113,11 +133,22 @@ def _is_production_env():
 if not _is_production_env():
     os.environ.setdefault("CHAIN_DISABLE_PREWARM", "1")
     os.environ.setdefault("CHAIN_DISABLE_DB_PING", "1")
-    os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
 
 
 def _flag_enabled(name):
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _startup_fast_mode():
+    return any(
+        _flag_enabled(name)
+        for name in (
+            "CHAIN_FAST_LOCAL",
+            "CHAIN_DISABLE_PREWARM",
+            "CHAIN_DISABLE_DB_PING",
+            "CHAIN_DISABLE_SCHEMA_CHECK",
+        )
+    )
 
 
 def _is_apk_request():
@@ -149,7 +180,7 @@ from services import socket_events # Registers events
 
 def check_readiness():
     """Verifies that core backend services are responsive."""
-    if not _is_production_env() and (_flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_DB_PING")):
+    if _startup_fast_mode():
         return True
 
     from services.neon_service import get_neon_health
@@ -172,7 +203,7 @@ def check_readiness():
 
 
 def should_start_delayed_prewarm(debug=False):
-    if _flag_enabled("CHAIN_DISABLE_PREWARM") or _flag_enabled("CHAIN_FAST_LOCAL"):
+    if _startup_fast_mode():
         return False
     if not debug:
         return True
@@ -340,17 +371,18 @@ def create_app():
             scheduler.add_job(warm_homepage_cache, 'interval', seconds=30, id='homepage_cache_warmup', replace_existing=True)
         except Exception as e:
             print(f"[app] Failed to add background jobs: {e}")
-    try:
-        from services.job_queue_service import enqueue_unique_job
-        enqueue_unique_job(
-            "homepage_cache_warmup",
-            payload={"source": "app_startup"},
-            unique_key="homepage_cache_warmup:startup",
-            priority=1,
-            queue="default",
-        )
-    except Exception as e:
-        print(f"[app] Failed to enqueue homepage cache warmup: {e}")
+    if not _startup_fast_mode():
+        try:
+            from services.job_queue_service import enqueue_unique_job
+            enqueue_unique_job(
+                "homepage_cache_warmup",
+                payload={"source": "app_startup"},
+                unique_key="homepage_cache_warmup:startup",
+                priority=1,
+                queue="default",
+            )
+        except Exception as e:
+            print(f"[app] Failed to enqueue homepage cache warmup: {e}")
 
     init_observability(app)
     app.limiter = init_rate_limiter(app)
@@ -569,6 +601,7 @@ def create_app():
     app.register_blueprint(verification_admin_bp)
     app.register_blueprint(ad_admin_bp)
     app.register_blueprint(content_controls_bp)
+    app.register_blueprint(rpromo_bp)
 
     try:
         from services.content_service import ensure_content_schema
@@ -1160,11 +1193,13 @@ def create_app():
     @app.route("/healthz")
     def healthz():
         """Lightweight health check for load balancers. No external DB touch."""
-        try:
-            from api_routes.system_routes import _health_payload
-            payload = _health_payload()
-        except Exception:
-            payload = {"ok": True, "components": {"app": {"ok": True, "status": "ok"}}}
+        payload = {
+            "ok": True,
+            "components": {
+                "app": {"ok": True, "status": "ok"},
+                "database": {"ok": True, "status": "not_checked"},
+            },
+        }
         payload["status"] = "ok" if payload.get("ok") else "degraded"
         payload["timestamp"] = datetime.now(timezone.utc).isoformat()
         return jsonify(payload), 200

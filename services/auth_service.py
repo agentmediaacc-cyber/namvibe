@@ -15,7 +15,7 @@ from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
 from engines.performance_engine import clean_email, make_unique_username, normalize_username, profile_completion_score
 from services.neon_service import write_query, fast_query, is_circuit_open, get_cached_table_columns, table_exists as neon_table_exists
 from services.supabase_safe import column_safe_payload, safe_count, safe_insert, safe_select, safe_update, table_exists
-from services.logging_service import log_info, log_warning
+from services.logging_service import log_info, log_warning, log_error
 from utils.supabase_client import get_supabase, get_supabase_admin
 from services.session_service import (
     store_auth_session, 
@@ -81,9 +81,21 @@ LOGIN_PROFILE_FIELD_CANDIDATES = (
 _LOGIN_PROFILE_COLUMNS_CACHE = None
 
 
+def _startup_schema_checks_disabled():
+    return os.getenv("CHAIN_DISABLE_SCHEMA_CHECK") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1"
+
+
 def _login_profile_columns():
     global _LOGIN_PROFILE_COLUMNS_CACHE
     if _LOGIN_PROFILE_COLUMNS_CACHE:
+        return _LOGIN_PROFILE_COLUMNS_CACHE
+    if _startup_schema_checks_disabled():
+        selected = [
+            column
+            for column in LOGIN_PROFILE_FIELD_CANDIDATES
+            if column in {"id", "auth_user_id", "username", "username_slug", "email", "normalized_email", "password_hash", "profile_completed"}
+        ]
+        _LOGIN_PROFILE_COLUMNS_CACHE = ", ".join(selected)
         return _LOGIN_PROFILE_COLUMNS_CACHE
     try:
         rows = fast_query(
@@ -167,7 +179,7 @@ def _safe_auth_trace(event, **data):
             safe[key] = None
         else:
             safe[key] = "[set]" if value else None
-    print(f"[auth_trace] {event} {safe}")
+    log_info("auth_trace", event=event, safe=safe)
 
 
 def _remember_dev_registration_credential(email, username, password, auth_user_id=None, profile_id=None, profile=None):
@@ -302,7 +314,7 @@ def _email_exists_in_profiles(email):
         if rows:
             return True
     except Exception as error:
-        print(f"[auth_service] profile email lookup failed: {error}")
+        log_error("auth_profile_email_lookup_failed", error=str(error))
     return bool(safe_select("chain_profiles", columns="id", filters={"normalized_email": normalized}, limit=1, order_by=None))
 
 
@@ -326,7 +338,7 @@ def _username_exists_in_profiles(username):
         if rows:
             return True
     except Exception as error:
-        print(f"[auth_service] profile username lookup failed: {error}")
+        log_error("auth_profile_username_lookup_failed", error=str(error))
     return bool(safe_select("chain_profiles", columns="id", filters={"username": normalized}, limit=1, order_by=None))
 
 
@@ -351,7 +363,7 @@ def _phone_exists_in_profiles(phone):
         if rows:
             return True
     except Exception as error:
-        print(f"[auth_service] profile phone lookup failed: {error}")
+        log_error("auth_profile_phone_lookup_failed", error=str(error))
     return bool(safe_select("chain_profiles", columns="id", filters={"normalized_phone": normalized}, limit=1, order_by=None))
 
 
@@ -380,7 +392,7 @@ def get_auth_user_by_email(email):
             if clean_email(getattr(user, "email", None)) == normalized:
                 return user
     except Exception as error:
-        print(f"[auth_service] get_auth_user_by_email failed: {error}")
+        log_error("auth_get_user_by_email_failed", error=str(error))
     return None
 
 
@@ -544,7 +556,7 @@ def _find_login_profile(login_id, columns=None):
             )
         except Exception as error:
             reason = "email_lookup_error"
-            print(f"[auth_service] email login profile lookup failed: {error}")
+            log_error("auth_email_login_lookup_failed", error=str(error))
             
     # 2. Try by username/handle
     if not profile:
@@ -569,7 +581,7 @@ def _find_login_profile(login_id, columns=None):
             )
         except Exception as error:
             reason = "username_lookup_error"
-            print(f"[auth_service] username login profile lookup failed: {error}")
+            log_error("auth_username_login_lookup_failed", error=str(error))
 
     # 3. Fallback to safe_select for redundancy
     if not profile:
@@ -814,7 +826,7 @@ def sync_oauth_profile(user, provider):
     )
     
     if not synced_profile:
-        print(f"[auth_service] sync_oauth_profile neon ensure failed (continuing): {sync_error}")
+        log_error("auth_sync_oauth_neon_failed", error=str(sync_error))
         # Return best-effort profile from metadata if Neon is down
         return {
             **(profile or {}),
@@ -1061,7 +1073,7 @@ def _schedule_profile_sync(user, provider):
                 enqueue_job("auth_profile_sync", payload, queue_name="default")
                 return
             except Exception as error:
-                print(f"[auth_service] enqueue profile sync failed, falling back to thread: {error}")
+                log_error("auth_enqueue_profile_sync_failed", error=str(error))
 
             thread_user = SimpleNamespace(
                 id=payload.get("id"),
@@ -1074,7 +1086,7 @@ def _schedule_profile_sync(user, provider):
             )
             sync_oauth_profile(thread_user, provider)
         except Exception as error:
-            print(f"[auth_service] background profile sync failed: {error}")
+            log_error("auth_background_profile_sync_failed", error=str(error))
 
     threading.Thread(target=_worker, daemon=True).start()
 
@@ -1093,7 +1105,7 @@ def best_effort_age_dob_update(profile_id, auth_user_id, dob):
         )
         return True
     except Exception as error:
-        print(f"[auth_service] best_effort_age_dob_update failed: {error}")
+        log_error("auth_best_effort_age_dob_update_failed", error=str(error))
         _schedule_profile_sync(
             SimpleNamespace(
                 id=auth_user_id,
@@ -1126,7 +1138,7 @@ def _email_valid_format(email):
 
 def _log_timing(step, duration):
     if duration > 0.05:
-        print(f"[timing] {step}: {duration*1000:.0f} ms")
+        log_info("timing", step=step, duration_ms=duration*1000)
 
 
 def _check_email_username_phone_taken(email, username, phone):
@@ -1317,7 +1329,7 @@ def register_chain_user(email, password, username, full_name, extra=None):
         registration_result_debug["fallback_used"] = True
         registration_result_debug["profile_created"] = True
         registration_result_debug["redirect_to"] = "/profile/"
-        print(f"[registration_result_debug fallback={reason}] {registration_result_debug}")
+        log_info("registration_debug", data=registration_result_debug, reason=reason)
         return _registration_result(
             ok=True,
             dev_fallback=True,
@@ -1398,7 +1410,7 @@ def register_chain_user(email, password, username, full_name, extra=None):
     registration_result_debug["redirect_to"] = "/profile/"
 
     if not auth_session:
-        print(f"[registration_result_debug] {registration_result_debug}")
+        log_info("registration_debug", data=registration_result_debug)
         return _registration_result(
             ok=True,
             profile=profile,
@@ -1409,7 +1421,7 @@ def register_chain_user(email, password, username, full_name, extra=None):
 
     store_auth_session(auth_session, user, profile, provider="password")
     _log_login_event(profile, user, "password", "success")
-    print(f"[registration_result_debug] {registration_result_debug}")
+    log_info("registration_debug", data=registration_result_debug)
     return _registration_result(
         ok=True,
         profile=profile,
@@ -1461,7 +1473,7 @@ def _finish_local_registration(reason):
     registration_result_debug["fallback_used"] = True
     registration_result_debug["profile_created"] = True
     registration_result_debug["redirect_to"] = "/profile/"
-    print(f"[registration_result_debug fallback={reason}] {registration_result_debug}")
+    log_info("registration_debug", data=registration_result_debug, reason=reason)
     return _registration_result(
         ok=True, dev_fallback=True, profile=profile,
         auth_user_id=auth_user_id, redirect_to="/profile/",
@@ -1502,18 +1514,18 @@ def _finish_local_registration(reason):
         )
         auth_res = _supa_future.result(timeout=10)
         _auth_timings["supabase_ms"] = round((time.time() - _supabase_start) * 1000, 1)
-        print(f"[auth_service.register] supabase sign_up completed in {_auth_timings['supabase_ms']}ms")
+        log_info("register_event", step="supabase_sign_up_completed", duration_ms=_auth_timings['supabase_ms'])
     except _FutureTimeout:
         _auth_timings["supabase_ms"] = round((time.time() - _supabase_start) * 1000, 1)
         _supa_future.cancel()
-        print(f"[auth_service.register] supabase sign_up TIMED OUT after {_auth_timings['supabase_ms']}ms")
+        log_info("register_event", step="supabase_sign_up_timed_out", duration_ms=_auth_timings['supabase_ms'])
         if local_email_valid and _allow_local_registration_fallback():
             return _finish_local_registration("supabase_handshake_timeout")
         return _registration_result(error="Registration service is temporarily unreachable. Please try again.")
     except Exception as _supa_err:
         _auth_timings["supabase_ms"] = round((time.time() - _supabase_start) * 1000, 1)
         _err_msg = str(_supa_err).lower()
-        print(f"[auth_service.register] supabase sign_up FAILED after {_auth_timings['supabase_ms']}ms: {_err_msg[:120]}")
+        log_info("register_event", step="supabase_sign_up_failed", duration_ms=_auth_timings['supabase_ms'], error=_err_msg[:120])
         if "rate limit" in _err_msg or "rate_limit" in _err_msg:
             if local_email_valid and _allow_local_registration_fallback():
                 return _finish_local_registration("supabase_rate_limited")
@@ -1539,16 +1551,16 @@ def _finish_local_registration(reason):
         auth_session = getattr(auth_res, "session", None)
         
         # Diagnostic logging (Safe)
-        print(f"[auth_service.register] signup result: has_user={bool(user)}, user_id={getattr(user, 'id', 'None')}, has_session={bool(auth_session)}")
+        log_info("register_event", step="signup_result", has_user=bool(user), user_id=getattr(user, 'id', None), has_session=bool(auth_session))
         
         # Fallback verification if signup response is weak but no exception occurred
         if not user or not getattr(user, "id", None):
-            print(f"[auth_service.register] weak signup response for {email}, checking admin fallback...")
+            log_info("register_event", step="weak_signup_response", email=email)
             user = get_auth_user_by_email(email)
             if user:
-                print(f"[auth_service.register] fallback found user_id={user.id}")
+                log_info("register_event", step="fallback_found_user", user_id=user.id)
             else:
-                print(f"[auth_service.register] fallback NOT found for {email}")
+                log_info("register_event", step="fallback_not_found", email=email)
 
         # Final Truth Validation
         if not user or not getattr(user, "id", None):
@@ -1557,7 +1569,7 @@ def _finish_local_registration(reason):
             return _registration_result(error="Registration could not be completed. Please try again.")
             
         if clean_email(getattr(user, "email", None)) != email:
-            print(f"[auth_service.register] email mismatch: expected {email}, got {getattr(user, 'email', 'None')}")
+            log_info("register_event", step="email_mismatch", expected=email, actual=getattr(user, 'email', None))
             if local_email_valid and _allow_local_registration_fallback():
                 return _finish_local_registration("supabase_failed_email_mismatch")
             return _registration_result(error="Registration failed. Please try again.")
@@ -1601,7 +1613,7 @@ def _finish_local_registration(reason):
             )
             registration_result_debug["profile_created"] = True
             registration_result_debug["redirect_to"] = "/profile/"
-            print(f"[registration_result_debug] {registration_result_debug}")
+            log_info("registration_debug", data=registration_result_debug)
             return _registration_result(
                 ok=True,
                 dev_fallback=True,
@@ -1624,7 +1636,7 @@ def _finish_local_registration(reason):
         if not auth_session:
             registration_result_debug["profile_created"] = True
             registration_result_debug["redirect_to"] = "/profile/"
-            print(f"[registration_result_debug] {registration_result_debug}")
+            log_info("registration_debug", data=registration_result_debug)
             return _registration_result(
                 ok=True,
                 profile=profile,
@@ -1640,7 +1652,7 @@ def _finish_local_registration(reason):
         _log_login_event(profile, user, "password", "success")
         registration_result_debug["profile_created"] = True
         registration_result_debug["redirect_to"] = "/profile/"
-        print(f"[registration_result_debug] {registration_result_debug}")
+        log_info("registration_debug", data=registration_result_debug)
         return _registration_result(
             ok=True,
             profile=profile,
@@ -1708,7 +1720,7 @@ def _finish_local_registration(reason):
                 registration_result_debug["fallback_used"] = True
                 registration_result_debug["profile_created"] = True
                 registration_result_debug["redirect_to"] = "/profile/"
-                print(f"[registration_result_debug] {registration_result_debug}")
+                log_info("registration_debug", data=registration_result_debug)
                 return _registration_result(
                     ok=True,
                     dev_fallback=True,

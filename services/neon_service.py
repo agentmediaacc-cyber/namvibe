@@ -200,11 +200,18 @@ def _is_production_env():
 if not _is_production_env():
     os.environ.setdefault("CHAIN_DISABLE_PREWARM", "1")
     os.environ.setdefault("CHAIN_DISABLE_DB_PING", "1")
-    os.environ.setdefault("CHAIN_FAST_LOCAL", "1")
 
 
 def _flag_enabled(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _schema_checks_disabled() -> bool:
+    return _flag_enabled("CHAIN_DISABLE_SCHEMA_CHECK") or _flag_enabled("CHAIN_FAST_LOCAL")
+
+
+def _startup_db_ping_disabled() -> bool:
+    return _flag_enabled("CHAIN_DISABLE_DB_PING") or _flag_enabled("CHAIN_FAST_LOCAL")
 
 # Configuration from Environment
 DATABASE_URL = (get_env("DATABASE_URL", "") or "").strip()
@@ -249,6 +256,14 @@ def get_table_columns(table_name: str, timeout_ms=10000):
         }
         return set(static_cols)
 
+    if _schema_checks_disabled():
+        _COLUMN_CACHE[table_name] = {
+            "columns": [],
+            "expires_at": now + _COLUMN_CACHE_TTL,
+        }
+        log_info("schema_check_skipped", table=table_name, kind="columns")
+        return set()
+
     log_info("schema_cache_miss", table=table_name, kind="columns")
     query = """
         SELECT a.attname as column_name
@@ -284,6 +299,15 @@ def table_exists(table_name: str, timeout_ms=5000):
     if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
         if table_name in CHAIN_STATIC_COLUMNS:
             return True
+
+    if _schema_checks_disabled():
+        known = table_name in CHAIN_STATIC_COLUMNS
+        _TABLE_EXISTS_CACHE[table_name] = {
+            "exists": known,
+            "expires_at": time.time() + _TABLE_EXISTS_CACHE_TTL,
+        }
+        log_info("schema_check_skipped", table=table_name, kind="table_exists", known=known)
+        return known
 
     cached = _TABLE_EXISTS_CACHE.get(table_name)
     now = time.time()
@@ -703,7 +727,7 @@ def fast_query(sql_text, params: Any = None, timeout_ms: int = 10000, default: A
         return default if default is not None else []
 
     # Early exit for simple health check pings in fast local mode
-    if not _is_production_env() and _flag_enabled("CHAIN_FAST_LOCAL"):
+    if _startup_db_ping_disabled():
         sql_str = str(sql_text) if isinstance(sql_text, sql.Composable) else sql_text
         if sql_str.strip().upper() == "SELECT 1":
             return [{"?column?": 1}] if default is None else default
@@ -767,7 +791,7 @@ def get_neon_health():
     if _HEALTH_CACHE["payload"] and _HEALTH_CACHE["expires_at"] > now:
         return _HEALTH_CACHE["payload"]
 
-    is_local_fast = not _is_production_env() and (_flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_DB_PING"))
+    is_local_fast = _startup_db_ping_disabled()
 
     if is_local_fast:
         payload = {
@@ -806,7 +830,7 @@ def get_neon_health():
 
 def prime_neon_runtime():
     """Pre-warms the connection pool."""
-    if not _is_production_env() and (_flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_PREWARM") or _flag_enabled("CHAIN_DISABLE_DB_PING")):
+    if _flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_PREWARM") or _startup_db_ping_disabled():
         return None
     _DB_EXECUTOR.submit(_pool_instance)
 
@@ -824,6 +848,15 @@ def table_exists(table_name: str, timeout_ms=2000):
     if os.getenv("CHAIN_TRUST_PROFILE_SCHEMA", "1") == "1":
         if table_name in CHAIN_STATIC_COLUMNS:
             return True
+
+    if _schema_checks_disabled():
+        known = table_name in CHAIN_STATIC_COLUMNS
+        _TABLE_EXISTS_CACHE[table_name] = {
+            "exists": known,
+            "expires_at": time.time() + _TABLE_EXISTS_CACHE_TTL,
+        }
+        log_info("schema_check_skipped", table=table_name, kind="table_exists", known=known)
+        return known
 
     cached = _TABLE_EXISTS_CACHE.get(table_name)
     now = time.time()

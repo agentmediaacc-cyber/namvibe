@@ -2,7 +2,7 @@ import uuid
 import json
 import os
 from datetime import datetime, timezone
-from services.neon_service import fast_query, write_query
+from services.neon_service import table_exists as neon_table_exists, write_query
 from services.socketio_service import emit_to_profile
 from engines.cache_engine import cache_key, get_cache, set_cache
 
@@ -20,12 +20,10 @@ _ACTIVITY_TABLE = "chain_activity_events"
 
 
 def _table_exists():
+    if os.getenv("CHAIN_DISABLE_SCHEMA_CHECK") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
+        return True
     try:
-        rows = fast_query(
-            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = %s) AS exists",
-            (_ACTIVITY_TABLE,), default=[{"exists": False}]
-        )
-        return rows and rows[0].get("exists", False)
+        return bool(neon_table_exists(_ACTIVITY_TABLE, timeout_ms=800))
     except Exception:
         return False
 
