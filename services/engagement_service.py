@@ -254,6 +254,14 @@ def toggle_like(profile_id, entity_type, entity_id):
             entity_type=entity_type,
             entity_id=entity_id,
         )
+
+    try:
+        from engines.cache_engine import delete_cache, cache_key
+        profile_prefix = f"homepage:v2:{entity_type}s:viewer:{profile_id or 'anon'}"
+        delete_cache(cache_key(profile_prefix))
+    except Exception:
+        pass
+
     return {"success": True, "liked": liked, "count": count}
 
 
