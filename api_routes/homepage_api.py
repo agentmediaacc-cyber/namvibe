@@ -18,6 +18,7 @@ from services.homepage_phase141_service import (
     fetch_stories_v2,
     fetch_live_rooms_v2,
     fetch_suggested_people_v2,
+    fetch_liked_entity_ids,
 )
 from services.engagement_service import follow_profile, unfollow_profile, toggle_like, toggle_save
 from services.neon_service import fast_query, is_circuit_open
@@ -274,9 +275,49 @@ def api_like_post(post_id):
         return _json_error("Not authenticated", 401)
     try:
         result = toggle_like(str(profile["id"]), "post", str(post_id))
-        return _json_ok({"result": result})
+        if not result.get("success"):
+            return _json_error(result.get("error") or "Could not update like.", 503)
+        liked = bool(result.get("liked"))
+        likes_count = int(result.get("count") or result.get("likes_count") or result.get("like_count") or 0)
+        return jsonify({
+            "ok": True,
+            "liked": liked,
+            "likes_count": likes_count,
+            "is_liked": liked,
+            "user_liked": liked,
+            "count": likes_count,
+            "result": result,
+        }), 200
     except Exception as e:
         return _json_error(str(e), 500)
+
+
+@homepage_api_bp.route("/api/home/likes-state", methods=["GET"])
+@login_required
+def api_home_likes_state():
+    profile = _current_profile()
+    if not profile or not profile.get("id"):
+        return _json_error("Not authenticated", 401)
+    entity_type = (request.args.get("type") or "post").strip().lower()
+    raw_ids = request.args.get("ids") or ""
+    entity_ids = []
+    for value in raw_ids.split(","):
+        clean = value.strip()
+        if clean and clean not in entity_ids:
+            entity_ids.append(clean)
+        if len(entity_ids) >= 50:
+            break
+    if entity_type not in {"post", "reel"}:
+        return _json_error("Unsupported entity type", 400)
+    if not entity_ids:
+        return _json_ok({"type": entity_type, "liked_ids": [], "liked_map": {}})
+    liked_ids = fetch_liked_entity_ids(entity_type, str(profile["id"]), entity_ids, timeout_ms=5000)
+    liked_map = {entity_id: (entity_id in liked_ids) for entity_id in entity_ids}
+    return _json_ok({
+        "type": entity_type,
+        "liked_ids": sorted(liked_ids),
+        "liked_map": liked_map,
+    })
 
 
 # ================================================================

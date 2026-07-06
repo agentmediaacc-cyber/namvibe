@@ -7,6 +7,7 @@
 
 {% block extra_css %}
 <meta name="namvibe-build" content="phase163-social-home">
+<meta name="namvibe-home-build" content="home-interactions-2026-07-05-v3">
 <link rel="stylesheet" href="/static/css/namvibe_camera_creator.css?v=phase162">
 
 <style>
@@ -430,6 +431,8 @@ body.namvibe-social-home{
   font-weight:800;
 }
 .nv-action:hover{background:var(--nv-soft)}
+.nv-action-label{font-weight:800}
+.nv-action-count{min-width:1ch}
 .nv-action.liked{
   color:var(--nv-red);
   animation:nv-pop .28s ease;
@@ -1122,7 +1125,17 @@ body.namvibe-social-home{
       <div id="nv-feed">
         {% if feed_items %}
           {% for item in feed_items %}
-          {% set item_type = item.get("type") or "post" %}
+          {% if item.get("type") %}
+            {% set item_type = item.get("type") %}
+          {% elif item.get("watch_url") or item.get("viewer_count") is not none or item.get("is_live") %}
+            {% set item_type = "live_room" %}
+          {% elif item.get("reel_url") or item.get("music_title") or item.get("duration_seconds") %}
+            {% set item_type = "reel" %}
+          {% elif item.get("text_content") or item.get("background_color") %}
+            {% set item_type = "story" %}
+          {% else %}
+            {% set item_type = "post" %}
+          {% endif %}
           {% set media_url = item.get("media_url") or item.get("public_url") or item.get("image_url") or item.get("thumbnail_url") %}
           {% set video_url = item.get("video_url") or "" %}
           {% if item_type == "reel" %}
@@ -1139,7 +1152,7 @@ body.namvibe-social-home{
             {% set detail_url = "/post/" ~ item.get("id") %}
           {% endif %}
           {% set profile_link = item.get("profile_url") or ("/profile/@" ~ item.get("username") if item.get("username") else detail_url) %}
-          <article class="nv-section nv-post nv2026-card" data-item-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}" data-profile-id="{{ item.get('profile_id') or '' }}">
+          <article class="nv-section nv-post nv2026-card" data-item-id="{{ item.get('id') }}" data-type="{{ item_type }}" {% if item_type == 'post' %}data-post-id="{{ item.get('id') }}"{% elif item_type == 'live_room' or item_type == 'live' %}data-live-room-id="{{ item.get('id') }}"{% endif %} data-detail-url="{{ detail_url }}" data-profile-id="{{ item.get('profile_id') or '' }}">
             <div class="nv-post-head">
               <a class="nv-avatar" href="{{ profile_link }}">
                 {% if item.get("avatar_url") %}
@@ -1191,8 +1204,8 @@ body.namvibe-social-home{
 
             <div class="nv-actions">
               <div class="nv-action-left">
-                <button class="nv-action" type="button" data-action="like" data-id="{{ item.get('id') }}" data-type="{{ item_type }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg> <span>{{ item.get("likes_count") or 0 }}</span></button>
-                <button class="nv-action" type="button" data-action="comment" data-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> <span>{{ item.get("comments_count") or 0 }}</span></button>
+                <button class="nv-action" type="button" data-action="like" data-id="{{ item.get('id') }}" data-target-id="{{ item.get('id') }}" {% if item_type == 'post' %}data-post-id="{{ item.get('id') }}"{% elif item_type == 'live_room' or item_type == 'live' %}data-live-room-id="{{ item.get('id') }}"{% endif %} data-type="{{ item_type }}" data-liked="{{ 'true' if item.get('is_liked') or item.get('user_liked') else 'false' }}" aria-pressed="{{ 'true' if item.get('is_liked') or item.get('user_liked') else 'false' }}" aria-label="{{ 'Liked' if item.get('is_liked') or item.get('user_liked') else 'Like' }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="{{ 'currentColor' if item.get('is_liked') or item.get('user_liked') else 'none' }}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg> <span class="nv-action-label">{{ 'Liked' if item.get('is_liked') or item.get('user_liked') else 'Like' }}</span> <span class="nv-action-count">{{ item.get("likes_count") or 0 }}</span></button>
+                <button class="nv-action" type="button" data-action="comment" data-id="{{ item.get('id') }}" data-target-id="{{ item.get('id') }}" {% if item_type == 'post' %}data-post-id="{{ item.get('id') }}"{% elif item_type == 'live_room' or item_type == 'live' %}data-live-room-id="{{ item.get('id') }}"{% endif %} data-type="{{ item_type }}" data-detail-url="{{ detail_url }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> <span class="nv-action-label">Comment</span> <span class="nv-action-count">{{ item.get("comments_count") or 0 }}</span></button>
                 <button class="nv-action" type="button" data-action="share" data-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</button>
               </div>
               <button class="nv-action" type="button" data-action="save" data-id="{{ item.get('id') }}" data-type="{{ item_type }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button>
@@ -1450,6 +1463,10 @@ body.namvibe-social-home{
 
 <script>
 (function(){
+  window.NAMVIBE_HOME_BUILD = "home-interactions-2026-07-05-v3";
+  window.NAMVIBE_HOME_INTERACTIONS_READY = false;
+  window.NAMVIBE_HOME_LIKES_READY = false;
+  window.NAMVIBE_E2E_DISABLE_REFRESH = window.__NAMVIBE_E2E_DISABLE_REFRESH__ === true || new URLSearchParams(window.location.search).get("e2e_no_refresh") === "1";
   const reportHomepageError = (scope, error) => {
     const message = error && error.message ? error.message : String(error);
     console.error(`[homepage-runtime:${scope}]`, message);
@@ -1473,6 +1490,9 @@ body.namvibe-social-home{
     info: function(msg) { this.show(msg); }
   };
 
+  const initHomepageInteractions = () => {
+  if (window.NAMVIBE_HOME_HANDLERS_ATTACHED) return;
+  window.NAMVIBE_HOME_HANDLERS_ATTACHED = true;
   try {
   const modal = document.getElementById("nv-create-modal");
   const uploadTabs = Array.from(document.querySelectorAll(".nv-upload-tab"));
@@ -1482,6 +1502,29 @@ body.namvibe-social-home{
   let selectedCreateType = "post";
   const detailForItem = (button) => button.dataset.detailUrl || button.closest("[data-detail-url]")?.dataset.detailUrl || "/";
   const typeForItem = (button) => button.dataset.type || button.closest("[data-type]")?.dataset.type || "post";
+  const idForItem = (button) => button.dataset.postId || button.dataset.liveRoomId || button.dataset.targetId || button.dataset.id || button.closest("[data-item-id]")?.dataset.itemId || "";
+  const entityKeyForType = (type) => {
+    if (type === "post") return "postId";
+    if (type === "live_room" || type === "live") return "liveRoomId";
+    return "id";
+  };
+  const resolveItemContext = (button) => {
+    const card = button?.closest(".nv-post");
+    const buttonType = button?.dataset.type || "";
+    const cardType = card?.dataset.type || "";
+    const type = buttonType || cardType || "post";
+    const entityKey = entityKeyForType(type);
+    const buttonScopedId = entityKey === "id" ? (button?.dataset.id || "") : (button?.dataset[entityKey] || "");
+    const cardScopedId = entityKey === "id" ? (card?.dataset.itemId || "") : (card?.dataset[entityKey] || "");
+    const fallbackId = button?.dataset.targetId || button?.dataset.id || card?.dataset.itemId || "";
+    return {
+      card,
+      type,
+      id: buttonScopedId || cardScopedId || fallbackId,
+      detailRoute: detailForItem(button),
+      mismatch: Boolean(buttonType && cardType && buttonType !== cardType),
+    };
+  };
   const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
   const showToast = (message, type = "info") => {
     if (window.NamVibeToast && typeof window.NamVibeToast[type] === "function") {
@@ -1499,6 +1542,9 @@ body.namvibe-social-home{
       console.error(`[homepage:${scope}]`, error);
     }
   };
+  const logRequestWarning = (scope, error) => {
+    console.warn(`[homepage:${scope}]`, error && error.message ? error.message : error);
+  };
   const safeHandler = (scope, handler) => (event) => {
     try {
       const result = handler(event);
@@ -1512,10 +1558,12 @@ body.namvibe-social-home{
     }
   };
   const loginUrl = () => `/auth/login?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
-  const requireAuth = () => {
+  const requireAuth = (options = {}) => {
     if (isAuthenticated) return false;
-    showToast("Please log in to use this action.", "warning");
-    window.location.href = loginUrl();
+    if (!options.silent) {
+      showToast("Please log in to use this action.", "warning");
+      window.location.href = loginUrl();
+    }
     return true;
   };
   const apiRequest = async (url, options = {}) => {
@@ -1574,9 +1622,11 @@ body.namvibe-social-home{
       detail: (id) => `/stories/${id}`
     },
     live_room: {
+      like: (id) => `/api/social/live_room/${id}/like`,
       detail: (_id, button) => detailForItem(button)
     },
     live: {
+      like: (id) => `/api/social/live_room/${id}/like`,
       detail: (_id, button) => detailForItem(button)
     },
     product_card: {
@@ -1629,6 +1679,9 @@ body.namvibe-social-home{
     if (!type || !id) return null;
     if (type === "post" || type === "reel" || type === "story") {
       return `/api/comments/${type}/${id}`;
+    }
+    if (type === "live_room" || type === "live") {
+      return `/api/social/live_room/${id}/comments`;
     }
     return null;
   };
@@ -1736,9 +1789,11 @@ body.namvibe-social-home{
     if (formEl && inputEl) {
       formEl.addEventListener("submit", safeHandler("comment-submit", async (submitEvent) => {
         submitEvent.preventDefault();
+        if (formEl.dataset.pending === "true") return;
         const body = inputEl.value.trim();
         if (!body) return;
         if (requireAuth()) return;
+        formEl.dataset.pending = "true";
         const viewer = currentViewerMeta();
         const tempId = `temp-${Date.now()}`;
         const optimistic = {
@@ -1755,21 +1810,25 @@ body.namvibe-social-home{
         inputEl.value = "";
         formEl.querySelector("button[type='submit']").disabled = true;
         const commentButton = getActionButton(type, id, "comment");
-        const currentCount = parseInt(commentButton?.querySelector("span")?.textContent || "0", 10) || 0;
+        const currentCount = parseInt(commentButton?.querySelector(".nv-action-count")?.textContent || "0", 10) || 0;
         if (commentButton) updateCount(commentButton, currentCount + 1);
         try {
-          await apiRequest(endpoint, { method: "POST", body: { body } });
+          const payload = await apiRequest(endpoint, { method: "POST", body: { body, content: body, text: body, comment: body } });
           showToast("Comment posted.", "success");
+          const nextCount = payload?.count ?? payload?.comments_count ?? payload?.comment_count;
+          if (commentButton && typeof nextCount === "number") updateCount(commentButton, nextCount);
           await loadComments();
         } catch (error) {
           const tempEl = listEl.querySelector(`[data-comment-id="${tempId}"]`);
           if (tempEl) tempEl.remove();
           if (commentButton) updateCount(commentButton, Math.max(0, currentCount));
           if (error.message !== "AUTH_REQUIRED") {
+            logRequestWarning("comment", error);
             logDevError("comment-submit", error);
             showToast(error.message || "Could not post comment.", "error");
           }
         } finally {
+          formEl.dataset.pending = "false";
           formEl.querySelector("button[type='submit']").disabled = false;
         }
       }));
@@ -1777,9 +1836,89 @@ body.namvibe-social-home{
   };
 
   function updateCount(button, value) {
-    const label = button.querySelector("span");
+    const label = button.querySelector(".nv-action-count") || button.querySelector("span");
     if (label && typeof value === "number" && Number.isFinite(value)) {
       label.textContent = String(value);
+    }
+  }
+
+  function setActionLabel(button, value) {
+    const label = button?.querySelector(".nv-action-label");
+    if (label) label.textContent = value;
+  }
+
+  function normalizeLikedState(result, fallbackState) {
+    if (typeof result?.liked === "boolean") return result.liked;
+    if (typeof result?.is_liked === "boolean") return result.is_liked;
+    if (typeof result?.user_liked === "boolean") return result.user_liked;
+    if (typeof result?.state === "string") {
+      if (result.state === "liked") return true;
+      if (result.state === "unliked") return false;
+    }
+    if (typeof result?.action === "string") {
+      if (result.action === "liked" || result.action === "like") return true;
+      if (result.action === "unliked" || result.action === "unlike") return false;
+    }
+    return fallbackState;
+  }
+
+  function normalizeLikeCount(result) {
+    const raw = result?.likes_count ?? result?.like_count ?? result?.count;
+    return typeof raw === "number" ? raw : null;
+  }
+
+  function setLikeVisual(button, liked) {
+    button.classList.toggle("liked", liked);
+    button.dataset.liked = liked ? "true" : "false";
+    button.setAttribute("aria-pressed", liked ? "true" : "false");
+    setActionLabel(button, liked ? "Liked" : "Like");
+    button.setAttribute("aria-label", liked ? "Liked" : "Like");
+    const icon = button.querySelector("svg");
+    if (icon) icon.setAttribute("fill", liked ? "currentColor" : "none");
+  }
+
+  async function handleLikeAction(actionButton, { event = null } = {}) {
+    if (!actionButton) return;
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const itemContext = resolveItemContext(actionButton);
+    const id = itemContext.id;
+    const type = itemContext.type;
+    const typeConfig = actionConfig[type] || {};
+    const detailRoute = typeConfig.detail ? typeConfig.detail(id, actionButton) : itemContext.detailRoute;
+    if (itemContext.mismatch) {
+      showToast("This item type is not ready for likes yet.", "warning");
+      return;
+    }
+    if (!typeConfig.like) {
+      window.location.href = detailRoute;
+      return;
+    }
+    if (!id || requireAuth()) return;
+    if (actionButton.dataset.pending === "true") return;
+    actionButton.dataset.pending = "true";
+    try {
+      const payload = await apiRequest(typeConfig.like(id), { method: "POST" });
+      const result = payload && typeof payload === "object" ? payload : {};
+      const previousLiked = actionButton.dataset.liked === "true";
+      const normalizedLiked = normalizeLikedState(result, normalizeLikedState(result.result, previousLiked));
+      const normalizedCount = normalizeLikeCount(result) ?? normalizeLikeCount(result.result);
+      setLikeVisual(actionButton, normalizedLiked);
+      if (typeof normalizedCount === "number") {
+        updateCount(actionButton, normalizedCount);
+      }
+      console.info("NamVibe like response", { postId: id, json: result, normalizedLiked, normalizedCount });
+      showToast(normalizedLiked ? "Liked." : "Like removed.", "success");
+    } catch (error) {
+      if (error.message !== "AUTH_REQUIRED") {
+        logRequestWarning("like", error);
+        logDevError("like", error);
+        showToast("Could not like this item.", "error");
+      }
+    } finally {
+      actionButton.dataset.pending = "false";
     }
   }
 
@@ -1851,6 +1990,56 @@ body.namvibe-social-home{
   document.querySelectorAll("[data-follow-id]").forEach(btn => {
     setFollowVisual(btn, btn.dataset.following === "true");
   });
+  document.querySelectorAll(".nv-action[data-action='like']").forEach((btn) => {
+    setLikeVisual(btn, btn.dataset.liked === "true");
+    if (isAuthenticated) {
+      btn.disabled = true;
+      btn.setAttribute("aria-busy", "true");
+    }
+  });
+
+  async function hydrateVisibleLikeStates() {
+    if (requireAuth({ silent: true })) {
+      window.NAMVIBE_HOME_LIKES_READY = true;
+      return;
+    }
+    const buttonsByType = new Map();
+    document.querySelectorAll(".nv-action[data-action='like']").forEach((button) => {
+      const id = idForItem(button);
+      const type = typeForItem(button);
+      if (!id || (type !== "post" && type !== "reel")) return;
+      if (!buttonsByType.has(type)) buttonsByType.set(type, new Map());
+      buttonsByType.get(type).set(id, button);
+    });
+
+    for (const [type, idMap] of buttonsByType.entries()) {
+      const ids = Array.from(idMap.keys());
+      if (!ids.length) continue;
+      try {
+        const params = new URLSearchParams({ type, ids: ids.join(",") });
+        const payload = await apiRequest(`/api/home/likes-state?${params.toString()}`);
+        const likedMap = payload?.liked_map || {};
+        ids.forEach((id) => {
+          const button = idMap.get(id);
+          if (!button) return;
+          if (Object.prototype.hasOwnProperty.call(likedMap, id)) {
+            setLikeVisual(button, Boolean(likedMap[id]));
+          }
+        });
+      } catch (error) {
+        if (error.message !== "AUTH_REQUIRED") {
+          console.warn("NamVibe like-state hydrate failed", { type, error: error.message || String(error) });
+        }
+      }
+    }
+    document.querySelectorAll(".nv-action[data-action='like']").forEach((button) => {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    });
+    window.NAMVIBE_HOME_LIKES_READY = true;
+  }
+
+  hydrateVisibleLikeStates();
 
   document.addEventListener("click", safeHandler("delegated-click", async (event) => {
     const followButton = event.target.closest("[data-follow-id]");
@@ -1894,13 +2083,18 @@ body.namvibe-social-home{
     if (!actionButton) return;
 
     const action = actionButton.dataset.action;
-    const id = actionButton.dataset.id;
-    const type = typeForItem(actionButton);
+    const itemContext = resolveItemContext(actionButton);
+    const id = itemContext.id;
+    const type = itemContext.type;
     const typeConfig = actionConfig[type] || {};
-    const detailRoute = typeConfig.detail ? typeConfig.detail(id, actionButton) : detailForItem(actionButton);
+    const detailRoute = typeConfig.detail ? typeConfig.detail(id, actionButton) : itemContext.detailRoute;
 
     if (action === "comment") {
       event.preventDefault();
+      if (itemContext.mismatch) {
+        showToast("This item type is not ready for likes yet.", "warning");
+        return;
+      }
       await openCommentSheet({ id, type, detailRoute, trigger: actionButton });
       return;
     }
@@ -1913,30 +2107,7 @@ body.namvibe-social-home{
     if ((action === "like" || action === "save") && requireAuth()) return;
 
     if (action === "like") {
-      event.preventDefault();
-      if (!typeConfig.like) {
-        window.location.href = detailRoute;
-        return;
-      }
-      try {
-        const payload = await apiRequest(typeConfig.like(id), { method: "POST" });
-        const result = payload.result || payload;
-        const liked = Boolean(result.liked ?? result.success ?? payload.ok);
-        actionButton.classList.toggle("liked", liked);
-        actionButton.dataset.liked = liked ? "true" : "false";
-        const count = result.count ?? result.likes_count ?? result.like_count;
-        if (typeof count === "number") updateCount(actionButton, count);
-        else {
-          const current = parseInt(actionButton.querySelector("span")?.textContent || "0", 10) || 0;
-          updateCount(actionButton, liked ? current + 1 : Math.max(0, current - 1));
-        }
-        showToast(liked ? "Liked." : "Unliked.", "success");
-      } catch (error) {
-        if (error.message !== "AUTH_REQUIRED") {
-          logDevError("like", error);
-          showToast("Could not like this item.", "error");
-        }
-      }
+      await handleLikeAction(actionButton, { event });
       return;
     }
 
@@ -2000,9 +2171,6 @@ body.namvibe-social-home{
       });
     },{threshold:.6});
     videos.forEach(v=>{v.muted=true; io.observe(v);});
-  }
-  } catch (error) {
-    reportHomepageError("bootstrap", error);
   }
 
   /* ════════════════════════════════════════════════
@@ -2121,7 +2289,7 @@ body.namvibe-social-home{
         /* Double-tap: like */
         var likeBtn = mediaEl.closest(".nv-post").querySelector('[data-action="like"]');
         if (likeBtn && !likeBtn.disabled && likeBtn.dataset.liked !== "true") {
-          likeBtn.click();
+          handleLikeAction(likeBtn);
         }
         if (!burstEl) {
           burstEl = document.createElement("div");
@@ -2215,7 +2383,7 @@ body.namvibe-social-home{
       showToast("A live stream just started!", "info");
     });
     window.NamVibeRealtime.on("live:ended", function () {});
-  } else {
+  } else if (!window.NAMVIBE_E2E_DISABLE_REFRESH) {
     var rtInterval = setInterval(function () {
       if (window.NamVibeRealtime && typeof window.NamVibeRealtime.on === "function") {
         clearInterval(rtInterval);
@@ -2225,7 +2393,7 @@ body.namvibe-social-home{
 
   /* ── Pull-to-refresh (mobile) ── */
   var ptrFeed = document.querySelector(".nv-main");
-  if (ptrFeed) {
+  if (ptrFeed && !window.NAMVIBE_E2E_DISABLE_REFRESH) {
     var ptrStartY = 0, ptrPulling = false;
     var ptrEl = document.createElement("div");
     ptrEl.style.cssText = "display:flex;align-items:center;justify-content:center;overflow:hidden;height:0;transition:height .3s ease;color:var(--nv-muted);font-weight:700;font-size:13px";
@@ -2305,7 +2473,20 @@ body.namvibe-social-home{
   document.querySelectorAll(".nv-more").forEach(function (b) {
     if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "More options");
   });
+  window.NAMVIBE_HOME_INTERACTIONS_READY = true;
+  console.info("NamVibe home interactions loaded", window.NAMVIBE_HOME_BUILD);
+  } catch (error) {
+    window.NAMVIBE_HOME_HANDLERS_ATTACHED = false;
+    window.NAMVIBE_HOME_INTERACTIONS_READY = false;
+    reportHomepageError("bootstrap", error);
+  }
+  };
 
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initHomepageInteractions, { once: true });
+  } else {
+    initHomepageInteractions();
+  }
 })();
 </script>
 {% endblock %}

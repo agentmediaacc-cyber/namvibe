@@ -32,6 +32,41 @@ DOMAIN=example.com PORT=8080 ./scripts/test_namvibe_local_domain.sh
 PORT=8080 ./scripts/smoke_namvibe_core_routes.sh
 ```
 
+## Homepage interaction debugging
+
+Like and comment fixes for the homepage live in the inline JavaScript inside `templates/chain_home.html`.
+
+The real browser test for homepage interactions is `scripts/browser_test_homepage_interactions.py`.
+
+Run it with:
+
+```bash
+./scripts/start_namvibe_local_cloudflare.sh
+NAMVIBE_PUBLIC_BASE_URL=http://127.0.0.1:8080 ./venv/bin/python scripts/browser_test_homepage_interactions.py
+```
+
+This test:
+- logs in as `alpha_user` when credentials are available
+- waits for `NAMVIBE_HOME_INTERACTIONS_READY`
+- waits for `NAMVIBE_HOME_LIKES_READY`
+- selects only real post cards with `data-type="post"`
+- ignores live-room cards
+- verifies the like toggle flow
+- verifies comment submit
+- saves screenshots to `/tmp`
+
+Troubleshooting:
+- If Like calls `/api/home/post/<id>/like` but the ID is a live room ID, fix feed card typing.
+- If the browser console shows `SyntaxError`, run `node --check` on the extracted inline script.
+- If `curl` tests pass but the browser fails, run the Playwright browser test.
+- If stale code appears, check these build markers in the browser:
+
+```js
+window.NAMVIBE_HOME_BUILD
+window.NAMVIBE_HOME_INTERACTIONS_READY
+window.NAMVIBE_HOME_LIKES_READY
+```
+
 ## Read logs
 
 ```bash

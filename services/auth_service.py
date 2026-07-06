@@ -1941,7 +1941,30 @@ def login_chain_user(email, password=None, remember=False):
     password_hash = _get_password_hash(login_profile) if login_profile else None
     login_result_debug["verifier_available"] = bool(password_hash)
 
+    def _ensure_login_profile(profile):
+        if not profile or not profile.get("auth_user_id"):
+            return profile
+        try:
+            from services.profile_service import ensure_profile_for_user
+            ensured_profile, ensure_error = ensure_profile_for_user(
+                profile.get("auth_user_id"),
+                email=profile.get("email") or resolved_email,
+                username=profile.get("username") or login_id.split("@", 1)[0],
+                defaults={
+                    "display_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
+                    "full_name": profile.get("full_name") or profile.get("display_name") or profile.get("username"),
+                    "avatar_url": profile.get("avatar_url"),
+                    "email_verified": bool(profile.get("email_verified")),
+                    "is_verified": bool(profile.get("is_verified") or profile.get("verified")),
+                    "profile_completed": bool(profile.get("profile_completed")),
+                },
+            )
+            return ensured_profile or profile
+        except Exception:
+            return profile
+
     if password_hash and check_password_hash(password_hash, password):
+        login_profile = _ensure_login_profile(login_profile)
         _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"), remember=remember)
         login_result_debug["state"] = "login_success"
         login_result_debug["success"] = True
@@ -1952,7 +1975,7 @@ def login_chain_user(email, password=None, remember=False):
     local_auth_credential = None
 
     def _check_local_auth_table():
-        nonlocal local_auth_credential
+        nonlocal local_auth_credential, login_profile
         if not login_profile or password_hash:
             return None
         login_result_debug["local_auth_table_checked"] = True
@@ -1961,6 +1984,7 @@ def login_chain_user(email, password=None, remember=False):
         login_result_debug["local_auth_found"] = bool(local_auth_credential)
         local_hash = (local_auth_credential or {}).get("password_hash") or ""
         if local_hash and check_password_hash(local_hash, password):
+            login_profile = _ensure_login_profile(login_profile)
             _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"), remember=remember)
             _mark_local_auth_used(login_profile.get("id"))
             login_result_debug["local_auth_success"] = True
@@ -1980,6 +2004,7 @@ def login_chain_user(email, password=None, remember=False):
     if dev_credential and check_password_hash(dev_credential.get("password_hash", ""), password):
         profile = login_profile or _dev_credential_profile(dev_credential)
         if profile and profile.get("auth_user_id"):
+            profile = _ensure_login_profile(profile)
             _store_login_session(profile, auth_user_id=profile.get("auth_user_id"), remember=remember)
             login_result_debug["state"] = "login_success"
             login_result_debug["success"] = True

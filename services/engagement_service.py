@@ -1,3 +1,5 @@
+import os
+import uuid
 from datetime import datetime, timezone
 from html import escape
 
@@ -151,8 +153,11 @@ def _table_available(table_name):
     limited to the listed tables to avoid bypassing Supabase behavior
     globally.
     """
+    neon_preferred_tables = {"chain_post_reactions", "chain_story_reactions", "chain_post_comments", "chain_reel_reactions", "chain_reel_comments", "chain_saved_items"}
     try:
-        if table_name in {"chain_post_reactions", "chain_story_reactions", "chain_post_comments", "chain_reel_reactions", "chain_reel_comments", "chain_saved_items"}:
+        if table_name in neon_preferred_tables:
+            if os.getenv("CHAIN_DISABLE_SCHEMA_CHECK", "").strip().lower() in {"1", "true", "yes", "on"}:
+                return True
             try:
                 if neon_service.table_exists(table_name, timeout_ms=10000):
                     return True
@@ -203,22 +208,23 @@ def toggle_like(profile_id, entity_type, entity_id):
             safe_delete(config["table"], eq={"id": existing["id"]})
     else:
         try:
+            insert_payload = {**filters, "id": str(uuid.uuid4()), "created_at": _utcnow_iso()}
             if config["table"] in NEON_TABLES:
                 inserted = neon_service.insert_row(
                     config["table"],
-                    {**filters, "created_at": _utcnow_iso()},
+                    insert_payload,
                     returning="id, profile_id, {}, reaction_type, created_at".format(config["entity_column"]),
                 )
                 if not inserted:
                     return {"success": False, "error": "Could not save like."}
             else:
-                inserted = safe_insert(config["table"], {**filters, "created_at": _utcnow_iso()})
+                inserted = safe_insert(config["table"], insert_payload)
                 if inserted is None:
                     return {"success": False, "error": "Could not save like."}
-        except Exception:
-            inserted = safe_insert(config["table"], {**filters, "created_at": _utcnow_iso()})
+        except Exception as error:
+            inserted = safe_insert(config["table"], {**filters, "id": str(uuid.uuid4()), "created_at": _utcnow_iso()})
             if inserted is None:
-                return {"success": False, "error": "Could not save like."}
+                return {"success": False, "error": str(error) or "Could not save like."}
 
     # Compute count using Neon for post/story/reel reactions
     try:
@@ -323,10 +329,17 @@ def add_comment(profile_id, entity_type, entity_id, body):
 
     NEON_COMMENT_TABLES = {"chain_reel_comments", "chain_post_comments"}
     try:
+        insert_payload = {
+            "id": str(uuid.uuid4()),
+            "profile_id": profile_id,
+            config["entity_column"]: entity_id,
+            "body": clean,
+            "created_at": _utcnow_iso(),
+        }
         if config["table"] in NEON_COMMENT_TABLES:
             inserted = neon_service.insert_row(
                 config["table"],
-                {"profile_id": profile_id, config["entity_column"]: entity_id, "body": clean, "created_at": _utcnow_iso()},
+                insert_payload,
                 returning="id, profile_id, {}, body, created_at".format(config["entity_column"]),
             )
             if not inserted:
@@ -337,15 +350,21 @@ def add_comment(profile_id, entity_type, entity_id, body):
             )[0]["count"]
             write_query("UPDATE {} SET {} = %s WHERE id = %s".format(config["target_table"], config["count_column"]), (count, entity_id))
         else:
-            inserted = safe_insert(config["table"], {"profile_id": profile_id, config["entity_column"]: entity_id, "body": clean, "created_at": _utcnow_iso()})
+            inserted = safe_insert(config["table"], insert_payload)
             if not inserted:
                 return {"success": False, "error": "Could not save comment."}
             count = safe_count(config["table"], filters={config["entity_column"]: entity_id})
             _set_count(config["target_table"], entity_id, config["count_column"], count)
-    except Exception:
-        inserted = safe_insert(config["table"], {"profile_id": profile_id, config["entity_column"]: entity_id, "body": clean, "created_at": _utcnow_iso()})
+    except Exception as error:
+        inserted = safe_insert(config["table"], {
+            "id": str(uuid.uuid4()),
+            "profile_id": profile_id,
+            config["entity_column"]: entity_id,
+            "body": clean,
+            "created_at": _utcnow_iso(),
+        })
         if not inserted:
-            return {"success": False, "error": "Could not save comment."}
+            return {"success": False, "error": str(error) or "Could not save comment."}
         count = safe_count(config["table"], filters={config["entity_column"]: entity_id})
         _set_count(config["target_table"], entity_id, config["count_column"], count)
     _notify(

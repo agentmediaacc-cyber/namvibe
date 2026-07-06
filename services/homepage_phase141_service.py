@@ -59,6 +59,47 @@ def _profile_avatar(profile):
     return profile.get("avatar_url") or profile.get("profile_photo") or ""
 
 
+def fetch_liked_entity_ids(entity_type, viewer_id, entity_ids, timeout_ms=5000):
+    """Return the entity IDs liked by the current viewer for homepage rendering."""
+    if not viewer_id or not entity_ids:
+        return set()
+
+    table_map = {
+        "post": ("chain_post_reactions", "post_id"),
+        "reel": ("chain_reel_reactions", "reel_id"),
+    }
+    table_info = table_map.get(entity_type)
+    if not table_info:
+        return set()
+
+    table_name, column_name = table_info
+    normalized_ids = [str(entity_id) for entity_id in entity_ids if entity_id]
+    if not normalized_ids:
+        return set()
+
+    try:
+        placeholders = ",".join(["%s"] * len(normalized_ids))
+        rows = fast_query(
+            (
+                f"SELECT {column_name} FROM {table_name} "
+                f"WHERE profile_id = %s AND reaction_type = 'like' "
+                f"AND {column_name} IN ({placeholders})"
+            ),
+            [str(viewer_id), *normalized_ids],
+            timeout_ms=timeout_ms,
+            default=[],
+        )
+    except Exception:
+        return set()
+
+    liked_ids = set()
+    for row in rows or []:
+        entity_id = row.get(column_name) if isinstance(row, dict) else None
+        if entity_id:
+            liked_ids.add(str(entity_id))
+    return liked_ids
+
+
 def fetch_profiles_batch(profile_ids, timeout_ms=5000):
     """Fetch profiles by IDs in a single batch query.
     
@@ -131,6 +172,7 @@ def normalize_live_room_v2(row, profile_map):
     
     return {
         "id": row.get("id"),
+        "type": "live_room",
         "title": title,
         "category": row.get("category") or "",
         "viewer_count": int(viewers) if viewers else 0,
@@ -166,6 +208,7 @@ def normalize_post_v2(row, profile_map):
     
     return {
         "id": row.get("id"),
+        "type": row.get("type") or ("reel" if row.get("video_url") and row.get("music_title") else "post"),
         "display_name": display_name,
         "username": username,
         "avatar_url": _profile_avatar(profile),
@@ -190,6 +233,8 @@ def normalize_post_v2(row, profile_map):
         "shares_count": int(row.get("shares_count") or 0),
         "music_title": row.get("music_title") or "",
         "category": row.get("category") or "",
+        "is_liked": bool(row.get("is_liked")),
+        "user_liked": bool(row.get("is_liked")),
         "created_label": _format_relative(row.get("created_at")),
         "profile_url": f"/profile/@{username}" if username else "/discover/",
     }
@@ -223,7 +268,7 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
     - subscribers/locked: only subscribers can see
     - private: only owner can see
     """
-    cache_key_str = cache_key(f"homepage:v1:stories:viewer:{viewer_id or 'anon'}")
+    cache_key_str = cache_key(f"homepage:v2:stories:viewer:{viewer_id or 'anon'}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached, True, None
@@ -284,7 +329,7 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
     - followers: only followers can see
     - private: only owner can see
     """
-    cache_key_str = cache_key(f"homepage:v1:reels:viewer:{viewer_id or 'anon'}")
+    cache_key_str = cache_key(f"homepage:v2:reels:viewer:{viewer_id or 'anon'}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached, True, None
@@ -315,7 +360,11 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
         
         profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
         profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
-        
+        liked_ids = fetch_liked_entity_ids("reel", viewer_id, [r.get("id") for r in rows], timeout_ms=5000)
+        for row in rows:
+            row["type"] = "reel"
+            row["is_liked"] = str(row.get("id")) in liked_ids
+
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
 
@@ -348,7 +397,7 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
     - followers: only followers can see
     - private: only owner can see
     """
-    cache_key_str = cache_key(f"homepage:v1:posts:viewer:{viewer_id or 'anon'}")
+    cache_key_str = cache_key(f"homepage:v2:posts:viewer:{viewer_id or 'anon'}")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached, True, None
@@ -381,7 +430,11 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
         
         profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
         profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
-        
+        liked_ids = fetch_liked_entity_ids("post", viewer_id, [r.get("id") for r in rows], timeout_ms=5000)
+        for row in rows:
+            row["type"] = row.get("type") or "post"
+            row["is_liked"] = str(row.get("id")) in liked_ids
+
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
         
@@ -400,7 +453,7 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
 
 def fetch_live_rooms_v2(live_columns, timeout_ms=800, limit=5):
     """Phase 141: Fetch live rooms WITHOUT expensive profile JOIN."""
-    cache_key_str = cache_key("homepage:v1:public:live_rooms")
+    cache_key_str = cache_key("homepage:v2:public:live_rooms")
     cached = get_cache(cache_key_str)
     if cached is not None:
         return cached, True, None
