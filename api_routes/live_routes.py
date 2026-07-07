@@ -1,788 +1,583 @@
+"""NamVibe Live — API Routes (NVC Coin Powered, UUID)"""
+
+import os
 import time
+from flask import Blueprint, request, jsonify, session, render_template
+from services.neon_service import execute, fetch_all, fetch_one
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
-from services.live_service import (
-    create_live_room,
-    get_live_rooms,
-    get_live_rooms_public,
-    get_room,
-    join_room,
-    room_activity,
-    add_comment,
-    send_gift,
-    end_live,
-    request_cohost,
-    get_cohost_requests,
-    update_cohost_status,
-    prime_live_rooms_public_cache,
-)
-from services.realtime_service import track_live_reaction
-from api_routes.profile_routes import login_required
-from services.profile_service import get_current_profile
-from services.push_notification_service import queue_push_event
-from services.supabase_safe import safe_select
-from services import live_feature_service as phase29_live
-from services.live_streaming_service import (
-    add_participant,
-    get_participants,
-    get_hosts,
-    promote_cohost,
-    demote_participant,
-    get_gift_catalog,
-    send_premium_gift,
-    create_raid,
-    activate_raid,
-    complete_raid,
-    cancel_raid,
-    get_raids_for_room,
-    get_incoming_raids,
-    raid_target_options,
-    create_goal,
-    get_active_goals,
-    complete_goal,
-    ban_user,
-    unban_user,
-    is_banned,
-    get_bans,
-    get_moderators,
-    add_moderator,
-    get_earnings,
-    get_earnings_summary,
-    withdraw_earnings,
-    get_dashboard_stats,
-    get_featured_rooms,
-    get_rooms_by_category,
-    get_premium_rooms,
-    get_room_metadata,
-)
-from services.live_engine import (
-    get_trending_live_rooms as _le_trending,
-    create_live_room as _le_create_room,
-    get_live_room as _le_get_room,
-    get_live_rooms as _le_list_rooms,
-    join_live_room as _le_join,
-    leave_live_room as _le_leave,
-    get_live_viewers as _le_viewers,
-    request_guest_slot as _le_guest_request,
-    approve_guest_request as _le_guest_approve,
-    reject_guest_request as _le_guest_reject,
-    remove_guest as _le_guest_remove,
-    add_cohost as _le_add_cohost,
-    remove_cohost as _le_remove_cohost,
-    get_cohosts as _le_get_cohosts,
-    send_live_chat as _le_send_chat,
-    get_live_chat_messages as _le_get_chat,
-    delete_live_chat_message as _le_delete_chat,
-    pin_live_chat_message as _le_pin_chat,
-    send_live_reaction as _le_send_reaction,
-    get_live_reactions as _le_get_reactions,
-    send_live_gift as _le_send_gift,
-    get_live_gift_leaderboard as _le_gift_leaderboard,
-    get_live_gift_catalog as _le_gift_catalog,
-    moderate_live_user as _le_moderate,
-    get_live_analytics as _le_analytics,
-    get_creator_live_analytics as _le_creator_analytics,
-)
-from services.logging_service import log_info
+live_bp = Blueprint("live", __name__, url_prefix="/api/live")
 
-live_bp = Blueprint("live", __name__, url_prefix="/live")
+def _profile_id():
+    pid = session.get("profile_id")
+    if pid:
+        return pid
+    try:
+        from services.profile_service import get_current_profile
+        p = get_current_profile()
+        if p and p.get("id"):
+            return p["id"]
+    except Exception:
+        pass
+    return session.get("auth_user_id")
 
-# ─── Index / Dashboard ───
-
-@live_bp.route("/")
-def live_channels():
-    start = time.perf_counter()
-    profile = get_current_profile()
-    rooms = phase29_live.list_live_rooms(limit=8) or get_live_rooms_public(limit=8, allow_query=False)
-    response = render_template("live/channels.html", rooms=rooms, profile=profile)
-    log_info("live_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), room_count=len(rooms or []), page="channels")
-    return response
-
-@live_bp.route("/dashboard")
-def live_dashboard():
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return redirect(url_for("live.live_channels"))
-    stats = get_dashboard_stats(profile["id"])
-    gift_catalog = get_gift_catalog()
-    featured = get_featured_rooms(limit=6)
-    return render_template("live/index.html", profile=profile, stats=stats, gift_catalog=gift_catalog, featured=featured)
-
-# ─── Studio ───
-
-@live_bp.route("/studio", methods=["GET", "POST"])
-@login_required
-def studio():
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        from api_routes.profile_routes import _session_profile_stub
-        profile = _session_profile_stub()
-        return render_template("live/studio.html", profile=profile, setup_warning=True)
-
-    if request.method == "POST":
-        room_result = phase29_live.start_live(profile["id"], request.form.get("title"), host_name=profile.get("full_name") or profile.get("username"), allow_comments=request.form.get("allow_comments", "on") != "off")
-        room = room_result.get("room") if room_result.get("ok") else create_live_room(request.form, request.files)
-        if not room:
-            return render_template("live/studio.html", profile=profile, error="We could not save this live room with the current Supabase schema.")
-        add_participant(room["id"], profile["id"], "host")
-        return redirect(url_for("live.watch_room", room_id=room["id"]))
-    return render_template("live/studio.html", profile=profile)
-
-# ─── Watch / Room ───
-
-@live_bp.route("/room/<room_id>")
-def watch_room(room_id):
-    start = time.perf_counter()
-    profile = get_current_profile()
-    room = get_room(room_id)
-    if not room:
-        log_info("live_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), room_id=room_id, page="room", found=False)
-        return "Live room not found", 404
-
-    phase29_live.join_live(room_id, profile.get("id") if profile else None, request.args.get("name"))
-    if profile and profile.get("id"):
-        add_participant(room_id, profile["id"], "viewer")
-
-    gift_catalog = safe_select("chain_gift_catalog", filters={"is_active": True}, limit=8, order_by="coin_price", desc=False)
-    metadata = get_room_metadata(room_id)
-    goals = get_active_goals(room_id)
-    activity = room_activity(room_id)
-    from services.media_server_service import livekit_configured, LIVEKIT_URL
-    _livekit_configured = livekit_configured()
-    livekit_room_url = LIVEKIT_URL if _livekit_configured else None
-    response = render_template("live/watch.html", room=room, activity=activity, gift_catalog=gift_catalog, profile=profile, metadata=metadata, goals=goals, livekit_configured=_livekit_configured, livekit_url=livekit_room_url)
-    log_info("live_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), room_id=room_id, page="room", found=True)
-    return response
-
-@live_bp.route("/room/<room_id>/activity")
-def activity(room_id):
-    return jsonify(room_activity(room_id))
-
-# ─── Comment ───
-
-@live_bp.route("/room/<room_id>/comment", methods=["POST"])
-def comment(room_id):
-    profile = get_current_profile()
-    if profile and profile.get("id") and is_banned(room_id, profile["id"]):
-        return jsonify({"error": "You are banned from this room"}), 403
-    phase29_live.comment_live(room_id, (profile or {}).get("id"), request.form.get("body") or request.form.get("comment"), request.form.get("display_name"))
-    if request.is_json:
-        return jsonify({"status": "ok"})
-    return redirect(url_for("live.watch_room", room_id=room_id))
-
-@live_bp.route("/api/live/<room_id>/comment", methods=["POST"])
-@login_required
-def api_comment(room_id):
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    if is_banned(room_id, profile["id"]):
-        return jsonify({"error": "You are banned from this room"}), 403
-    data = request.get_json(silent=True) or {}
-    add_comment(room_id, data.get("body"), data.get("display_name"))
-    return jsonify({"status": "ok"})
-
-# ─── Gift ───
-
-@live_bp.route("/room/<room_id>/gift", methods=["POST"])
-def gift(room_id):
-    send_gift(
-        room_id,
-        request.form.get("gift_icon") or request.form.get("emoji"),
-        request.form.get("gift_name"),
-        request.form.get("amount") or request.form.get("coins"),
-        request.form.get("display_name"),
-    )
-    return redirect(url_for("live.watch_room", room_id=room_id))
-
-@live_bp.route("/api/live/<room_id>/gift", methods=["POST"])
-@login_required
-def api_live_gift(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Profile setup incomplete"}), 400
-    gift_type = request.form.get("gift_type")
-    coin_value = request.form.get("coin_value", 0)
-
-    from services.wallet_engine import send_gift as send_wallet_gift
-    room = get_room(room_id)
-    if not room:
-        return jsonify({"error": "Room not found"}), 404
-
-    ok, error = send_wallet_gift(
-        sender_profile_id=current['id'],
-        receiver_profile_id=room['profile_id'],
-        gift_type=gift_type,
-        coin_value=coin_value,
-        entity_type='live_room',
-        entity_id=room_id
+# ─── NVC COIN HELPERS ─────────────────────────────────────
+def _ensure_wallet(pid):
+    execute(
+        "INSERT INTO chain_nvc_wallet (profile_id, balance) VALUES (%s, 0) ON CONFLICT (profile_id) DO NOTHING",
+        (pid,)
     )
 
-    if ok:
-        return jsonify({"success": True}), 200
-    return jsonify({"error": error}), 400
-
-@live_bp.route("/api/live/<room_id>/gift/premium", methods=["POST"])
-@login_required
-def api_premium_gift(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    gift_id = data.get("gift_id")
-    quantity = int(data.get("quantity", 1))
-    if not gift_id:
-        return jsonify({"error": "gift_id required"}), 400
-    ok, msg = send_premium_gift(room_id, current["id"], gift_id, quantity)
-    if ok:
-        return jsonify({"success": True, "message": msg}), 200
-    return jsonify({"error": msg}), 400
-
-# ─── Co-host ───
-
-@live_bp.route("/room/<room_id>/request-cohost", methods=["POST"])
-def cohost_request(room_id):
-    request_cohost(room_id, request.form.get("display_name"))
-    return jsonify({"status": "requested"})
-
-@live_bp.route("/room/<room_id>/cohost/<request_id>/<status>", methods=["POST"])
-def cohost_status(room_id, request_id, status):
-    update_cohost_status(request_id, status)
-    return jsonify({"status": status})
-
-@live_bp.route("/api/live/<room_id>/cohost/promote", methods=["POST"])
-@login_required
-def api_promote_cohost(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    profile_id = data.get("profile_id")
-    if not profile_id:
-        return jsonify({"error": "profile_id required"}), 400
-    ok, msg = promote_cohost(room_id, profile_id, current["id"])
-    if ok:
-        return jsonify({"success": True, "message": msg}), 200
-    return jsonify({"error": msg}), 400
-
-@live_bp.route("/api/live/<room_id>/participant/demote", methods=["POST"])
-@login_required
-def api_demote_participant(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    profile_id = data.get("profile_id")
-    if not profile_id:
-        return jsonify({"error": "profile_id required"}), 400
-    ok, msg = demote_participant(room_id, profile_id, current["id"])
-    if ok:
-        return jsonify({"success": True, "message": msg}), 200
-    return jsonify({"error": msg}), 400
-
-@live_bp.route("/api/live/<room_id>/participants")
-def api_participants(room_id):
-    participants = get_participants(room_id)
-    return jsonify({"participants": participants})
-
-# ─── End ───
-
-@live_bp.route("/room/<room_id>/end", methods=["GET", "POST"])
-def end(room_id):
-    phase29_live.end_live(room_id, (get_current_profile() or {}).get("id"))
-    return redirect(url_for("live.live_channels"))
-
-# ─── React ───
-
-@live_bp.route("/api/react/<room_id>", methods=["POST"])
-@login_required
-def react_api(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Profile setup incomplete"}), 400
-    data = request.json or {}
-    r_type = data.get("type", "heart")
-    track_live_reaction(room_id, current["id"], r_type)
-    return jsonify({"status": "ok"})
-
-# ─── Guest Requests ───
-
-@live_bp.route("/api/rooms/<room_id>/guest-requests", methods=["GET"])
-@login_required
-def api_rooms_guest_requests(room_id):
-    data = phase29_live.get_guest_requests(room_id)
-    return jsonify({"requests": data.get("requests", [])}), 200
-
-@live_bp.route("/api/live/<room_id>/guest-request", methods=["POST"])
-@login_required
-def api_guest_request(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or request.form
-    result = phase29_live.request_guest(room_id, profile["id"], data.get("note"))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-@live_bp.route("/api/live/guest-request/<request_id>", methods=["POST"])
-@login_required
-def api_guest_request_status(request_id):
-    data = request.get_json(silent=True) or request.form
-    result = phase29_live.update_guest_request(request_id, data.get("status", "pending"))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Polls ───
-
-@live_bp.route("/api/rooms/<room_id>/polls", methods=["GET"])
-@login_required
-def api_rooms_polls(room_id):
-    data = phase29_live.get_polls(room_id)
-    return jsonify({"polls": data.get("polls", [])}), 200
-
-@live_bp.route("/api/live/<room_id>/poll", methods=["POST"])
-@login_required
-def api_create_poll(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.create_poll(room_id, profile["id"], data.get("question") or "Live poll", data.get("options") or [])
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-@live_bp.route("/api/live/poll/<poll_id>/vote", methods=["POST"])
-@login_required
-def api_vote_poll(poll_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.vote_poll(poll_id, profile["id"], data.get("option"))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Battles ───
-
-@live_bp.route("/api/live/<room_id>/battle", methods=["POST"])
-@login_required
-def api_battle(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.create_battle(room_id, host_profile_id=profile["id"], challenger_room_id=data.get("challenger_room_id"), challenger_profile_id=data.get("challenger_profile_id"))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Moderation ───
-
-@live_bp.route("/api/live/<room_id>/moderation", methods=["POST"])
-@login_required
-def api_moderation(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.moderation_action(room_id, profile["id"], data.get("action_type", "mute"), data.get("target_profile_id"), data.get("reason"))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-@live_bp.route("/api/live/<room_id>/ban", methods=["POST"])
-@login_required
-def api_ban_user(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    profile_id = data.get("profile_id")
-    if not profile_id:
-        return jsonify({"error": "profile_id required"}), 400
-    result = ban_user(room_id, profile_id, current["id"], data.get("reason"), int(data.get("duration_minutes", 0)))
-    return jsonify({"success": bool(result)}), 200
-
-@live_bp.route("/api/live/<room_id>/unban", methods=["POST"])
-@login_required
-def api_unban_user(room_id):
-    data = request.get_json(silent=True) or {}
-    profile_id = data.get("profile_id")
-    if not profile_id:
-        return jsonify({"error": "profile_id required"}), 400
-    unban_user(room_id, profile_id)
-    return jsonify({"success": True}), 200
-
-@live_bp.route("/api/live/<room_id>/bans")
-@login_required
-def api_bans(room_id):
-    bans = get_bans(room_id)
-    return jsonify({"bans": bans}), 200
-
-@live_bp.route("/api/live/<room_id>/moderators")
-def api_moderators(room_id):
-    mods = get_moderators(room_id)
-    return jsonify({"moderators": mods}), 200
-
-@live_bp.route("/api/live/<room_id>/moderator/add", methods=["POST"])
-@login_required
-def api_add_moderator(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    profile_id = data.get("profile_id")
-    if not profile_id:
-        return jsonify({"error": "profile_id required"}), 400
-    ok, msg = add_moderator(room_id, profile_id, current["id"])
-    if ok:
-        return jsonify({"success": True, "message": msg}), 200
-    return jsonify({"error": msg}), 400
-
-# ─── Replay ───
-
-@live_bp.route("/api/live/<room_id>/replay", methods=["POST"])
-@login_required
-def api_replay(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.save_replay(room_id, profile["id"], data.get("replay_url"), data.get("duration_seconds", 0), **(data.get("metadata") or {}))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Clip ───
-
-@live_bp.route("/api/live/<room_id>/clip", methods=["POST"])
-@login_required
-def api_clip(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.create_clip(room_id, profile["id"], data.get("clip_url"), data.get("start_seconds", 0), data.get("duration_seconds", 0), data.get("title"), **(data.get("metadata") or {}))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Shopping ───
-
-@live_bp.route("/api/live/<room_id>/shopping", methods=["POST"])
-@login_required
-def api_shopping(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.add_shopping_item(room_id, profile["id"], data.get("title") or "Live item", data.get("price_coins", 0), data.get("url"))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Leaderboard ───
-
-@live_bp.route("/api/live/<room_id>/leaderboard", methods=["POST"])
-@login_required
-def api_leaderboard(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.upsert_leaderboard(room_id, data.get("profile_id") or profile["id"], data.get("score", 0), data.get("rank"), **(data.get("metadata") or {}))
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Stream Settings ───
-
-@live_bp.route("/api/live/<room_id>/stream-settings", methods=["POST"])
-@login_required
-def api_stream_settings(room_id):
-    profile = get_current_profile()
-    data = request.get_json(silent=True) or {}
-    result = phase29_live.save_stream_settings(room_id, profile["id"], **data)
-    return jsonify({"success": bool(result.get("ok")), **result}), 200
-
-# ─── Raids ───
-
-@live_bp.route("/api/live/<room_id>/raid", methods=["POST"])
-@login_required
-def api_create_raid(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    target_room_id = data.get("target_room_id")
-    if not target_room_id:
-        return jsonify({"error": "target_room_id required"}), 400
-    viewer_count = int(data.get("viewer_count", 0))
-    result = create_raid(room_id, target_room_id, current["id"], viewer_count)
-    return jsonify({"success": bool(result), "raid": result}), 200
-
-@live_bp.route("/api/live/<room_id>/raids")
-def api_raids(room_id):
-    raids = get_raids_for_room(room_id)
-    incoming = get_incoming_raids(room_id)
-    return jsonify({"raids": raids, "incoming": incoming}), 200
-
-@live_bp.route("/api/live/raid/<raid_id>/activate", methods=["POST"])
-@login_required
-def api_activate_raid(raid_id):
-    activate_raid(raid_id)
-    return jsonify({"success": True}), 200
-
-@live_bp.route("/api/live/raid/<raid_id>/complete", methods=["POST"])
-@login_required
-def api_complete_raid(raid_id):
-    complete_raid(raid_id)
-    return jsonify({"success": True}), 200
-
-@live_bp.route("/api/live/raid/<raid_id>/cancel", methods=["POST"])
-@login_required
-def api_cancel_raid(raid_id):
-    cancel_raid(raid_id)
-    return jsonify({"success": True}), 200
-
-@live_bp.route("/api/live/raid/targets/<room_id>")
-def api_raid_targets(room_id):
-    targets = raid_target_options(room_id)
-    return jsonify({"targets": targets}), 200
-
-# ─── Goals ───
-
-@live_bp.route("/api/live/<room_id>/goals", methods=["GET"])
-def api_get_goals(room_id):
-    goals = get_active_goals(room_id)
-    return jsonify({"goals": goals}), 200
-
-@live_bp.route("/api/live/<room_id>/goals", methods=["POST"])
-@login_required
-def api_create_goal(room_id):
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    title = data.get("title", "Stream Goal")
-    target = float(data.get("target_amount", 100))
-    goal_type = data.get("goal_type", "gifts")
-    result = create_goal(room_id, title, target, goal_type)
-    return jsonify({"success": bool(result), "goal": result}), 200
-
-@live_bp.route("/api/live/goal/<goal_id>/complete", methods=["POST"])
-@login_required
-def api_complete_goal(goal_id):
-    complete_goal(goal_id)
-    return jsonify({"success": True}), 200
-
-# ─── Earnings ───
-
-@live_bp.route("/api/live/earnings")
-@login_required
-def api_earnings():
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    earnings = get_earnings(current["id"])
-    summary = get_earnings_summary(current["id"])
-    return jsonify({"earnings": earnings, "summary": summary}), 200
-
-@live_bp.route("/api/live/earnings/withdraw", methods=["POST"])
-@login_required
-def api_withdraw_earnings():
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    data = request.get_json(silent=True) or {}
-    amount = float(data.get("amount", 0))
-    if amount <= 0:
-        return jsonify({"error": "Invalid amount"}), 400
-    ok, msg = withdraw_earnings(current["id"], amount)
-    if ok:
-        return jsonify({"success": True, "message": msg}), 200
-    return jsonify({"error": msg}), 400
-
-# ─── Gift Catalog ───
-
-@live_bp.route("/api/gift-catalog")
-def api_gift_catalog():
-    catalog = get_gift_catalog()
-    return jsonify({"catalog": catalog}), 200
-
-# ─── Dashboard Stats ───
-
-@live_bp.route("/api/dashboard")
-@login_required
-def api_dashboard():
-    current = get_current_profile()
-    if not current or not current.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    stats = get_dashboard_stats(current["id"])
-    return jsonify(stats), 200
-
-# ─── Featured / Discovery ───
-
-@live_bp.route("/api/featured")
-def api_featured():
-    rooms = get_featured_rooms(limit=6)
-    return jsonify({"rooms": rooms}), 200
-
-@live_bp.route("/api/category/<category>")
-def api_category(category):
-    rooms = get_rooms_by_category(category)
-    return jsonify({"rooms": rooms}), 200
-
-@live_bp.route("/api/premium-rooms")
-def api_premium_rooms():
-    rooms = get_premium_rooms()
-    return jsonify({"rooms": rooms}), 200
-
-@live_bp.route("/api/room/<room_id>/metadata")
-def api_room_metadata(room_id):
-    metadata = get_room_metadata(room_id)
-    if not metadata:
-        return jsonify({"error": "Room not found"}), 404
-    return jsonify(metadata), 200
-
-# ─── Stats ───
-
-@live_bp.route("/api/stats")
-def api_stats():
-    rooms = get_live_rooms(limit=100)
-    total_viewers = sum(r.get("viewer_count", 0) or 0 for r in rooms)
-    total_gifts = sum(r.get("gift_total", 0) or 0 for r in rooms)
-    return jsonify({"total_viewers": total_viewers, "total_rooms": len(rooms), "total_gifts": total_gifts})
-
-
-# ─── Studio API aliases (called by live/studio.html inline JS) ───
-
-@live_bp.route("/api/rooms/start", methods=["POST"])
-@login_required
-def api_rooms_start():
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"ok": False, "error": "not_authenticated"}), 401
-    data = request.get_json(silent=True) or {}
-    title = data.get("title") or request.form.get("title", "Live Stream")
-    room_result = phase29_live.start_live(profile["id"], title, host_name=profile.get("full_name") or profile.get("username"))
-    room = room_result.get("room") if room_result.get("ok") else create_live_room(request.form, request.files)
-    if not room:
-        return jsonify({"ok": False, "error": "room_creation_failed"}), 500
-    add_participant(room["id"], profile["id"], "host")
-    from services.media_server_service import create_livekit_creator_token
-    creator_token = create_livekit_creator_token(profile["id"], room["id"], profile.get("full_name") or profile.get("username"))
-    return jsonify({"ok": True, "room": room, "livekit_token": creator_token, "livekit_configured": creator_token is not None})
-
-@live_bp.route("/api/rooms/<room_id>/end", methods=["POST"])
-@login_required
-def api_rooms_end(room_id):
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"ok": False, "error": "not_authenticated"}), 401
-    result = phase29_live.end_live(room_id)
-    if result.get("ok"):
-        return jsonify({"ok": True})
-    return jsonify({"ok": False, "error": "end_failed"}), 400
-
-@live_bp.route("/api/rooms/<room_id>/join-token")
-@login_required
-def api_rooms_join_token(room_id):
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"ok": False, "error": "not_authenticated"}), 401
-    from services.media_server_service import create_livekit_viewer_token
-    viewer_token = create_livekit_viewer_token(profile["id"], room_id, profile.get("full_name") or profile.get("username"))
+def _get_balance(pid):
+    _ensure_wallet(pid)
+    row = fetch_one("SELECT balance FROM chain_nvc_wallet WHERE profile_id = %s", (pid,))
+    return float(row["balance"]) if row else 0.0
+
+def _deduct_nvc(pid, amount, ref_type="", ref_id="", desc=""):
+    _ensure_wallet(pid)
+    bal = _get_balance(pid)
+    if bal < amount:
+        return False, bal
+    new_bal = bal - amount
+    execute("UPDATE chain_nvc_wallet SET balance = %s, lifetime_spent = lifetime_spent + %s, updated_at = NOW() WHERE profile_id = %s",
+            (new_bal, amount, pid))
+    execute(
+        "INSERT INTO chain_nvc_transactions (profile_id, type, amount, balance_after, reference_type, reference_id, description) VALUES (%s, 'gift_sent', %s, %s, %s, %s, %s)",
+        (pid, -amount, new_bal, ref_type, ref_id, desc)
+    )
+    return True, new_bal
+
+def _credit_nvc(pid, amount, tx_type, ref_type="", ref_id="", desc=""):
+    _ensure_wallet(pid)
+    bal = _get_balance(pid)
+    new_bal = bal + amount
+    execute("UPDATE chain_nvc_wallet SET balance = %s, lifetime_earned = lifetime_earned + %s, updated_at = NOW() WHERE profile_id = %s",
+            (new_bal, amount, pid))
+    execute(
+        "INSERT INTO chain_nvc_transactions (profile_id, type, amount, balance_after, reference_type, reference_id, description) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (pid, tx_type, amount, new_bal, ref_type, ref_id, desc)
+    )
+
+# ─── NVC BALANCE ──────────────────────────────────────────
+@live_bp.route("/wallet/balance", methods=["GET"])
+def wallet_balance():
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False}), 401
+    bal = _get_balance(pid)
+    row = fetch_one(
+        "SELECT lifetime_earned, lifetime_spent FROM chain_nvc_wallet WHERE profile_id = %s",
+        (pid,)
+    )
     return jsonify({
         "ok": True,
-        "livekit_token": viewer_token,
-        "livekit_configured": viewer_token is not None,
+        "balance": bal,
+        "lifetime_earned": float(row["lifetime_earned"]) if row else 0,
+        "lifetime_spent": float(row["lifetime_spent"]) if row else 0,
+    })
+
+# ─── NVC TRANSACTIONS ─────────────────────────────────────
+@live_bp.route("/wallet/transactions", methods=["GET"])
+def wallet_transactions():
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False}), 401
+    limit = min(int(request.args.get("limit", 20)), 50)
+    rows = fetch_all(
+        "SELECT * FROM chain_nvc_transactions WHERE profile_id = %s ORDER BY created_at DESC LIMIT %s",
+        (pid, limit), default=[]
+    )
+    txs = []
+    for r in rows:
+        txs.append({
+            "id": r["id"],
+            "type": r.get("type", ""),
+            "amount": float(r.get("amount", 0)),
+            "balance_after": float(r.get("balance_after", 0)),
+            "reference_type": r.get("reference_type", ""),
+            "description": r.get("description", ""),
+            "created_at": r.get("created_at").isoformat() if r.get("created_at") else "",
+        })
+    return jsonify({"transactions": txs})
+
+# ─── PURCHASE NVC COINS ───────────────────────────────────
+@live_bp.route("/wallet/purchase", methods=["POST"])
+def purchase_coins():
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False}), 401
+    data = request.get_json() or {}
+    package_id = data.get("package_id")
+    if not package_id:
+        return jsonify({"ok": False, "error": "Missing package_id"}), 400
+    pkg = fetch_one(
+        "SELECT * FROM chain_nvc_packages WHERE id = %s",
+        (package_id,)
+    )
+    if not pkg:
+        return jsonify({"ok": False, "error": "Package not found"}), 404
+    total_coins = float(pkg["coins"]) + float(pkg.get("bonus_coins", 0))
+    _credit_nvc(pid, total_coins, "purchase", "package", str(package_id),
+                f"Purchased {pkg['name']} — {int(pkg['coins'])} + {int(pkg.get('bonus_coins',0))} bonus NVC")
+    return jsonify({
+        "ok": True,
+        "coins_added": total_coins,
+        "package_name": pkg["name"],
+        "new_balance": _get_balance(pid),
+    })
+
+# ─── PURCHASE PACKAGES ────────────────────────────────────
+@live_bp.route("/wallet/packages", methods=["GET"])
+def get_packages():
+    rows = fetch_all(
+        "SELECT * FROM chain_nvc_packages ORDER BY sort_order ASC",
+        (), default=[]
+    )
+    packages = []
+    for r in rows:
+        packages.append({
+            "id": r["id"],
+            "name": r.get("name", ""),
+            "coins": float(r.get("coins", 0)),
+            "bonus_coins": float(r.get("bonus_coins", 0)),
+            "total_coins": float(r.get("coins", 0)) + float(r.get("bonus_coins", 0)),
+            "price": float(r.get("price", 0)),
+            "currency": r.get("currency", "NAD"),
+            "is_popular": r.get("is_popular", False),
+            "badge": r.get("badge", ""),
+        })
+    return jsonify({"packages": packages})
+
+# ─── GET ROOMS ─────────────────────────────────────────────
+@live_bp.route("/rooms", methods=["GET"])
+def get_rooms():
+    cat = request.args.get("category", "")
+    limit = min(int(request.args.get("limit", 12)), 50)
+    pid = _profile_id()
+
+    base_cols = "r.id, r.profile_id, r.title, r.category, r.status, r.viewer_count, r.is_live, r.cover_url, r.thumbnail_url, p.display_name, p.username, p.avatar_url, p.is_verified"
+
+    if cat == "friends" and pid:
+        rows = fetch_all(
+            """SELECT %s FROM chain_live_rooms r
+               JOIN chain_follows f ON f.following_profile_id = r.profile_id
+               JOIN chain_profiles p ON p.id = r.profile_id
+               WHERE f.follower_profile_id = %%s AND r.is_live = TRUE
+               ORDER BY r.viewer_count DESC LIMIT %%s""" % base_cols,
+            (pid, limit), default=[]
+        )
+    elif cat and cat not in ("all", "new", "scheduled", "featured", "trending", "friends"):
+        rows = fetch_all(
+            """SELECT %s FROM chain_live_rooms r
+               JOIN chain_profiles p ON p.id = r.profile_id
+               WHERE r.category = %%s AND r.is_live = TRUE
+               ORDER BY r.viewer_count DESC LIMIT %%s""" % base_cols,
+            (cat, limit), default=[]
+        )
+    elif cat == "featured":
+        rows = fetch_all(
+            """SELECT %s FROM chain_live_rooms r
+               JOIN chain_profiles p ON p.id = r.profile_id
+               WHERE r.is_live = TRUE
+               ORDER BY r.viewer_count DESC LIMIT %%s""" % base_cols,
+            (limit,), default=[]
+        )
+    elif cat == "new":
+        rows = fetch_all(
+            """SELECT %s FROM chain_live_rooms r
+               JOIN chain_profiles p ON p.id = r.profile_id
+               WHERE r.is_live = TRUE
+               ORDER BY r.created_at DESC LIMIT %%s""" % base_cols,
+            (limit,), default=[]
+        )
+    else:
+        rows = fetch_all(
+            """SELECT %s FROM chain_live_rooms r
+               JOIN chain_profiles p ON p.id = r.profile_id
+               WHERE r.is_live = TRUE
+               ORDER BY r.viewer_count DESC LIMIT %%s""" % base_cols,
+            (limit,), default=[]
+        )
+
+    rooms = []
+    for r in rows:
+        rooms.append({
+            "id": r["id"],
+            "title": r.get("title", ""),
+            "category": r.get("category", ""),
+            "status": "live" if r.get("is_live") else r.get("status", "offline"),
+            "viewer_count": r.get("viewer_count", 0),
+            "host_name": r.get("display_name") or r.get("username") or "Host",
+            "host_username": r.get("username", ""),
+            "host_avatar": r.get("avatar_url") or "",
+            "is_verified": r.get("is_verified", False),
+            "thumbnail_url": r.get("cover_url") or r.get("thumbnail_url") or "",
+            "is_featured": False,
+        })
+    return jsonify({"rooms": rooms, "count": len(rooms)})
+
+# ─── GIFT CATALOG ─────────────────────────────────────────
+@live_bp.route("/gifts", methods=["GET"])
+def get_gift_catalog():
+    tier = request.args.get("tier", "")
+    if tier:
+        rows = fetch_all(
+            "SELECT * FROM chain_live_gift_catalog WHERE tier = %s ORDER BY price_nvc ASC",
+            (tier,), default=[]
+        )
+    else:
+        rows = fetch_all(
+            "SELECT * FROM chain_live_gift_catalog ORDER BY sort_order ASC",
+            (), default=[]
+        )
+    gifts = []
+    for g in rows:
+        gifts.append({
+            "id": g["id"],
+            "name": g.get("name", ""),
+            "emoji": g.get("emoji", ""),
+            "price_nvc": float(g.get("price_nvc", 0)),
+            "tier": g.get("tier", "bronze"),
+            "animation_class": g.get("animation_class", ""),
+            "is_premium": g.get("is_premium", False),
+            "is_featured": g.get("is_featured", False),
+        })
+    return jsonify({"gifts": gifts, "count": len(gifts)})
+
+# ─── START LIVE ───────────────────────────────────────────
+@live_bp.route("/start", methods=["POST"])
+def start_live():
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+
+    data = request.get_json() or {}
+    title = (data.get("title") or "Untitled Stream").strip()[:100]
+    category = data.get("category", "entertainment")[:64]
+
+    row = fetch_one(
+        """INSERT INTO chain_live_rooms
+           (profile_id, title, category, is_live, status)
+           VALUES (%s, %s, %s, TRUE, 'live')
+           RETURNING id""",
+        (pid, title, category),
+        timeout_ms=10000,
+    )
+    room_id = row["id"] if row else None
+    if room_id:
+        return jsonify({"ok": True, "room_id": room_id})
+    return jsonify({"ok": False, "error": "Failed to create room"}), 500
+
+# ─── SEND GIFT (NVC Coin Powered) ─────────────────────────
+@live_bp.route("/<room_id>/gift", methods=["POST"])
+def send_gift(room_id):
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False}), 401
+
+    data = request.get_json() or {}
+    gift_name = data.get("gift_name", "Heart")[:64]
+    gift_emoji = data.get("gift_emoji", "❤️")[:16]
+    amount = float(data.get("amount", 1))
+    gift_catalog_id = data.get("gift_id", "")
+    is_coin_gift = bool(data.get("is_coin_gift"))
+
+    # Check NVC balance
+    bal = _get_balance(pid)
+    if bal < amount:
+        return jsonify({
+            "ok": False,
+            "error": "Insufficient NVC coins",
+            "balance": bal,
+            "needed": amount,
+            "shortfall": amount - bal,
+        }), 402
+
+    # Deduct NVC coins
+    ok, new_bal = _deduct_nvc(pid, amount, "live_gift", room_id,
+                       f"Sent {gift_emoji} {gift_name} ({amount} NVC) in room #{room_id}")
+    if not ok:
+        return jsonify({"ok": False, "error": "Transaction failed"}), 500
+
+    # Record gift in existing chain_live_gifts table
+    execute(
+        "INSERT INTO chain_live_gifts (room_id, sender_profile_id, gift_name, gift_icon, amount) VALUES (%s, %s, %s, %s, %s)",
+        (room_id, pid, gift_name, gift_emoji, amount)
+    )
+
+    # Update room gift_value increment
+    execute(
+        "UPDATE chain_live_rooms SET reaction_count = COALESCE(reaction_count, 0) + 1 WHERE id = %s",
+        (room_id,)
+    )
+
+    return jsonify({
+        "ok": True,
+        "new_balance": new_bal,
+    })
+
+# ─── SCHEDULED ─────────────────────────────────────────────
+@live_bp.route("/scheduled", methods=["GET"])
+def get_scheduled():
+    limit = min(int(request.args.get("limit", 12)), 50)
+    rows = fetch_all(
+        """SELECT r.id, r.profile_id, r.title, r.category, r.status, r.cover_url, r.thumbnail_url,
+                  r.scheduled_at, p.display_name, p.username, p.avatar_url, p.is_verified
+           FROM chain_live_rooms r
+           JOIN chain_profiles p ON p.id = r.profile_id
+           WHERE r.status = 'scheduled'
+           ORDER BY r.scheduled_at ASC LIMIT %s""",
+        (limit,), default=[]
+    )
+    rooms = []
+    for r in rows:
+        rooms.append({
+            "id": r["id"],
+            "title": r.get("title", ""),
+            "category": r.get("category", ""),
+            "status": "scheduled",
+            "host_name": r.get("display_name") or r.get("username") or "Host",
+            "host_avatar": r.get("avatar_url") or "",
+            "is_verified": r.get("is_verified", False),
+            "thumbnail_url": r.get("cover_url") or r.get("thumbnail_url") or "",
+        })
+    return jsonify({"rooms": rooms, "count": len(rooms)})
+
+# ─── END LIVE ──────────────────────────────────────────────
+@live_bp.route("/<room_id>/end", methods=["POST"])
+def end_live(room_id):
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False}), 401
+    room = fetch_one("SELECT profile_id FROM chain_live_rooms WHERE id = %s", (room_id,))
+    if not room or str(room["profile_id"]) != str(pid):
+        return jsonify({"ok": False, "error": "Not authorized"}), 403
+    execute(
+        "UPDATE chain_live_rooms SET is_live = FALSE, status = 'ended', ended_at = NOW() WHERE id = %s",
+        (room_id,)
+    )
+    return jsonify({"ok": True})
+
+# ─── CHAT ──────────────────────────────────────────────────
+@live_bp.route("/<room_id>/chat", methods=["GET", "POST"])
+def chat(room_id):
+    pid = _profile_id()
+
+    if request.method == "POST":
+        if not pid:
+            return jsonify({"ok": False}), 401
+        data = request.get_json() or {}
+        body = (data.get("body") or "").strip()[:500]
+        if not body:
+            return jsonify({"ok": False, "error": "Empty message"}), 400
+        profile = fetch_one("SELECT display_name, username FROM chain_profiles WHERE id = %s", (pid,))
+        if not profile:
+            return jsonify({"ok": False, "error": "Profile not found"}), 404
+        execute(
+            "INSERT INTO chain_live_chat_messages (room_id, profile_id, display_name, body) VALUES (%s, %s, %s, %s)",
+            (room_id, pid, profile.get("display_name") or profile.get("username") or "User", body)
+        )
+        return jsonify({
+            "ok": True,
+            "message": {
+                "sender_name": profile.get("display_name") or profile.get("username") or "User",
+                "body": body,
+                "message_type": "text",
+            }
+        })
+
+    after = request.args.get("after", 0, type=int)
+    limit = min(int(request.args.get("limit", 50)), 100)
+    rows = fetch_all(
+        "SELECT id, profile_id, display_name, body, is_pinned, created_at FROM chain_live_chat_messages WHERE room_id = %s ORDER BY created_at ASC LIMIT %s",
+        (room_id, limit), default=[]
+    )
+    messages = []
+    for r in rows:
+        messages.append({
+            "id": r["id"],
+            "sender_name": r.get("display_name", "User"),
+            "body": r.get("body", ""),
+            "is_pinned": r.get("is_pinned", False),
+        })
+    return jsonify({"messages": messages, "count": len(messages)})
+
+# ─── PARTICIPANTS ──────────────────────────────────────────
+@live_bp.route("/<room_id>/participants", methods=["GET"])
+def get_participants(room_id):
+    limit = min(int(request.args.get("limit", 50)), 100)
+    rows = fetch_all(
+        """SELECT lp.profile_id, lp.role, lp.joined_at,
+                  COALESCE(p.display_name, p.username, 'User') AS display_name,
+                  p.username, p.avatar_url
+           FROM chain_live_participants lp
+           JOIN chain_profiles p ON p.id = lp.profile_id
+           WHERE lp.room_id = %s
+           ORDER BY lp.joined_at ASC LIMIT %s""",
+        (room_id, limit), default=[]
+    )
+    participants = []
+    for r in rows:
+        participants.append({
+            "id": r["profile_id"],
+            "display_name": r.get("display_name", "User"),
+            "username": r.get("username", ""),
+            "avatar_url": r.get("avatar_url", ""),
+            "role": r.get("role", "viewer"),
+        })
+    return jsonify({"participants": participants, "count": len(participants)})
+
+# ─── POLLS ─────────────────────────────────────────────────
+@live_bp.route("/<room_id>/polls", methods=["GET"])
+def get_polls(room_id):
+    rows = fetch_all(
+        "SELECT * FROM chain_live_polls WHERE room_id = %s AND is_active = TRUE ORDER BY created_at DESC LIMIT 5",
+        (room_id,), default=[]
+    )
+    polls = []
+    for r in rows:
+        polls.append({
+            "id": r["id"],
+            "question": r.get("question", ""),
+            "options": r.get("options") or [],
+            "votes": r.get("votes") or [],
+            "is_active": r.get("is_active", True),
+        })
+    return jsonify({"polls": polls})
+
+# ─── VOTE ──────────────────────────────────────────────────
+@live_bp.route("/<room_id>/vote", methods=["POST"])
+def vote(room_id):
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False}), 401
+    data = request.get_json() or {}
+    poll_id = data.get("poll_id")
+    option = data.get("option")
+    if poll_id is None or option is None:
+        return jsonify({"ok": False, "error": "Missing poll_id or option"}), 400
+    option = int(option)
+    poll = fetch_one("SELECT votes FROM chain_live_polls WHERE id = %s AND room_id = %s",
+                     (poll_id, room_id))
+    if not poll:
+        return jsonify({"ok": False, "error": "Poll not found"}), 404
+    votes = poll.get("votes") or []
+    while len(votes) <= option:
+        votes.append(0)
+    votes[option] = (votes[option] or 0) + 1
+    execute("UPDATE chain_live_polls SET votes = %s WHERE id = %s", (votes, poll_id))
+    return jsonify({"ok": True})
+
+# ─── PRODUCTS ──────────────────────────────────────────────
+@live_bp.route("/<room_id>/products", methods=["GET"])
+def get_products(room_id):
+    rows = fetch_all(
+        "SELECT * FROM chain_live_products WHERE room_id = %s ORDER BY sort_order ASC LIMIT 20",
+        (room_id,), default=[]
+    )
+    products = []
+    for r in rows:
+        products.append({
+            "id": r["id"],
+            "title": r.get("title", ""),
+            "price": float(r.get("price", 0)),
+            "currency": r.get("currency", "NAD"),
+            "image_url": r.get("image_url", ""),
+            "discount_pct": r.get("discount_pct", 0),
+        })
+    return jsonify({"products": products})
+
+# ─── STATS ─────────────────────────────────────────────────
+@live_bp.route("/<room_id>/stats", methods=["GET"])
+def get_stats(room_id):
+    room = fetch_one(
+        "SELECT viewer_count, peak_viewer_count, likes_count, reaction_count FROM chain_live_rooms WHERE id = %s",
+        (room_id,)
+    )
+    participant_count = fetch_one(
+        "SELECT COUNT(*) AS cnt FROM chain_live_participants WHERE room_id = %s",
+        (room_id,)
+    )
+    return jsonify({
+        "viewer_count": room["viewer_count"] if room else 0,
+        "peak_viewers": room["peak_viewer_count"] if room else 0,
+        "like_count": room["likes_count"] if room else 0,
+        "gift_value": float(room["reaction_count"]) if room else 0,
+        "participant_count": participant_count["cnt"] if participant_count else 0,
+    })
+
+# ─── WEBRTC / LIVEKIT CONFIG ──────────────────────────────
+@live_bp.route("/webrtc-config", methods=["GET"])
+def webrtc_config():
+    from services.turn_service import get_turn_config
+    return jsonify(get_turn_config())
+
+@live_bp.route("/livekit-token", methods=["POST"])
+def request_livekit_token():
+    pid = _profile_id()
+    if not pid:
+        return jsonify({"ok": False}), 401
+    data = request.get_json() or {}
+    room_name = data.get("room_name", f"room_{int(time.time())}")
+    identity = data.get("identity", f"user_{pid[:8]}")
+    role = data.get("role", "viewer")
+    from services.livekit_service import create_ingress_token, create_viewer_token, create_guest_token
+    if role == "host":
+        token = create_ingress_token(identity, room_name)
+    elif role == "guest":
+        token = create_guest_token(identity, room_name)
+    else:
+        token = create_viewer_token(identity, room_name)
+    if not token:
+        return jsonify({"ok": False, "error": "LiveKit not configured"}), 503
+    LIVEKIT_WS_URL = os.environ.get("LIVEKIT_WS_URL", "").strip()
+    return jsonify({"ok": True, "token": token, "ws_url": LIVEKIT_WS_URL})
+
+
+# ─── LIVEKIT STATUS ───────────────────────────────────────
+@live_bp.route("/livekit-status", methods=["GET"])
+def livekit_status():
+    from services.livekit_service import get_livekit_server_info, check_livekit_health
+    info = get_livekit_server_info()
+    health = check_livekit_health()
+    return jsonify({**info, **health})
+
+
+# ─── TURN STATUS ──────────────────────────────────────────
+@live_bp.route("/turn-status", methods=["GET"])
+def turn_status():
+    from services.turn_service import get_turn_status
+    return jsonify(get_turn_status())
+
+
+# ─── FULL LIVE INFRA HEALTH ───────────────────────────────
+@live_bp.route("/infra-health", methods=["GET"])
+def infra_health():
+    from services.neon_service import get_neon_health
+    from services.redis_service import get_redis_health, redis_available
+    from services.livekit_service import check_livekit_health, get_livekit_server_info
+    from services.turn_service import get_turn_status
+
+    neon = get_neon_health()
+    redis_h = get_redis_health()
+    lk = check_livekit_health()
+    turn = get_turn_status()
+
+    all_ok = (
+        neon.get("status") in ("ok", "disabled") and
+        redis_h.get("available") is not False and
+        lk.get("status") in ("ok", "not_configured")
+    )
+
+    return jsonify({
+        "ok": all_ok,
+        "neon": {"status": neon.get("status"), "connected": neon.get("connected", False)},
+        "redis": {"available": redis_h.get("available", False), "status": redis_h.get("status")},
+        "livekit": {"status": lk.get("status"), "configured": get_livekit_server_info().get("configured", False)},
+        "turn": {"configured": turn.get("configured", False)},
     })
 
 
-@live_bp.route("/api/rooms/<room_id>/info")
-def api_rooms_info(room_id):
-    room = get_room(room_id)
-    if not room:
-        return jsonify({"ok": False, "error": "not_found"}), 404
-    return jsonify({"ok": True, "room": room})
-
-@live_bp.route("/api/rooms/<room_id>/viewers")
-def api_rooms_viewers(room_id):
-    participants = get_participants(room_id)
-    return jsonify({"ok": True, "viewers": participants})
-
-@live_bp.route("/api/rooms/<room_id>/settings", methods=["GET", "POST"])
-@login_required
-def api_rooms_settings(room_id):
-    if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        from services.supabase_safe import safe_update
-        result = safe_update("chain_live_rooms", data, eq={"id": room_id})
-        return jsonify({"ok": bool(result)})
-    room = get_room(room_id)
-    return jsonify({"ok": bool(room), "room": room})
-
-
-# ─── Phase 6: Live Engine Routes ───
-
-@live_bp.route("/api/live/trending")
-def api_live_trending():
-    resp = _le_trending()
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/viewers")
-def api_live_viewers(room_id):
-    resp = _le_viewers(room_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/reactions", methods=["GET", "POST"])
-@login_required
-def api_live_reactions(room_id):
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        rtype = data.get("reaction_type", "heart")
-        resp = _le_send_reaction(room_id, profile["id"], rtype)
-        return jsonify(resp)
-    resp = _le_get_reactions(room_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/chat", methods=["GET"])
-def api_live_chat(room_id):
-    resp = _le_get_chat(room_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/chat/<message_id>/delete", methods=["POST"])
-@login_required
-def api_live_chat_delete(room_id, message_id):
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    resp = _le_delete_chat(room_id, message_id, profile["id"])
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/chat/<message_id>/pin", methods=["POST"])
-@login_required
-def api_live_chat_pin(room_id, message_id):
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    resp = _le_pin_chat(room_id, message_id, profile["id"])
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/guest/<request_id>/approve", methods=["POST"])
-@login_required
-def api_guest_approve(request_id):
-    resp = _le_guest_approve(request_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/guest/<request_id>/reject", methods=["POST"])
-@login_required
-def api_guest_reject(request_id):
-    resp = _le_guest_reject(request_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/guest/<profile_id>/remove", methods=["POST"])
-@login_required
-def api_guest_remove(room_id, profile_id):
-    resp = _le_guest_remove(room_id, profile_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/gift/leaderboard")
-def api_gift_leaderboard(room_id):
-    resp = _le_gift_leaderboard(room_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/<room_id>/analytics")
-def api_live_analytics(room_id):
-    resp = _le_analytics(room_id)
-    return jsonify(resp)
-
-
-@live_bp.route("/api/live/analytics/creator")
-@login_required
-def api_creator_live_analytics():
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"error": "Unauthorized"}), 401
-    resp = _le_creator_analytics(profile["id"])
-    return jsonify(resp)
+# ─── REGISTER BLUEPRINT ─────────────────────────────────────
+def register_live_routes(app):
+    app.register_blueprint(live_bp)
+    print("[live] Live API routes registered (NVC + WebRTC + LiveKit + coturn)")
