@@ -573,6 +573,16 @@
   }
 
   document.addEventListener('click', function (e) {
+    var dynamicLink = e.target.closest('[data-nav-url]');
+    if (dynamicLink) {
+      var navUrl = dynamicLink.getAttribute('data-nav-url');
+      if (navUrl) {
+        e.preventDefault();
+        window.location.href = navUrl;
+        return;
+      }
+    }
+
     var video = e.target.closest('.nv-media video, .nv-reel-card video');
     if (!video || !isMobile()) return;
     var post = video.closest('.nv-post');

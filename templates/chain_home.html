@@ -175,7 +175,7 @@
       {% for item in (feed_items or []) %}
       <article class="nv-post" data-post-id="{{ item.id }}" data-type="{{ item.type or 'post' }}">
         <div class="nv-post-head">
-          <a class="nv-user" href="/profile/{{ item.username or item.id }}" data-profile-preview="{{ item.username or '' }}">
+          <a class="nv-user" href="/profile/" data-nav-url="/profile/{{ item.username or item.id }}" data-profile-preview="{{ item.username or '' }}">
             <span class="nv-avatar-wrap">
               <img src="{{ item.avatar_url or '/static/img/default-avatar.png' }}" alt="" loading="lazy">
               {% if item.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
@@ -302,7 +302,7 @@
         Trending Namibia
       </h3>
       {% for trend in (trending_hashtags or hashtags or []) %}
-      <a class="nv-trend" href="/hashtag/{{ trend.tag or trend.hashtag }}">
+      <a class="nv-trend" href="/discover/" data-nav-url="/hashtag/{{ trend.tag or trend.hashtag }}">
         #{{ trend.tag or trend.hashtag }}
         <small>{{ trend.count or trend.posts_count or 0 }} posts</small>
       </a>
@@ -316,7 +316,7 @@
         Suggested Creators
       </h3>
       {% for creator in (suggested_creators or suggested_people or []) %}
-      <a class="nv-chat" href="/profile/{{ creator.username or creator.id }}">
+      <a class="nv-chat" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
         <span class="nv-avatar-wrap">
           <img src="{{ creator.avatar_url or creator.profile_photo or '/static/img/default-avatar.png' }}" alt="">
           {% if creator.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
@@ -365,7 +365,7 @@
         Marketplace
       </h3>
       {% for item in (marketplace_items or []) %}
-      <a class="nv-chat" href="/marketplace/item/{{ item.id }}">
+      <a class="nv-chat" href="/marketplace/" data-nav-url="/marketplace/item/{{ item.id }}">
         {% if item.image_url %}
         <img src="{{ item.image_url }}" alt="" class="nv-market-img">
         {% else %}
