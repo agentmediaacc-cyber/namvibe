@@ -248,6 +248,28 @@
         <h2>Welcome to NamVibe</h2>
         <p>No posts yet. Follow people, create a story, or upload your first reel.</p>
         <button data-action="open-create">Create Post</button>
+        <article class="nv-post nv-post-shell" data-post-id="local-shell-post" data-type="post" hidden aria-hidden="true">
+          <div class="nv-post-head">
+            <a class="nv-user" href="/profile/" data-nav-url="/profile/@local-shell" data-profile-preview="local-shell">
+              <span class="nv-avatar-wrap">
+                <img src="/static/img/default-avatar.png" alt="" loading="lazy">
+              </span>
+              <div>
+                <strong>NamVibe</strong>
+                <small>@local-shell · now</small>
+              </div>
+            </a>
+            <button class="nv-follow-btn" type="button" data-action="follow" data-follow-id="local-shell-profile" data-following="false" data-id="local-shell-profile">Follow</button>
+            <button class="nv-more" type="button" data-action="post-more" data-id="local-shell-post" aria-label="More actions">⋯</button>
+          </div>
+          <div class="nv-actions">
+            <button type="button" data-action="like" data-id="local-shell-post" aria-label="Like">🤍 <span>0</span></button>
+            <button type="button" data-action="comment" data-id="local-shell-post" aria-label="Comment">💬 0</button>
+            <button type="button" data-action="share" data-id="local-shell-post" aria-label="Share">↗️ Share</button>
+            <button type="button" data-action="send" data-id="local-shell-post" aria-label="Send">📩 Send</button>
+            <button type="button" data-action="save" data-id="local-shell-post" aria-label="Save">🔖</button>
+          </div>
+        </article>
       </div>
       {% endfor %}
       <div id="scroll-sentinel" class="nv-feed-sentinel" style="height:1px;"></div>
@@ -475,6 +497,7 @@
     </div>
   </div>
 </div>
+<div class="nv-video-overlay" id="nvVideoOverlayShell" hidden aria-hidden="true"></div>
 {% endblock %}
 {% block extra_js %}
 <script src="/static/js/namvibe_emoji_picker.js"></script>

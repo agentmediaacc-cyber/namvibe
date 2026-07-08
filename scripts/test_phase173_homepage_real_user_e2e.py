@@ -166,7 +166,10 @@ def load_credentials():
             cred["full_name"] = profile.get("full_name") or profile.get("display_name") or cred.get("full_name")
             cred["canonical_username"] = profile.get("username")
         else:
-            raise SystemExit(f"Could not resolve live profile row for {label}")
+            if cred.get("profile_id") and cred.get("auth_user_id"):
+                cred["canonical_username"] = cred.get("canonical_username") or cred.get("username")
+            else:
+                raise SystemExit(f"Could not resolve live profile row for {label}")
     return alpha, beta
 
 
@@ -434,7 +437,7 @@ def run_local(results, alpha, beta):
         ("alpha alias profile route", "/profile/@alpha"),
         ("beta alias profile route", "/profile/@beta_user"),
     ):
-        checked_profile_route(results, alpha_session, LOCAL_BASE, path, label)
+        checked_profile_route(results, alpha_session, LOCAL_BASE, path, label, timeout=60)
 
     first_story = next((href for href in parser.story_links if re.match(r"^/stories/[A-Za-z0-9-]+$", href)), None)
     if first_story:

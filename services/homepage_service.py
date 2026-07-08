@@ -494,6 +494,9 @@ def _profile_select():
             "creator_category",
             "dating_mode_enabled",
             "followers_count",
+            "profile_score",
+            "profile_level",
+            "activity_status",
             "deleted_at",
         ],
         required=["id"],
@@ -527,7 +530,7 @@ def _post_select():
 
 
 def _story_select():
-    return select_existing_columns(
+    columns = select_existing_columns(
         "chain_stories",
         [
             "id",
@@ -536,18 +539,17 @@ def _story_select():
             "media_url",
             "video_url",
             "thumbnail_url",
-            "visibility",
             "created_at",
-            "status",
             "active",
             "is_active",
             "deleted_at",
         ],
     )
+    return columns
 
 
 def _status_select():
-    return select_existing_columns(
+    columns = select_existing_columns(
         "chain_status_posts",
         [
             "id",
@@ -556,7 +558,6 @@ def _status_select():
             "media_url",
             "video_url",
             "thumbnail_url",
-            "visibility",
             "created_at",
             "expires_at",
             "status",
@@ -567,6 +568,7 @@ def _status_select():
             "views_count",
         ],
     )
+    return columns
 
 
 def _reel_select():
@@ -594,13 +596,12 @@ def _reel_select():
 
 
 def _live_select():
-    return select_existing_columns(
+    columns = select_existing_columns(
         "chain_live_rooms",
         [
             "id",
             "profile_id",
             "host_id",
-            "creator_id",
             "title",
             "room_title",
             "category",
@@ -618,6 +619,7 @@ def _live_select():
             "deleted_at",
         ],
     )
+    return columns
 
 
 def _marketplace_select():
@@ -707,7 +709,8 @@ def _fetch_stories(viewer_profile_id=None):
         elif "status" in available:
             where.append("COALESCE(status, '') <> 'deleted'")
         story_params = []
-        if viewer_profile_id and "visibility" in available:
+        story_visibility = "visibility" in _table_columns("chain_stories")
+        if viewer_profile_id and story_visibility:
             where.append(f"""(visibility = 'public'
                 OR (profile_id = %s)
                 OR (visibility = 'followers' AND profile_id IN (
@@ -737,7 +740,8 @@ def _fetch_stories(viewer_profile_id=None):
             params.append(_utcnow())
         if "status" in available:
             where.append("COALESCE(status, '') <> 'deleted'")
-        if viewer_profile_id and "visibility" in available:
+        status_visibility = "visibility" in _table_columns("chain_status_posts")
+        if viewer_profile_id and status_visibility:
             where.append(f"""(visibility = 'public'
                 OR (profile_id = %s)
                 OR (visibility = 'followers' AND profile_id IN (
@@ -1014,6 +1018,8 @@ def _normalize_profile(row):
         "avatar_url": avatar_url,
         "verified": _boolish(_first_present(row, ["verified", "is_verified"])),
         "is_online": _boolish(row.get("is_online")),
+        "profile_score": int(row.get("profile_score") or 0),
+        "profile_level": row.get("profile_level") or "",
         "location": location,
         "town": town,
         "creator_category": _clean_text(row.get("creator_category"), ""),
