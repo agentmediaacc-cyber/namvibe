@@ -871,6 +871,47 @@ def following():
     )
 
 
+@profile_bp.route("/friend-requests")
+@login_required
+def friend_requests():
+    viewer = _current_profile_or_session_fallback()
+    if not viewer:
+        return redirect(url_for("auth.login", next=request.path))
+    try:
+        inbound_page = get_friend_requests(viewer["id"], page=1, per_page=50) or {}
+        outbound_page = get_sent_friend_requests(viewer["id"], page=1, per_page=50) or {}
+    except Exception as error:
+        log_warning("profile_friend_requests_page_failed", profile_id=viewer.get("id"), error=str(error))
+        inbound_page = {}
+        outbound_page = {}
+    return render_template(
+        "profile/friend_requests.html",
+        profile=viewer,
+        viewer=viewer,
+        received=inbound_page.get("requests", []),
+        sent=outbound_page.get("requests", []),
+    )
+
+
+@profile_bp.route("/sent-requests")
+@login_required
+def sent_requests():
+    viewer = _current_profile_or_session_fallback()
+    if not viewer:
+        return redirect(url_for("auth.login", next=request.path))
+    try:
+        outbound_page = get_sent_friend_requests(viewer["id"], page=1, per_page=50) or {}
+    except Exception as error:
+        log_warning("profile_sent_requests_page_failed", profile_id=viewer.get("id"), error=str(error))
+        outbound_page = {}
+    return render_template(
+        "profile/sent_requests.html",
+        profile=viewer,
+        viewer=viewer,
+        sent=outbound_page.get("requests", []),
+    )
+
+
 @profile_bp.route("/<username>")
 def public_profile(username):
     if username.startswith("@"):
@@ -1279,7 +1320,7 @@ def tab_content(tab_name):
 @profile_bp.route("/settings", methods=["GET", "POST"])
 @login_required
 def settings():
-    profile = get_current_profile()
+    profile = _current_profile_or_session_fallback()
     if not profile:
         ok, result = bootstrap_profile_for_current_user()
         profile = result if ok and isinstance(result, dict) else get_current_profile()
@@ -1336,7 +1377,7 @@ def settings():
             flash("Profile updated.", "success")
             return redirect(url_for("profile.settings"))
         flash(result or "Profile could not be saved yet.", "error")
-    profile_settings = get_profile_settings(profile["id"])
+    profile_settings = get_profile_settings(profile["id"]) if profile.get("id") else {"settings": {}, "security": {}}
     return render_template("profile/settings.html", profile=profile, profile_settings=profile_settings["settings"], account_security=profile_settings["security"])
 
 
