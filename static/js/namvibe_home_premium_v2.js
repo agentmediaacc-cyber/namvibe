@@ -97,6 +97,15 @@
     apiPost('/api/home/post/' + id + '/comment', { body: text });
   }
 
+  function sendDrawerComment() {
+    var drawer = document.getElementById('commentsDrawer');
+    if (!drawer) return;
+    var postId = drawer.dataset.postId;
+    var input = drawer.querySelector('[data-drawer-comment-input]');
+    if (!postId || !input) return;
+    sendComment(postId, input);
+  }
+
   /* ── Follow ── */
   function followUser(btn, id) {
     btn.classList.toggle('following');
@@ -628,6 +637,9 @@
       case 'close-comments': closeComments(); break;
       case 'send-comment':
         sendComment(id, btn.previousElementSibling || document.querySelector('[data-comment-input="' + id + '"]'));
+        break;
+      case 'send-drawer-comment':
+        sendDrawerComment();
         break;
       case 'post-more': openPostMenu(id); break;
       case 'open-live': window.location.href = '/live/'; break;

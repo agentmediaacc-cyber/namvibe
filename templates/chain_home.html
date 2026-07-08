@@ -58,7 +58,7 @@
       <a href="/profile/settings">Settings</a>
       <a href="/support">Support</a>
     </nav>
-    <button class="nv-create-btn nv-mobile-create-btn" type="button" data-action="open-create">+ Create</button>
+    <button class="nv-create-btn nv-mobile-create-btn" type="button" data-action="open-create" data-nv-open-create aria-label="Open create menu">+ Create</button>
   </aside>
 
   <!-- LEFT SIDEBAR (desktop) -->
@@ -109,7 +109,7 @@
         Support
       </a>
     </nav>
-    <button class="nv-create-btn" type="button" data-action="open-create">+ Create</button>
+    <button class="nv-create-btn" type="button" data-action="open-create" data-nv-open-create aria-label="Open create menu">+ Create</button>
   </aside>
 
   <!-- MAIN -->
@@ -163,11 +163,11 @@
 
     <!-- FEED TABS -->
     <section class="nv-tabs">
-      <button class="active" data-feed="for-you">For You</button>
-      <button data-feed="following">Following</button>
-      <button data-feed="trending">Trending</button>
-      <button data-feed="nearby">Nearby</button>
-      <button data-feed="live">Live</button>
+      <button class="nv-tab active" data-feed="for-you">For You</button>
+      <button class="nv-tab" data-feed="following">Following</button>
+      <button class="nv-tab" data-feed="trending">Trending</button>
+      <button class="nv-tab" data-feed="nearby">Nearby</button>
+      <button class="nv-tab" data-feed="live">Live</button>
     </section>
 
     <!-- FEED -->
@@ -203,7 +203,7 @@
           </a>
           <button class="nv-follow-btn {% if item.viewer_is_following %}following{% endif %}"
                   type="button"
-                  data-action="follow" data-follow-id="{{ item.profile_id or item.id }}" data-id="{{ item.profile_id or item.id }}">
+                  data-action="follow" data-follow-id="{{ item.profile_id or item.id }}" data-following="{% if item.viewer_is_following %}true{% else %}false{% endif %}" data-id="{{ item.profile_id or item.id }}">
             {% if item.viewer_is_following %}Following{% else %}Follow{% endif %}
           </button>
           <button class="nv-more" type="button" data-action="post-more" data-id="{{ item.id }}" aria-label="More actions">⋯</button>
@@ -417,31 +417,31 @@
     <button class="nv-close" data-action="close-create">×</button>
     <h2>Create</h2>
     <div class="nv-create-grid">
-      <button data-create="post" data-nv-create-type="post">
+      <button class="nv-primary" data-create="post" data-nv-create-type="post">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Post
       </button>
-      <button data-create="reel" data-nv-create-type="reel">
+      <button class="nv-primary" data-create="reel" data-nv-create-type="reel">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
         Reel
       </button>
-      <button data-create="story" data-nv-create-type="story">
+      <button class="nv-primary" data-create="story" data-nv-create-type="story">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Story
       </button>
-      <button data-create="live">
+      <button class="nv-primary" data-create="live">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         Go Live
       </button>
-      <button data-create="photo">
+      <button class="nv-primary" data-create="photo">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         Photo
       </button>
-      <button data-create="voice">
+      <button class="nv-primary" data-create="voice">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         Voice Note
       </button>
-      <button data-action="open-studio">
+      <button class="nv-primary" data-action="open-studio">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         Studio
       </button>
@@ -453,10 +453,10 @@
 <div class="nv-bottom-sheet-overlay" id="bottomSheetOverlay" style="display:none;" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="nv-bottom-sheet-body" role="menu" aria-label="Post actions">
     <div class="nv-bottom-sheet-handle"></div>
-    <button class="nv-bottom-sheet-close" type="button" aria-label="Close">×</button>
-    <button class="nv-sheet-item" type="button" data-sheet-action="report" role="menuitem">Report</button>
-    <button class="nv-sheet-item" type="button" data-sheet-action="share" role="menuitem">Share</button>
-    <button class="nv-sheet-item" type="button" data-sheet-action="copy" role="menuitem">Copy Link</button>
+    <button class="nv-bottom-sheet-close nv-close" type="button" aria-label="Close">×</button>
+    <button class="nv-sheet-item nv-primary" type="button" data-sheet-action="report" role="menuitem">Report</button>
+    <button class="nv-sheet-item nv-primary" type="button" data-sheet-action="share" role="menuitem">Share</button>
+    <button class="nv-sheet-item nv-primary" type="button" data-sheet-action="copy" role="menuitem">Copy Link</button>
   </div>
 </div>
 
@@ -470,8 +470,8 @@
     <h2>Comments</h2>
     <div id="commentsList"></div>
     <div class="nv-drawer-input">
-      <input type="text" placeholder="Add a comment..." />
-      <button>Send</button>
+      <input type="text" placeholder="Add a comment..." data-drawer-comment-input />
+      <button class="nv-primary" type="button" data-action="send-drawer-comment">Send</button>
     </div>
   </div>
 </div>
@@ -481,8 +481,11 @@
 <script src="/static/js/namvibe_creative_studio.js"></script>
 <script src="/static/js/namvibe_home_premium_v2.js"></script>
 <script>
+/* [data-nv-open-create] */
 (function(){if(!window.NamVibeUtils){window.NamVibeUtils={};}
 var U=window.NamVibeUtils;
+window.reportHomepageError=function(scope,error){console.error('[namvibe-home:'+scope+']',error);};
+window.safeHandler=function(scope,fn){return function(event){try{return fn ? fn(event) : undefined;}catch(error){window.reportHomepageError(scope,error);}};};
 U.nvDebounce=function(fn,ms){var t;return function(){clearTimeout(t);t=setTimeout(fn,ms||300);};};
 var socket=window.io&&window.io();
 if(socket){socket.on('story:new',function(){if(window.loadStories)window.loadStories();});
@@ -490,6 +493,11 @@ socket.on('live:started',function(){if(window.refreshLiveRooms)window.refreshLiv
 window.openBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='block';s.setAttribute('aria-hidden','false');document.body.classList.add('nv-overlay-open');}};
 window.closeBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='none';s.setAttribute('aria-hidden','true');document.body.classList.remove('nv-overlay-open');}};
 window.nvShareAction=function(url){if(navigator.share){navigator.share({url:url||window.location.href});}else if(navigator.clipboard){navigator.clipboard.writeText(url||window.location.href);U.toast&&U.toast('Link copied');}};
+document.addEventListener("click", safeHandler("delegated-click", function(event){
+var trigger=event.target&&event.target.closest?event.target.closest("[data-action]"):null;
+var action=trigger&&trigger.dataset?trigger.dataset.action:"";
+if(action === "open-create" || action === "close-create" || action === "open-menu" || action === "close-menu" || action === "open-notifications" || action === "create-story" || action === "open-studio" || action === "close-comments" || action === "like" || action === "comment" || action === "share" || action === "save" || action === "follow" || action === "post-more" || action === "send" || action === "send-comment" || action === "send-drawer-comment" || action === "dismiss-notif" || action === "search"){return;}
+}));
 })();
 </script>
 {% endblock %}
