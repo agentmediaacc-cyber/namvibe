@@ -1,2492 +1,495 @@
 {% extends "base.html" %}
-
 {% block title %}NamVibe | Home{% endblock %}
-{% block body_class %}namvibe-social-home{% endblock %}
+{% block body_class %}nvpro-home{% endblock %}
+
 {% block top_header %}{% endblock %}
 {% block mobile_nav %}{% endblock %}
 
 {% block extra_css %}
-<meta name="namvibe-build" content="phase163-social-home">
-<meta name="namvibe-home-build" content="home-interactions-2026-07-05-v3">
-<link rel="stylesheet" href="/static/css/namvibe_camera_creator.css?v=phase162">
-
+<link rel="stylesheet" href="/static/css/namvibe_home_premium_v2.css">
+<link rel="stylesheet" href="/static/css/namvibe_emoji_picker.css">
+<link rel="stylesheet" href="/static/css/namvibe_creative_studio.css">
 <style>
-:root{
-  --nv-bg:#ffffff;
-  --nv-soft:#f6f7f9;
-  --nv-card:#ffffff;
-  --nv-text:#111111;
-  --nv-muted:#6b7280;
-  --nv-border:#e5e7eb;
-  --nv-border-soft:#f1f2f4;
-  --nv-blue:#2563eb;
-  --nv-purple:#7c3aed;
-  --nv-cyan:#06b6d4;
-  --nv-green:#16a34a;
-  --nv-red:#ef4444;
-  --nv-gold:#f59e0b;
-  --nv-shadow:0 10px 30px rgba(17,24,39,.08);
-  --nv-radius:22px;
-  --nv-gradient:linear-gradient(135deg,var(--nv-blue),var(--nv-purple),var(--nv-cyan));
-}
-
-*{box-sizing:border-box}
-body.namvibe-social-home{
-  margin:0;
-  background:var(--nv-bg);
-  color:var(--nv-text);
-  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  overflow-x:hidden;
-}
-
-.nv-app{min-height:100vh;min-height:100dvh;background:var(--nv-bg);overflow-x:hidden}
-.nv-topbar{
-  position:sticky;
-  top:0;
-  z-index:100;
-  height:68px;
-  background:rgba(255,255,255,.92);
-  backdrop-filter:blur(18px);
-  border-bottom:1px solid var(--nv-border-soft);
-}
-.nv-topbar-inner{
-  max-width:1480px;
-  margin:0 auto;
-  height:100%;
-  padding:0 18px;
-  display:flex;
-  align-items:center;
-  gap:18px;
-}
-.nv-logo{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  text-decoration:none;
-  color:var(--nv-text);
-  font-weight:900;
-  font-size:24px;
-  letter-spacing:-.04em;
-}
-.nv-logo-mark{
-  width:36px;
-  height:36px;
-  border-radius:13px;
-  background:var(--nv-gradient);
-  display:grid;
-  place-items:center;
-  color:#fff;
-  box-shadow:0 10px 24px rgba(37,99,235,.25);
-}
-.nv-search{
-  flex:1;
-  max-width:560px;
-  height:44px;
-  background:var(--nv-soft);
-  border:1px solid transparent;
-  border-radius:999px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:0 16px;
-  transition:.2s ease;
-}
-.nv-search:focus-within{
-  border-color:rgba(37,99,235,.3);
-  background:#fff;
-  box-shadow:0 0 0 4px rgba(37,99,235,.08);
-}
-.nv-search input{
-  border:0;
-  outline:0;
-  background:transparent;
-  width:100%;
-  font-size:16px;
-  color:var(--nv-text);
-}
-.nv-top-actions{
-  margin-left:auto;
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-.nv-icon-btn,.nv-create-btn{
-  height:44px;
-  border:0;
-  text-decoration:none;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  border-radius:999px;
-  font-weight:800;
-  color:var(--nv-text);
-  background:var(--nv-soft);
-  position:relative;
-}
-.nv-icon-btn{width:44px}
-.nv-create-btn{
-  padding:0 18px;
-  background:var(--nv-gradient);
-  color:#fff;
-}
-.nv-badge{
-  position:absolute;
-  top:-3px;
-  right:-3px;
-  min-width:18px;
-  height:18px;
-  border-radius:99px;
-  background:var(--nv-red);
-  color:#fff;
-  font-size:11px;
-  display:grid;
-  place-items:center;
-  border:2px solid #fff;
-}
-.nv-avatar{
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  overflow:hidden;
-  background:var(--nv-gradient);
-  color:#fff;
-  display:grid;
-  place-items:center;
-  font-weight:900;
-  text-decoration:none;
-}
-.nv-avatar img{width:100%;height:100%;object-fit:cover}
-
-.nv-layout{
-  max-width:1480px;
-  margin:0 auto;
-  display:grid;
-  grid-template-columns:250px minmax(0,720px) 340px;
-  gap:24px;
-  padding:22px 18px 110px;
-}
-.nv-left{
-  position:sticky;
-  top:88px;
-  height:calc(100vh - 100px);
-  overflow:auto;
-  padding-right:4px;
-}
-.nv-nav-card{
-  background:#fff;
-  border:1px solid var(--nv-border-soft);
-  border-radius:var(--nv-radius);
-  padding:10px;
-}
-.nv-nav-item{
-  display:flex;
-  align-items:center;
-  gap:14px;
-  padding:13px 14px;
-  border-radius:16px;
-  color:var(--nv-text);
-  text-decoration:none;
-  font-weight:800;
-  transition:.18s ease;
-}
-.nv-nav-item:hover,.nv-nav-item.is-active{
-  background:var(--nv-soft);
-}
-.nv-nav-item.is-active svg{color:var(--nv-blue)}
-.nv-nav-item svg,.nv-icon{width:22px;height:22px;flex:0 0 auto}
-
-.nv-main{min-width:0}
-.nv-section{
-  background:#fff;
-  border:1px solid var(--nv-border-soft);
-  border-radius:var(--nv-radius);
-  box-shadow:0 8px 28px rgba(17,24,39,.04);
-  margin-bottom:18px;
-  overflow:hidden;
-}
-.nv-section-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:16px 18px 8px;
-}
-.nv-section-title{
-  margin:0;
-  font-size:17px;
-  letter-spacing:-.02em;
-}
-.nv-section-link{
-  color:var(--nv-blue);
-  text-decoration:none;
-  font-weight:800;
-  font-size:13px;
-}
-
-.nv-stories{
-  display:flex;
-  gap:14px;
-  overflow-x:auto;
-  padding:16px 18px 18px;
-  scrollbar-width:none;
-}
-.nv-stories::-webkit-scrollbar{display:none}
-.nv-story{
-  width:78px;
-  flex:0 0 auto;
-  text-decoration:none;
-  color:var(--nv-text);
-  text-align:center;
-}
-.nv-story-ring{
-  width:72px;
-  height:72px;
-  border-radius:50%;
-  padding:3px;
-  background:var(--nv-gradient);
-  position:relative;
-}
-.nv-story-ring.seen{background:var(--nv-border)}
-.nv-story-ring.live:after{
-  content:"LIVE";
-  position:absolute;
-  bottom:-4px;
-  left:50%;
-  transform:translateX(-50%);
-  background:var(--nv-red);
-  color:#fff;
-  font-size:10px;
-  font-weight:900;
-  padding:2px 6px;
-  border-radius:999px;
-  border:2px solid #fff;
-}
-.nv-story-avatar{
-  width:100%;
-  height:100%;
-  border-radius:50%;
-  border:3px solid #fff;
-  background:var(--nv-soft);
-  overflow:hidden;
-  display:grid;
-  place-items:center;
-  font-weight:900;
-}
-.nv-story-avatar img{width:100%;height:100%;object-fit:cover}
-.nv-story span{
-  display:block;
-  margin-top:8px;
-  font-size:12px;
-  font-weight:700;
-  color:var(--nv-muted);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.nv-story-create .nv-story-ring{
-  background:var(--nv-soft);
-  border:1px dashed var(--nv-border);
-}
-.nv-story-create .nv-story-avatar{
-  color:#fff;
-  background:var(--nv-gradient);
-}
-
-.nv-composer{
-  padding:16px;
-}
-.nv-composer-top{
-  display:flex;
-  gap:12px;
-  align-items:center;
-}
-.nv-composer-pill{
-  flex:1;
-  border:0;
-  background:var(--nv-soft);
-  color:var(--nv-muted);
-  min-height:46px;
-  border-radius:999px;
-  text-align:left;
-  padding:0 18px;
-  cursor:pointer;
-  font-weight:700;
-}
-.nv-composer-actions{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  margin-top:14px;
-}
-.nv-composer-action{
-  border:0;
-  background:var(--nv-soft);
-  border-radius:16px;
-  padding:12px 8px;
-  cursor:pointer;
-  font-weight:800;
-  color:var(--nv-text);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-}
-
-.nv-tabs{
-  display:flex;
-  gap:8px;
-  padding:12px 4px;
-  margin-bottom:8px;
-  overflow:auto;
-}
-.nv-tab{
-  border:0;
-  background:var(--nv-soft);
-  color:var(--nv-muted);
-  border-radius:999px;
-  padding:10px 18px;
-  font-weight:900;
-  cursor:pointer;
-  white-space:nowrap;
-}
-.nv-tab.is-active{
-  background:var(--nv-text);
-  color:#fff;
-}
-
-.nv-post{
-  overflow:hidden;
-}
-.nv-post-head{
-  padding:16px 18px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.nv-post-meta{min-width:0;flex:1}
-.nv-post-name{
-  display:flex;
-  align-items:center;
-  gap:5px;
-  color:var(--nv-text);
-  text-decoration:none;
-  font-weight:900;
-}
-.nv-post-sub{
-  color:var(--nv-muted);
-  font-size:13px;
-  margin-top:2px;
-}
-.nv-verified{width:16px;height:16px;color:var(--nv-blue)}
-.nv-follow{
-  border:0;
-  border-radius:999px;
-  background:var(--nv-text);
-  color:#fff;
-  height:36px;
-  padding:0 15px;
-  font-weight:900;
-  cursor:pointer;
-}
-.nv-more{
-  border:0;
-  background:transparent;
-  cursor:pointer;
-  color:var(--nv-muted);
-}
-.nv-post-caption{
-  padding:0 18px 14px;
-  line-height:1.45;
-  font-size:15px;
-}
-.nv-media{
-  width:100%;
-  background:#000;
-  overflow:hidden;
-}
-.nv-media img,.nv-media video{
-  width:100%;
-  max-height:760px;
-  object-fit:cover;
-  display:block;
-}
-.nv-actions{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:12px 14px 6px;
-}
-.nv-action-left{display:flex;align-items:center;gap:8px}
-.nv-action{
-  border:0;
-  background:transparent;
-  padding:9px;
-  border-radius:999px;
-  cursor:pointer;
-  color:var(--nv-text);
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font-weight:800;
-}
-.nv-action:hover{background:var(--nv-soft)}
-.nv-action-label{font-weight:800}
-.nv-action-count{min-width:1ch}
-.nv-action.liked{
-  color:var(--nv-red);
-  animation:nv-pop .28s ease;
-}
-@keyframes nv-pop{
-  0%{transform:scale(.85)}
-  60%{transform:scale(1.18)}
-  100%{transform:scale(1)}
-}
-.nv-post-stats{
-  padding:0 18px 16px;
-  color:var(--nv-muted);
-  font-size:13px;
-  font-weight:700;
-}
-
-.nv-reels-row,.nv-horizontal{
-  display:flex;
-  gap:12px;
-  overflow:auto;
-  padding:0 18px 18px;
-  scrollbar-width:none;
-}
-.nv-reels-row::-webkit-scrollbar,.nv-horizontal::-webkit-scrollbar{display:none}
-.nv-reel{
-  width:150px;
-  height:235px;
-  flex:0 0 auto;
-  border-radius:22px;
-  overflow:hidden;
-  background:#111;
-  color:#fff;
-  position:relative;
-  text-decoration:none;
-}
-.nv-reel img,.nv-reel video{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  opacity:.88;
-}
-.nv-reel-info{
-  position:absolute;
-  inset:auto 0 0;
-  padding:36px 12px 12px;
-  background:linear-gradient(transparent,rgba(0,0,0,.75));
-}
-.nv-reel-title{
-  font-weight:900;
-  font-size:13px;
-  line-height:1.25;
-}
-
-.nv-side{
-  position:sticky;
-  top:88px;
-  height:calc(100vh - 100px);
-  overflow:auto;
-}
-.nv-side-card{
-  background:#fff;
-  border:1px solid var(--nv-border-soft);
-  border-radius:var(--nv-radius);
-  box-shadow:0 8px 28px rgba(17,24,39,.04);
-  margin-bottom:16px;
-  overflow:hidden;
-}
-.nv-side-head{
-  padding:16px 16px 8px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  font-weight:900;
-}
-.nv-side-body{padding:8px 12px 14px}
-.nv-person,.nv-live,.nv-trend{
-  display:flex;
-  align-items:center;
-  gap:11px;
-  padding:10px;
-  border-radius:16px;
-  text-decoration:none;
-  color:var(--nv-text);
-}
-.nv-person:hover,.nv-live:hover,.nv-trend:hover{background:var(--nv-soft)}
-.nv-mini-avatar{
-  width:44px;
-  height:44px;
-  border-radius:50%;
-  overflow:hidden;
-  background:var(--nv-gradient);
-  color:#fff;
-  display:grid;
-  place-items:center;
-  font-weight:900;
-  flex:0 0 auto;
-}
-.nv-mini-avatar img{width:100%;height:100%;object-fit:cover}
-.nv-person-info,.nv-live-info,.nv-trend-info{min-width:0;flex:1}
-.nv-person-name,.nv-live-title,.nv-trend-title{
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.nv-person-sub,.nv-live-sub,.nv-trend-sub{
-  color:var(--nv-muted);
-  font-size:12px;
-  margin-top:2px;
-}
-.nv-live-badge{
-  background:var(--nv-red);
-  color:#fff;
-  border-radius:999px;
-  padding:4px 8px;
-  font-size:10px;
-  font-weight:900;
-  animation:nv-pulse 1.4s infinite;
-}
-@keyframes nv-pulse{
-  0%,100%{opacity:1}
-  50%{opacity:.55}
-}
-.nv-chip-grid{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-}
-.nv-chip{
-  text-decoration:none;
-  background:var(--nv-soft);
-  color:var(--nv-text);
-  padding:9px 12px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:800;
-}
-
-.nv-empty{
-  padding:28px 18px;
-  text-align:center;
-  color:var(--nv-muted);
-}
-.nv-empty h3{
-  color:var(--nv-text);
-  margin:0 0 6px;
-}
-
-.nv-bottom{
-  display:none;
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  z-index:110;
-  height:68px;
-  padding-bottom:env(safe-area-inset-bottom,0);
-  background:rgba(255,255,255,.96);
-  backdrop-filter:blur(18px);
-  border-top:1px solid var(--nv-border-soft);
-}
-.nv-bottom-inner{
-  height:100%;
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-}
-.nv-bottom a,.nv-bottom button{
-  border:0;
-  background:transparent;
-  color:var(--nv-muted);
-  text-decoration:none;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:4px;
-  font-size:11px;
-  font-weight:800;
-}
-.nv-bottom .is-active{color:var(--nv-blue)}
-.nv-bottom svg{width:22px;height:22px}
-.nv-floating-create{
-  width:44px;
-  height:34px;
-  border-radius:14px;
-  background:var(--nv-gradient)!important;
-  color:#fff!important;
-  margin:auto;
-}
-
-.nv-modal-overlay{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.45);
-  z-index:200;
-  align-items:center;
-  justify-content:center;
-  padding:18px;
-}
-.nv-modal-overlay.is-open{display:flex}
-.nv-modal{
-  width:min(620px,100%);
-  max-height:90vh;
-  overflow:auto;
-  background:#fff;
-  border-radius:28px;
-  box-shadow:0 25px 80px rgba(0,0,0,.25);
-}
-.nv-modal-head{
-  padding:18px;
-  border-bottom:1px solid var(--nv-border-soft);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-.nv-modal-head h2{margin:0}
-.nv-close{
-  border:0;
-  background:var(--nv-soft);
-  width:40px;
-  height:40px;
-  border-radius:50%;
-  cursor:pointer;
-}
-.nv-modal-body{padding:18px}
-.nv-upload-tabs{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:8px;
-  margin-bottom:14px;
-}
-.nv-upload-tab{
-  border:0;
-  background:var(--nv-soft);
-  padding:12px;
-  border-radius:14px;
-  font-weight:900;
-  cursor:pointer;
-}
-.nv-upload-tab.is-active{
-  background:var(--nv-text);
-  color:#fff;
-}
-.nv-drop{
-  border:2px dashed var(--nv-border);
-  background:var(--nv-soft);
-  border-radius:22px;
-  padding:30px 16px;
-  text-align:center;
-  cursor:pointer;
-}
-.nv-input,.nv-select{
-  width:100%;
-  border:1px solid var(--nv-border);
-  background:#fff;
-  color:var(--nv-text);
-  border-radius:16px;
-  padding:14px;
-  font-size:16px;
-  margin-top:12px;
-}
-.nv-row{
-  display:grid;
-  grid-template-columns:1fr 180px;
-  gap:12px;
-}
-.nv-primary{
-  border:0;
-  background:var(--nv-gradient);
-  color:#fff;
-  border-radius:999px;
-  padding:13px 18px;
-  font-weight:900;
-  cursor:pointer;
-}
-.nv-outline{
-  border:1px solid var(--nv-border);
-  background:#fff;
-  color:var(--nv-text);
-  border-radius:999px;
-  padding:13px 18px;
-  font-weight:900;
-  cursor:pointer;
-}
-.nv-upload-actions{
-  display:flex;
-  justify-content:flex-end;
-  gap:10px;
-  margin-top:16px;
-}
-
-@media(max-width:1180px){
-  .nv-layout{grid-template-columns:82px minmax(0,1fr) 310px}
-  .nv-nav-item span{display:none}
-  .nv-nav-item{justify-content:center}
-}
-@media(max-width:980px){
-  .nv-layout{grid-template-columns:1fr;padding:14px 0 90px}
-  .nv-left,.nv-side{display:none}
-  .nv-main{width:100%}
-  .nv-section{border-radius:0;border-left:0;border-right:0;margin-bottom:10px}
-  .nv-topbar-inner{padding:0 12px}
-  .nv-logo span{display:none}
-  .nv-search{max-width:none;height:42px}
-  .nv-create-btn span,.nv-hide-mobile{display:none}
-  .nv-bottom{display:block}
-}
-@media(max-width:560px){
-  .nv-topbar{height:62px}
-  .nv-topbar-inner{gap:8px}
-  .nv-icon-btn{width:40px;height:40px}
-  .nv-create-btn{width:40px;height:40px;padding:0}
-  .nv-stories{gap:10px;padding:14px 12px}
-  .nv-story{width:68px}
-  .nv-story-ring{width:64px;height:64px}
-  .nv-composer-actions{grid-template-columns:repeat(2,1fr)}
-  .nv-row{grid-template-columns:1fr}
-}
-
-/* ── Premium: Skeleton shimmer ── */
-.nv-skeleton{background:linear-gradient(90deg,var(--nv-soft) 25%,#e8eaee 50%,var(--nv-soft) 75%);background-size:200% 100%;border-radius:12px;animation:nv-shimmer 1.5s infinite}
-@keyframes nv-shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-.nv-skeleton-sm{height:14px;margin-bottom:10px}
-.nv-skeleton-md{height:40px;margin-bottom:12px}
-.nv-skeleton-lg{height:200px;margin-bottom:14px}
-.nv-skeleton-circle{width:44px;height:44px;border-radius:50%;flex:0 0 auto}
-.nv-skeleton-ring{width:72px;height:72px;border-radius:50%;flex:0 0 auto}
-
-/* ── Premium: Content fade-in ── */
-.nv-fade-in{animation:nv-fade-in .45s ease forwards}
-@keyframes nv-fade-in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-.nv-fade-stagger > *{opacity:0;animation:nv-fade-in .4s ease forwards}
-.nv-fade-stagger > *:nth-child(1){animation-delay:.02s}
-.nv-fade-stagger > *:nth-child(2){animation-delay:.06s}
-.nv-fade-stagger > *:nth-child(3){animation-delay:.10s}
-.nv-fade-stagger > *:nth-child(4){animation-delay:.14s}
-.nv-fade-stagger > *:nth-child(5){animation-delay:.18s}
-.nv-fade-stagger > *:nth-child(6){animation-delay:.22s}
-
-/* ── Premium: Toast ── */
-.nv-toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--nv-text);color:#fff;padding:14px 26px;border-radius:999px;font-weight:800;font-size:15px;z-index:999;opacity:0;pointer-events:none;transition:all .32s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;box-shadow:0 8px 32px rgba(0,0,0,.18)}
-.nv-toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
-
-/* ── Premium: Card hover lift ── */
-.nv-section{transition:box-shadow .25s ease,transform .25s ease}
-.nv-section:hover{box-shadow:0 12px 36px rgba(17,24,39,.08);transform:translateY(-1px)}
-
-/* ── Premium: Nav item active indicator ── */
-.nv-nav-item.is-active{position:relative}
-.nv-nav-item.is-active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:4px;height:28px;border-radius:0 4px 4px 0;background:var(--nv-gradient)}
-
-/* ── Premium: Post actions hover scale ── */
-.nv-action{transition:all .2s ease}
-.nv-action:hover{transform:scale(1.06)}
-.nv-action:active{transform:scale(.94)}
-
-/* ── Premium: Story create ring ── */
-.nv-story-create .nv-story-ring{border:2px dashed var(--nv-border);transition:border-color .25s ease}
-.nv-story-create:hover .nv-story-ring{border-color:var(--nv-blue)}
-
-/* ── Premium: Scrollbar ── */
-.nv-left::-webkit-scrollbar,.nv-side::-webkit-scrollbar{width:4px}
-.nv-left::-webkit-scrollbar-thumb,.nv-side::-webkit-scrollbar-thumb{background:var(--nv-border);border-radius:99px}
-
-/* ── Phase 179: Heart burst ── */
-.nv-heart-burst{position:absolute;width:80px;height:80px;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:20;opacity:0}
-.nv-heart-burst svg{width:100%;height:100%;color:var(--nv-red);filter:drop-shadow(0 0 12px rgba(239,68,68,.5))}
-.nv-heart-burst.is-active{animation:nv-heart-burst-kf .65s ease-out forwards}
-@keyframes nv-heart-burst-kf{
-  0%{opacity:1;transform:translate(-50%,-50%) scale(.3)}
-  40%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}
-}
-.nv-media{position:relative;cursor:pointer}
-
-/* ── Phase 179: Bottom sheet ── */
-.nv-bottom-sheet-overlay{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:300;
-  align-items:flex-end;justify-content:center;
-}
-.nv-bottom-sheet-overlay.is-open{display:flex}
-.nv-bottom-sheet{
-  width:100%;max-width:520px;max-height:80vh;overflow-y:auto;
-  background:#fff;border-radius:24px 24px 0 0;
-  box-shadow:0 -8px 40px rgba(0,0,0,.15);
-  animation:nv-sheet-up .32s cubic-bezier(.34,1.56,.64,1) forwards;
-}
-@keyframes nv-sheet-up{
-  from{transform:translateY(100%)}to{transform:translateY(0)}
-}
-.nv-bottom-sheet-handle{
-  width:40px;height:4px;border-radius:4px;background:var(--nv-border);
-  margin:12px auto 4px;
-}
-.nv-bottom-sheet-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:8px 18px 8px;
-  border-bottom:1px solid var(--nv-border-soft);
-  font-weight:900;font-size:16px;
-}
-.nv-bottom-sheet-close{
-  border:0;background:var(--nv-soft);width:36px;height:36px;
-  border-radius:50%;cursor:pointer;display:grid;place-items:center;
-}
-.nv-bottom-sheet-body{padding:8px 0}
-.nv-comment-sheet{display:flex;flex-direction:column;gap:14px;padding:4px 0 10px}
-.nv-comment-list{display:flex;flex-direction:column;gap:14px;max-height:min(52vh,420px);overflow:auto;padding:0 18px}
-.nv-comment-empty{padding:24px 18px;color:var(--nv-muted);text-align:center;font-weight:700}
-.nv-comment-item{display:flex;gap:12px;align-items:flex-start}
-.nv-comment-avatar{width:42px;height:42px;border-radius:50%;overflow:hidden;flex:0 0 42px;background:var(--nv-soft);display:grid;place-items:center;font-weight:800;color:var(--nv-text)}
-.nv-comment-avatar img{width:100%;height:100%;object-fit:cover}
-.nv-comment-bubble{flex:1;min-width:0}
-.nv-comment-card{background:var(--nv-soft);border:1px solid var(--nv-border);border-radius:18px;padding:10px 12px}
-.nv-comment-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--nv-muted);margin-top:6px}
-.nv-comment-author{font-weight:800;color:var(--nv-text);display:block;margin-bottom:4px}
-.nv-comment-body{margin:0;color:var(--nv-text);white-space:pre-wrap;word-break:break-word}
-.nv-comment-form{display:flex;gap:10px;align-items:flex-end;padding:14px 18px 8px;border-top:1px solid var(--nv-border)}
-.nv-comment-input{flex:1;min-height:46px;max-height:120px;border-radius:16px;border:1px solid var(--nv-border);background:var(--nv-soft);padding:12px 14px;font:inherit;color:var(--nv-text);resize:vertical}
-.nv-comment-login{padding:0 18px 8px}
-.nv-comment-submit{white-space:nowrap}
-.nv-story-media-thumb{width:100%;height:100%;object-fit:cover}
-.nv-story-avatar.has-media{padding:0;background:#000}
-.nv-story-label{display:block;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nv-sheet-item{
-  display:flex;align-items:center;gap:14px;
-  padding:14px 18px;text-decoration:none;color:var(--nv-text);
-  border:0;background:transparent;width:100%;text-align:left;
-  font-weight:700;font-size:15px;cursor:pointer;
-}
-.nv-sheet-item:hover{background:var(--nv-soft)}
-.nv-sheet-item svg{width:20px;height:20px;flex:0 0 auto;color:var(--nv-muted)}
-@media (max-width: 680px){
-  .nv-comment-list{max-height:44vh;padding:0 14px}
-  .nv-comment-form,.nv-comment-login{padding-left:14px;padding-right:14px}
-}
-
-/* ── Phase 179: Infinite scroll sentinel ── */
-.nv-sentinel{height:1px;width:100%;pointer-events:none}
-.nv-sentinel-loading{
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  padding:20px;color:var(--nv-muted);font-weight:700;font-size:14px;
-}
-.nv-spinner{
-  width:22px;height:22px;border:3px solid var(--nv-border);
-  border-top-color:var(--nv-blue);border-radius:50%;
-  animation:nv-spin .7s linear infinite;
-}
-@keyframes nv-spin{to{transform:rotate(360deg)}}
-
-/* ── Phase 179: Disabled/loading states ── */
-.nv-action:disabled,.nv-follow:disabled,.nv-sheet-item:disabled{
-  opacity:.5;pointer-events:none;
-}
-.nv-action.is-loading svg{animation:nv-spin .7s linear infinite;width:18px;height:18px}
-.nv-follow.is-loading{pointer-events:none;position:relative}
-.nv-follow.is-loading::after{
-  content:'';position:absolute;inset:0;
-  background:rgba(255,255,255,.5);border-radius:999px;
-}
-
-/* ── Phase 179: Badge pulse ── */
-.nv-badge-pulse{animation:nv-pulse .4s ease 2}
-
-/* ── Phase 179: Focus & keyboard ── */
-.nv-focus-ring:focus-visible{
-  outline:3px solid var(--nv-blue);outline-offset:2px;
-  border-radius:8px;
-}
-.nv-action:focus-visible,.nv-follow:focus-visible,.nv-close:focus-visible,
-.nv-icon-btn:focus-visible,.nv-tab:focus-visible,.nav-sheet-item:focus-visible{
-  outline:2px solid var(--nv-blue);outline-offset:2px;
-}
-
-/* ── Phase 179: Reduced motion ── */
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{
-    animation-duration:.01ms!important;animation-iteration-count:1!important;
-    transition-duration:.01ms!important;
+  .nvpro-home .chain-shell { background: var(--bg); }
+  .nvpro-home .main-container { padding: 0; max-width: 100%; background: var(--bg); }
+  .nvpro-home .content-body { padding: 0 !important; background: var(--bg); }
+  .nvpro-home .social-drawer-backdrop.is-open { display: block; }
+  .nvpro-home .top-header, .nvpro-home .mobile-nav { display: none !important; }
+  @media (min-width: 768px) {
+    .nvpro-home .main-container { padding: 0; }
   }
-  .nv-heart-burst.is-active{display:none}
-  .nv-bottom-sheet{animation:none}
-}
-
-/* ── Phase 179: New content toast ── */
-.nv-new-content-toast{
-  position:fixed;top:78px;left:50%;transform:translateX(-50%);z-index:150;
-  background:var(--nv-text);color:#fff;padding:12px 22px;border-radius:999px;
-  font-weight:800;font-size:14px;cursor:pointer;
-  opacity:0;pointer-events:none;
-  transition:all .3s cubic-bezier(.34,1.56,.64,1);
-  box-shadow:0 8px 32px rgba(0,0,0,.18);
-}
-.nv-new-content-toast.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .nv-online-dot-sm { position:absolute; bottom:0; right:0; width:10px; height:10px; border-radius:50%; background:#22c55e; border:2px solid var(--bg,#0d0d1d); z-index:2; }
+  .nv-avatar-wrap { position:relative; display:inline-flex; }
+  .nv-score-badge { display:inline-flex; align-items:center; gap:2px; font-size:10px; font-weight:600; color:var(--accent,#e91e90); margin-left:4px; vertical-align:middle; }
+  .nv-level-tag { display:inline-flex; align-items:center; padding:0 5px; font-size:9px; font-weight:700; border-radius:3px; background:var(--accent,#e91e90); color:#fff; margin-left:4px; vertical-align:middle; line-height:16px; }
+  .nv-action:disabled, button:disabled { opacity:.5; pointer-events:none; }
+  .is-loading { opacity:.5; pointer-events:none; }
+  .nv-badge-pulse { animation: nv-badge-pulse-kf 2s infinite; }
+  @keyframes nv-badge-pulse-kf { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+  .nv-heart-burst { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:80px; pointer-events:none; animation:nv-heart-burst-kf .8s ease-out forwards; z-index:10; }
+  @keyframes nv-heart-burst-kf { 0% { transform:translate(-50%,-50%) scale(0); opacity:1; } 50% { transform:translate(-50%,-50%) scale(1.2); opacity:1; } 100% { transform:translate(-50%,-50%) scale(1.5); opacity:0; } }
+  @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
+  .nv-action:focus-visible, button:focus-visible, a:focus-visible { outline:2px solid var(--accent,#e91e90); outline-offset:2px; }
+  .nv-spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--border,#333); border-top-color:var(--accent,#e91e90); border-radius:50%; animation:nv-spin .6s linear infinite; }
+  @keyframes nv-spin { to { transform:rotate(360deg); } }
 </style>
 {% endblock %}
-
 {% block content %}
-{% set p = homepage_payload or {} %}
-{% set profile = p.get("profile") or current or g_current or {} %}
-{% set stories = p.get("stories") or stories or [] %}
-{% set feed_items = p.get("feed_items") or feed_items or feed_for_you or [] %}
-{% set reels_items = p.get("reels") or reels or [] %}
-{% set live_rooms = p.get("live_rooms") or live_rooms or [] %}
-{% set suggested = p.get("suggested_creators") or suggested_creators or suggested_people or [] %}
-{% set hashtags = p.get("trending_hashtags") or trending_hashtags or [] %}
-{% set unread = p.get("unread_counts") or {} %}
-{% set is_authenticated = g_current or profile.get("id") %}
-{% set login_href = "/auth/login?next=/" %}
-{% set messages_route = "/messages/" if is_authenticated else login_href %}
-{% set notifications_route = "/notifications/" if is_authenticated else login_href %}
-{% set contacts_route = "/contacts/" if is_authenticated else login_href %}
-{% set groups_route = "/messages/" if is_authenticated else login_href %}
-{% set marketplace_route = "/marketplace/" %}
-{% set saved_route = "/favorites/" if is_authenticated else login_href %}
-{% set events_route = "/discover/" %}
-{% set music_route = "/discover/" %}
-{% set show_groups_link = true %}
-{% set show_marketplace_link = true %}
-{% set show_events_link = false %}
-{% set show_saved_link = true %}
-{% set show_music_link = false %}
-
 <div class="nv-app">
+  <div class="nv-mobile-menu-overlay" id="nvMobileMenuOverlay" hidden></div>
+  <aside class="nv-mobile-menu" id="nvMobileMenu" hidden aria-hidden="true">
+    <div class="nv-mobile-menu-head">
+      <div class="nv-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <strong>NamVibe</strong>
+      </div>
+      <button class="nv-close" type="button" data-action="close-menu" aria-label="Close menu">×</button>
+    </div>
+    <nav class="nv-mobile-menu-links" aria-label="Mobile menu">
+      <a href="/" class="active">Home</a>
+      <a href="/discover/">Discover</a>
+      <a href="/reels/">Reels</a>
+      <a href="/stories/">Stories</a>
+      <a href="/live/">Live</a>
+      <a href="/messages/">Messages</a>
+      <a href="/calls/">Calls</a>
+      <a href="/notifications/">Notifications</a>
+      <a href="/profile/">Profile</a>
+      <a href="/profile/settings">Settings</a>
+      <a href="/support">Support</a>
+    </nav>
+    <button class="nv-create-btn nv-mobile-create-btn" type="button" data-action="open-create">+ Create</button>
+  </aside>
 
-  <header class="nv-topbar nv2026-glass">
-    <div class="nv-topbar-inner">
-      <a href="/" class="nv-logo">
-        <span class="nv-logo-mark">N</span>
-        <span>NamVibe</span>
+  <!-- LEFT SIDEBAR (desktop) -->
+  <aside class="nv-sidebar">
+    <div class="nv-logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <strong>NamVibe</strong>
+    </div>
+    <nav class="nv-menu">
+      <a href="/" class="active">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Home
       </a>
+      <a href="/discover/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Discover
+      </a>
+      <a href="/reels/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        Reels
+      </a>
+      <a href="/stories/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Stories
+      </a>
+      <a href="/messages/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Messages
+      </a>
+      <a href="/calls/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Calls
+      </a>
+      <a href="/notifications/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Notifications
+      </a>
+      <a href="/profile/">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Profile
+      </a>
+      <a href="/profile/settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+      <a href="/support">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
+        Support
+      </a>
+    </nav>
+    <button class="nv-create-btn" type="button" data-action="open-create">+ Create</button>
+  </aside>
 
-      <form class="nv-search" action="/discover/" method="get">
-        <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input name="q" placeholder="Search people, reels, places, hashtags..." autocomplete="off">
-      </form>
+  <!-- MAIN -->
+  <main class="nv-main">
 
-      <div class="nv-top-actions">
-        <button class="nv-create-btn" type="button" data-nv-open-create data-nv-create-type="post" aria-label="Create post">
-          <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          <span>Create</span>
-        </button>
-
-        <a class="nv-icon-btn nv-hide-mobile" href="{{ notifications_route }}" aria-label="Notifications">
-          <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-          {% if unread.get("notifications") %}<span class="nv-badge">{{ unread.get("notifications") }}</span>{% endif %}
-        </a>
-
-        <a class="nv-icon-btn" href="{{ messages_route }}" aria-label="Messages">
-          <svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 01-4 4H7l-4 4V7a4 4 0 014-4h10a4 4 0 014 4z"/></svg>
-          {% if unread.get("messages") %}<span class="nv-badge">{{ unread.get("messages") }}</span>{% endif %}
-        </a>
-
-        <a class="nv-avatar" href="{{ '/profile/' if is_authenticated else login_href }}">
-          {% if profile.get("avatar_url") %}
-            <img src="{{ profile.get('avatar_url') }}" alt="">
-          {% else %}
-            {{ (profile.get("display_name") or profile.get("username") or "U")[:1] }}
-          {% endif %}
-        </a>
+    <!-- TOP BAR -->
+    <header class="nv-topbar">
+      <button class="nv-menu-btn" data-action="open-menu" aria-label="Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="nv-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" placeholder="Search NamVibe, friends, reels, hashtags..." data-action="search" />
       </div>
+      <button class="nv-notif-btn" data-action="open-notifications" title="Notifications">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        {% if notifications and notifications|length > 0 %}<span class="nv-notif-dot"></span>{% endif %}
+      </button>
+    </header>
+
+    <!-- STORIES / STATUS -->
+    <section class="nv-stories">
+      <button class="nv-story create" data-action="create-story">
+        <div class="nv-story-avatar">+</div>
+        <span>Your Story</span>
+      </button>
+      {% for story in (stories or []) %}
+      <button class="nv-story" data-story-id="{{ story.id }}">
+        <div class="nv-story-ring">
+          <span class="nv-avatar-wrap">
+            <img src="{{ story.avatar_url or story.thumbnail_url or '/static/img/default-avatar.png' }}" alt="">
+            {% if story.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
+          </span>
+        </div>
+        <span>{{ story.display_name or story.username or 'User' }}</span>
+      </button>
+      {% endfor %}
+    </section>
+
+    <!-- NOTIFICATIONS STRIP -->
+    {% set notif = (notifications or [])[:1] %}
+    {% if notif %}
+    {% set n = notif[0] %}
+    <div class="nv-notif-strip" data-action="open-notifications">
+      <span class="nv-notif-icon">{{ n.icon or '🔔' }}</span>
+      <span class="nv-notif-body"><strong>{{ n.actor_name or 'Someone' }}</strong> {{ n.body or n.text or 'interacted with your post' }}</span>
+      <span class="nv-notif-time">{{ n.time_ago or n.created_at or 'just now' }}</span>
+      <button class="nv-notif-dismiss" data-action="dismiss-notif">✕</button>
     </div>
-  </header>
+    {% endif %}
 
-  <div class="nv-layout">
+    <!-- FEED TABS -->
+    <section class="nv-tabs">
+      <button class="active" data-feed="for-you">For You</button>
+      <button data-feed="following">Following</button>
+      <button data-feed="trending">Trending</button>
+      <button data-feed="nearby">Nearby</button>
+      <button data-feed="live">Live</button>
+    </section>
 
-    <aside class="nv-left">
-      <nav class="nv-nav-card">
-        <a class="nv-nav-item is-active" href="/"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> <span>Home</span></a>
-        <a class="nv-nav-item" href="/discover/"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg> <span>Discover</span></a>
-        <a class="nv-nav-item" href="/reels/"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> <span>Reels</span></a>
-        <a class="nv-nav-item" href="/live/"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg> <span>Live</span></a>
-        <a class="nv-nav-item" href="{{ messages_route }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> <span>Messages</span></a>
-        <a class="nv-nav-item" href="/calls/recent"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg> <span>Calls</span></a>
-        <a class="nv-nav-item" href="{{ contacts_route }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg> <span>Friends</span></a>
-        {% if show_groups_link %}<a class="nv-nav-item" href="{{ groups_route }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg> <span>Groups</span></a>{% endif %}
-        {% if show_marketplace_link %}<a class="nv-nav-item" href="{{ marketplace_route }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg> <span>Marketplace</span></a>{% endif %}
-        {% if show_events_link %}<a class="nv-nav-item" href="{{ events_route }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> <span>Events</span></a>{% endif %}
-        {% if show_saved_link %}<a class="nv-nav-item" href="{{ saved_route }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg> <span>Saved</span></a>{% endif %}
-        <a class="nv-nav-item" href="{{ '/profile/' if is_authenticated else login_href }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span>Profile</span></a>
-      </nav>
-    </aside>
-
-    <main class="nv-main">
-
-      <section class="nv-section nv2026-card">
-        <div class="nv-stories" id="nv-stories-row">
-          <button class="nv-story nv-story-create" type="button" data-nv-open-create data-nv-create-type="story" aria-label="Create story">
-            <div class="nv-story-ring">
-              <div class="nv-story-avatar">+</div>
-            </div>
-            <span>Create</span>
-          </button>
-
-          {% for s in stories %}
-          <a class="nv-story" href="{{ '/stories/' ~ (s.get('id') or '') if s.get('id') else '/stories/' }}">
-            <div class="nv-story-ring {% if s.get('viewed') %}seen{% endif %} {% if s.get('is_live') %}live{% endif %}">
-              <div class="nv-story-avatar">
-                {% if s.get("avatar_url") %}
-                  <img src="{{ s.get('avatar_url') }}" alt="">
+    <!-- FEED -->
+    <section class="nv-feed">
+      {% for item in (feed_items or []) %}
+      <article class="nv-post" data-post-id="{{ item.id }}" data-type="{{ item.type or 'post' }}">
+        <div class="nv-post-head">
+          <a class="nv-user" href="/profile/{{ item.username or item.id }}" data-profile-preview="{{ item.username or '' }}">
+            <span class="nv-avatar-wrap">
+              <img src="{{ item.avatar_url or '/static/img/default-avatar.png' }}" alt="" loading="lazy">
+              {% if item.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
+            </span>
+            <div>
+              <strong>
+                {{ item.display_name or item.username or 'User' }}
+                {% if item.verified or item.is_verified %}
+                {% set ivl = item.get('verification_level', 2) %}
+                {% if ivl >= 5 %}
+                <span class="nv-badge" style="color:#10b981;" title="Government Verified"><i class="fas fa-building" style="font-size:10px;"></i></span>
+                {% elif ivl >= 4 %}
+                <span class="nv-badge" style="color:#f59e0b;" title="Business Verified"><i class="fas fa-briefcase" style="font-size:10px;"></i></span>
+                {% elif ivl >= 3 %}
+                <span class="nv-badge" style="color:#ec4899;" title="Creator Verified"><i class="fas fa-star" style="font-size:10px;"></i></span>
                 {% else %}
-                  {{ (s.get("display_name") or s.get("username") or "?")[:1] }}
+                <span class="nv-badge" style="color:#1d9bf0;" title="Identity Verified">✓</span>
                 {% endif %}
-              </div>
+                {% endif %}
+                {% if item.profile_level %}<span class="nv-level-tag">{{ item.profile_level }}</span>{% endif %}
+                {% if item.profile_score and item.profile_score >= 50 %}<span class="nv-score-badge">{{ item.profile_score }}</span>{% endif %}
+              </strong>
+              <small>@{{ item.username or 'user' }} · {{ item.time_ago or item.created_label or 'now' }}</small>
             </div>
-            <span>{{ s.get("display_name") or s.get("username") or "Story" }}</span>
           </a>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="nv-section nv-composer nv2026-card">
-        <div class="nv-composer-top">
-          <a class="nv-avatar" href="{{ '/profile/' if is_authenticated else login_href }}">
-            {% if profile.get("avatar_url") %}
-              <img src="{{ profile.get('avatar_url') }}" alt="">
-            {% else %}
-              {{ (profile.get("display_name") or profile.get("username") or "U")[:1] }}
-            {% endif %}
-          </a>
-          <button class="nv-composer-pill" type="button" data-nv-open-create data-nv-create-type="post" aria-label="Create post">
-            What is happening on NamVibe?
+          <button class="nv-follow-btn {% if item.viewer_is_following %}following{% endif %}"
+                  type="button"
+                  data-action="follow" data-follow-id="{{ item.profile_id or item.id }}" data-id="{{ item.profile_id or item.id }}">
+            {% if item.viewer_is_following %}Following{% else %}Follow{% endif %}
           </button>
+          <button class="nv-more" type="button" data-action="post-more" data-id="{{ item.id }}" aria-label="More actions">⋯</button>
         </div>
-        <div class="nv-composer-actions">
-          <button class="nv-composer-action" type="button" data-nv-open-create data-nv-create-type="post"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg> Photo</button>
-          <button class="nv-composer-action" type="button" data-nv-open-create data-nv-create-type="reel"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> Reel</button>
-          <a class="nv-composer-action" href="{{ '/live/studio' if is_authenticated else login_href }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg> Live</a>
-          <button class="nv-composer-action" type="button" data-nv-open-create data-nv-create-type="story"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> Story</button>
-        </div>
-      </section>
-
-      <div class="nv-tabs">
-        <button class="nv-tab is-active" type="button" data-feed-tab="for_you">For You</button>
-        <button class="nv-tab" type="button" data-feed-tab="following">Following</button>
-        <button class="nv-tab" type="button" data-feed-tab="nearby">Nearby</button>
-        <button class="nv-tab" type="button" data-feed-tab="trending">Trending</button>
-        <button class="nv-tab" type="button" data-feed-tab="friends">Friends</button>
-      </div>
-
-      {% if live_rooms %}
-      <section class="nv-section nv2026-card">
-        <div class="nv-section-head">
-          <h2 class="nv-section-title">Live now</h2>
-          <a class="nv-section-link" href="/live/">See all</a>
-        </div>
-        <div class="nv-horizontal">
-          {% for room in live_rooms[:6] %}
-          <a class="nv-live" href="{{ room.get('watch_url') or '/live/' }}">
-            <div class="nv-mini-avatar">
-              {% if room.get("creator_avatar") %}
-              <img src="{{ room.get('creator_avatar') }}" alt="">
-              {% else %}
-              {{ (room.get("creator_name") or "L")[:1] }}
-              {% endif %}
-            </div>
-            <div class="nv-live-info">
-              <div class="nv-live-title">{{ room.get("title") or room.get("creator_name") or "Live room" }}</div>
-              <div class="nv-live-sub">{{ room.get("viewer_count") or 0 }} watching</div>
-            </div>
-            <span class="nv-live-badge">LIVE</span>
-          </a>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
-      {% if reels_items %}
-      <section class="nv-section nv2026-card">
-        <div class="nv-section-head">
-          <h2 class="nv-section-title">Reels for you</h2>
-          <a class="nv-section-link" href="/reels/">Watch all</a>
-        </div>
-        <div class="nv-reels-row">
-          {% for reel in reels_items[:8] %}
-          {% set reel_thumb = reel.get("thumbnail_url") or reel.get("media_url") or reel.get("public_url") or reel.get("image_url") or reel.get("video_url") %}
-          <a class="nv-reel" href="{{ '/reels/' ~ (reel.get('id') or '') if reel.get('id') else '/reels/' }}">
-            {% if reel_thumb %}
-              <img src="{{ reel_thumb }}" alt="" loading="lazy">
-            {% endif %}
-            <div class="nv-reel-info">
-              <div class="nv-reel-title">{{ reel.get("caption") or reel.get("display_name") or "Watch reel" }}</div>
-            </div>
-          </a>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
-      <div id="nv-feed">
-        {% if feed_items %}
-          {% for item in feed_items %}
-          {% if item.get("type") %}
-            {% set item_type = item.get("type") %}
-          {% elif item.get("watch_url") or item.get("viewer_count") is not none or item.get("is_live") %}
-            {% set item_type = "live_room" %}
-          {% elif item.get("reel_url") or item.get("music_title") or item.get("duration_seconds") %}
-            {% set item_type = "reel" %}
-          {% elif item.get("text_content") or item.get("background_color") %}
-            {% set item_type = "story" %}
-          {% else %}
-            {% set item_type = "post" %}
-          {% endif %}
-          {% set media_url = item.get("media_url") or item.get("public_url") or item.get("image_url") or item.get("thumbnail_url") %}
-          {% set video_url = item.get("video_url") or "" %}
-          {% if item_type == "reel" %}
-            {% set detail_url = "/reels/" ~ item.get("id") %}
-          {% elif item_type == "story" %}
-            {% set detail_url = "/stories/" ~ item.get("id") %}
-          {% elif item_type == "live_room" or item_type == "live" %}
-            {% set detail_url = item.get("watch_url") or "/live/" %}
-          {% elif item_type == "product_card" %}
-            {% set detail_url = marketplace_route ~ "item/" ~ item.get("id") %}
-          {% elif item_type == "suggested_user" or item_type == "profile" %}
-            {% set detail_url = item.get("profile_url") or "/profile/" %}
-          {% else %}
-            {% set detail_url = "/post/" ~ item.get("id") %}
-          {% endif %}
-          {% set profile_link = item.get("profile_url") or ("/profile/@" ~ item.get("username") if item.get("username") else detail_url) %}
-          <article class="nv-section nv-post nv2026-card" data-item-id="{{ item.get('id') }}" data-type="{{ item_type }}" {% if item_type == 'post' %}data-post-id="{{ item.get('id') }}"{% elif item_type == 'live_room' or item_type == 'live' %}data-live-room-id="{{ item.get('id') }}"{% endif %} data-detail-url="{{ detail_url }}" data-profile-id="{{ item.get('profile_id') or '' }}">
-            <div class="nv-post-head">
-              <a class="nv-avatar" href="{{ profile_link }}">
-                {% if item.get("avatar_url") %}
-                  <img src="{{ item.get('avatar_url') }}" alt="">
-                {% else %}
-                  {{ (item.get("display_name") or item.get("username") or "?")[:1] }}
-                {% endif %}
-              </a>
-
-              <div class="nv-post-meta">
-                <a class="nv-post-name" href="{{ profile_link }}">
-                  {{ item.get("display_name") or item.get("username") or "Creator" }}
-                  {% if item.get("verified") %}
-                  <svg class="nv-verified" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6 6.6.9-4.8 4.7 1.1 6.5L12 17l-5.8 3.1 1.1-6.5-4.8-4.7 6.6-.9z"/></svg>
-                  {% endif %}
-                </a>
-                <div class="nv-post-sub">
-                  {{ item.get("location") or item.get("category") or "Namibia" }} · {{ item.get("created_label") or "Just now" }}
-                </div>
-              </div>
-
-              {% if item.get("profile_id") and item.get("profile_id") != profile.get("id") %}
-              <button class="nv-follow" type="button" data-follow-id="{{ item.get('profile_id') }}" data-following="{{ 'true' if item.get('viewer_is_following') else 'false' }}">{{ 'Following' if item.get('viewer_is_following') else 'Follow' }}</button>
-              {% endif %}
-              <button class="nv-more" type="button" data-action="more" aria-label="More options"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
-            </div>
-
-            {% if item_type == "product_card" and item.get("title") %}
-            <div class="nv-post-caption"><strong>{{ item.get("title") }}</strong>{% if item.get("price") %} · {{ item.get("price") }} {{ item.get("currency") or "" }}{% endif %}<br>{{ item.get("text") or item.get("caption") or "" }}</div>
-            {% elif item.get("text") or item.get("caption") %}
-            <div class="nv-post-caption">{{ item.get("text") or item.get("caption") }}</div>
-            {% endif %}
-
-            {% if item_type == "suggested_user" or item_type == "profile" %}
-            <div class="nv-post-stats" style="padding-top:8px">
-              {{ item.get("text") or item.get("location") or "Discover this profile" }}
-            </div>
-            {% elif video_url %}
-            <div class="nv-media" data-detail-href="{{ detail_url }}">
-              <video src="{{ video_url }}" poster="{{ media_url or item.get('thumbnail_url') or '' }}" controls playsinline preload="metadata" muted controlsList="nodownload" oncontextmenu="return false;"></video>
-            </div>
-            {% elif media_url %}
-            <div class="nv-media" data-detail-href="{{ detail_url }}">
-              <a href="{{ detail_url }}" tabindex="-1">
-                <img src="{{ media_url }}" alt="" loading="{% if loop.index0 < 2 %}eager{% else %}lazy{% endif %}">
-              </a>
-            </div>
-            {% endif %}
-
-            <div class="nv-actions">
-              <div class="nv-action-left">
-                <button class="nv-action" type="button" data-action="like" data-id="{{ item.get('id') }}" data-target-id="{{ item.get('id') }}" {% if item_type == 'post' %}data-post-id="{{ item.get('id') }}"{% elif item_type == 'live_room' or item_type == 'live' %}data-live-room-id="{{ item.get('id') }}"{% endif %} data-type="{{ item_type }}" data-liked="{{ 'true' if item.get('is_liked') or item.get('user_liked') else 'false' }}" aria-pressed="{{ 'true' if item.get('is_liked') or item.get('user_liked') else 'false' }}" aria-label="{{ 'Liked' if item.get('is_liked') or item.get('user_liked') else 'Like' }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="{{ 'currentColor' if item.get('is_liked') or item.get('user_liked') else 'none' }}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg> <span class="nv-action-label">{{ 'Liked' if item.get('is_liked') or item.get('user_liked') else 'Like' }}</span> <span class="nv-action-count">{{ item.get("likes_count") or 0 }}</span></button>
-                <button class="nv-action" type="button" data-action="comment" data-id="{{ item.get('id') }}" data-target-id="{{ item.get('id') }}" {% if item_type == 'post' %}data-post-id="{{ item.get('id') }}"{% elif item_type == 'live_room' or item_type == 'live' %}data-live-room-id="{{ item.get('id') }}"{% endif %} data-type="{{ item_type }}" data-detail-url="{{ detail_url }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg> <span class="nv-action-label">Comment</span> <span class="nv-action-count">{{ item.get("comments_count") or 0 }}</span></button>
-                <button class="nv-action" type="button" data-action="share" data-id="{{ item.get('id') }}" data-type="{{ item_type }}" data-detail-url="{{ detail_url }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share</button>
-              </div>
-              <button class="nv-action" type="button" data-action="save" data-id="{{ item.get('id') }}" data-type="{{ item_type }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button>
-            </div>
-
-            <div class="nv-post-stats">
-              {{ item.get("views_count") or 0 }} views
-              {% if item.get("music_title") %} · <svg class="nv-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> {{ item.get("music_title") }}{% endif %}
-            </div>
-          </article>
-          {% endfor %}
-        {% else %}
-          <section class="nv-section nv-empty nv2026-card">
-            <h3>Your NamVibe feed is ready</h3>
-            <p>Follow people, upload a reel, join live rooms, or discover creators around Namibia.</p>
-            <button class="nv-primary" type="button" data-nv-open-create data-nv-create-type="post">Create your first post</button>
-          </section>
+        {% if item.caption or item.text %}
+        <p class="nv-caption">{{ item.caption or item.text }}</p>
         {% endif %}
+        {% if item.type == "reel" or item.type == "reels" %}
+        <div class="nv-reel-card">
+          <video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline></video>
+          <div class="nv-heart-burst" style="display:none;">❤️</div>
+          <div class="nv-reel-actions">
+            <button type="button" data-action="like" data-id="{{ item.id }}" aria-label="Like">❤️<span>{{ item.likes_count or 0 }}</span></button>
+            <button type="button" data-action="comment" data-id="{{ item.id }}" aria-label="Comment">💬<span>{{ item.comments_count or 0 }}</span></button>
+            <button type="button" data-action="share" data-id="{{ item.id }}" aria-label="Share">↗️<span>{{ item.shares_count or 0 }}</span></button>
+            <button type="button" data-action="save" data-id="{{ item.id }}" aria-label="Save">🔖</button>
+          </div>
+        </div>
+        {% elif item.image_url or item.media_url %}
+        <div class="nv-media"><img src="{{ item.image_url or item.media_url }}" alt="" loading="lazy"></div>
+        {% elif item.video_url %}
+        <div class="nv-media"><video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline></video></div>
+        {% endif %}
+        <div class="nv-actions">
+          <button type="button" data-action="like" data-id="{{ item.id }}"
+                  class="{% if item.is_liked or item.user_liked %}liked{% endif %}" aria-label="Like">
+            {% if item.is_liked or item.user_liked %}❤️{% else %}🤍{% endif %}
+            <span>{{ item.likes_count or 0 }}</span>
+          </button>
+          <button type="button" data-action="comment" data-id="{{ item.id }}" aria-label="Comment">💬 {{ item.comments_count or 0 }}</button>
+          <button type="button" data-action="share" data-id="{{ item.id }}" aria-label="Share">↗️ Share</button>
+          <button type="button" data-action="send" data-id="{{ item.id }}" aria-label="Send">📩 Send</button>
+          <button type="button" data-action="save" data-id="{{ item.id }}" aria-label="Save">🔖</button>
+        </div>
+        <div class="nv-comment-box">
+          <input type="text" placeholder="Write a comment..." data-comment-input="{{ item.id }}">
+          <button data-action="send-comment" data-id="{{ item.id }}">Send</button>
+        </div>
+      </article>
+      {% else %}
+      <div class="nv-empty">
+        <h2>Welcome to NamVibe</h2>
+        <p>No posts yet. Follow people, create a story, or upload your first reel.</p>
+        <button data-action="open-create">Create Post</button>
       </div>
+      {% endfor %}
+      <div id="scroll-sentinel" class="nv-feed-sentinel" style="height:1px;"></div>
+      <div class="nv-feed-end" style="display:none;"><div class="nv-spinner"></div><span>You're all caught up</span></div>
+    </section>
+  </main>
 
-      {% if suggested %}
-      <section class="nv-section nv2026-card">
-        <div class="nv-section-head">
-          <h2 class="nv-section-title">People you may know</h2>
-          <a class="nv-section-link" href="/discover/">See all</a>
+  <!-- RIGHT SIDEBAR (desktop) -->
+  <aside class="nv-rightbar">
+    <section class="nv-card nv-side-card">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chats
+      </h3>
+      {% for chat in (chats or []) %}
+      <a class="nv-chat" href="/messages/{{ chat.thread_id or chat.id }}">
+        <span class="nv-avatar-wrap">
+          <img src="{{ chat.avatar_url or '/static/img/default-avatar.png' }}" alt="">
+          {% if chat.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
+        </span>
+        <div>
+          <strong>{{ chat.name or chat.display_name or 'Chat' }}</strong>
+          <small>{{ chat.last_message or 'Say hello!' }}</small>
         </div>
-        <div class="nv-horizontal">
-          {% for creator in suggested[:8] %}
-          <div class="nv-person" style="min-width:240px">
-            <a class="nv-mini-avatar" href="{{ creator.get('profile_url') or ('/profile/@' ~ (creator.get('username') or '')) }}">
-              {% if creator.get("avatar_url") %}
-              <img src="{{ creator.get('avatar_url') }}" alt="">
-              {% else %}
-              {{ (creator.get("display_name") or creator.get("username") or "?")[:1] }}
-              {% endif %}
-            </a>
-            <div class="nv-person-info">
-              <div class="nv-person-name">{{ creator.get("display_name") or creator.get("username") or "Creator" }}</div>
-              <div class="nv-person-sub">{{ creator.get("followers_count") or 0 }} followers</div>
-            </div>
-            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}" data-following="{{ 'true' if creator.get('viewer_is_following') else 'false' }}">{{ 'Following' if creator.get('viewer_is_following') else 'Follow' }}</button>
-          </div>
-          {% endfor %}
+        {% if chat.unread_count %}<span>{{ chat.unread_count }}</span>{% endif %}
+      </a>
+      {% else %}
+      <div class="nv-card-empty">No conversations yet</div>
+      {% endfor %}
+    </section>
+    <section class="nv-card nv-side-card">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        Live Now
+      </h3>
+      {% for live in (live_rooms or []) %}
+      <a class="nv-live" href="{{ live.watch_url or '/live/' + (live.id|string) }}">
+        <span class="nv-live-dot"></span>
+        {% if live.creator_avatar %}
+        <img src="{{ live.creator_avatar }}" alt="" class="nv-live-avatar">
+        {% endif %}
+        <span>{{ live.creator_name or live.title or 'Live' }}</span>
+        <small class="nv-live-count">{{ live.viewer_count or 0 }} watching</small>
+      </a>
+      {% else %}
+      <div class="nv-card-empty">No live streams right now</div>
+      {% endfor %}
+    </section>
+    <section class="nv-card nv-side-card">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+        Trending Namibia
+      </h3>
+      {% for trend in (trending_hashtags or hashtags or []) %}
+      <a class="nv-trend" href="/hashtag/{{ trend.tag or trend.hashtag }}">
+        #{{ trend.tag or trend.hashtag }}
+        <small>{{ trend.count or trend.posts_count or 0 }} posts</small>
+      </a>
+      {% else %}
+      <div class="nv-card-empty">No trending topics</div>
+      {% endfor %}
+    </section>
+    <section class="nv-card nv-side-card">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Suggested Creators
+      </h3>
+      {% for creator in (suggested_creators or suggested_people or []) %}
+      <a class="nv-chat" href="/profile/{{ creator.username or creator.id }}">
+        <span class="nv-avatar-wrap">
+          <img src="{{ creator.avatar_url or creator.profile_photo or '/static/img/default-avatar.png' }}" alt="">
+          {% if creator.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
+        </span>
+        <div>
+          <strong>{{ creator.display_name or creator.username or 'Creator' }}
+            {% if creator.is_verified or creator.verified %}<span class="nv-badge">✓</span>{% endif %}
+            {% if creator.profile_level %}<span class="nv-level-tag nv-level-alt">{{ creator.profile_level }}</span>{% endif %}
+          </strong>
+          <small>{{ creator.followers_count or 0 }} followers{% if creator.profile_score and creator.profile_score >= 50 %} · Score {{ creator.profile_score }}{% endif %}</small>
         </div>
-      </section>
-      {% endif %}
+      </a>
+      {% else %}
+      <div class="nv-card-empty">No suggestions right now</div>
+      {% endfor %}
+    </section>
+    <section class="nv-card nv-side-card">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Friend Activity
+      </h3>
+      {% for activity in (friend_activity or [])[:5] %}
+      <a class="nv-chat" href="{{ activity.action_url or '#' }}">
+        <span class="nv-avatar-wrap">
+          <img src="{{ activity.actor_avatar or activity.p_avatar_url or '/static/img/default-avatar.png' }}" alt="">
+        </span>
+        <div>
+          <small>{{ activity.text or activity.p_username or 'Someone' }} did something</small>
+        </div>
+      </a>
+      {% else %}
+      <div class="nv-card-empty">No recent activity from friends</div>
+      {% endfor %}
+    </section>
+    <section class="nv-card nv-side-card">
+      <h3>Quick Links</h3>
+      <a class="nv-chat" href="/discover/"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Discover</a>
+      <a class="nv-chat" href="/reels/"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> Reels</a>
+      <a class="nv-chat" href="/stories/"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Stories</a>
+      <a class="nv-chat" href="/live/"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Live</a>
+      <a class="nv-chat" href="/marketplace/"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> Marketplace</a>
+    </section>
+    <section class="nv-card nv-side-card">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        Marketplace
+      </h3>
+      {% for item in (marketplace_items or []) %}
+      <a class="nv-chat" href="/marketplace/item/{{ item.id }}">
+        {% if item.image_url %}
+        <img src="{{ item.image_url }}" alt="" class="nv-market-img">
+        {% else %}
+        <div class="nv-market-placeholder">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        </div>
+        {% endif %}
+        <div>
+          <strong>{{ item.title or 'Marketplace Item' }}</strong>
+          <small>{{ item.price or '' }} {{ item.currency or '' }}</small>
+        </div>
+      </a>
+      {% else %}
+      <div class="nv-card-empty">
+        Buy, sell & trade on NamVibe
+        <br><br>
+        <a href="/marketplace/" class="nv-card-link">Browse Marketplace →</a>
+      </div>
+      {% endfor %}
+    </section>
+  </aside>
 
-      <div class="nv-sentinel" id="nv-feed-sentinel" aria-hidden="true"></div>
-    </main>
-
-    <aside class="nv-side">
-
-      <section class="nv-side-card">
-        <div class="nv-side-head">
-          <span>Trending Namibia</span>
-          <a class="nv-section-link" href="/discover/">Explore</a>
-        </div>
-        <div class="nv-side-body">
-          {% if hashtags %}
-          <div class="nv-chip-grid">
-            {% for ht in hashtags[:10] %}
-            <a class="nv-chip" href="/discover/?q=%23{{ ht.get('tag') }}">#{{ ht.get("tag") }}</a>
-            {% endfor %}
-          </div>
-          {% else %}
-          <a class="nv-trend" href="/discover/">
-            <div class="nv-trend-info">
-              <div class="nv-trend-title">Discover Namibia</div>
-              <div class="nv-trend-sub">Find creators, places, music, events</div>
-            </div>
-          </a>
-          {% endif %}
-        </div>
-      </section>
-
-      {% if suggested %}
-      <section class="nv-side-card">
-        <div class="nv-side-head">
-          <span>Suggested friends</span>
-          <a class="nv-section-link" href="/discover/">See all</a>
-        </div>
-        <div class="nv-side-body">
-          {% for creator in suggested[:5] %}
-          <div class="nv-person">
-            <a class="nv-mini-avatar" href="{{ creator.get('profile_url') or ('/profile/@' ~ (creator.get('username') or '')) }}">
-              {% if creator.get("avatar_url") %}
-              <img src="{{ creator.get('avatar_url') }}" alt="">
-              {% else %}
-              {{ (creator.get("display_name") or creator.get("username") or "?")[:1] }}
-              {% endif %}
-            </a>
-            <div class="nv-person-info">
-              <a class="nv-person-name" href="{{ creator.get('profile_url') or ('/profile/@' ~ (creator.get('username') or '')) }}">{{ creator.get("display_name") or creator.get("username") or "Creator" }}</a>
-              <div class="nv-person-sub">{{ creator.get("mutual_count") or creator.get("followers_count") or 0 }} connections</div>
-            </div>
-            <button class="nv-follow" type="button" data-follow-id="{{ creator.get('id') }}" data-following="{{ 'true' if creator.get('viewer_is_following') else 'false' }}">{{ 'Following' if creator.get('viewer_is_following') else 'Follow' }}</button>
-          </div>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
-      {% set public_groups = public_groups or [] %}
-      {% if public_groups %}
-      <section class="nv-side-card">
-        <div class="nv-side-head">
-          <span>Discover Groups</span>
-          <a class="nv-section-link" href="/messages/">Browse</a>
-        </div>
-        <div class="nv-side-body">
-          {% for g in public_groups[:5] %}
-          <a class="nv-trend" href="/messages/">
-            <div class="nv-trend-info">
-              <div class="nv-trend-title">{{ g.get("name") or "Group" }}</div>
-              <div class="nv-trend-sub">{{ g.get("member_count") or 0 }} members</div>
-            </div>
-          </a>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
-      {% if live_rooms %}
-      <section class="nv-side-card">
-        <div class="nv-side-head">
-          <span>Live activity</span>
-          <a class="nv-section-link" href="/live/">Join</a>
-        </div>
-        <div class="nv-side-body">
-          {% for room in live_rooms[:4] %}
-          <a class="nv-live" href="{{ room.get('watch_url') or '/live/' }}">
-            <div class="nv-mini-avatar">
-              {% if room.get("creator_avatar") %}
-              <img src="{{ room.get('creator_avatar') }}" alt="">
-              {% else %}
-              {{ (room.get("creator_name") or "L")[:1] }}
-              {% endif %}
-            </div>
-            <div class="nv-live-info">
-              <div class="nv-live-title">{{ room.get("title") or room.get("creator_name") or "Live" }}</div>
-              <div class="nv-live-sub">{{ room.get("viewer_count") or 0 }} watching</div>
-            </div>
-            <span class="nv-live-badge">LIVE</span>
-          </a>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
-      {% set friend_activity = p.get("friend_activity") or friend_activity or [] %}
-      {% if friend_activity %}
-      <section class="nv-side-card">
-        <div class="nv-side-head">
-          <span>Friend activity</span>
-        </div>
-        <div class="nv-side-body">
-          {% for act in friend_activity[:8] %}
-          <a class="nv-trend" href="{{ act.get('url') or '/discover/' }}">
-            <div class="nv-trend-info">
-              <div class="nv-trend-title">{{ act.get('actor_display_name') or act.get('actor_username') or 'Someone' }}</div>
-              <div class="nv-trend-sub">{{ act.get('message') or act.get('event_type','') }}</div>
-            </div>
-          </a>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
-      <section class="nv-side-card">
-        <div class="nv-side-head">
-          <span>Quick links</span>
-        </div>
-        <div class="nv-side-body">
-          {% if show_events_link %}<a class="nv-trend" href="{{ events_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Events near you</div><div class="nv-trend-sub">Concerts, sports, church, meetups</div></div></a>{% endif %}
-          {% if show_marketplace_link %}<a class="nv-trend" href="{{ marketplace_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Marketplace</div><div class="nv-trend-sub">Cars, phones, services, jobs</div></div></a>{% endif %}
-          {% if show_groups_link %}<a class="nv-trend" href="{{ groups_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Communities</div><div class="nv-trend-sub">Schools, businesses, creators</div></div></a>{% endif %}
-          {% if show_music_link %}<a class="nv-trend" href="{{ music_route }}"><div class="nv-trend-info"><div class="nv-trend-title">Music</div><div class="nv-trend-sub">Trending songs and artists</div></div></a>{% endif %}
-        </div>
-      </section>
-
-    </aside>
-  </div>
-
-  <nav class="nv-bottom">
-    <div class="nv-bottom-inner">
-      <a class="is-active" href="/"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></a>
-      <a href="/discover/"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span>Discover</span></a>
-      <button class="nv-floating-create" type="button" data-nv-open-create data-nv-create-type="post" aria-label="Create post"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="width:20px;height:20px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-      <a href="/reels/"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg><span>Reels</span></a>
-      <a href="{{ messages_route }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><span>Messages</span></a>
-      <a href="{{ '/profile/' if is_authenticated else login_href }}"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
-    </div>
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="nv-bottom-nav">
+    <a href="/" class="active">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </a>
+    <a href="/discover/">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </a>
+    <button class="nv-create-nav" data-action="open-create">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <a href="/reels/">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+    </a>
+    <a href="/messages/">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </a>
+    <a href="/support">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
+    </a>
   </nav>
-
-    <div class="nv-modal-overlay nv2026-modal-overlay" id="nv-create-modal">
-    <div class="nv-modal">
-      <div class="nv-modal-head">
-        <h2>Create on NamVibe</h2>
-        <button class="nv-close" type="button" data-nv-close-create aria-label="Close"><svg class="nv-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </div>
-
-      <div class="nv-modal-body">
-        <div class="nv-upload-tabs">
-          <button class="nv-upload-tab is-active" type="button" data-upload-tab="post">Post</button>
-          <button class="nv-upload-tab" type="button" data-upload-tab="reel">Reel</button>
-          <button class="nv-upload-tab" type="button" data-upload-tab="story">Story</button>
-        </div>
-
-        <div class="nv-drop" id="nv-create-drop">
-          <strong>Upload photo or video</strong>
-          <p style="margin:8px 0 0;color:var(--nv-muted)">Post, reel, story, camera, or media upload.</p>
-        </div>
-
-        <input class="nv-input" id="nv-caption-post" placeholder="Write a caption...">
-
-        <div class="nv-row">
-          <input class="nv-input" id="nv-location-post" placeholder="Location">
-          <select class="nv-select" id="nv-visibility-post">
-            <option value="public">Public</option>
-            <option value="followers">Followers</option>
-            <option value="private">Private</option>
-          </select>
-        </div>
-
-        <div class="nv-upload-actions">
-          <button class="nv-outline" type="button" data-nv-close-create>Cancel</button>
-          <button class="nv-primary" id="nv-create-continue" type="button">Continue Upload</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
 </div>
 
-<div class="nv-toast" id="nv-toast"></div>
-
-  <div class="nv-bottom-sheet-overlay nv2026-bottom-sheet-overlay" id="nv-bottom-sheet-overlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Action menu">
-    <div class="nv-bottom-sheet" id="nv-bottom-sheet">
-      <div class="nv-bottom-sheet-handle" aria-hidden="true"></div>
-      <div class="nv-bottom-sheet-head">
-        <span id="nv-bottom-sheet-title">Actions</span>
-        <button class="nv-bottom-sheet-close nv-close" id="nv-bottom-sheet-close" type="button" aria-label="Close menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-      </div>
-      <div class="nv-bottom-sheet-body" id="nv-bottom-sheet-body" role="menu"></div>
+<!-- CREATE MODAL -->
+<div class="nv-modal nv-create-modal" id="nv-create-modal" hidden>
+  <div class="nv-modal-card">
+    <button class="nv-close" data-action="close-create">×</button>
+    <h2>Create</h2>
+    <div class="nv-create-grid">
+      <button data-create="post" data-nv-create-type="post">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Post
+      </button>
+      <button data-create="reel" data-nv-create-type="reel">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        Reel
+      </button>
+      <button data-create="story" data-nv-create-type="story">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Story
+      </button>
+      <button data-create="live">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        Go Live
+      </button>
+      <button data-create="photo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Photo
+      </button>
+      <button data-create="voice">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        Voice Note
+      </button>
+      <button data-action="open-studio">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Studio
+      </button>
     </div>
   </div>
+</div>
 
-  {% include "partials/camera_creator.html" %}
+<!-- BOTTOM SHEET -->
+<div class="nv-bottom-sheet-overlay" id="bottomSheetOverlay" style="display:none;" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="nv-bottom-sheet-body" role="menu">
+    <div class="nv-bottom-sheet-handle"></div>
+    <button class="nv-bottom-sheet-close" type="button" aria-label="Close">×</button>
+    <div class="nv-sheet-item" role="menuitem" tabindex="0">Report</div>
+    <div class="nv-sheet-item" role="menuitem" tabindex="0">Share</div>
+    <div class="nv-sheet-item" role="menuitem" tabindex="0">Copy Link</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="nv-toast" class="nv-toast" role="alert" aria-hidden="true" style="display:none;"></div>
+
+<!-- COMMENTS DRAWER -->
+<div class="nv-drawer" id="commentsDrawer" hidden>
+  <div class="nv-drawer-card">
+    <button class="nv-close" data-action="close-comments">×</button>
+    <h2>Comments</h2>
+    <div id="commentsList"></div>
+    <div class="nv-drawer-input">
+      <input type="text" placeholder="Add a comment..." />
+      <button>Send</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
-
 {% block extra_js %}
-<script src="/static/js/namvibe_camera_creator.js?v=phase162"></script>
-<script src="/static/js/namvibe_offline_cache.js?v=phase162b"></script>
-<script src="/static/js/namvibe_pwa_register.js" defer></script>
-
+<script src="/static/js/namvibe_emoji_picker.js"></script>
+<script src="/static/js/namvibe_creative_studio.js"></script>
+<script src="/static/js/namvibe_home_premium_v2.js"></script>
 <script>
-(function(){
-  window.NAMVIBE_HOME_BUILD = "home-interactions-2026-07-05-v3";
-  window.NAMVIBE_HOME_INTERACTIONS_READY = false;
-  window.NAMVIBE_HOME_LIKES_READY = false;
-  window.NAMVIBE_E2E_DISABLE_REFRESH = window.__NAMVIBE_E2E_DISABLE_REFRESH__ === true || new URLSearchParams(window.location.search).get("e2e_no_refresh") === "1";
-  const reportHomepageError = (scope, error) => {
-    const message = error && error.message ? error.message : String(error);
-    console.error(`[homepage-runtime:${scope}]`, message);
-    if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-      console.error(error);
-    }
-  };
-
-  const toastEl = document.getElementById("nv-toast");
-  window.NamVibeToast = {
-    show: function(msg) {
-      if (!toastEl) return;
-      toastEl.textContent = msg;
-      toastEl.classList.add("show");
-      clearTimeout(toastEl._t);
-      toastEl._t = setTimeout(function(){ toastEl.classList.remove("show"); }, 2600);
-    },
-    success: function(msg) { this.show(msg); },
-    error: function(msg) { this.show("⚠ " + msg); },
-    warning: function(msg) { this.show(msg); },
-    info: function(msg) { this.show(msg); }
-  };
-
-  const initHomepageInteractions = () => {
-  if (window.NAMVIBE_HOME_HANDLERS_ATTACHED) return;
-  window.NAMVIBE_HOME_HANDLERS_ATTACHED = true;
-  try {
-  const modal = document.getElementById("nv-create-modal");
-  const uploadTabs = Array.from(document.querySelectorAll(".nv-upload-tab"));
-  const createDrop = document.getElementById("nv-create-drop");
-  const createContinue = document.getElementById("nv-create-continue");
-  const isAuthenticated = document.body.dataset.authenticated === "true";
-  let selectedCreateType = "post";
-  const detailForItem = (button) => button.dataset.detailUrl || button.closest("[data-detail-url]")?.dataset.detailUrl || "/";
-  const typeForItem = (button) => button.dataset.type || button.closest("[data-type]")?.dataset.type || "post";
-  const idForItem = (button) => button.dataset.postId || button.dataset.liveRoomId || button.dataset.targetId || button.dataset.id || button.closest("[data-item-id]")?.dataset.itemId || "";
-  const entityKeyForType = (type) => {
-    if (type === "post") return "postId";
-    if (type === "live_room" || type === "live") return "liveRoomId";
-    return "id";
-  };
-  const resolveItemContext = (button) => {
-    const card = button?.closest(".nv-post");
-    const buttonType = button?.dataset.type || "";
-    const cardType = card?.dataset.type || "";
-    const type = buttonType || cardType || "post";
-    const entityKey = entityKeyForType(type);
-    const buttonScopedId = entityKey === "id" ? (button?.dataset.id || "") : (button?.dataset[entityKey] || "");
-    const cardScopedId = entityKey === "id" ? (card?.dataset.itemId || "") : (card?.dataset[entityKey] || "");
-    const fallbackId = button?.dataset.targetId || button?.dataset.id || card?.dataset.itemId || "";
-    return {
-      card,
-      type,
-      id: buttonScopedId || cardScopedId || fallbackId,
-      detailRoute: detailForItem(button),
-      mismatch: Boolean(buttonType && cardType && buttonType !== cardType),
-    };
-  };
-  const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-  const showToast = (message, type = "info") => {
-    if (window.NamVibeToast && typeof window.NamVibeToast[type] === "function") {
-      window.NamVibeToast[type](message);
-      return;
-    }
-    if (window.NamVibeToast && typeof window.NamVibeToast.show === "function") {
-      window.NamVibeToast.show(message, type);
-      return;
-    }
-    console[type === "error" ? "error" : "log"](message);
-  };
-  const logDevError = (scope, error) => {
-    if (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost") {
-      console.error(`[homepage:${scope}]`, error);
-    }
-  };
-  const logRequestWarning = (scope, error) => {
-    console.warn(`[homepage:${scope}]`, error && error.message ? error.message : error);
-  };
-  const safeHandler = (scope, handler) => (event) => {
-    try {
-      const result = handler(event);
-      if (result && typeof result.catch === "function") {
-        result.catch((error) => reportHomepageError(scope, error));
-      }
-      return result;
-    } catch (error) {
-      reportHomepageError(scope, error);
-      return undefined;
-    }
-  };
-  const loginUrl = () => `/auth/login?next=${encodeURIComponent(window.location.pathname + window.location.search + window.location.hash)}`;
-  const requireAuth = (options = {}) => {
-    if (isAuthenticated) return false;
-    if (!options.silent) {
-      showToast("Please log in to use this action.", "warning");
-      window.location.href = loginUrl();
-    }
-    return true;
-  };
-  const apiRequest = async (url, options = {}) => {
-    const headers = new Headers(options.headers || {});
-    let requestBody = options.body;
-    headers.set("X-CSRFToken", csrfToken());
-    headers.set("X-Requested-With", "XMLHttpRequest");
-    if (
-      requestBody &&
-      !(requestBody instanceof FormData) &&
-      typeof requestBody !== "string" &&
-      !(requestBody instanceof URLSearchParams) &&
-      !(requestBody instanceof Blob)
-    ) {
-      requestBody = JSON.stringify(requestBody);
-    }
-    if (requestBody && !(requestBody instanceof FormData) && !headers.has("Content-Type")) {
-      headers.set("Content-Type", "application/json");
-    }
-    const response = await fetch(url, {
-      credentials: "same-origin",
-      ...options,
-      body: requestBody,
-      headers
-    });
-    let data = null;
-    try {
-      data = await response.json();
-    } catch (_) {
-      data = null;
-    }
-    if (response.status === 401) {
-      window.location.href = loginUrl();
-      throw new Error("AUTH_REQUIRED");
-    }
-    if (!response.ok) {
-      throw new Error((data && (data.error || data.message)) || `HTTP ${response.status}`);
-    }
-    return data;
-  };
-
-  const actionConfig = {
-    post: {
-      like: (id) => `/api/home/post/${id}/like`,
-      save: (id) => `/api/home/post/${id}/save`,
-      share: (id) => `/api/home/post/${id}/share`,
-      detail: (id) => `/post/${id}`
-    },
-    reel: {
-      like: (id) => `/reels/api/reels/${id}/like`,
-      save: (id) => `/reels/api/reels/${id}/save`,
-      share: (id) => `/reels/api/reels/${id}/share`,
-      detail: (id) => `/reels/${id}`
-    },
-    story: {
-      detail: (id) => `/stories/${id}`
-    },
-    live_room: {
-      like: (id) => `/api/social/live_room/${id}/like`,
-      detail: (_id, button) => detailForItem(button)
-    },
-    live: {
-      like: (id) => `/api/social/live_room/${id}/like`,
-      detail: (_id, button) => detailForItem(button)
-    },
-    product_card: {
-      save: () => "/marketplace/api/saved/toggle",
-      detail: (_id, button) => detailForItem(button)
-    },
-    suggested_user: {
-      detail: (_id, button) => detailForItem(button)
-    },
-    profile: {
-      detail: (_id, button) => detailForItem(button)
-    }
-  };
-  const commentState = { id: null, type: null, detailRoute: "/", trigger: null };
-  const storiesRow = document.getElementById("nv-stories-row");
-
-  const escapeHtml = (value) => String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
-  const formatRelativeTime = (value) => {
-    if (!value) return "Just now";
-    const stamp = new Date(value);
-    if (Number.isNaN(stamp.getTime())) return "Just now";
-    const diffMs = Date.now() - stamp.getTime();
-    const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
-    if (diffMinutes < 1) return "Just now";
-    if (diffMinutes < 60) return `${diffMinutes}m`;
-    const diffHours = Math.round(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours}h`;
-    const diffDays = Math.round(diffHours / 24);
-    return `${diffDays}d`;
-  };
-
-  const currentViewerMeta = () => {
-    const avatar = document.querySelector('.nv-top-actions .nv-avatar');
-    const img = avatar?.querySelector("img");
-    const initial = (avatar?.textContent || "Y").trim().slice(0, 1).toUpperCase() || "Y";
-    return {
-      displayName: "You",
-      avatarUrl: img?.getAttribute("src") || "",
-      initial,
-    };
-  };
-
-  const commentEndpoint = (type, id) => {
-    if (!type || !id) return null;
-    if (type === "post" || type === "reel" || type === "story") {
-      return `/api/comments/${type}/${id}`;
-    }
-    if (type === "live_room" || type === "live") {
-      return `/api/social/live_room/${id}/comments`;
-    }
-    return null;
-  };
-
-  const renderCommentItem = (comment) => {
-    const author = comment.display_name || comment.username || comment.author_name || "NamVibe";
-    const avatarUrl = comment.avatar_url || "";
-    const initial = escapeHtml((author || "N").slice(0, 1).toUpperCase());
-    return `
-      <div class="nv-comment-item" data-comment-id="${escapeHtml(comment.id || "")}">
-        <div class="nv-comment-avatar">${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="">` : initial}</div>
-        <div class="nv-comment-bubble">
-          <div class="nv-comment-card">
-            <span class="nv-comment-author">${escapeHtml(author)}</span>
-            <p class="nv-comment-body">${escapeHtml(comment.body || "")}</p>
-          </div>
-          <div class="nv-comment-meta">
-            <span>${escapeHtml(formatRelativeTime(comment.created_at))}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  };
-
-  const getActionButton = (type, id, action) => document.querySelector(`.nv-post[data-type="${type}"][data-item-id="${id}"] [data-action="${action}"]`);
-
-  const prependStoryCard = (story) => {
-    if (!storiesRow || !story || !story.id) return;
-    const existing = storiesRow.querySelector(`[data-story-id="${CSS.escape(String(story.id))}"]`);
-    if (existing) existing.remove();
-    const label = escapeHtml(story.display_name || story.username || "Your Story");
-    const storyUrl = `/status/${encodeURIComponent(story.id)}`;
-    const thumbUrl = story.media_url || story.thumbnail_url || story.video_url || "";
-    const avatarUrl = story.avatar_url || currentViewerMeta().avatarUrl || "";
-    const avatarFallback = escapeHtml((label || "Y").slice(0, 1).toUpperCase());
-    const card = document.createElement("a");
-    card.className = "nv-story";
-    card.href = storyUrl;
-    card.dataset.storyId = story.id;
-    card.innerHTML = `
-      <div class="nv-story-ring">
-        <div class="nv-story-avatar ${thumbUrl ? "has-media" : ""}">
-          ${thumbUrl ? `<img class="nv-story-media-thumb" src="${escapeHtml(thumbUrl)}" alt="">` : avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="">` : avatarFallback}
-        </div>
-      </div>
-      <span class="nv-story-label">${label}</span>
-    `;
-    const createCard = storiesRow.querySelector(".nv-story-create");
-    if (createCard?.nextSibling) {
-      storiesRow.insertBefore(card, createCard.nextSibling);
-    } else {
-      storiesRow.appendChild(card);
-    }
-  };
-
-  const openCommentSheet = async ({ id, type, detailRoute, trigger }) => {
-    const endpoint = commentEndpoint(type, id);
-    if (!endpoint) {
-      window.location.href = detailRoute || "/";
-      return;
-    }
-    commentState.id = id;
-    commentState.type = type;
-    commentState.detailRoute = detailRoute;
-    commentState.trigger = trigger || null;
-    const canComment = isAuthenticated;
-    openBottomSheet("Comments", [{
-      label: "Open full post",
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>',
-      href: detailRoute
-    }]);
-    bottomSheetBody.innerHTML = `
-      <div class="nv-comment-sheet">
-        <div class="nv-comment-list" id="nv-comment-list">
-          <div class="nv-comment-empty">Loading comments...</div>
-        </div>
-        ${canComment ? `
-          <form class="nv-comment-form" id="nv-comment-form">
-            <textarea class="nv-comment-input" id="nv-comment-input" placeholder="Write a comment..." maxlength="2000" required></textarea>
-            <button class="nv-primary nv-comment-submit" type="submit">Send</button>
-          </form>
-        ` : `
-          <div class="nv-comment-login">
-            <a class="nv-primary" href="${escapeHtml(loginUrl())}">Log in to comment</a>
-          </div>
-        `}
-      </div>
-    `;
-    const listEl = document.getElementById("nv-comment-list");
-    const formEl = document.getElementById("nv-comment-form");
-    const inputEl = document.getElementById("nv-comment-input");
-    const loadComments = async () => {
-      try {
-        const payload = await apiRequest(endpoint, { method: "GET" });
-        const comments = Array.isArray(payload.comments) ? payload.comments : [];
-        listEl.innerHTML = comments.length
-          ? comments.map(renderCommentItem).join("")
-          : '<div class="nv-comment-empty">No comments yet. Start the conversation.</div>';
-      } catch (error) {
-        logDevError("comments-load", error);
-        listEl.innerHTML = `<div class="nv-comment-empty">${escapeHtml(error.message || "Could not load comments.")}</div>`;
-      }
-    };
-    await loadComments();
-    if (formEl && inputEl) {
-      formEl.addEventListener("submit", safeHandler("comment-submit", async (submitEvent) => {
-        submitEvent.preventDefault();
-        if (formEl.dataset.pending === "true") return;
-        const body = inputEl.value.trim();
-        if (!body) return;
-        if (requireAuth()) return;
-        formEl.dataset.pending = "true";
-        const viewer = currentViewerMeta();
-        const tempId = `temp-${Date.now()}`;
-        const optimistic = {
-          id: tempId,
-          body,
-          username: viewer.displayName,
-          display_name: viewer.displayName,
-          avatar_url: viewer.avatarUrl,
-          created_at: new Date().toISOString(),
-        };
-        const existingEmpty = listEl.querySelector(".nv-comment-empty");
-        if (existingEmpty) existingEmpty.remove();
-        listEl.insertAdjacentHTML("afterbegin", renderCommentItem(optimistic));
-        inputEl.value = "";
-        formEl.querySelector("button[type='submit']").disabled = true;
-        const commentButton = getActionButton(type, id, "comment");
-        const currentCount = parseInt(commentButton?.querySelector(".nv-action-count")?.textContent || "0", 10) || 0;
-        if (commentButton) updateCount(commentButton, currentCount + 1);
-        try {
-          const payload = await apiRequest(endpoint, { method: "POST", body: { body, content: body, text: body, comment: body } });
-          showToast("Comment posted.", "success");
-          const nextCount = payload?.count ?? payload?.comments_count ?? payload?.comment_count;
-          if (commentButton && typeof nextCount === "number") updateCount(commentButton, nextCount);
-          await loadComments();
-        } catch (error) {
-          const tempEl = listEl.querySelector(`[data-comment-id="${tempId}"]`);
-          if (tempEl) tempEl.remove();
-          if (commentButton) updateCount(commentButton, Math.max(0, currentCount));
-          if (error.message !== "AUTH_REQUIRED") {
-            logRequestWarning("comment", error);
-            logDevError("comment-submit", error);
-            showToast(error.message || "Could not post comment.", "error");
-          }
-        } finally {
-          formEl.dataset.pending = "false";
-          formEl.querySelector("button[type='submit']").disabled = false;
-        }
-      }));
-    }
-  };
-
-  function updateCount(button, value) {
-    const label = button.querySelector(".nv-action-count") || button.querySelector("span");
-    if (label && typeof value === "number" && Number.isFinite(value)) {
-      label.textContent = String(value);
-    }
-  }
-
-  function setActionLabel(button, value) {
-    const label = button?.querySelector(".nv-action-label");
-    if (label) label.textContent = value;
-  }
-
-  function normalizeLikedState(result, fallbackState) {
-    if (typeof result?.liked === "boolean") return result.liked;
-    if (typeof result?.is_liked === "boolean") return result.is_liked;
-    if (typeof result?.user_liked === "boolean") return result.user_liked;
-    if (typeof result?.state === "string") {
-      if (result.state === "liked") return true;
-      if (result.state === "unliked") return false;
-    }
-    if (typeof result?.action === "string") {
-      if (result.action === "liked" || result.action === "like") return true;
-      if (result.action === "unliked" || result.action === "unlike") return false;
-    }
-    return fallbackState;
-  }
-
-  function normalizeLikeCount(result) {
-    const raw = result?.likes_count ?? result?.like_count ?? result?.count;
-    return typeof raw === "number" ? raw : null;
-  }
-
-  function setLikeVisual(button, liked) {
-    button.classList.toggle("liked", liked);
-    button.dataset.liked = liked ? "true" : "false";
-    button.setAttribute("aria-pressed", liked ? "true" : "false");
-    setActionLabel(button, liked ? "Liked" : "Like");
-    button.setAttribute("aria-label", liked ? "Liked" : "Like");
-    const icon = button.querySelector("svg");
-    if (icon) icon.setAttribute("fill", liked ? "currentColor" : "none");
-  }
-
-  async function handleLikeAction(actionButton, { event = null } = {}) {
-    if (!actionButton) return;
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    const itemContext = resolveItemContext(actionButton);
-    const id = itemContext.id;
-    const type = itemContext.type;
-    const typeConfig = actionConfig[type] || {};
-    const detailRoute = typeConfig.detail ? typeConfig.detail(id, actionButton) : itemContext.detailRoute;
-    if (itemContext.mismatch) {
-      showToast("This item type is not ready for likes yet.", "warning");
-      return;
-    }
-    if (!typeConfig.like) {
-      window.location.href = detailRoute;
-      return;
-    }
-    if (!id || requireAuth()) return;
-    if (actionButton.dataset.pending === "true") return;
-    actionButton.dataset.pending = "true";
-    try {
-      const payload = await apiRequest(typeConfig.like(id), { method: "POST" });
-      const result = payload && typeof payload === "object" ? payload : {};
-      const previousLiked = actionButton.dataset.liked === "true";
-      const normalizedLiked = normalizeLikedState(result, normalizeLikedState(result.result, previousLiked));
-      const normalizedCount = normalizeLikeCount(result) ?? normalizeLikeCount(result.result);
-      setLikeVisual(actionButton, normalizedLiked);
-      if (typeof normalizedCount === "number") {
-        updateCount(actionButton, normalizedCount);
-      }
-      console.info("NamVibe like response", { postId: id, json: result, normalizedLiked, normalizedCount });
-      showToast(normalizedLiked ? "Liked." : "Like removed.", "success");
-    } catch (error) {
-      if (error.message !== "AUTH_REQUIRED") {
-        logRequestWarning("like", error);
-        logDevError("like", error);
-        showToast("Could not like this item.", "error");
-      }
-    } finally {
-      actionButton.dataset.pending = "false";
-    }
-  }
-
-  function setFollowVisual(button, following) {
-    button.dataset.following = following ? "true" : "false";
-    button.textContent = following ? "Following" : "Follow";
-    button.style.background = following ? "var(--nv-soft)" : "var(--nv-text)";
-    button.style.color = following ? "var(--nv-text)" : "#fff";
-    button.classList.toggle("is-following", following);
-  }
-
-  function applyCreateType(type){
-    selectedCreateType = type || "post";
-    uploadTabs.forEach(tab=>tab.classList.toggle("is-active", tab.dataset.uploadTab === selectedCreateType));
-  }
-
-  document.querySelectorAll("[data-nv-open-create]").forEach(btn=>{
-    btn.addEventListener("click", safeHandler("open-create", () => {
-      if (requireAuth()) return;
-      applyCreateType(btn.dataset.nvCreateType || "post");
-      modal && modal.classList.add("is-open");
-    }));
-  });
-
-  document.querySelectorAll("[data-nv-close-create]").forEach(btn=>{
-    btn.addEventListener("click", safeHandler("close-create", () => modal && modal.classList.remove("is-open")));
-  });
-
-  if(modal){
-    modal.addEventListener("click", safeHandler("modal-overlay", e => {
-      if(e.target === modal) modal.classList.remove("is-open");
-    }));
-  }
-
-  document.querySelectorAll(".nv-tab").forEach(tab=>{
-    tab.addEventListener("click", safeHandler("feed-tab", () => {
-      document.querySelectorAll(".nv-tab").forEach(t=>t.classList.remove("is-active"));
-      tab.classList.add("is-active");
-    }));
-  });
-
-  uploadTabs.forEach(tab=>{
-    tab.addEventListener("click", safeHandler("upload-tab", () => applyCreateType(tab.dataset.uploadTab || "post")));
-  });
-
-  function openCreator(){
-    if (typeof window.openCameraCreator === "function"){
-      modal && modal.classList.remove("is-open");
-      window.openCameraCreator(selectedCreateType);
-    } else {
-      const fallbackRoute = selectedCreateType === "story"
-        ? "/stories/create"
-        : selectedCreateType === "reel"
-          ? "/reels/upload"
-          : "/posts/create";
-      window.location.href = fallbackRoute;
-    }
-  }
-
-  if (createDrop) createDrop.addEventListener("click", safeHandler("create-drop", openCreator));
-  if (createContinue) createContinue.addEventListener("click", safeHandler("create-continue", openCreator));
-  window.addEventListener("namvibe:story-created", safeHandler("story-created", (event) => {
-    const story = event?.detail?.story;
-    if (!story) return;
-    prependStoryCard(story);
-    showToast("Story published.", "success");
-  }));
-
-  document.querySelectorAll("[data-follow-id]").forEach(btn => {
-    setFollowVisual(btn, btn.dataset.following === "true");
-  });
-  document.querySelectorAll(".nv-action[data-action='like']").forEach((btn) => {
-    setLikeVisual(btn, btn.dataset.liked === "true");
-    if (isAuthenticated) {
-      btn.disabled = true;
-      btn.setAttribute("aria-busy", "true");
-    }
-  });
-
-  async function hydrateVisibleLikeStates() {
-    if (requireAuth({ silent: true })) {
-      window.NAMVIBE_HOME_LIKES_READY = true;
-      return;
-    }
-    const buttonsByType = new Map();
-    document.querySelectorAll(".nv-action[data-action='like']").forEach((button) => {
-      const id = idForItem(button);
-      const type = typeForItem(button);
-      if (!id || (type !== "post" && type !== "reel")) return;
-      if (!buttonsByType.has(type)) buttonsByType.set(type, new Map());
-      buttonsByType.get(type).set(id, button);
-    });
-
-    for (const [type, idMap] of buttonsByType.entries()) {
-      const ids = Array.from(idMap.keys());
-      if (!ids.length) continue;
-      try {
-        const params = new URLSearchParams({ type, ids: ids.join(",") });
-        const payload = await apiRequest(`/api/home/likes-state?${params.toString()}`);
-        const likedMap = payload?.liked_map || {};
-        ids.forEach((id) => {
-          const button = idMap.get(id);
-          if (!button) return;
-          if (Object.prototype.hasOwnProperty.call(likedMap, id)) {
-            setLikeVisual(button, Boolean(likedMap[id]));
-          }
-        });
-      } catch (error) {
-        if (error.message !== "AUTH_REQUIRED") {
-          console.warn("NamVibe like-state hydrate failed", { type, error: error.message || String(error) });
-        }
-      }
-    }
-    document.querySelectorAll(".nv-action[data-action='like']").forEach((button) => {
-      button.disabled = false;
-      button.removeAttribute("aria-busy");
-    });
-    window.NAMVIBE_HOME_LIKES_READY = true;
-  }
-
-  hydrateVisibleLikeStates();
-
-  document.addEventListener("click", safeHandler("delegated-click", async (event) => {
-    const followButton = event.target.closest("[data-follow-id]");
-    if (followButton) {
-      event.preventDefault();
-      if (requireAuth()) return;
-      const profileId = followButton.dataset.followId;
-      const following = followButton.dataset.following === "true";
-      const endpoint = following ? `/api/home/unfollow/${profileId}` : `/api/home/follow/${profileId}`;
-      try {
-        const payload = await apiRequest(endpoint, { method: "POST" });
-        const result = payload.result || {};
-        const isFollowing = result.following === true || result.status === "following" || result.status === "requested" || (!following && payload.ok);
-        setFollowVisual(followButton, isFollowing);
-        showToast(isFollowing ? "Follow request sent." : "Unfollowed.", "success");
-      } catch (error) {
-        if (error.message !== "AUTH_REQUIRED") {
-          logDevError("follow", error);
-          showToast("Could not update follow status.", "error");
-        }
-      }
-      return;
-    }
-
-    const actionButton = event.target.closest("[data-action]");
-
-    if (actionButton && actionButton.dataset.action === "more") {
-      event.preventDefault();
-      var postEl = actionButton.closest(".nv-post");
-      if (postEl) {
-        var detailUrl = postEl.dataset.detailUrl || "/";
-        var itemType = postEl.dataset.type || "post";
-        var itemId = postEl.dataset.itemId || "";
-        if (typeof window.nvPostMoreMenu === "function") {
-          window.nvPostMoreMenu(detailUrl, itemType, itemId);
-        }
-      }
-      return;
-    }
-
-    if (!actionButton) return;
-
-    const action = actionButton.dataset.action;
-    const itemContext = resolveItemContext(actionButton);
-    const id = itemContext.id;
-    const type = itemContext.type;
-    const typeConfig = actionConfig[type] || {};
-    const detailRoute = typeConfig.detail ? typeConfig.detail(id, actionButton) : itemContext.detailRoute;
-
-    if (action === "comment") {
-      event.preventDefault();
-      if (itemContext.mismatch) {
-        showToast("This item type is not ready for likes yet.", "warning");
-        return;
-      }
-      await openCommentSheet({ id, type, detailRoute, trigger: actionButton });
-      return;
-    }
-
-    if (!id && action !== "share") {
-      window.location.href = detailRoute;
-      return;
-    }
-
-    if ((action === "like" || action === "save") && requireAuth()) return;
-
-    if (action === "like") {
-      await handleLikeAction(actionButton, { event });
-      return;
-    }
-
-    if (action === "save") {
-      event.preventDefault();
-      const endpoint = typeConfig.save;
-      if (!endpoint) {
-        window.location.href = detailRoute;
-        return;
-      }
-      try {
-        const request = type === "product_card"
-          ? apiRequest(endpoint(id), { method: "POST", body: { item_id: id } })
-          : apiRequest(endpoint(id), { method: "POST" });
-        const payload = await request;
-        const result = payload.result || payload;
-        const saved = Boolean(result.saved ?? result.success ?? payload.ok);
-        actionButton.classList.toggle("liked", saved);
-        actionButton.dataset.saved = saved ? "true" : "false";
-        showToast(saved ? "Saved." : "Removed from saved.", "success");
-      } catch (error) {
-        if (error.message !== "AUTH_REQUIRED") {
-          logDevError("save", error);
-          showToast("Could not save this item.", "error");
-        }
-      }
-      return;
-    }
-
-    if (action === "share") {
-      event.preventDefault();
-      if (typeof nvShareAction === "function") {
-        try {
-          if (typeConfig.share) {
-            apiRequest(typeConfig.share(id), { method: "POST" }).catch(function () {});
-          }
-        } catch (_) {}
-        nvShareAction(detailRoute, type, id, typeConfig);
-      } else {
-        const absoluteUrl = new URL(detailRoute, window.location.origin).toString();
-        if (navigator.share) {
-          navigator.share({ url: absoluteUrl }).then(function () { showToast("Shared.", "success"); }).catch(function () {});
-        } else {
-          navigator.clipboard.writeText(absoluteUrl).then(function () { showToast("Link copied.", "success"); }).catch(function () { showToast("Could not copy link.", "error"); });
-        }
-      }
-    }
-  }));
-
-  const videos = document.querySelectorAll("video");
-  if("IntersectionObserver" in window){
-    const io = new IntersectionObserver(entries=>{
-      entries.forEach(entry=>{
-        const video = entry.target;
-        if(entry.isIntersecting){
-          video.muted = true;
-          video.play && video.play().catch(()=>{});
-        }else{
-          video.pause && video.pause();
-        }
-      });
-    },{threshold:.6});
-    videos.forEach(v=>{v.muted=true; io.observe(v);});
-  }
-
-  /* ════════════════════════════════════════════════
-     Phase 179 — Premium Social Interaction Engine
-     ════════════════════════════════════════════════ */
-
-  /* ── Debounce ── */
-  function nvDebounce(fn, ms) {
-    var timer = null;
-    return function () {
-      var args = arguments, ctx = this;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(function () { fn.apply(ctx, args); timer = null; }, ms);
-    };
-  }
-
-  /* ── Bottom Sheet ── */
-  var bottomSheetOverlay = document.getElementById("nv-bottom-sheet-overlay");
-  var bottomSheetBody = document.getElementById("nv-bottom-sheet-body");
-  var bottomSheetTitle = document.getElementById("nv-bottom-sheet-title");
-
-  function openBottomSheet(title, items) {
-    if (!bottomSheetOverlay || !bottomSheetBody) return;
-    if (bottomSheetTitle) bottomSheetTitle.textContent = title || "Actions";
-    bottomSheetBody.innerHTML = "";
-    (items || []).forEach(function (it) {
-      var btn = document.createElement("button");
-      btn.className = "nv-sheet-item";
-      btn.setAttribute("role", "menuitem");
-      btn.innerHTML = (it.icon || "") + "<span>" + (it.label || "") + "</span>";
-      if (it.disabled) btn.disabled = true;
-      if (it.href) {
-        var a = document.createElement("a");
-        a.className = "nv-sheet-item";
-        a.href = it.href;
-        a.setAttribute("role", "menuitem");
-        a.innerHTML = btn.innerHTML;
-        bottomSheetBody.appendChild(a);
-      } else {
-        btn.addEventListener("click", function () {
-          closeBottomSheet();
-          if (typeof it.action === "function") it.action();
-        });
-        bottomSheetBody.appendChild(btn);
-      }
-    });
-    bottomSheetOverlay.classList.add("is-open");
-    bottomSheetOverlay.setAttribute("aria-hidden", "false");
-    var firstItem = bottomSheetBody.querySelector("button, a");
-    if (firstItem) setTimeout(function () { firstItem.focus(); }, 100);
-  }
-
-  function closeBottomSheet() {
-    if (!bottomSheetOverlay) return;
-    bottomSheetOverlay.classList.remove("is-open");
-    bottomSheetOverlay.setAttribute("aria-hidden", "true");
-  }
-
-  if (bottomSheetOverlay) {
-    bottomSheetOverlay.addEventListener("click", function (e) {
-      if (e.target === bottomSheetOverlay) closeBottomSheet();
-    });
-    document.getElementById("nv-bottom-sheet-close").addEventListener("click", closeBottomSheet);
-  }
-
-  /* ──  Share bottom sheet instead of native share ── */
-  var nvShareAction = window.nvShareAction = function (detailRoute, type, id, typeConfig) {
-    var absoluteUrl = new URL(detailRoute, window.location.origin).toString();
-    var items = [
-      { label: "Share link", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg>', action: function () {
-        if (navigator.share) {
-          navigator.share({ url: absoluteUrl }).then(function () { showToast("Shared.", "success"); }).catch(function () {});
-        } else {
-          navigator.clipboard.writeText(absoluteUrl).then(function () { showToast("Link copied.", "success"); }).catch(function () { showToast("Could not copy link.", "error"); });
-        }
-      }},
-      { label: "Copy link", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>', action: function () {
-        navigator.clipboard.writeText(absoluteUrl).then(function () { showToast("Link copied.", "success"); }).catch(function () { showToast("Could not copy link.", "error"); });
-      }},
-    ];
-    if (typeConfig && typeConfig.share) {
-      items.push({ label: "Share on NamVibe", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/></svg>', action: function () {
-        apiRequest(typeConfig.share(id), { method: "POST" }).then(function () { showToast("Shared.", "success"); }).catch(function () {});
-      }});
-    }
-    openBottomSheet("Share", items);
-  }
-
-  /* ── Post more menu bottom sheet ── */
-  var nvPostMoreMenu = window.nvPostMoreMenu = function (detailRoute, type, id) {
-    var items = [
-      { label: "View post", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>', href: detailRoute },
-      { label: "Report", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>', action: function () {
-        window.location.href = detailRoute;
-      }},
-    ];
-    openBottomSheet("More", items);
-  };
-
-  /* ── Prevent video downloads ── */
-  document.addEventListener("contextmenu", function (e) {
-    if (e.target.closest("video")) {
-      e.preventDefault();
-    }
-  });
-
-  /* ── Click on media to navigate to detail (single tap on image, or tap on video container background) ── */
-  document.querySelectorAll(".nv-media").forEach(function (mediaEl) {
-    var lastTap = 0;
-    var burstEl = null;
-    mediaEl.addEventListener("click", function (e) {
-      if (e.target.closest("video") || e.target.closest("a")) return;
-      var detailHref = mediaEl.dataset.detailHref;
-      var now = Date.now();
-      if (now - lastTap < 350) {
-        /* Double-tap: like */
-        var likeBtn = mediaEl.closest(".nv-post").querySelector('[data-action="like"]');
-        if (likeBtn && !likeBtn.disabled && likeBtn.dataset.liked !== "true") {
-          handleLikeAction(likeBtn);
-        }
-        if (!burstEl) {
-          burstEl = document.createElement("div");
-          burstEl.className = "nv-heart-burst";
-          burstEl.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
-          mediaEl.appendChild(burstEl);
-        }
-        burstEl.classList.remove("is-active");
-        void burstEl.offsetWidth;
-        burstEl.classList.add("is-active");
-      } else {
-        /* Single tap: navigate to detail */
-        if (detailHref && detailHref !== "/" && !e.target.closest("video")) {
-          window.location.href = detailHref;
-        }
-      }
-      lastTap = now;
-    });
-  });
-
-  /* ── Infinite scroll via sentinel ── */
-  var feedSentinel = document.getElementById("nv-feed-sentinel");
-  var feedMain = document.querySelector(".nv-main");
-  var scrollLoading = false;
-  var scrollHasMore = true;
-  var scrollPage = 1;
-
-  if (feedSentinel && "IntersectionObserver" in window) {
-    var scrollIo = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting && !scrollLoading && scrollHasMore) {
-          scrollLoading = true;
-          var loadingEl = document.createElement("div");
-          loadingEl.className = "nv-sentinel-loading";
-          loadingEl.innerHTML = '<div class="nv-spinner"></div><span>Loading more...</span>';
-          feedSentinel.parentNode.insertBefore(loadingEl, feedSentinel);
-          scrollPage++;
-          var url = "/api/homepage/feed?tab=for_you&limit=10&page=" + scrollPage;
-          fetch(url, { credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" } })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-              if (loadingEl.parentNode) loadingEl.remove();
-              var items = (data && (data.feed_items || data.posts || data["items"])) || [];
-              if (items.length === 0) {
-                scrollHasMore = false;
-                var endEl = document.createElement("div");
-                endEl.style.cssText = "text-align:center;padding:24px;color:var(--nv-muted);font-weight:700;font-size:14px";
-                endEl.textContent = "You are all caught up";
-                feedSentinel.parentNode.insertBefore(endEl, feedSentinel);
-                return;
-              }
-              scrollLoading = false;
-              showToast(items.length + " new posts loaded.", "success");
-            })
-            .catch(function () {
-              if (loadingEl.parentNode) loadingEl.remove();
-              scrollLoading = false;
-              showToast("Could not load more posts.", "error");
-            });
-        }
-      });
-    }, { rootMargin: "0px 0px 200px 0px" });
-    scrollIo.observe(feedSentinel);
-  }
-
-  /* ── Socket.IO real-time UI hooks ── */
-  if (window.NamVibeRealtime && typeof window.NamVibeRealtime.on === "function") {
-    window.NamVibeRealtime.on("notification:new", function () {
-      var badge = document.getElementById("nv-notif-badge") || document.querySelector("[data-notif-badge]");
-      if (badge) {
-        var c = parseInt(badge.textContent, 10) || 0;
-        badge.textContent = c + 1;
-        badge.classList.add("nv-badge-pulse");
-        setTimeout(function () { badge.classList.remove("nv-badge-pulse"); }, 800);
-      }
-    });
-    window.NamVibeRealtime.on("chat:message", function () {
-      var badge = document.getElementById("nv-msg-badge") || document.querySelector("[data-msg-badge]");
-      if (badge) {
-        var c = parseInt(badge.textContent, 10) || 0;
-        badge.textContent = c + 1;
-        badge.classList.add("nv-badge-pulse");
-        setTimeout(function () { badge.classList.remove("nv-badge-pulse"); }, 800);
-      }
-    });
-    window.NamVibeRealtime.on("post:liked", function () {});
-    window.NamVibeRealtime.on("story:new", function () {
-      showToast("New story available.", "info");
-    });
-    window.NamVibeRealtime.on("live:started", function () {
-      showToast("A live stream just started!", "info");
-    });
-    window.NamVibeRealtime.on("live:ended", function () {});
-  } else if (!window.NAMVIBE_E2E_DISABLE_REFRESH) {
-    var rtInterval = setInterval(function () {
-      if (window.NamVibeRealtime && typeof window.NamVibeRealtime.on === "function") {
-        clearInterval(rtInterval);
-      }
-    }, 3000);
-  }
-
-  /* ── Pull-to-refresh (mobile) ── */
-  var ptrFeed = document.querySelector(".nv-main");
-  if (ptrFeed && !window.NAMVIBE_E2E_DISABLE_REFRESH) {
-    var ptrStartY = 0, ptrPulling = false;
-    var ptrEl = document.createElement("div");
-    ptrEl.style.cssText = "display:flex;align-items:center;justify-content:center;overflow:hidden;height:0;transition:height .3s ease;color:var(--nv-muted);font-weight:700;font-size:13px";
-    ptrEl.innerHTML = '<div class="nv-spinner"></div><span style="margin-left:10px">Pull to refresh</span>';
-    ptrFeed.parentNode.insertBefore(ptrEl, ptrFeed);
-    document.addEventListener("touchstart", function (e) {
-      if (ptrFeed.scrollTop <= 0) { ptrStartY = e.touches[0].clientY; ptrPulling = true; }
-    }, { passive: true });
-    document.addEventListener("touchmove", function (e) {
-      if (!ptrPulling) return;
-      var dy = e.touches[0].clientY - ptrStartY;
-      if (dy > 0) {
-        ptrEl.style.height = Math.min(dy * 0.3, 60) + "px";
-        ptrEl.querySelector("span").textContent = dy > 80 ? "Release to refresh" : "Pull to refresh";
-      }
-    }, { passive: true });
-    document.addEventListener("touchend", function () {
-      if (!ptrPulling) return;
-      ptrPulling = false;
-      if (parseInt(ptrEl.style.height, 10) > 24) {
-        ptrEl.querySelector("span").textContent = "Refreshing...";
-        window.location.reload();
-      } else {
-        ptrEl.style.height = "0";
-      }
-    }, { passive: true });
-  }
-
-  /* ── Escape key ── */
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") {
-      if (bottomSheetOverlay && bottomSheetOverlay.classList.contains("is-open")) {
-        closeBottomSheet();
-        return;
-      }
-      if (modal && modal.classList.contains("is-open")) {
-        modal.classList.remove("is-open");
-      }
-    }
-  });
-
-  /* ── Focus trap for create modal ── */
-  if (modal) {
-    modal.addEventListener("keydown", function (e) {
-      if (e.key !== "Tab") return;
-      var focusable = modal.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-      if (!focusable.length) return;
-      var first = focusable[0], last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    });
-  }
-
-  /* ── Loading state on action buttons ── */
-  document.addEventListener("click", function (e) {
-    var btn = e.target.closest("[data-action]");
-    if (btn && (btn.dataset.action === "like" || btn.dataset.action === "save")) {
-      btn.disabled = true;
-      btn.classList.add("is-loading");
-      setTimeout(function () { btn.disabled = false; btn.classList.remove("is-loading"); }, 2000);
-    }
-  });
-
-  /* ── aria-label coverage ── */
-  document.querySelectorAll(".nv-action[data-action='like']").forEach(function (b) {
-    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Like");
-  });
-  document.querySelectorAll(".nv-action[data-action='comment']").forEach(function (b) {
-    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Comment");
-  });
-  document.querySelectorAll(".nv-action[data-action='share']").forEach(function (b) {
-    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Share");
-  });
-  document.querySelectorAll(".nv-action[data-action='save']").forEach(function (b) {
-    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "Save");
-  });
-  document.querySelectorAll(".nv-more").forEach(function (b) {
-    if (!b.hasAttribute("aria-label")) b.setAttribute("aria-label", "More options");
-  });
-  window.NAMVIBE_HOME_INTERACTIONS_READY = true;
-  console.info("NamVibe home interactions loaded", window.NAMVIBE_HOME_BUILD);
-  } catch (error) {
-    window.NAMVIBE_HOME_HANDLERS_ATTACHED = false;
-    window.NAMVIBE_HOME_INTERACTIONS_READY = false;
-    reportHomepageError("bootstrap", error);
-  }
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initHomepageInteractions, { once: true });
-  } else {
-    initHomepageInteractions();
-  }
+(function(){if(!window.NamVibeUtils){window.NamVibeUtils={};}
+var U=window.NamVibeUtils;
+U.nvDebounce=function(fn,ms){var t;return function(){clearTimeout(t);t=setTimeout(fn,ms||300);};};
+var socket=window.io&&window.io();
+if(socket){socket.on('story:new',function(){if(window.loadStories)window.loadStories();});
+socket.on('live:started',function(){if(window.refreshLiveRooms)window.refreshLiveRooms();});}
+window.openBottomSheet=function(el){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='block';s.setAttribute('aria-hidden','false');}};
+window.closeBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='none';s.setAttribute('aria-hidden','true');}};
+window.nvShareAction=function(url){if(navigator.share){navigator.share({url:url||window.location.href});}else if(navigator.clipboard){navigator.clipboard.writeText(url||window.location.href);U.toast&&U.toast('Link copied');}};
 })();
 </script>
 {% endblock %}
