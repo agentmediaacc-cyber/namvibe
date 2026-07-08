@@ -24,6 +24,48 @@ from services.activity_engine import emit_activity
 
 message_bp = Blueprint("messages", __name__, url_prefix="/messages")
 
+
+def _session_profile_id():
+    profile_id = session.get("profile_id")
+    if profile_id:
+        return profile_id
+    profile = get_current_profile()
+    return (profile or {}).get("id")
+
+
+def _normalize_edit_result(result, message_id=None, new_body=None):
+    if isinstance(result, bool):
+        success = result
+        error = None
+        extra = {}
+    elif isinstance(result, dict):
+        success = bool(result.get("ok") or result.get("success") or result.get("edited"))
+        error = result.get("error")
+        extra = {k: v for k, v in result.items() if k not in ("ok", "success", "edited", "error")}
+    elif isinstance(result, tuple):
+        success = bool(result[0]) if len(result) >= 1 else False
+        error = result[1] if len(result) >= 2 and isinstance(result[1], str) else None
+        extra = {}
+    else:
+        success = bool(result)
+        error = None
+        extra = {}
+    data = {}
+    if message_id:
+        data["message_id"] = message_id
+    if new_body:
+        data["body"] = new_body
+    payload = {
+        "success": success,
+        "ok": success,
+        "edited": success,
+        "message": error or ("Message edited" if success else "Edit failed"),
+        "data": data,
+    }
+    payload.update(extra)
+    return payload
+
+
 @message_bp.route("/")
 @login_required
 def inbox():
@@ -213,7 +255,7 @@ def api_move(thread_id):
 @message_bp.route("/api/message/<message_id>/react", methods=["POST"])
 @login_required
 def api_reaction(message_id):
-    profile = get_current_profile()
+    profile_id = _session_profile_id()
     data = request.get_json(silent=True) or {}
     reaction_type = (
         data.get("reaction")
@@ -223,20 +265,20 @@ def api_reaction(message_id):
     )
     action = data.get("action", "add")
     
-    if not profile or not reaction_type:
+    if not profile_id or not reaction_type:
         return jsonify({"error": "Missing data"}), 400
     current_reactions = phase29_messages.get_reactions(message_id)
     has_same_reaction = any(
-        str(row.get("profile_id") or "") == str(profile["id"])
+        str(row.get("profile_id") or "") == str(profile_id)
         and row.get("reaction_type") == reaction_type
         for row in current_reactions
     )
 
     if action == "remove" or (action == "toggle" and has_same_reaction) or (action == "add" and has_same_reaction):
-        result = remove_reaction(message_id, profile["id"], reaction_type)
+        result = remove_reaction(message_id, profile_id, reaction_type)
         action = "remove"
     else:
-        result = phase29_messages.add_reaction(message_id, profile["id"], reaction_type)
+        result = phase29_messages.add_reaction(message_id, profile_id, reaction_type)
         action = "add"
 
     refreshed = phase29_messages.get_reactions(message_id)
@@ -288,16 +330,16 @@ def api_message_info(message_id):
 
 
 @message_bp.route("/api/messages/<message_id>/edit", methods=["POST"])
-@message_bp.route("/api/message/<message_id>/edit", methods=["POST"])
 @login_required
 def api_edit_msg(message_id):
-    profile = get_current_profile()
+    profile_id = _session_profile_id()
     data = request.get_json(silent=True) or {}
     body = data.get("body") or request.form.get("body")
-    if not profile:
+    if not profile_id:
         return jsonify({"error": "Unauthorized"}), 401
-    result = phase29_messages.edit_message(message_id, profile["id"], body)
-    return jsonify({"success": bool(result.get("ok")), **result}), 200 if result.get("ok") else 400
+    result = phase29_messages.edit_message(message_id, profile_id, body)
+    payload = _normalize_edit_result(result, message_id, body)
+    return jsonify(payload), 200 if payload.get("success") else 400
 
 
 @message_bp.route("/api/messages/<message_id>/star", methods=["POST"])
@@ -766,10 +808,6 @@ def api_retry_message(message_id):
 
 
 # =========== PHASE 53 — PREMIUM MESSAGING ===========
-
-def _session_profile_id():
-    profile = get_current_profile()
-    return (profile or {}).get("id") or session.get("profile_id")
 
 
 def _message_thread_id_for_access(message_id):
@@ -1698,19 +1736,3 @@ def api_typing(thread_id):
     from services.messaging_engine import set_typing
     set_typing(thread_id, profile_id, is_typing)
     return jsonify({"ok": True}), 200
-
-
-# =========== THREAD API ENDPOINT (fixes 403 error - JS calls /messages/api/thread/<thread_id>) ===========
-
-@message_bp.route("/api/thread/<thread_id>", methods=["GET"])
-@login_required
-def api_thread_by_id(thread_id):
-    """Get thread by ID - matches what the JS expects."""
-    profile = get_current_profile()
-    profile_id = (profile or {}).get("id") or session.get("profile_id")
-    if not profile_id:
-        return jsonify({"ok": False, "error": "unauthorized"}), 401
-    thread = get_thread(thread_id, profile_id)
-    if not thread:
-        return jsonify({"ok": False, "error": "Thread not found"}), 404
-    return jsonify({"ok": True, "message": thread}), 200

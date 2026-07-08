@@ -23,6 +23,48 @@ from services.message_delivery_service import (
 
 message_production_bp = Blueprint("message_production", __name__, url_prefix="/messages/api")
 
+
+def _session_profile_id():
+    profile_id = session.get("profile_id")
+    if profile_id:
+        return profile_id
+    profile = get_current_profile()
+    return (profile or {}).get("id")
+
+
+def _normalize_edit_result(result, message_id=None, new_body=None):
+    if isinstance(result, bool):
+        success = result
+        error = None
+        extra = {}
+    elif isinstance(result, dict):
+        success = bool(result.get("ok") or result.get("success") or result.get("edited"))
+        error = result.get("error")
+        extra = {k: v for k, v in result.items() if k not in ("ok", "success", "edited", "error")}
+    elif isinstance(result, tuple):
+        success = bool(result[0]) if len(result) >= 1 else False
+        error = result[1] if len(result) >= 2 and isinstance(result[1], str) else None
+        extra = {}
+    else:
+        success = bool(result)
+        error = None
+        extra = {}
+    data = {}
+    if message_id:
+        data["message_id"] = message_id
+    if new_body:
+        data["body"] = new_body
+    payload = {
+        "success": success,
+        "ok": success,
+        "edited": success,
+        "message": error or ("Message edited" if success else "Edit failed"),
+        "data": data,
+    }
+    payload.update(extra)
+    return payload
+
+
 @message_production_bp.route("/thread/<thread_id>", methods=["GET"])
 @login_required
 def api_thread(thread_id):
@@ -166,17 +208,16 @@ def api_get_reactions(message_id):
 @message_production_bp.route("/message/<message_id>/edit", methods=["POST"])
 @login_required
 def api_edit(message_id):
-    profile = get_current_profile()
-    if not profile:
+    profile_id = _session_profile_id()
+    if not profile_id:
         return jsonify({"ok": False, "error": "Login required"}), 401
     data = request.get_json(silent=True) or {}
     new_body = (data.get("body") or "").strip()
     if not new_body:
         return jsonify({"ok": False, "error": "Body required"}), 400
-    ok = edit_message(message_id, profile["id"], new_body)
-    if ok:
-        return jsonify({"ok": True, "message_id": message_id, "body": new_body, "edited": True})
-    return jsonify({"ok": False, "error": "Cannot edit. Not your message or outside 15-min window"}), 400
+    result = edit_message(message_id, profile_id, new_body)
+    payload = _normalize_edit_result(result, message_id, new_body)
+    return jsonify(payload), 200 if payload.get("success") else 400
 
 @message_production_bp.route("/message/<message_id>/delete-everyone", methods=["POST"])
 @login_required
