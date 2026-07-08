@@ -269,6 +269,14 @@ NEON_PROFILE_COLUMNS = {
     "tagged_count",
     "live_rooms_count",
     "profile_views",
+    "total_achievements",
+    "total_albums",
+    "total_bookmarks",
+    "total_collections",
+    "total_comments",
+    "total_likes",
+    "total_profile_views",
+    "total_shares",
     "wallet_balance",
     "verified",
     "email_verified",
@@ -293,9 +301,45 @@ NEON_PROFILE_COLUMNS = {
     "pronouns",
     "skills",
     "profile_theme",
+    "profile_score",
+    "profile_level",
     "rank",
     "chain_score",
     "trust_score",
+    "occupation",
+    "company",
+    "school",
+    "university",
+    "mood_emoji",
+    "mood_text",
+    "current_activity",
+    "quote_of_day",
+    "activity_status",
+    "member_since",
+    "country_flag",
+    "city_name",
+    "premium_badge",
+    "creator_badge",
+    "business_badge",
+    "government_badge",
+    "ngo_badge",
+    "student_badge",
+    "medical_badge",
+    "teacher_badge",
+    "community_rating",
+    "friendliness_score",
+    "safety_score",
+    "response_rate",
+    "response_time",
+    "popularity_score",
+    "activity_level",
+    "scam_protection",
+    "identity_verified",
+    "verification_type",
+    "gold_badge",
+    "local_time",
+    "weather_emoji",
+    "weather_temp",
     "portfolio_url",
     "portfolio_projects",
     "business_name",
@@ -667,7 +711,7 @@ _LIGHTWEIGHT_FULL_COLUMNS = "id, auth_user_id, username, display_name, full_name
 
 
 # Lightweight profile columns for fast lookups (username, avatar, verification)
-_LIGHTWEIGHT_PROFILE_COLUMNS = "id, username, full_name, avatar_url, is_verified, deleted_at"
+_LIGHTWEIGHT_PROFILE_COLUMNS = "id, username, full_name, avatar_url, is_verified, verification_level, deleted_at"
 
 
 def _test_fallback_profile(auth_user_id=None, profile_id=None, email=None):
@@ -716,6 +760,7 @@ def get_lightweight_profile(profile_id):
                 "full_name": row.get("full_name"),
                 "avatar_url": row.get("avatar_url"),
                 "is_verified": row.get("is_verified"),
+                "verification_level": row.get("verification_level", 0),
             }
             set_cache(cache_key_str, result, ttl=60)
             return result
@@ -1367,10 +1412,10 @@ def cancel_friend_request(viewer_id, request_id):
     return _cancel(viewer_id, request_id)
 
 
-def block_profile(username):
-    """Re-exported from social_relationship_service for backward compatibility."""
-    from services.social_relationship_service import block_profile as _block
-    return _block(username)
+def block_profile(blocker_profile_id, blocked_profile_id):
+    """Re-exported from moderation_engine for backward compatibility."""
+    from services.moderation_engine import block_profile as _block
+    return _block(blocker_profile_id, blocked_profile_id)
 
 
 def delete_post(post_id, profile_id):
@@ -1527,36 +1572,62 @@ def get_public_profiles(limit=20, offset=0, exclude_ids=None):
 # Backward-compatible stubs for profile_routes imports
 # These delegate to the appropriate service modules
 def favorite_profile(viewer_id, target_id):
-    from services.engagement_service import favorite_profile as _f
-    return _f(viewer_id, target_id)
+    try:
+        execute(
+            "INSERT INTO chain_favorites (viewer_id, target_id, created_at) VALUES (%s, %s, NOW()) ON CONFLICT DO NOTHING",
+            (viewer_id, target_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def follow_profile(follower_id, following_id, toggle=True):
     from services.engagement_service import follow_profile as _f
     return _f(follower_id, following_id, toggle=toggle)
 
 def get_followers_page(profile_id, page=1, per_page=20):
-    from services.social_relationship_service import get_followers_page as _f
-    return _f(profile_id, page=page, per_page=per_page)
+    from services.social_service import list_followers as _f
+    cursor = None if page <= 1 else None
+    result = _f(profile_id, limit=per_page, cursor=cursor) or {}
+    result["total"] = len(result.get("followers", []))
+    return result
 
 def get_following_page(profile_id, page=1, per_page=20):
-    from services.social_relationship_service import get_following_page as _f
-    return _f(profile_id, page=page, per_page=per_page)
+    from services.social_service import list_following as _f
+    cursor = None if page <= 1 else None
+    result = _f(profile_id, limit=per_page, cursor=cursor) or {}
+    result["total"] = len(result.get("following", []))
+    return result
 
 def get_following_types(profile_id):
-    from services.social_relationship_service import get_following_types as _f
-    return _f(profile_id)
+    page = get_following_page(profile_id, page=1, per_page=100) or {}
+    items = page.get("following", [])
+    counts = {"all": len(items), "users": 0, "creators": 0, "businesses": 0}
+    for item in items:
+        profile_type = (item.get("profile_type") or "users").lower()
+        if profile_type in ("creator", "creators"):
+            counts["creators"] += 1
+        elif profile_type in ("business", "businesses"):
+            counts["businesses"] += 1
+        else:
+            counts["users"] += 1
+    return counts
 
 def get_friend_requests(profile_id, page=1, per_page=20):
-    from services.friendship_service import get_friend_requests as _f
-    return _f(profile_id, page=page, per_page=per_page)
+    from services.friend_service import list_friend_requests as _f
+    cursor = None if page <= 1 else None
+    return _f(profile_id, direction="received", limit=per_page, cursor=cursor)
 
 def get_friend_status(profile_id, other_id):
     from services.friendship_service import get_friendship_status as _f
     return _f(profile_id, other_id)
 
 def get_friends(profile_id, page=1, per_page=20):
-    from services.friendship_service import get_friends as _f
-    return _f(profile_id, page=page, per_page=per_page)
+    from services.friend_service import list_friends as _f
+    cursor = None if page <= 1 else None
+    result = _f(profile_id, limit=per_page, cursor=cursor) or {}
+    result["total"] = len(result.get("friends", []))
+    return result
 
 def get_profile_bundle(profile_id=None, viewer_id=None, viewer=None, username=None):
     if viewer_id is None and viewer is not None:
@@ -1638,24 +1709,46 @@ def get_profile_posts(profile_id, viewer_id=None, page=1, per_page=20):
     return _f(viewer_id, profile_id, "posts", page=page, per_page=per_page)
 
 def get_profile_privacy(profile_id):
-    from services.profile_2026_service import get_profile_privacy as _f
-    return _f(profile_id)
+    if not profile_id:
+        return {}
+    try:
+        from services.neon_service import fast_query
+        rows = fast_query(
+            "SELECT profile_visibility, show_online_status, show_email, show_phone, "
+            "show_location, show_website, who_can_see_posts, who_can_see_reels, "
+            "who_can_see_stories, who_can_follow_me, who_can_message_me, who_can_call, "
+            "who_can_see_followers, who_can_see_following, who_can_send_friend_requests "
+            "FROM chain_profiles WHERE id = %s LIMIT 1",
+            (profile_id,),
+            timeout_ms=5000,
+            default=[],
+        )
+        if rows:
+            return {k: v for k, v in rows[0].items() if v is not None}
+        return {}
+    except Exception:
+        return {}
 
 def get_profile_reels(profile_id, viewer_id=None, page=1, per_page=20):
     from services.profile_2026_service import get_profile_content_section as _f
     return _f(viewer_id, profile_id, "reels", page=page, per_page=per_page)
 
 def get_profile_settings(profile_id):
-    from services.profile_2026_service import get_profile_settings as _f
-    return _f(profile_id)
+    if not profile_id:
+        return {"settings": {}, "security": {}}
+    from services.profile_dashboard_service import _safe_select_if_exists
+    settings_row = (_safe_select_if_exists("chain_user_settings", filters={"profile_id": profile_id}, limit=1, order_by=None) or [{}])[0]
+    security_row = (_safe_select_if_exists("chain_account_security", filters={"profile_id": profile_id}, limit=1, order_by=None) or [{}])[0]
+    return {"settings": settings_row, "security": security_row}
 
 def get_reel_analytics(reel_id, profile_id):
     from services.reels_engine import get_reel_analytics as _f
     return _f(reel_id, profile_id)
 
 def get_sent_friend_requests(profile_id, page=1, per_page=20):
-    from services.friendship_service import get_sent_friend_requests as _f
-    return _f(profile_id, page=page, per_page=per_page)
+    from services.friend_service import list_friend_requests as _f
+    cursor = None if page <= 1 else None
+    return _f(profile_id, direction="sent", limit=per_page, cursor=cursor)
 
 def like_profile(actor_id, target_id):
     from services.dating_service import like_profile as _f
@@ -1666,8 +1759,14 @@ def mute_profile(muter_profile_id, muted_profile_id):
     return _f(muter_profile_id, muted_profile_id)
 
 def record_profile_view(viewer_id, target_id):
-    from services.profile_2026_service import record_profile_view as _f
-    return _f(viewer_id, target_id)
+    try:
+        execute(
+            "INSERT INTO chain_profile_views (viewer_id, target_id, viewed_at) VALUES (%s, %s, NOW()) ON CONFLICT DO NOTHING",
+            (viewer_id, target_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def remove_follower(profile_id, follower_id):
     from services.social_relationship_service import remove_follower as _f
@@ -1678,36 +1777,75 @@ def remove_friend(profile_id, friend_id):
     return _f(profile_id, friend_id)
 
 def report_profile(reporter_id, target_id, reason, details=None):
-    from services.moderation_engine import report_profile as _f
-    return _f(reporter_id, target_id, reason, details=details)
+    try:
+        from services.moderation_engine import report_entity
+        return report_entity(reporter_id, "profile", target_id, reason, details=details, target_profile_id=target_id)
+    except Exception:
+        return False
 
 def send_friend_request(sender_id, recipient_id, message=None):
     from services.friendship_service import send_friend_request as _f
     return _f(sender_id, recipient_id, message=message)
 
 def toggle_post_comments(post_id, profile_id, enabled):
-    from services.post_service import toggle_post_comments as _f
-    return _f(post_id, profile_id, enabled)
+    try:
+        execute(
+            "UPDATE chain_posts SET comments_enabled = %s WHERE id = %s AND profile_id = %s",
+            (bool(enabled), post_id, profile_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def toggle_post_pin(post_id, profile_id, pinned):
-    from services.post_service import toggle_post_pin as _f
-    return _f(post_id, profile_id, pinned)
+    try:
+        execute(
+            "UPDATE chain_posts SET is_pinned = %s WHERE id = %s AND profile_id = %s",
+            (bool(pinned), post_id, profile_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def toggle_post_sharing(post_id, profile_id, enabled):
-    from services.post_service import toggle_post_sharing as _f
-    return _f(post_id, profile_id, enabled)
+    try:
+        execute(
+            "UPDATE chain_posts SET sharing_enabled = %s WHERE id = %s AND profile_id = %s",
+            (bool(enabled), post_id, profile_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def toggle_reel_comments(reel_id, profile_id, enabled):
-    from services.reels_engine import toggle_reel_comments as _f
-    return _f(reel_id, profile_id, enabled)
+    try:
+        execute(
+            "UPDATE chain_reels SET comments_enabled = %s WHERE id = %s AND profile_id = %s",
+            (bool(enabled), reel_id, profile_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def toggle_reel_pin(reel_id, profile_id, pinned):
-    from services.reels_engine import toggle_reel_pin as _f
-    return _f(reel_id, profile_id, pinned)
+    try:
+        execute(
+            "UPDATE chain_reels SET is_pinned = %s WHERE id = %s AND profile_id = %s",
+            (bool(pinned), reel_id, profile_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def toggle_reel_sharing(reel_id, profile_id, enabled):
-    from services.reels_engine import toggle_reel_sharing as _f
-    return _f(reel_id, profile_id, enabled)
+    try:
+        execute(
+            "UPDATE chain_reels SET sharing_enabled = %s WHERE id = %s AND profile_id = %s",
+            (bool(enabled), reel_id, profile_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def unmute_profile(unmuter_profile_id, muted_profile_id):
     from services.moderation_engine import unmute_profile as _f
@@ -1718,21 +1856,55 @@ def update_post_visibility(post_id, profile_id, visibility):
     return _f(post_id, profile_id, visibility)
 
 def update_profile_privacy(profile_id, privacy_settings):
-    from services.profile_2026_service import update_profile_privacy as _f
-    return _f(profile_id, privacy_settings)
+    try:
+        import json
+        execute(
+            "UPDATE chain_profiles SET privacy_settings = %s, updated_at = NOW() WHERE id = %s",
+            (json.dumps(privacy_settings) if isinstance(privacy_settings, dict) else privacy_settings, profile_id)
+        )
+        return True
+    except Exception:
+        return False
 
 def update_profile_setup(profile_id, setup_data):
-    from services.profile_2026_service import update_profile_setup as _f
-    return _f(profile_id, setup_data)
+    try:
+        allowed = {"display_name", "bio", "location", "website", "avatar_url", "cover_url",
+                    "date_of_birth", "gender", "phone", "full_name", "username"}
+        updates = {k: v for k, v in setup_data.items() if k in allowed and v is not None}
+        if not updates:
+            return True
+        updates["updated_at"] = "NOW()"
+        set_clause = ", ".join(f"{k} = %s" for k in updates if k != "updated_at")
+        vals = [v for k, v in updates.items() if k != "updated_at"]
+        if set_clause:
+            execute(
+                f"UPDATE chain_profiles SET {set_clause}, updated_at = NOW() WHERE id = %s",
+                (*vals, profile_id)
+            )
+        return True
+    except Exception:
+        return False
 
 def update_reel_visibility(reel_id, profile_id, visibility):
     from services.reels_engine import update_reel_visibility as _f
     return _f(reel_id, profile_id, visibility)
 
 def upload_profile_avatar(profile_id, file):
-    from services.profile_2026_service import upload_profile_avatar as _f
-    return _f(profile_id, file)
+    try:
+        from services.storage_service import upload_avatar
+        url = upload_avatar(profile_id, file)
+        if url:
+            execute("UPDATE chain_profiles SET avatar_url = %s, updated_at = NOW() WHERE id = %s", (url, profile_id))
+        return url
+    except Exception:
+        return None
 
 def upload_profile_cover(profile_id, file):
-    from services.profile_2026_service import upload_profile_cover as _f
-    return _f(profile_id, file)
+    try:
+        from services.storage_service import upload_cover
+        url = upload_cover(profile_id, file)
+        if url:
+            execute("UPDATE chain_profiles SET cover_url = %s, updated_at = NOW() WHERE id = %s", (url, profile_id))
+        return url
+    except Exception:
+        return None

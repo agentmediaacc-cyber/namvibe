@@ -77,6 +77,7 @@ from services.profile_service import (
 from services.profile_dashboard_service import build_profile_dashboard
 from services.profile_view_service import build_profile_view_model
 from services.storage_service import upload_avatar, upload_cover, upload_verification_file
+from services.neon_service import fast_query
 from services.logging_service import log_error, log_warning, log_info
 from services.friend_service import list_friends, list_friend_requests, are_friends, get_mutual_friends, suggest_friends
 from services.creator_service import get_creator_dashboard_data, get_creator_analytics
@@ -252,7 +253,31 @@ def _profile_fallback_context():
         presence=context["presence"],
         action_policy=context["action_policy"],
     )
+    context["pv"] = context["profile_view"]
     return context
+
+
+def _current_profile_or_session_fallback():
+    viewer = get_current_profile()
+    if viewer:
+        return viewer
+    has_session_identity = bool(session.get("profile_id") and (session.get("auth_user_id") or session.get("user_id")))
+    fast_local = os.getenv("CHAIN_FAST_LOCAL", "").lower() in ("1", "true", "yes", "on") or os.getenv("FLASK_TESTING") == "1"
+    if not has_session_identity or not fast_local:
+        return None
+    username = session.get("username") or "user"
+    full_name = session.get("full_name") or username.replace("_", " ").title()
+    return {
+        "id": session.get("profile_id"),
+        "auth_user_id": session.get("auth_user_id") or session.get("user_id"),
+        "username": username,
+        "display_name": full_name,
+        "full_name": full_name,
+        "email": session.get("auth_email") or session.get("email"),
+        "avatar_url": session.get("avatar_url"),
+        "profile_completed": bool(session.get("profile_completed")),
+        "profile_fallback": True,
+    }
 
 
 def _apply_profile_session(profile, fallback_email=None):
@@ -309,6 +334,29 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
             presence=fallback.get("presence"),
             action_policy=fallback.get("action_policy"),
         )
+        fallback["pv"] = fallback["profile_view"]
+        # Premium profile data
+        try:
+            pid = profile.get("id")
+            if pid:
+                from services.profile_premium_service import (
+                    get_achievements, get_badges, get_collections, get_timeline,
+                    get_education, get_work_experience, get_skills,
+                    get_visitors, get_activity_log, get_favorites_by_type,
+                )
+                fallback["achievements"] = get_achievements(pid) or []
+                fallback["badges"] = get_badges(pid) or []
+                fallback["collections"] = get_collections(pid) or []
+                fallback["timeline"] = get_timeline(pid) or []
+                fallback["education"] = get_education(pid) or []
+                fallback["works"] = get_work_experience(pid) or []
+                fallback["skills"] = get_skills(pid) or []
+                fallback["visitors"] = get_visitors(pid) or []
+                fallback["activity"] = get_activity_log(pid) or []
+                fallback["favorites_music"] = get_favorites_by_type(pid, "music") or []
+                fallback["favorites_games"] = get_favorites_by_type(pid, "game") or []
+        except Exception:
+            pass
         return render_template("profile/index.html", **fallback), status_code
     try:
         dashboard = build_profile_dashboard(profile=profile, viewer=viewer, bundle=bundle)
@@ -332,6 +380,19 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
     profile_content = dict(context.get("content") or {})
     profile_content["mutual_friends"] = context.get("mutual_friends") or render_bundle.get("mutual_friends") or {"count": 0, "items": []}
     profile_content["profile_strength"] = context.get("profile_strength") or render_bundle.get("profile_strength") or {"score": 0, "level": "Fresh", "checks": []}
+    # Query real content if bundle left it empty
+    profile_id = render_profile.get("id")
+    if profile_content.get("posts") in (None, []) and profile_id:
+        try:
+            from services.profile_service import get_profile_content
+            viewer_id = viewer.get("id") if viewer else None
+            real = get_profile_content(viewer_id, profile_id, "posts") or {}
+            posts = real.get("posts") or real.get("items") or []
+            reels = real.get("reels") or []
+            profile_content["posts"] = posts
+            profile_content["reels"] = reels
+        except Exception:
+            pass
     context["content"] = profile_content
     if not context.get("action_policy"):
         from services.social_action_policy import get_action_policy
@@ -348,13 +409,14 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         presence=context.get("presence"),
         action_policy=context.get("action_policy"),
     )
+    context["pv"] = context["profile_view"]
     # Determine subscriber status for locked content display
     try:
         viewer_id = viewer.get("id") if viewer else None
         profile_id = render_profile.get("id")
         if viewer_id and profile_id and str(viewer_id) != str(profile_id):
             sub_check = fast_query(
-                "SELECT status FROM chain_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
+                "SELECT status FROM chain_creator_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
                 (viewer_id, profile_id), default=[]
             )
             context["subscriber_status"] = sub_check[0].get("status", "inactive") if sub_check else "inactive"
@@ -362,19 +424,39 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
             context["subscriber_status"] = "active" if (viewer_id and profile_id and str(viewer_id) == str(profile_id)) else "inactive"
     except Exception:
         context["subscriber_status"] = "inactive"
+    # Premium profile data (education, work, skills, visitors, etc.)
+    try:
+        profile_id = render_profile.get("id")
+        if profile_id:
+            from services.profile_premium_service import (
+                get_achievements, get_badges, get_collections, get_timeline,
+                get_education, get_work_experience, get_skills,
+                get_visitors, get_activity_log, get_favorites_by_type,
+            )
+            context["achievements"] = get_achievements(profile_id) or []
+            context["badges"] = get_badges(profile_id) or []
+            context["collections"] = get_collections(profile_id) or []
+            context["timeline"] = get_timeline(profile_id) or []
+            context["education"] = get_education(profile_id) or []
+            context["works"] = get_work_experience(profile_id) or []
+            context["skills"] = get_skills(profile_id) or []
+            context["visitors"] = get_visitors(profile_id) or []
+            context["activity"] = get_activity_log(profile_id) or []
+            context["favorites_music"] = get_favorites_by_type(profile_id, "music") or []
+            context["favorites_games"] = get_favorites_by_type(profile_id, "game") or []
+    except Exception as exc:
+        log_warning("premium_profile_data_error", profile_id=profile.get("id"), error=str(exc))
     return render_template("profile/index.html", **context), status_code
 
 
 def _resolve_profile_route(username=None, user_id=None):
     start = time.perf_counter()
-    public_identifier_route = bool(username or user_id)
     fast_profile_shell = (
-        public_identifier_route
-        or request.args.get("shell") == "1"
+        request.args.get("shell") == "1"
         or
         os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
+        or os.getenv("CHAIN_FAST_LOCAL", "").lower() in ("1", "true", "yes", "on")
         or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
-        or "namvibe.com" in (request.host or "").lower()
     )
     viewer = None if fast_profile_shell else (get_current_profile() if is_logged_in() else None)
     profile = None
@@ -527,6 +609,18 @@ def my_profile():
                 context["stats"] = get_profile_stats(viewer.get("id"))
             except Exception:
                 pass
+            context["profile_view"] = build_profile_view_model(
+                context["profile"],
+                viewer=context.get("viewer"),
+                stats=context.get("stats"),
+                content=context.get("content"),
+                wallet=context.get("wallet"),
+                creator=context.get("creator") or context.get("creator_tools"),
+                marketplace=context.get("marketplace"),
+                presence=context.get("presence"),
+                action_policy=context.get("action_policy"),
+            )
+            context["pv"] = context["profile_view"]
             return render_template("profile/index.html", **context)
 
         try:
@@ -660,10 +754,21 @@ def edit_profile():
             else:
                 flash(f"Cover upload failed: {err}", "error")
 
-        ok, result = update_profile_setup(viewer["id"], data) if setup_mode else update_profile(viewer["auth_user_id"], data)
+        try:
+            if setup_mode:
+                setup_result = update_profile_setup(viewer["id"], data)
+                ok = isinstance(setup_result, dict) and setup_result.get("id")
+                result = setup_result
+            else:
+                updated = update_profile(viewer.get("id") or viewer.get("auth_user_id"), data)
+                ok = bool(updated and updated.get("id"))
+                result = updated
+        except Exception as e:
+            ok = False
+            result = str(e)
         if ok:
             return redirect(url_for("profile.my_profile"))
-        return render_template("profile/edit.html", error=result, profile=viewer, form=request.form)
+        return render_template("profile/edit.html", error=result or "Update failed", profile=viewer, form=request.form)
 
     progress = viewer.get("profile_completion", 0)
     return render_template("profile/edit.html", profile=viewer, form=viewer, setup_mode=setup_mode, progress=progress)
@@ -682,6 +787,88 @@ def view_profile(username=None, user_id=None):
 @profile_bp.route("", methods=["GET"])
 def my_profile_no_slash():
     return my_profile()
+
+
+@profile_bp.route("/friends")
+@login_required
+def friends():
+    viewer = _current_profile_or_session_fallback()
+    if not viewer:
+        return redirect(url_for("auth.login", next=request.path))
+    page = max(int(request.args.get("page", 1) or 1), 1)
+    per_page = min(max(int(request.args.get("per_page", 20) or 20), 1), 50)
+    try:
+        friends_page = get_friends(viewer["id"], page=page, per_page=per_page) or {}
+        inbound_page = get_friend_requests(viewer["id"], page=1, per_page=10) or {}
+        outbound_page = get_sent_friend_requests(viewer["id"], page=1, per_page=10) or {}
+    except Exception as error:
+        log_warning("profile_friends_page_failed", profile_id=viewer.get("id"), error=str(error))
+        friends_page = {}
+        inbound_page = {}
+        outbound_page = {}
+    return render_template(
+        "profile/friends.html",
+        profile=viewer,
+        viewer=viewer,
+        friends=friends_page.get("friends", []),
+        total=friends_page.get("total", 0),
+        next_cursor=friends_page.get("next_cursor"),
+        pending_requests=inbound_page.get("requests", []),
+        outbound_requests=outbound_page.get("requests", []),
+    )
+
+
+@profile_bp.route("/followers")
+@login_required
+def followers():
+    viewer = _current_profile_or_session_fallback()
+    if not viewer:
+        return redirect(url_for("auth.login", next=request.path))
+    page = max(int(request.args.get("page", 1) or 1), 1)
+    per_page = min(max(int(request.args.get("per_page", 20) or 20), 1), 50)
+    try:
+        followers_page = get_followers_page(viewer["id"], page=page, per_page=per_page) or {}
+    except Exception as error:
+        log_warning("profile_followers_page_failed", profile_id=viewer.get("id"), error=str(error))
+        followers_page = {}
+    return render_template(
+        "profile/followers.html",
+        profile=viewer,
+        viewer=viewer,
+        followers=followers_page.get("followers", []),
+        total=followers_page.get("total", 0),
+        next_cursor=followers_page.get("next_cursor"),
+    )
+
+
+@profile_bp.route("/following")
+@login_required
+def following():
+    viewer = _current_profile_or_session_fallback()
+    if not viewer:
+        return redirect(url_for("auth.login", next=request.path))
+    page = max(int(request.args.get("page", 1) or 1), 1)
+    per_page = min(max(int(request.args.get("per_page", 20) or 20), 1), 50)
+    follow_type = (request.args.get("type") or "all").strip().lower()
+    try:
+        following_page = get_following_page(viewer["id"], page=page, per_page=per_page) or {}
+        type_counts = get_following_types(viewer["id"]) or {}
+    except Exception as error:
+        log_warning("profile_following_page_failed", profile_id=viewer.get("id"), error=str(error))
+        following_page = {}
+        type_counts = {}
+    following_items = list(following_page.get("following", []))
+    if follow_type != "all":
+        following_items = [item for item in following_items if (item.get("profile_type") or "users").lower() == follow_type.rstrip("s")]
+    return render_template(
+        "profile/following.html",
+        profile=viewer,
+        viewer=viewer,
+        following=following_items,
+        total=following_page.get("total", len(following_items)),
+        next_cursor=following_page.get("next_cursor"),
+        following_types=type_counts,
+    )
 
 
 @profile_bp.route("/<username>")
@@ -902,11 +1089,20 @@ def cover_upload():
     return redirect(url_for("profile.edit_profile"))
 
 
+def _resolve_target_id(username):
+    """Look up a profile_id from @username string."""
+    p = get_profile_by_username(username)
+    return p.get("id") if p else None
+
+
 @profile_bp.route("/@<username>/follow", methods=["POST"])
 @login_required
 def follow(username):
     try:
-        follow_profile(username)
+        viewer = get_current_profile()
+        target_id = _resolve_target_id(username)
+        if viewer and target_id:
+            follow_profile(viewer["id"], target_id)
     except Exception as error:
         log_warning("profile_follow_failed", username=username, error=str(error))
     return _redirect_back(username)
@@ -915,36 +1111,51 @@ def follow(username):
 @profile_bp.route("/@<username>/like", methods=["POST"])
 @login_required
 def like(username):
-    like_profile(username)
+    viewer = get_current_profile()
+    target_id = _resolve_target_id(username)
+    if viewer and target_id:
+        like_profile(viewer["id"], target_id)
     return _redirect_back(username)
 
 
 @profile_bp.route("/@<username>/favorite", methods=["POST"])
 @login_required
 def favorite(username):
-    favorite_profile(username)
+    viewer = get_current_profile()
+    target_id = _resolve_target_id(username)
+    if viewer and target_id:
+        favorite_profile(viewer["id"], target_id)
     return _redirect_back(username)
 
 
 @profile_bp.route("/@<username>/report", methods=["POST"])
 @login_required
 def report(username):
-    report_profile(username, reason=request.form.get("reason"))
+    viewer = get_current_profile()
+    target_id = _resolve_target_id(username)
+    if viewer and target_id:
+        report_profile(viewer["id"], target_id, reason=request.form.get("reason"))
     return _redirect_back(username)
 
 
 @profile_bp.route("/report/<profile_id>", methods=["POST"])
 @login_required
 def report_by_id(profile_id):
-    target = get_profile_bundle(profile_id=profile_id, viewer=get_current_profile())
-    ok = bool(target and report_profile(target["profile"]["username"], reason=request.form.get("reason")))
+    viewer = get_current_profile()
+    ok = False
+    if viewer:
+        ok = bool(report_profile(viewer["id"], profile_id, reason=request.form.get("reason")))
     return {"status": "ok" if ok else "setup", "profile_id": profile_id}, (200 if ok else 202)
 
 
 @profile_bp.route("/@<username>/block", methods=["POST"])
 @login_required
 def block(username):
-    block_profile(username)
+    viewer = get_current_profile()
+    target_id = _resolve_target_id(username)
+    if viewer and target_id:
+        from services.moderation_engine import block_profile as _block
+        _block(viewer["id"], target_id)
     return _redirect_back(username)
 
 
@@ -1103,13 +1314,17 @@ def settings():
         ok, result = update_profile_setup(profile["id"], data, current_profile=profile)
         if ok:
             _apply_profile_session(result if isinstance(result, dict) else profile, fallback_email=data.get("email"))
-        # Save settings toggles (allow_messages, allow_video_calls, show_online_status, profile_visibility)
+        # Save settings toggles (allow_messages, allow_video_calls, show_online_status, profile_visibility, call_ringtone)
         from services.supabase_safe import safe_insert, safe_update
+        ringtone_val = (data.get("call_ringtone") or "").strip()
+        if ringtone_val not in ("namvibe_classic", "soft_ring", "premium_beep", "digital_chime", "sunrise", "mellow_tone", "silent"):
+            ringtone_val = "namvibe_classic"
         settings_payload = {
             "allow_messages": data.get("allow_messages") == "on",
             "allow_video_calls": data.get("allow_video_calls") == "on",
             "show_online_status": data.get("show_online_status") == "on",
             "profile_visibility": data.get("profile_visibility", "public"),
+            "call_ringtone": ringtone_val,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         existing_settings = get_profile_settings(profile["id"])["settings"]
@@ -1218,10 +1433,54 @@ def onboarding():
 @login_required
 def verification():
     profile = get_current_profile()
+    from services.profile_completion_service import calculate_profile_completion
+    from services.pricing_config import VERIFICATION_FEES, get_verification_fee, coins_to_nad
+    from services.supabase_safe import safe_insert, safe_select, safe_update, safe_select_one
+
+    # Check profile completion
+    completion = calculate_profile_completion(profile)
+    profile_complete = completion.get("percentage", 0) >= 55
+    verification_type = request.form.get("verification_type", "blue")
+    fee = get_verification_fee(verification_type) or get_verification_fee("blue")
+
     if request.method == "POST":
+        # Step 1: Validate profile completion
+        if not profile_complete:
+            flash("Complete at least 55% of your profile before applying for verification.", "error")
+            return redirect(url_for("profile.verification"))
+
+        # Step 2: Process NVC payment for verification fee
+        if fee["coins"] > 0:
+            from services.wallet_service import get_or_create_wallet, debit_wallet
+            wallet = get_or_create_wallet(profile["id"])
+            available = wallet.get("balance_cents", 0)
+            fee_cents = fee["coins"] * coins_to_nad(1)
+            if available < fee_cents:
+                nad_needed = fee_cents
+                coins_needed = fee["coins"]
+                flash(f"Insufficient balance. You need {coins_needed} NVC (N${nad_needed}) for {fee['label']}. Please deposit coins first.", "error")
+                return redirect(url_for("profile.verification"))
+            # Deduct fee
+            tx = debit_wallet(
+                profile["id"], fee_cents,
+                description=f"{fee['label']} application fee ({fee['coins']} NVC)",
+                transaction_type="verification_fee",
+                reference_type="verification",
+            )
+            if not tx:
+                flash("Payment processing failed. Please try again.", "error")
+                return redirect(url_for("profile.verification"))
+            payment_id = tx.get("transaction_id") or tx.get("id")
+            # Record payment
+            from services.neon_service import execute as neon_execute
+            neon_execute(
+                "INSERT INTO chain_verification_payments (profile_id, verification_type, coins_paid, nad_paid, transaction_id) VALUES (%s, %s, %s, %s, %s)",
+                (profile["id"], verification_type, fee["coins"], fee_cents, payment_id),
+                timeout_ms=5000,
+            )
+
+        # Step 3: Upload documents
         data = {}
-        
-        # Selfie Upload
         selfie_file = request.files.get("selfie")
         if selfie_file and selfie_file.filename:
             res, err = upload_verification_file(profile["id"], selfie_file, upload_type='verification_selfie')
@@ -1232,7 +1491,6 @@ def verification():
                 flash(f"Selfie upload failed: {err}", "error")
                 return redirect(url_for("profile.verification"))
 
-        # ID Document Upload
         id_file = request.files.get("id_document")
         if id_file and id_file.filename:
             res, err = upload_verification_file(profile["id"], id_file, upload_type='verification_id')
@@ -1247,32 +1505,38 @@ def verification():
             flash("Both selfie and ID document are required.", "error")
             return redirect(url_for("profile.verification"))
 
-        # Save verification request
-        from services.supabase_safe import safe_insert, safe_select, safe_update
+        # Step 4: Save verification request
         existing = safe_select("chain_user_verifications", filters={"profile_id": profile["id"]}, limit=1, order_by=None)
-        
         payload = {
             "profile_id": profile["id"],
             "verification_status": "pending",
+            "verification_type": verification_type,
             "selfie_url": data.get("selfie_url"),
             "selfie_upload_id": data.get("selfie_upload_id"),
             "id_document_url": data.get("id_document_url"),
             "id_document_upload_id": data.get("id_document_upload_id"),
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            "profile_completed": True,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
         }
-        
         if existing:
             safe_update("chain_user_verifications", payload, eq={"id": existing[0]["id"]})
         else:
             payload["created_at"] = datetime.now(timezone.utc).isoformat()
             safe_insert("chain_user_verifications", payload)
-            
+
         flash("Verification request submitted successfully.", "success")
         return redirect(url_for("profile.my_profile"))
 
-    from services.supabase_safe import safe_select
+    # GET: show verification page
     verification_request = (safe_select("chain_user_verifications", filters={"profile_id": profile["id"]}, limit=1, order_by=None) or [None])[0]
-    return render_template("profile/verification.html", profile=profile, verification=verification_request)
+    return render_template(
+        "profile/verification.html",
+        profile=profile,
+        verification=verification_request,
+        completion=completion,
+        profile_complete=profile_complete,
+        verification_fees=VERIFICATION_FEES,
+    )
 
 
 @profile_bp.route("/security")
@@ -1280,7 +1544,13 @@ def verification():
 def security():
     profile = get_current_profile()
     profile_settings = get_profile_settings(profile["id"])
-    return render_template("profile/security.html", profile=profile, account_security=profile_settings["security"])
+    verification = None
+    try:
+        from services.verification_engine import get_verification_status
+        verification = get_verification_status(profile["id"])
+    except Exception:
+        pass
+    return render_template("profile/security.html", profile=profile, account_security=profile_settings["security"], verification=verification)
 
 
 @profile_bp.route("/security/set-password", methods=["POST"])
@@ -1486,23 +1756,32 @@ def api_post_visibility(post_id):
 @login_required
 def api_post_comments_toggle(post_id):
     profile = get_current_profile()
-    ok = toggle_post_comments(post_id, profile["id"])
-    return jsonify({"status": "ok" if ok else "error", "comments_enabled": ok})
+    row = fetch_one("SELECT comments_enabled FROM chain_posts WHERE id = %s AND profile_id = %s",
+                     (post_id, profile["id"]))
+    enabled = not bool(row["comments_enabled"]) if row else True
+    ok = toggle_post_comments(post_id, profile["id"], enabled)
+    return jsonify({"status": "ok" if ok else "error", "comments_enabled": enabled if ok else None})
 
 @profile_bp.route("/api/posts/<post_id>/share-toggle", methods=["POST"])
 @login_required
 def api_post_share_toggle(post_id):
     profile = get_current_profile()
-    ok = toggle_post_sharing(post_id, profile["id"])
-    return jsonify({"status": "ok" if ok else "error", "sharing_enabled": ok})
+    row = fetch_one("SELECT sharing_enabled FROM chain_posts WHERE id = %s AND profile_id = %s",
+                     (post_id, profile["id"]))
+    enabled = not bool(row["sharing_enabled"]) if row else True
+    ok = toggle_post_sharing(post_id, profile["id"], enabled)
+    return jsonify({"status": "ok" if ok else "error", "sharing_enabled": enabled if ok else None})
 
 @profile_bp.route("/api/posts/<post_id>/pin", methods=["POST"])
 @login_required
 def api_post_pin(post_id):
     profile = get_current_profile()
-    ok = toggle_post_pin(post_id, profile["id"])
+    row = fetch_one("SELECT is_pinned FROM chain_posts WHERE id = %s AND profile_id = %s",
+                     (post_id, profile["id"]))
+    pinned = not bool(row["is_pinned"]) if row else True
+    ok = toggle_post_pin(post_id, profile["id"], pinned)
     invalidate_profile_cache(profile["id"])
-    return jsonify({"status": "ok" if ok else "error", "pinned": ok})
+    return jsonify({"status": "ok" if ok else "error", "pinned": pinned if ok else None})
 
 @profile_bp.route("/api/posts/<post_id>", methods=["DELETE"])
 @login_required
@@ -1550,23 +1829,32 @@ def api_reel_visibility(reel_id):
 @login_required
 def api_reel_comments_toggle(reel_id):
     profile = get_current_profile()
-    ok = toggle_reel_comments(reel_id, profile["id"])
-    return jsonify({"status": "ok" if ok else "error", "comments_enabled": ok})
+    row = fetch_one("SELECT comments_enabled FROM chain_reels WHERE id = %s AND profile_id = %s",
+                     (reel_id, profile["id"]))
+    enabled = not bool(row["comments_enabled"]) if row else True
+    ok = toggle_reel_comments(reel_id, profile["id"], enabled)
+    return jsonify({"status": "ok" if ok else "error", "comments_enabled": enabled if ok else None})
 
 @profile_bp.route("/api/reels/<reel_id>/pin", methods=["POST"])
 @login_required
 def api_reel_pin(reel_id):
     profile = get_current_profile()
-    ok = toggle_reel_pin(reel_id, profile["id"])
+    row = fetch_one("SELECT is_pinned FROM chain_reels WHERE id = %s AND profile_id = %s",
+                     (reel_id, profile["id"]))
+    pinned = not bool(row["is_pinned"]) if row else True
+    ok = toggle_reel_pin(reel_id, profile["id"], pinned)
     invalidate_profile_cache(profile["id"])
-    return jsonify({"status": "ok" if ok else "error", "pinned": ok})
+    return jsonify({"status": "ok" if ok else "error", "pinned": pinned if ok else None})
 
 @profile_bp.route("/api/reels/<reel_id>/share-toggle", methods=["POST"])
 @login_required
 def api_reel_share_toggle(reel_id):
     profile = get_current_profile()
-    ok = toggle_reel_sharing(reel_id, profile["id"])
-    return jsonify({"status": "ok" if ok else "error", "sharing_enabled": ok})
+    row = fetch_one("SELECT sharing_enabled FROM chain_reels WHERE id = %s AND profile_id = %s",
+                     (reel_id, profile["id"]))
+    enabled = not bool(row["sharing_enabled"]) if row else True
+    ok = toggle_reel_sharing(reel_id, profile["id"], enabled)
+    return jsonify({"status": "ok" if ok else "error", "sharing_enabled": enabled if ok else None})
 
 @profile_bp.route("/api/reels/<reel_id>", methods=["DELETE"])
 @login_required
@@ -1641,7 +1929,19 @@ def command_center():
     viewer = get_current_profile()
     if not viewer:
         return redirect(url_for("auth.login"))
-    return render_template("profile/command_center.html", profile=viewer, viewer=viewer)
+    stats = {}
+    try:
+        raw = get_profile_stats(viewer["id"])
+        stats = {
+            "posts": raw.get("posts_count") or raw.get("posts", 0),
+            "reels": raw.get("reels_count") or raw.get("reels", 0),
+            "followers": raw.get("followers_count") or raw.get("followers", 0),
+            "following": raw.get("following_count") or raw.get("following", 0),
+            "friends": raw.get("friends_count") or raw.get("friends", 0),
+        }
+    except Exception:
+        pass
+    return render_template("profile/command_center.html", profile=viewer, viewer=viewer, stats=stats)
 
 
 @profile_bp.route("/@<username>/likes")
@@ -1662,7 +1962,19 @@ def view_views(username):
     profile = get_profile_by_username(username)
     if not profile:
         return render_template("profile/not_found.html", username=username), 404
-    return render_template("profile/command_center.html", profile=profile, viewer=viewer)
+    stats = {}
+    try:
+        raw = get_profile_stats(profile["id"])
+        stats = {
+            "posts": raw.get("posts_count") or raw.get("posts", 0),
+            "reels": raw.get("reels_count") or raw.get("reels", 0),
+            "followers": raw.get("followers_count") or raw.get("followers", 0),
+            "following": raw.get("following_count") or raw.get("following", 0),
+            "friends": raw.get("friends_count") or raw.get("friends", 0),
+        }
+    except Exception:
+        pass
+    return render_template("profile/command_center.html", profile=profile, viewer=viewer, stats=stats)
 
 
 def _normalize_business_hours(form):
@@ -1963,6 +2275,27 @@ def api_profile_live(target):
         return jsonify({"ok": False, "error": str(e)})
 
 
+@profile_bp.route("/api/theme", methods=["POST"])
+@login_required
+def api_profile_theme():
+    """Save the user's selected profile theme."""
+    viewer = get_current_profile()
+    if not viewer:
+        return jsonify({"status": "error", "error": "Unauthorized"}), 401
+    data = request.json or {}
+    theme = data.get("theme", "default")
+    allowed = {"default", "neon", "diamond", "royal", "crystal", "ocean", "sunset", "emerald", "galaxy", "rose", "minimal"}
+    if theme not in allowed:
+        return jsonify({"status": "error", "error": "Invalid theme"}), 400
+    try:
+        from services.neon_service import write_query
+        write_query("UPDATE chain_profiles SET profile_theme = %s WHERE id = %s", (theme, viewer["id"]))
+        return jsonify({"status": "ok", "theme": theme})
+    except Exception as e:
+        log_error("api_profile_theme_error", error=str(e))
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @profile_bp.route("/api/<target>/activity")
 def api_profile_activity_target(target):
     try:
@@ -1975,3 +2308,47 @@ def api_profile_activity_target(target):
     except Exception as e:
         log_error("api_profile_activity_error", target=target, error=str(e))
         return jsonify({"ok": False, "error": str(e)})
+
+
+@profile_bp.route("/api/ringtone", methods=["GET", "POST"])
+@login_required
+def api_ringtone():
+    profile = get_current_profile()
+    if not profile:
+        return jsonify({"ok": False, "error": "unauthorized"}), 401
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        ringtone = (data.get("ringtone") or "").strip()
+        valid = ("namvibe_classic", "soft_ring", "premium_beep", "digital_chime", "sunrise", "mellow_tone", "silent")
+        if ringtone not in valid:
+            return jsonify({"ok": False, "error": "invalid_ringtone"}), 400
+        from services.supabase_safe import safe_update, safe_insert
+        existing = get_profile_settings(profile["id"])["settings"]
+        payload = {"call_ringtone": ringtone, "updated_at": datetime.now(timezone.utc).isoformat()}
+        if existing.get("id"):
+            safe_update("chain_user_settings", payload, eq={"id": existing["id"]})
+        else:
+            safe_insert("chain_user_settings", {"profile_id": profile["id"], **payload})
+        return jsonify({"ok": True, "ringtone": ringtone})
+
+    # GET: return current ringtone + URL
+    ringtone = "namvibe_classic"
+    settings = get_profile_settings(profile["id"])["settings"]
+    if settings and settings.get("call_ringtone"):
+        ringtone = settings["call_ringtone"]
+    ringtone_url = url_for("static", filename=f"ringtones/{ringtone}.mp3") if ringtone != "silent" else None
+    return jsonify({
+        "ok": True,
+        "ringtone": ringtone,
+        "ringtone_url": ringtone_url,
+        "available": {
+            "namvibe_classic": url_for("static", filename="ringtones/namvibe_classic.mp3"),
+            "soft_ring": url_for("static", filename="ringtones/soft_ring.mp3"),
+            "premium_beep": url_for("static", filename="ringtones/premium_beep.mp3"),
+            "digital_chime": url_for("static", filename="ringtones/digital_chime.mp3"),
+            "sunrise": url_for("static", filename="ringtones/sunrise.mp3"),
+            "mellow_tone": url_for("static", filename="ringtones/mellow_tone.mp3"),
+            "silent": None,
+        }
+    })
