@@ -51,7 +51,6 @@ from api_routes.message_routes import message_bp
 from api_routes.messaging_routes import messaging_api_bp
 from api_routes.call_routes import call_bp, messages_call_bp, api_calls_bp
 from api_routes.notification_routes import notification_engine_bp
-from api_routes.live_routes import live_bp
 from api_routes.wallet_routes import wallet_bp
 from api_routes.admin_routes import admin_bp, developer_bp
 from api_routes.discovery_routes import discovery_bp
@@ -67,6 +66,7 @@ from api_routes.presence_routes import presence_bp
 from api_routes.safety_routes import safety_bp
 from api_routes.admin_safety_routes import admin_safety_bp
 from api_routes.system_routes import system_bp
+from api_routes.founder_routes import founder_bp
 from api_routes.production_routes import production_bp
 from api_routes.feed_routes import feed_bp
 from api_routes.homepage_api import homepage_api_bp, feed_preload_bp
@@ -81,12 +81,13 @@ from api_routes.social_routes import social_api_bp, social_bp
 from api_routes.post_routes import post_bp, media_bp
 from api_routes.metrics_routes import metrics_bp
 from api_routes.push_routes import push_bp
-from api_routes.message_production_routes import message_production_bp
+
 from api_routes.security_routes import security_bp
 from api_routes.privacy_routes import privacy_api_bp
 from api_routes.group_call_routes import group_call_bp
 from api_routes.push_notification_routes import push_notifications_api_bp
 from api_routes.encryption_routes import encryption_bp
+from api_routes.config_routes import config_bp
 from api_routes.notification_center_routes import notification_center_bp
 from api_routes.ai_routes import ai_bp
 from api_routes.performance_routes import performance_bp
@@ -102,6 +103,8 @@ from api_routes.social_graph_routes import social_graph_bp, profile_extra_bp
 from api_routes.verification_admin_routes import verification_admin_bp
 from api_routes.ad_admin_routes import ad_admin_bp
 from api_routes.rpromo_routes import rpromo_bp
+from api_routes.live_routes import register_live_routes
+from api_routes.support_routes import support_bp, support_page_bp
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
@@ -534,7 +537,6 @@ def create_app():
     app.register_blueprint(messaging_api_bp)
     app.register_blueprint(call_bp)
     app.register_blueprint(notification_engine_bp)
-    app.register_blueprint(live_bp)
     app.register_blueprint(wallet_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(developer_bp)
@@ -562,6 +564,8 @@ def create_app():
     app.register_blueprint(safety_bp)
     app.register_blueprint(admin_safety_bp)
     app.register_blueprint(system_bp)
+    app.register_blueprint(founder_bp)
+    csrf.exempt(founder_bp)
     app.register_blueprint(production_bp)
     app.register_blueprint(feed_bp)
     app.register_blueprint(verification_bp)
@@ -582,6 +586,7 @@ def create_app():
     app.register_blueprint(group_call_bp)
     app.register_blueprint(push_notifications_api_bp)
     app.register_blueprint(encryption_bp)
+    app.register_blueprint(config_bp)
     app.register_blueprint(notification_center_bp)
     app.register_blueprint(ai_bp)
     app.register_blueprint(performance_bp)
@@ -602,6 +607,10 @@ def create_app():
     app.register_blueprint(ad_admin_bp)
     app.register_blueprint(content_controls_bp)
     app.register_blueprint(rpromo_bp)
+    register_live_routes(app)
+    app.register_blueprint(support_bp)
+    app.register_blueprint(support_page_bp)
+    csrf.exempt(support_bp)
 
     try:
         from services.content_service import ensure_content_schema
@@ -612,6 +621,15 @@ def create_app():
 
     for bp in api_v1_blueprints:
         app.register_blueprint(bp, url_prefix=f"/api/v1{bp.url_prefix}")
+
+    _startup_background_prewarm(app)
+
+    # Synchronously pre-warm Neon pool on startup so first request isn't slow
+    try:
+        from services.neon_service import prime_neon_runtime, _pool_instance
+        prime_neon_runtime()
+    except Exception:
+        pass
 
     @app.get("/debug/session")
     def debug_session_app():
@@ -1160,7 +1178,60 @@ def create_app():
             home_start = time.perf_counter()
             data = build_fast_shell()
             data.update(base_routes)
-            response = render_template("chain_home.html", **data)
+            data["chats"] = []
+            data["notifications"] = []
+            data["marketplace_items"] = []
+            pid_for_home = (get_current_profile() or {}).get("id")
+            try:
+                if pid_for_home:
+                    from services.notification_engine import list_notifications
+                    raw = list_notifications(pid_for_home, limit=5)
+                    if raw and isinstance(raw, list):
+                        data["notifications"] = raw
+                    elif raw and isinstance(raw, dict) and raw.get("notifications"):
+                        data["notifications"] = raw["notifications"]
+            except Exception:
+                data["notifications"] = []
+            try:
+                profile_id = pid_for_home
+                if profile_id:
+                    from services.neon_service import fast_query
+                    data["chats"] = fast_query(
+                        """
+                        SELECT t.id, COALESCE(t.thread_type, '') AS name,
+                          (SELECT p.avatar_url FROM chain_profiles p
+                           JOIN chain_thread_members tm2 ON tm2.profile_id = p.id
+                           WHERE tm2.thread_id = t.id AND tm2.profile_id != %s LIMIT 1) AS avatar_url,
+                          (SELECT m.body FROM chain_messages m
+                           WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,
+                          (SELECT COUNT(*) FROM chain_messages m
+                           JOIN chain_message_reads mr ON mr.message_id = m.id AND mr.profile_id = %s AND mr.read = FALSE
+                           WHERE m.thread_id = t.id) AS unread_count
+                        FROM chain_message_threads t
+                        JOIN chain_thread_members tm ON tm.thread_id = t.id
+                        WHERE tm.profile_id = %s AND t.deleted_at IS NULL
+                          AND (tm.is_archived IS NULL OR tm.is_archived = FALSE)
+                        ORDER BY (SELECT MAX(m.created_at) FROM chain_messages m WHERE m.thread_id = t.id) DESC NULLS LAST
+                        LIMIT 10
+                        """, (profile_id, profile_id, profile_id), default=[]
+                    )
+            except Exception:
+                data["chats"] = []
+            try:
+                if pid_for_home:
+                    from services.neon_service import fast_query
+                    data["marketplace_items"] = fast_query(
+                        "SELECT id, title, price, currency, image_url, status "
+                        "FROM chain_marketplace_items WHERE status = 'active' "
+                        "ORDER BY created_at DESC LIMIT 5",
+                        (), default=[], timeout_ms=3000,
+                    )
+            except Exception:
+                data["marketplace_items"] = []
+            response = make_response(render_template("chain_home.html", **data), 200)
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
             total_ms = round((time.perf_counter() - home_start) * 1000, 2)
             log_info(
                 "homepage_timing",
@@ -1172,7 +1243,72 @@ def create_app():
                 homepage_profile_ms=0,
             )
             log_info("homepage_route_total", duration_ms=total_ms)
-            return response, 200
+            return response
+
+    @app.route("/live/")
+    def live_hub():
+        profile = get_current_profile()
+        return render_template("live_hub.html")
+
+    @app.route("/live/studio")
+    def live_studio():
+        profile = get_current_profile()
+        if not profile:
+            return redirect(url_for("auth.login", next=request.path), code=302)
+        return render_template("live/studio.html", profile=profile, current=profile)
+
+    @app.route("/live/<int:room_id>")
+    def live_room(room_id):
+        pid = (get_current_profile() or {}).get("id")
+        room = None
+        try:
+            row = fetch_one(
+                """SELECT r.*, COALESCE(p.display_name, p.username, 'Host') AS host_name,
+                   p.username AS host_username, p.avatar_url AS host_avatar, p.is_verified
+                   FROM chain_live_rooms r
+                   JOIN chain_profiles p ON p.id = r.host_id
+                   WHERE r.id = %s""",
+                (room_id,)
+            )
+            if row:
+                room = {
+                    "id": row["id"],
+                    "title": row.get("title", "Untitled Stream"),
+                    "category": row.get("category", ""),
+                    "type": row.get("type", "music"),
+                    "status": row.get("status", "live"),
+                    "viewer_count": row.get("viewer_count", 0),
+                    "host_name": row.get("host_name", "Host"),
+                    "host_username": row.get("host_username", ""),
+                    "host_avatar": row.get("host_avatar") or "",
+                    "is_verified": row.get("is_verified", False),
+                    "tags": row.get("tags") or [],
+                    "products": [],
+                }
+                prod_rows = fetch_all(
+                    "SELECT * FROM chain_live_products WHERE room_id = %s ORDER BY sort_order ASC LIMIT 20",
+                    (room_id,), default=[]
+                )
+                for pr in prod_rows:
+                    room["products"].append({
+                        "id": pr["id"],
+                        "title": pr.get("title", ""),
+                        "price": float(pr.get("price", 0)),
+                        "currency": pr.get("currency", "NAD"),
+                        "image_url": pr.get("image_url", ""),
+                        "discount_pct": pr.get("discount_pct", 0),
+                    })
+        except Exception as e:
+            print(f"[live] Error loading room {room_id}: {e}")
+
+        if not room:
+            return render_template("live_hub.html", error="Stream not found"), 404
+
+        return render_template(
+            "live_room.html",
+            room=room,
+            is_host=pid is not None and room.get("host_id") == pid,
+        )
 
     @app.route("/login")
     def legacy_login():
@@ -1402,6 +1538,21 @@ def create_app():
             return jsonify({"error": "internal_error", "request_id": getattr(g, "request_id", None)}), 500
         return render_template("errors/500.html"), 500
 
+    _prewarm_done = False
+
+    @app.before_request
+    def _first_request_warm():
+        nonlocal _prewarm_done
+        if _prewarm_done:
+            return
+        _prewarm_done = True
+        if not _startup_fast_mode():
+            threading.Thread(target=lambda: (
+                prime_neon_runtime(),
+                time.sleep(0.1),
+                warm_homepage_cache(),
+            ), daemon=True).start()
+
     @app.after_request
     def apply_performance_headers(response):
         started = getattr(g, "request_started_at", None)
@@ -1427,7 +1578,11 @@ def create_app():
         response.headers.setdefault("Vary", "Accept-Encoding, Cookie")
         if request.path.startswith("/static/"):
             response.headers["Cache-Control"] = "public, max-age=86400"
-        elif request.method == "GET" and (request.path.startswith(("/discover/", "/feed/", "/feed")) or request.path in {"/", "/search", "/reels/", "/reels", "/status/", "/dating/discover", "/live/"}):
+        elif request.method == "GET" and request.path in {"/", "/home"}:
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        elif request.method == "GET" and (request.path.startswith(("/discover/", "/feed/", "/feed")) or request.path in {"/search", "/reels/", "/reels", "/status/", "/dating/discover", "/live/"}):
             response.headers["Cache-Control"] = "public, max-age=30"
         elif request.method == "GET" and request.path.startswith(("/auth/", "/profile/", "/chat/", "/wallet/", "/notifications/")):
             response.headers["Cache-Control"] = "no-store"
@@ -1438,11 +1593,44 @@ def create_app():
             response.headers.setdefault("X-Frame-Options", "DENY")
         return response
 
+    @app.before_request
+    def prime_neon_on_first_request():
+        """Prime the Neon pool on the very first request."""
+        if not getattr(app, '_neon_primed', False):
+            app._neon_primed = True
+            try:
+                from services.neon_service import prime_neon_runtime
+                prime_neon_runtime()
+            except Exception:
+                pass
+
     return app
+
+
+def _startup_background_prewarm(app):
+    """Start background prewarm thread for homepage cache and Neon pool."""
+    if _startup_fast_mode():
+        return
+
+    def delayed_prewarm():
+        time.sleep(2)
+        print("[app] Prewarming homepage cache and Neon pool...")
+        with app.app_context():
+            try:
+                prime_neon_runtime()
+                check_readiness()
+                prime_live_rooms_public_cache(limit=8)
+                warm_homepage_cache()
+                print("[app] Startup prewarm complete")
+            except Exception as e:
+                print(f"[app] Startup prewarm failed: {e}")
+
+    threading.Thread(target=delayed_prewarm, daemon=True).start()
+
 
 app = create_app()
 
-app.register_blueprint(message_production_bp)
+
 if os.getenv("CHAIN_DEV_DIAGNOSTICS") == "1":
     app.register_blueprint(dev_diagnostics_bp)
 
@@ -1451,7 +1639,6 @@ if __name__ == "__main__":
 
     is_production = os.getenv("FLASK_ENV") == "production" or os.getenv("ENV") == "production"
     port = int(os.getenv("PORT", "5000"))
-    schedule_delayed_homepage_prewarm(app, debug=not is_production)
     
     # Use socketio.run in all environments to enable WebSocket support
     # In production, use gunicorn with GeventWebSocketWorker (gunicorn.conf.py)
