@@ -451,12 +451,12 @@
 
 <!-- BOTTOM SHEET -->
 <div class="nv-bottom-sheet-overlay" id="bottomSheetOverlay" style="display:none;" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="nv-bottom-sheet-body" role="menu">
+  <div class="nv-bottom-sheet-body" role="menu" aria-label="Post actions">
     <div class="nv-bottom-sheet-handle"></div>
     <button class="nv-bottom-sheet-close" type="button" aria-label="Close">×</button>
-    <div class="nv-sheet-item" role="menuitem" tabindex="0">Report</div>
-    <div class="nv-sheet-item" role="menuitem" tabindex="0">Share</div>
-    <div class="nv-sheet-item" role="menuitem" tabindex="0">Copy Link</div>
+    <button class="nv-sheet-item" type="button" data-sheet-action="report" role="menuitem">Report</button>
+    <button class="nv-sheet-item" type="button" data-sheet-action="share" role="menuitem">Share</button>
+    <button class="nv-sheet-item" type="button" data-sheet-action="copy" role="menuitem">Copy Link</button>
   </div>
 </div>
 
@@ -487,8 +487,8 @@ U.nvDebounce=function(fn,ms){var t;return function(){clearTimeout(t);t=setTimeou
 var socket=window.io&&window.io();
 if(socket){socket.on('story:new',function(){if(window.loadStories)window.loadStories();});
 socket.on('live:started',function(){if(window.refreshLiveRooms)window.refreshLiveRooms();});}
-window.openBottomSheet=function(el){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='block';s.setAttribute('aria-hidden','false');}};
-window.closeBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='none';s.setAttribute('aria-hidden','true');}};
+window.openBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='block';s.setAttribute('aria-hidden','false');document.body.classList.add('nv-overlay-open');}};
+window.closeBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='none';s.setAttribute('aria-hidden','true');document.body.classList.remove('nv-overlay-open');}};
 window.nvShareAction=function(url){if(navigator.share){navigator.share({url:url||window.location.href});}else if(navigator.clipboard){navigator.clipboard.writeText(url||window.location.href);U.toast&&U.toast('Link copied');}};
 })();
 </script>

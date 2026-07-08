@@ -71,6 +71,24 @@
     apiPost('/api/home/post/' + id + '/share', {});
   }
 
+  function buildPostUrl(id) {
+    return window.location.origin + '/posts/' + encodeURIComponent(id || '');
+  }
+
+  function openPostMenu(id) {
+    var sheet = document.getElementById('bottomSheetOverlay');
+    if (!sheet) return;
+    sheet.dataset.postId = id || '';
+    if (window.openBottomSheet) window.openBottomSheet();
+  }
+
+  function closePostMenu() {
+    var sheet = document.getElementById('bottomSheetOverlay');
+    if (!sheet) return;
+    sheet.dataset.postId = '';
+    if (window.closeBottomSheet) window.closeBottomSheet();
+  }
+
   /* ── Comment ── */
   function sendComment(id, inputEl) {
     var text = inputEl.value.trim();
@@ -601,7 +619,7 @@
       case 'send-comment':
         sendComment(id, btn.previousElementSibling || document.querySelector('[data-comment-input="' + id + '"]'));
         break;
-      case 'post-more': break;
+      case 'post-more': openPostMenu(id); break;
       case 'open-live': window.location.href = '/live/'; break;
       case 'open-chat': window.location.href = '/messages/'; break;
       case 'open-notifications': window.location.href = '/notifications/'; break;
@@ -623,6 +641,46 @@
     if (e.target && e.target.id === 'nvMobileMenuOverlay') closeMenu();
     if (e.target && e.target.id === 'nv-create-modal') closeCreate();
     if (e.target && e.target.id === 'commentsDrawer') closeComments();
+    if (e.target && e.target.id === 'bottomSheetOverlay') closePostMenu();
+  });
+
+  document.addEventListener('click', function (e) {
+    var closeBtn = e.target.closest('.nv-bottom-sheet-close');
+    if (closeBtn) {
+      closePostMenu();
+      return;
+    }
+
+    var actionBtn = e.target.closest('[data-sheet-action]');
+    if (!actionBtn) return;
+    var sheet = document.getElementById('bottomSheetOverlay');
+    var postId = sheet ? sheet.dataset.postId : '';
+    var action = actionBtn.dataset.sheetAction;
+    if (!postId) {
+      closePostMenu();
+      return;
+    }
+
+    if (action === 'share') {
+      sharePost(postId);
+      toast('Shared!');
+    } else if (action === 'copy') {
+      var url = buildPostUrl(postId);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () {
+          toast('Link copied');
+        }).catch(function () {
+          toast('Could not copy link');
+        });
+      } else {
+        toast('Copy not supported here');
+      }
+    } else if (action === 'report') {
+      window.location.href = '/support?report_post=' + encodeURIComponent(postId);
+      return;
+    }
+
+    closePostMenu();
   });
 
   document.addEventListener('click', function (e) {
@@ -665,6 +723,7 @@
       closeCreate();
       closeComments();
       closeMenu();
+      closePostMenu();
     }
   });
 
