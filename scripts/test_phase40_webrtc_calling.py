@@ -126,6 +126,8 @@ import services.message_feature_service as _mfs_patch
 import services.message_delivery_service as _mds_patch
 import services.webrtc_call_service as _wcs_patch
 import services.profile_service as _ps_patch
+import services.friendship_service as _friendship_patch
+import services.neon_service as _neon_patch
 import api_routes.message_production_routes as _mpr_patch
 import api_routes.call_routes as _call_routes
 
@@ -144,6 +146,18 @@ _mpr_patch.get_reactions = _fake_get_reactions
 _mpr_patch.edit_message = _fake_edit_message
 _mpr_patch.unread_count = lambda pid: 0
 _mpr_patch.get_unread_counts_per_thread = lambda pid: {}
+_friendship_patch.are_friends = lambda a, b: True
+_call_routes.w_create_call = _fake_create_call
+_call_routes.w_accept_call = _fake_accept_call
+_call_routes.w_reject_call = _fake_reject_call
+_call_routes.w_cancel_call = _fake_cancel_call
+_call_routes.w_end_call = _fake_end_call
+_call_routes.w_get_call = _fake_get_call
+_call_routes.w_get_active_call = _fake_get_active_call
+_call_routes.w_get_call_history = _fake_get_call_history
+_call_routes.w_update_participant_state = _fake_update_participant_state
+_call_routes.w_get_call_participants = _fake_get_call_participants
+_call_routes.w_add_call_event = _fake_add_call_event
 for _name, _func in {
     "create_call": _fake_create_call, "get_call": _fake_get_call, "get_active_call": _fake_get_active_call,
     "accept_call": _fake_accept_call, "reject_call": _fake_reject_call, "cancel_call": _fake_cancel_call,
@@ -398,6 +412,73 @@ check("Phase 39 edit success", j_edit.get("edited") is True or j_edit.get("ok") 
 
 unread_resp = client.get("/messages/api/unread-counts")
 check("Phase 39 unread still works", unread_resp.status_code == 200)
+
+print("\n=== 18. CALL TARGET LOOKUP REGRESSION ===")
+sql_log = []
+valid_target_uuid = "11111111-1111-4111-8111-111111111111"
+thread_target = "22222222-2222-4222-8222-222222222222"
+uuid_receiver = "33333333-3333-4333-8333-333333333333"
+username_receiver = "44444444-4444-4444-8444-444444444444"
+deleted_target_uuid = "55555555-5555-4555-8555-555555555555"
+original_fast_query = _neon_patch.fast_query
+
+def _call_target_fast_query(sql_text, params=None, timeout_ms=2000, default=None):
+    flat = " ".join((sql_text or "").split())
+    sql_log.append((flat, params))
+    if "FROM chain_thread_members" in flat:
+        if params and params[0] == thread_target:
+            return [{"profile_id": uuid_receiver}]
+        return []
+    if "FROM chain_profiles" in flat and "WHERE id = %s::uuid" in flat:
+        if params and params[0] == valid_target_uuid:
+            return [{"id": valid_target_uuid}]
+        return []
+    if "FROM chain_profiles" in flat and "WHERE username = %s" in flat:
+        if params and params[0] == "validuser":
+            return [{"id": username_receiver}]
+        return []
+    return default if default is not None else []
+
+_neon_patch.fast_query = _call_target_fast_query
+login(PID_A)
+
+def _call_start(payload):
+    sql_log.clear()
+    _CALLS.clear()
+    _PARTS.clear()
+    resp = client.post("/calls/api/start", json=payload)
+    return resp, resp.get_json(silent=True) or {}
+
+resp, body = _call_start({"target": valid_target_uuid, "call_type": "audio"})
+check("UUID target returns 200", resp.status_code == 200, str(body))
+check("UUID target receiver resolved", body.get("call", {}).get("receiver_profile_id") == valid_target_uuid, str(body))
+check("UUID lookup uses id = %s::uuid", any("WHERE id = %s::uuid" in q for q, _ in sql_log), str(sql_log))
+
+resp, body = _call_start({"target": "validuser", "call_type": "audio"})
+check("username target returns 200", resp.status_code == 200, str(body))
+check("username target receiver resolved", body.get("call", {}).get("receiver_profile_id") == username_receiver, str(body))
+check("username lookup uses username = %s", any("WHERE username = %s" in q for q, _ in sql_log), str(sql_log))
+check("non-UUID username skips UUID query", not any("WHERE id = %s::uuid" in q for q, _ in sql_log), str(sql_log))
+
+resp, body = _call_start({"target": "1234-not-a-uuid", "call_type": "audio"})
+check("malformed target returns controlled 404", resp.status_code == 404, str(body))
+check("malformed target does not issue UUID query", not any("WHERE id = %s::uuid" in q for q, _ in sql_log), str(sql_log))
+check("malformed target does not expose uuid syntax error", "invalid input syntax for type uuid" not in str(body).lower(), str(body))
+
+resp, body = _call_start({"target": "missinguser", "call_type": "audio"})
+check("missing username returns 404", resp.status_code == 404, str(body))
+check("missing username lookup remains indexed", any("WHERE username = %s" in q for q, _ in sql_log), str(sql_log))
+
+resp, body = _call_start({"target": deleted_target_uuid, "call_type": "audio"})
+check("deleted profile target returns 404", resp.status_code == 404, str(body))
+check("deleted UUID target uses UUID query", any("WHERE id = %s::uuid" in q for q, _ in sql_log), str(sql_log))
+
+resp, body = _call_start({"target": thread_target, "call_type": "audio"})
+check("thread target returns 200", resp.status_code == 200, str(body))
+check("thread target preserves thread_id", body.get("call", {}).get("thread_id") == thread_target, str(body))
+check("thread lookup runs before profile lookup", any("FROM chain_thread_members" in q for q, _ in sql_log), str(sql_log))
+
+_neon_patch.fast_query = original_fast_query
 
 print("\n=== SUMMARY ===")
 total = PASS + FAIL

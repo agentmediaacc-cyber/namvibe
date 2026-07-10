@@ -33,6 +33,32 @@
     if (el) el.style.display = show ? 'flex' : 'none';
   }
 
+  function getCSRF() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  function apiFetch(url, options) {
+    var opts = options || {};
+    var headers = opts.headers || {};
+    if (opts.method && opts.method !== 'GET' && getCSRF()) {
+      headers['X-CSRFToken'] = getCSRF();
+    }
+    return fetch(url, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body,
+      credentials: 'same-origin',
+    }).then(function (r) {
+      if (!r.ok) throw new Error('http_' + r.status);
+      if (r.status === 204) return null;
+      return r.text().then(function (text) {
+        if (!text) return null;
+        return JSON.parse(text);
+      });
+    });
+  }
+
   function switchTab(tabKey) {
     S.activeTab = tabKey;
     var tabs = document.querySelectorAll('.cr-tab');
@@ -66,8 +92,7 @@
     loader(true);
     var period = document.querySelector('.cr-period-group button.active');
     var days = period ? parseInt(period.dataset.period, 10) : 30;
-    fetch('/creator/api/dashboard')
-      .then(function (r) { return r.json(); })
+    return apiFetch('/creator/api/dashboard')
       .then(function (res) {
         loader(false);
         if (!res.ok) { toast('Failed to load dashboard', true); return; }
@@ -142,46 +167,64 @@
   }
 
   function renderCreatorProfile() {
-    fetch('/creator/api/profile/me')
-      .then(function (r) { return r.json(); })
+    return apiFetch('/creator/api/profile/me')
       .then(function (res) {
         var container = $('creatorProfileContainer');
         if (!container) return;
         if (!res.ok) { container.innerHTML = '<div class="cr-empty"><i class="fas fa-exclamation-circle"></i><p>Failed to load profile.</p></div>'; return; }
         var d = res.data || {};
         var levelClass = 'cr-level-' + (d.creator_level || 'creator');
+        var username = d.username || '';
+        var levelDisplay = d.creator_level_display || d.creator_level || 'Creator';
+        var followers = d.total_followers || '0';
+        var subscribers = d.total_subscribers || '0';
+        var verificationStatus = d.verification_status || 'not_submitted';
+        var verifiedBadge = d.verified_badge || 'none';
+        var earningsBadge = d.earnings_badge || 'none';
+        var supporterCount = d.supporter_count || '0';
         var nextHtml = '';
         if (d.next_level) {
           nextHtml = '<div class="cr-stat-row"><span>Next Level</span><span class="cr-badge cr-badge-gold">' + esc(d.next_level_display || d.next_level) + '</span></div>';
         }
         container.innerHTML =
-          '<div class="cr-stat-row"><span>Username</span><span>' + esc(d.username || '') + '</span></div>' +
-          '<div class="cr-stat-row"><span>Level</span><span class="cr-level-badge ' + levelClass + '">' + esc(d.creator_level_display || '') + '</span></div>' +
+          '<div class="cr-stat-row"><span>Username</span><span>' + esc(username) + '</span></div>' +
+          '<div class="cr-stat-row"><span>Level</span><span class="cr-level-badge ' + levelClass + '">' + esc(levelDisplay) + '</span></div>' +
           nextHtml +
-          '<div class="cr-stat-row"><span>Followers</span><span>' + esc(d.total_followers || '0') + '</span></div>' +
-          '<div class="cr-stat-row"><span>Subscribers</span><span>' + esc(d.total_subscribers || '0') + '</span></div>' +
-          '<div class="cr-stat-row"><span>Verification</span><span><span class="cr-status-dot ' + (d.verification_status === 'approved' ? 'verified' : d.verification_status === 'pending' ? 'pending' : 'none') + '"></span>' + esc(d.verification_status || 'not_submitted') + '</span></div>' +
-          '<div class="cr-stat-row"><span>Verified Badge</span><span>' + esc(d.verified_badge || 'none') + '</span></div>' +
-          '<div class="cr-stat-row"><span>Earnings Badge</span><span>' + esc(d.earnings_badge || 'none') + '</span></div>' +
-          '<div class="cr-stat-row"><span>Supporters</span><span>' + esc(d.supporter_count || '0') + '</span></div>';
+          '<div class="cr-stat-row"><span>Followers</span><span>' + esc(followers) + '</span></div>' +
+          '<div class="cr-stat-row"><span>Subscribers</span><span>' + esc(subscribers) + '</span></div>' +
+          '<div class="cr-stat-row"><span>Verification</span><span><span class="cr-status-dot ' + (verificationStatus === 'approved' ? 'verified' : verificationStatus === 'pending' ? 'pending' : 'none') + '"></span>' + esc(verificationStatus) + '</span></div>' +
+          '<div class="cr-stat-row"><span>Verified Badge</span><span>' + esc(verifiedBadge) + '</span></div>' +
+          '<div class="cr-stat-row"><span>Earnings Badge</span><span>' + esc(earningsBadge) + '</span></div>' +
+          '<div class="cr-stat-row"><span>Supporters</span><span>' + esc(supporterCount) + '</span></div>';
       })
       .catch(function () { /* ignore */ });
   }
 
   // Form submissions via existing creatorPost helper compatibility
   window.creatorPost = function (url, body) {
-    fetch(url, {
+    return fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRF(),
+      },
+      credentials: 'same-origin',
       body: JSON.stringify(body),
     })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error('http_' + r.status);
+        if (r.status === 204) return null;
+        return r.text().then(function (text) {
+          if (!text) return null;
+          return JSON.parse(text);
+        });
+      })
       .then(function (res) {
-        if (res.ok || res.success) {
+        if (res && (res.ok || res.success)) {
           toast('Success!');
           fetchDashboard();
         } else {
-          toast(res.error || 'Request failed', true);
+          toast((res && res.error) || 'Request failed', true);
         }
       })
       .catch(function () { toast('Network error', true); });

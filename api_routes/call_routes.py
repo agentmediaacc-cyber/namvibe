@@ -35,6 +35,7 @@ from services.webrtc_turn_service import get_webrtc_ice_config
 from services.friendship_service import require_friendship_or_403
 from services.call_history_service import get_call_history as chs_get_history, delete_call_log as chs_delete_log
 from services.activity_engine import emit_activity
+from services.blocking_service import is_uuid
 
 call_bp = Blueprint("calls_v2", __name__, url_prefix="/calls")
 
@@ -367,6 +368,46 @@ def api_webrtc_start():
     receiver_id = data.get("receiver_id")
     thread_id = data.get("thread_id")
     call_type = data.get("call_type", "audio")
+
+    if not receiver_id and data.get("target"):
+        target = (data.get("target") or "").strip()
+        from services.neon_service import fast_query
+        thread_rows = fast_query(
+            "SELECT tm.profile_id FROM chain_thread_members tm WHERE tm.thread_id = %s AND tm.profile_id != %s ORDER BY tm.profile_id LIMIT 1",
+            (target, profile["id"]), default=[],
+        )
+        if thread_rows:
+            thread_id = target
+            receiver_id = str(thread_rows[0]["profile_id"])
+        if not receiver_id:
+            if is_uuid(target):
+                profile_rows = fast_query(
+                    """
+                    SELECT id
+                    FROM chain_profiles
+                    WHERE id = %s::uuid
+                      AND deleted_at IS NULL
+                    LIMIT 1
+                    """,
+                    (target,),
+                    default=[],
+                )
+            else:
+                profile_rows = fast_query(
+                    """
+                    SELECT id
+                    FROM chain_profiles
+                    WHERE username = %s
+                      AND deleted_at IS NULL
+                    LIMIT 1
+                    """,
+                    (target,),
+                    default=[],
+                )
+            if profile_rows:
+                receiver_id = str(profile_rows[0]["id"])
+            else:
+                return jsonify({"ok": False, "error": "target_not_found"}), 404
     if not receiver_id:
         return jsonify({"ok": False, "error": "receiver_required"}), 400
     result = w_create_call(profile["id"], receiver_id, thread_id=thread_id, call_type=call_type)
