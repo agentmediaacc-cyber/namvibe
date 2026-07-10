@@ -1,0 +1,101 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Moderation{% endblock %}
+{% block ads_actions %}
+<form method="POST" action="/admin/ads/api/ai-review/all" style="display:inline;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+  <button class="ads-btn pink sm"><i class="fas fa-robot"></i> AI Review All Pending</button>
+</form>
+{% endblock %}
+{% block ads_content %}
+
+<h2 style="font-size:16px;font-weight:800;margin:0 0 12px;color:#0f172a;">
+  <i class="fas fa-clock"></i> Review Queue ({{ queue|length }})
+</h2>
+
+<div class="ads-card">
+  {% if queue %}
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead><tr><th>Campaign</th><th>Advertiser</th><th>AI Score</th><th>Flags</th><th>Recommendation</th><th>Actions</th></tr></thead>
+      <tbody>
+        {% for m in queue %}
+        <tr>
+          <td><a href="/admin/ads/campaigns/{{ m.campaign_id }}" style="color:var(--ads-pink);font-weight:700;text-decoration:none;">{{ m.title or 'Untitled' }}</a></td>
+          <td>{{ m.display_name or m.username }}</td>
+          <td>
+            {% if m.ai_score is not none %}
+            <span style="color:{% if m.ai_score >= 70 %}#16a34a{% elif m.ai_score >= 40 %}#ca8a04{% else %}#dc2626{% endif %};font-weight:800;">
+              {{ "%.0f"|format(m.ai_score) }}
+            </span>
+            {% else %}<span style="color:#94a3b8;">—</span>{% endif %}
+          </td>
+          <td>
+            {% if m.ai_flags and m.ai_flags|length > 0 %}
+              {% for f in m.ai_flags[:3] %}
+                <span class="ads-badge rejected" style="font-size:10px;">{{ f.type }}</span>
+              {% endfor %}
+              {% if m.ai_flags|length > 3 %}<span style="font-size:11px;color:#94a3b8;">+{{ m.ai_flags|length - 3 }}</span>{% endif %}
+            {% else %}<span style="color:#94a3b8;">None</span>{% endif %}
+          </td>
+          <td>
+            {% if m.ai_recommendation %}
+              <span class="ads-badge {{ 'success' if m.ai_recommendation == 'auto_approve' else 'pending' if m.ai_recommendation == 'manual_review' else 'rejected' }}">
+                {{ m.ai_recommendation|replace('_', ' ') }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:4px;">
+              <form method="POST" action="/admin/ads/api/ai-review" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ m.campaign_id }}">
+                <button class="ads-btn outline sm"><i class="fas fa-robot"></i> AI</button>
+              </form>
+              <form method="POST" action="/admin/ads/api/approve" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ m.campaign_id }}">
+                <button class="ads-btn success sm">Approve</button>
+              </form>
+              <form method="POST" action="/admin/ads/api/reject" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ m.campaign_id }}">
+                <button class="ads-btn danger sm">Reject</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="ads-empty">No pending items in the review queue.</p>
+  {% endif %}
+</div>
+
+<h2 style="font-size:16px;font-weight:800;margin:24px 0 12px;color:#0f172a;">
+  <i class="fas fa-history"></i> Recently Reviewed
+</h2>
+
+<div class="ads-card">
+  {% if reviewed %}
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead><tr><th>Campaign</th><th>Status</th><th>AI Score</th><th>Reviewed</th></tr></thead>
+      <tbody>
+        {% for m in reviewed[:20] %}
+        <tr>
+          <td><a href="/admin/ads/campaigns/{{ m.campaign_id }}" style="color:var(--ads-pink);font-weight:700;text-decoration:none;">{{ m.title or 'Untitled' }}</a></td>
+          <td><span class="ads-badge {{ m.review_status }}">{{ m.review_status }}</span></td>
+          <td>{{ "%.0f"|format(m.ai_score) if m.ai_score is not none else '—' }}</td>
+          <td style="color:#64748b;">{{ m.reviewed_at.strftime('%Y-%m-%d') if m.reviewed_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="ads-empty">No reviewed items yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

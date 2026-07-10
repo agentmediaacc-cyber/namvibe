@@ -1,0 +1,103 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Campaigns{% endblock %}
+{% block ads_actions %}
+<div style="display:flex;gap:8px;">
+  <a href="/admin/ads/campaigns" class="ads-btn outline sm {% if not status_filter %}active{% endif %}">All</a>
+  <a href="/admin/ads/campaigns?status=active" class="ads-btn outline sm {% if status_filter == 'active' %}active{% endif %}">Active</a>
+  <a href="/admin/ads/campaigns?status=pending" class="ads-btn outline sm {% if status_filter == 'pending' %}active{% endif %}">Pending</a>
+  <a href="/admin/ads/campaigns?status=paused" class="ads-btn outline sm {% if status_filter == 'paused' %}active{% endif %}">Paused</a>
+  <a href="/admin/ads/campaigns?status=rejected" class="ads-btn outline sm {% if status_filter == 'rejected' %}active{% endif %}">Rejected</a>
+</div>
+{% endblock %}
+{% block ads_content %}
+
+<div class="ads-card">
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Advertiser</th>
+          <th>Type</th>
+          <th>Budget</th>
+          <th>Spent</th>
+          <th>Status</th>
+          <th>Impressions</th>
+          <th>Clicks</th>
+          <th>CTR</th>
+          <th>Duration</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in campaigns %}
+        <tr>
+          <td>
+            <a href="/admin/ads/campaigns/{{ c.id }}" style="color:var(--ads-pink);font-weight:700;text-decoration:none;">
+              {{ c.title or 'Untitled' }}
+            </a>
+          </td>
+          <td>{{ c.display_name or c.username or c.owner_id[:8] }}</td>
+          <td>{{ c.ad_type or c.objective or 'feed' }}</td>
+          <td>N$ {{ "{:,.0f}".format(c.budget or 0) }}</td>
+          <td>N$ {{ "{:,.0f}".format(c.spent_amount or 0) }}</td>
+          <td><span class="ads-badge {{ c.status }}">{{ c.status }}</span></td>
+          <td>{{ c.impressions_count or 0 }}</td>
+          <td>{{ c.clicks_count or 0 }}</td>
+          <td>{{ "%.2f"|format((c.clicks_count or 0) / (c.impressions_count or 1) * 100) }}%</td>
+          <td>
+            {% if c.starts_at and c.ends_at %}
+              {{ c.starts_at.strftime('%m/%d') }} - {{ c.ends_at.strftime('%m/%d') }}
+            {% elif c.starts_at %}
+              {{ c.starts_at.strftime('%m/%d') }} onward
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+              {% if c.status == 'pending' %}
+              <form method="POST" action="/admin/ads/api/approve" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ c.id }}">
+                <button class="ads-btn success sm">Approve</button>
+              </form>
+              <form method="POST" action="/admin/ads/api/reject" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ c.id }}">
+                <button class="ads-btn danger sm">Reject</button>
+              </form>
+              {% endif %}
+              {% if c.status == 'active' %}
+              <form method="POST" action="/admin/ads/api/pause" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ c.id }}">
+                <button class="ads-btn outline sm">Pause</button>
+              </form>
+              {% endif %}
+              {% if c.status == 'paused' %}
+              <form method="POST" action="/admin/ads/api/resume" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ c.id }}">
+                <button class="ads-btn success sm">Resume</button>
+              </form>
+              {% endif %}
+              <form method="POST" action="/admin/ads/api/duplicate" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ c.id }}">
+                <button class="ads-btn outline sm">Copy</button>
+              </form>
+              <form method="POST" action="/admin/ads/api/delete" style="display:inline" onsubmit="return confirm('Delete this campaign?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+                <input type="hidden" name="campaign_id" value="{{ c.id }}">
+                <button class="ads-btn danger sm">Del</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="11" class="ads-empty">No campaigns found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}{{ campaign.title or 'Campaign Detail' }}{% endblock %}
+{% block ads_actions %}
+<div style="display:flex;gap:6px;">
+  {% if campaign.status == 'pending' %}
+  <form method="POST" action="/admin/ads/api/approve" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <input type="hidden" name="campaign_id" value="{{ campaign.id }}">
+    <button class="ads-btn success sm">Approve</button>
+  </form>
+  <form method="POST" action="/admin/ads/api/reject" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <input type="hidden" name="campaign_id" value="{{ campaign.id }}">
+    <button class="ads-btn danger sm">Reject</button>
+  </form>
+  {% endif %}
+  {% if campaign.status == 'active' %}
+  <form method="POST" action="/admin/ads/api/pause" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <input type="hidden" name="campaign_id" value="{{ campaign.id }}">
+    <button class="ads-btn outline sm">Pause</button>
+  </form>
+  {% endif %}
+  <form method="POST" action="/admin/ads/api/duplicate" style="display:inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <input type="hidden" name="campaign_id" value="{{ campaign.id }}">
+    <button class="ads-btn outline sm">Duplicate</button>
+  </form>
+</div>
+{% endblock %}
+{% block ads_content %}
+
+<div class="ads-grid">
+  <div class="ads-stat"><p class="label">Status</p><p class="value"><span class="ads-badge {{ campaign.status }}" style="font-size:14px;">{{ campaign.status }}</span></p></div>
+  <div class="ads-stat"><p class="label">Budget</p><p class="value">N$ {{ "{:,.0f}".format(campaign.budget or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">Spent</p><p class="value">N$ {{ "{:,.0f}".format(campaign.spent_amount or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">Impressions</p><p class="value">{{ stats.impressions or 0 }}</p></div>
+  <div class="ads-stat"><p class="label">Clicks</p><p class="value">{{ stats.clicks or 0 }}</p></div>
+  <div class="ads-stat"><p class="label">CTR</p><p class="value">{{ "%.2f"|format(stats.ctr or 0) }}%</p></div>
+  <div class="ads-stat"><p class="label">CPC</p><p class="value">N$ {{ "%.4f"|format(stats.cpc or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">CPM</p><p class="value">N$ {{ "%.4f"|format(stats.cpm or 0) }}</p></div>
+</div>
+
+<div class="ads-two-col">
+  <div class="ads-card">
+    <h2><i class="fas fa-info-circle"></i> Details</h2>
+    <table class="ads-table" style="font-size:13px;">
+      <tr><td style="font-weight:700;width:140px;color:#64748b;">Advertiser</td><td>{{ campaign.display_name or campaign.username or campaign.owner_id }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Objective</td><td>{{ campaign.objective or '—' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Ad Type</td><td>{{ campaign.ad_type or 'feed' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Media Type</td><td>{{ campaign.media_type or 'image' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Category</td><td>{{ campaign.category or '—' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Bid Type</td><td>{{ campaign.bid_type or 'auto' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Bid Amount</td><td>N$ {{ "{:.2f}".format(campaign.bid_amount or 0) }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Start</td><td>{{ campaign.starts_at.strftime('%Y-%m-%d %H:%M') if campaign.starts_at else '—' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">End</td><td>{{ campaign.ends_at.strftime('%Y-%m-%d %H:%M') if campaign.ends_at else '—' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Content URL</td><td style="word-break:break-all;">{{ campaign.content_url or '—' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Target URL</td><td style="word-break:break-all;">{{ campaign.target_url or '—' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">AI Score</td><td>{{ "%.2f"|format(campaign.ai_score or 0) }}{% if campaign.ai_flagged %} <span class="ads-badge rejected" style="font-size:10px;">FLAGGED</span>{% endif %}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Review Note</td><td>{{ campaign.review_note or '—' }}</td></tr>
+    </table>
+  </div>
+
+  <div class="ads-card">
+    <h2><i class="fas fa-crosshairs"></i> Targeting</h2>
+    {% if targeting %}
+    <table class="ads-table" style="font-size:13px;">
+      <tr><td style="font-weight:700;color:#64748b;width:140px;">Countries</td><td>{{ targeting.countries|join(', ') if targeting.countries else 'All' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Age Range</td><td>{{ targeting.age_min }} - {{ targeting.age_max }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Genders</td><td>{{ targeting.genders|join(', ') if targeting.genders else 'All' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Interests</td><td>{{ targeting.interests|join(', ') if targeting.interests else 'All' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Device Types</td><td>{{ targeting.device_types|join(', ') if targeting.device_types else 'All' }}</td></tr>
+      <tr><td style="font-weight:700;color:#64748b;">Verified Only</td><td>{{ 'Yes' if targeting.targeting_verified else 'No' }}</td></tr>
+    </table>
+    {% else %}
+    <p class="ads-empty">No targeting set (targeting everyone).</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="ads-card">
+  <h2><i class="fas fa-images"></i> Creatives ({{ creatives|length }})</h2>
+  {% if creatives %}
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead><tr><th>Type</th><th>Headline</th><th>Description</th><th>CTA</th><th>Media</th><th>Destination</th></tr></thead>
+      <tbody>
+      {% for cr in creatives %}
+      <tr>
+        <td><span class="ads-badge" style="background:#f1f5f9;color:#475569;">{{ cr.creative_type }}</span></td>
+        <td>{{ cr.headline or '—' }}</td>
+        <td>{{ cr.description or '—' }}</td>
+        <td>{{ cr.cta_text or 'Learn More' }}</td>
+        <td>{% if cr.media_url %}<a href="{{ cr.media_url }}" target="_blank" style="color:var(--ads-pink);">View</a>{% else %}—{% endif %}</td>
+        <td>{% if cr.destination_url %}<a href="{{ cr.destination_url }}" target="_blank" style="color:var(--ads-pink);">View</a>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="ads-empty">No creatives added yet.</p>
+  {% endif %}
+</div>
+
+<div class="ads-card">
+  <h2><i class="fas fa-chart-bar"></i> Daily Stats</h2>
+  {% if daily_stats %}
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead><tr><th>Date</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Spend</th><th>CPC</th></tr></thead>
+      <tbody>
+      {% for d in daily_stats %}
+      <tr>
+        <td>{{ d.date }}</td>
+        <td>{{ d.impressions or 0 }}</td>
+        <td>{{ d.clicks or 0 }}</td>
+        <td>{{ "%.2f"|format((d.clicks or 0) / (d.impressions or 1) * 100) }}%</td>
+        <td>N$ {{ "%.2f"|format(d.spend or 0) }}</td>
+        <td>N$ {{ "%.4f"|format((d.spend or 0) / (d.clicks or 1)) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="ads-empty">No data yet.</p>
+  {% endif %}
+</div>
+
+<div class="ads-card">
+  <h2><i class="fas fa-map-pin"></i> Placements</h2>
+  {% if placements %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    {% for p in placements %}
+    <span class="ads-badge" style="background:var(--ads-pink-light);color:var(--ads-pink);">{{ p.placement_type }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="ads-empty">No placements configured (defaults to feed).</p>
+  {% endif %}
+</div>
+{% endblock %}

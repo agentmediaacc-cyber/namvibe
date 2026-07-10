@@ -1,0 +1,93 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Ad Dashboard{% endblock %}
+{% block ads_actions %}
+<a href="/admin/ads/campaigns?status=pending" class="ads-btn pink">
+  <i class="fas fa-clipboard-list"></i> Review Queue
+</a>
+{% endblock %}
+{% block ads_content %}
+
+<div class="ads-grid">
+  <div class="ads-stat">
+    <p class="label">Total Revenue</p>
+    <p class="value pink">N$ {{ "{:,.0f}".format(stats.total_revenue or 0) }}</p>
+  </div>
+  <div class="ads-stat">
+    <p class="label">Today</p>
+    <p class="value pink">N$ {{ "{:,.0f}".format(stats.today_revenue or 0) }}</p>
+  </div>
+  <div class="ads-stat">
+    <p class="label">This Month</p>
+    <p class="value pink">N$ {{ "{:,.0f}".format(stats.month_revenue or 0) }}</p>
+  </div>
+  <div class="ads-stat">
+    <p class="label">Active Campaigns</p>
+    <p class="value">{{ stats.active_campaigns or 0 }}</p>
+  </div>
+  <div class="ads-stat">
+    <p class="label">Pending Review</p>
+    <p class="value">{{ stats.pending_approval or 0 }}</p>
+  </div>
+  <div class="ads-stat">
+    <p class="label">Paused</p>
+    <p class="value">{{ stats.paused_campaigns or 0 }}</p>
+  </div>
+  <div class="ads-stat">
+    <p class="label">CTR</p>
+    <p class="value">{{ "%.2f"|format(stats.ctr or 0) }}%</p>
+  </div>
+  <div class="ads-stat">
+    <p class="label">Conversions</p>
+    <p class="value">{{ stats.conversions or 0 }}</p>
+  </div>
+</div>
+
+<div class="ads-card">
+  <h2><i class="fas fa-bullhorn"></i> Recent Campaigns</h2>
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Advertiser</th>
+          <th>Budget</th>
+          <th>Status</th>
+          <th>Impressions</th>
+          <th>Clicks</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in campaigns %}
+        <tr>
+          <td><a href="/admin/ads/campaigns/{{ c.id }}" style="color:var(--ads-pink);font-weight:700;text-decoration:none;">{{ c.title or 'Untitled' }}</a></td>
+          <td>{{ c.display_name or c.username or c.owner_id[:8] }}</td>
+          <td>N$ {{ "{:,.0f}".format(c.budget or 0) }}</td>
+          <td><span class="ads-badge {{ c.status }}">{{ c.status }}</span></td>
+          <td>{{ c.impressions_count or 0 }}</td>
+          <td>{{ c.clicks_count or 0 }}</td>
+          <td>{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '—' }}</td>
+          <td>
+            {% if c.status == 'pending' %}
+            <form method="POST" action="/admin/ads/api/approve" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+              <input type="hidden" name="campaign_id" value="{{ c.id }}">
+              <button class="ads-btn success sm">Approve</button>
+            </form>
+            <form method="POST" action="/admin/ads/api/reject" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+              <input type="hidden" name="campaign_id" value="{{ c.id }}">
+              <button class="ads-btn danger sm">Reject</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="ads-empty">No campaigns yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Fraud Detection{% endblock %}
+{% block ads_content %}
+
+<div class="ads-card">
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead>
+        <tr><th>Type</th><th>Campaign</th><th>Profile</th><th>Score</th><th>IP</th><th>UA</th><th>Detected</th></tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td><span class="ads-badge rejected">{{ e.fraud_type|replace('_', ' ') }}</span></td>
+          <td><a href="/admin/ads/campaigns/{{ e.campaign_id }}" style="color:var(--ads-pink);text-decoration:none;">{{ e.campaign_id[:12] }}</a></td>
+          <td>{{ e.profile_id[:12] if e.profile_id else '—' }}</td>
+          <td><strong style="color:{% if e.score >= 50 %}#dc2626{% else %}#ca8a04{% endif %};">{{ "%.0f"|format(e.score) }}</strong></td>
+          <td style="font-size:12px;font-family:monospace;">{{ e.ip_address or '—' }}</td>
+          <td style="font-size:11px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.user_agent or '—' }}</td>
+          <td style="color:#64748b;">{{ e.detected_at.strftime('%Y-%m-%d %H:%M') if e.detected_at else '—' }}</td>
+        </tr>
+        {% else %}<tr><td colspan="7" class="ads-empty">No fraud events detected.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

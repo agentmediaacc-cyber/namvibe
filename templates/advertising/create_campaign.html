@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block title %}Create Campaign | NamVibe Advertising{% endblock %}
+{% block body_class %}chain-wallpaper-auth{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_auth.css">
+<style>
+:root { --ads-pink: #ec4899; --ads-pink-hover: #db2777; }
+.camp-shell { max-width: 800px; margin: 0 auto; padding: 24px 16px 88px; }
+.camp-header { background: linear-gradient(135deg, #ec4899, #db2777); color: #fff; border-radius: 24px; padding: 28px; margin-bottom: 24px; }
+.camp-header h1 { margin: 0 0 6px; font-size: 28px; font-weight: 900; }
+.camp-header p { margin: 0; opacity: 0.9; font-size: 15px; }
+.camp-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+.camp-card h2 { font-size: 16px; font-weight: 800; margin: 0 0 16px; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.camp-field { display: grid; gap: 4px; margin-bottom: 16px; }
+.camp-field label { font-size: 13px; font-weight: 700; color: #1e293b; }
+.camp-field input, .camp-field select, .camp-field textarea { min-height: 48px; border-radius: 12px; border: 1.5px solid #e2e8f0; padding: 10px 14px; font-size: 15px; background: #fff; color: #0f172a; outline: none; transition: border-color 0.15s; }
+.camp-field input:focus, .camp-field select:focus { border-color: var(--ads-pink); box-shadow: 0 0 0 3px rgba(236,72,153,0.1); }
+.camp-field textarea { min-height: 80px; resize: vertical; }
+.camp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.obj-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.obj-opt { padding: 12px; border: 2px solid #e2e8f0; border-radius: 12px; text-align: center; cursor: pointer; font-weight: 600; font-size: 13px; color: #64748b; transition: all 0.15s; }
+.obj-opt:hover { border-color: var(--ads-pink); }
+.obj-opt.selected { border-color: var(--ads-pink); background: #fdf2f8; color: var(--ads-pink); }
+.obj-opt i { display: block; font-size: 20px; margin-bottom: 4px; }
+.placement-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+.placement-opt { padding: 10px; border: 1.5px solid #e2e8f0; border-radius: 10px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; color: #64748b; transition: all 0.1s; }
+.placement-opt:hover { border-color: var(--ads-pink); }
+.placement-opt.selected { border-color: var(--ads-pink); background: #fdf2f8; color: var(--ads-pink); }
+.placement-opt i { display: block; font-size: 16px; margin-bottom: 2px; }
+.camp-btn { width: 100%; min-height: 50px; border-radius: 12px; border: none; background: var(--ads-pink); color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; transition: background 0.15s; }
+.camp-btn:hover { background: var(--ads-pink-hover); }
+.camp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.help { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+@media (max-width: 640px) { .camp-row { grid-template-columns: 1fr; } .obj-grid { grid-template-columns: 1fr 1fr; } .placement-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="camp-shell">
+  <div class="camp-header">
+    <h1>Create Campaign</h1>
+    <p>Set up your advertisement campaign. Fill in the details below and submit for review.</p>
+    <a href="/advertising/" class="adv-btn" style="background:rgba(255,255,255,0.2);color:#fff;display:inline-flex;margin-top:12px;text-decoration:none;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;">
+      <i class="fas fa-arrow-left"></i> Back to Advertising
+    </a>
+  </div>
+
+  <form id="campaignForm">
+    <div class="camp-card">
+      <h2><i class="fas fa-info-circle"></i> Campaign Details</h2>
+
+      <div class="camp-field">
+        <label>Campaign Name <span style="color:#dc2626;">*</span></label>
+        <input type="text" name="title" placeholder="e.g. Summer Sale 2026" required>
+      </div>
+
+      <div class="camp-field">
+        <label>Objective</label>
+        <div class="obj-grid" id="objectiveGrid">
+          <div class="obj-opt selected" data-value="reach"><i class="fas fa-eye"></i> Reach</div>
+          <div class="obj-opt" data-value="website_clicks"><i class="fas fa-mouse-pointer"></i> Website Clicks</div>
+          <div class="obj-opt" data-value="profile_visits"><i class="fas fa-user"></i> Profile Visits</div>
+          <div class="obj-opt" data-value="followers"><i class="fas fa-users"></i> Followers</div>
+          <div class="obj-opt" data-value="conversions"><i class="fas fa-shopping-cart"></i> Conversions</div>
+          <div class="obj-opt" data-value="video_views"><i class="fas fa-video"></i> Video Views</div>
+        </div>
+        <input type="hidden" name="objective" id="objective" value="reach">
+      </div>
+
+      <div class="camp-field">
+        <label>Category</label>
+        <select name="category">
+          <option value="">Select category</option>
+          <option value="business">Business</option>
+          <option value="shopping">Shopping</option>
+          <option value="entertainment">Entertainment</option>
+          <option value="music">Music</option>
+          <option value="gaming">Gaming</option>
+          <option value="education">Education</option>
+          <option value="health">Health</option>
+          <option value="sports">Sports</option>
+          <option value="church">Church</option>
+          <option value="government">Government</option>
+          <option value="dating">Dating</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="camp-card">
+      <h2><i class="fas fa-images"></i> Creative</h2>
+
+      <div class="camp-field">
+        <label>Media URL</label>
+        <input type="url" name="media_url" placeholder="https://example.com/ad-image.jpg">
+        <span class="help">Link to your ad image, video, or reel. Supported: JPG, PNG, GIF, MP4.</span>
+      </div>
+
+      <div class="camp-field">
+        <label>Destination URL</label>
+        <input type="url" name="target_url" placeholder="https://example.com/landing-page">
+        <span class="help">Where users will be taken when they click your ad.</span>
+      </div>
+
+      <div class="camp-field">
+        <label>Media Type</label>
+        <select name="media_type">
+          <option value="image">Image</option>
+          <option value="video">Video</option>
+          <option value="reel">Reel</option>
+          <option value="carousel">Carousel</option>
+          <option value="story">Story</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="camp-card">
+      <h2><i class="fas fa-map-pin"></i> Placements</h2>
+      <div class="placement-grid" id="placementGrid">
+        <div class="placement-opt selected" data-value="feed"><i class="fas fa-newspaper"></i> Feed</div>
+        <div class="placement-opt selected" data-value="reels"><i class="fas fa-film"></i> Reels</div>
+        <div class="placement-opt" data-value="stories"><i class="fas fa-clock"></i> Stories</div>
+        <div class="placement-opt" data-value="discover"><i class="fas fa-compass"></i> Discover</div>
+        <div class="placement-opt" data-value="marketplace"><i class="fas fa-store"></i> Marketplace</div>
+        <div class="placement-opt" data-value="search"><i class="fas fa-search"></i> Search</div>
+        <div class="placement-opt" data-value="live"><i class="fas fa-broadcast-tower"></i> Live</div>
+        <div class="placement-opt" data-value="dating"><i class="fas fa-heart"></i> Dating</div>
+      </div>
+      <input type="hidden" name="placement_types" id="placement_types" value="feed,reels">
+    </div>
+
+    <div class="camp-card">
+      <h2><i class="fas fa-sliders-h"></i> Budget & Schedule</h2>
+
+      <div class="camp-row">
+        <div class="camp-field">
+          <label>Total Budget (NAD) <span style="color:#dc2626;">*</span></label>
+          <input type="number" name="budget" placeholder="1000" min="100" step="0.01" required>
+          <span class="help">Minimum N$100.00</span>
+        </div>
+        <div class="camp-field">
+          <label>Daily Budget (NAD)</label>
+          <input type="number" name="daily_budget" placeholder="100" min="0" step="0.01">
+          <span class="help">Optional. Limits daily spending.</span>
+        </div>
+      </div>
+
+      <div class="camp-row">
+        <div class="camp-field">
+          <label>Start Date</label>
+          <input type="date" name="start_date">
+        </div>
+        <div class="camp-field">
+          <label>End Date</label>
+          <input type="date" name="end_date">
+        </div>
+      </div>
+
+      <div class="camp-row">
+        <div class="camp-field">
+          <label>Bid Type</label>
+          <select name="bid_type">
+            <option value="auto">Auto (Recommended)</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+        <div class="camp-field">
+          <label>Bid Amount (NAD)</label>
+          <input type="number" name="bid_amount" placeholder="0.50" step="0.01" min="0">
+          <span class="help">Only for manual bidding.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="camp-card">
+      <h2><i class="fas fa-crosshairs"></i> Audience Targeting</h2>
+      <p style="font-size:13px;color:#64748b;margin:0 0 14px;">Leave blank to target everyone. Set specific criteria to narrow your audience.</p>
+
+      <div class="camp-row">
+        <div class="camp-field">
+          <label>Countries</label>
+          <input type="text" name="countries" placeholder="e.g. Namibia, South Africa">
+          <span class="help">Comma-separated country names.</span>
+        </div>
+        <div class="camp-field">
+          <label>Age Range</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <input type="number" name="age_min" placeholder="Min" min="13" max="100">
+            <input type="number" name="age_max" placeholder="Max" min="13" max="100">
+          </div>
+        </div>
+      </div>
+
+      <div class="camp-row">
+        <div class="camp-field">
+          <label>Genders</label>
+          <select name="genders">
+            <option value="">All</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="non-binary">Non-binary</option>
+          </select>
+        </div>
+        <div class="camp-field">
+          <label>Device Types</label>
+          <select name="device_types">
+            <option value="">All Devices</option>
+            <option value="android">Android</option>
+            <option value="iphone">iPhone</option>
+            <option value="tablet">Tablet</option>
+            <option value="desktop">Desktop</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="camp-row">
+        <div class="camp-field">
+          <label>Interests</label>
+          <input type="text" name="interests" placeholder="e.g. music, sports, fashion">
+          <span class="help">Comma-separated interests.</span>
+        </div>
+        <div class="camp-field" style="gap:8px;">
+          <label style="display:block;">Audience Type</label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:400;">
+            <input type="checkbox" name="targeting_verified" value="true"> Verified users only
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:400;">
+            <input type="checkbox" name="targeting_creators" value="true"> Creators only
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:400;">
+            <input type="checkbox" name="targeting_businesses" value="true"> Businesses only
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="camp-btn" id="submitBtn">Submit Campaign for Review</button>
+  </form>
+
+  <div id="result" style="margin-top:12px;text-align:center;font-size:14px;"></div>
+</div>
+
+<script>
+const advertisingCsrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+document.querySelectorAll('.obj-opt').forEach(el => {
+  el.addEventListener('click', function() {
+    document.querySelectorAll('.obj-opt').forEach(o => o.classList.remove('selected'));
+    this.classList.add('selected');
+    document.getElementById('objective').value = this.dataset.value;
+  });
+});
+
+document.querySelectorAll('.placement-opt').forEach(el => {
+  el.addEventListener('click', function() {
+    this.classList.toggle('selected');
+    updatePlacements();
+  });
+});
+
+function updatePlacements() {
+  const selected = Array.from(document.querySelectorAll('.placement-opt.selected')).map(el => el.dataset.value);
+  document.getElementById('placement_types').value = selected.join(',');
+}
+
+document.getElementById('campaignForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  const fd = new FormData(this);
+  const data = Object.fromEntries(fd);
+
+  // Parse targeting
+  const targeting = {};
+  if (data.countries) targeting.countries = data.countries.split(',').map(s => s.trim()).filter(Boolean);
+  if (data.age_min) targeting.age_min = parseInt(data.age_min);
+  if (data.age_max) targeting.age_max = parseInt(data.age_max);
+  if (data.genders) targeting.genders = [data.genders];
+  if (data.device_types) targeting.device_types = [data.device_types];
+  if (data.interests) targeting.interests = data.interests.split(',').map(s => s.trim()).filter(Boolean);
+  targeting.targeting_verified = !!data.targeting_verified;
+  targeting.targeting_creators = !!data.targeting_creators;
+  targeting.targeting_businesses = !!data.targeting_businesses;
+
+  const payload = {
+    title: data.title,
+    objective: data.objective,
+    media_url: data.media_url,
+    target_url: data.target_url,
+    media_type: data.media_type,
+    category: data.category,
+    budget: parseFloat(data.budget) || 0,
+    daily_budget: parseFloat(data.daily_budget) || 0,
+    start_date: data.start_date,
+    end_date: data.end_date,
+    bid_type: data.bid_type,
+    bid_amount: parseFloat(data.bid_amount) || 0,
+  };
+
+  try {
+    // Create campaign
+    const res = await fetch('/advertising/api/campaigns/create', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': advertisingCsrfToken},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+
+    if (!d.ok) {
+      document.getElementById('result').innerHTML = '<span style="color:#dc2626;">' + (d.error || 'Failed to create campaign') + '</span>';
+      btn.disabled = false;
+      btn.textContent = 'Submit Campaign for Review';
+      return;
+    }
+
+    const campaignId = d.campaign_id;
+
+    // Set placements
+    const placements = document.getElementById('placement_types').value;
+    await fetch('/advertising/api/campaigns/' + campaignId + '/placements', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': advertisingCsrfToken},
+      body: JSON.stringify({placement_types: placements})
+    });
+
+    // Set targeting
+    if (Object.keys(targeting).length > 0) {
+      await fetch('/advertising/api/campaigns/' + campaignId + '/targeting', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': advertisingCsrfToken},
+        body: JSON.stringify(targeting)
+      });
+    }
+
+    // Submit for review
+    await fetch('/advertising/api/campaigns/' + campaignId + '/submit', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'X-CSRFToken': advertisingCsrfToken}
+    });
+
+    document.getElementById('result').innerHTML =
+      '<span style="color:#16a34a;font-weight:700;">Campaign created and submitted for review!</span>';
+    setTimeout(() => { window.location.href = '/advertising/'; }, 1500);
+  } catch (err) {
+    document.getElementById('result').innerHTML = '<span style="color:#dc2626;">Error: ' + err.message + '</span>';
+    btn.disabled = false;
+    btn.textContent = 'Submit Campaign for Review';
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Reports{% endblock %}
+{% block ads_content %}
+
+<div class="ads-grid">
+  <div class="ads-stat"><p class="label">Total Revenue</p><p class="value pink">N$ {{ "{:,.0f}".format(stats.total_revenue or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">This Month</p><p class="value pink">N$ {{ "{:,.0f}".format(stats.month_revenue or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">Active</p><p class="value">{{ stats.active_campaigns or 0 }}</p></div>
+  <div class="ads-stat"><p class="label">CTR</p><p class="value">{{ "%.2f"|format(stats.ctr or 0) }}%</p></div>
+</div>
+
+<div class="ads-two-col">
+  <div class="ads-card">
+    <h2><i class="fas fa-trophy"></i> Top Advertisers</h2>
+    <div class="ads-table-wrap">
+      <table class="ads-table">
+        <thead><tr><th>Advertiser</th><th>Spend</th><th>Campaigns</th></tr></thead>
+        <tbody>
+          {% for a in top_advertisers %}
+          <tr>
+            <td>{{ a.display_name or a.username }}</td>
+            <td><strong>N$ {{ "{:,.0f}".format(a.total_spend or 0) }}</strong></td>
+            <td>{{ a.campaign_count or 0 }}</td>
+          </tr>
+          {% else %}<tr><td colspan="3" class="ads-empty">No data.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="ads-card">
+    <h2><i class="fas fa-chart-line"></i> Top Ads</h2>
+    <div class="ads-table-wrap">
+      <table class="ads-table">
+        <thead><tr><th>Ad</th><th>Impressions</th><th>Clicks</th><th>CTR</th></tr></thead>
+        <tbody>
+          {% for ad in top_ads %}
+          <tr>
+            <td><a href="/admin/ads/campaigns/{{ ad.id }}" style="color:var(--ads-pink);text-decoration:none;font-weight:700;">{{ ad.title or 'Untitled' }}</a></td>
+            <td>{{ ad.impressions or 0 }}</td>
+            <td>{{ ad.clicks or 0 }}</td>
+            <td>{{ "%.2f"|format(ad.ctr or 0) }}%</td>
+          </tr>
+          {% else %}<tr><td colspan="4" class="ads-empty">No data.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Analytics{% endblock %}
+{% block ads_content %}
+
+<div class="ads-grid">
+  <div class="ads-stat"><p class="label">Revenue</p><p class="value pink">N$ {{ "{:,.0f}".format(stats.total_revenue or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">Today</p><p class="value pink">N$ {{ "{:,.0f}".format(stats.today_revenue or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">This Month</p><p class="value pink">N$ {{ "{:,.0f}".format(stats.month_revenue or 0) }}</p></div>
+  <div class="ads-stat"><p class="label">Active</p><p class="value">{{ stats.active_campaigns or 0 }}</p></div>
+  <div class="ads-stat"><p class="label">Pending</p><p class="value">{{ stats.pending_approval or 0 }}</p></div>
+  <div class="ads-stat"><p class="label">CTR</p><p class="value">{{ "%.2f"|format(stats.ctr or 0) }}%</p></div>
+  <div class="ads-stat"><p class="label">Conversions</p><p class="value">{{ stats.conversions or 0 }}</p></div>
+  <div class="ads-stat"><p class="label">Rejected</p><p class="value">{{ stats.rejected_campaigns or 0 }}</p></div>
+</div>
+
+<div class="ads-card">
+  <h2><i class="fas fa-trophy"></i> Top Performing Ads</h2>
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead><tr><th>Title</th><th>Advertiser</th><th>Impressions</th><th>Clicks</th><th>CTR</th></tr></thead>
+      <tbody>
+        {% for ad in top_ads %}
+        <tr>
+          <td><a href="/admin/ads/campaigns/{{ ad.id }}" style="color:var(--ads-pink);font-weight:700;text-decoration:none;">{{ ad.title or 'Untitled' }}</a></td>
+          <td>{{ ad.display_name or ad.username }}</td>
+          <td>{{ ad.impressions or 0 }}</td>
+          <td>{{ ad.clicks or 0 }}</td>
+          <td><strong>{{ "%.2f"|format(ad.ctr or 0) }}%</strong></td>
+        </tr>
+        {% else %}<tr><td colspan="5" class="ads-empty">No data yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

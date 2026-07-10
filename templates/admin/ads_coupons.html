@@ -1,0 +1,76 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Coupons{% endblock %}
+{% block ads_actions %}
+<button class="ads-btn pink sm" onclick="document.getElementById('couponForm').style.display='grid'">
+  <i class="fas fa-plus"></i> New Coupon
+</button>
+{% endblock %}
+{% block ads_content %}
+
+<div class="ads-card" id="couponForm" style="display:none;">
+  <h2><i class="fas fa-tag"></i> Create Coupon</h2>
+  <form method="POST" action="/admin/ads/api/coupons/create">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+    <div class="ads-two-col">
+      <div class="ads-field">
+        <label>Code</label>
+        <input type="text" name="code" placeholder="e.g. SUMMER20" required>
+      </div>
+      <div class="ads-field">
+        <label>Discount Type</label>
+        <select name="discount_type">
+          <option value="percentage">Percentage</option>
+          <option value="fixed">Fixed Amount</option>
+        </select>
+      </div>
+      <div class="ads-field">
+        <label>Discount Value</label>
+        <input type="number" name="discount_value" step="0.01" required>
+      </div>
+      <div class="ads-field">
+        <label>Min Spend</label>
+        <input type="number" name="min_spend" value="0">
+      </div>
+      <div class="ads-field">
+        <label>Max Discount</label>
+        <input type="number" name="max_discount" step="0.01">
+      </div>
+      <div class="ads-field">
+        <label>Usage Limit</label>
+        <input type="number" name="usage_limit" value="1">
+      </div>
+      <div class="ads-field">
+        <label>Expires At</label>
+        <input type="date" name="expires_at">
+      </div>
+      <div class="ads-field">
+        <label>Description</label>
+        <input type="text" name="description" placeholder="Optional description">
+      </div>
+    </div>
+    <button class="ads-btn pink" style="margin-top:8px;">Create Coupon</button>
+  </form>
+</div>
+
+<div class="ads-card">
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Min Spend</th><th>Used</th><th>Limit</th><th>Expires</th><th>Active</th></tr></thead>
+      <tbody>
+        {% for c in coupons %}
+        <tr>
+          <td><strong style="font-family:monospace;">{{ c.code }}</strong></td>
+          <td>{{ c.discount_type }}</td>
+          <td>{% if c.discount_type == 'percentage' %}{{ c.discount_value }}%{% else %}N$ {{ "%.2f"|format(c.discount_value) }}{% endif %}</td>
+          <td>N$ {{ "%.2f"|format(c.min_spend or 0) }}</td>
+          <td>{{ c.used_count or 0 }}</td>
+          <td>{{ c.usage_limit or '∞' }}</td>
+          <td>{{ c.expires_at.strftime('%Y-%m-%d') if c.expires_at else 'Never' }}</td>
+          <td><span class="ads-badge {{ 'active' if c.is_active else 'rejected' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td>
+        </tr>
+        {% else %}<tr><td colspan="8" class="ads-empty">No coupons created yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

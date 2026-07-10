@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block body_class %}chain-wallpaper-admin{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_portal.css">
+<style>
+:root { --ads-pink: #ec4899; --ads-pink-hover: #db2777; --ads-pink-light: #fdf2f8; }
+.ads-shell { max-width: 1400px; margin: 0 auto; padding: 24px 20px 88px; }
+.ads-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+.ads-header h1 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.03em; }
+.ads-header .kicker { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ads-pink); margin: 0 0 2px; }
+.ads-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+.ads-nav a { padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; color: #475569; text-decoration: none; transition: all 0.12s ease; }
+.ads-nav a:hover { background: var(--ads-pink-light); color: var(--ads-pink); }
+.ads-nav a.active { background: var(--ads-pink); color: #fff; }
+.ads-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.ads-stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; }
+.ads-stat .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin: 0 0 6px; }
+.ads-stat .value { font-size: 28px; font-weight: 900; color: #0f172a; line-height: 1; margin: 0; }
+.ads-stat .value.pink { color: var(--ads-pink); }
+.ads-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+.ads-card h2 { font-size: 16px; font-weight: 800; margin: 0 0 16px; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+.ads-table-wrap { overflow-x: auto; }
+.ads-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ads-table th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+.ads-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.ads-table tr:hover td { background: #f8fafc; }
+.ads-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.ads-badge.active { background: #dcfce7; color: #16a34a; }
+.ads-badge.pending { background: #fef9c3; color: #ca8a04; }
+.ads-badge.paused { background: #f1f5f9; color: #64748b; }
+.ads-badge.rejected { background: #fef2f2; color: #dc2626; }
+.ads-badge.draft { background: #f1f5f9; color: #64748b; }
+.ads-badge.expired { background: #f1f5f9; color: #94a3b8; }
+.ads-badge.approved { background: #dcfce7; color: #16a34a; }
+.ads-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.12s ease; text-decoration: none; }
+.ads-btn.pink { background: var(--ads-pink); color: #fff; }
+.ads-btn.pink:hover { background: var(--ads-pink-hover); }
+.ads-btn.outline { background: transparent; border: 1.5px solid #e2e8f0; color: #475569; }
+.ads-btn.outline:hover { border-color: var(--ads-pink); color: var(--ads-pink); }
+.ads-btn.sm { padding: 5px 10px; font-size: 12px; }
+.ads-btn.danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.ads-btn.danger:hover { background: #dc2626; color: #fff; }
+.ads-btn.success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.ads-btn.success:hover { background: #16a34a; color: #fff; }
+.ads-empty { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 14px; }
+.ads-field { display: grid; gap: 4px; margin-bottom: 14px; }
+.ads-field label { font-size: 13px; font-weight: 700; color: #1e293b; }
+.ads-field input, .ads-field select, .ads-field textarea { min-height: 44px; border-radius: 10px; border: 1.5px solid #e2e8f0; padding: 10px 12px; font-size: 14px; background: #fff; color: #0f172a; outline: none; transition: border-color 0.15s ease; }
+.ads-field input:focus, .ads-field select:focus, .ads-field textarea:focus { border-color: var(--ads-pink); box-shadow: 0 0 0 3px rgba(236,72,153,0.1); }
+.ads-field textarea { min-height: 80px; resize: vertical; }
+.ads-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 768px) { .ads-two-col { grid-template-columns: 1fr; } .ads-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ads-shell">
+  <div class="ads-header">
+    <div>
+      <p class="kicker">NamVibe Advertising Platform</p>
+      <h1>{% block ads_title %}Advertising{% endblock %}</h1>
+    </div>
+    <div>{% block ads_actions %}{% endblock %}</div>
+  </div>
+
+  <nav class="ads-nav">
+    <a href="/admin/ads/" class="{% if request.path == '/admin/ads/' %}active{% endif %}">Dashboard</a>
+    <a href="/admin/ads/campaigns" class="{% if '/campaigns' in request.path and '/campaigns/' not in request.path %}active{% endif %}">Campaigns</a>
+    <a href="/admin/ads/advertisers" class="{% if '/advertisers' in request.path %}active{% endif %}">Advertisers</a>
+    <a href="/admin/ads/analytics" class="{% if '/analytics' in request.path %}active{% endif %}">Analytics</a>
+    <a href="/admin/ads/payments" class="{% if '/payments' in request.path %}active{% endif %}">Payments</a>
+    <a href="/admin/ads/moderation" class="{% if '/moderation' in request.path %}active{% endif %}">Moderation</a>
+    <a href="/admin/ads/coupons" class="{% if '/coupons' in request.path %}active{% endif %}">Coupons</a>
+    <a href="/admin/ads/fraud" class="{% if '/fraud' in request.path %}active{% endif %}">Fraud</a>
+    <a href="/admin/ads/reports" class="{% if '/reports' in request.path %}active{% endif %}">Reports</a>
+  </nav>
+
+  {% block ads_content %}{% endblock %}
+</div>
+{% endblock %}

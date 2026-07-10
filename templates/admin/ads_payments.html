@@ -1,0 +1,26 @@
+{% extends "admin/ads_base.html" %}
+{% block ads_title %}Payments{% endblock %}
+{% block ads_content %}
+
+<div class="ads-card">
+  <div class="ads-table-wrap">
+    <table class="ads-table">
+      <thead>
+        <tr><th>Advertiser</th><th>Amount</th><th>Method</th><th>Status</th><th>Reference</th><th>Date</th></tr>
+      </thead>
+      <tbody>
+        {% for p in payments %}
+        <tr>
+          <td>{{ p.display_name or p.username or p.profile_id[:8] }}</td>
+          <td><strong>N$ {{ "{:,.2f}".format(p.amount or 0) }}</strong></td>
+          <td>{{ p.payment_method or '—' }}</td>
+          <td><span class="ads-badge {{ p.status }}">{{ p.status }}</span></td>
+          <td style="font-size:12px;color:#94a3b8;">{{ p.provider_reference or p.id[:12] }}</td>
+          <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '—' }}</td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="ads-empty">No payments yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.title }} | Advertising{% endblock %}
+{% block body_class %}chain-wallpaper-auth{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_auth.css">
+<style>
+:root { --ads-pink: #ec4899; }
+.detail-shell { max-width: 1000px; margin: 0 auto; padding: 24px 16px 88px; }
+.detail-header { background: linear-gradient(135deg, #ec4899, #db2777); color: #fff; border-radius: 24px; padding: 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: start; gap: 16px; flex-wrap: wrap; }
+.detail-header h1 { margin: 0; font-size: 24px; font-weight: 900; }
+.detail-header .meta { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; }
+.stat-card .label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin: 0 0 4px; }
+.stat-card .value { font-size: 22px; font-weight: 900; color: #0f172a; margin: 0; }
+.cta-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ads-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.ads-badge.active { background: #dcfce7; color: #16a34a; }
+.ads-badge.pending,
+.ads-badge.pending_payment,
+.ads-badge.pending_review,
+.ads-badge.funded { background: #fef9c3; color: #ca8a04; }
+.ads-badge.paused { background: #f1f5f9; color: #64748b; }
+.ads-badge.rejected { background: #fef2f2; color: #dc2626; }
+.ads-badge.draft { background: #f1f5f9; color: #64748b; }
+.ads-badge.budget_exhausted { background: #ede9fe; color: #7c3aed; }
+.adv-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 10px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.12s; }
+.adv-btn.pink { background: var(--ads-pink); color: #fff; }
+.adv-btn.outline { background: transparent; border: 1.5px solid #e2e8f0; color: #475569; }
+.adv-btn.outline:hover { border-color: var(--ads-pink); color: var(--ads-pink); }
+.adv-btn.sm { padding: 5px 10px; font-size: 12px; }
+.adv-btn.danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.info-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px; }
+.info-card h3 { font-size: 14px; font-weight: 800; margin: 0 0 12px; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+.info-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f8fafc; }
+.info-row .key { color: #64748b; font-weight: 600; }
+.info-row .val { color: #0f172a; font-weight: 700; }
+.empty-state { text-align: center; padding: 30px; color: #94a3b8; font-size: 14px; }
+@media (max-width: 640px) { .info-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detail-shell">
+  <div class="detail-header">
+    <div>
+      <h1>{{ campaign.title or 'Untitled Campaign' }}</h1>
+      <div class="meta">
+        <span class="ads-badge {{ campaign.status }}">{{ campaign.status }}</span>
+        &middot; Created {{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else '—' }}
+        &middot; <a href="/advertising/" style="color:#fff;text-decoration:underline;">Back to campaigns</a>
+      </div>
+    </div>
+    <div class="cta-row">
+      {% if campaign.status in ['draft', 'pending_payment'] %}
+      <form method="POST" action="{{ url_for('advertising.api_fund_campaign', campaign_id=campaign.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+        <button class="adv-btn" style="background:#fff;color:#db2777;">Fund Campaign</button>
+      </form>
+      {% elif campaign.status == 'funded' %}
+      <form method="POST" action="{{ url_for('advertising.api_submit_campaign', campaign_id=campaign.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+        <button class="adv-btn" style="background:#fff;color:#db2777;">Submit for Review</button>
+      </form>
+      {% elif campaign.status == 'active' %}
+      <form method="POST" action="{{ url_for('advertising.api_pause_campaign', campaign_id=campaign.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+        <button class="adv-btn outline">Pause</button>
+      </form>
+      {% elif campaign.status == 'paused' %}
+      <form method="POST" action="{{ url_for('advertising.api_resume_campaign', campaign_id=campaign.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+        <button class="adv-btn" style="background:#fff;color:#db2777;">Resume</button>
+      </form>
+      {% endif %}
+      <form method="POST" action="{{ url_for('advertising.api_duplicate_campaign', campaign_id=campaign.id) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+        <button class="adv-btn outline sm">Duplicate</button>
+      </form>
+      <form method="POST" action="{{ url_for('advertising.api_delete_campaign', campaign_id=campaign.id) }}" style="display:inline;" onsubmit="return confirm('Delete this campaign?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token is defined else '' }}">
+        <button class="adv-btn danger sm">Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><p class="label">Impressions</p><p class="value">{{ stats.impressions or 0 }}</p></div>
+    <div class="stat-card"><p class="label">Clicks</p><p class="value">{{ stats.clicks or 0 }}</p></div>
+    <div class="stat-card"><p class="label">CTR</p><p class="value">{{ "%.2f"|format(stats.ctr or 0) }}%</p></div>
+    <div class="stat-card"><p class="label">Spend</p><p class="value" style="color:var(--ads-pink);">N$ {{ "{:,.2f}".format(stats.spend or 0) }}</p></div>
+    <div class="stat-card"><p class="label">CPC</p><p class="value">N$ {{ "%.4f"|format(stats.cpc or 0) }}</p></div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3><i class="fas fa-info-circle"></i> Details</h3>
+      <div class="info-row"><span class="key">Budget</span><span class="val">N$ {{ "{:,.0f}".format(campaign.budget or 0) }}</span></div>
+      <div class="info-row"><span class="key">Daily Budget</span><span class="val">N$ {{ "{:,.0f}".format(campaign.daily_budget or 0) }}</span></div>
+      <div class="info-row"><span class="key">Funded</span><span class="val">N$ {{ "{:,.2f}".format((campaign.funded_amount_cents or 0) / 100) }}</span></div>
+      <div class="info-row"><span class="key">Remaining</span><span class="val">N$ {{ "{:,.2f}".format(((campaign.funded_amount_cents or 0) - (campaign.spent_amount_cents or 0)) / 100 if (campaign.funded_amount_cents or 0) >= (campaign.spent_amount_cents or 0) else 0) }}</span></div>
+      <div class="info-row"><span class="key">Objective</span><span class="val">{{ campaign.objective or 'reach' }}</span></div>
+      <div class="info-row"><span class="key">Ad Type</span><span class="val">{{ campaign.ad_type or 'feed' }}</span></div>
+      <div class="info-row"><span class="key">Media Type</span><span class="val">{{ campaign.media_type or 'image' }}</span></div>
+      <div class="info-row"><span class="key">Category</span><span class="val">{{ campaign.category or '—' }}</span></div>
+      <div class="info-row"><span class="key">Bid</span><span class="val">{{ campaign.bid_type or 'auto' }}{% if campaign.bid_amount %} (N${{ "{:.2f}".format(campaign.bid_amount) }}){% endif %}</span></div>
+    </div>
+
+    <div class="info-card">
+      <h3><i class="fas fa-calendar"></i> Schedule</h3>
+      <div class="info-row"><span class="key">Start</span><span class="val">{{ campaign.starts_at.strftime('%Y-%m-%d') if campaign.starts_at else 'Immediately' }}</span></div>
+      <div class="info-row"><span class="key">End</span><span class="val">{{ campaign.ends_at.strftime('%Y-%m-%d') if campaign.ends_at else 'Ongoing' }}</span></div>
+      <div class="info-row"><span class="key">Created</span><span class="val">{{ campaign.created_at.strftime('%Y-%m-%d') if campaign.created_at else '—' }}</span></div>
+      <div class="info-row"><span class="key">Status</span><span class="val"><span class="ads-badge {{ campaign.status }}">{{ campaign.status }}</span></span></div>
+      {% if campaign.target_url %}
+      <div class="info-row"><span class="key">Target URL</span><span class="val" style="font-size:12px;word-break:break-all;">{{ campaign.target_url }}</span></div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if placements %}
+  <div class="info-card" style="margin-bottom:16px;">
+    <h3><i class="fas fa-map-pin"></i> Placements</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      {% for p in placements %}
+      <span class="ads-badge" style="background:#fdf2f8;color:var(--ads-pink);">{{ p.placement_type }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if creatives %}
+  <div class="info-card" style="margin-bottom:16px;">
+    <h3><i class="fas fa-images"></i> Creatives ({{ creatives|length }})</h3>
+    {% for cr in creatives %}
+    <div style="padding:12px;border:1px solid #f1f5f9;border-radius:10px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;">
+        <div>
+          <strong style="font-size:14px;">{{ cr.headline or 'No headline' }}</strong>
+          <span class="ads-badge" style="background:#f1f5f9;color:#475569;font-size:10px;margin-left:6px;">{{ cr.creative_type }}</span>
+          {% if cr.description %}<p style="font-size:13px;color:#64748b;margin:4px 0 0;">{{ cr.description }}</p>{% endif %}
+        </div>
+        <span style="font-size:12px;color:#94a3b8;">{{ cr.cta_text or 'Learn More' }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if daily_stats %}
+  <div class="info-card">
+    <h3><i class="fas fa-chart-bar"></i> Daily Performance</h3>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="text-align:left;padding:8px;color:#94a3b8;font-size:11px;font-weight:800;text-transform:uppercase;">Date</th><th style="text-align:right;padding:8px;color:#94a3b8;font-size:11px;font-weight:800;text-transform:uppercase;">Impressions</th><th style="text-align:right;padding:8px;color:#94a3b8;font-size:11px;font-weight:800;text-transform:uppercase;">Clicks</th><th style="text-align:right;padding:8px;color:#94a3b8;font-size:11px;font-weight:800;text-transform:uppercase;">CTR</th><th style="text-align:right;padding:8px;color:#94a3b8;font-size:11px;font-weight:800;text-transform:uppercase;">Spend</th></tr></thead>
+        <tbody>
+          {% for d in daily_stats %}
+          <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px;font-weight:700;">{{ d.date }}</td>
+            <td style="padding:8px;text-align:right;">{{ d.impressions or 0 }}</td>
+            <td style="padding:8px;text-align:right;">{{ d.clicks or 0 }}</td>
+            <td style="padding:8px;text-align:right;">{{ "%.2f"|format((d.clicks or 0) / (d.impressions or 1) * 100) }}%</td>
+            <td style="padding:8px;text-align:right;">N$ {{ "%.2f"|format(d.spend or 0) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

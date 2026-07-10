@@ -102,6 +102,7 @@ from api_routes.gallery_routes import gallery_bp
 from api_routes.social_graph_routes import social_graph_bp, profile_extra_bp
 from api_routes.verification_admin_routes import verification_admin_bp
 from api_routes.ad_admin_routes import ad_admin_bp
+from api_routes.advertising_routes import advertising_bp
 from api_routes.rpromo_routes import rpromo_bp
 from api_routes.live_routes import register_live_routes
 from api_routes.support_routes import support_bp, support_page_bp
@@ -152,6 +153,10 @@ def _startup_fast_mode():
             "CHAIN_DISABLE_SCHEMA_CHECK",
         )
     )
+
+
+def _app_test_mode():
+    return _flag_enabled("FLASK_TESTING")
 
 
 def _is_apk_request():
@@ -339,7 +344,7 @@ def create_app():
     def after_req(response):
         return log_request_performance(response)
 
-    if os.getenv("FLASK_TESTING") == "1":
+    if _app_test_mode():
         app.config["TESTING"] = True
         app.config["WTF_CSRF_ENABLED"] = False
     
@@ -365,7 +370,7 @@ def create_app():
     
     init_cache(app)
     scheduler = init_scheduler(app)
-    if scheduler.running:
+    if scheduler.running and not _app_test_mode():
         try:
             from services.call_service import check_call_timeouts
             from services.status_service import expire_old_statuses
@@ -374,7 +379,7 @@ def create_app():
             scheduler.add_job(warm_homepage_cache, 'interval', seconds=30, id='homepage_cache_warmup', replace_existing=True)
         except Exception as e:
             print(f"[app] Failed to add background jobs: {e}")
-    if not _startup_fast_mode():
+    if not _startup_fast_mode() and not _app_test_mode():
         try:
             from services.job_queue_service import enqueue_unique_job
             enqueue_unique_job(
@@ -604,6 +609,7 @@ def create_app():
     app.register_blueprint(social_graph_bp)
     app.register_blueprint(profile_extra_bp)
     app.register_blueprint(verification_admin_bp)
+    app.register_blueprint(advertising_bp)
     app.register_blueprint(ad_admin_bp)
     app.register_blueprint(content_controls_bp)
     app.register_blueprint(rpromo_bp)
@@ -622,7 +628,8 @@ def create_app():
     for bp in api_v1_blueprints:
         app.register_blueprint(bp, url_prefix=f"/api/v1{bp.url_prefix}")
 
-    _startup_background_prewarm(app)
+    if not _app_test_mode():
+        _startup_background_prewarm(app)
 
     # Synchronously pre-warm Neon pool on startup so first request isn't slow
     try:
@@ -1546,7 +1553,7 @@ def create_app():
         if _prewarm_done:
             return
         _prewarm_done = True
-        if not _startup_fast_mode():
+        if not _startup_fast_mode() and not _app_test_mode():
             threading.Thread(target=lambda: (
                 prime_neon_runtime(),
                 time.sleep(0.1),
@@ -1596,6 +1603,8 @@ def create_app():
     @app.before_request
     def prime_neon_on_first_request():
         """Prime the Neon pool on the very first request."""
+        if _app_test_mode():
+            return
         if not getattr(app, '_neon_primed', False):
             app._neon_primed = True
             try:
@@ -1609,7 +1618,7 @@ def create_app():
 
 def _startup_background_prewarm(app):
     """Start background prewarm thread for homepage cache and Neon pool."""
-    if _startup_fast_mode():
+    if _startup_fast_mode() or _app_test_mode():
         return
 
     def delayed_prewarm():
