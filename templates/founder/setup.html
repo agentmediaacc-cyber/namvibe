@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Setup | NamVibe</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0f;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: radial-gradient(ellipse at 30% 20%, rgba(147, 51, 234, 0.15) 0%, transparent 60%),
+                              radial-gradient(ellipse at 70% 80%, rgba(236, 72, 153, 0.12) 0%, transparent 60%);
+        }
+        .setup-card {
+            background: linear-gradient(135deg, rgba(20,20,30,0.95), rgba(15,15,25,0.95));
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 24px;
+            padding: 48px 40px;
+            width: 520px;
+            max-width: 90vw;
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+        }
+        .setup-card h1 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+        .setup-card p { color: rgba(255,255,255,0.5); font-size: 14px; margin-bottom: 28px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block; font-size: 13px; font-weight: 600;
+            color: rgba(255,255,255,0.7); margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%; padding: 13px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px; color: #fff; font-size: 14px;
+            font-family: inherit; outline: none; transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            border-color: rgba(147, 51, 234, 0.5);
+            box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.15);
+        }
+        .form-group input::placeholder { color: rgba(255,255,255,0.25); }
+        .section-title {
+            font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.4);
+            text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 16px;
+        }
+        .btn-primary {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #9333ea, #ec4899);
+            border: none; border-radius: 12px; color: #fff;
+            font-size: 15px; font-weight: 700; cursor: pointer;
+            font-family: inherit; margin-top: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 25px rgba(147, 51, 234, 0.3);
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5; padding: 12px 16px;
+            border-radius: 10px; font-size: 13px; margin-bottom: 20px;
+        }
+        .info-banner {
+            background: rgba(147, 51, 234, 0.12);
+            border: 1px solid rgba(147, 51, 234, 0.25);
+            color: #c084fc; padding: 14px 16px;
+            border-radius: 10px; font-size: 13px; margin-bottom: 24px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-card">
+        <h1>Welcome, Kaser</h1>
+        <p>Set up your account before accessing the dashboard</p>
+        <div class="info-banner">
+            This is your first login. Please change the default password and add your personal details.
+        </div>
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="section-title">Change Password</div>
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input type="password" id="new_password" name="new_password" placeholder="Min 8 characters" required>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Re-enter password" required>
+            </div>
+            <div class="section-title">Personal Details</div>
+            <div class="form-group">
+                <label for="full_name">Full Name</label>
+                <input type="text" id="full_name" name="full_name" placeholder="John Doe" value="{{ founder.get('full_name', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="kaser@namvibe.com" value="{{ founder.get('email', '') }}">
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="+264 XXX XXX XXX" value="{{ founder.get('phone', '') }}">
+            </div>
+            <button type="submit" class="btn-primary">Save & Continue</button>
+        </form>
+    </div>
+</body>
+</html>

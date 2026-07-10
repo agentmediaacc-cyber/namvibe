@@ -570,7 +570,6 @@ def create_app():
     app.register_blueprint(admin_safety_bp)
     app.register_blueprint(system_bp)
     app.register_blueprint(founder_bp)
-    csrf.exempt(founder_bp)
     app.register_blueprint(production_bp)
     app.register_blueprint(feed_bp)
     app.register_blueprint(verification_bp)
