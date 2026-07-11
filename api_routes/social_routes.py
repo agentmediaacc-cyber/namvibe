@@ -9,6 +9,7 @@ from services.friend_service import (
 )
 from services.social_service import list_followers, list_following
 from services.profile_service import get_current_profile, get_profile_by_username
+from services.ai.interaction_service import track_interaction_safe
 from api_routes.profile_routes import login_required, invalidate_profile_cache
 
 social_bp = Blueprint("social", __name__)
@@ -49,6 +50,11 @@ def api_follow(profile_id):
     invalidate_profile_cache(profile["id"])
     invalidate_profile_cache(profile_id)
     state = res.get("state", "none")
+    if res.get("ok"):
+        if state in ("following", "friends"):
+            track_interaction_safe(profile["id"], "profile", profile_id, "follow", source_surface="profile")
+        elif state == "none":
+            track_interaction_safe(profile["id"], "profile", profile_id, "unfollow", source_surface="profile")
     return jsonify({
         "status": "ok" if res.get("ok") else "error",
         "ok": bool(res.get("ok")),
@@ -67,6 +73,8 @@ def api_block(profile_id):
     from services.profile_service import block_profile
     ok = block_profile(profile["id"], profile_id)
     invalidate_profile_cache(profile["id"])
+    if ok:
+        track_interaction_safe(profile["id"], "profile", profile_id, "block", source_surface="profile")
     return jsonify({"status": "ok" if ok else "error"})
 
 @social_bp.route("/followers/remove/<follower_id>", methods=["POST"])
@@ -78,6 +86,8 @@ def api_remove_follower(follower_id):
     res = unfollow_profile(follower_id, profile["id"])
     invalidate_profile_cache(profile["id"])
     invalidate_profile_cache(follower_id)
+    if res.get("success"):
+        track_interaction_safe(follower_id, "profile", profile["id"], "unfollow", source_surface="profile")
     return jsonify({"status": "ok" if res.get("success") else "error"})
 
 @social_bp.route("/following/remove/<following_id>", methods=["POST"])
@@ -88,6 +98,8 @@ def api_remove_following(following_id):
     res = unfollow_profile(profile["id"], following_id)
     invalidate_profile_cache(profile["id"])
     invalidate_profile_cache(following_id)
+    if res.get("success"):
+        track_interaction_safe(profile["id"], "profile", following_id, "unfollow", source_surface="profile")
     return jsonify({"status": "ok" if res.get("success") else "error"})
 
 @social_bp.route("/unblock/<target_id>", methods=["POST"])
@@ -111,6 +123,7 @@ def api_send_request():
     res = send_unified_friend_request(profile['id'], recipient_id)
     if res.get("ok"):
         invalidate_profile_cache(profile["id"])
+        track_interaction_safe(profile["id"], "profile", recipient_id, "friend_request", source_surface="profile")
     return jsonify({
         **res,
         "success": bool(res.get("ok")),
@@ -129,6 +142,8 @@ def api_accept_request():
     res = accept_unified_friend_request(profile['id'], request_id)
     if res.get("ok"):
         invalidate_profile_cache(profile["id"])
+        target_id = res.get("sender_profile_id") or res.get("friend_profile_id") or request_id
+        track_interaction_safe(profile["id"], "profile", target_id, "friend_accept", source_surface="profile")
     return jsonify({**res, "success": bool(res.get("ok")), "error": None if res.get("ok") else res.get("message")}), (200 if res.get("ok") else int(res.get("status", 400)))
 
 @social_bp.route("/friends/decline", methods=["POST"])

@@ -10,8 +10,8 @@ from services.auth_service import refresh_chain_session, set_current_user_passwo
 from services.auth_service import best_effort_age_dob_update
 from services.activity_engine import emit_activity
 from services.session_service import (
-    is_logged_in, 
-    get_current_auth_user, 
+    is_logged_in,
+    get_current_auth_user,
     refresh_supabase_session_if_needed,
     clear_auth_session,
     K_USER_ID, K_PROFILE_WARNING, K_AGE_CHECK_REQUIRED, K_PENDING_DATE_OF_BIRTH
@@ -83,6 +83,9 @@ from services.friend_service import list_friends, list_friend_requests, are_frie
 from services.creator_service import get_creator_dashboard_data, get_creator_analytics
 from services.wallet_service import get_or_create_wallet
 from services.profile_service import get_wallet_snapshot
+from services.security_service import get_device_sessions, get_security_events, get_privacy_settings
+from services.trust_score_service import get_trust_summary
+from services.ai.interaction_service import track_interaction_safe
 
 profile_bp = Blueprint("profile", __name__, url_prefix="/profile")
 
@@ -488,6 +491,7 @@ def _resolve_profile_route(username=None, user_id=None):
     if viewer and viewer.get("id") != profile.get("id"):
         record_profile_view(profile.get("id"), viewer.get("id"))
         emit_activity(viewer.get("id"), "profile_viewed", target_type="profile", target_id=profile.get("id"), recipient_profile_id=profile.get("id"))
+        track_interaction_safe(viewer.get("id"), "profile", profile.get("id"), "open", source_surface="profile")
 
     from services.social_action_policy import get_action_policy, can_view_profile
     viewer_id = viewer.get("id") if viewer else None
@@ -694,7 +698,7 @@ def retry_bootstrap():
         session.pop(K_PROFILE_WARNING, None)
         flash("Profile sync successful.", "success")
         return redirect(url_for("profile.my_profile"))
-    
+
     return render_template("auth/profile_error.html", error_detail=f"Profile sync failed: {result}")
 
 
@@ -713,13 +717,13 @@ def setup_profile():
 @profile_bp.route("/edit", methods=["GET", "POST"])
 @login_required
 def edit_profile():
-    viewer = get_current_profile()
+    viewer = _current_profile_or_session_fallback()
     if not viewer:
         ok, result = bootstrap_profile_for_current_user()
-        viewer = result if ok and isinstance(result, dict) else get_current_profile()
+        viewer = result if ok and isinstance(result, dict) else _current_profile_or_session_fallback()
         if not viewer:
             return redirect(url_for("profile.onboarding"))
-    
+
     ok, result = verify_profile_age(viewer)
     if not ok:
         if result == "REDIRECT_AGE_CHECK":
@@ -728,12 +732,18 @@ def edit_profile():
             ok = True
     if not ok:
         return render_template("auth/profile_error.html", error_detail=result), 200
-        
+
     setup_mode = request.args.get("setup") == "1"
 
     if request.method == "POST":
         data = dict(request.form)
-        
+
+        # Map allow_dating checkbox to dating_mode_enabled
+        if "allow_dating" in data:
+            data["dating_mode_enabled"] = True
+        elif "dating_mode_enabled" not in data:
+            data["dating_mode_enabled"] = False
+
         # Avatar Upload
         avatar_file = request.files.get("avatar")
         if avatar_file and avatar_file.filename:
@@ -1143,7 +1153,9 @@ def follow(username):
         viewer = get_current_profile()
         target_id = _resolve_target_id(username)
         if viewer and target_id:
-            follow_profile(viewer["id"], target_id)
+            result = follow_profile(viewer["id"], target_id)
+            if result and result.get("success"):
+                track_interaction_safe(viewer["id"], "profile", target_id, "follow" if result.get("following") else "unfollow", source_surface="profile")
     except Exception as error:
         log_warning("profile_follow_failed", username=username, error=str(error))
     return _redirect_back(username)
@@ -1176,6 +1188,7 @@ def report(username):
     target_id = _resolve_target_id(username)
     if viewer and target_id:
         report_profile(viewer["id"], target_id, reason=request.form.get("reason"))
+        track_interaction_safe(viewer["id"], "profile", target_id, "report", source_surface="profile")
     return _redirect_back(username)
 
 
@@ -1186,6 +1199,8 @@ def report_by_id(profile_id):
     ok = False
     if viewer:
         ok = bool(report_profile(viewer["id"], profile_id, reason=request.form.get("reason")))
+        if ok:
+            track_interaction_safe(viewer["id"], "profile", profile_id, "report", source_surface="profile")
     return {"status": "ok" if ok else "setup", "profile_id": profile_id}, (200 if ok else 202)
 
 
@@ -1196,7 +1211,8 @@ def block(username):
     target_id = _resolve_target_id(username)
     if viewer and target_id:
         from services.moderation_engine import block_profile as _block
-        _block(viewer["id"], target_id)
+        if _block(viewer["id"], target_id):
+            track_interaction_safe(viewer["id"], "profile", target_id, "block", source_surface="profile")
     return _redirect_back(username)
 
 
@@ -1366,6 +1382,7 @@ def settings():
             "show_online_status": data.get("show_online_status") == "on",
             "profile_visibility": data.get("profile_visibility", "public"),
             "call_ringtone": ringtone_val,
+            "allow_public_messages": data.get("allow_public_messages") == "on",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
         existing_settings = get_profile_settings(profile["id"])["settings"]
@@ -1373,6 +1390,10 @@ def settings():
             safe_update("chain_user_settings", settings_payload, eq={"id": existing_settings["id"]})
         else:
             safe_insert("chain_user_settings", {"profile_id": profile["id"], **settings_payload})
+        # Also sync who_can_message on chain_profiles
+        who_val = "everyone" if data.get("allow_public_messages") == "on" else "friends"
+        from services.neon_service import execute as _neon_exec
+        _neon_exec("UPDATE chain_profiles SET who_can_message = %s, updated_at = NOW() WHERE id = %s", (who_val, profile["id"]))
         if ok:
             flash("Profile updated.", "success")
             return redirect(url_for("profile.settings"))
@@ -1403,6 +1424,9 @@ def onboarding():
         if not profile:
             profile = _session_profile_stub()
 
+    if profile and profile.get("id"):
+        _apply_profile_session(profile)
+
     adult_state = is_adult_profile(profile)
     if adult_state is False:
         return render_template("auth/profile_error.html", error_detail="NamVibe is only available to users 18 and older."), 200
@@ -1420,7 +1444,7 @@ def onboarding():
             ), 200
         data = dict(request.form)
         partial_step = data.get("partial_step")
-        
+
         # Avatar Upload
         avatar_file = request.files.get("avatar") or request.files.get("camera_avatar")
         if avatar_file and avatar_file.filename:
@@ -1444,7 +1468,7 @@ def onboarding():
             data["languages"] = [l.strip() for l in data["languages"].split(",") if l.strip()]
 
         ok, result = update_profile_setup(profile["id"], data, current_profile=profile)
-        
+
         if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json or partial_step:
             if ok and isinstance(result, dict):
                 _apply_profile_session(result, fallback_email=data.get("email"))
@@ -1457,7 +1481,7 @@ def onboarding():
             return redirect(url_for("profile.my_profile"))
 
         log_error("onboarding_profile_write_failed", error=result, profile_id=profile.get("id"), auth_user_id=profile.get("auth_user_id"))
-            
+
         return render_template(
             "profile/onboarding.html",
             profile=profile,
@@ -1473,10 +1497,12 @@ def onboarding():
 @profile_bp.route("/verification", methods=["GET", "POST"])
 @login_required
 def verification():
-    profile = get_current_profile()
+    profile = _current_profile_or_session_fallback()
+    if not profile:
+        return redirect(url_for("auth.login", next=request.path))
     from services.profile_completion_service import calculate_profile_completion
     from services.pricing_config import VERIFICATION_FEES, get_verification_fee, coins_to_nad
-    from services.supabase_safe import safe_insert, safe_select, safe_update, safe_select_one
+    from services.supabase_safe import safe_insert, safe_select, safe_update
 
     # Check profile completion
     completion = calculate_profile_completion(profile)
@@ -1583,15 +1609,50 @@ def verification():
 @profile_bp.route("/security")
 @login_required
 def security():
-    profile = get_current_profile()
-    profile_settings = get_profile_settings(profile["id"])
-    verification = None
+    profile = _current_profile_or_session_fallback()
+    if not profile:
+        return redirect(url_for("auth.login", next=request.path))
+    profile_id = profile.get("id")
+    profile_settings = get_profile_settings(profile_id) if profile_id else {"settings": {}, "security": {}}
+    verification = {"status": "none"}
+    trust = {"trust_level": "new", "report_count": 0, "suspicious_score": 0}
+    privacy = {
+        "show_online_status": True,
+        "show_last_seen": True,
+    }
+    devices = []
+    events = []
     try:
         from services.verification_engine import get_verification_status
-        verification = get_verification_status(profile["id"])
-    except Exception:
-        pass
-    return render_template("profile/security.html", profile=profile, account_security=profile_settings["security"], verification=verification)
+        if profile_id:
+            verification = get_verification_status(profile_id) or verification
+    except Exception as error:
+        log_warning("profile_security_verification_failed", profile_id=profile_id, error=str(error))
+    try:
+        if profile_id:
+            trust_summary = get_trust_summary(profile_id) or {}
+            trust_score = trust_summary.get("trust") or {}
+            trust_level = trust_summary.get("risk_level") or "new"
+            trust = {
+                "trust_level": "verified" if verification.get("status") == "approved" else trust_level,
+                "report_count": _safe_number(trust_score.get("report_count")),
+                "suspicious_score": _safe_number(trust_score.get("risk_score")),
+            }
+            privacy = get_privacy_settings(profile_id) or privacy
+            devices = get_device_sessions(profile_id) or []
+            events = get_security_events(profile_id, limit=20) or []
+    except Exception as error:
+        log_warning("profile_security_context_failed", profile_id=profile_id, error=str(error))
+    return render_template(
+        "profile/security.html",
+        profile=profile,
+        account_security=profile_settings.get("security", {}),
+        verification=verification,
+        trust=trust,
+        privacy=privacy,
+        devices=devices,
+        events=events,
+    )
 
 
 @profile_bp.route("/security/set-password", methods=["POST"])
@@ -1649,10 +1710,10 @@ def ai_assist():
     data = request.json or {}
     c_type = data.get("type", "reel")
     topic = data.get("topic", "lifestyle")
-    
+
     captions = get_caption_suggestions(c_type, topic)
     hashtags = generate_trending_hashtags(topic)
-    
+
     return jsonify({
         "captions": captions,
         "hashtags": hashtags
@@ -1701,7 +1762,7 @@ def update_privacy():
     visibility = request.form.get("visibility", "public")
     allow_audio = request.form.get("allow_audio") == "on"
     allow_video = request.form.get("allow_video") == "on"
-    
+
     from services.supabase_safe import safe_update
     payload = {
         "profile_visibility": visibility,
@@ -1734,26 +1795,26 @@ def toggle_follow(user_id):
     Returns JSON for AJAX frontend.
     """
     from services.neon_service import write_query, fast_query
-    
+
     viewer = get_current_profile()
     if not viewer:
         return jsonify({"error": "Unauthorized"}), 401
-    
+
     target_id = user_id
     if user_id.startswith("@"):
         t_rows = fast_query("SELECT id FROM chain_profiles WHERE username = %s LIMIT 1", [user_id[1:]])
         if not t_rows: return jsonify({"error": "User not found"}), 404
         target_id = t_rows[0]["id"]
-        
+
     if viewer["id"] == target_id:
         return jsonify({"error": "Cannot follow yourself"}), 400
-        
+
     # Toggle Logic
     existing = fast_query(
         "SELECT 1 FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s",
         [viewer["id"], target_id]
     )
-    
+
     if existing:
         write_query(
             "DELETE FROM chain_follows WHERE follower_profile_id = %s AND following_profile_id = %s",
@@ -1766,13 +1827,13 @@ def toggle_follow(user_id):
             [viewer["id"], target_id]
         )
         following = True
-        
+
     # Recount for response
     counts = fast_query(
         "SELECT COUNT(*) as count FROM chain_follows WHERE following_profile_id = %s",
         [target_id]
     )[0]
-    
+
     return jsonify({
         "status": "success",
         "following": following,

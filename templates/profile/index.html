@@ -1,200 +1,984 @@
 {% extends "profile/base_profile.html" %}
-{% block title %}{{ (pv|default({})).get('display_name') or 'Profile' }} | {{ APP_NAME }}{% endblock %}
+{% block title %}{{ (pv or {}).get('display_name', 'Profile') }} | NamVibe Premium{% endblock %}
+{% block body_class %}nv-profile-premium{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<link rel="stylesheet" href="/static/css/namvibe_profile_premium.css">
+<style>
+  .nv-pp-cover-vid { width:100%; height:100%; object-fit:cover; }
+  .nv-pp-glass { position:absolute; inset:0; background:rgba(255,255,255,0.08); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); pointer-events:none; z-index:1; }
+  .nv-pp-verify-glow { box-shadow:0 0 0 4px var(--nv-pp-surface),0 0 20px var(--nv-pp-accent-glow),0 0 40px rgba(236,72,153,0.3); animation:glow-pulse 2s ease-in-out infinite; }
+  @keyframes glow-pulse { 0%,100%{box-shadow:0 0 0 4px var(--nv-pp-surface),0 0 20px var(--nv-pp-accent-glow),0 0 40px rgba(236,72,153,0.3);} 50%{box-shadow:0 0 0 6px var(--nv-pp-surface),0 0 30px var(--nv-pp-accent-glow),0 0 60px rgba(236,72,153,0.5);} }
+  .nv-pp-gold-ring { box-shadow:0 0 0 4px var(--nv-pp-surface),0 0 0 7px #ffd700,0 0 20px rgba(255,215,0,0.4),0 0 40px rgba(255,215,0,0.2); animation:gold-pulse 2s ease-in-out infinite; }
+  @keyframes gold-pulse { 0%,100%{box-shadow:0 0 0 4px var(--nv-pp-surface),0 0 0 7px #ffd700,0 0 20px rgba(255,215,0,0.4),0 0 40px rgba(255,215,0,0.2);} 50%{box-shadow:0 0 0 4px var(--nv-pp-surface),0 0 0 9px #ffd700,0 0 30px rgba(255,215,0,0.6),0 0 60px rgba(255,215,0,0.3);} }
+  .nv-pp-gold-badge { display:inline-flex; align-items:center; gap:3px; padding:1px 8px; border-radius:999px; font-size:10px; font-weight:700; color:#7c5c00; background:linear-gradient(135deg,#ffd700,#f0c000,#ffd700); border:1px solid #e6b800; margin-left:4px; vertical-align:middle; }
+  .nv-pp-tier-tag { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:999px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+  .nv-pp-score-ring { position:absolute; top:-4px; left:-4px; width:calc(100% + 8px); height:calc(100% + 8px); border-radius:50%; pointer-events:none; }
+  .nv-pp-score-ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .nv-pp-score-ring circle { fill:none; stroke:var(--nv-pp-accent); stroke-width:3; stroke-dasharray:360; stroke-dashoffset:calc(360 - (360 * var(--score,0) / 100)); opacity:0.6; }
+  .nv-pp-live-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:600; }
+  .nv-pp-live-badge.online { background:#10b981; color:#fff; }
+  .nv-pp-live-badge.recording { background:#ef4444; color:#fff; animation:pulse-dot 1.5s ease-in-out infinite; }
+  .nv-pp-live-badge.gaming { background:#8b5cf6; color:#fff; }
+  .nv-pp-live-badge.traveling { background:#3b82f6; color:#fff; }
+  .nv-pp-live-badge.music { background:#ec4899; color:#fff; }
+  .nv-pp-live-badge.driving { background:#f59e0b; color:#fff; }
+  .nv-pp-live-badge.fitness { background:#10b981; color:#fff; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.6;} }
+  .nv-pp-action-more { position:relative; }
+  .nv-pp-action-dropdown { position:absolute; right:0; top:100%; margin-top:4px; background:var(--nv-pp-surface); border:1px solid var(--nv-pp-border); border-radius:var(--nv-pp-radius-sm); min-width:200px; z-index:100; box-shadow:var(--nv-pp-shadow-lg); overflow:hidden; display:none; }
+  .nv-pp-action-dropdown.show { display:block; }
+  .nv-pp-action-dropdown button { display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:none; background:transparent; color:var(--nv-pp-text); font-size:13px; cursor:pointer; text-align:left; }
+  .nv-pp-action-dropdown button:hover { background:var(--nv-pp-surface-soft); }
+  .nv-pp-stat-clickable { cursor:pointer; }
+  .nv-pp-stat-clickable:hover { transform:translateY(-2px); }
+  .nv-pp-theme-btn { width:36px; height:36px; border-radius:50%; border:2px solid var(--nv-pp-border); cursor:pointer; transition:all 0.2s; }
+  .nv-pp-theme-btn:hover, .nv-pp-theme-btn.active { border-color:var(--nv-pp-accent); transform:scale(1.15); }
+  .nv-pp-music-item, .nv-pp-game-item { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--nv-pp-surface-soft); border-radius:var(--nv-pp-radius-sm); }
+  .nv-pp-health-metric { text-align:center; padding:12px; background:var(--nv-pp-surface-soft); border-radius:var(--nv-pp-radius-sm); }
+  .nv-pp-health-metric strong { display:block; font-size:22px; font-weight:700; color:var(--nv-pp-accent); }
+  .nv-pp-health-metric span { font-size:11px; color:var(--nv-pp-text-soft); text-transform:uppercase; }
+  .nv-pp-digital-id { display:flex; flex-wrap:wrap; gap:8px; }
+  .nv-pp-digital-id-item { display:flex; align-items:center; gap:6px; padding:6px 12px; background:var(--nv-pp-surface-soft); border-radius:999px; font-size:12px; border:1px solid var(--nv-pp-border); }
+  .nv-pp-digital-id-item.verified { border-color:var(--nv-pp-success); background:rgba(16,185,129,0.08); }
+  .nv-pp-wallet-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:10px; }
+  .nv-pp-wallet-item { text-align:center; padding:14px 8px; background:var(--nv-pp-surface-soft); border-radius:var(--nv-pp-radius-sm); }
+  .nv-pp-wallet-item strong { display:block; font-size:20px; font-weight:700; color:var(--nv-pp-accent); }
+  .nv-pp-wallet-item span { font-size:11px; color:var(--nv-pp-text-soft); }
+  .nv-pp-privacy-toggle { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--nv-pp-surface-soft); border-radius:var(--nv-pp-radius-sm); }
+  .nv-pp-privacy-toggle span { font-size:13px; color:var(--nv-pp-text); }
+  .nv-pp-ai-box { padding:16px; background:linear-gradient(135deg, rgba(236,72,153,0.05), rgba(244,114,182,0.08)); border:1px solid var(--nv-pp-border); border-radius:var(--nv-pp-radius-sm); margin-bottom:12px; }
+  .nv-pp-ai-box p { font-size:13px; color:var(--nv-pp-text-soft); line-height:1.5; }
+  .nv-pp-travel-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; }
+  .nv-pp-creator-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px; }
+  .nv-pp-creator-card { padding:14px; background:var(--nv-pp-surface-soft); border-radius:var(--nv-pp-radius-sm); text-align:center; border:1px solid var(--nv-pp-border); }
+  .nv-pp-creator-card strong { display:block; font-size:18px; font-weight:700; color:var(--nv-pp-accent); }
+  .nv-pp-creator-card span { font-size:11px; color:var(--nv-pp-text-soft); text-transform:uppercase; }
+</style>
+{% endblock %}
+
 {% block profile_body %}
-
 {% set p = pv|default({}) %}
-{% set action_policy = action_policy or p.action_policy or {} %}
-{% set own_profile = p.is_self %}
+{% set own = p.is_self %}
+{% set pa = action_policy|default({}) %}
+{% set status_map = {'online':'🟢 Online','recording':'🎥 Recording Reel','posting':'📷 Posting Story','replying':'💬 Replying','voice_call':'📞 On Voice Call','video_call':'🎥 On Video Call','gaming':'🎮 Gaming','listening':'🎵 Listening to Music','driving':'🚗 Driving','running':'🏃 Running','traveling':'✈️ Traveling','location':'📍 At '+p.city,'holiday':'🏖️ On Holiday'} %}
+{% set p_status = p.activity_status or 'online' %}
+{% set p_live_label = status_map.get(p_status, '🟢 Online' if p.is_online else '⚫ Offline') %}
 
-<div class="nv-profile-pro" role="main" data-profile-pro data-self="{{ 'true' if p.is_self else 'false' }}" data-profile-id="{{ p.id }}" data-username="{{ p.username }}">
-  <section class="nv-hero">
-    <div class="nv-cover-wrap">
-      {% if p.cover_url %}
-      <img class="nv-cover" src="{{ p.cover_url }}" alt="{{ p.display_name }} cover" loading="eager">
+<div class="nv-pp" data-profile-id="{{ p.id }}" data-username="{{ p.username }}">
+
+  <!-- ════════════════════════════════════════════════
+       1. PREMIUM HERO HEADER
+       ════════════════════════════════════════════════ -->
+  <section class="nv-pp-hero">
+    <div class="nv-pp-cover">
+      {% if p.cover_video_url %}
+      <video src="{{ p.cover_video_url }}" class="nv-pp-cover-vid" autoplay muted loop playsinline></video>
+      {% elif p.cover_url %}
+      <img src="{{ p.cover_url }}" alt="" class="nv-pp-cover-img">
       {% else %}
-      <div class="nv-cover nv-cover-fallback" data-gradient="1"></div>
+      <div class="nv-pp-cover-fallback" style="background:linear-gradient(135deg,var(--nv-pp-accent),#f472b6,var(--nv-pp-accent2))"></div>
       {% endif %}
-      {% if p.is_self %}
-      <button class="nv-cover-edit" type="button" data-action="change-cover" aria-label="Change cover photo"><i class="fas fa-camera"></i></button>
+      <div class="nv-pp-glass"></div>
+      {% if own %}
+      <button class="nv-pp-cover-btn" data-action="change-cover" style="z-index:2">📷</button>
       {% endif %}
-      <div class="nv-avatar-wrap">
+    </div>
+
+    <div class="nv-pp-info" style="position:relative;z-index:2">
+      <div class="nv-pp-avatar-wrap">
         {% if p.avatar_url %}
-        <img class="nv-avatar" src="{{ p.avatar_url }}" alt="{{ p.display_name }}" loading="eager">
+        <img src="{{ p.avatar_url }}" alt="" class="nv-pp-avatar {% if p.is_gold_verified %}nv-pp-gold-ring{% elif p.verified %}nv-pp-verify-glow{% endif %}">
         {% else %}
-        <div class="nv-avatar nv-avatar-initials">{{ p.initials }}</div>
+        <div class="nv-pp-avatar nv-pp-avatar-init {% if p.is_gold_verified %}nv-pp-gold-ring{% elif p.verified %}nv-pp-verify-glow{% endif %}">{{ p.initials or '?' }}</div>
         {% endif %}
-        {% if p.is_online %}
-        <span class="nv-online-dot"></span>
+        {% if p.is_gold_verified %}<span class="nv-pp-verify" style="z-index:3;background:linear-gradient(135deg,#ffd700,#f0c000);color:#7c5c00;border-color:#e6b800;">★</span>{% elif p.verified %}<span class="nv-pp-verify" style="z-index:3">✓</span>{% endif %}
+        {% if p.profile_score %}
+        <div class="nv-pp-score-ring" style="--score:{{ p.profile_score }}">
+          <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="56"/></svg>
+        </div>
         {% endif %}
-        {% if p.is_self %}
-        <button class="nv-avatar-edit" type="button" data-action="change-avatar" aria-label="Change profile photo"><i class="fas fa-camera"></i></button>
+        {% if p.is_online %}<span class="nv-pp-online"></span>{% endif %}
+        {% if own %}
+        <button class="nv-pp-avatar-btn" data-action="change-avatar">📷</button>
         {% endif %}
       </div>
-    </div>
 
-    <div class="nv-hero-body">
-      <div class="nv-hero-main">
-        <h1 class="nv-display-name">
-          {{ p.display_name }}
-          {% if p.verified %}
-          <span class="nv-badge nv-badge-{{ p.badge_type }}" title="{{ p.badge_label }} Verified">
-            <i class="fas fa-check-circle"></i>
-          </span>
-          {% endif %}
+      <div class="nv-pp-meta">
+        <h1 class="nv-pp-name">{{ p.display_name }}
+          {% if p.is_gold_verified %}<span class="nv-pp-gold-badge">★ Gold Verified</span>{% elif p.verified %}<span class="nv-badge" style="display:inline-flex;width:18px;height:18px;font-size:10px;">✓</span>{% endif %}
+          {% if p.premium_tier and p.premium_tier != 'free' %}<span class="nv-pp-tier-tag" style="background:{% if p.premium_tier == 'plus' %}linear-gradient(135deg,#6366f1,#8b5cf6){% elif p.premium_tier == 'pro' %}linear-gradient(135deg,#f59e0b,#d97706){% elif p.premium_tier == 'premium' %}linear-gradient(135deg,#ec4899,#db2777){% elif p.premium_tier == 'creator_elite' %}linear-gradient(135deg,#8b5cf6,#6d28d9){% elif p.premium_tier == 'business' %}linear-gradient(135deg,#0ea5e9,#0284c7){% elif p.premium_tier == 'enterprise' %}linear-gradient(135deg,#10b981,#059669){% else %}linear-gradient(135deg,#6b7280,#4b5563){% endif %};color:#fff;">{{ p.premium_tier|replace('_',' ')|title }}</span>{% endif %}
         </h1>
-        <div class="nv-handle-line">@{{ p.username }}</div>
-        <div class="nv-meta-line">
-          {% if p.location %}<span><i class="fas fa-location-dot"></i> {{ p.location }}</span>{% endif %}
-          <span><i class="fas fa-calendar"></i> Joined {{ p.joined }}</span>
-          <span class="{{ 'is-online' if p.is_online else 'is-offline' }}">
-            <i class="fas fa-circle"></i> {{ p.state_label }}
-          </span>
-          {% if p.category %}<span class="nv-category-tag">{{ p.category }}</span>{% endif %}
-        </div>
-        {% if p.bio %}
-        <p class="nv-bio">{{ p.bio }}</p>
-        {% elif p.is_self %}
-        <p class="nv-bio nv-bio-empty">Add a bio so people know what you create.</p>
-        {% endif %}
-        {% if p.website %}
-        <a class="nv-website" href="{{ p.website }}" target="_blank" rel="noopener"><i class="fas fa-link"></i> {{ p.website }}</a>
-        {% endif %}
-      </div>
+        <div class="nv-pp-handle">@{{ p.username }}</div>
+        {% if p.pronouns %}<span class="nv-pp-pronouns">{{ p.pronouns }}</span>{% endif %}
 
-      <div class="nv-actions">
-        {% if p.is_self %}
-        <a class="nv-btn nv-btn-primary" href="/profile/edit"><i class="fas fa-user-pen"></i> Edit Profile</a>
-        <a class="nv-btn" href="/creator-studio/"><i class="fas fa-rocket"></i> Studio</a>
-        <a class="nv-btn" href="/wallet"><i class="fas fa-wallet"></i> Wallet</a>
-        <a class="nv-btn nv-icon-only" href="/live/studio" title="Go Live"><i class="fas fa-tower-broadcast"></i></a>
-        <a class="nv-btn nv-icon-only" href="/status/create" title="Add Story"><i class="fas fa-circle-plus"></i></a>
-        <a class="nv-btn nv-icon-only" href="/reels/upload" title="Upload Reel"><i class="fas fa-clapperboard"></i></a>
-        {% else %}
-        <div class="nv-actions-primary">
-          {% if p.request_sent %}
-          <button class="nv-btn nv-btn-primary" disabled><i class="fas fa-clock"></i> Requested</button>
-          {% elif p.is_friend %}
-          <button class="nv-btn nv-btn-primary" data-action="friend" data-state="friends"><i class="fas fa-user-check"></i> Friends</button>
-          {% elif p.is_following %}
-          <button class="nv-btn nv-btn-primary" data-action="follow" data-state="following"><i class="fas fa-user-check"></i> Following</button>
-          {% else %}
-          <button class="nv-btn nv-btn-primary" data-action="follow" data-state="none"><i class="fas fa-user-plus"></i> Follow</button>
-          {% endif %}
-          {% if p.is_friend %}
-          <button class="nv-btn" data-action="message"><i class="fas fa-message"></i> Message</button>
-          {% elif p.can_message %}
-          <button class="nv-btn" data-action="message"><i class="fas fa-message"></i> Message</button>
-          {% else %}
-          <button class="nv-btn" disabled title="Messaging not available"><i class="fas fa-message"></i> <span class="nv-hide-mobile">Message</span></button>
-          {% endif %}
-          {% if p.can_call %}
-          <button class="nv-btn nv-icon-only" data-action="call" title="Audio Call"><i class="fas fa-phone"></i></button>
-          {% endif %}
-          {% if p.can_video_call %}
-          <button class="nv-btn nv-icon-only" data-action="video-call" title="Video Call"><i class="fas fa-video"></i></button>
-          {% endif %}
-        </div>
-        <div class="nv-actions-secondary">
-          <button class="nv-btn nv-icon-only" data-action="share" title="Share Profile"><i class="fas fa-share-alt"></i></button>
-          <div class="nv-more-menu" data-more-menu>
-            <button class="nv-btn nv-icon-only" data-action="more" title="More"><i class="fas fa-ellipsis"></i></button>
-            <div class="nv-more-dropdown" hidden>
-              {% if p.report_url %}<button data-action="report"><i class="fas fa-flag"></i> Report</button>{% endif %}
-              {% if not p.is_self %}<button data-action="block"><i class="fas fa-ban"></i> Block</button>{% endif %}
-              {% if not p.is_self %}<button data-action="restrict"><i class="fas fa-eye-slash"></i> Restrict</button>{% endif %}
-            </div>
-          </div>
-        </div>
+        {% if p.quote_of_day %}
+        <p class="nv-pp-bio" style="font-style:italic;opacity:0.8">"{{ p.quote_of_day }}"</p>
         {% endif %}
+        {% if p.bio %}<p class="nv-pp-bio">{{ p.bio }}</p>{% endif %}
+
+        <!-- Badge row -->
+        <div class="nv-pp-tags">
+          {% if p.is_gold_verified %}<span class="nv-pp-tag" style="background:linear-gradient(135deg,#ffd700,#f0c000);color:#7c5c00;border:1px solid #e6b800;">★ Gold Verified</span>{% elif p.verified %}<span class="nv-pp-tag nv-pp-tag-verified">✓ Verified</span>{% endif %}
+          {% if p.premium_badge %}<span class="nv-pp-tag nv-pp-tag-premium">⭐ Premium</span>{% endif %}
+          {% if p.creator_badge %}<span class="nv-pp-tag nv-pp-tag-creator">🎨 Creator</span>{% endif %}
+          {% if p.business_badge %}<span class="nv-pp-tag nv-pp-tag-business">🏢 Business</span>{% endif %}
+          {% if p.government_badge %}<span class="nv-pp-tag nv-pp-tag-government">🏛 Government</span>{% endif %}
+          {% if p.ngo_badge %}<span class="nv-pp-tag nv-pp-tag-ngo">🤝 NGO</span>{% endif %}
+          {% if p.student_badge %}<span class="nv-pp-tag nv-pp-tag-student">🎓 Student</span>{% endif %}
+          {% if p.medical_badge %}<span class="nv-pp-tag nv-pp-tag-medical">🏥 Medical</span>{% endif %}
+          {% if p.teacher_badge %}<span class="nv-pp-tag nv-pp-tag-teacher">📚 Teacher</span>{% endif %}
+        </div>
+
+        <!-- Hero stats -->
+        <div class="nv-pp-stats-hero">
+          {% if p.profile_score %}<div class="nv-pp-stat-h"><strong>{{ p.profile_score }}%</strong><span>AI Score</span></div>{% endif %}
+          {% if p.profile_level %}<div class="nv-pp-stat-h"><strong>{{ p.profile_level }}</strong><span>Level</span></div>{% endif %}
+          <div class="nv-pp-stat-h"><strong>{{ p.member_since_year or (p.joined[:4] if p.joined else '') }}</strong><span>Member</span></div>
+          {% if p.country_flag %}<div class="nv-pp-stat-h"><strong>{{ p.country_flag }}</strong><span>{{ p.city or 'Country' }}</span></div>{% endif %}
+          {% if p.city %}<div class="nv-pp-stat-h"><strong>{{ p.city }}</strong><span>City</span></div>{% endif %}
+        </div>
       </div>
     </div>
 
-    <div class="nv-stats">
-      <div class="nv-stat"><strong>{{ p.posts_count }}</strong><span>Posts</span></div>
-      <div class="nv-stat"><strong>{{ p.reels_count }}</strong><span>Reels</span></div>
-      <div class="nv-stat"><strong>{{ p.stories_count }}</strong><span>Stories</span></div>
-      <div class="nv-stat" data-action="followers"><strong>{{ p.followers_count }}</strong><span>Followers</span></div>
-      <div class="nv-stat" data-action="following"><strong>{{ p.following_count }}</strong><span>Following</span></div>
-      <div class="nv-stat" data-action="friends"><strong>{{ p.friends_count }}</strong><span>Friends</span></div>
-      <div class="nv-stat"><strong>{{ p.likes_count }}</strong><span>Likes</span></div>
-      <div class="nv-stat"><strong>{{ p.views_count }}</strong><span>Views</span></div>
+    <!-- ═══ 2. LIVE STATUS ═══ -->
+    <div class="nv-pp-status">
+      <span class="nv-pp-live-badge {{ p.activity_status or 'online' }}">{{ p_live_label }}</span>
+      {% if p.current_activity %} · {{ p.current_activity }}{% endif %}
+      {% if p.mood_emoji %} · {{ p.mood_emoji }} {{ p.mood_text or '' }}{% endif %}
+      {% if p.local_time %} · 🕐 {{ p.local_time }}{% endif %}
+      {% if p.weather_emoji %} · {{ p.weather_emoji }} {{ p.weather_temp or '' }}{% endif %}
+      {% if p.relationship_status %} · 💑 {{ p.relationship_status }}{% endif %}
     </div>
 
-    {% if not p.is_self and p.mutual_friends %}
-    <div class="nv-mutual">
-      {% for mf in p.mutual_friends[:5] %}
-      <a href="/profile/@{{ mf.username }}" class="nv-mutual-avatar" title="{{ mf.display_name }}">
-        {% if mf.avatar_url %}<img src="{{ mf.avatar_url }}" alt="{{ mf.display_name }}">{% else %}<span>{{ mf.display_name[0]|upper }}</span>{% endif %}
-      </a>
-      {% endfor %}
-      {% if p.mutual_friends_count > 5 %}
-      <span class="nv-mutual-count">+{{ p.mutual_friends_count - 5 }}</span>
+    <!-- ═══ 7. INTERACTIVE ACTION BUTTONS ═══ -->
+    <div class="nv-pp-actions">
+      {% if own %}
+      <a href="/profile/edit" class="nv-btn-pp nv-btn-pp-primary">✏️ Edit Profile</a>
+      <a href="/creator-studio/" class="nv-btn-pp">🎬 Studio</a>
+      <a href="/wallet" class="nv-btn-pp">💳 Wallet</a>
+      <a href="/live/studio" class="nv-btn-pp nv-btn-pp-icon" title="Go Live">📡</a>
+      <button class="nv-btn-pp nv-btn-pp-icon" data-action="share" title="Share Profile">↗️</button>
+      {% else %}
+      {% if pa.primary_action == 'friend_request' or pa.primary_action == 'friend' %}
+      <button class="nv-btn-pp nv-btn-pp-primary" data-action="add-friend">🤝 Add Friend</button>
+      {% elif pa.primary_action == 'follow' %}
+      <button class="nv-btn-pp nv-btn-pp-primary" data-action="follow" data-state="none">❤️ Follow</button>
+      {% elif pa.primary_action == 'request_follow' %}
+      <button class="nv-btn-pp nv-btn-pp-primary" data-action="follow" data-state="none">🔒 Request Follow</button>
+      {% elif pa.primary_action == 'requested' %}
+      <button class="nv-btn-pp" disabled>⏳ Requested</button>
+      {% elif pa.primary_action == 'following' %}
+      <button class="nv-btn-pp nv-btn-pp-primary" data-action="follow" data-state="following">❤️ Following</button>
+      {% elif pa.primary_action == 'message' or pa.can_chat %}
+      <button class="nv-btn-pp nv-btn-pp-primary" data-action="message">💬 Message</button>
+      {% elif pa.primary_action == 'request_sent' %}
+      <button class="nv-btn-pp" disabled>✅ Request Sent</button>
+      {% elif pa.primary_action == 'accept_request' %}
+      <a href="/social/friend-requests" class="nv-btn-pp nv-btn-pp-primary">👥 Accept Request</a>
       {% endif %}
-      {% if p.mutual_friends_count > 0 %}
-      <span class="nv-mutual-text">{{ p.mutual_friends_count }} mutual {{ 'friend' if p.mutual_friends_count == 1 else 'friends' }}</span>
+      {% if pa.can_call %}<button class="nv-btn-pp" data-action="call">📞 Call</button>{% endif %}
+      {% if pa.can_call %}<button class="nv-btn-pp" data-action="video-call">🎥 Video Call</button>{% endif %}
+      <div class="nv-pp-action-more">
+        <button class="nv-btn-pp nv-btn-pp-icon" data-action="toggle-more">⋯</button>
+        <div class="nv-pp-action-dropdown">
+          <button data-action="send-gift">🎁 Send Gift</button>
+          <button data-action="tip-creator">💰 Tip Creator</button>
+          <button data-action="share-location">📍 Share Live Location</button>
+          <button data-action="invite">📨 Invite</button>
+          <button data-action="share-playlist">🎵 Share Playlist</button>
+          <button data-action="view-gallery">📸 View Gallery</button>
+          <button data-action="watch-reels">🎬 Watch Reels</button>
+          <button data-action="join-live">📡 Join Live</button>
+          {% if p.has_shop %}<button data-action="view-shop">🛍 View Shop</button>{% endif %}
+          <button data-action="share">↗️ Share</button>
+          <button data-action="report">🚩 Report</button>
+        </div>
+      </div>
       {% endif %}
     </div>
-    {% endif %}
 
-    {% if p.is_self and p.profile_strength is not none %}
-    <div class="nv-strength">
-      <div class="nv-strength-bar"><span style="width:{{ p.profile_strength }}%"></span></div>
-      <span class="nv-strength-label">Profile strength: {{ p.profile_strength }}%</span>
+    <!-- ═══ 4. BEAUTIFUL STATISTICS ═══ -->
+    <div class="nv-pp-stats">
+      <div class="nv-pp-stat nv-pp-stat-clickable" data-action="posts"><strong class="nv-count" data-target="{{ p.posts_count }}">{{ p.posts_count }}</strong><span>Posts</span></div>
+      <div class="nv-pp-stat nv-pp-stat-clickable" data-action="reels"><strong class="nv-count" data-target="{{ p.reels_count }}">{{ p.reels_count }}</strong><span>Reels</span></div>
+      <div class="nv-pp-stat nv-pp-stat-clickable" data-action="stories"><strong class="nv-count" data-target="{{ p.stories_count }}">{{ p.stories_count }}</strong><span>Stories</span></div>
+      <div class="nv-pp-stat nv-pp-stat-clickable" data-action="followers"><strong class="nv-count" data-target="{{ p.followers_count }}">{{ p.followers_count }}</strong><span>Followers</span></div>
+      <div class="nv-pp-stat nv-pp-stat-clickable" data-action="following"><strong class="nv-count" data-target="{{ p.following_count }}">{{ p.following_count }}</strong><span>Following</span></div>
+      <div class="nv-pp-stat nv-pp-stat-clickable" data-action="friends"><strong class="nv-count" data-target="{{ p.friends_count }}">{{ p.friends_count }}</strong><span>Friends</span></div>
+      <div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.views_count or p.total_profile_views }}">{{ p.views_count or p.total_profile_views }}</strong><span>Views</span></div>
+      <div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.likes_count or p.total_likes or 0 }}">{{ p.likes_count or p.total_likes or 0 }}</strong><span>Likes</span></div>
+      {% if p.total_comments %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_comments }}">{{ p.total_comments }}</strong><span>Comments</span></div>{% endif %}
+      {% if p.total_shares %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_shares }}">{{ p.total_shares }}</strong><span>Shares</span></div>{% endif %}
+      <div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_bookmarks or 0 }}">{{ p.total_bookmarks or 0 }}</strong><span>Saved</span></div>
+      {% if p.total_downloads %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_downloads }}">{{ p.total_downloads }}</strong><span>Downloads</span></div>{% endif %}
+      <div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_achievements or 0 }}">{{ p.total_achievements or 0 }}</strong><span>Achievements</span></div>
+      {% if total_earnings or p.total_earnings %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ (total_earnings or p.total_earnings)|int }}">{{ (total_earnings or p.total_earnings)|int }}</strong><span>Earnings</span></div>{% endif %}
+      {% if p.total_marketplace_sales %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_marketplace_sales }}">{{ p.total_marketplace_sales }}</strong><span>Sales</span></div>{% endif %}
+      {% if p.total_live_hours %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_live_hours }}">{{ p.total_live_hours }}</strong><span>Live hrs</span></div>{% endif %}
+      {% if p.total_voice_calls %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_voice_calls }}">{{ p.total_voice_calls }}</strong><span>Voice</span></div>{% endif %}
+      {% if p.total_video_calls %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_video_calls }}">{{ p.total_video_calls }}</strong><span>Video</span></div>{% endif %}
+      {% if p.total_messages %}<div class="nv-pp-stat"><strong class="nv-count" data-target="{{ p.total_messages }}">{{ p.total_messages }}</strong><span>Messages</span></div>{% endif %}
+      <div class="nv-pp-stat"><strong>{{ p.years_on_namvibe or 0 }}</strong><span>Years</span></div>
     </div>
-    {% endif %}
   </section>
 
-  {% if p.highlights %}
-  <section class="nv-highlights">
-    {% for h in p.highlights[:8] %}
-    <button class="nv-highlight" type="button" data-highlight-id="{{ h.id }}">
-      {% if h.cover_url %}<img src="{{ h.cover_url }}" alt="{{ h.title }}">{% else %}<div class="nv-highlight-fallback"><i class="fas fa-star"></i></div>{% endif %}
-      <span>{{ h.title }}</span>
-    </button>
-    {% endfor %}
+  <!-- ════════════════════════════════════════════════
+       5. AI REPUTATION
+       ════════════════════════════════════════════════ -->
+  <section class="nv-pp-section" id="nv-pp-reputation">
+    <h2 class="nv-pp-section-title">🏅 AI Reputation</h2>
+    <div class="nv-pp-reputation">
+      <div class="nv-pp-rep-item"><strong>{{ p.trust_score or 0 }}%</strong><span>Trust Score</span><div class="nv-pp-bar"><div style="width:{{ p.trust_score or 0 }}%"></div></div></div>
+      {% if p.community_rating %}<div class="nv-pp-rep-item"><strong>{{ p.community_rating }}/5</strong><span>Community Rating</span><div class="nv-pp-bar"><div style="width:{{ (p.community_rating/5)*100 }}%"></div></div></div>{% endif %}
+      <div class="nv-pp-rep-item"><strong>{{ p.friendliness_score or 0 }}%</strong><span>Friendliness</span><div class="nv-pp-bar"><div style="width:{{ p.friendliness_score or 0 }}%"></div></div></div>
+      <div class="nv-pp-rep-item"><strong>{{ p.safety_score or 0 }}%</strong><span>Safety Score</span><div class="nv-pp-bar"><div style="width:{{ p.safety_score or 0 }}%"></div></div></div>
+      <div class="nv-pp-rep-item"><strong>{{ p.response_rate or 0 }}%</strong><span>Response Rate</span><div class="nv-pp-bar"><div style="width:{{ p.response_rate or 0 }}%"></div></div></div>
+      <div class="nv-pp-rep-item"><strong>{{ p.response_time or '< 1h' }}</strong><span>Response Time</span></div>
+      <div class="nv-pp-rep-item"><strong>{{ p.popularity_score or 0 }}</strong><span>Popularity</span><div class="nv-pp-bar"><div style="width:{{ (p.popularity_score or 0) }}%"></div></div></div>
+      <div class="nv-pp-rep-item"><strong>{{ p.activity_level or 0 }}%</strong><span>Activity Level</span><div class="nv-pp-bar"><div style="width:{{ p.activity_level or 0 }}%"></div></div></div>
+      <div class="nv-pp-rep-item"><strong>{{ '✅ Verified' if p.identity_verified else '❌ Not Verified' }}</strong><span>Verified Identity</span></div>
+      <div class="nv-pp-rep-item"><strong>{{ '✅ Active' if p.scam_protection else '❌ Disabled' }}</strong><span>Scam Protection</span></div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════
+       2. DYNAMIC PROFILE CARD (DETAILS)
+       ════════════════════════════════════════════════ -->
+  <section class="nv-pp-section" id="nv-pp-details">
+    <h2 class="nv-pp-section-title">📋 Profile Details</h2>
+    <div class="nv-pp-details">
+      {% if p.pronouns %}<div class="nv-pp-detail"><span>Pronouns</span><strong>{{ p.pronouns }}</strong></div>{% endif %}
+      {% if p.quote_of_day %}<div class="nv-pp-detail"><span>Quote of the Day</span><strong>"{{ p.quote_of_day }}"</strong></div>{% endif %}
+      {% if p.mood_emoji %}<div class="nv-pp-detail"><span>Mood</span><strong>{{ p.mood_emoji }} {{ p.mood_text or '' }}</strong></div>{% endif %}
+      {% if p.current_activity %}<div class="nv-pp-detail"><span>Current Activity</span><strong>{{ p.current_activity }}</strong></div>{% endif %}
+      {% if p.relationship_status %}<div class="nv-pp-detail"><span>Relationship</span><strong>{{ p.relationship_status }}</strong></div>{% endif %}
+      {% if p.occupation %}<div class="nv-pp-detail"><span>Occupation</span><strong>{{ p.occupation }}</strong></div>{% endif %}
+      {% if p.company %}<div class="nv-pp-detail"><span>Company</span><strong>{{ p.company }}</strong></div>{% endif %}
+      {% if p.school %}<div class="nv-pp-detail"><span>School</span><strong>{{ p.school }}</strong></div>{% endif %}
+      {% if p.university %}<div class="nv-pp-detail"><span>University</span><strong>{{ p.university }}</strong></div>{% endif %}
+      {% if p.website %}<div class="nv-pp-detail"><span>Website</span><strong><a href="{{ p.website }}" target="_blank" rel="noopener">{{ p.website }}</a></strong></div>{% endif %}
+      {% if p.email %}<div class="nv-pp-detail"><span>Email</span><strong>{{ p.email }}</strong></div>{% endif %}
+      {% if p.phone %}<div class="nv-pp-detail"><span>Phone</span><strong>{{ p.phone }}</strong></div>{% endif %}
+      {% if p.location %}<div class="nv-pp-detail"><span>Location</span><strong>{{ p.location }}{% if p.country_flag %} {{ p.country_flag }}{% endif %}</strong></div>{% endif %}
+      {% if p.languages_list %}<div class="nv-pp-detail"><span>Languages</span><strong>{{ p.languages_list }}</strong></div>{% endif %}
+      {% if p.interests_list %}<div class="nv-pp-detail"><span>Interests</span><strong>{{ p.interests_list }}</strong></div>{% endif %}
+      {% if p.skills_list %}<div class="nv-pp-detail"><span>Skills</span><strong>{{ p.skills_list }}</strong></div>{% endif %}
+    </div>
+  </section>
+
+  <!-- ═══ WORK EXPERIENCE ═══ -->
+  {% if works %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">💼 Experience</h2>
+    <div class="nv-pp-timeline">
+      {% for w in works %}
+      <div class="nv-pp-tl-item">
+        <div class="nv-pp-tl-dot"></div>
+        <div>
+          <strong>{{ w.position }}</strong> @ {{ w.company }}
+          {% if w.location %}<span class="nv-pp-tl-loc">{{ w.location }}</span>{% endif %}
+          <div class="nv-pp-tl-date">{{ w.start_year }} – {{ w.end_year or 'Present' }}</div>
+          {% if w.description %}<p>{{ w.description }}</p>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </section>
   {% endif %}
 
-  <nav class="nv-tabs" data-tabs>
-    <button class="nv-tab active" data-tab="posts"><i class="fas fa-th-large"></i><span>Posts</span></button>
-    <button class="nv-tab" data-tab="reels"><i class="fas fa-film"></i><span>Reels</span></button>
-    {% if p.has_active_stories %}<button class="nv-tab" data-tab="stories"><i class="fas fa-circle"></i><span>Stories</span></button>{% endif %}
-    <button class="nv-tab" data-tab="gallery"><i class="fas fa-photo-film"></i><span>Gallery</span></button>
-    <button class="nv-tab" data-tab="live"><i class="fas fa-tower-broadcast"></i><span>Live</span></button>
-    <button class="nv-tab" data-tab="highlights"><i class="fas fa-bookmark"></i><span>Highlights</span></button>
-    <button class="nv-tab" data-tab="friends"><i class="fas fa-users"></i><span>Friends</span></button>
-    <button class="nv-tab" data-tab="about"><i class="fas fa-info-circle"></i><span>About</span></button>
-    <button class="nv-tab" data-tab="activity"><i class="fas fa-clock-rotate-left"></i><span>Activity</span></button>
-  </nav>
-
-  <section class="nv-panels">
-    <div class="nv-panel active" data-panel="posts">
-      <div class="nv-grid nv-grid-3">
-        <div class="nv-skeleton"></div>
-        <div class="nv-skeleton"></div>
-        <div class="nv-skeleton"></div>
-      </div>
-    </div>
-    <div class="nv-panel" data-panel="reels"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
-    {% if p.has_active_stories %}<div class="nv-panel" data-panel="stories"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>{% endif %}
-    <div class="nv-panel" data-panel="gallery"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
-    <div class="nv-panel" data-panel="live"><div class="nv-grid nv-grid-2"><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
-    <div class="nv-panel" data-panel="highlights"><div class="nv-empty-inline"><h3>No highlights</h3><p>Story highlights will appear here.</p></div></div>
-    <div class="nv-panel" data-panel="friends"><div class="nv-grid nv-grid-3"><div class="nv-skeleton"></div><div class="nv-skeleton"></div><div class="nv-skeleton"></div></div></div>
-    <div class="nv-panel" data-panel="about">
-      <div class="nv-about">
-        <div class="nv-about-section"><h3>About</h3>{% if p.bio %}<p>{{ p.bio }}</p>{% endif %}</div>
-        <div class="nv-about-grid">
-          <div class="nv-about-item"><strong>Joined</strong><span>{{ p.joined }}</span></div>
-          {% if p.location %}<div class="nv-about-item"><strong>Location</strong><span>{{ p.location }}</span></div>{% endif %}
-          {% if p.category %}<div class="nv-about-item"><strong>Category</strong><span>{{ p.category }}</span></div>{% endif %}
-          {% if p.website %}<div class="nv-about-item"><strong>Website</strong><span><a href="{{ p.website }}" target="_blank" rel="noopener">{{ p.website }}</a></span></div>{% endif %}
-          <div class="nv-about-item"><strong>Verification</strong><span>{{ 'Verified' if p.verified else 'Not verified' }}</span></div>
+  <!-- ═══ EDUCATION ═══ -->
+  {% if education %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🎓 Education</h2>
+    <div class="nv-pp-timeline">
+      {% for e in education %}
+      <div class="nv-pp-tl-item">
+        <div class="nv-pp-tl-dot"></div>
+        <div>
+          <strong>{{ e.degree or 'Study' }}</strong> @ {{ e.institution }}
+          {% if e.field_of_study %}<span>{{ e.field_of_study }}</span>{% endif %}
+          <div class="nv-pp-tl-date">{{ e.start_year }} – {{ e.end_year or 'Present' }}</div>
+          {% if e.description %}<p>{{ e.description }}</p>{% endif %}
         </div>
       </div>
+      {% endfor %}
     </div>
-    <div class="nv-panel" data-panel="activity"><div class="nv-empty-inline"><h3>No recent activity</h3><p>Public activity will appear here.</p></div></div>
   </section>
-</div>
+  {% endif %}
 
+  <!-- ═══ 6. ACHIEVEMENT ═══ -->
+  {% if achievements %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🏆 Achievements</h2>
+    <div class="nv-pp-achievements">
+      {% for a in achievements %}
+      <div class="nv-pp-ach" title="{{ a.description or a.badge_label }}" style="--ach-color:{{ a.badge_color or '#ec4899' }}">
+        <span class="nv-pp-ach-icon">{{ a.badge_icon or '🏆' }}</span>
+        <span class="nv-pp-ach-label">{{ a.badge_label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ═══ BADGES ═══ -->
+  {% if badges %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🎖️ Badges</h2>
+    <div class="nv-pp-badges">
+      {% for b in badges %}
+      <div class="nv-pp-badge" style="--badge-color:{{ b.badge_color or '#ec4899' }}">
+        <span>{{ b.badge_icon or '🎖️' }}</span>
+        <span>{{ b.badge_label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ═══ 9. COLLECTIONS ═══ -->
+  {% if collections %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">📁 Collections</h2>
+    <div class="nv-pp-collections">
+      {% for c in collections %}
+      <a href="/profile/{{ p.username }}/collection/{{ c.id }}" class="nv-pp-col">
+        {% if c.cover_url %}<img src="{{ c.cover_url }}" alt="">{% else %}<div class="nv-pp-col-fallback">📁</div>{% endif %}
+        <strong>{{ c.title }}</strong>
+        {% if c.description %}<small>{{ c.description }}</small>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ═══ SKILLS ═══ -->
+  {% if skills %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🔧 Skills</h2>
+    <div class="nv-pp-skills">
+      {% for s in skills %}
+      <div class="nv-pp-skill">
+        <span>{{ s.skill_name }}</span>
+        <div class="nv-pp-bar"><div style="width:{{ s.proficiency }}%"></div></div>
+        <small>{{ s.proficiency }}%</small>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       11. DIGITAL IDENTITY
+       ════════════════════════════════════════════════ -->
+  {% if p.nationality or p.identity_verified or p.driving_licence or p.student_card or p.employee_card or p.health_card or p.business_licence or p.professional_membership or p.volunteer_badge %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🪪 Digital Identity</h2>
+    <div class="nv-pp-digital-id">
+      {% if p.nationality %}<span class="nv-pp-digital-id-item">🌍 {{ p.nationality }}</span>{% endif %}
+      {% if p.identity_verified %}<span class="nv-pp-digital-id-item verified">✅ Verified ID</span>{% endif %}
+      {% if p.driving_licence %}<span class="nv-pp-digital-id-item verified">🚗 Driving Licence</span>{% endif %}
+      {% if p.student_card %}<span class="nv-pp-digital-id-item verified">🎓 Student Card</span>{% endif %}
+      {% if p.employee_card %}<span class="nv-pp-digital-id-item verified">💼 Employee Card</span>{% endif %}
+      {% if p.health_card %}<span class="nv-pp-digital-id-item verified">🏥 Health Card</span>{% endif %}
+      {% if p.business_licence %}<span class="nv-pp-digital-id-item verified">📋 Business Licence</span>{% endif %}
+      {% if p.professional_membership %}<span class="nv-pp-digital-id-item verified">📜 Professional Membership</span>{% endif %}
+      {% if p.volunteer_badge %}<span class="nv-pp-digital-id-item verified">🤝 Volunteer Badge</span>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       14. MUSIC SECTION
+       ════════════════════════════════════════════════ -->
+  {% if favorites_music or p.favorite_songs or p.recently_played or p.playlists or p.favorite_artists %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🎵 Music</h2>
+    <div class="nv-pp-details" style="grid-template-columns:1fr">
+      {% if favorites_music %}<div class="nv-pp-detail"><span>Favorite Music</span><strong>{{ favorites_music|map(attribute='label')|join(', ') }}</strong></div>{% endif %}
+      {% if p.favorite_songs %}<div class="nv-pp-detail"><span>Favorite Songs</span><strong>{{ p.favorite_songs|join(', ') }}</strong></div>{% endif %}
+      {% if p.recently_played %}<div class="nv-pp-detail"><span>Recently Played</span><strong>{{ p.recently_played|join(', ') }}</strong></div>{% endif %}
+      {% if p.favorite_artists %}<div class="nv-pp-detail"><span>Favorite Artists</span><strong>{{ p.favorite_artists|join(', ') }}</strong></div>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       15. GAMING SECTION
+       ════════════════════════════════════════════════ -->
+  {% if favorites_games or p.favorite_games_list or p.gaming_level or p.gaming_achievements %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🎮 Gaming</h2>
+    <div class="nv-pp-details" style="grid-template-columns:1fr">
+      {% if favorites_games %}<div class="nv-pp-detail"><span>Favorite Games</span><strong>{{ favorites_games|map(attribute='label')|join(', ') }}</strong></div>{% endif %}
+      {% if p.favorite_games_list %}<div class="nv-pp-detail"><span>Games</span><strong>{{ p.favorite_games_list|join(', ') }}</strong></div>{% endif %}
+      {% if p.gaming_level %}<div class="nv-pp-detail"><span>Gaming Level</span><strong>{{ p.gaming_level }}</strong></div>{% endif %}
+      {% if p.gaming_achievements %}<div class="nv-pp-detail"><span>Gaming Achievements</span><strong>{{ p.gaming_achievements|join(', ') }}</strong></div>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       16. TRAVEL MAP
+       ════════════════════════════════════════════════ -->
+  {% if p.countries_visited or p.cities_visited or p.travel_wishlist %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🌍 Travel Map</h2>
+    <div class="nv-pp-details" style="grid-template-columns:1fr">
+      {% if p.countries_visited %}<div class="nv-pp-detail"><span>Countries Visited</span><strong>{{ p.countries_visited|join(', ') }}</strong></div>{% endif %}
+      {% if p.cities_visited %}<div class="nv-pp-detail"><span>Cities Visited</span><strong>{{ p.cities_visited|join(', ') }}</strong></div>{% endif %}
+      {% if p.travel_wishlist %}<div class="nv-pp-detail"><span>Wishlist</span><strong>{{ p.travel_wishlist|join(', ') }}</strong></div>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       17. HEALTH & FITNESS
+       ════════════════════════════════════════════════ -->
+  {% if p.fitness_steps or p.fitness_workouts or p.fitness_cycling or p.fitness_running or p.fitness_calories or p.fitness_goals or p.fitness_sleep %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">💪 Health & Fitness</h2>
+    <div class="nv-pp-reputation" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">
+      {% if p.fitness_steps %}<div class="nv-pp-health-metric"><strong class="nv-count" data-target="{{ p.fitness_steps }}">{{ p.fitness_steps }}</strong><span>Steps</span></div>{% endif %}
+      {% if p.fitness_workouts %}<div class="nv-pp-health-metric"><strong class="nv-count" data-target="{{ p.fitness_workouts }}">{{ p.fitness_workouts }}</strong><span>Workouts</span></div>{% endif %}
+      {% if p.fitness_cycling %}<div class="nv-pp-health-metric"><strong class="nv-count" data-target="{{ p.fitness_cycling }}">{{ p.fitness_cycling }}</strong><span>Cycling</span></div>{% endif %}
+      {% if p.fitness_running %}<div class="nv-pp-health-metric"><strong class="nv-count" data-target="{{ p.fitness_running }}">{{ p.fitness_running }}</strong><span>Running</span></div>{% endif %}
+      {% if p.fitness_calories %}<div class="nv-pp-health-metric"><strong class="nv-count" data-target="{{ p.fitness_calories }}">{{ p.fitness_calories }}</strong><span>Calories</span></div>{% endif %}
+    </div>
+    {% if p.fitness_goals or p.fitness_sleep %}
+    <div class="nv-pp-details" style="margin-top:12px">
+      {% if p.fitness_goals %}<div class="nv-pp-detail"><span>Fitness Goals</span><strong>{{ p.fitness_goals }}</strong></div>{% endif %}
+      {% if p.fitness_sleep %}<div class="nv-pp-detail"><span>Sleep</span><strong>{{ p.fitness_sleep }}</strong></div>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       12. CREATOR DASHBOARD
+       13. BUSINESS DASHBOARD
+       ════════════════════════════════════════════════ -->
+  {% if own or p.creator_badge or p.studio_enabled %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🎬 Creator Dashboard</h2>
+    <div class="nv-pp-creator-grid">
+      <div class="nv-pp-creator-card"><strong>{{ p.total_earnings or 0 }}</strong><span>Earnings</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.subscribers_count or 0 }}</strong><span>Subscribers</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.wallet_tips or 0 }}</strong><span>Tips</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.reels_count or 0 }}</strong><span>Top Videos</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.views_count or 0 }}</strong><span>Views</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.followers_count or 0 }}</strong><span>Followers</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.response_rate or 0 }}%</strong><span>Engagement</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.total_live_hours or 0 }}h</strong><span>Watch Time</span></div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if p.business_badge or p.business_name %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🏢 Business Dashboard</h2>
+    <div class="nv-pp-details">
+      {% if p.business_name %}<div class="nv-pp-detail"><span>Business</span><strong>{{ p.business_name }}</strong></div>{% endif %}
+      {% if p.website %}<div class="nv-pp-detail"><span>Website</span><strong><a href="{{ p.website }}" target="_blank">{{ p.website }}</a></strong></div>{% endif %}
+      {% if p.business_whatsapp %}<div class="nv-pp-detail"><span>WhatsApp</span><strong>{{ p.business_whatsapp }}</strong></div>{% endif %}
+      {% if p.business_hours %}<div class="nv-pp-detail"><span>Hours</span><strong>{{ p.business_hours }}</strong></div>{% endif %}
+      {% if p.business_delivery %}<div class="nv-pp-detail"><span>Delivery</span><strong>✅ Available</strong></div>{% endif %}
+      {% if p.business_appointments %}<div class="nv-pp-detail"><span>Appointments</span><strong>✅ Bookable</strong></div>{% endif %}
+      {% if p.location %}<div class="nv-pp-detail"><span>Map</span><strong>{{ p.location }}</strong></div>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       18. MARKETPLACE
+       19. WALLET
+       ════════════════════════════════════════════════ -->
+  {% if own or p.marketplace_items_selling %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🛍 Marketplace</h2>
+    <div class="nv-pp-creator-grid">
+      <div class="nv-pp-creator-card"><strong>{{ p.marketplace_items_selling or 0 }}</strong><span>Selling</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.marketplace_wishlist or 0 }}</strong><span>Wishlist</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.marketplace_purchased or 0 }}</strong><span>Purchased</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.marketplace_reviews or 0 }}</strong><span>Reviews</span></div>
+      <div class="nv-pp-creator-card"><strong>{{ p.total_marketplace_sales or 0 }}</strong><span>Sales</span></div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if own %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">💳 Wallet</h2>
+    <div class="nv-pp-wallet-grid">
+      <div class="nv-pp-wallet-item"><strong>{{ p.wallet_coins or 0 }}</strong><span>Coins</span></div>
+      <div class="nv-pp-wallet-item"><strong>{{ p.wallet_rewards or 0 }}</strong><span>Rewards</span></div>
+      <div class="nv-pp-wallet-item"><strong>{{ p.wallet_tips or 0 }}</strong><span>Tips</span></div>
+      <div class="nv-pp-wallet-item"><strong>{{ p.wallet_revenue or 0 }}</strong><span>Revenue</span></div>
+      <div class="nv-pp-wallet-item"><strong>{{ p.subscribers_count or 0 }}</strong><span>Subscriptions</span></div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       20. AI TIMELINE
+       ════════════════════════════════════════════════ -->
+  {% if timeline %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">📅 AI Timeline</h2>
+    <div class="nv-pp-timeline">
+      {% for t in timeline %}
+      <div class="nv-pp-tl-item">
+        <div class="nv-pp-tl-dot" style="background:var(--nv-pp-accent)"></div>
+        <div>
+          <strong>{{ t.event_icon or '📌' }} {{ t.event_label }}</strong>
+          <div class="nv-pp-tl-date">{{ t.event_date or (t.created_at.strftime('%Y-%m-%d') if t.created_at else '') }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       10. AI SMART PROFILE
+       21. SMART VISITORS
+       24. AI ASSISTANT
+       ════════════════════════════════════════════════ -->
+  {% if p.mutual_friends or p.recently_active_friends or ai_friend_suggestions %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🤖 AI Smart Profile</h2>
+    {% if p.mutual_friends or content.mutual_friends %}
+    <div class="nv-pp-ai-box">
+      <strong style="font-size:14px">👥 Mutual Friends</strong>
+      <div class="nv-pp-grid-users" style="margin-top:8px">
+        {% for mf in (p.mutual_friends or content.mutual_friends.get('items') or [])[:9] %}
+        <a href="/profile/@{{ mf.username }}" class="nv-pp-user-card" style="padding:8px">
+          {% if mf.avatar_url %}<img src="{{ mf.avatar_url }}" style="width:40px;height:40px">{% else %}<div class="nv-pp-user-init" style="width:40px;height:40px;font-size:16px">{{ (mf.display_name or '?')[0]|upper }}</div>{% endif %}
+          <strong style="font-size:11px">{{ mf.display_name or mf.username }}</strong>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if p.recently_active_friends %}
+    <div class="nv-pp-ai-box">
+      <strong style="font-size:14px">🟢 Recently Active</strong>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+        {% for raf in (p.recently_active_friends)[:10] %}
+        <span class="nv-pp-digital-id-item" style="font-size:12px">🟢 {{ raf.display_name or raf.username }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if ai_friend_suggestions or ai_creator_recommendations %}
+    <div class="nv-pp-ai-box">
+      <strong style="font-size:14px">👤 Suggested for You</strong>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+        {% for sug in (ai_friend_suggestions or [])[:6] %}
+        <a href="/profile/@{{ sug.username if sug.username else sug.id }}" class="nv-pp-digital-id-item" style="text-decoration:none">👤 {{ sug.display_name or sug.username or 'User' }}</a>
+        {% endfor %}
+        {% for rec in (ai_creator_recommendations or [])[:6] %}
+        <a href="/profile/@{{ rec.username if rec.username else rec.id }}" class="nv-pp-digital-id-item" style="text-decoration:none">🎬 {{ rec.display_name or rec.username or 'Creator' }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% if p.ai_profile_summary or ai_growth_analysis %}
+    <div class="nv-pp-ai-box">
+      <strong style="font-size:14px">🤖 AI Insight</strong>
+      <p>{{ p.ai_profile_summary or ai_growth_analysis or 'Your profile is looking great! Complete your profile to unlock more insights.' }}</p>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       22. PRIVACY CENTER
+       ════════════════════════════════════════════════ -->
+  {% if own %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🔒 Privacy Center</h2>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="nv-pp-privacy-toggle"><span>👁️ Who can view profile</span><strong>{{ p.privacy or 'Everyone' }}</strong></div>
+      <div class="nv-pp-privacy-toggle"><span>💬 Who can message</span><strong>{{ 'Everyone' if p.can_message else 'Friends' }}</strong></div>
+      <div class="nv-pp-privacy-toggle"><span>📞 Who can call</span><strong>{{ 'Everyone' if p.can_call else 'Friends' }}</strong></div>
+      <div class="nv-pp-privacy-toggle"><span>🎥 Who can video call</span><strong>{{ 'Everyone' if p.can_video_call else 'Friends' }}</strong></div>
+      <div class="nv-pp-privacy-toggle"><span>📸 Who can download photos</span><strong>{{ 'Everyone' if own else 'Friends' }}</strong></div>
+      <div class="nv-pp-privacy-toggle"><span>📨 Who can mention me</span><strong>{{ 'Everyone' if own else 'Friends' }}</strong></div>
+      <div class="nv-pp-privacy-toggle"><span>🏷️ Who can tag me</span><strong>{{ 'Everyone' if own else 'Friends' }}</strong></div>
+      <div class="nv-pp-privacy-toggle"><span>📩 Who can invite me</span><strong>{{ 'Everyone' if own else 'Friends' }}</strong></div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+       23. PROFILE THEMES
+       ════════════════════════════════════════════════ -->
+  {% if own %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🎨 Profile Themes</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <button class="nv-pp-theme-btn" data-theme="default" style="background:linear-gradient(135deg,#ec4899,#f472b6)" title="Default Pink"></button>
+      <button class="nv-pp-theme-btn" data-theme="neon" style="background:linear-gradient(135deg,#06b6d4,#8b5cf6)" title="Neon Cyber"></button>
+      <button class="nv-pp-theme-btn" data-theme="diamond" style="background:linear-gradient(135deg,#1e293b,#475569)" title="Diamond Black"></button>
+      <button class="nv-pp-theme-btn" data-theme="royal" style="background:linear-gradient(135deg,#f59e0b,#d97706)" title="Royal Gold"></button>
+      <button class="nv-pp-theme-btn" data-theme="crystal" style="background:linear-gradient(135deg,#f8fafc,#e2e8f0);border-color:#cbd5e1" title="Glass Crystal"></button>
+      <button class="nv-pp-theme-btn" data-theme="ocean" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)" title="Ocean Blue"></button>
+      <button class="nv-pp-theme-btn" data-theme="sunset" style="background:linear-gradient(135deg,#f97316,#ef4444)" title="Sunset Orange"></button>
+      <button class="nv-pp-theme-btn" data-theme="emerald" style="background:linear-gradient(135deg,#10b981,#059669)" title="Emerald Green"></button>
+      <button class="nv-pp-theme-btn" data-theme="galaxy" style="background:linear-gradient(135deg,#a855f7,#7c3aed)" title="Purple Galaxy"></button>
+      <button class="nv-pp-theme-btn" data-theme="rose" style="background:linear-gradient(135deg,#f43f5e,#e11d48)" title="Rose Gold"></button>
+      <button class="nv-pp-theme-btn" data-theme="minimal" style="background:#fff;border-color:#e2e8f0" title="Minimal White"></button>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if own %}
+  <!-- ═══ MEMBERSHIP UPGRADE ═══ -->
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">⭐ Membership</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px;">
+      {% set tiers = {'plus':{'label':'Plus','color':'#6366f1','monthly':5,'yearly':50},'pro':{'label':'Pro','color':'#f59e0b','monthly':10,'yearly':100},'premium':{'label':'Premium','color':'#ec4899','monthly':20,'yearly':200},'creator_elite':{'label':'Creator Elite','color':'#8b5cf6','monthly':40,'yearly':400},'business':{'label':'Business','color':'#0ea5e9','monthly':60,'yearly':600}} %}
+      {% for tid, t in tiers.items() %}
+      <div style="padding:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; text-align:center; {{ 'border-color:'+t.color if p.premium_tier == tid else '' }}">
+        <div style="font-size:13px; font-weight:700; color:{{ t.color }}">{{ t.label }}</div>
+        <div style="font-size:20px; font-weight:800; margin:4px 0;">{{ t.monthly }}</div>
+        <div style="font-size:10px; opacity:0.6;">NVC/month</div>
+        <div style="font-size:10px; opacity:0.5;">≈ N${{ t.monthly * 5 }}/mo</div>
+        {% if p.premium_tier == tid %}<div style="margin-top:6px; font-size:10px; background:rgba(16,185,129,0.15); color:#10b981; border-radius:999px; padding:2px 8px;">Current</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:12px; text-align:center;">
+      <a href="/wallet/" class="nv-btn-pp nv-btn-pp-primary" style="display:inline-flex;">💳 Upgrade Membership</a>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ════════════════════════════════════════════════
+        8. PREMIUM GALLERY TABS
+        ════════════════════════════════════════════════ -->
+  <nav class="nv-pp-tabs">
+    <button class="nv-pp-tab active" data-tab="posts">📷 Posts</button>
+    <button class="nv-pp-tab" data-tab="reels">🎬 Reels</button>
+    <button class="nv-pp-tab" data-tab="stories">📱 Stories</button>
+    <button class="nv-pp-tab" data-tab="photos">🖼 Photos</button>
+    <button class="nv-pp-tab" data-tab="videos">🎥 Videos</button>
+    <button class="nv-pp-tab" data-tab="saved">🔖 Saved</button>
+    <button class="nv-pp-tab" data-tab="tagged">🏷️ Tagged</button>
+    <button class="nv-pp-tab" data-tab="collections">📁 Collections</button>
+    <button class="nv-pp-tab" data-tab="albums">📀 Albums</button>
+    <button class="nv-pp-tab" data-tab="favorites">⭐ Favorites</button>
+    <button class="nv-pp-tab" data-tab="friends">👥 Friends</button>
+    <button class="nv-pp-tab" data-tab="visitors">👀 Visitors</button>
+    <button class="nv-pp-tab" data-tab="activity">📊 Activity</button>
+  </nav>
+
+  <section class="nv-pp-panels">
+    <div class="nv-pp-panel active" data-panel="posts">
+      <div class="nv-pp-grid">
+        {% for post in (content.posts or [])[:24] %}
+        <a href="/post/{{ post.id }}" class="nv-pp-grid-item">
+          {% if post.image_url %}<img src="{{ post.image_url }}" loading="lazy">{% elif post.video_url %}<video src="{{ post.video_url }}" muted></video>{% endif %}
+          <div class="nv-pp-grid-overlay"><span>❤️ {{ post.likes_count or 0 }} 💬 {{ post.comments_count or 0 }}</span></div>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Create your first post{% else %}No posts yet{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="reels">
+      <div class="nv-pp-grid">
+        {% for reel in (content.reels or [])[:24] %}
+        <a href="/reel/{{ reel.id }}" class="nv-pp-grid-item nv-pp-grid-reel">
+          <video src="{{ reel.video_url }}" poster="{{ reel.thumbnail_url }}" muted></video>
+          <div class="nv-pp-grid-overlay"><span>▶️ {{ reel.views_count or 0 }}</span></div>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Upload your first reel{% else %}No reels yet{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="stories">
+      <div class="nv-pp-grid">
+        {% for story in (content.stories or [])[:24] %}
+        <a href="/story/{{ story.id }}" class="nv-pp-grid-item">
+          {% if story.media_url %}<img src="{{ story.media_url }}" loading="lazy">{% endif %}
+          <div class="nv-pp-grid-overlay"><span>👁️ {{ story.views_count or 0 }}</span></div>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Share a story{% else %}No stories{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="photos">
+      <div class="nv-pp-grid">
+        {% for item in (content.gallery or content.gallery_preview or content.photos or [])[:24] %}
+        <a href="{{ item.url or '#' }}" class="nv-pp-grid-item">
+          {% if item.thumbnail_url or item.image_url %}<img src="{{ item.thumbnail_url or item.image_url }}" loading="lazy">{% endif %}
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Add photos{% else %}No photos{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="videos">
+      <div class="nv-pp-grid">
+        {% for item in (content.videos or [])[:24] %}
+        <a href="{{ item.url or '#' }}" class="nv-pp-grid-item">
+          {% if item.thumbnail_url %}<img src="{{ item.thumbnail_url }}" loading="lazy">{% endif %}
+          <div class="nv-pp-grid-overlay"><span>🎥</span></div>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Upload videos{% else %}No videos{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="saved">
+      <div class="nv-pp-grid">
+        {% for item in (content.saved or content.saved_items or [])[:24] %}
+        <a href="/post/{{ item.post_id or item.id }}" class="nv-pp-grid-item">
+          {% if item.image_url %}<img src="{{ item.image_url }}" loading="lazy">{% endif %}
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Save posts you love{% else %}No saved items{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="tagged">
+      <div class="nv-pp-grid">
+        {% for item in (content.tagged or [])[:24] %}
+        <a href="/post/{{ item.id or item.post_id }}" class="nv-pp-grid-item">
+          {% if item.image_url %}<img src="{{ item.image_url }}" loading="lazy">{% endif %}
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Posts you're tagged in appear here{% else %}No tagged posts{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="collections">
+      <div class="nv-pp-collections">
+        {% for c in (collections or [])[:12] %}
+        <a href="/profile/{{ p.username }}/collection/{{ c.id }}" class="nv-pp-col">
+          {% if c.cover_url %}<img src="{{ c.cover_url }}">{% else %}<div class="nv-pp-col-fallback">📁</div>{% endif %}
+          <strong>{{ c.title }}</strong>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Create a collection{% else %}No collections{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="albums">
+      <div class="nv-pp-grid">
+        {% for a in (content.albums or [])[:24] %}
+        <a href="/album/{{ a.id }}" class="nv-pp-grid-item">
+          {% if a.cover_url %}<img src="{{ a.cover_url }}" loading="lazy">{% endif %}
+          <div class="nv-pp-grid-overlay"><span>📀 {{ a.title or 'Album' }}</span></div>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Create an album{% else %}No albums{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="favorites">
+      <div class="nv-pp-grid">
+        {% for f in (content.favorites or [])[:24] %}
+        <a href="{{ f.url or '#' }}" class="nv-pp-grid-item">
+          {% if f.thumbnail_url or f.image_url %}<img src="{{ f.thumbnail_url or f.image_url }}" loading="lazy">{% endif %}
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Your favorites appear here{% else %}No favorites{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="friends">
+      <div class="nv-pp-grid nv-pp-grid-users">
+        {% for f in (content.friends or [])[:30] %}
+        <a href="/profile/@{{ f.username }}" class="nv-pp-user-card">
+          {% if f.avatar_url %}<img src="{{ f.avatar_url }}" alt="">{% else %}<div class="nv-pp-user-init">{{ (f.display_name or '?')[0]|upper }}</div>{% endif %}
+          <strong>{{ f.display_name or f.username }}</strong>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}Connect with people{% else %}No friends yet{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="visitors">
+      <div class="nv-pp-grid nv-pp-grid-users">
+        {% for v in (visitors or [])[:30] %}
+        <a href="/profile/@{{ v.username }}" class="nv-pp-user-card">
+          {% if v.avatar_url %}<img src="{{ v.avatar_url }}" alt="">{% else %}<div class="nv-pp-user-init">{{ (v.display_name or '?')[0]|upper }}</div>{% endif %}
+          <strong>{{ v.display_name or v.username }}</strong>
+        </a>
+        {% else %}
+        <div class="nv-pp-empty">{% if own %}People who visit your profile appear here{% else %}No recent visitors{% endif %}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="nv-pp-panel" data-panel="activity">
+      <div class="nv-pp-activity-feed">
+        {% for act in (activity or [])[:30] %}
+        <div class="nv-pp-act-item">
+          <span>📌 {{ act.activity_label or act.activity_type }}</span>
+          <small>{{ act.created_at.strftime('%Y-%m-%d') if act.created_at else '' }}</small>
+        </div>
+        {% else %}
+        <div class="nv-pp-empty">No recent activity</div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════
+       25. SOCIAL ECOSYSTEM
+       ════════════════════════════════════════════════ -->
+  {% if own %}
+  <section class="nv-pp-section">
+    <h2 class="nv-pp-section-title">🌐 Social Ecosystem</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <a href="/feed" class="nv-btn-pp">📰 Feed</a>
+      <a href="/stories" class="nv-btn-pp">📱 Stories</a>
+      <a href="/reels" class="nv-btn-pp">🎬 Reels</a>
+      <a href="/live" class="nv-btn-pp">📡 Live</a>
+      <a href="/messages" class="nv-btn-pp">💬 Messages</a>
+      <a href="/calls" class="nv-btn-pp">📞 Calls</a>
+      <a href="/marketplace" class="nv-btn-pp">🛍 Marketplace</a>
+      <a href="/events" class="nv-btn-pp">📅 Events</a>
+      <a href="/communities" class="nv-btn-pp">👥 Communities</a>
+      <a href="/jobs" class="nv-btn-pp">💼 Jobs</a>
+      <a href="/learning" class="nv-btn-pp">📚 Learning</a>
+      <a href="/music" class="nv-btn-pp">🎵 Music</a>
+      <a href="/wallet" class="nv-btn-pp">💳 Wallet</a>
+      <a href="/creator-studio" class="nv-btn-pp">🎬 Creator Studio</a>
+      <a href="/business" class="nv-btn-pp">🏢 Business Hub</a>
+      <a href="/safety" class="nv-btn-pp">🛡️ Safety Center</a>
+    </div>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script src="/static/js/namvibe_ai_tracking.js"></script>
+<script>
+(function(){
+  // Animated counters
+  var counters = document.querySelectorAll('.nv-count');
+  if (counters.length && 'IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          var el = entry.target;
+          var target = parseInt(el.dataset.target, 10) || 0;
+          animateCount(el, target);
+          obs.unobserve(el);
+        }
+      });
+    }, { threshold: 0.3 });
+    counters.forEach(function(c) { obs.observe(c); });
+  }
+  function animateCount(el, target) {
+    var current = 0;
+    var step = Math.max(1, Math.floor(target / 25));
+    var timer = setInterval(function() {
+      current += step;
+      if (current >= target) { current = target; clearInterval(timer); }
+      el.textContent = current;
+    }, 25);
+  }
+
+  // Tab switching
+  var tabs = document.querySelectorAll('.nv-pp-tab');
+  var panels = document.querySelectorAll('.nv-pp-panel');
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      panels.forEach(function(p) { p.classList.remove('active'); });
+      var panel = document.querySelector('[data-panel="' + tab.dataset.tab + '"]');
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  // More actions dropdown
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="toggle-more"]');
+    if (btn) {
+      e.preventDefault();
+      var dd = btn.parentElement.querySelector('.nv-pp-action-dropdown');
+      if (dd) dd.classList.toggle('show');
+      return;
+    }
+    var dd = document.querySelector('.nv-pp-action-dropdown.show');
+    if (dd && !e.target.closest('.nv-pp-action-more')) {
+      dd.classList.remove('show');
+    }
+  });
+
+  // Action buttons
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    var action = btn.dataset.action;
+    if (action === 'toggle-more') return;
+    var id = btn.closest('[data-profile-id]');
+    id = id ? id.dataset.profileId : '';
+    switch (action) {
+      case 'follow':
+        btn.classList.toggle('following');
+        btn.textContent = btn.classList.contains('following') ? '❤️ Following' : '❤️ Follow';
+        fetch('/profile/' + encodeURIComponent(window.location.pathname.split('/@')[1] || '') + '/follow', {method:'POST', headers:{'X-CSRFToken':document.querySelector('meta[name="csrf-token"]')?.content||''}});
+        break;
+      case 'message': window.location.href = '/messages/?profile=' + id; break;
+      case 'add-friend': window.location.href = '/profile/' + encodeURIComponent(window.location.pathname.split('/@')[1] || '') + '/friend-request'; break;
+      case 'call': window.location.href = '/calls/' + id; break;
+      case 'video-call': window.location.href = '/calls/video/' + id; break;
+      case 'share':
+        if (navigator.share) navigator.share({ title: document.title, url: window.location.href });
+        else { navigator.clipboard.writeText(window.location.href); window.NamVibeToast?.show?.('Link copied!'); }
+        break;
+      case 'send-gift': window.location.href = '/gifts/send?to=' + id; break;
+      case 'tip-creator': window.location.href = '/wallet/tip?to=' + id; break;
+      case 'share-location': window.location.href = '/live/location/share?profile=' + id; break;
+      case 'invite': window.location.href = '/invite?profile=' + id; break;
+      case 'share-playlist': window.location.href = '/music/playlist/share?profile=' + id; break;
+      case 'view-gallery': window.location.href = '/profile/@' + (btn.closest('[data-username]')?.dataset?.username || '') + '?tab=gallery'; break;
+      case 'watch-reels': window.location.href = '/profile/@' + (btn.closest('[data-username]')?.dataset?.username || '') + '?tab=reels'; break;
+      case 'join-live': window.location.href = '/live/' + id; break;
+      case 'view-shop': window.location.href = '/marketplace/profile/' + id; break;
+      case 'report': window.location.href = '/support/new?category=fake_profile&related_profile=' + id; break;
+      case 'change-avatar': window.location.href = '/profile/edit'; break;
+      case 'change-cover': window.location.href = '/profile/edit'; break;
+    }
+  });
+
+  // Profile themes
+  var themeBtns = document.querySelectorAll('.nv-pp-theme-btn');
+  themeBtns.forEach(function(b) {
+    b.addEventListener('click', function() {
+      themeBtns.forEach(function(t) { t.classList.remove('active'); });
+      b.classList.add('active');
+      var theme = b.dataset.theme;
+      document.body.className = document.body.className.replace(/theme-\w+/g, '').trim();
+      if (theme !== 'default') document.body.classList.add('theme-' + theme);
+      // Save preference
+      fetch('/profile/api/theme', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':document.querySelector('meta[name="csrf-token"]')?.content||''}, body:JSON.stringify({theme:theme})});
+      window.NamVibeToast?.success?.('Theme updated to ' + b.title);
+    });
+  });
+
+  // Scroll to active stat section
+  document.querySelectorAll('.nv-pp-stat-clickable').forEach(function(s) {
+    s.addEventListener('click', function() {
+      var target = s.dataset.action;
+      var tab = document.querySelector('.nv-pp-tab[data-tab="' + target + '"]');
+      if (tab) tab.click();
+    });
+  });
+})();
+</script>
 {% endblock %}

@@ -19,8 +19,10 @@ from services.thread_security_service import can_access_thread
 from services import group_feature_service as phase29_groups
 from services.relationship_gate_service import can_message, can_call, is_mutual_follow, relationship_status
 from services.friendship_service import require_friendship_or_403
+from services.relationship_gate_service import can_message as check_can_message
 from services.socketio_service import emit_to_profile
 from services.activity_engine import emit_activity
+from services.ai.interaction_service import track_interaction_safe
 
 message_bp = Blueprint("messages", __name__, url_prefix="/messages")
 
@@ -196,12 +198,9 @@ def api_send():
     )
     if other_member:
         other_id = other_member[0]["profile_id"]
-        _, friends = require_friendship_or_403(profile_id, other_id, "message")
-        if not friends:
-            return jsonify({"ok": False, "error": "friendship_required", "message": "You must be friends before you can message, call, video call, send funds, or send gifts."}), 403
-        gate = relationship_status(profile_id, other_id)
-        if not gate.get("can_message"):
-            return jsonify({"error": gate.get("error", "Cannot send message")}), 403
+        gate = check_can_message(profile_id, other_id)
+        if not gate.get("ok"):
+            return jsonify({"ok": False, "error": gate.get("error", "Cannot send message"), "message": gate.get("error", "Cannot send message")}), 403
 
     if media_file:
         from services.messaging_engine import send_message
@@ -218,6 +217,15 @@ def api_send():
         )
         if result and result.get("success"):
             emit_activity(profile_id, "message_sent", target_type="message", target_id=result.get("id"), recipient_profile_id=other_member[0]["profile_id"] if other_member else None, metadata={"thread_id": thread_id})
+            if other_member:
+                track_interaction_safe(
+                    profile_id,
+                    "profile",
+                    other_member[0]["profile_id"],
+                    "message",
+                    source_surface="messages",
+                    metadata={"relationship_type": "direct", "media_type": "attachment"},
+                )
             return jsonify({"success": True, **result}), 200
         return jsonify(result or {"error": "Failed to send message"}), 400
 
@@ -231,6 +239,15 @@ def api_send():
     )
     if result and result.get("ok"):
         emit_activity(profile_id, "message_sent", target_type="message", target_id=result.get("id"), recipient_profile_id=other_member[0]["profile_id"] if other_member else None, metadata={"thread_id": thread_id})
+        if other_member:
+            track_interaction_safe(
+                profile_id,
+                "profile",
+                other_member[0]["profile_id"],
+                "message",
+                source_surface="messages",
+                metadata={"relationship_type": "direct"},
+            )
         return jsonify({"success": True, **result}), 200
     return jsonify(result or {"error": "Failed to send message"}), 400
 
@@ -717,8 +734,11 @@ def start_direct_message_from_profile(profile_id):
 
     _, friends = require_friendship_or_403(viewer_id, target_id, "message")
     if not friends:
-        flash("You must be friends before you can message.", "error")
-        return redirect(request.referrer or "/messages/")
+        # Non-friends: check if target allows public messages
+        gate = check_can_message(viewer_id, target_id)
+        if not gate.get("ok"):
+            flash("This user only accepts messages from friends.", "error")
+            return redirect(request.referrer or "/messages/")
 
     # Make sure target exists
     target_rows = fast_query(
@@ -1226,7 +1246,10 @@ def api_get_or_create_thread(profile_id):
         return jsonify({"error": "Cannot start thread with yourself"}), 400
     _, friends = require_friendship_or_403(current_id, profile_id, "message")
     if not friends:
-        return jsonify({"ok": False, "error": "friendship_required", "message": "You must be friends before you can message, call, video call, send funds, or send gifts."}), 403
+        # Non-friends: check if target allows public messages
+        gate = check_can_message(current_id, profile_id)
+        if not gate.get("ok"):
+            return jsonify({"ok": False, "error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403
     gate = relationship_status(current_id, profile_id)
     if not gate.get("can_message"):
         return jsonify({"error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403
@@ -1251,7 +1274,10 @@ def api_start_thread():
         return jsonify({"error": "Cannot start thread with yourself"}), 400
     _, friends = require_friendship_or_403(current_id, target_profile_id, "message")
     if not friends:
-        return jsonify({"ok": False, "error": "friendship_required", "message": "You must be friends before you can message, call, video call, send funds, or send gifts."}), 403
+        # Non-friends: check if target allows public messages
+        gate = check_can_message(current_id, target_profile_id)
+        if not gate.get("ok"):
+            return jsonify({"ok": False, "error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403
     gate = relationship_status(current_id, target_profile_id)
     if not gate.get("can_message"):
         return jsonify({"error": gate.get("error", "Cannot message this user"), "status": gate.get("status")}), 403

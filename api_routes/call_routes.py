@@ -36,6 +36,7 @@ from services.friendship_service import require_friendship_or_403
 from services.call_history_service import get_call_history as chs_get_history, delete_call_log as chs_delete_log
 from services.activity_engine import emit_activity
 from services.blocking_service import is_uuid
+from services.ai.interaction_service import track_interaction_safe
 
 call_bp = Blueprint("calls_v2", __name__, url_prefix="/calls")
 
@@ -82,6 +83,7 @@ def init_call():
     result = phase29_calls.start_call(profile["id"], receiver_id, call_type=call_type, conversation_id=conversation_id)
     if result.get("ok"):
         emit_activity(profile["id"], "call_started", target_type="call", target_id=result["call"].get("id"), recipient_profile_id=receiver_id, metadata={"call_type": call_type})
+        track_interaction_safe(profile["id"], "profile", receiver_id, "call", source_surface="calls", metadata={"relationship_type": "direct"})
         return render_template("calls/video.html", call=result["call"], profile=profile, role='caller')
     if result.get("status") == "busy":
         flash("User is busy on another call.", "error")
@@ -318,6 +320,7 @@ def start_direct_call_from_profile(profile_id, call_type):
     if not call:
         flash("Could not start call.", "error")
         return redirect("/calls/recent")
+    track_interaction_safe(viewer_id, "profile", target_id, "call", source_surface="calls", metadata={"relationship_type": "direct"})
 
     return redirect(f"/calls/{call['id']}/view")
 
@@ -369,6 +372,7 @@ def api_webrtc_start():
     thread_id = data.get("thread_id")
     call_type = data.get("call_type", "audio")
 
+    # Support legacy 'target' field (thread_id or profile_id/username)
     if not receiver_id and data.get("target"):
         target = (data.get("target") or "").strip()
         from services.neon_service import fast_query
@@ -407,16 +411,22 @@ def api_webrtc_start():
             if profile_rows:
                 receiver_id = str(profile_rows[0]["id"])
             else:
-                return jsonify({"ok": False, "error": "target_not_found"}), 404
+                return jsonify({"ok": False, "success": False, "error": "target_not_found", "status": "not_found"}), 404
+
     if not receiver_id:
         return jsonify({"ok": False, "error": "receiver_required"}), 400
+    # Enforce friendship requirement for calls
+    from services.friendship_service import are_friends as _are_friends
+    if not _are_friends(profile["id"], receiver_id):
+        return jsonify({"ok": False, "error": "You must be friends before you can call", "status": "friends_only"}), 403
     result = w_create_call(profile["id"], receiver_id, thread_id=thread_id, call_type=call_type)
     if result.get("ok"):
         emit_activity(profile["id"], "call_started", target_type="call", target_id=result["call"].get("id"), recipient_profile_id=receiver_id, metadata={"call_type": call_type})
-        return jsonify({"ok": True, "call": result["call"]}), 200
+        track_interaction_safe(profile["id"], "profile", receiver_id, "call", source_surface="calls", metadata={"relationship_type": "direct"})
+        return jsonify({"ok": True, "success": True, "call": result["call"]}), 200
     if result.get("status") == "busy" or result.get("error") == "duplicate_call":
-        return jsonify({"ok": False, "error": result.get("error", "busy"), "status": "busy"}), 409
-    return jsonify({"ok": False, "error": result.get("error", "failed")}), 500
+        return jsonify({"ok": False, "success": False, "error": result.get("error", "busy"), "status": "busy"}), 409
+    return jsonify({"ok": False, "success": False, "error": result.get("error", "failed"), "status": "failed"}), 500
 
 
 @call_bp.route("/api/<call_id>/accept", methods=["POST"])
@@ -846,77 +856,6 @@ def msg_api_call_delete_legacy(log_id):
     return phase92_delete_call_log(log_id)
 
 
-@messages_call_bp.route("/start", methods=["POST"])
-@login_required
-def msg_api_call_start_legacy():
-    profile = get_current_profile()
-    if not profile or not profile.get("id"):
-        return jsonify({"ok": False, "error": "unauthorized"}), 401
-
-    data = request.get_json(silent=True) or request.form.to_dict() or {}
-    target = (data.get("target") or "").strip()
-    call_type = data.get("call_type", "audio")
-    if not target:
-        return jsonify({"ok": False, "error": "target_required"}), 400
-
-    from services.neon_service import fast_query
-
-    receiver_id = None
-    thread_id = None
-
-    thread_rows = fast_query(
-        """
-        SELECT tm.profile_id
-        FROM chain_thread_members tm
-        WHERE tm.thread_id = %s AND tm.profile_id != %s
-        ORDER BY tm.profile_id
-        LIMIT 1
-        """,
-        (target, profile["id"]),
-        default=[],
-    )
-    if thread_rows:
-        thread_id = target
-        receiver_id = str(thread_rows[0]["profile_id"])
-
-    if not receiver_id:
-        profile_rows = fast_query(
-            """
-            SELECT id
-            FROM chain_profiles
-            WHERE (id::text = %s OR username = %s)
-              AND deleted_at IS NULL
-            LIMIT 1
-            """,
-            (target, target),
-            default=[],
-        )
-        if profile_rows:
-            receiver_id = str(profile_rows[0]["id"])
-
-    if not receiver_id:
-        return jsonify({"ok": False, "error": "target_not_found"}), 404
-
-    result = w_create_call(profile["id"], receiver_id, thread_id=thread_id, call_type=call_type)
-    if result.get("ok"):
-        return jsonify({
-            "ok": True,
-            "success": True,
-            "call": result.get("call"),
-        }), 200
-    if result.get("status") == "busy" or result.get("error") == "duplicate_call":
-        return jsonify({
-            "ok": False,
-            "success": False,
-            "error": result.get("error", "busy"),
-            "status": "busy",
-        }), 409
-    return jsonify({
-        "ok": False,
-        "success": False,
-        "error": result.get("error", "failed"),
-        "status": result.get("status", "failed"),
-    }), 400
 
 
 # =========== PHASE 41: Mobile Call Reliability Endpoints ===========

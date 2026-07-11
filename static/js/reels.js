@@ -111,8 +111,19 @@
     }, 150);
   }, { passive: true });
 
-  /* ── Double-tap Like ── */
+  /* ── Tap/Pause & Double-tap Like ── */
   viewport.addEventListener('click', function(e) {
+    const video = e.target.closest('.reel-video');
+    if (video) {
+      if (e.detail === 1) {
+        setTimeout(function() {
+          if (video._lastDblTap) { video._lastDblTap = false; return; }
+          if (video.paused) video.play();
+          else video.pause();
+        }, 300);
+      }
+      return;
+    }
     const now = Date.now();
     if (now - lastTapTime < 350) {
       const slide = e.target.closest('.reel-slide');
@@ -120,7 +131,10 @@
       const reelId = slide.dataset.reelId;
       const heart = slide.querySelector('.double-tap-heart');
       if (heart) { heart.classList.remove('is-active'); void heart.offsetWidth; heart.classList.add('is-active'); }
-      if (reelId) { likeReel(reelId, slide); }
+      if (reelId) {
+        if (video) video._lastDblTap = true;
+        likeReel(reelId, slide);
+      }
     }
     lastTapTime = now;
   });

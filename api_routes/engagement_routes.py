@@ -14,6 +14,7 @@ from services.engagement_service import (
     toggle_save,
     unfollow_profile,
 )
+from services.ai.interaction_service import track_interaction_safe
 from services.profile_service import get_current_profile
 
 
@@ -43,7 +44,16 @@ def api_toggle_like(entity_type, entity_id):
     profile_id = _current_id()
     if not profile_id:
         return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
-    return _response(toggle_like(profile_id, entity_type, entity_id))
+    result = toggle_like(profile_id, entity_type, entity_id)
+    if result.get("success") and entity_type in {"post", "reel"}:
+        track_interaction_safe(
+            profile_id,
+            entity_type,
+            entity_id,
+            "like" if result.get("liked") else "unlike",
+            source_surface="discover",
+        )
+    return _response(result)
 
 
 @engagement_bp.route("/api/social/<entity_type>/<entity_id>/comments", methods=["GET"])
@@ -58,7 +68,10 @@ def api_add_comment(entity_type, entity_id):
     if not profile_id:
         return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
     body = request.form.get("body") or _json_body().get("body")
-    return _response(add_comment(profile_id, entity_type, entity_id, body), ok_status=201)
+    result = add_comment(profile_id, entity_type, entity_id, body)
+    if result.get("success") and entity_type in {"post", "reel"}:
+        track_interaction_safe(profile_id, entity_type, entity_id, "comment", source_surface="discover")
+    return _response(result, ok_status=201)
 
 
 @engagement_bp.route("/api/social/<entity_type>/comments/<comment_id>", methods=["DELETE", "POST"])
@@ -87,7 +100,10 @@ def api_unfollow(profile_id):
     current_id = _current_id()
     if not current_id:
         return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
-    return _response(unfollow_profile(current_id, profile_id))
+    result = unfollow_profile(current_id, profile_id)
+    if result.get("success"):
+        track_interaction_safe(current_id, "profile", profile_id, "unfollow", source_surface="discover")
+    return _response(result)
 
 
 @engagement_bp.route("/api/profile/<profile_id>/follow", methods=["POST", "DELETE"])
@@ -110,7 +126,16 @@ def api_toggle_save(item_type, item_id):
     profile_id = _current_id()
     if not profile_id:
         return jsonify({"success": False, "error": "Profile setup incomplete."}), 400
-    return _response(toggle_save(profile_id, item_type, item_id))
+    result = toggle_save(profile_id, item_type, item_id)
+    if result.get("success") and item_type in {"post", "reel"}:
+        track_interaction_safe(
+            profile_id,
+            item_type,
+            item_id,
+            "save" if result.get("saved") else "unsave",
+            source_surface="discover",
+        )
+    return _response(result)
 
 
 @engagement_bp.route("/api/media/<entity_id>/like", methods=["POST"])
@@ -135,14 +160,20 @@ def api_media_comment(entity_id):
 def api_media_share(entity_id):
     profile_id = _current_id()
     entity_type = request.args.get("type", "post")
-    return _response(record_share(profile_id, entity_type, entity_id))
+    result = record_share(profile_id, entity_type, entity_id)
+    if result.get("success") and entity_type in {"post", "reel"}:
+        track_interaction_safe(profile_id, entity_type, entity_id, "share", source_surface="discover")
+    return _response(result)
 
 
 @engagement_bp.route("/api/media/<entity_id>/view", methods=["POST"])
 def api_media_view(entity_id):
     profile_id = _current_id()
     entity_type = request.args.get("type", "post")
-    return _response(record_view_count(profile_id, entity_type, entity_id))
+    result = record_view_count(profile_id, entity_type, entity_id)
+    if result.get("success") and profile_id and entity_type in {"post", "reel", "story"}:
+        track_interaction_safe(profile_id, entity_type, entity_id, "view", source_surface="discover")
+    return _response(result)
 
 
 @engagement_bp.route("/follow/<profile_id>", methods=["POST"])

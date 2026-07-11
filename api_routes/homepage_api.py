@@ -3,6 +3,9 @@
 
 import os
 import time
+import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request, session
 from services.profile_service import get_current_profile
 from services.homepage_service import (
@@ -21,7 +24,9 @@ from services.homepage_phase141_service import (
     fetch_liked_entity_ids,
 )
 from services.engagement_service import follow_profile, unfollow_profile, toggle_like, toggle_save
+from services.ai.interaction_service import track_interaction_safe
 from services.neon_service import fast_query, is_circuit_open
+from services.homepage_real_data_guard import filter_content, filter_profiles, public_profile_sql
 from api_routes.profile_routes import login_required
 
 homepage_api_bp = Blueprint("homepage_api", __name__)
@@ -48,6 +53,7 @@ def _json_error(message, status=400):
 
 def _safe_degraded_homepage_payload():
     return {
+        "success": True,
         "homepage_degraded": True,
         "feed_items": [],
         "feed_for_you": [],
@@ -55,10 +61,16 @@ def _safe_degraded_homepage_payload():
         "reels": [],
         "stories": [],
         "live_rooms": [],
-        "suggested_people": [],
         "suggested_creators": [],
+        "suggested_people": [],
         "trending_hashtags": [],
+        "online_users": [],
         "friend_activity": [],
+        "counts": {
+            "live_now": 0,
+            "unread_messages": 0,
+            "coins": 0,
+        },
         "wallet": {"coin_balance": 0, "label_balance": "0"},
         "unread_counts": {},
         "empty_states": {},
@@ -75,93 +87,608 @@ def _minimal_feed_payload():
     }
 
 
+_HOMEPAGE_CACHE = {"payload": None, "expires_at": 0}
+_HOMEPAGE_CACHE_TTL = 60
+_HOMEPAGE_WIDGET_CACHE = {}
+_HOMEPAGE_WIDGET_CACHE_TTL = 45
+
+
+def _timed_section(name, collector, fn):
+    started = time.perf_counter()
+    try:
+        return fn()
+    finally:
+        collector[name] = round((time.perf_counter() - started) * 1000, 2)
+
+
+def _widget_cache_key(viewer_id):
+    return str(viewer_id or "anon")
+
+
+def _get_widget_cache(viewer_id):
+    key = _widget_cache_key(viewer_id)
+    cached = _HOMEPAGE_WIDGET_CACHE.get(key)
+    now = time.time()
+    if cached and now < cached.get("expires_at", 0):
+        return cached.get("payload")
+    return None
+
+
+def _set_widget_cache(viewer_id, payload):
+    _HOMEPAGE_WIDGET_CACHE[_widget_cache_key(viewer_id)] = {
+        "payload": payload,
+        "expires_at": time.time() + _HOMEPAGE_WIDGET_CACHE_TTL,
+    }
+
+
+def _parse_dt(value):
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def _iso(value):
+    parsed = _parse_dt(value)
+    return parsed.astimezone(timezone.utc).isoformat() if parsed else None
+
+
+def _safe_int(value, default=0):
+    try:
+        return int(float(value or 0))
+    except Exception:
+        return default
+
+
+def _extract_hashtags(*texts):
+    found = {}
+    for text in texts:
+        for token in str(text or "").split():
+            if token.startswith("#"):
+                tag = "".join(ch for ch in token[1:] if ch.isalnum() or ch == "_").lower()
+                if tag:
+                    found[tag] = found.get(tag, 0) + 1
+    return found
+
+
+def _normalize_content_item(item, default_type):
+    item = dict(item or {})
+    caption = item.get("caption") or item.get("body") or item.get("text") or ""
+    return {
+        "id": item.get("id"),
+        "type": item.get("type") or default_type,
+        "title": item.get("title") or "",
+        "caption": caption,
+        "body": item.get("body") or caption,
+        "media_url": item.get("media_url") or item.get("public_url") or item.get("image_url") or item.get("thumbnail_url") or item.get("video_url") or "",
+        "video_url": item.get("video_url") or "",
+        "image_url": item.get("image_url") or item.get("media_url") or item.get("thumbnail_url") or "",
+        "creator_id": item.get("profile_id") or item.get("creator_id"),
+        "creator_name": item.get("display_name") or item.get("creator_name") or item.get("username") or "",
+        "creator_username": item.get("username") or item.get("creator_username") or "",
+        "creator_avatar": item.get("avatar_url") or item.get("creator_avatar") or "",
+        "created_at": _iso(item.get("created_at")),
+        "privacy": item.get("visibility") or item.get("privacy") or "public",
+        "stats": {
+            "likes": _safe_int(item.get("likes_count")),
+            "comments": _safe_int(item.get("comments_count")),
+            "shares": _safe_int(item.get("shares_count")),
+            "views": _safe_int(item.get("views_count") or item.get("view_count")),
+        },
+        "display_name": item.get("display_name") or item.get("creator_name") or item.get("username") or "",
+        "username": item.get("username") or item.get("creator_username") or "",
+        "avatar_url": item.get("avatar_url") or item.get("creator_avatar") or "",
+        "profile_id": item.get("profile_id") or item.get("creator_id"),
+        "verified": bool(item.get("verified") or item.get("is_verified")),
+        "is_online": bool(item.get("is_online")),
+        "created_label": item.get("created_label") or "",
+        "likes_count": _safe_int(item.get("likes_count")),
+        "comments_count": _safe_int(item.get("comments_count")),
+        "shares_count": _safe_int(item.get("shares_count")),
+        "views_count": _safe_int(item.get("views_count") or item.get("view_count")),
+    }
+
+
+def _normalize_story_item(item):
+    item = dict(item or {})
+    return {
+        "id": item.get("id"),
+        "type": "story",
+        "title": "",
+        "caption": item.get("caption") or item.get("text_content") or "",
+        "body": item.get("text_content") or item.get("caption") or "",
+        "media_url": item.get("media_url") or item.get("thumbnail_url") or item.get("video_url") or "",
+        "video_url": item.get("video_url") or "",
+        "image_url": item.get("thumbnail_url") or item.get("media_url") or "",
+        "creator_id": item.get("profile_id"),
+        "creator_name": item.get("display_name") or item.get("username") or "",
+        "creator_username": item.get("username") or "",
+        "creator_avatar": item.get("avatar_url") or "",
+        "created_at": _iso(item.get("created_at")),
+        "privacy": item.get("visibility") or "followers",
+        "stats": {
+            "likes": 0,
+            "comments": 0,
+            "shares": 0,
+            "views": _safe_int(item.get("views_count")),
+        },
+        "display_name": item.get("display_name") or item.get("username") or "",
+        "username": item.get("username") or "",
+        "avatar_url": item.get("avatar_url") or "",
+        "profile_id": item.get("profile_id"),
+        "verified": bool(item.get("verified") or item.get("is_verified")),
+        "is_online": bool(item.get("is_online")),
+        "created_label": item.get("created_label") or "",
+        "views_count": _safe_int(item.get("views_count")),
+    }
+
+
+def _normalize_live_room_item(item):
+    item = dict(item or {})
+    return {
+        "id": item.get("id"),
+        "type": "live_room",
+        "title": item.get("title") or item.get("creator_name") or "Live",
+        "caption": "",
+        "body": "",
+        "media_url": item.get("cover_url") or "",
+        "video_url": "",
+        "image_url": item.get("cover_url") or "",
+        "creator_id": item.get("profile_id") or item.get("creator_id"),
+        "creator_name": item.get("creator_name") or "",
+        "creator_username": item.get("creator_username") or "",
+        "creator_avatar": item.get("creator_avatar") or "",
+        "created_at": _iso(item.get("created_at")),
+        "privacy": "public",
+        "stats": {
+            "likes": 0,
+            "comments": 0,
+            "shares": 0,
+            "views": _safe_int(item.get("viewer_count")),
+        },
+        "viewer_count": _safe_int(item.get("viewer_count")),
+        "watch_url": item.get("watch_url") or (("/live/" + str(item.get("id"))) if item.get("id") else "/live/"),
+    }
+
+
+def _normalize_profile_item(item):
+    item = dict(item or {})
+    return {
+        "id": item.get("id"),
+        "type": "profile",
+        "title": "",
+        "caption": item.get("bio") or "",
+        "body": item.get("bio") or "",
+        "media_url": item.get("avatar_url") or item.get("profile_photo") or "",
+        "video_url": "",
+        "image_url": item.get("avatar_url") or item.get("profile_photo") or "",
+        "creator_id": item.get("id"),
+        "creator_name": item.get("display_name") or item.get("username") or "",
+        "creator_username": item.get("username") or "",
+        "creator_avatar": item.get("avatar_url") or item.get("profile_photo") or "",
+        "created_at": _iso(item.get("created_at")),
+        "privacy": "public",
+        "stats": {
+            "likes": 0,
+            "comments": 0,
+            "shares": 0,
+            "views": 0,
+        },
+        "followers_count": _safe_int(item.get("followers_count")),
+        "verified": bool(item.get("verified") or item.get("is_verified")),
+        "is_online": bool(item.get("is_online")),
+        "display_name": item.get("display_name") or item.get("username") or "",
+        "username": item.get("username") or "",
+        "avatar_url": item.get("avatar_url") or item.get("profile_photo") or "",
+        "profile_level": item.get("profile_level") or "",
+        "profile_score": _safe_int(item.get("profile_score")),
+    }
+
+
+def _fetch_real_online_users(limit=8):
+    now = datetime.now(timezone.utc)
+    online_cutoff = now - timedelta(minutes=5)
+    online_ids = []
+    try:
+        from services.redis_service import get_redis, namespaced_key
+        client = get_redis()
+        if client:
+            for key in client.scan_iter(namespaced_key("presence", "state", "*")):
+                try:
+                    raw = client.get(key)
+                    payload = json.loads(raw) if raw else None
+                except Exception:
+                    payload = None
+                if not payload or str(payload.get("status") or payload.get("state") or "").lower() != "online":
+                    continue
+                seen_at = _parse_dt(payload.get("last_seen_at") or payload.get("updated_at"))
+                if not seen_at or seen_at < online_cutoff:
+                    continue
+                profile_id = str(key).rsplit(":", 1)[-1]
+                if profile_id and profile_id not in online_ids:
+                    online_ids.append(profile_id)
+                if len(online_ids) >= max(limit * 4, 20):
+                    break
+    except Exception:
+        online_ids = []
+
+    if online_ids:
+        placeholders = ",".join(["%s"] * len(online_ids))
+        rows = fast_query(
+            f"""
+            SELECT id, username, display_name, avatar_url
+            FROM chain_profiles
+            WHERE id IN ({placeholders})
+              AND deleted_at IS NULL
+              AND {public_profile_sql('chain_profiles')}
+            LIMIT %s
+            """,
+            [*online_ids, limit],
+            timeout_ms=2000,
+            default=[],
+        )
+        if rows:
+            by_id = {str(row.get("id")): row for row in rows if row.get("id")}
+            return [
+                {
+                    "id": pid,
+                    "username": by_id[pid].get("username"),
+                    "display_name": by_id[pid].get("display_name") or by_id[pid].get("username"),
+                    "avatar_url": by_id[pid].get("avatar_url") or "",
+                }
+                for pid in online_ids if pid in by_id
+            ][:limit]
+
+    rows = fast_query(
+        f"""
+        SELECT p.id, p.username, p.display_name, p.avatar_url
+        FROM chain_presence cp
+        JOIN chain_profiles p ON p.id = cp.profile_id
+        WHERE p.deleted_at IS NULL
+          AND {public_profile_sql('p')}
+          AND LOWER(COALESCE(cp.status, 'offline')) = 'online'
+          AND COALESCE(cp.last_seen_at, cp.updated_at) >= NOW() - interval '5 minutes'
+        ORDER BY COALESCE(cp.last_seen_at, cp.updated_at) DESC
+        LIMIT %s
+        """,
+        [limit],
+        timeout_ms=2500,
+        default=[],
+    )
+    return [
+        {
+            "id": row.get("id"),
+            "username": row.get("username"),
+            "display_name": row.get("display_name") or row.get("username"),
+            "avatar_url": row.get("avatar_url") or "",
+        }
+        for row in rows or [] if row.get("id")
+    ]
+
+
+def _build_homepage_contract(viewer_id=None, limit=20, tab="for_you", include_widgets=True):
+    timings = {}
+    fast_payload = _timed_section(
+        "posts",
+        timings,
+        lambda: _fast_homepage_feed_payload(limit=limit, viewer_id=viewer_id) or _minimal_feed_payload(),
+    )
+
+    stories = _timed_section("stories", timings, lambda: [_normalize_story_item(item) for item in filter_content(fast_payload.get("stories") or [])])
+    posts = _timed_section("posts_normalize", timings, lambda: [_normalize_content_item(item, "post") for item in filter_content(fast_payload.get("feed_items") or [])])
+    reels = _timed_section(
+        "reels",
+        timings,
+        lambda: [
+            _normalize_content_item(item, "reel")
+            for item in filter_content(fast_payload.get("reels") or [])
+            if item.get("video_url") or item.get("media_type") == "video" or item.get("is_video")
+        ],
+    )
+
+    trending_hashtags = []
+    live_rooms = fast_payload.get("live_rooms") or []
+    suggested_creators = fast_payload.get("suggested_creators") or []
+    online_users = []
+    unread_messages = 0
+    coins = 0
+
+    if include_widgets:
+        widget_payload = _get_homepage_widgets(
+            viewer_id=viewer_id, posts=posts, reels=reels, stories=stories,
+            _prefetched_live_rooms=live_rooms,
+            _prefetched_suggestions=suggested_creators,
+        )
+        timings.update(widget_payload.get("timings") or {})
+        live_rooms = widget_payload.get("live_rooms") or live_rooms
+        suggested_creators = widget_payload.get("suggested_creators") or suggested_creators
+        trending_hashtags = widget_payload.get("trending_hashtags") or []
+        online_users = widget_payload.get("online_users") or []
+        unread_messages = _safe_int((widget_payload.get("counts") or {}).get("unread_messages"))
+        coins = _safe_int((widget_payload.get("counts") or {}).get("coins"))
+
+    feed_items = list(posts)
+    if tab == "live":
+        feed_items = []
+    elif tab == "trending":
+        feed_items = list(posts)
+    elif tab == "following" and viewer_id:
+        feed_items = [item for item in posts if item.get("privacy") != "public"] + [item for item in posts if item.get("privacy") == "public"]
+
+    payload = {
+        "success": True,
+        "posts": posts,
+        "reels": reels,
+        "stories": stories,
+        "live_rooms": live_rooms,
+        "suggested_creators": suggested_creators,
+        "trending_hashtags": trending_hashtags,
+        "online_users": online_users,
+        "counts": {
+            "live_now": len(live_rooms),
+            "unread_messages": unread_messages if viewer_id else 0,
+            "coins": coins if viewer_id else 0,
+        },
+        "feed_items": feed_items,
+        "feed_for_you": list(feed_items),
+        "suggested_people": list(suggested_creators),
+        "homepage_degraded": bool(fast_payload.get("homepage_degraded")),
+        "timings": timings,
+        "empty_states": {
+            "feed": not bool(feed_items),
+            "stories": not bool(stories),
+            "reels": not bool(reels),
+            "live": not bool(live_rooms),
+            "suggested": not bool(suggested_creators),
+            "hashtags": not bool(trending_hashtags),
+        },
+    }
+    return payload
+
+def warm_homepage_cache():
+    """Populate the in-memory cache in background (called on first request)."""
+    try:
+        payload = _fast_homepage_feed_payload(limit=20, viewer_id=None)
+        if payload and payload.get("feed_items"):
+            return True
+    except Exception:
+        pass
+    return False
+
 def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     started = time.perf_counter()
-    budget_seconds = 60.0
+    budget_seconds = 30.0
+
+    # In-memory cache for anonymous homepage
+    now = time.time()
+    if not viewer_id and _HOMEPAGE_CACHE["payload"] and now < _HOMEPAGE_CACHE["expires_at"]:
+        return _HOMEPAGE_CACHE["payload"]
+
     payload = _minimal_feed_payload()
 
-    def budget_left():
-        return budget_seconds - (time.perf_counter() - started)
+    # Run all fetches in parallel via ThreadPoolExecutor
+    timeout_s = max(1.0, min(2.5, budget_seconds - (time.perf_counter() - started)))
+    import threading
+    _results = {}
+    _lock = threading.Lock()
 
-    try:
-        stories, _, _ = fetch_stories_v2(
-            ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "created_at"],
-            timeout_ms=20000,
-            limit=min(limit, 8),
-            viewer_id=viewer_id,
-        )
-        if budget_left() > 0:
-            payload["stories"] = stories[: min(limit, 8)]
-    except Exception:
-        return _safe_degraded_homepage_payload()
+    def _fetch_stories():
+        try:
+            s, _, _ = fetch_stories_v2(
+                ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "created_at"],
+                timeout_ms=5000, limit=min(limit, 8), viewer_id=viewer_id,
+            )
+            with _lock: _results["stories"] = s[: min(limit, 8)] if s else []
+        except Exception:
+            with _lock: _results["stories"] = []
 
-    if budget_left() <= 0:
-        return _safe_degraded_homepage_payload()
+    def _fetch_posts():
+        try:
+            p, _, _ = fetch_posts_v2(
+                ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "mime_type", "post_type", "likes_count", "comments_count", "views_count", "shares_count", "created_at"],
+                timeout_ms=5000, limit=min(limit, 12), viewer_id=viewer_id,
+            )
+            with _lock: _results["feed_items"] = p[: min(limit, 12)] if p else []
+        except Exception:
+            with _lock: _results["feed_items"] = []
 
-    try:
-        posts, _, _ = fetch_posts_v2(
-            ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "mime_type", "post_type", "likes_count", "comments_count", "views_count", "shares_count", "created_at"],
-            timeout_ms=20000,
-            limit=min(limit, 12),
-            viewer_id=viewer_id,
-        )
-        if budget_left() > 0:
-            payload["feed_items"] = posts[: min(limit, 12)]
-    except Exception:
-        return _safe_degraded_homepage_payload()
+    def _fetch_reels():
+        try:
+            r, _, _ = fetch_reels_v2(
+                ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "likes_count", "comments_count", "views_count", "shares_count", "music_title", "created_at"],
+                timeout_ms=5000, limit=min(limit, 8), viewer_id=viewer_id,
+            )
+            with _lock: _results["reels"] = r[: min(limit, 8)] if r else []
+        except Exception:
+            with _lock: _results["reels"] = []
 
-    if budget_left() <= 0:
-        return _safe_degraded_homepage_payload()
+    def _fetch_live():
+        try:
+            lr, _, _ = fetch_live_rooms_v2(
+                ["id", "profile_id", "category", "status", "is_live", "viewer_count", "cover_url", "thumbnail_url", "entry_fee", "created_at"],
+                timeout_ms=5000, limit=min(limit, 5),
+            )
+            with _lock: _results["live_rooms"] = lr[: min(limit, 5)] if lr else []
+        except Exception:
+            with _lock: _results["live_rooms"] = []
 
-    try:
-        reels, _, _ = fetch_reels_v2(
-            ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "likes_count", "comments_count", "views_count", "shares_count", "music_title", "created_at"],
-            timeout_ms=20000,
-            limit=min(limit, 8),
-            viewer_id=viewer_id,
-        )
-        if budget_left() > 0:
-            payload["reels"] = reels[: min(limit, 8)]
-    except Exception:
-        return _safe_degraded_homepage_payload()
+    def _fetch_suggested():
+        try:
+            sc, _ = fetch_suggested_people_v2(
+                ["id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified", "followers_count", "town", "location", "is_online", "profile_score", "profile_level"],
+                timeout_ms=5000, limit=min(limit, 5),
+            )
+            with _lock:
+                _results["suggested_creators"] = sc[: min(limit, 5)] if sc else []
+        except Exception:
+            with _lock: _results["suggested_creators"] = []
 
-    try:
-        live_rooms, _, _ = fetch_live_rooms_v2(
-            ["id", "profile_id", "category", "status", "is_live", "viewer_count", "cover_url", "thumbnail_url", "entry_fee", "created_at"],
-            timeout_ms=20000,
-            limit=min(limit, 5),
-        )
-        if budget_left() > 0:
-            payload["live_rooms"] = live_rooms[: min(limit, 5)]
-    except Exception:
-        payload["live_rooms"] = []
+    def _fetch_activity():
+        try:
+            act = _fetch_friend_activity(viewer_id=viewer_id, limit=10)
+            with _lock: _results["friend_activity"] = list(act) if act else []
+        except Exception:
+            with _lock: _results["friend_activity"] = []
 
-    try:
-        suggested_creators, _ = fetch_suggested_people_v2(
-            ["id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified", "followers_count", "town", "location"],
-            timeout_ms=20000,
-            limit=min(limit, 5),
-        )
-        if budget_left() > 0:
-            payload["suggested_creators"] = suggested_creators[: min(limit, 5)]
-            payload["suggested_users"] = list(payload["suggested_creators"])
-            payload["recommended_profiles"] = list(payload["suggested_creators"])
-    except Exception:
-        payload["suggested_creators"] = []
+    with ThreadPoolExecutor(max_workers=6) as exe:
+        fs = [
+            exe.submit(_fetch_stories),
+            exe.submit(_fetch_posts),
+            exe.submit(_fetch_reels),
+            exe.submit(_fetch_live),
+            exe.submit(_fetch_suggested),
+            exe.submit(_fetch_activity),
+        ]
+        for f in as_completed(fs, timeout=timeout_s):
+            try: f.result()
+            except Exception: pass
 
-    # ── Friend activity ──
-    try:
-        activity = _fetch_friend_activity(viewer_id=viewer_id, limit=10)
-        if activity:
-            payload["friend_activity"] = activity
-    except Exception:
-        payload["friend_activity"] = []
+    payload["stories"] = _results.get("stories") or []
+    payload["feed_items"] = _results.get("feed_items") or []
+    payload["reels"] = _results.get("reels") or []
+    payload["live_rooms"] = _results.get("live_rooms") or []
+    suggested = _results.get("suggested_creators") or []
+    payload["suggested_creators"] = list(suggested)
+    payload["suggested_users"] = list(suggested)
+    payload["recommended_profiles"] = list(suggested)
+    payload["friend_activity"] = _results.get("friend_activity") or []
 
     payload["trending_posts"] = list(payload.get("feed_items") or [])
     payload = rank_homepage_sections(payload, viewer_id=viewer_id, feed_limit=limit)
 
     payload["homepage_degraded"] = not bool(payload.get("feed_items") or payload.get("stories") or payload.get("reels"))
+
+    # Store in in-memory cache for anonymous users
+    if not viewer_id:
+        _HOMEPAGE_CACHE["payload"] = payload
+        _HOMEPAGE_CACHE["expires_at"] = time.time() + _HOMEPAGE_CACHE_TTL
+
     return payload
+
+
+def _get_homepage_widgets(viewer_id=None, posts=None, reels=None, stories=None,
+                          _prefetched_live_rooms=None, _prefetched_suggestions=None):
+    cached = _get_widget_cache(viewer_id)
+    if cached is not None:
+        return cached
+
+    timings = {}
+    results = {
+        "live_rooms": [],
+        "suggested_creators": [],
+        "trending_hashtags": [],
+        "online_users": [],
+        "counts": {"live_now": 0, "unread_messages": 0, "coins": 0},
+        "notifications": [],
+        "wallet": {"coin_balance": 0, "label_balance": "0"},
+        "timings": timings,
+    }
+
+    def build_hashtags():
+        hashtag_counts = {}
+        for collection in (posts or [], reels or [], stories or []):
+            for item in collection:
+                for tag, count in _extract_hashtags(item.get("caption"), item.get("body"), item.get("title")).items():
+                    hashtag_counts[tag] = hashtag_counts.get(tag, 0) + count
+        return [
+            {"tag": tag, "hashtag": tag, "count": count, "posts_count": count}
+            for tag, count in sorted(hashtag_counts.items(), key=lambda pair: (-pair[1], pair[0]))[:8]
+        ]
+
+    def fetch_live():
+        if _prefetched_live_rooms:
+            results["live_rooms"] = [_normalize_live_room_item(item) for item in _prefetched_live_rooms]
+            results["counts"]["live_now"] = len(results["live_rooms"])
+            timings["live"] = 0
+            return
+        live_rows = _timed_section(
+            "live",
+            timings,
+            lambda: fetch_live_rooms_v2(
+                ["id", "profile_id", "category", "status", "is_live", "viewer_count", "cover_url", "thumbnail_url", "entry_fee", "created_at", "title"],
+                timeout_ms=1200,
+                limit=5,
+            )[0],
+        )
+        results["live_rooms"] = [_normalize_live_room_item(item) for item in live_rows or []]
+        results["counts"]["live_now"] = len(results["live_rooms"])
+
+    def fetch_suggestions():
+        if _prefetched_suggestions:
+            results["suggested_creators"] = [_normalize_profile_item(item) for item in filter_profiles(_prefetched_suggestions)]
+            timings["suggestions"] = 0
+            return
+        rows = _timed_section(
+            "suggestions",
+            timings,
+            lambda: fetch_suggested_people_v2(
+                ["id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified", "followers_count", "town", "location", "is_online", "profile_score", "profile_level", "created_at"],
+                timeout_ms=800,
+                limit=5,
+            )[0],
+        )
+        results["suggested_creators"] = [_normalize_profile_item(item) for item in filter_profiles(rows or [])]
+
+    def fetch_online():
+        results["online_users"] = _timed_section("online_users", timings, lambda: _fetch_real_online_users(limit=8))
+
+    def fetch_hashtags():
+        results["trending_hashtags"] = _timed_section("hashtags", timings, build_hashtags)
+
+    def fetch_notifications():
+        if not viewer_id:
+            timings["notifications"] = 0
+            return
+        try:
+            from services.notification_engine import list_notifications
+            raw = _timed_section("notifications", timings, lambda: list_notifications(viewer_id, limit=5))
+            if isinstance(raw, list):
+                results["notifications"] = raw
+            elif isinstance(raw, dict) and raw.get("notifications"):
+                results["notifications"] = raw["notifications"]
+        except Exception:
+            results["notifications"] = []
+
+    def fetch_wallet():
+        if not viewer_id:
+            timings["wallet"] = 0
+            return
+        try:
+            from services.wallet_service import get_wallet
+            wallet = _timed_section("wallet", timings, lambda: get_wallet(viewer_id) or {})
+            coin_balance = _safe_int(wallet.get("coin_balance") or wallet.get("balance_cents"))
+            results["wallet"] = {"coin_balance": coin_balance, "label_balance": str(coin_balance)}
+            results["counts"]["coins"] = coin_balance
+        except Exception:
+            results["wallet"] = {"coin_balance": 0, "label_balance": "0"}
+
+    def fetch_unread():
+        if not viewer_id:
+            timings["unread_messages"] = 0
+            return
+        try:
+            from services.message_delivery_service import get_unread_message_count
+            results["counts"]["unread_messages"] = _safe_int(_timed_section("unread_messages", timings, lambda: get_unread_message_count(viewer_id)))
+        except Exception:
+            results["counts"]["unread_messages"] = 0
+
+    jobs = [fetch_live, fetch_suggestions, fetch_online, fetch_hashtags, fetch_notifications, fetch_wallet, fetch_unread]
+    with ThreadPoolExecutor(max_workers=len(jobs)) as exe:
+        futures = [exe.submit(job) for job in jobs]
+        for future in as_completed(futures, timeout=2.0):
+            try:
+                future.result()
+            except Exception:
+                pass
+
+    _set_widget_cache(viewer_id, results)
+    return results
 
 
 @homepage_api_bp.route("/api/suggestions/smart")
@@ -246,6 +773,8 @@ def api_follow(profile_id):
         return _json_error("Cannot follow yourself")
     from services.follow_request_service import send_follow_request
     result = send_follow_request(str(profile["id"]), str(profile_id))
+    if result.get("ok") or result.get("success"):
+        track_interaction_safe(str(profile["id"]), "profile", str(profile_id), "follow", source_surface="homepage")
     return _json_ok({"result": result})
 
 
@@ -261,6 +790,8 @@ def api_unfollow(profile_id):
     if str(profile["id"]) == str(profile_id):
         return _json_error("Cannot unfollow yourself")
     result = unfollow_profile(str(profile["id"]), str(profile_id))
+    if result.get("success"):
+        track_interaction_safe(str(profile["id"]), "profile", str(profile_id), "unfollow", source_surface="homepage")
     return _json_ok({"result": result})
 
 
@@ -279,6 +810,18 @@ def api_like_post(post_id):
             return _json_error(result.get("error") or "Could not update like.", 503)
         liked = bool(result.get("liked"))
         likes_count = int(result.get("count") or result.get("likes_count") or result.get("like_count") or 0)
+        track_interaction_safe(
+            str(profile["id"]),
+            "post",
+            str(post_id),
+            "like" if liked else "unlike",
+            source_surface="homepage",
+        )
+        try:
+            from engines.cache_engine import delete_cache, cache_key
+            delete_cache(cache_key(f"homepage:v2:posts:viewer:{profile['id']}"))
+        except Exception:
+            pass
         return jsonify({
             "ok": True,
             "liked": liked,
@@ -331,6 +874,14 @@ def api_save_post(post_id):
         return _json_error("Not authenticated", 401)
     try:
         result = toggle_save(str(profile["id"]), "post", str(post_id))
+        if result.get("success"):
+            track_interaction_safe(
+                str(profile["id"]),
+                "post",
+                str(post_id),
+                "save" if result.get("saved") else "unsave",
+                source_surface="homepage",
+            )
         return _json_ok({"result": result})
     except Exception as e:
         return _json_error(str(e), 500)
@@ -351,7 +902,67 @@ def api_share_post(post_id):
         new_count = (post.get("shares_count") or 0) + 1 if post else 1
         from services.supabase_safe import safe_update
         safe_update("chain_posts", {"shares_count": new_count}, {"id": str(post_id)})
+        track_interaction_safe(str(profile["id"]), "post", str(post_id), "share", source_surface="homepage")
         return _json_ok({"shares_count": new_count})
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+# ================================================================
+# POST /api/home/post/<post_id>/comment
+# GET  /api/home/post/<post_id>/comments
+# ================================================================
+@homepage_api_bp.route("/api/home/post/<post_id>/comment", methods=["POST"])
+@login_required
+def api_comment_post(post_id):
+    profile = _current_profile()
+    if not profile or not profile.get("id"):
+        return _json_error("Not authenticated", 401)
+    try:
+        body = request.get_json(silent=True) or {}
+        text = body.get("body") or request.form.get("body") or ""
+        if not text.strip():
+            return _json_error("Comment cannot be empty", 400)
+        from services.engagement_service import add_comment
+        result = add_comment(str(profile["id"]), "post", str(post_id), text.strip())
+        if result.get("success"):
+            track_interaction_safe(str(profile["id"]), "post", str(post_id), "comment", source_surface="homepage")
+        return _json_ok({"result": result})
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+@homepage_api_bp.route("/api/home/post/<post_id>/comments", methods=["GET"])
+@login_required
+def api_list_comments(post_id):
+    profile = _current_profile()
+    try:
+        limit = min(max(int(request.args.get("limit", 20)), 1), 50)
+    except (TypeError, ValueError):
+        limit = 20
+    try:
+        from services.engagement_service import list_comments
+        comments = list_comments("post", str(post_id), limit=limit)
+        return _json_ok({"comments": comments or []})
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+# ================================================================
+# POST /api/home/post/<post_id>/react
+# ================================================================
+@homepage_api_bp.route("/api/home/post/<post_id>/react", methods=["POST"])
+@login_required
+def api_react_post(post_id):
+    profile = _current_profile()
+    if not profile or not profile.get("id"):
+        return _json_error("Not authenticated", 401)
+    try:
+        body = request.get_json(silent=True) or {}
+        reaction = body.get("reaction") or "like"
+        from services.engagement_service import react_to_post
+        result = react_to_post(str(profile["id"]), str(post_id), reaction)
+        return _json_ok({"result": result})
     except Exception as e:
         return _json_error(str(e), 500)
 
@@ -366,25 +977,31 @@ def api_homepage_feed():
         limit = min(max(int(request.args.get("limit", 20)), 1), 50)
     except (TypeError, ValueError):
         limit = 20
+    tab = (request.args.get("tab") or "for_you").strip().lower()
     profile = _current_profile()
     viewer_id = profile.get("id") if profile else None
     try:
-        started = time.perf_counter()
-        payload = _fast_homepage_feed_payload(limit=limit, viewer_id=viewer_id)
-        elapsed = time.perf_counter() - started
-        has_data = bool(payload.get("feed_items") or payload.get("stories") or payload.get("reels"))
+        payload = _build_homepage_contract(viewer_id=viewer_id, limit=limit, tab=tab)
+        has_data = bool(payload.get("posts") or payload.get("reels") or payload.get("stories") or payload.get("live_rooms"))
         if not has_data:
             payload = _safe_degraded_homepage_payload()
-        return _json_ok({
+        return jsonify({
+            "ok": True,
+            "success": True,
             "degraded": not has_data,
             "payload": payload,
-        })
+            **payload,
+        }), 200
     except Exception as e:
-        return _json_ok({
+        payload = _safe_degraded_homepage_payload()
+        return jsonify({
+            "ok": True,
+            "success": True,
             "degraded": True,
-            "payload": _safe_degraded_homepage_payload(),
+            "payload": payload,
+            **payload,
             "warning": str(e),
-        })
+        }), 200
 
 
 @homepage_api_bp.route("/api/homepage/sidebar")
@@ -392,21 +1009,37 @@ def api_homepage_sidebar():
     profile = _current_profile()
     profile_id = profile.get("id") if profile else None
     try:
-        live_rooms, _, _ = fetch_live_rooms_v2(
-            ["id", "profile_id", "category", "status", "is_live", "viewer_count", "cover_url", "thumbnail_url", "entry_fee", "created_at"],
-            timeout_ms=1200,
-            limit=5,
-        )
-        suggested_creators, _ = fetch_suggested_people_v2(
-            ["id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified", "followers_count", "town", "location"],
-            timeout_ms=800,
-            limit=5,
-        )
+        contract = _build_homepage_contract(viewer_id=profile_id, limit=12)
         payload = get_homepage_sidebar_payload(profile_id=profile_id)
-        payload["live_rooms"] = live_rooms or payload.get("live_rooms", [])
-        payload["suggested_creators"] = suggested_creators or payload.get("suggested_creators", [])
+        payload["live_rooms"] = contract.get("live_rooms") or payload.get("live_rooms", [])
+        payload["suggested_creators"] = contract.get("suggested_creators") or payload.get("suggested_creators", [])
         payload["suggested_users"] = payload["suggested_creators"]
+        payload["trending_hashtags"] = contract.get("trending_hashtags") or []
+        payload["online_users"] = contract.get("online_users") or []
+        payload["counts"] = contract.get("counts") or {}
+        payload["timings"] = contract.get("timings") or {}
         return _json_ok(payload)
+    except Exception as e:
+        return _json_error(str(e), 500)
+
+
+@homepage_api_bp.route("/api/homepage/widgets")
+def api_homepage_widgets():
+    profile = _current_profile()
+    viewer_id = profile.get("id") if profile else None
+    try:
+        contract = _build_homepage_contract(viewer_id=viewer_id, limit=12)
+        return _json_ok({
+            "live_rooms": contract.get("live_rooms") or [],
+            "suggested_creators": contract.get("suggested_creators") or [],
+            "suggested_people": contract.get("suggested_people") or [],
+            "trending_hashtags": contract.get("trending_hashtags") or [],
+            "online_users": contract.get("online_users") or [],
+            "counts": contract.get("counts") or {},
+            "notifications": (_get_homepage_widgets(viewer_id=viewer_id) or {}).get("notifications") or [],
+            "wallet": (_get_homepage_widgets(viewer_id=viewer_id) or {}).get("wallet") or {"coin_balance": 0, "label_balance": "0"},
+            "timings": contract.get("timings") or {},
+        })
     except Exception as e:
         return _json_error(str(e), 500)
 

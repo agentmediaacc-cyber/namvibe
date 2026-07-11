@@ -1,279 +1,208 @@
-from flask import Blueprint, jsonify, request, session, render_template
+from flask import Blueprint, jsonify, render_template, request
+
 from api_routes.profile_routes import login_required
-from services.profile_service import get_current_profile
-from services.ai_assistant_service import (
-    create_session, get_sessions, get_session, delete_session,
-    chat, creator_assistant, marketplace_assistant, dating_safety_assistant,
-    moderation_assistant, message_suggestions, caption_generator,
-    profile_suggestions, ai_search, submit_feedback,
-    log_moderation_action, get_suggestion_history, get_moderation_log,
-    mark_suggestion_applied, mark_suggestion_dismissed,
-    ASSISTANT_TYPES,
+from services.ai.config import get_ai_config
+from services.ai.feature_flags import is_ai_feature_enabled
+from services.ai.interaction_service import (
+    normalize_action_type,
+    normalize_target_type,
+    record_interaction,
+    record_interactions_batch,
 )
+from services.ai.recommendation_service import (
+    log_recommendation_impressions,
+    recommend_posts,
+    recommend_profiles,
+    recommend_reels,
+)
+from services.ai.user_profile_service import (
+    get_or_create_ai_user_profile,
+    get_recommendation_context,
+    update_explicit_interests,
+    update_language_preferences,
+)
+from services.profile_service import get_current_profile
+from services.rate_limit_service import limiter, user_or_ip_key
 
-ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
-# ─── HTML Pages ───
+ai_bp = Blueprint("ai", __name__)
 
-@ai_bp.route('/')
-def index():
+
+def _current_profile():
     profile = get_current_profile()
-    return render_template('ai/index.html', profile=profile, assistants=ASSISTANT_TYPES)
+    if not profile or not profile.get("id"):
+        return None
+    return profile
 
-# ─── Session management ───
 
-@ai_bp.route('/api/sessions', methods=['GET'])
+def _disabled_recommendation_response():
+    return jsonify({
+        "enabled": False,
+        "items": [],
+        "algorithm_version": get_ai_config().recommendation_version,
+    })
+
+
+@ai_bp.get("/ai/")
+def ai_index():
+    profile = get_current_profile()
+    return render_template("ai/index.html", profile=profile)
+
+
+@ai_bp.get("/api/ai/status")
 @login_required
-def api_list_sessions():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    assistant_type = request.args.get('assistant_type')
-    sessions = get_sessions(profile_id, assistant_type=assistant_type)
-    return jsonify({'ok': True, 'sessions': sessions})
+def api_ai_status():
+    config = get_ai_config()
+    profile = _current_profile()
+    return jsonify({
+        "ai_enabled": config.enabled,
+        "external_provider_enabled": bool(config.external_calls_enabled and config.provider not in {"", "disabled"}),
+        "interaction_tracking_enabled": is_ai_feature_enabled("ai_interaction_tracking", profile_id=(profile or {}).get("id")),
+        "recommendations_enabled": is_ai_feature_enabled("ai_recommendations", profile_id=(profile or {}).get("id")),
+        "algorithm_version": config.recommendation_version,
+        "provider": config.provider,
+    })
 
-@ai_bp.route('/api/sessions', methods=['POST'])
+
+@ai_bp.post("/api/ai/interactions")
 @login_required
-def api_create_session():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+@limiter.limit("120/minute", key_func=user_or_ip_key)
+def api_ai_interaction():
+    profile = _current_profile()
+    if not profile:
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(silent=True) or {}
-    assistant_type = data.get('assistant_type', 'general')
-    title = data.get('title')
-    result = create_session(profile_id, assistant_type, title=title)
-    if result.get('ok'):
-        return jsonify(result), 200
-    return jsonify(result), 400
+    try:
+        result = record_interaction(
+            profile_id=profile["id"],
+            target_type=normalize_target_type(data.get("target_type")),
+            target_id=data.get("target_id"),
+            action_type=normalize_action_type(data.get("action_type")),
+            source_surface=data.get("source_surface"),
+            session_id=data.get("session_id"),
+            dwell_time_ms=data.get("dwell_time_ms"),
+            metadata=data.get("metadata"),
+        )
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    return jsonify({"ok": bool(result.get("ok")), "status": "accepted" if result.get("ok") else "skipped"}), 202
 
-@ai_bp.route('/api/sessions/<session_id>', methods=['GET'])
+
+@ai_bp.post("/api/ai/interactions/batch")
 @login_required
-def api_get_session(session_id):
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    sess = get_session(profile_id, session_id)
-    if not sess:
-        return jsonify({'ok': False, 'error': 'session_not_found'}), 404
-    return jsonify({'ok': True, 'session': sess})
-
-@ai_bp.route('/api/sessions/<session_id>', methods=['DELETE'])
-@login_required
-def api_delete_session(session_id):
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    result = delete_session(profile_id, session_id)
-    if result.get('ok'):
-        return jsonify({'ok': True}), 200
-    return jsonify(result), 404
-
-# ─── Chat ───
-
-@ai_bp.route('/api/chat', methods=['POST'])
-@login_required
-def api_chat():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+@limiter.limit("60/minute", key_func=user_or_ip_key)
+def api_ai_interaction_batch():
+    profile = _current_profile()
+    if not profile:
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(silent=True) or {}
-    assistant_type = data.get('assistant_type', 'general')
-    message = data.get('message', '').strip()
-    session_id = data.get('session_id')
-    context = data.get('context')
-    if not message:
-        return jsonify({'ok': False, 'error': 'message_required'}), 400
-    result = chat(profile_id, assistant_type, message, session_id=session_id, context=context)
-    if result.get('ok'):
-        return jsonify(result), 200
-    return jsonify(result), 400
+    interactions = list(data.get("interactions") or [])
+    if len(interactions) > 50:
+        return jsonify({"ok": False, "error": "batch_too_large"}), 400
+    try:
+        results = record_interactions_batch(profile["id"], interactions)
+    except ValueError as error:
+        return jsonify({"ok": False, "error": str(error)}), 400
+    return jsonify({"ok": True, "results": results}), 202
 
-# ─── Feature-specific assistants ───
 
-@ai_bp.route('/api/creator', methods=['POST'])
+def _recommendation_response(kind, loader):
+    profile = _current_profile()
+    if not profile:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not is_ai_feature_enabled("ai_recommendations", profile_id=profile["id"]):
+        return _disabled_recommendation_response()
+    limit = min(max(request.args.get("limit", 20, type=int), 1), 50)
+    offset = min(max(request.args.get("offset", 0, type=int), 0), 500)
+    items = loader(profile["id"], limit=limit, offset=offset)
+    request_id = request.headers.get("X-Request-ID") or request.args.get("request_id")
+    log_recommendation_impressions(profile["id"], kind, items, request_id=request_id)
+    return jsonify({
+        "enabled": True,
+        "items": items,
+        "algorithm_version": get_ai_config().recommendation_version,
+    })
+
+
+@ai_bp.get("/api/ai/recommendations/profiles")
 @login_required
-def api_creator_assistant():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
+def api_ai_recommend_profiles():
+    return _recommendation_response("profiles", recommend_profiles)
+
+
+@ai_bp.get("/api/ai/recommendations/posts")
+@login_required
+def api_ai_recommend_posts():
+    return _recommendation_response("posts", recommend_posts)
+
+
+@ai_bp.get("/api/ai/recommendations/reels")
+@login_required
+def api_ai_recommend_reels():
+    return _recommendation_response("reels", recommend_reels)
+
+
+@ai_bp.get("/api/ai/profile")
+@login_required
+def api_ai_profile():
+    profile = _current_profile()
+    if not profile:
+        return jsonify({"error": "Unauthorized"}), 401
+    ai_profile = get_or_create_ai_user_profile(profile["id"]) or {}
+    return jsonify({
+        "profile_id": profile["id"],
+        "explicit_interests": ai_profile.get("explicit_interests") or [],
+        "inferred_interests": ai_profile.get("inferred_interests") or [],
+        "preferred_languages": ai_profile.get("preferred_languages") or [],
+        "preferred_content_types": ai_profile.get("preferred_content_types") or [],
+        "recommendation_settings": ai_profile.get("recommendation_settings") or {},
+        "onboarding_completed": bool(ai_profile.get("onboarding_completed")),
+        "interaction_count": int(ai_profile.get("interaction_count") or 0),
+    })
+
+
+@ai_bp.patch("/api/ai/profile")
+@login_required
+@limiter.limit("30/minute", key_func=user_or_ip_key)
+def api_ai_profile_update():
+    profile = _current_profile()
+    if not profile:
+        return jsonify({"error": "Unauthorized"}), 401
     data = request.get_json(silent=True) or {}
-    query = data.get('query', '').strip()
-    context = data.get('context')
-    if not query:
-        return jsonify({'ok': False, 'error': 'query_required'}), 400
-    result = creator_assistant(profile_id, query, context=context)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/marketplace', methods=['POST'])
-@login_required
-def api_marketplace_assistant():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    query = data.get('query', '').strip()
-    context = data.get('context')
-    if not query:
-        return jsonify({'ok': False, 'error': 'query_required'}), 400
-    result = marketplace_assistant(profile_id, query, context=context)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/dating-safety', methods=['POST'])
-@login_required
-def api_dating_safety():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    query = data.get('query', '').strip()
-    context = data.get('context')
-    if not query:
-        return jsonify({'ok': False, 'error': 'query_required'}), 400
-    result = dating_safety_assistant(profile_id, query, context=context)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/moderation', methods=['POST'])
-@login_required
-def api_moderation():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    query = data.get('query', '').strip()
-    context = data.get('context')
-    if not query:
-        return jsonify({'ok': False, 'error': 'query_required'}), 400
-    result = moderation_assistant(profile_id, query, context=context)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/message-suggestions', methods=['POST'])
-@login_required
-def api_message_suggestions():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    conversation_context = data.get('context', {})
-    result = message_suggestions(profile_id, conversation_context)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/captions', methods=['POST'])
-@login_required
-def api_captions():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    post_context = data.get('context', {})
-    result = caption_generator(profile_id, post_context=post_context)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/profile-suggestions', methods=['POST'])
-@login_required
-def api_profile_suggestions():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    profile_data = data.get('profile_data', {})
-    result = profile_suggestions(profile_id, profile_data=profile_data)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/search', methods=['POST'])
-@login_required
-def api_ai_search():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    query = data.get('query', '').strip()
-    search_context = data.get('context', {})
-    if not query:
-        return jsonify({'ok': False, 'error': 'query_required'}), 400
-    result = ai_search(profile_id, query, search_context=search_context)
-    return jsonify(result), 200
-
-# ─── Feedback ───
-
-@ai_bp.route('/api/feedback', methods=['POST'])
-@login_required
-def api_feedback():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    assistant_type = data.get('assistant_type', 'general')
-    rating = int(data.get('rating', 0))
-    comment = data.get('comment', '')
-    suggestion_id = data.get('suggestion_id')
-    result = submit_feedback(profile_id, assistant_type, rating, comment=comment, suggestion_id=suggestion_id)
-    if result.get('ok'):
-        return jsonify({'ok': True}), 200
-    return jsonify(result), 400
-
-# ─── Suggestion history ───
-
-@ai_bp.route('/api/suggestions', methods=['GET'])
-@login_required
-def api_suggestions():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    assistant_type = request.args.get('assistant_type')
-    limit = request.args.get('limit', 50, type=int)
-    suggestions = get_suggestion_history(profile_id, assistant_type=assistant_type, limit=limit)
-    return jsonify({'ok': True, 'suggestions': suggestions})
-
-@ai_bp.route('/api/suggestions/<suggestion_id>/apply', methods=['POST'])
-@login_required
-def api_apply_suggestion(suggestion_id):
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    result = mark_suggestion_applied(suggestion_id)
-    return jsonify(result), 200
-
-@ai_bp.route('/api/suggestions/<suggestion_id>/dismiss', methods=['POST'])
-@login_required
-def api_dismiss_suggestion(suggestion_id):
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    result = mark_suggestion_dismissed(suggestion_id)
-    return jsonify(result), 200
-
-# ─── Moderation log ───
-
-@ai_bp.route('/api/moderation-log', methods=['GET'])
-@login_required
-def api_moderation_log():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    limit = request.args.get('limit', 50, type=int)
-    log = get_moderation_log(limit=limit)
-    return jsonify({'ok': True, 'log': log})
-
-@ai_bp.route('/api/moderation-log', methods=['POST'])
-@login_required
-def api_log_moderation():
-    profile_id = session.get('profile_id')
-    if not profile_id:
-        return jsonify({'ok': False, 'error': 'unauthorized'}), 401
-    data = request.get_json(silent=True) or {}
-    action_type = data.get('action_type')
-    target_type = data.get('target_type')
-    target_id = data.get('target_id')
-    target_profile_id = data.get('target_profile_id')
-    reason = data.get('reason')
-    confidence = data.get('confidence', 0.0)
-    result = log_moderation_action(profile_id, action_type, target_type=target_type, target_id=target_id, target_profile_id=target_profile_id, reason=reason, confidence=confidence)
-    if result.get('ok'):
-        return jsonify({'ok': True}), 200
-    return jsonify(result), 400
-
-# ─── Assistant list ───
-
-@ai_bp.route('/api/assistants', methods=['GET'])
-def api_assistants():
-    return jsonify({'ok': True, 'assistants': list(ASSISTANT_TYPES)})
+    ai_profile = get_or_create_ai_user_profile(profile["id"]) or {}
+    if "explicit_interests" in data:
+        ai_profile["explicit_interests"] = update_explicit_interests(profile["id"], data.get("explicit_interests"))
+    if "preferred_languages" in data:
+        ai_profile["preferred_languages"] = update_language_preferences(profile["id"], data.get("preferred_languages"))
+    if "preferred_content_types" in data:
+        values = data.get("preferred_content_types") or []
+        if not isinstance(values, list) or len(values) > 20:
+            return jsonify({"ok": False, "error": "invalid_preferred_content_types"}), 400
+        from services.neon_service import execute
+        from psycopg2.extras import Json
+        execute(
+            "UPDATE chain_ai_user_profiles SET preferred_content_types = %s::jsonb, updated_at = now() WHERE profile_id = %s",
+            (Json([str(value)[:40].lower() for value in values[:20]]), profile["id"]),
+            timeout_ms=2000,
+        )
+        ai_profile["preferred_content_types"] = [str(value)[:40].lower() for value in values[:20]]
+    if "recommendation_settings" in data:
+        settings = data.get("recommendation_settings")
+        if not isinstance(settings, dict) or len(settings) > 20:
+            return jsonify({"ok": False, "error": "invalid_recommendation_settings"}), 400
+        from services.neon_service import execute
+        from psycopg2.extras import Json
+        execute(
+            "UPDATE chain_ai_user_profiles SET recommendation_settings = %s::jsonb, updated_at = now() WHERE profile_id = %s",
+            (Json(settings), profile["id"]),
+            timeout_ms=2000,
+        )
+        ai_profile["recommendation_settings"] = settings
+    context = get_recommendation_context(profile["id"])
+    return jsonify({"ok": True, "profile": {
+        "explicit_interests": context.get("explicit_interests") or [],
+        "inferred_interests": context.get("inferred_interests") or [],
+        "preferred_languages": context.get("preferred_languages") or [],
+        "preferred_content_types": context.get("preferred_content_types") or [],
+        "recommendation_settings": context.get("recommendation_settings") or {},
+    }})

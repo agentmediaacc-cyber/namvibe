@@ -17,6 +17,7 @@ from services.content_service import get_session_profile_id, session_profile_stu
 from services.profile_context_service import build_profile_template_context
 from services.comments_service import add_comment as reply_to_comment
 from services.logging_service import log_info
+from services.ai.interaction_service import track_interaction_safe
 
 from services.content_manager_service import get_managed_reels, update_content_status as update_reel_status
 
@@ -118,6 +119,8 @@ def api_view(reel_id):
         profile = get_current_profile()
         viewer_id = (profile or {}).get("id") if profile else None
         record_reel_view(reel_id, viewer_profile_id=viewer_id)
+        if viewer_id:
+            track_interaction_safe(viewer_id, "reel", reel_id, "view", source_surface="reels")
         return jsonify({"ok": True, "queued": True}), 200
     except Exception:
         return jsonify({"ok": True, "queued": True}), 200
@@ -130,6 +133,8 @@ def api_like(reel_id):
     if not profile_id:
         return jsonify({"error": "Profile not found"}), 404
     result = toggle_like(profile_id, "reel", reel_id)
+    if result.get("success"):
+        track_interaction_safe(profile_id, "reel", reel_id, "like" if result.get("liked") else "unlike", source_surface="reels")
     status = 200 if result.get("success") else 400
     return jsonify(result), status
 
@@ -141,7 +146,9 @@ def api_comment(reel_id):
     if not profile_id:
         return jsonify({"error": "Profile not found"}), 404
     data = request.get_json(silent=True) or {}
-    result = add_comment("reel", reel_id, profile_id, request.form.get("body") or data.get("body"))
+    result = add_comment(profile_id, "reel", reel_id, request.form.get("body") or data.get("body"))
+    if result.get("success"):
+        track_interaction_safe(profile_id, "reel", reel_id, "comment", source_surface="reels")
     status = 201 if result.get("success") else 400
     return jsonify(result), status
 
@@ -153,13 +160,19 @@ def api_save(reel_id):
     if not profile_id:
         return jsonify({"error": "Profile not found"}), 404
     result = toggle_save(profile_id, "reel", reel_id)
+    if result.get("success"):
+        track_interaction_safe(profile_id, "reel", reel_id, "save" if result.get("saved") else "unsave", source_surface="reels")
     status = 200 if result.get("success") else 400
     return jsonify(result), status
 
 @reels_bp.route("/api/reels/<reel_id>/share", methods=["POST"])
 def api_share(reel_id):
     try:
+        profile = get_current_profile()
+        profile_id = (profile or {}).get("id")
         share_reel(reel_id)
+        if profile_id:
+            track_interaction_safe(profile_id, "reel", reel_id, "share", source_surface="reels")
         return jsonify({"success": True}), 200
     except Exception:
         return jsonify({"success": False, "tracked": False, "message": "Share tracking skipped."}), 200
@@ -185,6 +198,11 @@ def api_event(reel_id):
         if profile:
             user_id = profile.get("id")
         track_reel_event(reel_id, user_id, event_type, watch_ms)
+        if user_id:
+            if event_type in {"open", "view", "impression"}:
+                track_interaction_safe(user_id, "reel", reel_id, event_type, source_surface="reels")
+            elif event_type == "complete":
+                track_interaction_safe(user_id, "reel", reel_id, "complete", source_surface="reels")
         return jsonify({"ok": True, "queued": True}), 200
     except Exception:
         return jsonify({"ok": True, "queued": True}), 200
@@ -268,6 +286,8 @@ def api_reels_view_batch():
             if reel_id:
                 try:
                     record_reel_view(reel_id, viewer_profile_id=viewer_id)
+                    if viewer_id:
+                        track_interaction_safe(viewer_id, "reel", reel_id, "view", source_surface="reels")
                     tracked += 1
                 except Exception:
                     pass
@@ -378,6 +398,12 @@ def api_watch_v2(reel_id):
         completed = bool(data.get("completed", False))
         replayed = bool(data.get("replayed", False))
         track_reel_watch(viewer_id, reel_id, watch_ms, completed=completed, replayed=replayed)
+        if viewer_id:
+            completion_percent = float(data.get("completion_percent", 0) or 0)
+            metadata = {"completion_percent": completion_percent}
+            track_interaction_safe(viewer_id, "reel", reel_id, "view", source_surface="reels", dwell_time_ms=watch_ms, metadata=metadata)
+            if completed or completion_percent >= 90:
+                track_interaction_safe(viewer_id, "reel", reel_id, "complete", source_surface="reels", metadata=metadata)
         return jsonify({"ok": True}), 200
     except Exception:
         return jsonify({"ok": True}), 200
@@ -399,6 +425,7 @@ def api_like_v2(reel_id):
         success, liked = like_reel_v2(profile_id, reel_id)
     if not success:
         return jsonify({"error": "Action failed"}), 400
+    track_interaction_safe(profile_id, "reel", reel_id, "like" if liked else "unlike", source_surface="reels")
     return jsonify({"success": True, "liked": liked}), 200
 
 
@@ -418,6 +445,7 @@ def api_save_v2(reel_id):
         success, saved = save_reel(profile_id, reel_id)
     if not success:
         return jsonify({"error": "Action failed"}), 400
+    track_interaction_safe(profile_id, "reel", reel_id, "save" if saved else "unsave", source_surface="reels")
     return jsonify({"success": True, "saved": saved}), 200
 
 
@@ -430,6 +458,8 @@ def api_share_v2(reel_id):
         data = request.get_json(silent=True) or {}
         target = data.get("target", "link")
         share_reel_v2(reel_id, profile_id, target=target)
+        if profile_id:
+            track_interaction_safe(profile_id, "reel", reel_id, "share", source_surface="reels")
         return jsonify({"success": True}), 200
     except Exception:
         return jsonify({"success": False}), 200

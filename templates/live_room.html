@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}{{ room.title or 'NamVibe Live' }}{% endblock %}
+{% block body_class %}lv-room-body{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/namvibe_live.css">
+<style>
+  .lv-room-body .chain-shell, .lv-room-body .main-container, .lv-room-body .content-body {
+    padding: 0 !important; margin: 0 !important; max-width: 100% !important; background: #000 !important;
+  }
+  .lv-room-body .top-header, .lv-room-body .mobile-nav, .lv-room-body .chain-shell > .sidebar {
+    display: none !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lv-room">
+  <!-- MAIN VIDEO -->
+  <div class="lv-room-main">
+    <div class="lv-room-video">
+      <div class="lv-stream-placeholder" id="lvStreamPlaceholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        <p><strong>{{ room.host_name or 'Host' }}</strong>'s stream<br>
+        <small style="color:var(--lv-muted);">Waiting for stream...</small></p>
+      </div>
+      {% if room.type != 'audio' %}
+      <video id="lvStreamVideo" autoplay muted playsinline style="display:none;"></video>
+      {% endif %}
+      <!-- Overlay -->
+      <div class="lv-room-overlay">
+        <div class="lv-room-host-info">
+          <img src="{{ room.host_avatar or '/static/img/default-avatar.png' }}" alt="">
+          <div>
+            <strong>{{ room.host_name or 'Host' }}</strong><br>
+            <small><span id="lvViewerCount">{{ room.viewer_count or 0 }}</span> watching</small>
+          </div>
+        </div>
+        <div class="lv-room-title">{{ room.title or 'Untitled Stream' }}</div>
+        {% if room.products and room.products|length > 0 %}
+        <div class="lv-products" id="lvProducts"></div>
+        {% endif %}
+      </div>
+      <!-- Controls -->
+      <div class="lv-room-controls">
+        {% if is_host %}
+        <button data-action="toggle-mic" title="Mute/Unmute">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <button data-action="toggle-cam" title="Camera On/Off">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </button>
+        <button class="end" data-action="end-live" title="End Stream">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        {% else %}
+        <button data-action="toggle-mic" title="Mute/Unmute">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <button title="Raise Hand">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><path d="M21 15v2a8 8 0 0 1-16 0v-2"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+        </button>
+        <button title="Like">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside class="lv-room-sidebar">
+    <div class="lv-room-tabs">
+      <button class="lv-room-tab active" data-panel="chat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Chat
+      </button>
+      <button class="lv-room-tab" data-panel="participants">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="lv-count">0</span>
+      </button>
+      <button class="lv-room-tab" data-panel="gifts">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+        Gifts
+      </button>
+      <button class="lv-room-tab" data-panel="polls">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+        Polls
+      </button>
+    </div>
+
+    <!-- CHAT PANEL -->
+    <div class="lv-room-panel" id="panel-chat" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+      <div class="lv-chat" id="lvChatBox"></div>
+      <div class="lv-chat-input">
+        <button id="lvEmojiBtn" title="Emoji">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+        </button>
+        <input type="text" id="lvChatInput" placeholder="Send a message...">
+        <button id="lvGiftBtn" title="Send Gift">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+        </button>
+        <button id="lvChatSend" title="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- PARTICIPANTS PANEL -->
+    <div class="lv-room-panel" id="panel-participants" style="display:none;flex:1;">
+      <div class="lv-participants" id="lvParticipantList"></div>
+    </div>
+
+    <!-- GIFTS PANEL -->
+    <div class="lv-room-panel" id="panel-gifts" style="display:none;flex-direction:column;flex:1;min-height:0;">
+      <div class="lv-gifts"></div>
+    </div>
+
+    <!-- POLLS PANEL -->
+    <div class="lv-room-panel" id="panel-polls" style="display:none;overflow-y:auto;flex:1;padding:8px 0;">
+      <div style="padding:40px;text-align:center;color:var(--lv-muted);font-size:13px;">No active polls</div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/namvibe_emoji_picker.js"></script>
+<script src="/static/js/namvibe_live.js"></script>
+<script src="/static/js/namvibe_ai_tracking.js"></script>
+{% endblock %}

@@ -13,6 +13,7 @@ from services.friendship_service import (
     get_current_profile_id
 )
 from services.friend_service import list_friend_requests, list_friends
+from services.ai.interaction_service import track_interaction_safe
 
 friend_bp = Blueprint("friends", __name__)
 
@@ -39,6 +40,7 @@ def api_send_friend_request(profile_id):
     message = data.get("message")
     result = send_friend_request(current["id"], profile_id, message=message)
     if result.get("success"):
+        track_interaction_safe(current["id"], "profile", profile_id, "friend_request", source_surface="profile")
         return jsonify({"ok": True, "request_id": result.get("request_id")})
     return jsonify({"ok": False, "error": result.get("error", "Request failed")}), 400
 
@@ -51,6 +53,8 @@ def api_accept_friend_request(request_id):
         return jsonify({"ok": False, "error": "unauthorized"}), 401
     result = accept_friend_request(request_id, current["id"])
     if result.get("success"):
+        target_id = result.get("sender_profile_id") or result.get("profile_id") or result.get("friend_profile_id") or request_id
+        track_interaction_safe(current["id"], "profile", target_id, "friend_accept", source_surface="profile")
         return jsonify({"ok": True})
     return jsonify({"ok": False, "error": result.get("error", "Accept failed")}), 400
 

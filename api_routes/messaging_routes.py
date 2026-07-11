@@ -6,6 +6,7 @@ from services.neon_service import fast_query, write_query
 from services.thread_security_service import can_access_thread
 from services.message_media_service import upload_message_media, validate_message_attachment
 from services.message_receipt_service import mark_message_delivered, mark_message_seen, mark_thread_seen
+from services.ai.interaction_service import track_interaction_safe
 from services.message_thread_service import (
     add_group_member,
     create_group,
@@ -144,6 +145,21 @@ def api_send_message():
         emit_to_thread(thread_id, "unread:update", {"thread_id": thread_id, "profile_id": profile_id})
     except Exception:
         pass
+    recipient_rows = fast_query(
+        "SELECT profile_id FROM chain_thread_members WHERE thread_id = %s AND profile_id != %s LIMIT 2",
+        (thread_id, profile_id),
+        default=[],
+    )
+    relationship_type = "group" if len(recipient_rows) > 1 else "direct"
+    for row in recipient_rows[:1]:
+        track_interaction_safe(
+            profile_id,
+            "profile",
+            row.get("profile_id"),
+            "message",
+            source_surface="messages",
+            metadata={"relationship_type": relationship_type},
+        )
     return jsonify({"ok": True, "message": result, "status": "sent", "client_temp_id": client_temp_id})
 
 

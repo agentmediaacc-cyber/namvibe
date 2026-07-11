@@ -6,6 +6,7 @@ from services.comments_service import (
     react_to_comment, pin_comment, edit_comment, delete_comment
 )
 from services.engagement_service import add_comment as add_engagement_comment
+from services.ai.interaction_service import track_interaction_safe
 
 comments_bp = Blueprint("comments", __name__, url_prefix="/api/comments")
 
@@ -68,6 +69,8 @@ def api_add(content_type, content_id):
         comment_id = add_comment_record(content_type, content_id, user_id, body, media_url, gif_url, parent_id)
         result = {"success": bool(comment_id), "comment": {"id": comment_id, "body": body} if comment_id else None}
     if result and result.get("success"):
+        if content_type in {"post", "reel"}:
+            track_interaction_safe(user_id, content_type, content_id, "comment", source_surface="profile" if content_type == "post" else "reels")
         comment = result.get("comment") or {}
         author_name = comment.get("display_name") or comment.get("username") or comment.get("author_name") or "NamVibe"
         normalized_comment = {

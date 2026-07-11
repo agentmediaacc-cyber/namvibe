@@ -42,6 +42,7 @@ from services.socketio_service import emit_to_live_room, emit_to_profile, emit_t
 from services.wallet_engine import send_gift
 from services import message_feature_service as phase30_messages
 from services import call_feature_service as phase30_calls
+from services.ai.interaction_service import track_interaction_safe
 from services.message_delivery_service import (
     update_presence as mds_update_presence,
     set_offline as mds_set_offline,
@@ -300,6 +301,14 @@ def handle_join_live(data):
         set_add(f"live_viewers:{room_id}", request.sid, ttl=_SOCKET_STATE_TTL_SECONDS)
         viewer_count = len(set_members(f"live_viewers:{room_id}"))
         emit_to_live_room(room_id, "live:viewers", {"count": viewer_count})
+        if profile_id:
+            track_interaction_safe(
+                profile_id,
+                target_type="live",
+                target_id=room_id,
+                action_type="join",
+                source_surface="live",
+            )
         return {"joined": True, "room_id": room_id, "viewer_count": viewer_count}
     return {"joined": False}
 
@@ -690,6 +699,19 @@ def handle_live_gift(data):
     emit("error", {"message": error})
     return {"ok": False, "error": error}
 
+
+@socketio.on("homepage:get_stats")
+def handle_homepage_get_stats():
+    try:
+        from api_routes.homepage_api import _build_homepage_contract
+        payload = _build_homepage_contract(viewer_id=_get_profile_id(), limit=20)
+        emit("homepage:stats", {
+            "online_count": len(payload.get("online_users") or []),
+            "live_count": int((payload.get("counts") or {}).get("live_now") or 0),
+            "online_users": payload.get("online_users") or [],
+        }, room=request.sid)
+    except Exception:
+        emit("homepage:stats", {"online_count": 0, "live_count": 0, "online_users": []}, room=request.sid)
 
 @socketio.on("presence_heartbeat")
 def handle_heartbeat():

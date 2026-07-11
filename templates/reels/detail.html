@@ -84,7 +84,7 @@
           <div class="rd-time">{{ reel.get("created_at") | datetime if reel.get("created_at") else "Just now" }}</div>
         </div>
       </div>
-      <video src="{{ reel.get('video_url') or reel.get('media_url') }}" class="rd-video" controls playsinline preload="metadata" poster="{{ reel.get('thumbnail_url') or '' }}"></video>
+      <video src="{{ reel.get('video_url') or reel.get('media_url') }}" class="rd-video" controls playsinline preload="metadata" controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false" poster="{{ reel.get('thumbnail_url') or '' }}"></video>
       {% set caption = reel.get("caption") or "" %}
       {% if caption %}
       <div class="rd-caption">{{ caption }}</div>
@@ -154,6 +154,7 @@
     </div>
   </div>
   <div class="rd-toast" id="rd-toast"></div>
+  <script src="/static/js/namvibe_ai_tracking.js"></script>
   <script>
     (function() {
       var csrf = function() {

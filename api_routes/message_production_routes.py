@@ -20,6 +20,8 @@ from services.message_delivery_service import (
     get_presence,
     set_offline,
 )
+from services.ai.interaction_service import track_interaction_safe
+from services.neon_service import fetch_all
 
 message_production_bp = Blueprint("message_production", __name__, url_prefix="/messages/api")
 
@@ -92,6 +94,22 @@ def api_send(thread_id):
         media_url=data.get("media_url"),
         reply_to_message_id=data.get("reply_to_message_id"),
     )
+    if msg and (msg.get("id") or msg.get("message_id")):
+        recipient_rows = fetch_all(
+            "SELECT profile_id FROM chain_thread_members WHERE thread_id = %s AND profile_id != %s LIMIT 2",
+            (thread_id, profile["id"]),
+            timeout_ms=1000,
+        ) or []
+        relationship_type = "group" if len(recipient_rows) > 1 else "direct"
+        for row in recipient_rows[:1]:
+            track_interaction_safe(
+                profile["id"],
+                "profile",
+                row.get("profile_id"),
+                "message",
+                source_surface="messages",
+                metadata={"relationship_type": relationship_type},
+            )
     return jsonify({"ok": True, "message": msg})
 
 @message_production_bp.route("/thread/<thread_id>/voice-note", methods=["POST"])
@@ -116,6 +134,22 @@ def api_voice(thread_id):
         media_url=media_url,
         voice_duration_seconds=int(float(seconds or 0))
     )
+    if msg and (msg.get("id") or msg.get("message_id")):
+        recipient_rows = fetch_all(
+            "SELECT profile_id FROM chain_thread_members WHERE thread_id = %s AND profile_id != %s LIMIT 2",
+            (thread_id, profile["id"]),
+            timeout_ms=1000,
+        ) or []
+        relationship_type = "group" if len(recipient_rows) > 1 else "direct"
+        for row in recipient_rows[:1]:
+            track_interaction_safe(
+                profile["id"],
+                "profile",
+                row.get("profile_id"),
+                "message",
+                source_surface="messages",
+                metadata={"relationship_type": relationship_type, "media_type": "voice_note"},
+            )
     return jsonify({"ok": True, "message": msg})
 
 @message_production_bp.route("/unread-count", methods=["GET"])

@@ -29,7 +29,7 @@ import threading
 import time
 import uuid
 from datetime import datetime, timezone, timedelta
-from flask import Flask, g, jsonify, make_response, redirect, render_template, request, session, send_from_directory, url_for
+from flask import Flask, flash, g, jsonify, make_response, redirect, render_template, request, session, send_from_directory, url_for
 from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.exceptions import HTTPException
@@ -106,6 +106,7 @@ from api_routes.advertising_routes import advertising_bp
 from api_routes.rpromo_routes import rpromo_bp
 from api_routes.live_routes import register_live_routes
 from api_routes.support_routes import support_bp, support_page_bp
+from api_routes.connecting_you_routes import register_connecting_you_routes
 from api_v1 import BLUEPRINTS as api_v1_blueprints
 
 from services.homepage_service import get_homepage_data, build_homepage_payload, build_tiktok_home_payload
@@ -118,12 +119,14 @@ from services.homepage_phase141_service import (
     fetch_profiles_batch,
 )
 from services.homepage_warmup_service import warm_homepage_cache
+from services.homepage_cache_service import get_full, HOMEPAGE_TTL_SECONDS
+from services.cache_service import set as cache_set
 from services.content_service import hashtag_links
 from services.profile_service import get_current_profile, get_profile_by_username
 from services.notification_service import get_my_notifications
 from services.auth_service import get_current_user, refresh_chain_session
 from api_routes.profile_routes import login_required
-from services.neon_service import get_neon_health, get_pool_status, prime_neon_runtime
+from services.neon_service import get_neon_health, get_pool_status, prime_neon_runtime, fetch_one, fetch_all
 from services.live_service import prime_live_rooms_public_cache
 from utils.supabase_client import SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL, get_supabase, get_supabase_admin
 
@@ -613,6 +616,7 @@ def create_app():
     app.register_blueprint(content_controls_bp)
     app.register_blueprint(rpromo_bp)
     register_live_routes(app)
+    register_connecting_you_routes(app)
     app.register_blueprint(support_bp)
     app.register_blueprint(support_page_bp)
     csrf.exempt(support_bp)
@@ -853,6 +857,7 @@ def create_app():
     @app.route("/api/stories/<story_id>", methods=["GET"])
     def api_story_detail(story_id):
         from services.status_service import get_status, can_view_status
+        from services.ai.interaction_service import track_interaction_safe
         profile = get_current_profile()
         viewer_id = (profile or {}).get("id")
         allowed, reason = can_view_status(story_id, viewer_id)
@@ -861,11 +866,20 @@ def create_app():
         story = get_status(story_id, viewer_profile_id=viewer_id)
         if not story:
             return jsonify({"error": "Not found"}), 404
+        if viewer_id:
+            track_interaction_safe(
+                viewer_id,
+                target_type="story",
+                target_id=story_id,
+                action_type="open",
+                source_surface="story",
+            )
         return jsonify({"story": story}), 200
 
     @app.route("/api/stories/<story_id>/view", methods=["POST"])
     def api_story_view(story_id):
         from services.status_service import record_view, can_view_status
+        from services.ai.interaction_service import track_interaction_safe
         profile = get_current_profile()
         viewer_id = (profile or {}).get("id")
         if not viewer_id:
@@ -880,6 +894,14 @@ def create_app():
             reaction=data.get("reaction"),
             reply_message=data.get("reply_message"),
         )
+        if ok:
+            track_interaction_safe(
+                viewer_id,
+                target_type="story",
+                target_id=story_id,
+                action_type="view",
+                source_surface="story",
+            )
         return jsonify({"success": bool(ok)}), 200 if ok else 400
 
     @app.route("/api/stories/<story_id>/viewers", methods=["GET"])
@@ -1093,23 +1115,71 @@ def create_app():
             return redirect("/auth/login?next=/settings/", code=302)
         return redirect("/profile/settings", code=302)
 
+    # Module-level caches for online stats & public groups (shared across requests)
+    _stats_cache = {"data": None, "expires_at": 0}
+    _groups_cache = {"data": None, "expires_at": 0}
+
+    def _get_online_stats():
+        now = time.time()
+        cached = _stats_cache["data"]
+        if cached and now < _stats_cache["expires_at"]:
+            return cached
+        try:
+            from api_routes.homepage_api import _build_homepage_contract
+            payload = _build_homepage_contract(viewer_id=(get_current_profile() or {}).get("id"), limit=20)
+            result = {
+                "online_count": len(payload.get("online_users") or []),
+                "live_count": int((payload.get("counts") or {}).get("live_now") or 0),
+                "online_users": payload.get("online_users") or [],
+            }
+            _stats_cache["data"] = result
+            _stats_cache["expires_at"] = now + 30
+            return result
+        except Exception:
+            return _stats_cache["data"] or {"online_count": 0, "live_count": 0, "online_users": []}
+
+    def _get_cached_public_groups():
+        now = time.time()
+        cached = _groups_cache["data"]
+        if cached and now < _groups_cache["expires_at"]:
+            return cached
+        try:
+            ns = __import__("services.neon_service", fromlist=["fast_query"])
+            result = ns.fast_query(
+                "SELECT g.*, COALESCE(gm.c,0) AS member_count FROM chain_groups g"
+                " LEFT JOIN (SELECT group_id,COUNT(*) AS c FROM chain_group_members"
+                " WHERE status='active' GROUP BY group_id) gm ON gm.group_id=g.id"
+                " WHERE g.visibility='public' ORDER BY member_count DESC,g.created_at DESC LIMIT 5",
+                (), timeout_ms=2000, default=[],
+            ) or []
+            _groups_cache["data"] = result
+            _groups_cache["expires_at"] = now + 30
+            return result
+        except Exception:
+            return _groups_cache["data"] or []
+
     @app.route("/")
     @app.route("/home")
     def home():
         town = request.args.get("town", "")
         region = request.args.get("region", "")
-        avail = {rule.rule for rule in app.url_map.iter_rules()}
+        avail = AVAIL_ROUTES
         is_in = bool(session.get("profile_id") or session.get("auth_user_id"))
         base_routes = {
             "home_route": "/",
             "discover_route": "/discover/" if "/discover/" in avail else "/",
             "live_route": "/live/" if "/live/" in avail else "/",
             "reel_route": "/reels/" if "/reels/" in avail else "/discover/",
+            "stories_route": "/stories/" if "/stories/" in avail else "/discover/",
+            "support_route": "/support" if "/support" in avail else "/",
+            "terms_route": "/terms" if "/terms" in avail else "/",
+            "privacy_route": "/privacy" if "/privacy" in avail else "/",
             "reel_create": "/reels/upload" if "/reels/upload" in avail else "/features/upload-reel",
             "story_create": "/status/create" if "/status/create" in avail else "/profile/",
             "composer_fallback": "/features/create-post" if "/features/create-post" in avail else "/posts/create",
             "upload_video_route": "/features/upload-video" if "/features/upload-video" in avail else "/upload/video",
             "dating_route": "/dating/discover" if "/dating/discover" in avail else "/discover/",
+            "dating_label": "Connecting You" if "/dating/discover" in avail else "Discover",
             "friends_route": "/social/friend-requests" if "/social/friend-requests" in avail else "/discover/",
             "login_route": "/auth/login",
             "register_route": "/auth/register",
@@ -1118,7 +1188,7 @@ def create_app():
             "drawer_calls": "/calls/" if is_in and "/calls/" in avail else ("/auth/login" if not is_in else "/calls/recent"),
             "drawer_notifications": "/notifications/" if is_in and "/notifications/" in avail else ("/auth/login" if not is_in else "/profile/"),
             "drawer_wallet": "/wallet/" if is_in and "/wallet/" in avail else ("/auth/login" if not is_in else "/"),
-            "drawer_settings": "/profile/settings" if "/profile/settings" in avail else "/discover/",
+            "drawer_settings": "/profile/settings" if is_in and "/profile/settings" in avail else ("/auth/login" if not is_in else "/discover/"),
             "drawer_security": "/security/privacy" if "/security/privacy" in avail else "/security",
             "reel_available": "/reels/" in avail or "/reels/upload" in avail,
             "story_available": True,
@@ -1126,7 +1196,6 @@ def create_app():
             "upload_video_available": "/features/upload-video" in avail,
             "post_available": True,
         }
-        # Phase 141: Hard render fallback for degraded mode
         shell = {
             "feed_for_you": [],
             "posts": [],
@@ -1135,24 +1204,61 @@ def create_app():
             "suggested_people": [],
             "live_rooms": [],
             "friend_activity": [],
+            "online_stats": {"online_count": 0, "live_count": 0, "online_users": []},
             "homepage_degraded": True,
             "homepage_message": "Loading latest NamVibe content...",
             **base_routes,
         }
 
-        def build_fast_shell():
+        def build_fast_shell(cached_payload=None):
+            if cached_payload:
+                data = dict(shell)
+                data["feed_items"] = cached_payload.get("feed_items") or []
+                data["feed_for_you"] = list(data["feed_items"])
+                data["posts"] = cached_payload.get("posts") or list(data["feed_items"])
+                data["stories"] = cached_payload.get("stories") or []
+                data["reels"] = cached_payload.get("reels") or []
+                data["reels_items"] = cached_payload.get("reels") or []
+                data["live_rooms"] = cached_payload.get("live_rooms") or []
+                data["suggested_people"] = cached_payload.get("suggested_creators") or cached_payload.get("suggested_people") or []
+                data["suggested_creators"] = list(data["suggested_people"])
+                data["trending_hashtags"] = cached_payload.get("trending_hashtags") or []
+                data["hashtags"] = list(data["trending_hashtags"])
+                data["friend_activity"] = cached_payload.get("friend_activity") or []
+                data["homepage_degraded"] = bool(cached_payload.get("homepage_degraded"))
+                data["homepage_message"] = ""
+                data["homepage_timings"] = cached_payload.get("timings") or {}
+                data["homepage_payload"] = {
+                    "stories": data["stories"],
+                    "feed_items": data["feed_items"],
+                    "posts": data["posts"],
+                    "reels": data["reels"],
+                    "friend_activity": data["friend_activity"],
+                    "online_users": cached_payload.get("online_users") or [],
+                    "counts": (cached_payload.get("counts") or {}),
+                    "timings": data["homepage_timings"],
+                }
+                online_users_list = cached_payload.get("online_users") or cached_payload.get("_online_users") or []
+                data["online_stats"] = {
+                    "online_count": cached_payload.get("counts", {}).get("online_count", 0) or len(online_users_list),
+                    "live_count": len(data["live_rooms"]),
+                    "online_users": online_users_list,
+                }
+                data["wallet_balance"] = (cached_payload.get("wallet") or {}).get("coin_balance", 0)
+                return data
             data = dict(shell)
             try:
-                from api_routes.homepage_api import _fast_homepage_feed_payload
-                fast_payload = _fast_homepage_feed_payload(
+                from api_routes.homepage_api import _build_homepage_contract
+                fast_payload = _build_homepage_contract(
                     limit=20,
                     viewer_id=(get_current_profile() or {}).get("id"),
+                    include_widgets=False,
                 ) or {}
             except Exception:
                 fast_payload = {}
             data["feed_items"] = fast_payload.get("feed_items") or []
             data["feed_for_you"] = list(data["feed_items"])
-            data["posts"] = list(data["feed_items"])
+            data["posts"] = fast_payload.get("posts") or list(data["feed_items"])
             data["stories"] = fast_payload.get("stories") or []
             data["reels"] = fast_payload.get("reels") or []
             data["reels_items"] = fast_payload.get("reels") or []
@@ -1162,78 +1268,43 @@ def create_app():
             data["trending_hashtags"] = fast_payload.get("trending_hashtags") or []
             data["hashtags"] = list(data["trending_hashtags"])
             data["friend_activity"] = fast_payload.get("friend_activity") or []
-            data["homepage_degraded"] = False
+            data["homepage_degraded"] = bool(fast_payload.get("homepage_degraded"))
             data["homepage_message"] = ""
+            data["homepage_timings"] = fast_payload.get("timings") or {}
+            online_users_list = fast_payload.get("online_users") or []
             data["homepage_payload"] = {
                 "stories": data["stories"],
                 "feed_items": data["feed_items"],
+                "posts": data["posts"],
                 "reels": data["reels"],
-                "live_rooms": data["live_rooms"],
-                "suggested_creators": data["suggested_creators"],
-                "trending_hashtags": data["trending_hashtags"],
                 "friend_activity": data["friend_activity"],
+                "online_users": online_users_list,
+                "counts": (fast_payload.get("counts") or {}),
+                "timings": data["homepage_timings"],
             }
-            try:
-                from services.group_feature_service import get_public_groups
-                data["public_groups"] = get_public_groups(limit=5)
-            except Exception:
-                data["public_groups"] = []
+            data["online_stats"] = {
+                "online_count": len(online_users_list),
+                "live_count": len(data["live_rooms"]),
+                "online_users": online_users_list,
+            }
+            data["wallet_balance"] = 0
             return data
 
         with timed("home"):
             home_start = time.perf_counter()
-            data = build_fast_shell()
+            cached_payload = get_full("public")
+            data = build_fast_shell(cached_payload=cached_payload)
+            if not cached_payload:
+                try:
+                    cache_set("homepage:full:public", data, ttl=HOMEPAGE_TTL_SECONDS)
+                except Exception:
+                    pass
             data.update(base_routes)
             data["chats"] = []
             data["notifications"] = []
             data["marketplace_items"] = []
+            data["chats"] = []
             pid_for_home = (get_current_profile() or {}).get("id")
-            try:
-                if pid_for_home:
-                    from services.notification_engine import list_notifications
-                    raw = list_notifications(pid_for_home, limit=5)
-                    if raw and isinstance(raw, list):
-                        data["notifications"] = raw
-                    elif raw and isinstance(raw, dict) and raw.get("notifications"):
-                        data["notifications"] = raw["notifications"]
-            except Exception:
-                data["notifications"] = []
-            try:
-                profile_id = pid_for_home
-                if profile_id:
-                    from services.neon_service import fast_query
-                    data["chats"] = fast_query(
-                        """
-                        SELECT t.id, COALESCE(t.thread_type, '') AS name,
-                          (SELECT p.avatar_url FROM chain_profiles p
-                           JOIN chain_thread_members tm2 ON tm2.profile_id = p.id
-                           WHERE tm2.thread_id = t.id AND tm2.profile_id != %s LIMIT 1) AS avatar_url,
-                          (SELECT m.body FROM chain_messages m
-                           WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,
-                          (SELECT COUNT(*) FROM chain_messages m
-                           JOIN chain_message_reads mr ON mr.message_id = m.id AND mr.profile_id = %s AND mr.read = FALSE
-                           WHERE m.thread_id = t.id) AS unread_count
-                        FROM chain_message_threads t
-                        JOIN chain_thread_members tm ON tm.thread_id = t.id
-                        WHERE tm.profile_id = %s AND t.deleted_at IS NULL
-                          AND (tm.is_archived IS NULL OR tm.is_archived = FALSE)
-                        ORDER BY (SELECT MAX(m.created_at) FROM chain_messages m WHERE m.thread_id = t.id) DESC NULLS LAST
-                        LIMIT 10
-                        """, (profile_id, profile_id, profile_id), default=[]
-                    )
-            except Exception:
-                data["chats"] = []
-            try:
-                if pid_for_home:
-                    from services.neon_service import fast_query
-                    data["marketplace_items"] = fast_query(
-                        "SELECT id, title, price, currency, image_url, status "
-                        "FROM chain_marketplace_items WHERE status = 'active' "
-                        "ORDER BY created_at DESC LIMIT 5",
-                        (), default=[], timeout_ms=3000,
-                    )
-            except Exception:
-                data["marketplace_items"] = []
             response = make_response(render_template("chain_home.html", **data), 200)
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
@@ -1241,12 +1312,19 @@ def create_app():
             total_ms = round((time.perf_counter() - home_start) * 1000, 2)
             log_info(
                 "homepage_timing",
+                homepage_cache_hit=bool(cached_payload),
                 homepage_total_ms=total_ms,
-                homepage_feed_ms=0,
-                homepage_stories_ms=0,
-                homepage_reels_ms=0,
-                homepage_suggestions_ms=0,
-                homepage_profile_ms=0,
+                homepage_posts_ms=(data.get("homepage_timings") or {}).get("posts", 0),
+                homepage_posts_normalize_ms=(data.get("homepage_timings") or {}).get("posts_normalize", 0),
+                homepage_stories_ms=(data.get("homepage_timings") or {}).get("stories", 0),
+                homepage_reels_ms=(data.get("homepage_timings") or {}).get("reels", 0),
+                homepage_live_ms=(data.get("homepage_timings") or {}).get("live", 0),
+                homepage_hashtags_ms=(data.get("homepage_timings") or {}).get("hashtags", 0),
+                homepage_suggestions_ms=(data.get("homepage_timings") or {}).get("suggestions", 0),
+                homepage_online_users_ms=(data.get("homepage_timings") or {}).get("online_users", 0),
+                homepage_notifications_ms=(data.get("homepage_timings") or {}).get("notifications", 0),
+                homepage_wallet_ms=(data.get("homepage_timings") or {}).get("wallet", 0),
+                homepage_unread_messages_ms=(data.get("homepage_timings") or {}).get("unread_messages", 0),
             )
             log_info("homepage_route_total", duration_ms=total_ms)
             return response
@@ -1263,8 +1341,9 @@ def create_app():
             return redirect(url_for("auth.login", next=request.path), code=302)
         return render_template("live/studio.html", profile=profile, current=profile)
 
-    @app.route("/live/<int:room_id>")
+    @app.route("/live/<room_id>")
     def live_room(room_id):
+        from services.ai.interaction_service import track_interaction_safe
         pid = (get_current_profile() or {}).get("id")
         room = None
         try:
@@ -1272,11 +1351,12 @@ def create_app():
                 """SELECT r.*, COALESCE(p.display_name, p.username, 'Host') AS host_name,
                    p.username AS host_username, p.avatar_url AS host_avatar, p.is_verified
                    FROM chain_live_rooms r
-                   JOIN chain_profiles p ON p.id = r.host_id
+                   JOIN chain_profiles p ON p.id = r.profile_id
                    WHERE r.id = %s""",
                 (room_id,)
             )
             if row:
+                owner_id = row.get("profile_id") or row.get("host_id") or row.get("host_profile_id")
                 room = {
                     "id": row["id"],
                     "title": row.get("title", "Untitled Stream"),
@@ -1293,8 +1373,8 @@ def create_app():
                 }
                 prod_rows = fetch_all(
                     "SELECT * FROM chain_live_products WHERE room_id = %s ORDER BY sort_order ASC LIMIT 20",
-                    (room_id,), default=[]
-                )
+                    (room_id,)
+                ) or []
                 for pr in prod_rows:
                     room["products"].append({
                         "id": pr["id"],
@@ -1310,10 +1390,19 @@ def create_app():
         if not room:
             return render_template("live_hub.html", error="Stream not found"), 404
 
+        owner_id = row.get("profile_id") or row.get("host_id") or row.get("host_profile_id")
+        if pid:
+            track_interaction_safe(
+                pid,
+                target_type="live",
+                target_id=room_id,
+                action_type="open",
+                source_surface="live",
+            )
         return render_template(
             "live_room.html",
             room=room,
-            is_host=pid is not None and room.get("host_id") == pid,
+            is_host=pid is not None and str(owner_id) == str(pid),
         )
 
     @app.route("/login")
@@ -1324,11 +1413,11 @@ def create_app():
     def legacy_register():
         return redirect("/auth/register", code=302)
 
-    @app.route("/terms")
+    @app.route("/terms", strict_slashes=False)
     def terms():
         return render_template("dashboard/legal.html", page_title="Terms of Service", page_intro="These terms explain how NamVibe works, what users can expect, and the standards for using premium live, chat, wallet, and discovery features.")
 
-    @app.route("/privacy")
+    @app.route("/privacy", strict_slashes=False)
     def privacy():
         return render_template("dashboard/legal.html", page_title="Privacy Policy", page_intro="This page explains how NamVibe stores profile data, wallet activity, live interactions, and notifications when connected to Supabase.")
 
@@ -1441,6 +1530,7 @@ def create_app():
         from services.reels_service import get_reel_comments
         from services.profile_service import get_current_profile
         from services.engagement_service import is_liked
+        from services.ai.interaction_service import track_interaction_safe
         profile = get_current_profile()
         reel = get_reel(reel_id)
         if not reel:
@@ -1467,6 +1557,13 @@ def create_app():
         has_liked = False
         if profile:
             has_liked = is_liked(profile.get("id"), "reel", reel_id)
+            track_interaction_safe(
+                profile.get("id"),
+                target_type="reel",
+                target_id=reel_id,
+                action_type="open",
+                source_surface="reels",
+            )
         return render_template("reels/detail.html",
             reel=reel, comments=comments, profile=profile,
             has_liked=has_liked)
@@ -1477,6 +1574,7 @@ def create_app():
         from services.comments_service import get_comments
         from services.profile_service import get_current_profile
         from services.engagement_service import is_liked
+        from services.ai.interaction_service import track_interaction_safe
         profile = get_current_profile()
         post = get_post_by_id(post_id, viewer_profile_id=(profile or {}).get("id"))
         if not post:
@@ -1487,6 +1585,13 @@ def create_app():
         has_liked = False
         if profile:
             has_liked = is_liked(profile.get("id"), "post", post_id)
+            track_interaction_safe(
+                profile.get("id"),
+                target_type="post",
+                target_id=post_id,
+                action_type="open",
+                source_surface="profile",
+            )
         return render_template("posts/detail.html",
             post=post, comments=comments, profile=profile,
             has_liked=has_liked)
@@ -1641,6 +1746,8 @@ app = create_app()
 
 if os.getenv("CHAIN_DEV_DIAGNOSTICS") == "1":
     app.register_blueprint(dev_diagnostics_bp)
+
+AVAIL_ROUTES = {rule.rule for rule in app.url_map.iter_rules()}
 
 if __name__ == "__main__":
     from services.socketio_service import socketio

@@ -10,6 +10,7 @@ from services.marketplace_shop_service import (
     create_review, list_reviews,
     get_seller_dashboard, marketplace_search, toggle_save,
 )
+from services.ai.interaction_service import track_interaction_safe
 
 marketplace_bp = Blueprint("marketplace", __name__)
 
@@ -162,6 +163,8 @@ def api_product_detail(product_id):
 def api_save_product(product_id):
     profile = get_current_profile()
     result = save_product(profile["id"], product_id)
+    if result.get("ok") or result.get("success"):
+        track_interaction_safe(profile["id"], "marketplace", product_id, "save", source_surface="marketplace")
     return jsonify(result)
 
 
@@ -170,6 +173,8 @@ def api_save_product(product_id):
 def api_unsave_product(product_id):
     profile = get_current_profile()
     result = unsave_product(profile["id"], product_id)
+    if result.get("ok") or result.get("success"):
+        track_interaction_safe(profile["id"], "marketplace", product_id, "unsave", source_surface="marketplace")
     return jsonify(result)
 
 
@@ -306,6 +311,8 @@ def api_toggle_save():
     if not item_id:
         return jsonify({"ok": False, "error": "item_id_required"}), 400
     result = toggle_save(profile["id"], item_type, item_id)
+    if result.get("ok") or result.get("success"):
+        track_interaction_safe(profile["id"], "marketplace", item_id, "save" if result.get("saved", True) else "unsave", source_surface="marketplace")
     return jsonify(result)
 
 
@@ -337,6 +344,8 @@ def marketplace_detail(item_id):
     item = access.get("item")
     if not item:
         return "Marketplace item not found", 404
+    if viewer and viewer.get("id"):
+        track_interaction_safe(viewer["id"], "marketplace", item_id, "open", source_surface="marketplace")
     return render_template("marketplace/detail.html", item=item, access=access, viewer=viewer)
 
 
@@ -346,6 +355,8 @@ def marketplace_purchase(item_id):
     from services.marketplace_service import purchase_item
     current = get_current_profile()
     ok, message = purchase_item(current["id"], item_id)
+    if ok:
+        track_interaction_safe(current["id"], "marketplace", item_id, "purchase", source_surface="marketplace")
     flash("Purchase completed." if ok else message, "success" if ok else "error")
     return redirect(f"/marketplace/item/{item_id}")
 
