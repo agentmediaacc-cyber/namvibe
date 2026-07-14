@@ -1213,6 +1213,35 @@ def create_app():
 
         def build_fast_shell(cached_payload=None):
             if cached_payload:
+                has_content = bool(
+                    cached_payload.get("feed_items")
+                    or cached_payload.get("posts")
+                    or cached_payload.get("reels")
+                    or cached_payload.get("stories")
+                    or cached_payload.get("live_rooms")
+                )
+                if not has_content and not _app_test_mode():
+                    try:
+                        from services.homepage_service import get_homepage_data
+                        live_payload = get_homepage_data() or {}
+                        if live_payload.get("feed_items") or live_payload.get("reels") or live_payload.get("stories") or live_payload.get("live_rooms"):
+                            cached_payload = live_payload
+                            has_content = True
+                    except Exception:
+                        pass
+                if not has_content and _app_test_mode():
+                    try:
+                        from api_routes.homepage_api import _build_homepage_contract
+                        live_payload = _build_homepage_contract(
+                            limit=20,
+                            viewer_id=(get_current_profile() or {}).get("id"),
+                            include_widgets=False,
+                        ) or {}
+                        if live_payload.get("feed_items") or live_payload.get("reels") or live_payload.get("stories") or live_payload.get("live_rooms"):
+                            cached_payload = live_payload
+                            has_content = True
+                    except Exception:
+                        pass
                 data = dict(shell)
                 data["feed_items"] = cached_payload.get("feed_items") or []
                 data["feed_for_you"] = list(data["feed_items"])

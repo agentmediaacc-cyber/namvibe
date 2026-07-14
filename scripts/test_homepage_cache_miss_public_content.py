@@ -77,7 +77,17 @@ def test_homepage_cached_public_content_renders(client):
     assert "<video" in html
 
 
+def test_empty_cached_homepage_refreshes_from_live_data(client):
+    with patch("app.get_full", return_value={"feed_items": [], "posts": [], "reels": [], "stories": [], "live_rooms": []}), patch("app._app_test_mode", return_value=False), patch("services.homepage_service.get_homepage_data", return_value=dict(PAYLOAD)), patch("api_routes.homepage_api._build_homepage_contract", side_effect=RuntimeError("should not be used")):
+        response = client.get("/")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "data-post-id=\"reel-public-1\"" in html
+    assert "<video" in html
+
+
 if __name__ == "__main__":
     with app.test_client() as client:
         test_homepage_cached_public_content_renders(client)
+        test_empty_cached_homepage_refreshes_from_live_data(client)
     print("OK")
