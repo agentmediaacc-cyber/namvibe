@@ -284,6 +284,15 @@ def create_app():
     app.jinja_env.globals.setdefault("csrf_token", generate_csrf)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
     csrf = CSRFProtect(app)
+    startup_perf_debug = os.environ.get("CHAIN_STARTUP_PERF_DEBUG", "").lower() in ("1", "true", "yes", "on")
+    startup_perf_started = time.perf_counter()
+
+    def _log_startup_stage(stage, **fields):
+        if not startup_perf_debug:
+            return
+        log_info("startup_perf_debug", stage=stage, worker_pid=os.getpid(), **fields)
+
+    _log_startup_stage("create_app_start")
     
     @app.errorhandler(CSRFError)
     def _csrf_friendly_error(e):
@@ -331,8 +340,19 @@ def create_app():
             or request.path == "/healthz"
             or request.path.startswith("/health/")
             or request.path.startswith("/discover/")
-            or request.path in {"/reels/", "/reels", "/live/"}
+            or request.path.startswith("/reels/")
+            or request.path == "/reels"
+            or request.path == "/live/"
         )
+
+
+    def _skip_first_request_neon_prewarm():
+        return request.path == "/reels" or request.path.startswith("/reels/")
+
+    def _log_reels_prewarm(stage, **fields):
+        if os.environ.get("CHAIN_REELS_PERF_DEBUG", "").lower() not in ("1", "true", "yes", "on"):
+            return
+        log_info("reels_prewarm_debug", stage=stage, worker_pid=os.getpid(), **fields)
 
     @app.before_request
     def before_req():
@@ -379,22 +399,8 @@ def create_app():
             from services.status_service import expire_old_statuses
             scheduler.add_job(check_call_timeouts, 'interval', seconds=60, id='call_timeouts')
             scheduler.add_job(expire_old_statuses, 'interval', minutes=15, id='status_expiry')
-            scheduler.add_job(warm_homepage_cache, 'interval', seconds=30, id='homepage_cache_warmup', replace_existing=True)
         except Exception as e:
             print(f"[app] Failed to add background jobs: {e}")
-    if not _startup_fast_mode() and not _app_test_mode():
-        try:
-            from services.job_queue_service import enqueue_unique_job
-            enqueue_unique_job(
-                "homepage_cache_warmup",
-                payload={"source": "app_startup"},
-                unique_key="homepage_cache_warmup:startup",
-                priority=1,
-                queue="default",
-            )
-        except Exception as e:
-            print(f"[app] Failed to enqueue homepage cache warmup: {e}")
-
     init_observability(app)
     app.limiter = init_rate_limiter(app)
     socketio = init_socketio(app)
@@ -631,15 +637,7 @@ def create_app():
     for bp in api_v1_blueprints:
         app.register_blueprint(bp, url_prefix=f"/api/v1{bp.url_prefix}")
 
-    if not _app_test_mode():
-        _startup_background_prewarm(app)
-
-    # Synchronously pre-warm Neon pool on startup so first request isn't slow
-    try:
-        from services.neon_service import prime_neon_runtime, _pool_instance
-        prime_neon_runtime()
-    except Exception:
-        pass
+    _log_startup_stage("blueprints_registered", elapsed_ms=round((time.perf_counter() - startup_perf_started) * 1000, 2))
 
     @app.get("/debug/session")
     def debug_session_app():
@@ -695,6 +693,7 @@ def create_app():
         g.request_started_at = time.perf_counter()
         g.request_id = str(uuid.uuid4())
         g.current_profile_id = session.get("auth_user_id")
+        g._before_request_started = time.perf_counter()
         if (
             session.get("refresh_token")
             and not session.get("access_token")
@@ -1329,6 +1328,7 @@ def create_app():
             log_info("homepage_route_total", duration_ms=total_ms)
             return response
 
+    @app.route("/live")
     @app.route("/live/")
     def live_hub():
         profile = get_current_profile()
@@ -1527,7 +1527,6 @@ def create_app():
     @app.route("/reels/<reel_id>")
     def reel_detail(reel_id):
         from services.reels_engine import get_reel
-        from services.reels_service import get_reel_comments
         from services.profile_service import get_current_profile
         from services.engagement_service import is_liked
         from services.ai.interaction_service import track_interaction_safe
@@ -1553,7 +1552,6 @@ def create_app():
                 if not can_view_posts(pid, reel.get("profile_id")):
                     return render_template("errors/post_not_found.html",
                         message="This reel is for followers only.", profile=profile), 404
-        comments = get_reel_comments(reel_id, limit=30)
         has_liked = False
         if profile:
             has_liked = is_liked(profile.get("id"), "reel", reel_id)
@@ -1565,7 +1563,7 @@ def create_app():
                 source_surface="reels",
             )
         return render_template("reels/detail.html",
-            reel=reel, comments=comments, profile=profile,
+            reel=reel, comments=[], profile=profile,
             has_liked=has_liked)
 
     @app.route("/post/<post_id>")
@@ -1657,7 +1655,12 @@ def create_app():
         if _prewarm_done:
             return
         _prewarm_done = True
-        if not _startup_fast_mode() and not _app_test_mode():
+        _log_reels_prewarm("considered", path=request.path, prewarm_considered=True)
+        if _skip_first_request_neon_prewarm():
+            _log_reels_prewarm("skipped", path=request.path, prewarm_skipped=True, skip_reason="reels_request")
+            return
+        if not _startup_fast_mode() and not _app_test_mode() and _flag_enabled("CHAIN_ALLOW_WORKER_BACKGROUND_WARM"):
+            _log_reels_prewarm("started", path=request.path, prewarm_started=True, skip_reason="worker_background_warm_enabled")
             threading.Thread(target=lambda: (
                 prime_neon_runtime(),
                 time.sleep(0.1),
@@ -1683,6 +1686,16 @@ def create_app():
                 if not get_cache(cache_key_slow):
                     log_warning("slow_request", duration_ms=round(elapsed_ms, 1), status_code=response.status_code, threshold_ms=threshold)
                     set_cache(cache_key_slow, True, ttl=60)
+            if os.environ.get("CHAIN_REELS_PERF_DEBUG", "").lower() in {"1", "true", "yes", "on"} and request.path.startswith("/reels"):
+                log_info(
+                    "reels_request_timing",
+                    request_id=getattr(g, "request_id", None),
+                    worker_pid=os.getpid(),
+                    path=request.path,
+                    request_total_ms=round(elapsed_ms, 2),
+                    after_request_total_ms=round((time.perf_counter() - started) * 1000, 2),
+                    homepage_background_tasks_active=0,
+                )
         if response.status_code >= 500:
             increment("http_5xx")
 
@@ -1711,18 +1724,31 @@ def create_app():
             return
         if not getattr(app, '_neon_primed', False):
             app._neon_primed = True
-            try:
-                from services.neon_service import prime_neon_runtime
-                prime_neon_runtime()
-            except Exception:
-                pass
+            _log_reels_prewarm("considered", path=request.path, prewarm_considered=True)
+            if _is_fast_public_request() or _skip_first_request_neon_prewarm():
+                _log_reels_prewarm(
+                    "skipped",
+                    path=request.path,
+                    prewarm_skipped=True,
+                    skip_reason="fast_public_request" if _is_fast_public_request() else "reels_request",
+                )
+                return
+            if _flag_enabled("CHAIN_ALLOW_WORKER_BACKGROUND_WARM"):
+                try:
+                    _log_reels_prewarm("started", path=request.path, prewarm_started=True)
+                    from services.neon_service import prime_neon_runtime
+                    prime_neon_runtime()
+                except Exception:
+                    pass
+
+    _log_startup_stage("create_app_complete", create_app_total_ms=round((time.perf_counter() - startup_perf_started) * 1000, 2))
 
     return app
 
 
 def _startup_background_prewarm(app):
     """Start background prewarm thread for homepage cache and Neon pool."""
-    if _startup_fast_mode() or _app_test_mode():
+    if _startup_fast_mode() or _app_test_mode() or not _flag_enabled("CHAIN_ALLOW_WORKER_BACKGROUND_WARM"):
         return
 
     def delayed_prewarm():

@@ -877,9 +877,9 @@ def _fetch_friend_activity(viewer_id=None, limit=10):
                    p.is_verified AS p_is_verified,
                    p.verified AS p_verified
             FROM chain_activity_events ae
-            JOIN chain_profiles p ON p.id::text = ae.{actor_col}::text
-            JOIN chain_follows f ON f.following_profile_id::text = ae.{actor_col}::text
-            WHERE f.follower_profile_id::text = %s
+            JOIN chain_profiles p ON p.id = ae.{actor_col}
+            JOIN chain_follows f ON f.following_profile_id = ae.{actor_col}
+            WHERE f.follower_profile_id = %s::uuid
               AND f.deleted_at IS NULL
               AND ({clauses})
             ORDER BY ae.created_at DESC NULLS LAST
@@ -1225,8 +1225,8 @@ def _homepage_relationship_context(viewer_id, creator_ids):
             """
             SELECT following_profile_id
             FROM chain_follows
-            WHERE follower_profile_id::text = %s
-              AND following_profile_id::text = ANY(%s)
+            WHERE follower_profile_id = %s::uuid
+              AND following_profile_id = ANY(%s::uuid[])
             """,
             (str(viewer_id), creator_ids),
             timeout_ms=700,
@@ -1240,15 +1240,15 @@ def _homepage_relationship_context(viewer_id, creator_ids):
             """
             SELECT
                 CASE
-                    WHEN profile_id_1::text = %s THEN profile_id_2::text
+                    WHEN profile_id_1 = %s::uuid THEN profile_id_2::text
                     ELSE profile_id_1::text
                 END AS friend_profile_id
             FROM chain_friends
             WHERE status = 'accepted'
-              AND (profile_id_1::text = %s OR profile_id_2::text = %s)
+              AND (profile_id_1 = %s::uuid OR profile_id_2 = %s::uuid)
               AND (
-                    profile_id_1::text = ANY(%s)
-                 OR profile_id_2::text = ANY(%s)
+                    profile_id_1 = ANY(%s::uuid[])
+                 OR profile_id_2 = ANY(%s::uuid[])
               )
             """,
             (str(viewer_id), str(viewer_id), str(viewer_id), creator_ids, creator_ids),
@@ -1266,9 +1266,9 @@ def _homepage_relationship_context(viewer_id, creator_ids):
                    event_type,
                    COALESCE(watch_ms, 0) AS watch_ms
             FROM chain_video_events
-            WHERE viewer_profile_id::text = %s
+            WHERE viewer_profile_id = %s::uuid
               AND created_at > now() - interval '30 days'
-              AND creator_profile_id::text = ANY(%s)
+              AND creator_profile_id = ANY(%s::uuid[])
             ORDER BY created_at DESC
             LIMIT 500
             """,
@@ -1563,6 +1563,12 @@ def rank_homepage_sections(payload, viewer_id=None, feed_limit=20):
         for r in reel_pool:
             r["type"] = r.get("type") or "reel"
             r["_section"] = "inline_reel"
+        existing_ids = {
+            str(item.get("id") or "")
+            for item in merged_feed
+            if isinstance(item, dict) and item.get("id")
+        }
+        reel_pool = [reel for reel in reel_pool if str(reel.get("id") or "") not in existing_ids]
         spaced = []
         reel_index = 0
         for i, item in enumerate(merged_feed):
@@ -3324,7 +3330,8 @@ def build_tiktok_home_payload(exclude_test_content=True):
 
         if _time_budget(budget_1000):
             from services.reels_service import get_reel_feed
-            reels = get_reel_feed(limit=30) if _time_budget(budget_1000) else reels
+            reels_payload = get_reel_feed(limit=30) if _time_budget(budget_1000) else reels
+            reels = (reels_payload or {}).get("items") if isinstance(reels_payload, dict) else reels_payload
             if exclude_test_content and reels:
                 reels = filter_content(reels)
             if _time_budget(budget_1000):

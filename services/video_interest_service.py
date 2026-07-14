@@ -109,7 +109,9 @@ def _viewer_interest_profile(viewer_profile_id) -> Dict:
 def _fallback_reels(limit: int) -> List[Dict]:
     try:
         from services.reels_service import get_reel_feed
-        return filter_content(get_reel_feed(limit=limit))
+        payload = get_reel_feed(limit=limit)
+        items = payload.get("items") if isinstance(payload, dict) else payload
+        return filter_content(items)
     except Exception:
         return []
 

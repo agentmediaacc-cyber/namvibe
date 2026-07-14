@@ -2,17 +2,16 @@
 {% block title %}Reels | NamVibe{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reels.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_reels_engine.css') }}">
 {% endblock %}
 {% block content %}
 <main id="reels-app" class="reels-fullscreen">
-  <div id="reels-viewport" class="reels-viewport">
+  <div id="reels-viewport" class="reels-viewport" data-next-cursor="{{ next_cursor or '' }}" data-has-more="{{ 'true' if next_cursor else 'false' }}">
     {% if reels %}
       {% for reel in reels %}
-      <section class="reel-slide" data-reel-id="{{ reel.id }}" data-index="{{ loop.index0 }}">
+      <section class="reel-slide" data-reel-id="{{ reel.id }}" data-index="{{ loop.index0 }}" data-creator-id="{{ reel.creator_id or reel.profile_id }}">
         <div class="reel-media-wrap">
           {% if reel.video_url %}
-          <video class="reel-video" src="{{ reel.video_url }}" preload="metadata" loop playsinline webkit-playsinline></video>
+          <video class="reel-video" src="{{ reel.video_url }}" poster="{{ reel.thumbnail_url or '' }}" preload="metadata" autoplay loop playsinline webkit-playsinline muted controlslist="nodownload noplaybackrate" disablepictureinpicture oncontextmenu="return false"></video>
           {% else %}
           <div class="reel-no-video"><i class="fas fa-film"></i><p>Video unavailable</p></div>
           {% endif %}
@@ -39,19 +38,21 @@
         </div>
         <div class="reel-footer">
           <div class="reel-creator-row">
-            <a href="/profile/{{ reel.profile_id }}" class="reel-creator-avatar">
-              {% if reel.avatar_url %}
-              <img src="{{ reel.avatar_url }}" alt="">
+            <a href="{{ reel.creator_url or '/profile/' }}" class="reel-creator-avatar">
+              {% if reel.creator_avatar_url or reel.avatar_url %}
+              <img src="{{ reel.creator_avatar_url or reel.avatar_url }}" alt="">
               {% else %}
-              <div class="reel-avatar-placeholder">{{ (reel.username or 'C')[0]|upper }}</div>
+              <div class="reel-avatar-placeholder">{{ (reel.creator_username or reel.username or 'C')[0]|upper }}</div>
               {% endif %}
             </a>
             <div class="reel-creator-info">
-              <a href="/profile/{{ reel.profile_id }}" class="reel-creator-name">
-                @{{ reel.username }}
-                {% if reel.is_verified %}<i class="fas fa-circle-check verified-badge"></i>{% endif %}
+              <a href="{{ reel.creator_url or '/profile/' }}" class="reel-creator-name">
+                @{{ reel.creator_username or reel.username }}
+                {% if reel.creator_is_verified or reel.is_verified %}
+                <i class="fas fa-circle-check verified-badge"></i>
+                {% endif %}
               </a>
-              <span class="reel-music">{{ reel.music_title or 'Original Audio' }}</span>
+              <span class="reel-music">{{ (reel.music.title if reel.music else reel.music_title) or 'Original Audio' }}</span>
             </div>
             {% if profile %}
             <button class="reel-follow-btn" data-follow data-creator-id="{{ reel.profile_id }}"
@@ -65,7 +66,7 @@
             {% endif %}
           </div>
           <div class="reel-caption">
-            <a href="/profile/{{ reel.profile_id }}" class="reel-caption-user">@{{ reel.username }}</a>
+            <a href="{{ reel.creator_url or '/profile/' }}" class="reel-caption-user">@{{ reel.creator_username or reel.username }}</a>
             {{ reel.caption or '' }}
           </div>
         </div>
@@ -80,6 +81,7 @@
     </div>
     {% endif %}
   </div>
+  <div id="reels-feed-status" class="reels-feed-status" aria-live="polite" hidden></div>
 
   <div id="reel-comment-drawer" class="reel-drawer" style="display:none">
     <div class="reel-drawer-header">
@@ -111,5 +113,4 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/reels.js') }}"></script>
-<script src="{{ url_for('static', filename='js/namvibe_reels_engine.js') }}"></script>
 {% endblock %}

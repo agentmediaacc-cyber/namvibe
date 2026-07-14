@@ -7,6 +7,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 .reels-viewport {
@@ -19,7 +20,7 @@
 .reels-viewport::-webkit-scrollbar { display: none; }
 
 .reel-slide {
-  height: 100vh;
+  height: 100dvh;
   scroll-snap-align: start;
   position: relative;
   display: flex;
@@ -103,6 +104,8 @@
   align-items: center;
   gap: 4px;
   text-shadow: 0 1px 4px rgba(0,0,0,.5);
+  min-width: 44px;
+  min-height: 44px;
 }
 .reel-action-btn i { font-size: 28px; }
 .reel-action-btn .reel-count { font-size: 11px; opacity: .9; }
@@ -192,6 +195,7 @@
   display: flex;
   flex-direction: column;
   animation: slideUp .25s ease-out;
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 @keyframes slideUp {
   from { transform: translateY(100%); }

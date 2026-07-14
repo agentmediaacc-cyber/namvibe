@@ -7,7 +7,7 @@ from services.reels_engine import list_reels, get_reel, create_reel, create_reel
 from services.reels_engine import get_reels_feed, get_reel_detail, get_next_reels, track_reel_watch
 from services.reels_engine import get_creator_reel_stats, get_reel_comments_summary
 from services.reels_engine import like_reel_v2, unlike_reel, save_reel, unsave_reel, share_reel_v2, note_reel_comment
-from services.reels_service import track_reel_event, get_reel_comments, get_reel_feed, batch_is_following, toggle_reel_save, toggle_reel_like
+from services.reels_service import track_reel_event, get_reel_comments, get_reel_comments_page, get_reel_feed, batch_is_following, toggle_reel_save, toggle_reel_like
 from services.engagement_service import add_comment, toggle_like, toggle_save
 from api_routes.profile_routes import login_required
 from services.rate_limit_service import limiter, user_or_ip_key
@@ -20,6 +20,13 @@ from services.logging_service import log_info
 from services.ai.interaction_service import track_interaction_safe
 
 from services.content_manager_service import get_managed_reels, update_content_status as update_reel_status
+from services.content_service import (
+    invalidate_reel_detail,
+    invalidate_reel_feed_content,
+    invalidate_reel_profile_feed,
+    invalidate_reel_comments,
+    invalidate_reel_viewer_state,
+)
 
 reels_bp = Blueprint("reels", __name__, url_prefix="/reels")
 
@@ -71,10 +78,16 @@ def index():
         log_info("reels_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), reel_count=0, shell=True)
         return response
 
+    profile_started = time.perf_counter()
     profile = get_current_profile()
+    profile_ms = round((time.perf_counter() - profile_started) * 1000, 2)
     profile_id = (profile or {}).get("id")
     # Pass viewer_id for visibility filtering (public/followers/private)
-    reels = get_reel_feed(limit=15, viewer_id=profile_id)
+    feed_started = time.perf_counter()
+    feed = get_reel_feed(limit=5, viewer_id=profile_id)
+    feed_ms = round((time.perf_counter() - feed_started) * 1000, 2)
+    reels = (feed or {}).get("items") or []
+    next_cursor = (feed or {}).get("next_cursor")
     if not reels:
         reels = list_reels(limit=12)
     follow_map = {}
@@ -82,8 +95,13 @@ def index():
         creator_ids = {r.get("profile_id") for r in reels if r.get("profile_id")}
         following = batch_is_following(profile_id, creator_ids)
         follow_map = {pid: pid in following for pid in creator_ids}
-    response = render_template("reels.html", reels=reels, profile=profile, current=profile, follow_map=follow_map)
-    log_info("reels_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), reel_count=len(reels or []))
+    render_started = time.perf_counter()
+    response = render_template("reels.html", reels=reels, profile=profile, current=profile, follow_map=follow_map, next_cursor=next_cursor)
+    render_ms = round((time.perf_counter() - render_started) * 1000, 2)
+    total_ms = round((time.perf_counter() - start) * 1000, 2)
+    if os.environ.get("CHAIN_REELS_PERF_LOG", "").lower() in ("1", "true", "yes", "on"):
+        log_info("reels_page_timing", profile_ms=profile_ms, feed_ms=feed_ms, render_ms=render_ms, total_ms=total_ms, reel_count=len(reels or []), has_profile=bool(profile_id))
+    log_info("reels_page_total", duration_ms=total_ms, reel_count=len(reels or []))
     return response
 
 @reels_bp.route("/upload", methods=["GET", "POST"])
@@ -134,6 +152,9 @@ def api_like(reel_id):
         return jsonify({"error": "Profile not found"}), 404
     result = toggle_like(profile_id, "reel", reel_id)
     if result.get("success"):
+        invalidate_reel_detail(reel_id)
+        invalidate_reel_viewer_state(profile_id, reel_id)
+        invalidate_reel_feed_content()
         track_interaction_safe(profile_id, "reel", reel_id, "like" if result.get("liked") else "unlike", source_surface="reels")
     status = 200 if result.get("success") else 400
     return jsonify(result), status
@@ -148,6 +169,9 @@ def api_comment(reel_id):
     data = request.get_json(silent=True) or {}
     result = add_comment(profile_id, "reel", reel_id, request.form.get("body") or data.get("body"))
     if result.get("success"):
+        invalidate_reel_detail(reel_id)
+        invalidate_reel_comments(reel_id)
+        invalidate_reel_feed_content()
         track_interaction_safe(profile_id, "reel", reel_id, "comment", source_surface="reels")
     status = 201 if result.get("success") else 400
     return jsonify(result), status
@@ -161,6 +185,8 @@ def api_save(reel_id):
         return jsonify({"error": "Profile not found"}), 404
     result = toggle_save(profile_id, "reel", reel_id)
     if result.get("success"):
+        invalidate_reel_detail(reel_id)
+        invalidate_reel_viewer_state(profile_id, reel_id)
         track_interaction_safe(profile_id, "reel", reel_id, "save" if result.get("saved") else "unsave", source_surface="reels")
     status = 200 if result.get("success") else 400
     return jsonify(result), status
@@ -171,6 +197,8 @@ def api_share(reel_id):
         profile = get_current_profile()
         profile_id = (profile or {}).get("id")
         share_reel(reel_id)
+        invalidate_reel_detail(reel_id)
+        invalidate_reel_feed_content()
         if profile_id:
             track_interaction_safe(profile_id, "reel", reel_id, "share", source_surface="reels")
         return jsonify({"success": True}), 200
@@ -184,6 +212,9 @@ def api_delete(reel_id):
     if not profile or not profile.get("id"):
         return jsonify({"error": "Profile not found"}), 404
     if delete_reel(reel_id, profile['id']):
+        invalidate_reel_detail(reel_id)
+        invalidate_reel_feed_content()
+        invalidate_reel_profile_feed(profile['id'])
         return jsonify({"success": True}), 200
     return jsonify({"error": "Failed to delete reel"}), 400
 
@@ -209,17 +240,24 @@ def api_event(reel_id):
 
 @reels_bp.route("/api/reels/<reel_id>/comments", methods=["GET"])
 def api_comments(reel_id):
-    comments = get_reel_comments(reel_id, limit=30)
-    comments_list = []
+    cursor = request.args.get("cursor")
+    limit = min(max(int(request.args.get("limit", 20)), 1), 50)
+    try:
+        payload = get_reel_comments_page(reel_id, limit=limit, cursor=cursor)
+    except ValueError:
+        return jsonify({"success": False, "error": "invalid_cursor", "message": "Malformed cursor."}), 400
+    comments = (payload or {}).get("comments") or (payload or {}).get("items") or []
+    normalized = []
     for c in comments:
-        comments_list.append({
+        normalized.append({
             "id": c.get("id"),
             "body": c.get("body"),
             "username": c.get("username"),
             "avatar_url": c.get("avatar_url"),
+            "is_verified": bool(c.get("is_verified")),
             "created_at": str(c.get("created_at") or ""),
         })
-    return jsonify({"comments": comments_list}), 200
+    return jsonify({"success": True, "items": normalized, "comments": normalized, "next_cursor": (payload or {}).get("next_cursor"), "has_more": bool((payload or {}).get("next_cursor"))}), 200
 
 
 # =========== PHASE 93: Reel Watch & Feed ===========
@@ -251,14 +289,16 @@ def api_reels_feed():
     profile = get_current_profile()
     viewer_id = (profile or {}).get("id")
     # Pass viewer_id for visibility filtering (public/followers/private)
-    reels = _grf(limit=limit + 1, viewer_id=viewer_id)
-    next_cursor = None
-    if len(reels) > limit:
-        next_cursor = reels[-1].get("id")
-        reels = reels[:limit]
+    try:
+        feed = _grf(limit=limit, cursor=cursor, viewer_id=viewer_id)
+    except ValueError:
+        return jsonify({"success": False, "error": "invalid_cursor", "message": "Malformed cursor."}), 400
+    reels = (feed or {}).get("items") or []
+    next_cursor = (feed or {}).get("next_cursor")
     return jsonify({
+        "items": reels,
         "reels": reels,
-        "next_cursor": rwe_encode_cursor(next_cursor) if next_cursor else None,
+        "next_cursor": next_cursor,
         "has_more": bool(next_cursor),
     })
 
@@ -360,6 +400,9 @@ def api_create_reel():
                 create_processing_job("reel", reel.get("id"), profile_id, video_url)
         except Exception:
             pass
+        invalidate_reel_detail(reel.get("id"))
+        invalidate_reel_feed_content()
+        invalidate_reel_profile_feed(profile_id)
         return jsonify({"ok": True, "reel_id": reel.get("id"), "video_url": reel.get("video_url"), "media_url": reel.get("media_url")}), 201
     return jsonify({"ok": False, "error": "Failed to create reel"}), 400
 
@@ -496,7 +539,9 @@ def api_feed_v2():
     limit = min(int(request.args.get("limit", 10)), 50)
     profile = get_current_profile()
     viewer_id = (profile or {}).get("id")
-    reels, next_cursor = get_reels_feed(viewer_id, feed_type=feed_type, cursor=cursor, limit=limit)
+    feed = get_reels_feed(viewer_id, feed_type=feed_type, cursor=cursor, limit=limit)
+    reels = (feed or {}).get("items") or []
+    next_cursor = (feed or {}).get("next_cursor")
 
     # Add viewer interaction states
     if viewer_id and reels:
@@ -511,6 +556,7 @@ def api_feed_v2():
             pass
 
     return jsonify({
+        "items": reels,
         "reels": reels,
         "next_cursor": next_cursor,
         "has_more": bool(next_cursor),

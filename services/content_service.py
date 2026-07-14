@@ -53,6 +53,90 @@ CONTENT_TABLES = [
     "chain_messages",
 ]
 
+_REELS_CACHE_VERSION_TTL = 60 * 60 * 24 * 7
+
+
+def _redis_version_key(name):
+    return cache_key("reels", "content_version", name)
+
+
+def get_reels_content_version(scope="public"):
+    try:
+        from services.redis_service import redis_manager
+        key = _redis_version_key(scope)
+        result = redis_manager.get_json_result(key)
+        value = result.get("value")
+        if value is None:
+            value = 1
+            redis_manager.set_json_result(key, value, ttl=_REELS_CACHE_VERSION_TTL, require_shared=True)
+        return int(value or 1)
+    except Exception:
+        return 1
+
+
+def bump_reels_content_version(scope="public"):
+    try:
+        from services.redis_service import redis_manager
+        if redis_manager.backend_state() in {"redis_remote", "redis_local"}:
+            value = redis_manager.incr_with_ttl(_redis_version_key(scope), _REELS_CACHE_VERSION_TTL)
+            return int(value or 1)
+    except Exception:
+        pass
+    try:
+        from services.redis_service import redis_manager
+        key = _redis_version_key(scope)
+        current = redis_manager.get_json_result(key).get("value")
+        value = int(current or 1)
+        redis_manager.set_json_result(key, value, ttl=_REELS_CACHE_VERSION_TTL, require_shared=True)
+        return value
+    except Exception:
+        return 1
+
+
+def invalidate_reel_detail(reel_id):
+    try:
+        from services.redis_service import redis_manager
+        redis_manager.delete(cache_key("reels", "detail", reel_id))
+        redis_manager.delete(cache_key("reels", "detail_public", reel_id))
+    except Exception:
+        pass
+
+
+def invalidate_reel_feed_content():
+    try:
+        bump_reels_content_version("public")
+        from services.redis_service import redis_manager
+        redis_manager.delete(cache_key("reels", "public", "first_page"))
+    except Exception:
+        pass
+
+
+def invalidate_reel_profile_feed(profile_id):
+    try:
+        from services.redis_service import redis_manager
+        redis_manager.delete(cache_key("profile_reels", profile_id))
+    except Exception:
+        pass
+
+
+def invalidate_reel_viewer_state(viewer_id, reel_id=None):
+    try:
+        from services.redis_service import redis_manager
+        if reel_id:
+            redis_manager.delete(cache_key("reels", "viewer", viewer_id, reel_id))
+        else:
+            redis_manager.delete(cache_key("reels", "viewer", viewer_id))
+    except Exception:
+        pass
+
+
+def invalidate_reel_comments(reel_id):
+    try:
+        from services.redis_service import redis_manager
+        redis_manager.delete(cache_key("reels", "comments", reel_id))
+    except Exception:
+        pass
+
 
 def utcnow():
     return datetime.now(timezone.utc)

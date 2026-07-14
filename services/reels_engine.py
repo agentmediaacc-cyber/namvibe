@@ -5,10 +5,21 @@ import os
 import math
 from datetime import datetime, timezone
 from services.neon_service import fast_query, write_query
+from services.content_service import (
+    invalidate_reel_detail,
+    invalidate_reel_feed_content,
+    invalidate_reel_profile_feed,
+    invalidate_reel_viewer_state,
+    invalidate_reel_comments,
+    get_reels_content_version,
+)
+from engines.cache_engine import cache_key
+from services.redis_service import redis_manager
 from services.media_storage_service import upload_media_file
 from services.media_pipeline import extract_video_duration, queue_reel_processing, validate_upload
 from services.request_cache import build_request_key, request_memoize
 from services.content_service import create_reel_record, invalidate_content_caches, local_content
+from services.reels_serialization_service import serialize_reel, serialize_reels, encode_feed_cursor, decode_feed_cursor
 
 def list_reels(limit=20):
     """Lists published reels."""
@@ -25,10 +36,16 @@ def list_reels(limit=20):
         build_request_key("reels_list", limit),
         lambda: fast_query(sql, (limit,), timeout_ms=1000, default=[]),
     )
-    return rows or local_content()["reels"][:limit]
+    return serialize_reels(rows or local_content()["reels"][:limit])
 
 def get_reel(reel_id):
     """Gets a single reel by ID."""
+    content_version = get_reels_content_version("public")
+    cache_key_str = cache_key("reels", "detail_public", reel_id, content_version)
+    cached_result = redis_manager.get_json_result(cache_key_str)
+    cached = cached_result.get("value")
+    if cached_result.get("shared") and cached:
+        return dict(cached)
     sql = """
         SELECT r.*, p.username, p.avatar_url
         FROM chain_reels r
@@ -36,7 +53,14 @@ def get_reel(reel_id):
         WHERE r.id = %s AND r.deleted_at IS NULL
     """
     rows = fast_query(sql, (reel_id,), timeout_ms=1000, default=[])
-    return rows[0] if rows else None
+    reel = serialize_reel(rows[0]) if rows else None
+    if reel:
+        try:
+            redis_manager.set_json_result(cache_key_str, reel, ttl=120, require_shared=True)
+        except Exception as exc:
+            from services.logging_service import log_warning
+            log_warning("reels_detail_cache_write_failed", error_type=type(exc).__name__)
+    return reel
 
 def create_reel(profile_id, caption, file=None, thumbnail=None, music_title="", visibility="public",
                music_url="", music_artist="", music_start_seconds=0, music_duration_seconds=0):
@@ -133,8 +157,8 @@ def _check_debounce(reel_id, viewer_id):
     key = _view_debounce_key(reel_id, viewer_id)
     if _redis_available:
         try:
-            val = cache_get(key)
-            return val is not None
+            result = redis_manager.get_json_result(key)
+            return result.get("shared") and result.get("value") is not None
         except Exception:
             pass
     with _DEBOUNCE_LOCK:
@@ -153,9 +177,10 @@ def _mark_debounce(reel_id, viewer_id):
     key = _view_debounce_key(reel_id, viewer_id)
     if _redis_available:
         try:
-            cache_set(key, "1", ttl=_REEL_VIEW_DEBOUNCE_SECONDS)
-        except Exception:
-            pass
+            redis_manager.set_json_result(key, "1", ttl=_REEL_VIEW_DEBOUNCE_SECONDS, require_shared=False)
+        except Exception as exc:
+            from services.logging_service import log_warning
+            log_warning("reels_view_debounce_cache_write_failed", error_type=type(exc).__name__)
 
 def _flush_reel_views():
     global _REEL_VIEW_LAST_FLUSH
@@ -199,12 +224,17 @@ def record_reel_view(reel_id, viewer_profile_id=None):
 def like_reel(reel_id, profile_id):
     """Toggles like on a reel."""
     from services.engagement_service import toggle_like
-    return toggle_like(profile_id, "reel", reel_id)
+    result = toggle_like(profile_id, "reel", reel_id)
+    invalidate_reel_detail(reel_id)
+    invalidate_reel_viewer_state(profile_id, reel_id)
+    invalidate_reel_feed_content()
+    return result
 
 def share_reel(reel_id, profile_id=None):
     """Increments share count for a reel."""
     sql = "UPDATE chain_reels SET shares_count = shares_count + 1 WHERE id = %s"
     write_query(sql, (reel_id,))
+    invalidate_reel_detail(reel_id)
     from services.analytics_engine import track_event
     track_event("reel_share", profile_id=profile_id, entity_type="reel", entity_id=reel_id)
     return True
@@ -214,6 +244,8 @@ def delete_reel(reel_id, profile_id):
     sql = "UPDATE chain_reels SET deleted_at = now() WHERE id = %s AND profile_id = %s"
     result = write_query(sql, (reel_id, profile_id))
     invalidate_content_caches()
+    invalidate_reel_detail(reel_id)
+    invalidate_reel_feed_content()
     return result
 
 
@@ -307,24 +339,11 @@ def rank_reels_for_viewer(viewer_id, reels):
 def get_reels_feed(viewer_id, feed_type="for_you", cursor=None, limit=10):
     """Cursor-based reels feed with ranking. Returns (reels, next_cursor)."""
     t0 = time.time()
-    try:
-        from services.feed_cursor_service import decode_cursor, encode_cursor
-    except Exception:
-        decode_cursor = None
-        encode_cursor = None
-
-    offset = 0
-    if cursor and decode_cursor:
-        try:
-            decoded = decode_cursor(cursor)
-            offset = decoded.get("offset", 0) if isinstance(decoded, dict) else int(decoded)
-        except Exception:
-            offset = 0
+    cursor_data = decode_feed_cursor(cursor) if cursor else None
 
     base_sql = """
-        SELECT r.*, p.display_name, p.avatar_url
+        SELECT r.*
         FROM chain_reels r
-        JOIN chain_profiles p ON p.id = r.profile_id
         WHERE r.deleted_at IS NULL AND r.status = 'published'
     """
     params = []
@@ -332,27 +351,26 @@ def get_reels_feed(viewer_id, feed_type="for_you", cursor=None, limit=10):
     if feed_type == "following" and viewer_id:
         base_sql += " AND r.profile_id IN (SELECT followed_id FROM chain_follows WHERE follower_id = %s)"
         params.append(viewer_id)
+    if cursor_data:
+        base_sql += " AND (r.created_at, r.id) < (%s::timestamptz, %s::uuid)"
+        params.extend([cursor_data["created_at"], cursor_data["id"]])
 
-    base_sql += " ORDER BY r.created_at DESC LIMIT %s OFFSET %s"
-    params.extend([limit + 1, offset])
+    base_sql += " ORDER BY r.created_at DESC, r.id DESC LIMIT %s"
+    params.append(limit + 1)
 
     rows = fast_query(base_sql, tuple(params))
     has_more = len(rows) > limit
     if has_more:
         rows = rows[:limit]
 
-    reels = [_reel_row_to_dict(r) for r in rows]
+    reels = serialize_reels(rows, viewer_id=viewer_id)
 
     if feed_type == "for_you" and len(reels) > 1:
         reels = rank_reels_for_viewer(viewer_id, reels)
 
-    next_offset = offset + limit
     next_cursor = None
-    if has_more and encode_cursor:
-        try:
-            next_cursor = encode_cursor({"offset": next_offset})
-        except Exception:
-            next_cursor = str(next_offset)
+    if has_more and rows:
+        next_cursor = encode_feed_cursor(rows[-1].get("created_at"), rows[-1].get("id"))
 
     try:
         from services.performance_monitor import track_timing
@@ -360,13 +378,50 @@ def get_reels_feed(viewer_id, feed_type="for_you", cursor=None, limit=10):
     except Exception:
         pass
 
-    return reels, next_cursor
+    return {"items": reels, "next_cursor": next_cursor, "has_more": bool(next_cursor)}
 
 
 def get_reel_detail(viewer_id, reel_id):
     """Return reel with viewer interaction states (liked, saved, following creator)."""
+    content_version = get_reels_content_version("public")
+    cache_key_str = cache_key("reels", "detail", reel_id, content_version)
+    cached_result = redis_manager.get_json_result(cache_key_str)
+    cached = cached_result.get("value")
+    if cached_result.get("shared") and cached:
+        reel = dict(cached)
+        reel["viewer_has_liked"] = False
+        reel["viewer_has_saved"] = False
+        reel["viewer_follows_creator"] = False
+        if viewer_id:
+            pid = viewer_id
+            cid = reel.get("profile_id")
+            try:
+                likes = fast_query(
+                    "SELECT 1 FROM chain_reel_reactions WHERE profile_id = %s AND reel_id = %s AND reaction_type = 'like' LIMIT 1",
+                    (pid, reel_id)
+                )
+                reel["viewer_has_liked"] = bool(likes)
+            except Exception:
+                pass
+            try:
+                saves = fast_query(
+                    "SELECT 1 FROM chain_reel_saves WHERE profile_id = %s AND reel_id = %s",
+                    (pid, reel_id)
+                )
+                reel["viewer_has_saved"] = bool(saves)
+            except Exception:
+                pass
+            try:
+                follows = fast_query(
+                    "SELECT 1 FROM chain_follows WHERE follower_id = %s AND followed_id = %s",
+                    (pid, cid)
+                )
+                reel["viewer_follows_creator"] = bool(follows)
+            except Exception:
+                pass
+        return reel
     sql = """
-        SELECT r.*, p.display_name, p.avatar_url
+        SELECT r.*, p.display_name, p.avatar_url, p.username
         FROM chain_reels r
         JOIN chain_profiles p ON p.id = r.profile_id
         WHERE r.id = %s AND r.deleted_at IS NULL
@@ -385,7 +440,7 @@ def get_reel_detail(viewer_id, reel_id):
         cid = reel["profile_id"]
         try:
             likes = fast_query(
-                "SELECT 1 FROM chain_likes WHERE profile_id = %s AND entity_type = 'reel' AND entity_id = %s",
+                "SELECT 1 FROM chain_reel_reactions WHERE profile_id = %s AND reel_id = %s AND reaction_type = 'like' LIMIT 1",
                 (pid, reel_id)
             )
             reel["viewer_has_liked"] = bool(likes)
@@ -407,7 +462,11 @@ def get_reel_detail(viewer_id, reel_id):
             reel["viewer_follows_creator"] = bool(follows)
         except Exception:
             pass
-
+    try:
+        redis_manager.set_json_result(cache_key_str, reel, ttl=120, require_shared=True)
+    except Exception as exc:
+        from services.logging_service import log_warning
+        log_warning("reels_detail_cache_write_failed", error_type=type(exc).__name__)
     return reel
 
 
@@ -442,6 +501,7 @@ def _reel_row_to_dict(row):
     reel = {
         "id": row.get("id"),
         "profile_id": row.get("profile_id"),
+        "username": row.get("username", ""),
         "display_name": row.get("display_name", ""),
         "avatar_url": row.get("avatar_url", ""),
         "caption": row.get("caption", ""),
@@ -740,6 +800,3 @@ def _log_error(context, exc):
     """Log an error without raising."""
     import logging
     logging.getLogger("reels_engine").exception("[%s] %s", context, exc)
-
-
-

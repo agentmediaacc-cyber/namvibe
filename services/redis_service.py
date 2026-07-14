@@ -3,6 +3,8 @@ import os
 import re
 import ssl
 import time
+import uuid
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 
 import redis
@@ -17,6 +19,10 @@ _DEFAULT_LOCAL_REDIS_URL = "redis://localhost:6379/0"
 _ENV = get_env("FLASK_ENV", "development")
 _REDIS_URL_RAW = (get_env("REDIS_URL") or (_DEFAULT_LOCAL_REDIS_URL if _ENV != "production" else "")).strip()
 _REDIS_URL = _REDIS_URL_RAW
+_LOCAL_REDIS_HOST = get_env("CHAIN_LOCAL_REDIS_HOST", "127.0.0.1")
+_LOCAL_REDIS_PORT = get_env("CHAIN_LOCAL_REDIS_PORT", "6379")
+_LOCAL_REDIS_DB = get_env("CHAIN_LOCAL_REDIS_DB", "0")
+_LOCAL_REDIS_URL = f"redis://{_LOCAL_REDIS_HOST}:{_LOCAL_REDIS_PORT}/{_LOCAL_REDIS_DB}"
 
 _REDIS_URL_MASKED = re.sub(r'(redis{s,}?://[^:]+:)[^@]+(@)', r'\1****\2', _REDIS_URL) if _REDIS_URL else ""
 
@@ -35,6 +41,10 @@ _LOG_THROTTLE = {}
 _MEMORY_FALLBACK = {}
 _SET_FALLBACK = {}
 _TTL_FALLBACK = {}
+_RECONNECT_BACKOFF = {
+    "attempts": 0,
+    "retry_after": 0.0,
+}
 
 
 def log_redis_warning(key, message, interval_seconds=60):
@@ -51,6 +61,8 @@ class RedisManager:
         self.url = _REDIS_URL
         self.namespace = "chain"
         self.client = None
+        self.client_backend = None
+        self.client_meta = {}
         self.pubsub_client = None
         self.last_error = None
         self.last_connected_at = None
@@ -58,6 +70,7 @@ class RedisManager:
         self.failure_times = []
         self.health_cache = {"expires_at": 0.0, "payload": None}
         self.breaker = CircuitBreaker("redis", failure_threshold=3, recovery_seconds=30)
+        self.allow_local_fallback = (get_env("CHAIN_REDIS_ALLOW_LOCAL_FALLBACK") or "").strip().lower() in {"1", "true", "yes", "on"}
 
     def _remember_failure(self, error):
         now = time.monotonic()
@@ -66,12 +79,17 @@ class RedisManager:
         self.failure_times = [ts for ts in self.failure_times if now - ts <= 30]
         self.failure_times.append(now)
         self.breaker.failure(error)
+        delay = min(30, max(2, 2 ** min(len(self.failure_times), 4)))
+        _RECONNECT_BACKOFF["attempts"] = len(self.failure_times)
+        _RECONNECT_BACKOFF["retry_after"] = time.monotonic() + delay
         log_redis_warning("redis_unavailable", f"[redis_service] Redis unavailable: {self.last_error}")
 
     def _remember_success(self):
         self.last_error = None
         self.last_connected_at = datetime.now(timezone.utc).isoformat()
         self.failure_times = []
+        _RECONNECT_BACKOFF["attempts"] = 0
+        _RECONNECT_BACKOFF["retry_after"] = 0.0
         self.breaker.success()
 
     def fallback_enabled(self):
@@ -102,24 +120,98 @@ class RedisManager:
             return None
         if self.client is not None:
             return self.client
+        if time.monotonic() < _RECONNECT_BACKOFF.get("retry_after", 0):
+            return None
         if not self.breaker.allow():
             return None
-        try:
-            kwargs = dict(decode_responses=True, socket_timeout=10, socket_connect_timeout=10, retry_on_timeout=True, health_check_interval=15)
-            client_url = self.url
-            if self.url.startswith("rediss://") and _REDIS_SSL_CERT_REQS is not None:
+        def _connect(url, backend_label):
+            kwargs = dict(
+                decode_responses=True,
+                socket_timeout=10,
+                socket_connect_timeout=10,
+                retry_on_timeout=True,
+                health_check_interval=15,
+            )
+            client_url = url
+            if url.startswith("rediss://") and _REDIS_SSL_CERT_REQS is not None:
                 ssl_label = _RAW_SSL_REQS or "none"
-                sep = "&" if "?" in self.url else "?"
-                client_url = f"{self.url}{sep}ssl_cert_reqs={ssl_label}"
-            self.client = redis.from_url(client_url, **kwargs)
-            self.client.ping()
+                sep = "&" if "?" in url else "?"
+                client_url = f"{url}{sep}ssl_cert_reqs={ssl_label}"
+            client = redis.from_url(client_url, **kwargs)
+            client.ping()
+            self.client = client
+            self.client_backend = backend_label
+            try:
+                parsed = urlparse(url)
+                path = (parsed.path or "").lstrip("/")
+                db = int(path) if path.isdigit() else 0
+                self.client_meta = {
+                    "host": parsed.hostname,
+                    "port": parsed.port,
+                    "db": db,
+                    "ssl": parsed.scheme == "rediss",
+                }
+            except Exception:
+                self.client_meta = {}
             self._remember_success()
-            return self.client
+            return client
+
+        def _connect_local(host, port, db, backend_label):
+            client = redis.Redis(
+                host=host,
+                port=int(port),
+                db=int(db),
+                decode_responses=True,
+                socket_timeout=10,
+                socket_connect_timeout=10,
+                retry_on_timeout=True,
+                health_check_interval=15,
+            )
+            client.ping()
+            self.client = client
+            self.client_backend = backend_label
+            self.client_meta = {
+                "host": host,
+                "port": int(port),
+                "db": int(db),
+                "ssl": False,
+            }
+            self._remember_success()
+            return client
+
+        try:
+            return _connect(self.url, "redis_remote")
         except Exception as error:
             self.client = None
+            self.client_backend = None
+            self.client_meta = {}
             self.reset_pubsub()
             self._remember_failure(error)
+            local_url = _LOCAL_REDIS_URL
+            if self.allow_local_fallback and self.url != local_url:
+                try:
+                    safe_print(f"[redis_service] Primary Redis unavailable; falling back to local Redis backend: {type(error).__name__}")
+                    return _connect_local(_LOCAL_REDIS_HOST, _LOCAL_REDIS_PORT, _LOCAL_REDIS_DB, "redis_local")
+                except Exception as local_error:
+                    self.client = None
+                    self.client_backend = None
+                    self.client_meta = {}
+                    self.reset_pubsub()
+                    self._remember_failure(local_error)
+                    import traceback
+                    safe_print(f"[redis_service] Local Redis fallback failed: {type(local_error).__name__}")
+                    safe_print(traceback.format_exc())
+                    return None
             return None
+
+    def backend_state(self):
+        if self.client_backend:
+            return self.client_backend
+        if self.client is None and self.url and self.allow_local_fallback:
+            return "memory_degraded"
+        if not self.url:
+            return "none"
+        return "memory_degraded"
 
     def reset_pubsub(self):
         if self.pubsub_client is not None:
@@ -142,23 +234,62 @@ class RedisManager:
         return self.is_available()
 
     def get_json(self, key, default=None):
+        return self.get_json_result(key, default=default)["value"]
+
+    def get_json_result(self, key, default=None):
         client = self.get_client()
         namespaced = namespaced_key(key)
         if not client:
-            return self._memory_get(namespaced) if self._memory_get(namespaced) is not None else default
+            value = self._memory_get(namespaced)
+            return {
+                "success": value is not None,
+                "backend": self.backend_state(),
+                "persistent": self.backend_state() in {"redis_remote", "redis_local"},
+                "shared": self.backend_state() in {"redis_remote", "redis_local"},
+                "value": value if value is not None else default,
+                "error": self.last_error,
+            }
         try:
             raw = client.get(namespaced)
-            return json.loads(raw) if raw else default
+            value = json.loads(raw) if raw else default
+            return {
+                "success": raw is not None,
+                "backend": self.backend_state(),
+                "persistent": True,
+                "shared": True,
+                "value": value,
+                "error": None,
+            }
         except Exception as error:
             self.client = None
             self._remember_failure(error)
-            return self._memory_get(namespaced) if self._memory_get(namespaced) is not None else default
+            value = self._memory_get(namespaced)
+            return {
+                "success": value is not None,
+                "backend": self.backend_state(),
+                "persistent": False,
+                "shared": False,
+                "value": value if value is not None else default,
+                "error": type(error).__name__,
+            }
 
     def set_json(self, key, value, ttl=60):
+        return self.set_json_result(key, value, ttl=ttl)["success"]
+
+    def set_json_result(self, key, value, ttl=60, require_shared=False):
         client = self.get_client()
         namespaced = namespaced_key(key)
         if not client:
-            return self._memory_set(namespaced, value, ttl=ttl)
+            ok = self._memory_set(namespaced, value, ttl=ttl)
+            backend = self.backend_state()
+            return {
+                "success": ok,
+                "backend": backend,
+                "persistent": False,
+                "shared": False,
+                "degraded": True,
+                "error": self.last_error,
+            }
         try:
             raw = self._safe_json(value)
             if ttl:
@@ -167,11 +298,27 @@ class RedisManager:
                 client.set(namespaced, raw)
             self._memory_set(namespaced, value, ttl=ttl)
             self._remember_success()
-            return True
+            return {
+                "success": True,
+                "backend": self.backend_state(),
+                "persistent": True,
+                "shared": True,
+                "degraded": False,
+                "error": None,
+            }
         except Exception as error:
             self.client = None
             self._remember_failure(error)
-            return self._memory_set(namespaced, value, ttl=ttl)
+            ok = self._memory_set(namespaced, value, ttl=ttl)
+            backend = "memory_degraded"
+            return {
+                "success": ok,
+                "backend": backend,
+                "persistent": False,
+                "shared": False,
+                "degraded": True,
+                "error": type(error).__name__,
+            }
 
     def mget_json(self, keys, default=None):
         """Bulk get multiple pre-namespaced keys. Returns {key: parsed_value or default}."""
@@ -224,21 +371,94 @@ class RedisManager:
             return True
 
     def delete(self, key):
+        return self.delete_result(key)["success"]
+
+    def delete_result(self, key):
         client = self.get_client()
         namespaced = namespaced_key(key)
         _MEMORY_FALLBACK.pop(namespaced, None)
         _SET_FALLBACK.pop(namespaced, None)
         _TTL_FALLBACK.pop(namespaced, None)
         if not client:
-            return True
+            return {
+                "success": True,
+                "backend": self.backend_state(),
+                "persistent": False,
+                "shared": False,
+                "error": None,
+            }
         try:
             client.delete(namespaced)
             self._remember_success()
-            return True
+            return {
+                "success": True,
+                "backend": self.backend_state(),
+                "persistent": True,
+                "shared": True,
+                "error": None,
+            }
         except Exception as error:
             self.client = None
             self._remember_failure(error)
-            return False
+            return {
+                "success": False,
+                "backend": self.backend_state(),
+                "persistent": False,
+                "shared": False,
+                "error": type(error).__name__,
+            }
+
+    def acquire_lock(self, key, ttl=10):
+        client = self.get_client()
+        namespaced = namespaced_key(key)
+        if not client or self.backend_state() not in {"redis_remote", "redis_local"}:
+            return {
+                "success": False,
+                "backend": self.backend_state(),
+                "shared": False,
+                "persistent": False,
+                "token": None,
+            }
+        token = uuid.uuid4().hex
+        try:
+            ok = client.set(namespaced, token, nx=True, ex=int(ttl))
+            return {
+                "success": bool(ok),
+                "backend": self.backend_state(),
+                "shared": True,
+                "persistent": True,
+                "token": token if ok else None,
+            }
+        except Exception as error:
+            self.client = None
+            self._remember_failure(error)
+            return {
+                "success": False,
+                "backend": self.backend_state(),
+                "shared": False,
+                "persistent": False,
+                "token": None,
+                "error": type(error).__name__,
+            }
+
+    def release_lock(self, key, token):
+        client = self.get_client()
+        namespaced = namespaced_key(key)
+        if not client or not token:
+            return {"success": False, "backend": self.backend_state(), "shared": False, "persistent": False}
+        try:
+            script = """
+            if redis.call('get', KEYS[1]) == ARGV[1] then
+                return redis.call('del', KEYS[1])
+            end
+            return 0
+            """
+            deleted = client.eval(script, 1, namespaced, token)
+            return {"success": bool(deleted), "backend": self.backend_state(), "shared": True, "persistent": True}
+        except Exception as error:
+            self.client = None
+            self._remember_failure(error)
+            return {"success": False, "backend": self.backend_state(), "shared": False, "persistent": False, "error": type(error).__name__}
 
     def publish(self, channel, payload):
         client = self.get_client()
@@ -395,7 +615,7 @@ class RedisManager:
 
         payload = {
             "status": "ok" if connected else "degraded",
-            "connected": connected,
+            "connected": connected or self.backend_state() == "memory_degraded",
             "fallback": not connected,
             "latency_ms": round((time.perf_counter() - started) * 1000, 1),
             "error": "[masked]" if error else None,
@@ -404,6 +624,16 @@ class RedisManager:
             "circuit_state": self.breaker.get_state(),
             "redis_url_scheme": scheme,
             "ssl_cert_reqs": ssl_reqs_label,
+            "backend": self.client_backend if connected else self.backend_state(),
+            "redis_host": self.client_meta.get("host"),
+            "redis_port": self.client_meta.get("port"),
+            "redis_db": self.client_meta.get("db"),
+            "local_redis_host": _LOCAL_REDIS_HOST,
+            "local_redis_port": int(_LOCAL_REDIS_PORT),
+            "local_redis_db": int(_LOCAL_REDIS_DB),
+            "shared": self.client_backend in {"redis_remote", "redis_local"},
+            "persistent": self.client_backend in {"redis_remote", "redis_local"},
+            "retry_after_seconds": max(0, int(_RECONNECT_BACKOFF.get("retry_after", 0) - time.monotonic())) if _RECONNECT_BACKOFF.get("retry_after", 0) else 0,
         }
         self.health_cache["payload"] = dict(payload)
         self.health_cache["expires_at"] = now + 30
@@ -576,3 +806,34 @@ def redis_safe_get(key, default=None):
 
 def redis_safe_set(key, value, ttl=60):
     return set_json(key, value, ttl=ttl)
+
+
+def get_reel_cache_backend_status():
+    health = redis_manager.get_health()
+    return {
+        "backend": health.get("backend"),
+        "shared": bool(health.get("shared")),
+        "persistent": bool(health.get("persistent")),
+        "available": bool(health.get("connected")),
+        "retry_after_seconds": int(health.get("retry_after_seconds") or 0),
+    }
+
+
+def get_reel_cache_json(key, default=None):
+    return redis_manager.get_json_result(key, default=default)
+
+
+def set_reel_cache_json(key, value, ttl=60, require_shared=True):
+    return redis_manager.set_json_result(key, value, ttl=ttl, require_shared=require_shared)
+
+
+def delete_reel_cache(key):
+    return redis_manager.delete_result(key)
+
+
+def acquire_reel_cache_lock(key, ttl=10):
+    return redis_manager.acquire_lock(key, ttl=ttl)
+
+
+def release_reel_cache_lock(key, token):
+    return redis_manager.release_lock(key, token)
