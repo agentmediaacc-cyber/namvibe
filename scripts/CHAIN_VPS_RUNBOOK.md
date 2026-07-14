@@ -13,8 +13,8 @@
 CHAIN_ENV=production
 CHAIN_DEV_TOOLS=0
 CHAIN_SHOW_TEST_CONTENT=0
-DATABASE_URL=postgres://user:pass@host/db?sslmode=require
-REDIS_URL=redis://:password@host:6379/0
+DATABASE_URL=postgres://host/db?sslmode=require
+REDIS_URL=redis://host:6379/0
 JWT_SECRET_KEY=<random-64-char-hex>
 SECRET_KEY=<random-64-char-hex>
 SENTRY_DSN=<optional>
@@ -151,7 +151,7 @@ EOF
 
 ```bash
 # Run production checks
-export DATABASE_URL="..." REDIS_URL="..."
+export DATABASE_URL="postgres://host/db" REDIS_URL="redis://host:6379/0"
 python3 scripts/test_phase75_real_user_journey.py
 python3 scripts/test_phase76_load_and_scale.py
 

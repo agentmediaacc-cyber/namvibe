@@ -59,7 +59,7 @@ def main():
         time.sleep(0.2)
         return {"ok": True}
 
-    def _reels():
+    def _reels(force_refresh=False):
         counts["reels"] += 1
         import time
         time.sleep(0.2)

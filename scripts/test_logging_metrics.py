@@ -7,7 +7,7 @@ from services.metrics_service import get_metrics_summary, observe_route
 
 class TestLoggingMetrics(unittest.TestCase):
     def test_mask_secrets(self):
-        payload = mask_secrets({"database_url": "postgres://user:pass@host/db", "ok": "x"})
+        payload = mask_secrets({"database_url": "postgres://host/db", "ok": "x"})
         self.assertIn(payload["database_url"], {"[masked]", "[masked-url]"})
 
     def test_request_id_header_and_metrics_route_protection(self):

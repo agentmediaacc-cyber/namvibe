@@ -28,7 +28,7 @@ On the database details page, find **REST URL** or **UPSTASH_REDIS_REST_URL**.
 You need the **Redis TLS connection string**, which looks like:
 
 ```
-rediss://default:<password>@usw1-valid-koala-12345.upstash.io:6379
+rediss://usw1-valid-koala-12345.upstash.io:6379
 ```
 
 Note `rediss://` (TLS) not `redis://` — Cloud Run requires TLS for external
@@ -37,7 +37,7 @@ connections.
 ### 3. Update Google Secret Manager
 
 ```bash
-echo -n 'rediss://default:<password>@usw1-valid-koala-12345.upstash.io:6379' | \
+echo -n 'rediss://usw1-valid-koala-12345.upstash.io:6379' | \
 gcloud secrets versions add chain-redis-url \
   --project YOUR_PROJECT_ID --data-file=- --quiet
 ```

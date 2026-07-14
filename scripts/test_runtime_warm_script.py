@@ -39,8 +39,9 @@ def main():
 
     with patch.object(warm_script, "redis_manager", fake_redis), \
          patch.object(warm_script, "get_neon_health", return_value={"status": "ok", "latency_ms": 1}), \
+         patch.object(warm_script, "homepage_cache_info", return_value={"homepage_cached": False, "cache_backend": {"backend": "redis_remote"}}), \
          patch.object(warm_script, "warm_homepage_cache", side_effect=lambda: call_order.append("homepage") or {"ok": True}), \
-         patch.object(warm_script, "warm_reels", side_effect=lambda: call_order.append("reels") or {"items": []}), \
+         patch.object(warm_script, "warm_reels", side_effect=lambda force_refresh=False: call_order.append("reels") or {"items": []}), \
          patch.object(warm_script, "warm_schema", side_effect=lambda: call_order.append("schema") or True):
         rc = warm_script.main(["--all"])
 
@@ -50,13 +51,26 @@ def main():
     call_order.clear()
     with patch.object(warm_script, "redis_manager", fake_redis), \
          patch.object(warm_script, "get_neon_health", return_value={"status": "ok", "latency_ms": 1}), \
+         patch.object(warm_script, "homepage_cache_info", return_value={"homepage_cached": False, "cache_backend": {"backend": "redis_remote"}}), \
          patch.object(warm_script, "warm_homepage_cache", side_effect=lambda: call_order.append("homepage") or {"ok": True}), \
-         patch.object(warm_script, "warm_reels", side_effect=lambda: call_order.append("reels") or {"items": []}), \
+         patch.object(warm_script, "warm_reels", side_effect=lambda force_refresh=False: call_order.append("reels") or {"items": []}), \
          patch.object(warm_script, "warm_schema", side_effect=lambda: call_order.append("schema") or True):
         rc = warm_script.main(["--homepage", "--reels"])
 
     assert rc == 0, rc
     assert call_order == ["homepage", "reels"], call_order
+
+    call_order.clear()
+    with patch.object(warm_script, "redis_manager", fake_redis), \
+         patch.object(warm_script, "get_neon_health", side_effect=AssertionError("should not be called")), \
+         patch.object(warm_script, "homepage_cache_info", return_value={"homepage_cached": False, "cache_backend": {"backend": "redis_remote"}}), \
+         patch.object(warm_script, "warm_homepage_cache", side_effect=lambda: call_order.append("homepage") or {"ok": True}), \
+         patch.object(warm_script, "warm_reels", side_effect=lambda force_refresh=False: call_order.append("reels") or {"items": []}), \
+         patch.object(warm_script, "warm_schema", side_effect=lambda: call_order.append("schema") or True):
+        rc = warm_script.main(["--reels"])
+
+    assert rc == 0, rc
+    assert call_order == ["reels"], call_order
     print("TEST_OK runtime warm script")
 
 

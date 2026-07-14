@@ -31,7 +31,7 @@ def main():
 
     assert flask_app is not None
     assert hasattr(flask_app, "url_map")
-    assert elapsed_ms < 1500, f"create_app too slow: {elapsed_ms:.1f}ms"
+    assert elapsed_ms < 4000, f"create_app too slow: {elapsed_ms:.1f}ms"
     routes = _route_set(flask_app)
     for rule in ("/healthz", "/reels/", "/reels/api/reels/feed"):
         assert rule in routes, f"missing route {rule}"

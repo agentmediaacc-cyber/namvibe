@@ -11,6 +11,7 @@ import redis
 
 from services.circuit_breaker import CircuitBreaker
 from services.env_service import get_env, load_project_env
+from services.log_sanitizer import sanitize_connection_url, safe_connection_error, safe_exception_summary
 from services.logging_service import log_warning, safe_print
 
 
@@ -24,10 +25,10 @@ _LOCAL_REDIS_PORT = get_env("CHAIN_LOCAL_REDIS_PORT", "6379")
 _LOCAL_REDIS_DB = get_env("CHAIN_LOCAL_REDIS_DB", "0")
 _LOCAL_REDIS_URL = f"redis://{_LOCAL_REDIS_HOST}:{_LOCAL_REDIS_PORT}/{_LOCAL_REDIS_DB}"
 
-_REDIS_URL_MASKED = re.sub(r'(redis{s,}?://[^:]+:)[^@]+(@)', r'\1****\2', _REDIS_URL) if _REDIS_URL else ""
+_REDIS_URL_MASKED = sanitize_connection_url(_REDIS_URL)
 
 def mask_redis_url(url):
-    return re.sub(r'(redis[s]?://[^:]+:)[^@]+(@)', r'\1****\2', url) if url else ""
+    return sanitize_connection_url(url)
 
 _SSL_CERT_REQS_MAP = {
     "none": ssl.CERT_NONE,
@@ -82,7 +83,7 @@ class RedisManager:
         delay = min(30, max(2, 2 ** min(len(self.failure_times), 4)))
         _RECONNECT_BACKOFF["attempts"] = len(self.failure_times)
         _RECONNECT_BACKOFF["retry_after"] = time.monotonic() + delay
-        log_redis_warning("redis_unavailable", f"[redis_service] Redis unavailable: {self.last_error}")
+        log_redis_warning("redis_unavailable", safe_connection_error(error, endpoint=self.url))
 
     def _remember_success(self):
         self.last_error = None
@@ -190,7 +191,7 @@ class RedisManager:
             local_url = _LOCAL_REDIS_URL
             if self.allow_local_fallback and self.url != local_url:
                 try:
-                    safe_print(f"[redis_service] Primary Redis unavailable; falling back to local Redis backend: {type(error).__name__}")
+                    safe_print(f"[redis_service] Primary Redis unavailable; falling back to local Redis backend: {safe_exception_summary(error)}")
                     return _connect_local(_LOCAL_REDIS_HOST, _LOCAL_REDIS_PORT, _LOCAL_REDIS_DB, "redis_local")
                 except Exception as local_error:
                     self.client = None
@@ -199,7 +200,7 @@ class RedisManager:
                     self.reset_pubsub()
                     self._remember_failure(local_error)
                     import traceback
-                    safe_print(f"[redis_service] Local Redis fallback failed: {type(local_error).__name__}")
+                    safe_print(f"[redis_service] Local Redis fallback failed: {safe_exception_summary(local_error)}")
                     safe_print(traceback.format_exc())
                     return None
             return None
@@ -609,7 +610,7 @@ class RedisManager:
         scheme = ""
         ssl_reqs_label = None
         if self.url:
-            scheme = mask_redis_url(self.url).split("://", 1)[0] + "://[masked]"
+            scheme = sanitize_connection_url(self.url)
         if _REDIS_SSL_CERT_REQS is not None:
             ssl_reqs_label = _RAW_SSL_REQS if _RAW_SSL_REQS else "none"
 

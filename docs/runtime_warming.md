@@ -1,20 +1,19 @@
 # Runtime Warming
 
-Gunicorn workers serve requests immediately. They do not run homepage or Reels cache warming automatically.
+Gunicorn workers should start serving requests immediately.
 
-Use the explicit warm script after the app is healthy:
+Use the explicit warmer after the app is healthy:
 
 ```bash
-gunicorn app:app --bind 0.0.0.0:8080 --workers 1 --worker-class gevent --timeout 300 --keep-alive 5
-curl http://127.0.0.1:8080/healthz
+python3 scripts/warm_production_runtime.py --homepage
+python3 scripts/warm_production_runtime.py --reels
 python3 scripts/warm_production_runtime.py --all
 ```
 
 Notes:
 
-- `scripts/warm_production_runtime.py --homepage` warms only homepage caches.
-- `scripts/warm_production_runtime.py --reels` warms only public Reel caches.
-- `scripts/warm_production_runtime.py --all` warms schema metadata, homepage caches, and public Reel caches.
-- The warm script uses shared Redis locks when available.
-- Failed warming does not prevent process health.
-- Mutations still invalidate caches through the normal application paths.
+- Worker startup no longer runs homepage or Reel warming automatically.
+- The warmer is cache-first and will verify existing shared cache without forcing Neon work unless `--force-refresh` is used.
+- Use `--check-database` only when you explicitly want a standalone Neon readiness probe.
+- Shared Redis locking remains in place for the warm stages.
+- The warmer exits nonzero if verification fails.

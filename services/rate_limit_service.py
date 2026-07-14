@@ -2,7 +2,8 @@ import os
 from flask import jsonify, request, session
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from services.redis_service import _REDIS_URL, _REDIS_URL_MASKED, log_redis_warning, redis_available
+from services.log_sanitizer import sanitize_connection_url
+from services.redis_service import _REDIS_URL, log_redis_warning, redis_available
 from services.logging_service import log_warning, safe_print
 from services.metrics_service import increment
 
@@ -25,7 +26,7 @@ def init_rate_limiter(app):
     try:
         if redis_available():
             storage_url = _REDIS_URL
-            safe_print(f"[limiter] Using Redis storage: {_REDIS_URL_MASKED}")
+            safe_print(f"[limiter] Using Redis storage: {sanitize_connection_url(storage_url)}")
         else:
             log_redis_warning("redis_limiter_fallback", "[limiter] Redis unavailable, using in-memory storage")
     except Exception as error:

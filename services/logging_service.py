@@ -3,13 +3,14 @@ import os
 import sys
 import time
 from flask import g, has_request_context, request
+from services.log_sanitizer import redact_connection_urls
 
 
 _SECRET_MARKERS = ("key", "token", "secret", "password", "authorization", "cookie", "dsn")
 
 
 def safe_print(*parts):
-    message = " ".join(str(part) for part in parts)
+    message = " ".join(redact_connection_urls(str(part)) for part in parts)
     for stream in (getattr(sys, "stdout", None), getattr(sys, "stderr", None)):
         if stream is None:
             continue
@@ -32,7 +33,7 @@ def mask_secrets(value):
         return [mask_secrets(item) for item in value]
     text = str(value)
     if "://" in text and "@" in text:
-        return "[masked-url]"
+        return redact_connection_urls(text)
     if len(text) > 240:
         return text[:240]
     return value

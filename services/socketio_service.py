@@ -15,7 +15,8 @@ import time
 import random
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from services.circuit_breaker import CircuitBreaker
-from services.redis_service import _REDIS_URL, _REDIS_URL_MASKED, redis_available, get_redis, log_redis_warning
+from services.log_sanitizer import sanitize_connection_url
+from services.redis_service import _REDIS_URL, redis_available, get_redis, log_redis_warning
 from services.logging_service import safe_print
 
 logger = logging.getLogger(__name__)
@@ -61,7 +62,7 @@ def init_socketio(app):
         safe_print("[socketio] Test mode: Skipping Redis manager")
     elif redis_url:
         mgr = redis_url
-        safe_print(f"[socketio] SCALABLE PRODUCTION MODE: Using Redis manager at {_REDIS_URL_MASKED}")
+        safe_print(f"[socketio] SCALABLE PRODUCTION MODE: Using Redis manager at {sanitize_connection_url(redis_url)}")
     else:
         log_redis_warning("redis_socketio_fallback", "[socketio] WARNING: Running in SINGLE-NODE mode. For production with multiple users, configure REDIS_URL and restart.")
 

@@ -23,7 +23,7 @@ Create a `.env` file in the root directory (copy from `.env.production.example`)
 ```bash
 SECRET_KEY=your-long-secure-random-key
 FLASK_ENV=production
-DATABASE_URL=postgres://user:pass@host/db
+DATABASE_URL=postgres://host/db
 SUPABASE_URL=https://xyz.supabase.co
 SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
@@ -85,4 +85,3 @@ sudo nginx -t && sudo systemctl reload nginx
 ## Rollback
 1. Revert to previous Git tag.
 2. If schema changes are incompatible, restore Neon from backup.
-

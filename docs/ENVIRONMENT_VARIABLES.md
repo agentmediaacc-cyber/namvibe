@@ -7,8 +7,8 @@
 | Variable | Description | Example |
 |---|---|---|
 | `SECRET_KEY` | Flask session signing key (≥32 chars, random) | `k3bX...mq9` |
-| `DATABASE_URL` | Neon PostgreSQL connection string (pooler endpoint) | `postgresql://user:pass@ep-xxx-pooler.us-east-1.aws.neon.tech/neondb` |
-| `REDIS_URL` or `REDIS_TLS_URL` | Upstash Redis with TLS | `rediss://default:pass@fluent-rabbit-xxx.upstash.io:6379` |
+| `DATABASE_URL` | Neon PostgreSQL connection string (pooler endpoint) | `postgresql://ep-xxx-pooler.us-east-1.aws.neon.tech/neondb` |
+| `REDIS_URL` or `REDIS_TLS_URL` | Upstash Redis with TLS | `rediss://fluent-rabbit-xxx.upstash.io:6379` |
 | `SUPABASE_URL` | Supabase project URL | `https://xxx.supabase.co` |
 | `SUPABASE_ANON_KEY` | Supabase anon/public key | `eyJhbGci...` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | `eyJhbGci...` |
