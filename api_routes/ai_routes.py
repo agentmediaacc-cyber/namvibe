@@ -23,6 +23,7 @@ from services.ai.user_profile_service import (
 )
 from services.profile_service import get_current_profile
 from services.rate_limit_service import limiter, user_or_ip_key
+from services.redis_service import get_json, set_json
 
 
 ai_bp = Blueprint("ai", __name__)
@@ -54,14 +55,21 @@ def ai_index():
 def api_ai_status():
     config = get_ai_config()
     profile = _current_profile()
-    return jsonify({
+    profile_id = (profile or {}).get("id")
+    cache_key = f"ai:status:{profile_id or 'anon'}"
+    cached = get_json(cache_key)
+    if isinstance(cached, dict):
+        return jsonify(cached)
+    payload = {
         "ai_enabled": config.enabled,
         "external_provider_enabled": bool(config.external_calls_enabled and config.provider not in {"", "disabled"}),
-        "interaction_tracking_enabled": is_ai_feature_enabled("ai_interaction_tracking", profile_id=(profile or {}).get("id")),
-        "recommendations_enabled": is_ai_feature_enabled("ai_recommendations", profile_id=(profile or {}).get("id")),
+        "interaction_tracking_enabled": is_ai_feature_enabled("ai_interaction_tracking", profile_id=profile_id),
+        "recommendations_enabled": is_ai_feature_enabled("ai_recommendations", profile_id=profile_id),
         "algorithm_version": config.recommendation_version,
         "provider": config.provider,
-    })
+    }
+    set_json(cache_key, payload, ttl=min(config.cache_ttl_seconds, 60))
+    return jsonify(payload)
 
 
 @ai_bp.post("/api/ai/interactions")

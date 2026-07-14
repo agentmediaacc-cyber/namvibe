@@ -1647,6 +1647,7 @@ def get_profile_bundle(profile_id=None, viewer_id=None, viewer=None, username=No
 
     pid = profile.get("id")
     stats = get_profile_stats(pid) or {}
+    is_owner = bool(viewer_id and str(viewer_id) == str(pid))
 
     from services.presence_service import get_presence
     presence = get_presence(pid) or {}
@@ -1660,12 +1661,36 @@ def get_profile_bundle(profile_id=None, viewer_id=None, viewer=None, username=No
 
     live_rooms = []
     if pid and neon_table_exists("chain_live_rooms"):
-        live_rooms = fast_query(
-            "SELECT id, profile_id, host_profile_id, title, category, is_live, status, viewer_count, cover_url, thumbnail_url, created_at FROM chain_live_rooms WHERE (host_profile_id = %s OR profile_id = %s) AND (is_live = TRUE OR status = 'live') ORDER BY viewer_count DESC LIMIT 5",
-            (pid, pid),
-            timeout_ms=2000,
-            default=[]
-        ) or []
+        room_columns = set(get_cached_table_columns("chain_live_rooms", timeout_ms=1500) or [])
+        owner_column = None
+        for candidate in ("profile_id", "host_profile_id", "host_id", "creator_id"):
+            if candidate in room_columns:
+                owner_column = candidate
+                break
+        if owner_column:
+            owner_clause = f"(r.{owner_column} = %s)"
+            live_rows = fast_query(
+                f"""
+                SELECT r.id, r.{owner_column} AS owner_profile_id, r.title, r.category, r.is_live, r.status,
+                       r.viewer_count, r.cover_url, r.thumbnail_url, r.created_at
+                FROM chain_live_rooms r
+                WHERE {owner_clause}
+                  AND (COALESCE(r.is_live, FALSE) = TRUE OR COALESCE(r.status, '') = 'live')
+                ORDER BY COALESCE(r.viewer_count, 0) DESC
+                LIMIT 5
+                """,
+                (pid,),
+                timeout_ms=2000,
+                default=[],
+            ) or []
+            live_rooms = [
+                {
+                    **row,
+                    "profile_id": row.get("owner_profile_id") or row.get("profile_id"),
+                }
+                for row in live_rows
+                if row and row.get("id")
+            ]
 
     content = {
         "posts": [],
@@ -1676,14 +1701,14 @@ def get_profile_bundle(profile_id=None, viewer_id=None, viewer=None, username=No
         "mutual_friends": mutual_friends if isinstance(mutual_friends, dict) else {"count": 0, "items": []},
     }
 
-    recently_active = get_recently_active_friends(pid, limit=6)
+    recently_active = get_recently_active_friends(pid, limit=6) if is_owner else []
     profile_strength = build_profile_strength(profile, stats=stats)
-    wallet = get_wallet_snapshot(pid) or {}
-    creator_tools = get_creator_tools(pid) or {}
+    wallet = (get_wallet_snapshot(pid) or {}) if is_owner else {}
+    creator_tools = (get_creator_tools(pid) or {}) if is_owner else {}
 
     from services.relationship_cache_service import get_relationship_state
     from services.relationship_gate_service import can_message, can_call
-    viewer_rel = get_relationship_state(viewer_id or pid, pid) if viewer_id else {}
+    viewer_rel = get_relationship_state(viewer_id or pid, pid) if viewer_id and not is_owner else {}
     actions = [{"can_message": can_message(viewer_id or pid, pid) if viewer_id else False}]
 
     return {

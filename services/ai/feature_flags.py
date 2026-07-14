@@ -7,6 +7,7 @@ from services.redis_service import get_json, set_json, delete_key
 
 
 FEATURE_FLAG_CACHE_TTL = 30
+_FEATURE_FLAG_TABLE_EXISTS = None
 
 
 def _cache_key(feature_key):
@@ -22,7 +23,12 @@ def _load_feature_flag(feature_key):
     cached = get_json(_cache_key(feature_key))
     if cached is not None:
         return cached
-    if not table_exists("chain_ai_feature_flags"):
+    global _FEATURE_FLAG_TABLE_EXISTS
+    if _FEATURE_FLAG_TABLE_EXISTS is False:
+        return None
+    if _FEATURE_FLAG_TABLE_EXISTS is None:
+        _FEATURE_FLAG_TABLE_EXISTS = table_exists("chain_ai_feature_flags")
+    if not _FEATURE_FLAG_TABLE_EXISTS:
         return None
     row = fetch_one(
         "SELECT feature_key, enabled, rollout_percentage, configuration FROM chain_ai_feature_flags WHERE feature_key = %s",

@@ -38,6 +38,15 @@ def api_feed():
     return jsonify(feed), 200
 
 
+@feed_bp.route("/api/feed/check")
+def api_feed_check():
+    return jsonify({
+        "ok": True,
+        "has_new": False,
+        "checked": False,
+    }), 200
+
+
 # =========== PHASE 93: Viral Feed API Endpoints ===========
 
 @feed_bp.route("/api/feed/for-you")

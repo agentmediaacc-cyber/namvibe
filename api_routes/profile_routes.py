@@ -302,6 +302,7 @@ def _apply_profile_session(profile, fallback_email=None):
 
 
 def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0, setup_warning=False, bundle=None, action_policy=None):
+    is_owner = bool(viewer and viewer.get("id") and str(viewer.get("id")) == str(profile.get("id")))
     try:
         bundle = bundle or get_profile_bundle(profile_id=profile["id"], viewer=viewer)
     except Exception as error:
@@ -341,7 +342,7 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         # Premium profile data
         try:
             pid = profile.get("id")
-            if pid:
+            if pid and is_owner:
                 from services.profile_premium_service import (
                     get_achievements, get_badges, get_collections, get_timeline,
                     get_education, get_work_experience, get_skills,
@@ -430,7 +431,7 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
     # Premium profile data (education, work, skills, visitors, etc.)
     try:
         profile_id = render_profile.get("id")
-        if profile_id:
+        if profile_id and is_owner:
             from services.profile_premium_service import (
                 get_achievements, get_badges, get_collections, get_timeline,
                 get_education, get_work_experience, get_skills,
@@ -628,7 +629,10 @@ def my_profile():
             return render_template("profile/index.html", **context)
 
         try:
-            _, _, unread_count = get_my_notifications()
+            if is_owner:
+                _, _, unread_count = get_my_notifications()
+            else:
+                unread_count = 0
         except Exception as error:
             log_warning("profile_notifications_failed", profile_id=viewer.get("id"), error=str(error))
             unread_count = 0

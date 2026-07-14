@@ -361,6 +361,8 @@ def create_app():
         start_request_timer()
         if request.path == "/healthz" or request.path.startswith("/health/"):
             return None
+        if request.path in {"/api/feed/check", "/api/ai/status"} or request.path.startswith("/api/homepage/"):
+            return None
         check_ip_reputation()
 
     @app.after_request
@@ -1245,21 +1247,6 @@ def create_app():
                 }
                 data["wallet_balance"] = (cached_payload.get("wallet") or {}).get("coin_balance", 0)
                 return data
-            data = dict(shell)
-            if not _app_test_mode():
-                data["homepage_timings"] = {}
-                data["homepage_payload"] = {
-                    "stories": [],
-                    "feed_items": [],
-                    "posts": [],
-                    "reels": [],
-                    "friend_activity": [],
-                    "online_users": [],
-                    "counts": {},
-                    "timings": {},
-                }
-                data["wallet_balance"] = 0
-                return data
             try:
                 from api_routes.homepage_api import _build_homepage_contract
                 fast_payload = _build_homepage_contract(
@@ -1268,7 +1255,15 @@ def create_app():
                     include_widgets=False,
                 ) or {}
             except Exception:
-                fast_payload = {}
+                if not _app_test_mode():
+                    try:
+                        from services.homepage_service import get_homepage_data
+                        fast_payload = get_homepage_data() or {}
+                    except Exception:
+                        fast_payload = {}
+                else:
+                    fast_payload = {}
+            data = dict(shell)
             data["feed_items"] = fast_payload.get("feed_items") or []
             data["feed_for_you"] = list(data["feed_items"])
             data["posts"] = fast_payload.get("posts") or list(data["feed_items"])
@@ -1369,7 +1364,7 @@ def create_app():
                 (room_id,)
             )
             if row:
-                owner_id = row.get("profile_id") or row.get("host_id") or row.get("host_profile_id")
+                owner_id = row.get("profile_id") or row.get("host_id") or row.get("creator_id")
                 room = {
                     "id": row["id"],
                     "title": row.get("title", "Untitled Stream"),
@@ -1403,7 +1398,7 @@ def create_app():
         if not room:
             return render_template("live_hub.html", error="Stream not found"), 404
 
-        owner_id = row.get("profile_id") or row.get("host_id") or row.get("host_profile_id")
+        owner_id = row.get("profile_id") or row.get("host_id") or row.get("creator_id")
         if pid:
             track_interaction_safe(
                 pid,

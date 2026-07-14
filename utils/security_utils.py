@@ -1,10 +1,26 @@
 import os
+import time
 from flask import request, abort, jsonify
 from services.neon_service import fast_query, write_query
 from engines.cache_engine import cache_key, get_cache, set_cache
 
 
 _IP_REPUTATION_TTL_SECONDS = 60
+_IP_REPUTATION_MEM = {}
+
+
+def _ip_cache_get(ip):
+    entry = _IP_REPUTATION_MEM.get(ip)
+    if not entry:
+        return None
+    if entry.get("expires_at", 0) <= time.monotonic():
+        _IP_REPUTATION_MEM.pop(ip, None)
+        return None
+    return entry.get("blocked")
+
+
+def _ip_cache_set(ip, blocked, ttl=_IP_REPUTATION_TTL_SECONDS):
+    _IP_REPUTATION_MEM[ip] = {"blocked": bool(blocked), "expires_at": time.monotonic() + int(ttl)}
 
 def check_ip_reputation():
     if os.getenv("CHAIN_DISABLE_IP_REPUTATION", "0") == "1":
@@ -18,7 +34,13 @@ def check_ip_reputation():
 
     cached = get_cache(cache_key("ip_reputation", ip))
     if cached is not None:
+        _ip_cache_set(ip, bool(cached))
         if cached:
+            abort(403, description="Access denied from this IP address.")
+        return False
+    mem_cached = _ip_cache_get(ip)
+    if mem_cached is not None:
+        if mem_cached:
             abort(403, description="Access denied from this IP address.")
         return False
 
@@ -29,6 +51,7 @@ def check_ip_reputation():
         return False
     is_blocked = bool(rows and rows[0]["is_blocked"])
     set_cache(cache_key("ip_reputation", ip), is_blocked, ttl=_IP_REPUTATION_TTL_SECONDS)
+    _ip_cache_set(ip, is_blocked)
     if is_blocked:
         abort(403, description="Access denied from this IP address.")
     return False

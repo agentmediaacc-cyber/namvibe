@@ -15,6 +15,7 @@ from services.homepage_service import (
     rank_homepage_sections,
     _fetch_friend_activity,
 )
+from services.homepage_cache_service import get_full, get_payload
 from services.homepage_phase141_service import (
     fetch_posts_v2,
     fetch_reels_v2,
@@ -91,6 +92,52 @@ _HOMEPAGE_CACHE = {"payload": None, "expires_at": 0}
 _HOMEPAGE_CACHE_TTL = 60
 _HOMEPAGE_WIDGET_CACHE = {}
 _HOMEPAGE_WIDGET_CACHE_TTL = 45
+
+
+def _cached_public_homepage_snapshot():
+    return get_full("public") or get_payload() or {}
+
+
+def _homepage_response_from_snapshot(snapshot, viewer_id=None, limit=20, tab="for_you"):
+    if not snapshot:
+        return None
+    posts = list(snapshot.get("feed_items") or snapshot.get("posts") or [])
+    reels = list(snapshot.get("reels") or [])
+    stories = list(snapshot.get("stories") or [])
+    live_rooms = list(snapshot.get("live_rooms") or [])
+    suggested_creators = list(snapshot.get("suggested_creators") or snapshot.get("suggested_people") or [])
+    counts = dict(snapshot.get("counts") or {})
+    timings = dict(snapshot.get("timings") or {})
+    payload = {
+        "success": True,
+        "posts": posts,
+        "reels": reels,
+        "stories": stories,
+        "live_rooms": live_rooms,
+        "suggested_creators": suggested_creators,
+        "suggested_people": list(suggested_creators),
+        "trending_hashtags": list(snapshot.get("trending_hashtags") or []),
+        "online_users": list(snapshot.get("online_users") or []),
+        "counts": counts,
+        "feed_items": posts,
+        "feed_for_you": list(posts),
+        "homepage_degraded": bool(snapshot.get("homepage_degraded")),
+        "timings": timings,
+        "empty_states": {
+            "feed": not bool(posts),
+            "stories": not bool(stories),
+            "reels": not bool(reels),
+            "live": not bool(live_rooms),
+            "suggested": not bool(suggested_creators),
+            "hashtags": not bool(snapshot.get("trending_hashtags") or []),
+        },
+    }
+    if tab == "live":
+        payload["feed_items"] = []
+        payload["feed_for_you"] = []
+    elif tab == "following" and viewer_id:
+        payload["feed_for_you"] = list(posts)
+    return payload
 
 
 def _timed_section(name, collector, fn):
@@ -981,7 +1028,13 @@ def api_homepage_feed():
     profile = _current_profile()
     viewer_id = profile.get("id") if profile else None
     try:
-        payload = _build_homepage_contract(viewer_id=viewer_id, limit=limit, tab=tab)
+        if not viewer_id:
+            snapshot = _cached_public_homepage_snapshot()
+            payload = _homepage_response_from_snapshot(snapshot, viewer_id=None, limit=limit, tab=tab)
+        else:
+            payload = None
+        if payload is None:
+            payload = _build_homepage_contract(viewer_id=viewer_id, limit=limit, tab=tab)
         has_data = bool(payload.get("posts") or payload.get("reels") or payload.get("stories") or payload.get("live_rooms"))
         if not has_data:
             payload = _safe_degraded_homepage_payload()
@@ -1009,7 +1062,11 @@ def api_homepage_sidebar():
     profile = _current_profile()
     profile_id = profile.get("id") if profile else None
     try:
-        contract = _build_homepage_contract(viewer_id=profile_id, limit=12)
+        if not profile_id:
+            snapshot = _cached_public_homepage_snapshot()
+            contract = _homepage_response_from_snapshot(snapshot, viewer_id=None, limit=12, tab="for_you") or {}
+        else:
+            contract = _build_homepage_contract(viewer_id=profile_id, limit=12)
         payload = get_homepage_sidebar_payload(profile_id=profile_id)
         payload["live_rooms"] = contract.get("live_rooms") or payload.get("live_rooms", [])
         payload["suggested_creators"] = contract.get("suggested_creators") or payload.get("suggested_creators", [])
@@ -1028,7 +1085,13 @@ def api_homepage_widgets():
     profile = _current_profile()
     viewer_id = profile.get("id") if profile else None
     try:
-        contract = _build_homepage_contract(viewer_id=viewer_id, limit=12)
+        if not viewer_id:
+            snapshot = _cached_public_homepage_snapshot()
+            contract = _homepage_response_from_snapshot(snapshot, viewer_id=None, limit=12, tab="for_you") or {}
+            widget_payload = {"notifications": [], "wallet": {"coin_balance": 0, "label_balance": "0"}}
+        else:
+            contract = _build_homepage_contract(viewer_id=viewer_id, limit=12)
+            widget_payload = _get_homepage_widgets(viewer_id=viewer_id)
         return _json_ok({
             "live_rooms": contract.get("live_rooms") or [],
             "suggested_creators": contract.get("suggested_creators") or [],
@@ -1036,8 +1099,8 @@ def api_homepage_widgets():
             "trending_hashtags": contract.get("trending_hashtags") or [],
             "online_users": contract.get("online_users") or [],
             "counts": contract.get("counts") or {},
-            "notifications": (_get_homepage_widgets(viewer_id=viewer_id) or {}).get("notifications") or [],
-            "wallet": (_get_homepage_widgets(viewer_id=viewer_id) or {}).get("wallet") or {"coin_balance": 0, "label_balance": "0"},
+            "notifications": widget_payload.get("notifications") or [],
+            "wallet": widget_payload.get("wallet") or {"coin_balance": 0, "label_balance": "0"},
             "timings": contract.get("timings") or {},
         })
     except Exception as e:
