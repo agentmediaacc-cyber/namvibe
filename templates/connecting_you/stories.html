@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Success Stories — Connecting You{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <a href="/dating/connecting-you/" class="cy-back">← Back</a>
+    <h1>Success Stories 💕</h1>
+    <p>Real couples who found love through Connecting You.</p>
+  </div>
+
+  {% if not stories %}
+  <div class="cy-empty">
+    <div class="cy-empty-icon">💕</div>
+    <h2>No stories yet</h2>
+    <p>Be the first to share your love story!</p>
+  </div>
+  {% endif %}
+
+  <div class="cy-stories-grid">
+    {% for s in stories %}
+    <div class="cy-story-full">
+      {% if s.photo_urls %}
+      <div class="cy-story-photos">
+        {% for url in s.photo_urls[:3] %}
+        <img src="{{ url }}" alt="Couple photo">
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="cy-story-content">
+        <h2>❤️ {{ s.couple_names }}</h2>
+        <div class="cy-story-region">📍 {{ s.region or 'Namibia' }}</div>
+        <p class="cy-story-text">{{ s.story }}</p>
+        {% if s.wedding_photo_url %}
+        <div class="cy-story-wedding">
+          <img src="{{ s.wedding_photo_url }}" alt="Wedding">
+          <span>💍 Wedding</span>
+        </div>
+        {% endif %}
+        <div class="cy-story-date">Shared {{ s.submitted_at.strftime('%B %d, %Y') if s.submitted_at else '' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="cy-cta-section">
+    <h2>Have a Story to Share?</h2>
+    <p>Inspire others by sharing how you found love through Connecting You.</p>
+    <a href="/dating/connecting-you/stories/submit" class="cy-btn cy-btn-primary">Share Your Story ❤️</a>
+  </div>
+</div>
+{% endblock %}

@@ -23,7 +23,7 @@ def can_access_content(viewer_id, owner_id, access_level="subscribers"):
         if not viewer_id:
             return False
         rows = fast_query(
-            "SELECT 1 FROM chain_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
+            "SELECT 1 FROM chain_creator_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
             (viewer_id, owner_id), default=[]
         )
         return bool(rows)

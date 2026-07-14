@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Share Your Story — Connecting You{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <a href="/dating/connecting-you/stories" class="cy-back">← Back</a>
+    <h1>Share Your Love Story ❤️</h1>
+    <p>Inspire others by sharing how you found love through Connecting You.</p>
+  </div>
+
+  <form id="cyStoryForm" class="cy-form">
+    <div class="cy-form-section">
+      <div class="cy-field">
+        <label>Your Names</label>
+        <input type="text" name="couple_names" placeholder="e.g. John & Anna" required>
+      </div>
+      <div class="cy-field">
+        <label>Region</label>
+        <input type="text" name="region" placeholder="e.g. Windhoek">
+      </div>
+      <div class="cy-field">
+        <label>Your Story</label>
+        <textarea name="story" rows="6" placeholder="Tell us how you met, your journey, and what made it special..." required></textarea>
+      </div>
+      <div class="cy-field">
+        <label>Photo URL <small>(optional)</small></label>
+        <input type="url" name="photo_url" placeholder="https://...">
+      </div>
+      <div class="cy-field">
+        <label>Wedding Photo URL <small>(optional)</small></label>
+        <input type="url" name="wedding_photo_url" placeholder="https://...">
+      </div>
+    </div>
+    <button type="submit" class="cy-btn cy-btn-primary cy-btn-lg cy-btn-full">Submit Story ❤️</button>
+  </form>
+</div>
+<script>
+document.getElementById('cyStoryForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var fd = new FormData(this);
+  var data = {
+    couple_names: fd.get('couple_names'),
+    region: fd.get('region'),
+    story: fd.get('story'),
+    photo_urls: fd.get('photo_url') ? [fd.get('photo_url')] : [],
+    wedding_photo_url: fd.get('wedding_photo_url') || ''
+  };
+  fetch('/dating/connecting-you/stories/submit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify(data)
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { window.location.href = '/dating/connecting-you/stories'; }
+    else { alert(d.error || 'Failed to submit'); }
+  });
+});
+</script>
+{% endblock %}

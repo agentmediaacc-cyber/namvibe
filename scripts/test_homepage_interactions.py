@@ -7,6 +7,7 @@ import http.cookiejar
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8080").rstrip("/")
@@ -67,6 +68,7 @@ def find_csrf_token(html):
 
 def main():
     overall = True
+    template_source = Path("templates/chain_home.html").read_text(encoding="utf-8")
 
     status, home_html, err = fetch("/")
     overall &= report("homepage load", status == 200 and err is None, err or f"HTTP {status}")
@@ -104,6 +106,16 @@ def main():
         "like button carries stable post attr",
         bool(like_match),
         "homepage rendered a post like button with data-post-id"
+    )
+    overall &= report(
+        "profile links use public profile routes",
+        "/profile/@" not in template_source and "/profile/id/" in template_source,
+        "homepage template points at /profile/<username> or /profile/id/<id>"
+    )
+    overall &= report(
+        "homepage video protection attrs",
+        'controlsList="nodownload noplaybackrate"' in template_source and 'disablePictureInPicture' in template_source and 'oncontextmenu="return false' in template_source,
+        "homepage template carries nodownload, disablePictureInPicture, and contextmenu guards"
     )
     if like_path:
         status, body, err = fetch(like_path, method="POST", headers={"X-Requested-With": "XMLHttpRequest", "X-CSRFToken": csrf_token})
@@ -157,8 +169,13 @@ def main():
     overall &= report("no duplicate delegated like/comment handler", inline_handler_count == 1, f"delegated-click handlers found: {inline_handler_count}")
     overall &= report(
         "inline JS contains like/comment handlers",
-        contains(home_html, 'action === "like"') and contains(home_html, 'action === "comment"'),
+        contains(template_source, 'action === "like"') and contains(template_source, 'action === "comment"') and contains(template_source, "is-pending") and contains(template_source, "Be the first to comment.") and contains(template_source, "Please log in to comment."),
         "like/comment handler branches present in chain_home inline JS"
+    )
+    overall &= report(
+        "inline JS routes live room separately",
+        (contains(template_source, "/api/social/live_room/") and contains(template_source, "/api/comments/${type}/${id}")) or contains(template_source, "/api/comments/post/"),
+        "homepage inline JS distinguishes live room and post endpoints"
     )
 
     for path, label in (

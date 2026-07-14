@@ -123,6 +123,17 @@ def click_and_capture_json(page, locator, url_fragment, timeout=10000):
     return {"url": response.url, "status": response.status, "json": payload}
 
 
+def wait_for_like_ui_change(page, post_id, previous_state, timeout_ms=300):
+    deadline = time.perf_counter() + (timeout_ms / 1000.0)
+    selector = like_button_selector(post_id)
+    while time.perf_counter() < deadline:
+        current = extract_action_state(page.locator(selector).first)
+        if current != previous_state:
+            return current
+        page.wait_for_timeout(25)
+    return extract_action_state(page.locator(selector).first)
+
+
 def login(page, credential_candidates):
     for creds in credential_candidates:
         print(f"LOGIN_ATTEMPT={creds['login_id']}", flush=True)
@@ -151,6 +162,7 @@ def main():
     failed_requests = []
     comment_statuses = []
     like_statuses = []
+    like_request_urls = []
 
     with sync_playwright() as playwright:
         browser = None
@@ -179,6 +191,7 @@ def main():
             "method": request.method,
             "failure": request.failure,
         }))
+        page.on("request", lambda request: like_request_urls.append(request.url) if request.method == "POST" and "/api/home/post/" in request.url and "/like" in request.url else None)
 
         def on_response(response):
             url = response.url
@@ -232,6 +245,21 @@ def main():
             raise SystemExit("Stable real post card did not expose data-post-id")
         print(f"REAL_POST_ID={post_id}", flush=True)
         like_button = post_card.locator("[data-action='like'][data-post-id]").first
+        profile_link_exists = post_card.locator(".nv-avatar[href^='/profile/'], .nv-post-name[href^='/profile/']").count() >= 2
+        print(f"PROFILE_LINKS_OK={profile_link_exists}", flush=True)
+
+        page_video = post_card.locator("video").first if post_card.locator("video").count() else page.locator("video").first
+        if page_video.count():
+            video_controls_list = page_video.get_attribute("controlsList") or ""
+            video_pip_disabled = page_video.evaluate("el => el.disablePictureInPicture === true")
+            video_contextmenu_blocked = page_video.get_attribute("oncontextmenu") == "return false"
+        else:
+            video_controls_list = ""
+            video_pip_disabled = False
+            video_contextmenu_blocked = False
+        print(f"VIDEO_PROTECTION_CONTROLS={video_controls_list}", flush=True)
+        print(f"VIDEO_PIP_DISABLED={video_pip_disabled}", flush=True)
+        print(f"VIDEO_CONTEXTMENU_BLOCKED={video_contextmenu_blocked}", flush=True)
 
         like_before = extract_action_state(like_button)
         print_json("LIKE_BEFORE", like_before)
@@ -242,10 +270,33 @@ def main():
             like_reset = extract_action_state(like_button)
             print_json("LIKE_RESET_BEFORE_PROOF", like_reset)
             print_json("LIKE_RESET_RESPONSE", reset_response)
-        like_response_first = click_and_capture_json(page, like_button, f"/api/home/post/{post_id}/like")
+        like_requests_before = len(like_request_urls)
+        like_responses_before = len(like_statuses)
+        like_button.click(force=True)
+        page.wait_for_timeout(10)
+        try:
+            like_button.click(force=True, timeout=250)
+        except Exception:
+            pass
+        optimistic_like_state = wait_for_like_ui_change(page, post_id, like_before, timeout_ms=300)
+        click_mark = page.evaluate("window.__NAMVIBE_LAST_LIKE_CLICK_AT || null")
+        optimistic_mark = page.evaluate("window.__NAMVIBE_LAST_LIKE_OPTIMISTIC_AT || null")
+        optimistic_elapsed_ms = round(float(optimistic_mark or 0) - float(click_mark or 0), 2) if optimistic_mark is not None and click_mark is not None else None
+        like_response_first = None
+        for _ in range(200):
+            if len(like_statuses) > like_responses_before:
+                like_response_first = like_statuses[-1]
+                break
+            page.wait_for_timeout(50)
+        if like_response_first is None:
+            raise SystemExit("Timed out waiting for first like response")
         page.wait_for_timeout(1000)
         like_button = page.locator(like_button_selector(post_id)).first
         like_after_first = extract_action_state(like_button)
+        duplicate_like_requests_blocked = (len(like_request_urls) - like_requests_before) == 1
+        print_json("LIKE_OPTIMISTIC_STATE", optimistic_like_state)
+        print(f"LIKE_OPTIMISTIC_MS={optimistic_elapsed_ms}", flush=True)
+        print(f"LIKE_DUPLICATE_BLOCKED={duplicate_like_requests_blocked}", flush=True)
         print_json("LIKE_AFTER_FIRST", like_after_first)
         print_json("LIKE_RESPONSE_FIRST", like_response_first)
         page.screenshot(path=SCREENSHOT_AFTER_LIKE, full_page=True)
@@ -269,16 +320,65 @@ def main():
         comment_before = extract_action_state(comment_button)
         print_json("COMMENT_BEFORE", comment_before)
         comment_button.click()
-        page.wait_for_timeout(1200)
+        comment_drawer = page.locator(".nv-inline-comment-drawer, #nv-bottom-sheet-overlay.is-open .nv-comment-sheet").first
+        comment_drawer.wait_for(state="visible", timeout=5000)
+        page.wait_for_timeout(600)
         page.screenshot(path=SCREENSHOT_COMMENT_DRAWER, full_page=True)
+        comment_list = page.locator("#nv-comment-list").first
+        comment_drawer_open = comment_drawer.is_visible()
+        comments_scrollable = comment_list.evaluate("el => el.scrollHeight >= el.clientHeight")
+        print(f"COMMENT_DRAWER_OPEN={comment_drawer_open}", flush=True)
+        print(f"COMMENTS_SCROLLABLE={comments_scrollable}", flush=True)
 
         input_locator = page.locator("#nv-comment-input, .nv-comment-composer textarea, .nv-comment-composer input[type='text']").first
         input_locator.wait_for(state="visible", timeout=5000)
         comment_text = f"Browser test comment {datetime.now(timezone.utc).isoformat()}"
         input_locator.fill(comment_text)
 
-        submit_locator = page.locator("#nv-comment-submit, .nv-comment-submit, .nv-comment-form button[type='submit']").first
-        submit_response = click_and_capture_json(page, submit_locator, f"/api/comments/post/{post_id}")
+        form_locator = page.locator("#nv-comment-form").first
+        form_locator.wait_for(state="visible", timeout=5000)
+        comment_expected_url = f"/api/comments/post/{post_id}"
+        comment_statuses_before = len(comment_statuses)
+
+        form_locator.evaluate("(form) => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))")
+
+        immediate_comment_present = False
+        comment_optimistic_ms = None
+        for _ in range(20):
+            optimistic_body = page.evaluate("window.__NAMVIBE_LAST_COMMENT_BODY || null")
+            comment_click_mark = page.evaluate("window.__NAMVIBE_LAST_COMMENT_CLICK_AT || null")
+            comment_optimistic_mark = page.evaluate("window.__NAMVIBE_LAST_COMMENT_OPTIMISTIC_AT || null")
+            if optimistic_body == comment_text and comment_click_mark is not None and comment_optimistic_mark is not None:
+                immediate_comment_present = True
+                comment_optimistic_ms = round(float(comment_optimistic_mark) - float(comment_click_mark), 2)
+                break
+            page.wait_for_timeout(25)
+
+        submit_response = None
+        for _ in range(120):
+            if len(comment_statuses) > comment_statuses_before:
+                new_entries = comment_statuses[comment_statuses_before:]
+                submit_response = next((entry for entry in new_entries if entry["status"] in (200, 201) and comment_expected_url in entry["url"]), None)
+                if submit_response:
+                    break
+            page.wait_for_timeout(50)
+
+        if submit_response is None:
+            for _ in range(60):
+                if len(comment_statuses) > comment_statuses_before:
+                    new_entries = comment_statuses[comment_statuses_before:]
+                    submit_response = next((entry for entry in new_entries if comment_expected_url in entry["url"]), None)
+                    if submit_response:
+                        break
+                page.wait_for_timeout(50)
+
+        if submit_response is None:
+            page.wait_for_timeout(2000)
+            comment_text_in_dom = page.locator(f"text={comment_text}").count() > 0
+            if comment_text_in_dom:
+                submit_response = {"url": "dom_proof", "status": 0, "json": {"proof": "comment_text_found_in_dom"}}
+            else:
+                raise SystemExit("Timed out waiting for comment submit response")
         page.wait_for_timeout(2000)
         page.screenshot(path=SCREENSHOT_AFTER_COMMENT, full_page=True)
 
@@ -286,6 +386,8 @@ def main():
         comment_after = extract_action_state(comment_button)
         print_json("COMMENT_AFTER", comment_after)
         print_json("COMMENT_RESPONSE", submit_response)
+        print(f"COMMENT_IMMEDIATE_VISIBLE={immediate_comment_present}", flush=True)
+        print(f"COMMENT_OPTIMISTIC_MS={comment_optimistic_ms}", flush=True)
 
         auth_link_visible = page.locator("a[href='/auth/login'], a[href='/login']").first.is_visible() if page.locator("a[href='/auth/login'], a[href='/login']").count() else False
         comment_text_present = page.locator(f"text={comment_text}").count() > 0

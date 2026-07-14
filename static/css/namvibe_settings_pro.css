@@ -1,0 +1,769 @@
+/* ============================================================
+   NamVibe Settings Premium – nvpro- prefix
+   Premium settings experience, NOT a dashboard.
+   ============================================================ */
+
+.nvpro-settings {
+  --s-bg: #0d0d14;
+  --s-surface: #181825;
+  --s-surface-2: #1e1e32;
+  --s-border: rgba(255, 255, 255, 0.06);
+  --s-border-strong: #2a2a44;
+  --s-text: #f0f0f8;
+  --s-text-secondary: #8888aa;
+  --s-text-muted: #5a5a7a;
+  --s-accent: #6c5ce7;
+  --s-accent-glow: rgba(108, 92, 231, 0.25);
+  --s-accent-subtle: rgba(108, 92, 231, 0.1);
+  --s-green: #00d2a0;
+  --s-red: #ff4757;
+  --s-gold: #d4a853;
+  --s-gradient: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  --s-gradient-warm: linear-gradient(135deg, #6c5ce7, #d4a853);
+  --s-radius: 16px;
+  --s-radius-sm: 10px;
+  --s-radius-xs: 6px;
+  --s-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --s-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --s-transition: 0.2s ease;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  color: var(--s-text);
+  background: var(--s-bg);
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Background ambient glow */
+.nvpro-settings::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(108, 92, 231, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(212, 168, 83, 0.05), transparent 50%);
+}
+
+/* ─── Layout ─── */
+.nvpro-settings-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+/* ─── Sidebar Nav ─── */
+.nvpro-settings-sidebar {
+  position: sticky;
+  top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nvpro-settings-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--s-radius-sm);
+  color: var(--s-text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--s-transition);
+  border: 1px solid transparent;
+}
+
+.nvpro-settings-sidebar a:hover {
+  background: var(--s-accent-subtle);
+  color: var(--s-text);
+}
+
+.nvpro-settings-sidebar a.is-active {
+  background: var(--s-accent-subtle);
+  color: var(--s-accent);
+  border-color: rgba(108, 92, 231, 0.2);
+  font-weight: 600;
+}
+
+.nvpro-settings-sidebar a i {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.nvpro-settings-sidebar .nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Hero Header ─── */
+.nvpro-settings-hero {
+  grid-column: 1 / -1;
+  margin-bottom: 8px;
+  padding: 0 0 24px;
+  border-bottom: 1px solid var(--s-border-strong);
+}
+
+.nvpro-settings-hero h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  background: var(--s-gradient-warm);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nvpro-settings-hero p {
+  margin: 0;
+  color: var(--s-text-secondary);
+  font-size: 14px;
+}
+
+/* ─── Profile Header Card ─── */
+.nvpro-profile-card {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 24px;
+  background: var(--s-surface);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: var(--s-shadow);
+  margin-bottom: 8px;
+}
+
+.nvpro-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--s-accent);
+  flex-shrink: 0;
+  background: var(--s-surface-2);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--s-accent);
+}
+
+.nvpro-profile-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.nvpro-profile-info h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.nvpro-profile-info span {
+  display: block;
+  color: var(--s-text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.nvpro-profile-edit-btn {
+  padding: 8px 18px;
+  border-radius: var(--s-radius-full);
+  border: 1px solid var(--s-border-strong);
+  background: var(--s-surface-2);
+  color: var(--s-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--s-transition);
+  white-space: nowrap;
+}
+
+.nvpro-profile-edit-btn:hover {
+  border-color: var(--s-accent);
+  background: var(--s-accent-subtle);
+}
+
+/* ─── Section Cards ─── */
+.nvpro-section {
+  margin-bottom: 16px;
+}
+
+.nvpro-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 10px;
+}
+
+.nvpro-section-header i {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--s-radius-xs);
+  background: var(--s-accent-subtle);
+  color: var(--s-accent);
+  font-size: 13px;
+}
+
+.nvpro-section-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.nvpro-section-header .badge-count {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: var(--s-radius-full);
+  background: var(--s-accent-subtle);
+  color: var(--s-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.nvpro-card {
+  background: var(--s-surface);
+  border: 1px solid var(--s-border-strong);
+  border-radius: var(--s-radius);
+  box-shadow: var(--s-shadow);
+  overflow: hidden;
+}
+
+/* ─── Setting Rows ─── */
+.nvpro-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--s-border);
+  transition: background var(--s-transition);
+}
+
+.nvpro-row:last-child {
+  border-bottom: none;
+}
+
+.nvpro-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.nvpro-row-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.nvpro-row-text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--s-text);
+}
+
+.nvpro-row-text span {
+  display: block;
+  font-size: 12px;
+  color: var(--s-text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* ─── Toggle Switch ─── */
+.nvpro-toggle {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.nvpro-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.nvpro-toggle .track {
+  display: block;
+  width: 48px;
+  height: 28px;
+  border-radius: var(--s-radius-full);
+  background: var(--s-surface-2);
+  border: 1px solid var(--s-border-strong);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+.nvpro-toggle .track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--s-text-muted);
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.nvpro-toggle input:checked + .track {
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+}
+
+.nvpro-toggle input:checked + .track::after {
+  left: 23px;
+  background: #fff;
+  box-shadow: 0 2px 8px var(--s-accent-glow);
+}
+
+.nvpro-toggle input:focus-visible + .track {
+  box-shadow: 0 0 0 3px var(--s-accent-glow);
+}
+
+/* ─── Select Control ─── */
+.nvpro-select {
+  flex-shrink: 0;
+  max-width: 180px;
+}
+
+.nvpro-select select {
+  width: 100%;
+  padding: 8px 30px 8px 12px;
+  border-radius: var(--s-radius-sm);
+  border: 1px solid var(--s-border-strong);
+  background: var(--s-surface-2);
+  color: var(--s-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color var(--s-transition);
+}
+
+.nvpro-select select:hover {
+  border-color: var(--s-accent);
+}
+
+.nvpro-select select:focus {
+  outline: none;
+  border-color: var(--s-accent);
+  box-shadow: 0 0 0 3px var(--s-accent-glow);
+}
+
+/* ─── Text Input ─── */
+.nvpro-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--s-radius-sm);
+  border: 1px solid var(--s-border-strong);
+  background: var(--s-surface-2);
+  color: var(--s-text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--s-transition), box-shadow var(--s-transition);
+  box-sizing: border-box;
+}
+
+.nvpro-input:hover {
+  border-color: var(--s-accent);
+}
+
+.nvpro-input:focus {
+  outline: none;
+  border-color: var(--s-accent);
+  box-shadow: 0 0 0 3px var(--s-accent-glow);
+}
+
+.nvpro-input::placeholder {
+  color: var(--s-text-muted);
+}
+
+textarea.nvpro-input {
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* ─── Form Grid ─── */
+.nvpro-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px 18px 18px;
+}
+
+.nvpro-form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.nvpro-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nvpro-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--s-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.nvpro-field .hint {
+  font-size: 11px;
+  color: var(--s-text-muted);
+}
+
+/* ─── File Upload ─── */
+.nvpro-file-upload {
+  position: relative;
+}
+
+.nvpro-file-upload input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.nvpro-file-upload label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--s-radius-sm);
+  border: 1px dashed var(--s-border-strong);
+  background: var(--s-surface-2);
+  color: var(--s-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--s-transition);
+}
+
+.nvpro-file-upload label:hover {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+  background: var(--s-accent-subtle);
+}
+
+.nvpro-file-upload label i {
+  font-size: 16px;
+}
+
+/* ─── E2EE Badge ─── */
+.nvpro-e2ee-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--s-radius-full);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--s-surface-2);
+  color: var(--s-text-secondary);
+  border: 1px solid var(--s-border-strong);
+}
+
+.nvpro-e2ee-badge.active {
+  background: rgba(0, 210, 160, 0.12);
+  color: var(--s-green);
+  border-color: rgba(0, 210, 160, 0.2);
+}
+
+.nvpro-e2ee-badge.inactive {
+  background: rgba(255, 165, 2, 0.1);
+  color: var(--s-gold);
+  border-color: rgba(212, 168, 83, 0.2);
+}
+
+.nvpro-fingerprint {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: var(--s-radius-xs);
+  background: var(--s-surface-2);
+  color: var(--s-text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid var(--s-border);
+}
+
+/* ─── Action Buttons ─── */
+.nvpro-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--s-radius-full);
+  border: 1px solid var(--s-border-strong);
+  background: var(--s-surface-2);
+  color: var(--s-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--s-transition);
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.nvpro-btn:hover {
+  border-color: var(--s-accent);
+  background: var(--s-accent-subtle);
+}
+
+.nvpro-btn-primary {
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+  color: #fff;
+}
+
+.nvpro-btn-primary:hover {
+  box-shadow: 0 4px 16px var(--s-accent-glow);
+  background: #7c6cf7;
+}
+
+.nvpro-btn-danger {
+  color: var(--s-red);
+  border-color: rgba(255, 71, 87, 0.2);
+  background: rgba(255, 71, 87, 0.08);
+}
+
+.nvpro-btn-danger:hover {
+  background: rgba(255, 71, 87, 0.15);
+  border-color: var(--s-red);
+}
+
+.nvpro-btn-sm {
+  padding: 6px 14px;
+  font-size: 12px;
+}
+
+/* ─── Info Note ─── */
+.nvpro-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--s-text-muted);
+  background: var(--s-surface-2);
+  border-top: 1px solid var(--s-border);
+}
+
+.nvpro-note i {
+  margin-top: 1px;
+  color: var(--s-accent);
+  flex-shrink: 0;
+}
+
+/* ─── Save Bar ─── */
+.nvpro-save-bar {
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  margin: 0 -24px -32px;
+  background: linear-gradient(to top, var(--s-bg) 60%, transparent);
+  z-index: 10;
+}
+
+/* ─── Quick Links ─── */
+.nvpro-quick-links {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0 0;
+}
+
+.nvpro-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--s-radius-full);
+  border: 1px solid var(--s-border-strong);
+  background: var(--s-surface);
+  color: var(--s-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--s-transition);
+}
+
+.nvpro-quick-link:hover {
+  border-color: var(--s-accent);
+  color: var(--s-accent);
+  background: var(--s-accent-subtle);
+}
+
+.nvpro-quick-link i {
+  font-size: 13px;
+}
+
+/* ─── HR ─── */
+.nvpro-divider {
+  grid-column: 1 / -1;
+  border: none;
+  border-top: 1px solid var(--s-border-strong);
+  margin: 8px 0 16px;
+}
+
+/* ─── Mobile Toggle ─── */
+.nvpro-mobile-nav-toggle {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--s-radius-sm);
+  border: 1px solid var(--s-border-strong);
+  background: var(--s-surface);
+  color: var(--s-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  font-family: inherit;
+  transition: all var(--s-transition);
+}
+
+.nvpro-mobile-nav-toggle:hover {
+  border-color: var(--s-accent);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 820px) {
+  .nvpro-settings-inner {
+    grid-template-columns: 1fr;
+    padding: 20px 16px 80px;
+    gap: 0;
+  }
+
+  .nvpro-settings-sidebar {
+    display: none;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 0;
+    margin-bottom: 12px;
+  }
+
+  .nvpro-settings-sidebar.is-open {
+    display: flex;
+  }
+
+  .nvpro-settings-sidebar a {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .nvpro-mobile-nav-toggle {
+    display: flex;
+    grid-column: 1 / -1;
+    margin-bottom: 8px;
+  }
+
+  .nvpro-settings-hero h1 {
+    font-size: 24px;
+  }
+
+  .nvpro-card {
+    border-radius: var(--s-radius-sm);
+  }
+
+  .nvpro-row {
+    padding: 12px 14px;
+  }
+
+  .nvpro-form-grid {
+    grid-template-columns: 1fr;
+    padding: 8px 14px 14px;
+  }
+
+  .nvpro-save-bar {
+    padding: 12px 16px;
+    margin: 0 -16px -80px;
+  }
+
+  .nvpro-profile-card {
+    padding: 16px;
+  }
+
+  .nvpro-select {
+    max-width: 140px;
+  }
+}
+
+@media (max-width: 480px) {
+  .nvpro-settings-inner {
+    padding: 12px 12px 80px;
+  }
+
+  .nvpro-settings-hero h1 {
+    font-size: 20px;
+  }
+
+  .nvpro-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .nvpro-select {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .nvpro-profile-card {
+    flex-wrap: wrap;
+  }
+
+  .nvpro-save-bar {
+    padding: 12px 12px;
+    margin: 0 -12px -80px;
+  }
+}
+
+/* ─── Animations ─── */
+@keyframes nvproFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nvpro-section {
+  animation: nvproFadeIn 0.3s ease both;
+}
+
+.nvpro-section:nth-child(2) { animation-delay: 0.04s; }
+.nvpro-section:nth-child(3) { animation-delay: 0.08s; }
+.nvpro-section:nth-child(4) { animation-delay: 0.12s; }
+.nvpro-section:nth-child(5) { animation-delay: 0.16s; }
+.nvpro-section:nth-child(6) { animation-delay: 0.2s; }
+.nvpro-section:nth-child(7) { animation-delay: 0.24s; }
+.nvpro-section:nth-child(8) { animation-delay: 0.28s; }

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Check Your Email | NamVibe{% endblock %}
+{% block body_class %}chain-wallpaper-auth chain-auth-pink{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_auth.css">
+<link rel="stylesheet" href="/static/css/chain_auth_pink.css?v=phase88">
+{% endblock %}
+
+{% block content %}
+<section class="chain-auth-shell chain-auth-shell--login auth-page auth-mobile-social">
+  <div class="chain-auth-layout">
+    <div class="chain-auth-card chain-auth-card--login auth-social-card">
+      <div class="chain-auth-head">
+        <h1>Check Your Email</h1>
+        <p>We created your NamVibe account. Confirm your email to finish signing in.</p>
+      </div>
+      <div class="chain-auth-alert chain-auth-alert--success">
+        {% if email %}We sent a confirmation link to {{ email }}.{% else %}We sent a confirmation link to your email address.{% endif %}
+      </div>
+      <div class="chain-auth-actions chain-auth-actions--stack">
+        <a href="/auth/login" class="chain-auth-link chain-auth-link--strong">Back to login</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

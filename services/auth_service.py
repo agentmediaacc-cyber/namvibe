@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from flask import current_app, has_request_context, request, session
+from flask import current_app, has_app_context, has_request_context, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
@@ -18,9 +18,12 @@ from services.supabase_safe import column_safe_payload, safe_count, safe_insert,
 from services.logging_service import log_info, log_warning, log_error
 from utils.supabase_client import get_supabase, get_supabase_admin
 from services.session_service import (
-    store_auth_session, 
-    clear_auth_session, 
-    get_current_auth_user, 
+    store_auth_session,
+    clear_auth_session,
+    clear_login_session,
+    establish_login_session,
+    get_auth_user_id,
+    get_current_auth_user,
     refresh_supabase_session_if_needed,
     K_USER_ID, K_EMAIL, K_PROFILE_ID, K_USERNAME, K_FULL_NAME, K_PROVIDER,
     K_LOGIN_AT, K_PROFILE_WARNING, K_AGE_CHECK_REQUIRED, K_PENDING_DATE_OF_BIRTH
@@ -396,6 +399,65 @@ def get_auth_user_by_email(email):
     return None
 
 
+def provision_profile_for_auth_user(auth_user, metadata=None):
+    from services.profile_service import ensure_profile_for_user
+
+    metadata = dict(metadata or {})
+    auth_user_id = getattr(auth_user, "id", None)
+    email = clean_email(getattr(auth_user, "email", None) or metadata.get("email"))
+    if not auth_user_id:
+        return None, "missing_auth_user_id"
+
+    user_metadata = getattr(auth_user, "user_metadata", None) or {}
+    username_seed = (
+        metadata.get("username")
+        or user_metadata.get("username")
+        or user_metadata.get("preferred_username")
+        or _metadata_name(auth_user)
+        or (email.split("@", 1)[0] if email else "user")
+    )
+    username_seed = normalize_username(username_seed or "user")
+    if not _username_valid(username_seed):
+        username_seed = normalize_username((email or "user").split("@", 1)[0]) or "user"
+
+    defaults = {
+        "email": email,
+        "username": username_seed,
+        "display_name": metadata.get("display_name") or metadata.get("full_name") or _metadata_name(auth_user) or username_seed,
+        "full_name": metadata.get("full_name") or metadata.get("display_name") or _metadata_name(auth_user) or username_seed,
+        "avatar_url": metadata.get("avatar_url") or _metadata_avatar(auth_user),
+        "phone": metadata.get("phone"),
+        "town": metadata.get("town"),
+        "region": metadata.get("region"),
+        "country_origin": metadata.get("country_origin"),
+        "country": metadata.get("country"),
+        "current_country": metadata.get("current_country"),
+        "profile_type": metadata.get("profile_type") or "member",
+        "onboarding_step": metadata.get("onboarding_step") or "profile",
+        "profile_completed": bool(metadata.get("profile_completed", False)),
+        "email_verified": bool(getattr(auth_user, "email_confirmed_at", None) or getattr(auth_user, "confirmed_at", None)),
+        "is_verified": False,
+    }
+    profile, error = ensure_profile_for_user(auth_user_id, email=email, username=username_seed, defaults=defaults)
+    return profile, error
+
+
+def get_or_create_profile_for_auth_user(auth_user, metadata=None):
+    return provision_profile_for_auth_user(auth_user, metadata=metadata)
+
+
+def get_supabase_auth_configuration_status():
+    return {
+        "supabase_url_configured": bool(os.getenv("SUPABASE_URL")),
+        "supabase_anon_key_configured": bool(os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_KEY")),
+        "supabase_service_role_configured": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
+        "google_provider_expected": _oauth_provider_enabled("google"),
+        "facebook_provider_expected": _oauth_provider_enabled("facebook"),
+        "site_url": _supabase_site_url(),
+        "allowed_callback_routes": ["/auth/callback", "/auth/google/callback", "/auth/facebook/callback"],
+    }
+
+
 def check_account_availability(field, value, town=None):
     field = (field or "").strip()
     raw_value = (value or "").strip()
@@ -471,14 +533,52 @@ def check_account_availability(field, value, town=None):
 
 
 def _base_url():
-    configured = current_app.config.get("APP_BASE_URL")
-    if configured:
-        return configured.rstrip("/")
-    return request.url_root.rstrip("/")
+    if has_app_context():
+        configured = current_app.config.get("APP_BASE_URL")
+        if configured:
+            return configured.rstrip("/")
+    if has_request_context():
+        return request.url_root.rstrip("/")
+    return (os.getenv("SUPABASE_SITE_URL") or "http://127.0.0.1:8080").rstrip("/")
 
 
-def _oauth_redirect_to(provider):
-    return f"{_base_url()}/auth/{provider}/callback"
+def _supabase_site_url():
+    return (os.getenv("SUPABASE_SITE_URL") or _base_url()).rstrip("/")
+
+
+def _oauth_redirect_to(provider=None):
+    explicit = (os.getenv("SUPABASE_AUTH_REDIRECT_URL") or "").strip()
+    if explicit:
+        return explicit
+    return f"{_supabase_site_url()}/auth/callback"
+
+
+def _oauth_provider_enabled(provider):
+    flag_name = f"{str(provider or '').upper()}_OAUTH_ENABLED"
+    return os.getenv(flag_name, "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _safe_internal_redirect(candidate, default="/"):
+    value = (candidate or "").strip()
+    if value.startswith("/") and not value.startswith("//"):
+        return value
+    return default
+
+
+def _profile_is_login_blocked(profile):
+    if not profile:
+        return False
+    if profile.get("deleted_at"):
+        return True
+    for key in ("is_active", "login_allowed"):
+        if key in profile and profile.get(key) is False:
+            return True
+    for key in ("is_blocked", "is_suspended"):
+        if profile.get(key):
+            return True
+    if str(profile.get("account_status") or "").strip().lower() in {"suspended", "disabled", "blocked", "deactivated"}:
+        return True
+    return False
 
 
 def _provider_user_id(user, provider=None):
@@ -644,6 +744,8 @@ def _is_profile_complete(profile):
 
 
 def _log_login_event(profile, user, provider, status="success"):
+    if not has_request_context():
+        return
     if not table_exists("chain_login_events"):
         return
     safe_insert(
@@ -1054,6 +1156,11 @@ def _store_session_profile(profile, warning=False):
 
 
 def _schedule_profile_sync(user, provider):
+    if not has_request_context():
+        return
+    raw_identities = getattr(user, "identities", None)
+    if not isinstance(raw_identities, (list, tuple)):
+        raw_identities = []
     payload = {
         "id": getattr(user, "id", None),
         "email": getattr(user, "email", None),
@@ -1061,7 +1168,7 @@ def _schedule_profile_sync(user, provider):
         "user_metadata": getattr(user, "user_metadata", None) or {},
         "identities": [
             {"id": getattr(identity, "id", None), "provider": getattr(identity, "provider", None)}
-            for identity in (getattr(user, "identities", None) or [])
+            for identity in raw_identities
         ],
     }
 
@@ -1242,7 +1349,6 @@ def _allow_local_registration_fallback():
 
 def register_chain_user(email, password, username, full_name, extra=None):
     extra = extra or {}
-    raw_email = email
     email = clean_email(email)
     display_seed = (full_name or username or (email.split("@", 1)[0] if email else "")).strip()
     username = normalize_username(username or display_seed or (email.split("@", 1)[0] if email else "user"))
@@ -1251,24 +1357,6 @@ def register_chain_user(email, password, username, full_name, extra=None):
     phone = normalize_phone(raw_phone if raw_phone.startswith("+") else f"{phone_code}{raw_phone}")
     full_name = (full_name or display_seed or username).strip()
     dob = extra.get("date_of_birth")
-    country_origin = (extra.get("country_origin") or extra.get("country") or "").strip()
-    current_country = (extra.get("current_country") or extra.get("country") or "").strip()
-    region = (extra.get("region") or "").strip()
-    town = (extra.get("town") or "").strip()
-    
-    if has_request_context():
-        try:
-            log_warning(
-                "auth_register_apk_input",
-                user_agent=request.headers.get("User-Agent", ""),
-                host=request.host,
-                form_email_received=str(raw_email or "").strip(),
-                normalized_email=email,
-                csrf_valid=bool(extra.get("csrf_valid", True)),
-                auth_provider_used="pending",
-            )
-        except Exception:
-            pass
 
     if not email or not password or not username:
         return _registration_result(error="Enter a name or username, email, and password.")
@@ -1281,64 +1369,6 @@ def register_chain_user(email, password, username, full_name, extra=None):
     if not extra.get("terms_accepted"):
         return _registration_result(error="You must accept the terms before creating your account.")
 
-    local_email_valid = _email_valid_format(email)
-    registration_result_debug = {
-        "local_email_valid": local_email_valid,
-        "supabase_attempted": False,
-        "supabase_rejected_valid_email": False,
-        "fallback_used": False,
-        "profile_created": False,
-        "redirect_to": None,
-    }
-
-    def _finish_local_registration_inline(reason):
-        auth_user_id = str(uuid.uuid4())
-        pw_extra = {**(extra or {}), "password_hash": generate_password_hash(password), "phone": phone, "date_of_birth": dob}
-        profile, profile_error = _bootstrap_registration_profile(
-            auth_user_id,
-            email,
-            username,
-            full_name,
-            phone,
-            dob,
-            pw_extra,
-            email_verified=False,
-        )
-        if not profile or not profile.get("id"):
-            profile = _build_local_dev_profile(
-                auth_user_id,
-                email,
-                username,
-                full_name,
-                phone,
-                dob,
-                pw_extra,
-                email_verified=False,
-                save_error=profile_error or f"finish_local_registration:{reason}",
-            )
-        if not profile or not profile.get("id"):
-            return _registration_result(error="Your account could not be created yet.")
-        _remember_dev_registration_credential(
-            email,
-            username,
-            password,
-            auth_user_id=auth_user_id,
-            profile_id=profile.get("id"),
-            profile=profile,
-        )
-        registration_result_debug["fallback_used"] = True
-        registration_result_debug["profile_created"] = True
-        registration_result_debug["redirect_to"] = "/profile/"
-        log_info("registration_debug", data=registration_result_debug, reason=reason)
-        return _registration_result(
-            ok=True,
-            dev_fallback=True,
-            profile=profile,
-            auth_user_id=auth_user_id,
-            redirect_to="/profile/",
-            auth_provider="local_fallback",
-        )
-
     taken_result = _check_email_username_phone_taken(email, username, phone if phone else None)
     if taken_result == "EMAIL_EXISTS":
         return _registration_result(error="EMAIL_EXISTS")
@@ -1346,89 +1376,70 @@ def register_chain_user(email, password, username, full_name, extra=None):
         return _registration_result(error=taken_result)
 
     try:
-        registration_result_debug["supabase_attempted"] = True
         auth_res = get_supabase().auth.sign_up(
             {
                 "email": email,
                 "password": password,
-                "options": {"data": {"full_name": full_name, "username": username}},
+                "options": {
+                    "email_redirect_to": _oauth_redirect_to(),
+                    "data": {
+                        "full_name": full_name,
+                        "username": username,
+                    },
+                },
             }
         )
     except Exception as error:
         err_msg = str(error).lower()
         if "user_already_exists" in err_msg or "already registered" in err_msg:
             return _registration_result(error="EMAIL_EXISTS")
-        if local_email_valid and _allow_local_registration_fallback():
-            return _finish_local_registration_inline("supabase_sign_up_failed")
-        return _registration_result(error=f"Registration failed: {error}")
+        log_warning("auth_register_supabase_failed", email=email, error=str(error)[:160])
+        return _registration_result(error="Registration is temporarily unavailable. Please try again later.")
 
     user = getattr(auth_res, "user", None)
-    auth_session = getattr(auth_res, "session", None)
     if not user or not getattr(user, "id", None):
         user = get_auth_user_by_email(email)
     if not user or not getattr(user, "id", None):
-        if local_email_valid and _allow_local_registration_fallback():
-            return _finish_local_registration_inline("supabase_missing_user")
         return _registration_result(error="Registration could not be completed. Please try again.")
 
-    auth_user_id = getattr(user, "id", None)
-    email_verified = bool(getattr(user, "email_confirmed_at", None) or getattr(user, "confirmed_at", None))
-    profile, profile_error = _bootstrap_registration_profile(
-        auth_user_id,
-        email,
-        username,
-        full_name,
-        phone,
-        dob,
-        extra,
-        email_verified=email_verified,
+    auth_session = getattr(auth_res, "session", None)
+    profile, profile_error = provision_profile_for_auth_user(
+        user,
+        metadata={
+            "email": email,
+            "username": username,
+            "full_name": full_name,
+            "display_name": full_name,
+            "phone": phone,
+            "date_of_birth": dob,
+            "country_origin": extra.get("country_origin"),
+            "current_country": extra.get("current_country") or extra.get("country_origin"),
+            "country": extra.get("country") or extra.get("country_origin"),
+            "region": extra.get("region"),
+            "town": extra.get("town"),
+            "profile_type": extra.get("profile_type") or "member",
+            "profile_completed": False,
+            "onboarding_step": "profile",
+        },
     )
-    if not profile or not profile.get("id"):
-        profile = _build_local_dev_profile(
-            auth_user_id,
-            email,
-            username,
-            full_name,
-            phone,
-            dob,
-            {**extra, "password_hash": generate_password_hash(password)},
-            email_verified=email_verified,
-            save_error=profile_error,
-        )
-    if not profile or not profile.get("id"):
-        return _registration_result(error="Your account was created, but your profile could not be saved yet. Please try logging in.")
+    if not profile:
+        log_warning("auth_register_profile_provision_failed", email=email, auth_user_id=getattr(user, "id", None), error=profile_error)
+        return _registration_result(error="Your account was created, but your profile could not be prepared yet. Please try logging in.")
 
-    _remember_dev_registration_credential(
-        email,
-        username,
-        password,
-        auth_user_id=auth_user_id,
-        profile_id=profile.get("id"),
-        profile=profile,
-    )
-    registration_result_debug["profile_created"] = True
-    registration_result_debug["redirect_to"] = "/profile/"
-
-    if not auth_session:
-        log_info("registration_debug", data=registration_result_debug)
-        return _registration_result(
-            ok=True,
-            profile=profile,
-            auth_user_id=auth_user_id,
-            redirect_to="/profile/",
-            access_token=None,
-        )
-
-    store_auth_session(auth_session, user, profile, provider="password")
-    _log_login_event(profile, user, "password", "success")
-    log_info("registration_debug", data=registration_result_debug)
+    requires_confirmation = not bool(auth_session)
     return _registration_result(
         ok=True,
         profile=profile,
-        auth_user_id=auth_user_id,
-        redirect_to="/profile/",
-        access_token=getattr(auth_session, "access_token", None),
-    )
+        auth_user_id=getattr(user, "id", None),
+        redirect_to="/profile/" if auth_session else "/auth/login?registered=1",
+        access_token=getattr(auth_session, "access_token", None) if auth_session else None,
+        auth_provider="supabase",
+        error=None,
+    ) | {
+        "requires_confirmation": requires_confirmation,
+        "session": auth_session,
+        "user": user,
+    }
 
 def _finish_local_registration(reason):
     auth_user_id = str(uuid.uuid4())
@@ -1889,315 +1900,100 @@ def login_chain_user(email, password=None, remember=False):
 
     login_id = login_id[1:] if login_id.startswith("@") and "@" not in login_id[1:] else login_id
     resolved_email = clean_email(login_id) if "@" in login_id else login_id
-    login_profile = None
-    dev_credential = _get_dev_registration_credential(login_id)
+    login_profile = _find_login_profile(login_id)
+    if login_profile and login_id and "@" not in login_id:
+        resolved_email = clean_email(login_profile.get("email") or "")
 
-    login_result_debug = {
-        "profile_found": False,
-        "password_checked": False,
-        "supabase_attempted": False,
-        "local_fallback_attempted": False,
-        "success": False,
-        "redirect_to": None,
-        "local_auth_table_checked": False,
-        "local_auth_found": False,
-        "local_auth_success": False,
-    }
+    if "@" not in login_id and not resolved_email:
+        return False, "Use your email address to sign in right now."
 
-    # --- 1. Account lookup ---
-    if "@" in login_id:
-        login_profile = _find_login_profile(login_id)
-    else:
-        username = normalize_username(login_id)
-        dev_profile = _dev_credential_profile(dev_credential) if dev_credential else None
-        if dev_profile and dev_profile.get("email"):
-            login_profile = dev_profile
-            resolved_email = clean_email(dev_profile.get("email"))
-        else:
-            login_profile = _find_login_profile(username)
-        if not login_profile:
-            if is_circuit_open():
-                return False, "Username login is temporarily unavailable. Please use your email."
-            login_result_debug["state"] = "account_not_found"
-            print(f"[login_result_debug] {login_result_debug}")
-            return False, "Account not found."
-        else:
-            resolved_email = clean_email(login_profile.get("email"))
-        if not resolved_email:
-            login_result_debug["state"] = "account_not_found"
-            print(f"[login_result_debug] {login_result_debug}")
-            return False, "Account not found."
+    if not resolved_email:
+        return False, "Enter a valid email address."
 
-    # --- 2. Check local password hash (all possible columns) ---
-    def _get_password_hash(profile):
-        for col in ("password_hash", "password", "password_digest", "hashed_password", "legacy_password_hash"):
-            val = profile.get(col)
-            if val:
-                return val
-        return None
-
-    login_result_debug["profile_found"] = bool(login_profile)
-    login_result_debug["password_checked"] = True
-    password_hash = _get_password_hash(login_profile) if login_profile else None
-    login_result_debug["verifier_available"] = bool(password_hash)
-
-    def _ensure_login_profile(profile):
-        if not profile or not profile.get("auth_user_id"):
-            return profile
-        try:
-            from services.profile_service import ensure_profile_for_user
-            ensured_profile, ensure_error = ensure_profile_for_user(
-                profile.get("auth_user_id"),
-                email=profile.get("email") or resolved_email,
-                username=profile.get("username") or login_id.split("@", 1)[0],
-                defaults={
-                    "display_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
-                    "full_name": profile.get("full_name") or profile.get("display_name") or profile.get("username"),
-                    "avatar_url": profile.get("avatar_url"),
-                    "email_verified": bool(profile.get("email_verified")),
-                    "is_verified": bool(profile.get("is_verified") or profile.get("verified")),
-                    "profile_completed": bool(profile.get("profile_completed")),
-                },
-            )
-            return ensured_profile or profile
-        except Exception:
-            return profile
-
-    if password_hash and check_password_hash(password_hash, password):
-        login_profile = _ensure_login_profile(login_profile)
-        _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"), remember=remember)
-        login_result_debug["state"] = "login_success"
-        login_result_debug["success"] = True
-        login_result_debug["redirect_to"] = "/profile/"
-        print(f"[login_result_debug] {login_result_debug}")
-        return True, "/profile/"
-
-    local_auth_credential = None
-
-    def _check_local_auth_table():
-        nonlocal local_auth_credential, login_profile
-        if not login_profile or password_hash:
-            return None
-        login_result_debug["local_auth_table_checked"] = True
-        if local_auth_credential is None:
-            local_auth_credential = _get_local_auth_credential(login_profile)
-        login_result_debug["local_auth_found"] = bool(local_auth_credential)
-        local_hash = (local_auth_credential or {}).get("password_hash") or ""
-        if local_hash and check_password_hash(local_hash, password):
-            login_profile = _ensure_login_profile(login_profile)
-            _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"), remember=remember)
-            _mark_local_auth_used(login_profile.get("id"))
-            login_result_debug["local_auth_success"] = True
-            login_result_debug["state"] = "login_success"
-            login_result_debug["success"] = True
-            login_result_debug["redirect_to"] = "/profile/"
-            print(f"[login_result_debug] {login_result_debug}")
-            return True
-        login_result_debug["local_auth_success"] = False
-        return False if local_auth_credential else None
-
-    local_auth_result = _check_local_auth_table()
-    if local_auth_result is True:
-        return True, "/profile/"
-
-    # --- 3. Check dev credential (in-memory) before Supabase ---
-    if dev_credential and check_password_hash(dev_credential.get("password_hash", ""), password):
-        profile = login_profile or _dev_credential_profile(dev_credential)
-        if profile and profile.get("auth_user_id"):
-            profile = _ensure_login_profile(profile)
-            _store_login_session(profile, auth_user_id=profile.get("auth_user_id"), remember=remember)
-            login_result_debug["state"] = "login_success"
-            login_result_debug["success"] = True
-            login_result_debug["redirect_to"] = "/profile/"
-            print(f"[login_result_debug] {login_result_debug}")
-            return True, "/profile/"
-
-    # --- 4. Try Supabase auth ---
     try:
-        login_result_debug["supabase_attempted"] = True
         auth_res = get_supabase().auth.sign_in_with_password({"email": resolved_email, "password": password})
-        user = getattr(auth_res, "user", None)
-        auth_session = getattr(auth_res, "session", None)
-
-        if not user or not auth_session:
-            login_result_debug["state"] = "supabase_auth_failed"
-            print(f"[login_result_debug] {login_result_debug}")
-            return False, "Password is incorrect, or this account needs password reset."
-
-        store_auth_session(auth_session, user, None, provider="password", remember=remember)
-
-        profile = _quick_profile_snapshot(user, resolved_email=resolved_email, timeout_ms=300) or login_profile
-        from services.profile_service import ensure_profile_for_user
-        ensured_profile, ensure_error = ensure_profile_for_user(
-            getattr(user, "id", None),
-            email=resolved_email,
-            username=(profile or {}).get("username") or resolved_email.split("@", 1)[0],
-        )
-        if ensured_profile:
-            profile = ensured_profile
-        elif ensure_error:
-            log_warning("auth_login_profile_ensure_failed", email=resolved_email, error=ensure_error)
-        session_profile = _build_session_profile(user, profile=profile)
-        missing_profile_data = profile is None
-        missing_dob = not session_profile.get("date_of_birth")
-
-        _store_session_profile(session_profile, warning=missing_profile_data or is_circuit_open())
-        if session_profile.get("date_of_birth"):
-            session[K_PENDING_DATE_OF_BIRTH] = session_profile.get("date_of_birth")
-            session["date_of_birth"] = session_profile.get("date_of_birth")
-            session["age_verified"] = True
-        session[K_AGE_CHECK_REQUIRED] = False
-        if missing_dob:
-            session.pop(K_PENDING_DATE_OF_BIRTH, None)
-
-        _store_login_session(session_profile or profile or login_profile, auth_user_id=getattr(user, "id", None))
-        _schedule_profile_sync(user, "password")
-        _log_login_event(profile or session_profile, user, "password", "success")
-        login_result_debug["state"] = "login_success"
-        login_result_debug["success"] = True
-        login_result_debug["redirect_to"] = "/profile/"
-        print(f"[login_result_debug] {login_result_debug}")
-        return True, "/profile/"
-
     except Exception as error:
         err_msg = str(error).lower()
-
-        # --- 5a. Invalid login credentials (Supabase) ---
         if "invalid login credentials" in err_msg:
-            login_result_debug["local_fallback_attempted"] = True
-            if password_hash and check_password_hash(password_hash, password):
-                _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"))
-                session["remember_me"] = remember
-                login_result_debug["state"] = "login_success"
-                login_result_debug["success"] = True
-                login_result_debug["redirect_to"] = "/profile/"
-                print(f"[login_result_debug] {login_result_debug}")
-                return True, "/profile/"
-            if dev_credential and check_password_hash(dev_credential.get("password_hash", ""), password):
-                profile = login_profile or _find_login_profile(resolved_email) or _dev_credential_profile(dev_credential)
-                if profile and profile.get("auth_user_id"):
-                    _store_login_session(profile, auth_user_id=profile.get("auth_user_id"), remember=remember)
-                    login_result_debug["state"] = "login_success"
-                    login_result_debug["success"] = True
-                    login_result_debug["redirect_to"] = "/profile/"
-                    print(f"[login_result_debug] {login_result_debug}")
-                    return True, "/profile/"
-            if login_profile is None and "@" in login_id:
-                login_profile = _find_login_profile(resolved_email)
-            local_auth_result = _check_local_auth_table()
-            if local_auth_result is True:
-                return True, "/profile/"
-            login_result_debug["state"] = "password_invalid"
-            print(f"[login_result_debug] {login_result_debug}")
-            if login_profile and not _get_password_hash(login_profile):
-                if local_auth_result is None:
-                    login_result_debug["state"] = "password_reset_required"
-                    print(f"[login_result_debug] {login_result_debug}")
-                    return False, "This account needs password reset."
-                else:
-                    login_result_debug["state"] = "password_invalid"
-                    print(f"[login_result_debug] {login_result_debug}")
-                    return False, "Password is incorrect."
-            return False, "Password is incorrect." if login_profile else "Account not found."
-
-        # --- 5b. Email not confirmed ---
+            return False, "Incorrect email or password."
         if "email not confirmed" in err_msg:
-            profile = login_profile or _find_login_profile(resolved_email) or _dev_credential_profile(dev_credential)
-            if profile and profile.get("auth_user_id"):
-                _store_login_session(profile, auth_user_id=profile.get("auth_user_id"))
-                session["remember_me"] = remember
-                login_result_debug["state"] = "login_success"
-                login_result_debug["success"] = True
-                login_result_debug["redirect_to"] = "/profile/"
-                print(f"[login_result_debug] {login_result_debug}")
-                return True, "/profile/"
-            login_result_debug["state"] = "account_not_found"
-            print(f"[login_result_debug] {login_result_debug}")
-            return False, "Account not found."
+            return False, "Check your email to confirm your account before logging in."
+        log_warning("auth_login_failed", email=resolved_email, error=str(error)[:160])
+        return False, "Login is temporarily unavailable. Please try again."
 
-        # --- 5c. Other errors ---
-        login_result_debug["local_fallback_attempted"] = True
-        print(f"[auth_service] login_chain_user failed: {error}")
-        if password_hash and check_password_hash(password_hash, password):
-            _store_login_session(login_profile, auth_user_id=login_profile.get("auth_user_id"), remember=remember)
-            login_result_debug["state"] = "login_success"
-            login_result_debug["success"] = True
-            login_result_debug["redirect_to"] = "/profile/"
-            print(f"[login_result_debug] {login_result_debug}")
-            return True, "/profile/"
-        if dev_credential and check_password_hash(dev_credential.get("password_hash", ""), password):
-            profile = login_profile or _find_login_profile(resolved_email) or _dev_credential_profile(dev_credential)
-            if profile and profile.get("auth_user_id"):
-                _store_login_session(profile, auth_user_id=profile.get("auth_user_id"), remember=remember)
-                login_result_debug["state"] = "login_success"
-                login_result_debug["success"] = True
-                login_result_debug["redirect_to"] = "/profile/"
-                print(f"[login_result_debug] {login_result_debug}")
-                return True, "/profile/"
-        local_auth_result = _check_local_auth_table()
-        if local_auth_result is True:
-            return True, "/profile/"
-        if local_auth_result is None and login_profile and not _get_password_hash(login_profile):
-            login_result_debug["state"] = "password_reset_required"
-            print(f"[login_result_debug] {login_result_debug}")
-            return False, "This account needs password reset."
-        login_result_debug["state"] = "password_invalid" if login_profile else "account_not_found"
-        print(f"[login_result_debug] {login_result_debug}")
-        return False, "Password is incorrect, or this account needs password reset." if login_profile else "Account not found."
+    user = getattr(auth_res, "user", None)
+    auth_session = getattr(auth_res, "session", None)
+    if not user or not getattr(user, "id", None) or not auth_session:
+        return False, "Incorrect email or password."
+
+    profile, ensure_error = provision_profile_for_auth_user(
+        user,
+        metadata={
+            "email": resolved_email,
+            "username": (login_profile or {}).get("username") or resolved_email.split("@", 1)[0],
+            "display_name": (login_profile or {}).get("display_name") or (login_profile or {}).get("full_name"),
+            "full_name": (login_profile or {}).get("full_name") or (login_profile or {}).get("display_name"),
+            "profile_completed": bool((login_profile or {}).get("profile_completed")),
+        },
+    )
+    if not profile:
+        log_warning("auth_login_profile_provision_failed", email=resolved_email, error=ensure_error)
+        return False, "Login succeeded, but your profile is temporarily unavailable. Please try again."
+
+    if _profile_is_login_blocked(profile):
+        clear_login_session()
+        return False, "This account is unavailable."
+
+    establish_login_session(auth_session, user, profile=profile, provider="password", remember=remember)
+    _schedule_profile_sync(user, "password")
+    _log_login_event(profile, user, "password", "success")
+    return True, "/profile/" if _is_profile_complete(profile) else "/profile/onboarding"
 
 
-def get_oauth_url(provider):
-    redirect_to = f"{_base_url()}/auth/{provider}/callback"
-    print(f"[auth_service] oauth provider={provider} redirect_to={redirect_to}")
+def get_oauth_url(provider, state=None):
+    if not _oauth_provider_enabled(provider):
+        return None
 
+    redirect_to = _oauth_redirect_to(provider)
     try:
         response = get_supabase().auth.sign_in_with_oauth(
             {
                 "provider": provider,
                 "options": {
                     "redirect_to": redirect_to,
+                    "query_params": {"state": state} if state else {},
                 },
             }
         )
-
-        print("[auth_service] OAuth raw response:", response)
-        print("[auth_service] OAuth response type:", type(response))
-
-        # New supabase-py style
         url = getattr(response, "url", None)
         if url:
             return url
-
-        # Dict style
         if isinstance(response, dict):
-            url = response.get("url")
-            if url:
-                return url
+            if response.get("url"):
+                return response.get("url")
             data = response.get("data")
             if isinstance(data, dict) and data.get("url"):
                 return data.get("url")
-
-        # Nested data object style
         data = getattr(response, "data", None)
-        if data:
-            url = getattr(data, "url", None)
-            if url:
-                return url
-            if isinstance(data, dict) and data.get("url"):
-                return data.get("url")
-
-        print("[auth_service] No OAuth URL found in response")
-        return None
-
+        if isinstance(data, dict) and data.get("url"):
+            return data.get("url")
+        if getattr(data, "url", None):
+            return getattr(data, "url", None)
     except Exception as error:
-        print(f"[auth_service] get_oauth_url failed for {provider}: {error}")
-        return None
+        log_warning("auth_oauth_url_failed", provider=provider, error=str(error)[:160])
+    return None
 
 
-def handle_oauth_callback(provider, request_args, mode="login"):
+def handle_oauth_callback(provider, request_args, mode="login", expected_state=None):
     try:
+        if not _oauth_provider_enabled(provider):
+            return False, "This sign-in provider is temporarily unavailable."
         if request_args.get("error_description") or request_args.get("error"):
             return False, request_args.get("error_description") or "OAuth login failed."
+
+        returned_state = request_args.get("state")
+        if expected_state and returned_state != expected_state:
+            return False, "Invalid login state. Please try again."
 
         code = request_args.get("code") or request_args.get("auth_code")
         if not code:
@@ -2209,34 +2005,28 @@ def handle_oauth_callback(provider, request_args, mode="login"):
         if not user or not auth_session:
             return False, "OAuth login could not be completed."
 
-        email = clean_email(getattr(user, "email", None))
-        
-        # Mode-based checks
-        if mode == "login":
-            # Check if user exists in Neon or Supabase Auth already
-            existing_profile = _find_profile_for_user(user)
-            if not existing_profile:
-                # If we are in login mode but no profile exists, redirect to signup
-                return False, "OAUTH_SIGNUP_REQUIRED"
+        profile, ensure_error = provision_profile_for_auth_user(
+            user,
+            metadata={
+                "signup_method": provider,
+                "profile_type": "member",
+                "auth_provider": provider,
+            },
+        )
+        if not profile:
+            log_warning("auth_oauth_profile_provision_failed", provider=provider, error=ensure_error)
+            return False, "Your account was authenticated, but your profile could not be prepared."
 
-        profile = sync_oauth_profile(user, provider)
-        store_auth_session(auth_session, user, profile, provider=provider)
-        
-        if profile:
-            from services.profile_service import verify_profile_age
-            ok, result = verify_profile_age(profile)
-            if not ok:
-                if result == "REDIRECT_AGE_CHECK":
-                    session["age_check_required"] = True
-                    return True, "/profile/age-check"
-                # If explicit underage
-                clear_auth_session()
-                return False, result
+        if _profile_is_login_blocked(profile):
+            clear_login_session()
+            return False, "This account is unavailable."
 
+        establish_login_session(auth_session, user, profile=profile, provider=provider, remember=True)
+        _schedule_profile_sync(user, provider)
         _log_login_event(profile, user, provider, "success")
         return True, _profile_redirect(profile)
     except Exception as error:
-        print(f"[auth_service] handle_oauth_callback failed for {provider}: {error}")
+        log_warning("auth_oauth_callback_failed", provider=provider, error=str(error)[:160], mode=mode)
         return False, "OAuth login failed. Please try again."
 
 

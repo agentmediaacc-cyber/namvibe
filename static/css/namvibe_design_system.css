@@ -116,6 +116,7 @@
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
   text-size-adjust: 100%;
   scroll-behavior: smooth;
 }
@@ -255,8 +256,8 @@ button, [role="button"], .clickable, a, input, select, textarea {
   color: #fff;
   font-weight: var(--nv-font-weight-bold);
   text-transform: uppercase;
-  user-select: none;
   -webkit-user-select: none;
+  user-select: none;
 }
 
 .nv-avatar img {
@@ -492,6 +493,57 @@ button, [role="button"], .clickable, a, input, select, textarea {
 @keyframes pulse-live {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+/* ── HAMBURGER MENU COMPONENT ── */
+.nv-hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--nv-color-text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.nv-hamburger:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nv-hamburger svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nv-hamburger .nv-hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nv-hamburger .nv-hamburger-line {
+  width: 20px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+/* Pink theme variant for nvpro-home */
+.nvpro-home .nv-hamburger {
+  background: rgba(236, 72, 153, 0.06);
+  color: #1a1a2e;
+}
+
+.nvpro-home .nv-hamburger:hover {
+  background: rgba(236, 72, 153, 0.12);
 }
 
 /* ── INPUT COMPONENTS ── */
@@ -1061,4 +1113,64 @@ button, [role="button"], .clickable, a, input, select, textarea {
   .no-print {
     display: none !important;
   }
+}
+
+/* ── FEEDBACK PAGE ── */
+.nv-feedback-page .nv-feedback-panel {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.nv-feedback-page .nv-feedback-subtitle {
+  color: var(--nv-color-text-muted);
+  margin-bottom: 20px;
+}
+
+.nv-feedback-page .nv-feedback-form-group {
+  margin-bottom: 16px;
+}
+
+.nv-feedback-page .nv-feedback-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.nv-feedback-page .nv-feedback-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.nv-feedback-page .nv-feedback-btn-flex {
+  flex: 1;
+  text-align: center;
+}
+
+.nv-feedback-page .nv-feedback-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--nv-color-border);
+  background: var(--nv-color-bg-surface);
+  color: inherit;
+}
+
+.nv-feedback-page .nv-feedback-select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--nv-color-border);
+  background: var(--nv-color-bg-surface);
+  color: inherit;
+}
+
+.nv-feedback-page .nv-feedback-textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--nv-color-border);
+  background: var(--nv-color-bg-surface);
+  color: inherit;
+  resize: vertical;
 }

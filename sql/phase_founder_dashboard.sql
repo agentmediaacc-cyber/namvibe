@@ -3,7 +3,7 @@
 -- This migration is additive and non-destructive.
 -- Run once against the target database.
 
-CREATE TABLE IF NOT EXISTS chain_founder (
+CREATE TABLE chain_founder (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -18,15 +18,14 @@ CREATE TABLE IF NOT EXISTS chain_founder (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     last_login_at TIMESTAMPTZ,
-    CONSTRAINT chain_founder_username_lower_uniq UNIQUE (LOWER(username)),
     CONSTRAINT chain_founder_password_hash_length CHECK (char_length(password_hash) >= 40)
 );
 
--- Index for fast founder lookup by username (case-insensitive)
-CREATE INDEX IF NOT EXISTS idx_chain_founder_username_lower ON chain_founder (LOWER(username));
+-- Index for fast founder lookup by username
+CREATE INDEX idx_chain_founder_username ON chain_founder (username);
 
 -- Index for fast founder lookup by id
-CREATE INDEX IF NOT EXISTS idx_chain_founder_id ON chain_founder (id);
+CREATE INDEX idx_chain_founder_id ON chain_founder (id);
 
 -- No founder account is seeded by default.
 -- The founder must be created via a secure one-time bootstrap command

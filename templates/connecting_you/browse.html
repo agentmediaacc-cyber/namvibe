@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Browse Matches — Connecting You{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <a href="/dating/connecting-you/" class="cy-back">← Back</a>
+    <h1>Browse Matches 💕</h1>
+    <p>People you're compatible with, based on your assessment and preferences.</p>
+  </div>
+
+  {% if not matches %}
+  <div class="cy-empty">
+    <div class="cy-empty-icon">🔍</div>
+    <h2>No matches yet</h2>
+    <p>Complete your <a href="/dating/connecting-you/assessment">relationship assessment</a> to start getting matched.</p>
+    <a href="/dating/connecting-you/assessment" class="cy-btn cy-btn-primary">Take Assessment</a>
+  </div>
+  {% else %}
+  <div class="cy-match-grid">
+    {% for m in matches %}
+    <div class="cy-match-card">
+      <div class="cy-match-avatar">
+        {% if m.avatar_url %}
+        <img src="{{ m.avatar_url }}" alt="{{ m.display_name }}">
+        {% else %}
+        <div class="cy-avatar-placeholder">{{ (m.display_name or 'U')[0]|upper }}</div>
+        {% endif %}
+        {% if m.is_verified %}
+        <span class="cy-verified-badge">✅</span>
+        {% endif %}
+        <div class="cy-match-score">{{ m.match_score|int }}%</div>
+      </div>
+      <div class="cy-match-info">
+        <h3>{{ m.display_name or m.username }}</h3>
+        <div class="cy-match-detail">
+          {% if m.age %}{{ m.age }} years{% endif %}
+          {% if m.town %} · {{ m.town }}{% endif %}
+          {% if m.region %}, {{ m.region }}{% endif %}
+        </div>
+        <div class="cy-match-goal cy-tag">{{ m.relationship_goal|replace('_',' ')|title }}</div>
+        {% if m.occupation %}
+        <div class="cy-match-occ">💼 {{ m.occupation }}</div>
+        {% endif %}
+        {% if m.love_language %}
+        <div class="cy-match-love">💕 {{ m.love_language|replace('_',' ')|title }}</div>
+        {% endif %}
+        {% if m.category_scores %}
+        <div class="cy-match-categories">
+          {% for cat, score in m.category_scores.items() %}
+          <div class="cy-cat-bar">
+            <span class="cy-cat-label">{{ cat|title }}</span>
+            <div class="cy-cat-track"><div class="cy-cat-fill" style="width:{{ score }}%"></div></div>
+            <span class="cy-cat-val">{{ score|int }}%</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/js/connecting_you.js"></script>
+{% endblock %}

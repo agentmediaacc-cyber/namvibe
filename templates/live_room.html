@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="lv-room">
+<div class="lv-room" data-live-room-id="{{ room.id }}" data-live-is-host="{{ 'true' if is_host else 'false' }}" data-live-owner-id="{{ room.owner_profile_id or room.profile_id or '' }}">
   <!-- MAIN VIDEO -->
   <div class="lv-room-main">
     <div class="lv-room-video">
@@ -27,22 +27,29 @@
       {% if room.type != 'audio' %}
       <video id="lvStreamVideo" autoplay muted playsinline style="display:none;"></video>
       {% endif %}
+      <div id="lvRemoteAudioMount" hidden></div>
       <!-- Overlay -->
       <div class="lv-room-overlay">
         <div class="lv-room-host-info">
-          <img src="{{ room.host_avatar or '/static/img/default-avatar.png' }}" alt="">
+          <a href="/profile/@{{ room.host_username or '' }}">
+            <img src="{{ room.host_avatar or '/static/img/default-avatar.png' }}" alt="">
+          </a>
           <div>
-            <strong>{{ room.host_name or 'Host' }}</strong><br>
+            <strong><a href="/profile/@{{ room.host_username or '' }}" style="color:inherit;text-decoration:none;">{{ room.host_name or 'Host' }}</a></strong><br>
             <small><span id="lvViewerCount">{{ room.viewer_count or 0 }}</span> watching</small>
           </div>
         </div>
         <div class="lv-room-title">{{ room.title or 'Untitled Stream' }}</div>
+        <div id="lvConnectionState" style="margin-top:8px;color:var(--lv-muted);font-size:12px;">Ready</div>
         {% if room.products and room.products|length > 0 %}
         <div class="lv-products" id="lvProducts"></div>
         {% endif %}
       </div>
       <!-- Controls -->
       <div class="lv-room-controls">
+        <button data-action="start-live-session" title="{% if is_host %}Start broadcast{% else %}Join stream{% endif %}">
+          {% if is_host %}Start{% else %}Join{% endif %}
+        </button>
         {% if is_host %}
         <button data-action="toggle-mic" title="Mute/Unmute">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
@@ -60,7 +67,7 @@
         <button title="Raise Hand">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><path d="M21 15v2a8 8 0 0 1-16 0v-2"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
         </button>
-        <button title="Like">
+        <button data-action="send-reaction" data-reaction="heart" title="React">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
         </button>
         {% endif %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Join Connecting You — NamVibe{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <a href="/dating/connecting-you/" class="cy-back">← Back</a>
+    <h1>Join Connecting You ❤️</h1>
+    <p>Tell us about yourself so we can find your best match.</p>
+  </div>
+
+  {% if enrollment and enrollment.status in ('approved','active') %}
+  <div class="cy-alert cy-alert-success">
+    <strong>You're already enrolled!</strong> <a href="/dating/connecting-you/browse">Browse your matches →</a>
+  </div>
+  {% elif enrollment and enrollment.status == 'pending' %}
+  <div class="cy-alert cy-alert-info">
+    <strong>Your application is under review.</strong> We'll notify you once approved.
+  </div>
+  {% else %}
+  <form id="cyEnrollForm" class="cy-form">
+    <div class="cy-form-section">
+      <h2>🎯 What Are You Looking For?</h2>
+      <div class="cy-radio-group" data-field="relationship_goal">
+        <label class="cy-radio"><input type="radio" name="relationship_goal" value="serious" checked><span>❤️ Serious Relationship</span></label>
+        <label class="cy-radio"><input type="radio" name="relationship_goal" value="marriage"><span>💍 Marriage</span></label>
+        <label class="cy-radio"><input type="radio" name="relationship_goal" value="friendship"><span>🤝 Friendship</span></label>
+        <label class="cy-radio"><input type="radio" name="relationship_goal" value="networking"><span>🌟 Networking</span></label>
+        <label class="cy-radio"><input type="radio" name="relationship_goal" value="business_partner"><span>💼 Business Partner</span></label>
+      </div>
+    </div>
+
+    <div class="cy-form-section">
+      <h2>📍 About You</h2>
+      <div class="cy-form-grid">
+        <div class="cy-field">
+          <label>Region</label>
+          <select name="region">
+            <option value="">Select region</option>
+            {% for r in regions %}
+            <option value="{{ r }}">{{ r }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="cy-field">
+          <label>Town</label>
+          <input type="text" name="town" placeholder="e.g. Katutura">
+        </div>
+        <div class="cy-field">
+          <label>Occupation</label>
+          <input type="text" name="occupation" placeholder="e.g. Engineer, Teacher">
+        </div>
+        <div class="cy-field">
+          <label>Education</label>
+          <select name="education">
+            <option value="">Select level</option>
+            <option value="high_school">High School</option>
+            <option value="diploma">Diploma</option>
+            <option value="bachelors">Bachelor's Degree</option>
+            <option value="masters">Master's Degree</option>
+            <option value="phd">PhD</option>
+            <option value="vocational">Vocational Training</option>
+            <option value="self_taught">Self-Taught</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="cy-form-section">
+      <h2>🌍 Cultural Background <small>(optional)</small></h2>
+      <div class="cy-form-grid">
+        <div class="cy-field">
+          <label>Languages</label>
+          <input type="text" name="languages" placeholder="e.g. English, Oshiwambo, Afrikaans">
+        </div>
+        <div class="cy-field">
+          <label>Tribe <small>(optional)</small></label>
+          <input type="text" name="tribe" placeholder="e.g. Oshiwambo">
+        </div>
+        <div class="cy-field">
+          <label>Religion <small>(optional)</small></label>
+          <input type="text" name="religion" placeholder="e.g. Christian, Muslim">
+        </div>
+      </div>
+    </div>
+
+    <div class="cy-form-section">
+      <h2>🧩 Personality</h2>
+      <div class="cy-form-grid">
+        <div class="cy-field">
+          <label>Are you an introvert or extrovert?</label>
+          <select name="personality_type">
+            <option value="">Select</option>
+            <option value="introvert">Introvert</option>
+            <option value="extrovert">Extrovert</option>
+            <option value="ambivert">Ambivert</option>
+          </select>
+        </div>
+        <div class="cy-field">
+          <label>Love Language</label>
+          <select name="love_language">
+            <option value="">Select</option>
+            <option value="words_of_affirmation">Words of Affirmation</option>
+            <option value="acts_of_service">Acts of Service</option>
+            <option value="gifts">Receiving Gifts</option>
+            <option value="quality_time">Quality Time</option>
+            <option value="physical_touch">Physical Touch</option>
+          </select>
+        </div>
+        <div class="cy-field">
+          <label>Communication Style</label>
+          <select name="communication_style">
+            <option value="">Select</option>
+            <option value="direct">Direct and Honest</option>
+            <option value="indirect">Thoughtful and Measured</option>
+            <option value="expressive">Expressive and Emotional</option>
+            <option value="analytical">Logical and Analytical</option>
+          </select>
+        </div>
+        <div class="cy-field">
+          <label>Conflict Style</label>
+          <select name="conflict_style">
+            <option value="">Select</option>
+            <option value="collaborative">Collaborative</option>
+            <option value="compromising">Compromising</option>
+            <option value="avoidant">Need Time Alone First</option>
+            <option value="confrontational">Address It Immediately</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="cy-form-section">
+      <h2>🔮 Life & Values</h2>
+      <div class="cy-form-grid">
+        <div class="cy-field">
+          <label>Faith Importance</label>
+          <select name="faith_importance">
+            <option value="">Select</option>
+            <option value="very_high">Very Important</option>
+            <option value="high">Important</option>
+            <option value="medium">Somewhat</option>
+            <option value="low">Not Important</option>
+            <option value="none">Not a Factor</option>
+          </select>
+        </div>
+        <div class="cy-field">
+          <label>Do you want children?</label>
+          <select name="wants_children">
+            <option value="">Select</option>
+            <option value="yes">Yes, Definitely</option>
+            <option value="maybe">Open to It</option>
+            <option value="no">No, Not For Me</option>
+            <option value="already_have">Already Have Children</option>
+          </select>
+        </div>
+        <div class="cy-field">
+          <label>Would you relocate for love?</label>
+          <select name="would_relocate">
+            <option value="">Select</option>
+            <option value="yes">Yes, Anywhere</option>
+            <option value="maybe">Within My Country</option>
+            <option value="no">No, My Roots Are Here</option>
+          </select>
+        </div>
+        <div class="cy-field">
+          <label>Financial Habits</label>
+          <select name="financial_habits">
+            <option value="">Select</option>
+            <option value="saver">Saver — I Plan Ahead</option>
+            <option value="spender">Spender — I Enjoy Life Now</option>
+            <option value="balanced">Balanced — Best of Both</option>
+            <option value="investor">Investor — Building Wealth</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="cy-btn cy-btn-primary cy-btn-lg cy-btn-full">Submit Application ❤️</button>
+  </form>
+  {% endif %}
+</div>
+<script>
+document.getElementById('cyEnrollForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  var fd = new FormData(this);
+  var data = {};
+  fd.forEach(function(v, k) { data[k] = v; });
+  data.languages = (data.languages || '').split(',').map(function(l) { return l.trim(); }).filter(Boolean);
+  fetch('/dating/connecting-you/api/enroll', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify(data)
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { window.location.href = '/dating/connecting-you/'; }
+    else { alert(d.error || 'Failed to submit'); }
+  }).catch(function() { alert('Network error'); });
+});
+</script>
+{% endblock %}

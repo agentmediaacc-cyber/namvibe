@@ -75,7 +75,7 @@
         <div class="people-info">
           <strong>{{ f.friend_display_name or f.display_name or f.friend_username or f.username or 'NamVibe User' }}</strong>
           <span>@{{ f.friend_username or f.username or 'user' }}</span>
-          {% if f.created_at %}<small>Friends since {{ f.created_at[:10] }}</small>{% endif %}
+          {% if f.created_at %}<small>Friends since {{ f.created_at.strftime('%Y-%m-%d') }}</small>{% endif %}
           {% if f.is_close_friend %}<span class="tag tag-friends" style="font-size:9px;">close friend</span>{% endif %}
           {% if f.is_best_friend %}<span class="tag tag-pinned" style="font-size:9px;">best friend</span>{% endif %}
         </div>

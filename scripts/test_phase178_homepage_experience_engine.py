@@ -83,8 +83,8 @@ section("5. Template friend_activity rendering")
 try:
     tpl = open("templates/chain_home.html", "rb").read().decode("utf-8")
     check("friend_activity section in template", "friend_activity" in tpl)
-    check("Friend activity heading present", "Friend activity" in tpl)
-    check("p.get friend_activity fallback", "p.get(\"friend_activity\")" in tpl)
+    check("Friend activity heading present", "Friend Activity" in tpl or "Friend activity" in tpl)
+    check("p.get friend_activity fallback", "\"friend_activity\")" in tpl or "friend_activity or []" in tpl)
 except Exception as e:
     check("template friend_activity", False, str(e))
 
@@ -136,7 +136,7 @@ except Exception as e:
 try:
     tpl = open("templates/chain_home.html", "rb").read().decode("utf-8")
     check("nv-side-card still present", "nv-side-card" in tpl)
-    check("Quick links still present", "Quick links" in tpl)
+    check("Quick links still present", "Quick links" in tpl or "Quick Links" in tpl)
     check("nv-trend links preserved", "nv-trend" in tpl)
     check("nv-bottom nav unchanged", "nv-bottom" in tpl)
     check("nv-create-modal unchanged", "nv-create-modal" in tpl)

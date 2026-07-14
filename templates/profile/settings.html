@@ -2,683 +2,521 @@
 {% block title %}Settings | NamVibe{% endblock %}
 
 {% block extra_css %}
-<style>
-.settings-shell{
-    max-width:1120px;
-    margin:0 auto;
-    padding:20px;
-}
-.settings-hero{
-    background:linear-gradient(135deg,#111827,#334155);
-    color:#fff;
-    border-radius:30px;
-    padding:28px;
-    box-shadow:0 20px 60px rgba(15,23,42,.18);
-    margin-bottom:18px;
-}
-.settings-hero h1{
-    margin:0 0 8px;
-    font-size:34px;
-    font-weight:950;
-}
-.settings-hero p{
-    margin:0;
-    color:#dbeafe;
-}
-.settings-grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:18px;
-}
-.settings-card{
-    background:rgba(255,255,255,.94);
-    border:1px solid rgba(15,23,42,.08);
-    border-radius:28px;
-    padding:22px;
-    box-shadow:0 18px 45px rgba(15,23,42,.08);
-}
-.settings-card.full{
-    grid-column:1/-1;
-}
-.card-title{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    margin-bottom:18px;
-}
-.card-title i{
-    width:44px;
-    height:44px;
-    border-radius:16px;
-    display:grid;
-    place-items:center;
-    background:#f1f5f9;
-    color:#111827;
-}
-.card-title h2{
-    margin:0;
-    font-size:22px;
-    color:#0f172a;
-}
-.setting-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:18px;
-    padding:14px 0;
-    border-top:1px solid rgba(15,23,42,.07);
-}
-.setting-row:first-of-type{
-    border-top:0;
-}
-.setting-text strong{
-    display:block;
-    color:#0f172a;
-    font-size:15px;
-}
-.setting-text span{
-    display:block;
-    color:#64748b;
-    font-size:13px;
-    margin-top:3px;
-}
-.switch input{
-    display:none;
-}
-.slider{
-    width:58px;
-    height:32px;
-    border-radius:999px;
-    background:#cbd5e1;
-    display:block;
-    position:relative;
-    cursor:pointer;
-    transition:.2s;
-}
-.slider:before{
-    content:"";
-    width:26px;
-    height:26px;
-    background:#fff;
-    border-radius:50%;
-    position:absolute;
-    left:3px;
-    top:3px;
-    transition:.2s;
-    box-shadow:0 3px 10px rgba(0,0,0,.18);
-}
-.switch input:checked + .slider{
-    background:#111827;
-}
-.switch input:checked + .slider:before{
-    transform:translateX(26px);
-}
-	.select-control{
-    width:220px;
-    max-width:100%;
-    border:1px solid #cbd5e1;
-    border-radius:16px;
-    padding:12px 14px;
-    background:#f8fafc;
-    font-weight:800;
-    color:#0f172a;
-	}
-	.text-control{
-	    width:100%;
-	    border:1px solid #cbd5e1;
-	    border-radius:14px;
-	    padding:12px 14px;
-	    background:#f8fafc;
-	    color:#0f172a;
-	    font:inherit;
-	    font-weight:700;
-	}
-	.profile-fields{
-	    display:grid;
-	    grid-template-columns:1fr 1fr;
-	    gap:14px;
-	}
-	.profile-fields label{
-	    display:flex;
-	    flex-direction:column;
-	    gap:7px;
-	    color:#334155;
-	    font-size:13px;
-	    font-weight:900;
-	}
-	.profile-fields label.full{
-	    grid-column:1/-1;
-	}
-	.profile-fields textarea{
-	    min-height:110px;
-	    resize:vertical;
-	}
-.save-bar{
-    position:sticky;
-    bottom:14px;
-    margin-top:18px;
-    display:flex;
-    justify-content:flex-end;
-    gap:10px;
-}
-.save-btn,.cancel-btn{
-    border:0;
-    border-radius:999px;
-    padding:14px 20px;
-    font-weight:950;
-    cursor:pointer;
-    text-decoration:none;
-}
-.save-btn{
-    background:#111827;
-    color:white;
-}
-.cancel-btn{
-    background:#e2e8f0;
-    color:#0f172a;
-}
-.call-preview{
-    background:#020617;
-    border-radius:28px;
-    padding:22px;
-    color:white;
-    min-height:270px;
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-}
-.preview-top{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-}
-.preview-pill{
-    background:rgba(255,255,255,.12);
-    border:1px solid rgba(255,255,255,.16);
-    border-radius:999px;
-    padding:8px 12px;
-    font-size:12px;
-    font-weight:900;
-}
-.preview-avatar{
-    width:90px;
-    height:90px;
-    border-radius:32px;
-    background:linear-gradient(135deg,#38bdf8,#818cf8);
-    display:grid;
-    place-items:center;
-    margin:24px auto 14px;
-    font-size:38px;
-}
-.preview-name{
-    text-align:center;
-}
-.preview-name h3{
-    margin:0;
-    font-size:24px;
-}
-.preview-name p{
-    margin:6px 0 0;
-    color:#cbd5e1;
-}
-.preview-controls{
-    display:flex;
-    justify-content:center;
-    gap:13px;
-    margin-top:20px;
-}
-.preview-control{
-    width:52px;
-    height:52px;
-    border-radius:50%;
-    display:grid;
-    place-items:center;
-    background:rgba(255,255,255,.12);
-}
-.preview-control.end{
-    background:#ef4444;
-}
-@media(max-width:850px){
-    .settings-grid{
-        grid-template-columns:1fr;
-    }
-    .setting-row{
-        align-items:flex-start;
-        flex-direction:column;
-    }
-	    .select-control{
-	        width:100%;
-	    }
-	    .profile-fields{
-	        grid-template-columns:1fr;
-	    }
-	    .profile-fields label.full{
-	        grid-column:auto;
-	    }
-	}
-	</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_settings_pro.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="settings-shell">
-    <div class="settings-hero">
-        <h1>Settings</h1>
-        <p>Control your NamVibe profile, privacy, messages, audio calls, video calls and conference calls.</p>
+<div class="nvpro-settings">
+  <div class="nvpro-settings-inner">
+
+    <div class="nvpro-settings-hero">
+      <h1>Settings</h1>
+      <p>Control your profile, privacy, calls, and security</p>
     </div>
 
-	    <form method="POST" enctype="multipart/form-data">
-	        <div class="settings-grid">
-	            <section class="settings-card full">
-	                <div class="card-title">
-	                    <i class="fas fa-user"></i>
-	                    <h2>Profile Details</h2>
-	                </div>
-	                <div class="profile-fields">
-	                    <label>
-	                        Display name
-	                        <input class="text-control" type="text" name="full_name" value="{{ profile.full_name or profile.display_name or profile.username }}" required>
-	                    </label>
-	                    <label>
-	                        Username
-	                        <input class="text-control" type="text" name="username" value="{{ profile.username }}" minlength="3" maxlength="30" required>
-	                    </label>
-	                    <label class="full">
-	                        Bio
-	                        <textarea class="text-control" name="bio">{{ profile.bio or '' }}</textarea>
-	                    </label>
-	                    <label>
-	                        Town or location
-	                        <input class="text-control" type="text" name="town" value="{{ profile.town or profile.current_location or '' }}">
-	                    </label>
-	                    <label>
-	                        Phone
-	                        <input class="text-control" type="tel" name="phone" value="{{ profile.phone or '' }}">
-	                    </label>
-	                    <label>
-	                        Avatar
-	                        <input class="text-control" type="file" name="avatar" accept="image/*">
-	                    </label>
-	                    <label>
-	                        Cover image
-	                        <input class="text-control" type="file" name="cover" accept="image/*">
-	                    </label>
-	                    <label>
-	                        Date of birth
-	                        <input class="text-control" type="date" name="date_of_birth" value="{{ profile.date_of_birth or '' }}">
-	                    </label>
-	                    <label>
-	                        Creator type
-	                        <select class="text-control" name="profile_type">
-	                            <option value="member" {% if profile.profile_type == 'member' %}selected{% endif %}>Member</option>
-	                            <option value="creator" {% if profile.profile_type == 'creator' %}selected{% endif %}>Creator</option>
-	                            <option value="seller" {% if profile.profile_type == 'seller' %}selected{% endif %}>Seller</option>
-	                            <option value="host" {% if profile.profile_type == 'host' %}selected{% endif %}>Host</option>
-	                        </select>
-	                    </label>
-	                    <label>
-	                        Creator or business category
-	                        <input class="text-control" type="text" name="creator_category" value="{{ profile.creator_category or '' }}">
-	                    </label>
-	                    <label>
-	                        Verification file
-	                        <input class="text-control" type="file" name="verification" accept="image/*,application/pdf">
-	                    </label>
-	                </div>
-	            </section>
+    <button class="nv-hamburger" id="nvpro-sidebar-toggle" type="button" aria-label="Open menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
 
-	            <section class="settings-card">
-                <div class="card-title">
-                    <i class="fas fa-user-shield"></i>
-                    <h2>Profile Privacy</h2>
-                </div>
+    <nav class="nvpro-settings-sidebar" id="nvpro-sidebar">
+      <a href="#profile-details" data-section="profile-details" class="is-active"><i class="fas fa-user"></i><span class="nav-label">Profile</span></a>
+      <a href="#profile-privacy" data-section="profile-privacy"><i class="fas fa-user-shield"></i><span class="nav-label">Privacy</span></a>
+      <a href="#call-access" data-section="call-access"><i class="fas fa-phone-volume"></i><span class="nav-label">Call Access</span></a>
+      <a href="#who-can-add" data-section="who-can-add"><i class="fas fa-users"></i><span class="nav-label">Who Can Add</span></a>
+      <a href="#audio-video" data-section="audio-video"><i class="fas fa-sliders-h"></i><span class="nav-label">A/V Quality</span></a>
+      <a href="#encryption" data-section="encryption"><i class="fas fa-shield-alt"></i><span class="nav-label">Encryption</span></a>
+      <a href="#ringing" data-section="ringing"><i class="fas fa-bell"></i><span class="nav-label">Ringing</span></a>
+    </nav>
 
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Show online status</strong>
-                        <span>Let people see when you are active.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="show_online_status" {% if profile_settings.show_online_status != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
+    <div class="nvpro-profile-card">
+      <div class="nvpro-profile-avatar">
+        {% if profile.avatar_url %}
+        <img src="{{ profile.avatar_url }}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+        {% else %}
+        <i class="fas fa-user"></i>
+        {% endif %}
+      </div>
+      <div class="nvpro-profile-info">
+        <h2>{{ profile.full_name or profile.display_name or profile.username }}</h2>
+        <span>@{{ profile.username }} &middot; {{ profile.email or '' }}</span>
+      </div>
+      <a href="/profile/" class="nvpro-profile-edit-btn"><i class="fas fa-external-link-alt"></i> View Profile</a>
+    </div>
 
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Allow messages</strong>
-                        <span>People can send you private messages.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="allow_messages" {% if profile_settings.allow_messages != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </section>
+    <form method="POST" enctype="multipart/form-data">
 
-            <section class="settings-card">
-                <div class="card-title">
-                    <i class="fas fa-phone-volume"></i>
-                    <h2>Call Access</h2>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Allow audio calls</strong>
-                        <span>Friends and allowed contacts can call you with voice.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="allow_audio_calls" {% if profile_settings.allow_audio_calls != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Allow video calls</strong>
-                        <span>Enable camera calls on NamVibe.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="allow_video_calls" {% if profile_settings.allow_video_calls != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Allow group calls</strong>
-                        <span>Let friends invite you to group calls.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="allow_group_calls" {% if profile_settings.allow_group_calls != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Allow conference calls</strong>
-                        <span>Enable larger meeting-style calls.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="allow_conference_calls" {% if profile_settings.allow_conference_calls != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </section>
-
-            <section class="settings-card">
-                <div class="card-title">
-                    <i class="fas fa-users"></i>
-                    <h2>Who Can Add You</h2>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Add me to calls</strong>
-                        <span>Allow others to add you while a call is active.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="allow_add_to_call" {% if profile_settings.allow_add_to_call != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Unknown callers</strong>
-                        <span>Allow calls from people who are not friends.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="allow_unknown_callers" {% if profile_settings.allow_unknown_callers == true %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Save call history</strong>
-                        <span>Keep incoming, outgoing, missed and rejected calls in your call log.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="save_call_history" {% if profile_settings.save_call_history != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </section>
-
-            <section class="settings-card">
-                <div class="card-title">
-                    <i class="fas fa-sliders-h"></i>
-                    <h2>Audio & Video Quality</h2>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Audio quality</strong>
-                        <span>Auto saves data when network is weak.</span>
-                    </div>
-                    <select class="select-control" name="call_quality_audio">
-                        <option value="auto" {% if profile_settings.call_quality_audio == 'auto' %}selected{% endif %}>Auto</option>
-                        <option value="low" {% if profile_settings.call_quality_audio == 'low' %}selected{% endif %}>Low data</option>
-                        <option value="standard" {% if profile_settings.call_quality_audio == 'standard' %}selected{% endif %}>Standard</option>
-                        <option value="high" {% if profile_settings.call_quality_audio == 'high' %}selected{% endif %}>High quality</option>
-                    </select>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Video quality</strong>
-                        <span>Choose best quality for calls and conference calls.</span>
-                    </div>
-                    <select class="select-control" name="call_quality_video">
-                        <option value="auto" {% if profile_settings.call_quality_video == 'auto' %}selected{% endif %}>Auto</option>
-                        <option value="360p" {% if profile_settings.call_quality_video == '360p' %}selected{% endif %}>360p data saver</option>
-                        <option value="720p" {% if profile_settings.call_quality_video == '720p' %}selected{% endif %}>720p HD</option>
-                        <option value="1080p" {% if profile_settings.call_quality_video == '1080p' %}selected{% endif %}>1080p Full HD</option>
-                    </select>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>HD video</strong>
-                        <span>Use sharper video when network is strong.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="hd_video" {% if profile_settings.hd_video != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Noise suppression</strong>
-                        <span>Reduce background noise during calls.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="noise_suppression" {% if profile_settings.noise_suppression != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Echo cancellation</strong>
-                        <span>Reduce speaker and microphone echo.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="echo_cancellation" {% if profile_settings.echo_cancellation != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </section>
-
-            <section class="settings-card full">
-                <div class="card-title">
-                    <i class="fas fa-shield-alt"></i>
-                    <h2>End-to-End Encryption</h2>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Encryption status</strong>
-                        <span>Messages are encrypted when both parties have active keys.</span>
-                    </div>
-                    <span id="e2ee-settings-badge" style="padding:6px 14px;border-radius:999px;font-weight:900;font-size:12px;background:#d1d5db;color:#374151;">Checking...</span>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Key fingerprint</strong>
-                        <span>Your public key identifier for verification.</span>
-                    </div>
-                    <code id="e2ee-settings-fp" style="font-size:11px;background:#f1f5f9;padding:6px 10px;border-radius:8px;color:#374151;max-width:200px;overflow:hidden;text-overflow:ellipsis;">N/A</code>
-                </div>
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Rotate encryption keys</strong>
-                        <span>Generate a fresh keypair. Old messages stay readable.</span>
-                    </div>
-                    <button class="save-btn" id="e2ee-settings-rotate" style="padding:8px 16px;font-size:12px;">Rotate Keys</button>
-                </div>
-                <div style="font-size:12px;color:#64748b;padding:12px 0 0;border-top:1px solid rgba(15,23,42,.07);">
-                    <i class="fas fa-info-circle"></i> NamVibe uses hybrid encryption (RSA-2048 + AES-256-GCM). Encrypted messages show a lock icon. This is encryption-ready — not full Signal Protocol PFS.
-                </div>
-            </section>
-
-            <section class="settings-card">
-                <div class="card-title">
-                    <i class="fas fa-bell"></i>
-                    <h2>Ringing & Device</h2>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Call ringtone</strong>
-                        <span>Choose your incoming call tone.</span>
-                    </div>
-                    <select class="select-control" name="call_ringtone">
-                        <option value="namvibe_classic" {% if profile_settings.call_ringtone == 'namvibe_classic' %}selected{% endif %}>NamVibe Classic</option>
-                        <option value="soft_ring" {% if profile_settings.call_ringtone == 'soft_ring' %}selected{% endif %}>Soft Ring</option>
-                        <option value="premium_beep" {% if profile_settings.call_ringtone == 'premium_beep' %}selected{% endif %}>Premium Beep</option>
-                        <option value="silent" {% if profile_settings.call_ringtone == 'silent' %}selected{% endif %}>Silent</option>
-                    </select>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Vibration</strong>
-                        <span>Vibrate device when receiving calls where supported.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="call_vibration" {% if profile_settings.call_vibration != false %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Speaker by default</strong>
-                        <span>Start calls on loudspeaker when possible.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="speaker_default" {% if profile_settings.speaker_default == true %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-row">
-                    <div class="setting-text">
-                        <strong>Auto-answer headset</strong>
-                        <span>Answer faster when headset is connected.</span>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" name="auto_answer_headset" {% if profile_settings.auto_answer_headset == true %}checked{% endif %}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </section>
-
-            <section class="settings-card">
-                <div class="card-title">
-                    <i class="fas fa-mobile-alt"></i>
-                    <h2>Call Preview</h2>
-                </div>
-
-                <div class="call-preview">
-                    <div class="preview-top">
-                        <span class="preview-pill">Incoming video call</span>
-                        <span class="preview-pill">HD Auto</span>
-                    </div>
-                    <div>
-                        <div class="preview-avatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div class="preview-name">
-                            <h3>NamVibe Contact</h3>
-                            <p>Ringing...</p>
-                        </div>
-                        <div class="preview-controls">
-                            <div class="preview-control"><i class="fas fa-microphone"></i></div>
-                            <div class="preview-control"><i class="fas fa-video"></i></div>
-                            <div class="preview-control"><i class="fas fa-user-plus"></i></div>
-                            <div class="preview-control end"><i class="fas fa-phone-slash"></i></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
+      <section class="nvpro-section" id="profile-details">
+        <div class="nvpro-section-header">
+          <i class="fas fa-user"></i>
+          <h2>Profile Details</h2>
         </div>
-
-        <div class="save-bar">
-            <a href="/profile/" class="cancel-btn">Cancel</a>
-            <button class="save-btn" type="submit">
-                <i class="fas fa-save"></i> Save Settings
-            </button>
+        <div class="nvpro-card">
+          <div class="nvpro-form-grid">
+            <div class="nvpro-field">
+              <label for="full_name">Display name</label>
+              <input class="nvpro-input" id="full_name" type="text" name="full_name" value="{{ profile.full_name or profile.display_name or profile.username }}" required>
+            </div>
+            <div class="nvpro-field">
+              <label for="username">Username</label>
+              <input class="nvpro-input" id="username" type="text" name="username" value="{{ profile.username }}" minlength="3" maxlength="30" required>
+            </div>
+            <div class="nvpro-field full">
+              <label for="bio">Bio</label>
+              <textarea class="nvpro-input" id="bio" name="bio">{{ profile.bio or '' }}</textarea>
+            </div>
+            <div class="nvpro-field">
+              <label for="town">Town or location</label>
+              <input class="nvpro-input" id="town" type="text" name="town" value="{{ profile.town or profile.current_location or '' }}">
+            </div>
+            <div class="nvpro-field">
+              <label for="phone">Phone</label>
+              <input class="nvpro-input" id="phone" type="tel" name="phone" value="{{ profile.phone or '' }}">
+            </div>
+            <div class="nvpro-field">
+              <label for="avatar">Avatar</label>
+              <div class="nvpro-file-upload">
+                <input type="file" id="avatar" name="avatar" accept="image/*">
+                <label for="avatar"><i class="fas fa-cloud-upload-alt"></i> Choose image</label>
+              </div>
+              <span class="hint">Recommended: square, at least 400x400px</span>
+            </div>
+            <div class="nvpro-field">
+              <label for="cover">Cover image</label>
+              <div class="nvpro-file-upload">
+                <input type="file" id="cover" name="cover" accept="image/*">
+                <label for="cover"><i class="fas fa-cloud-upload-alt"></i> Choose image</label>
+              </div>
+              <span class="hint">Recommended: 1200x400px</span>
+            </div>
+            <div class="nvpro-field">
+              <label for="date_of_birth">Date of birth</label>
+              <input class="nvpro-input" id="date_of_birth" type="date" name="date_of_birth" value="{{ profile.date_of_birth or '' }}">
+            </div>
+            <div class="nvpro-field">
+              <label for="profile_type">Creator type</label>
+              <div class="nvpro-select">
+                <select id="profile_type" name="profile_type">
+                  <option value="member" {% if profile.profile_type == 'member' %}selected{% endif %}>Member</option>
+                  <option value="creator" {% if profile.profile_type == 'creator' %}selected{% endif %}>Creator</option>
+                  <option value="seller" {% if profile.profile_type == 'seller' %}selected{% endif %}>Seller</option>
+                  <option value="host" {% if profile.profile_type == 'host' %}selected{% endif %}>Host</option>
+                </select>
+              </div>
+            </div>
+            <div class="nvpro-field">
+              <label for="creator_category">Creator or business category</label>
+              <input class="nvpro-input" id="creator_category" type="text" name="creator_category" value="{{ profile.creator_category or '' }}">
+            </div>
+            <div class="nvpro-field full">
+              <label for="verification">Verification file</label>
+              <div class="nvpro-file-upload">
+                <input type="file" id="verification" name="verification" accept="image/*,application/pdf">
+                <label for="verification"><i class="fas fa-cloud-upload-alt"></i> Choose file</label>
+              </div>
+              <span class="hint">Accepted: image or PDF</span>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <section class="nvpro-section" id="profile-privacy">
+        <div class="nvpro-section-header">
+          <i class="fas fa-user-shield"></i>
+          <h2>Profile Privacy</h2>
+        </div>
+        <div class="nvpro-card">
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Show online status</strong>
+              <span>Let people see when you are active</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="show_online_status" {% if profile_settings.show_online_status != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Allow messages</strong>
+              <span>People can send you private messages</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_messages" {% if profile_settings.allow_messages != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Messages from non-friends</strong>
+              <span>Allow people who aren't your friends to send you messages</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_public_messages" {% if profile.who_can_message == 'everyone' or profile_settings.allow_public_messages %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="nvpro-section" id="call-access">
+        <div class="nvpro-section-header">
+          <i class="fas fa-phone-volume"></i>
+          <h2>Call Access</h2>
+        </div>
+        <div class="nvpro-card">
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Allow audio calls</strong>
+              <span>Friends and allowed contacts can call you with voice</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_audio_calls" {% if profile_settings.allow_audio_calls != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Allow video calls</strong>
+              <span>Enable camera calls on NamVibe</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_video_calls" {% if profile_settings.allow_video_calls != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Allow group calls</strong>
+              <span>Let friends invite you to group calls</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_group_calls" {% if profile_settings.allow_group_calls != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Allow conference calls</strong>
+              <span>Enable larger meeting-style calls</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_conference_calls" {% if profile_settings.allow_conference_calls != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="nvpro-section" id="who-can-add">
+        <div class="nvpro-section-header">
+          <i class="fas fa-users"></i>
+          <h2>Who Can Add You</h2>
+        </div>
+        <div class="nvpro-card">
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Add me to calls</strong>
+              <span>Allow others to add you while a call is active</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_add_to_call" {% if profile_settings.allow_add_to_call != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Unknown callers</strong>
+              <span>Allow calls from people who are not friends</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="allow_unknown_callers" {% if profile_settings.allow_unknown_callers == true %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Save call history</strong>
+              <span>Keep incoming, outgoing, missed and rejected calls in your log</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="save_call_history" {% if profile_settings.save_call_history != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="nvpro-section" id="audio-video">
+        <div class="nvpro-section-header">
+          <i class="fas fa-sliders-h"></i>
+          <h2>Audio & Video Quality</h2>
+        </div>
+        <div class="nvpro-card">
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Audio quality</strong>
+              <span>Auto saves data when network is weak</span>
+            </div>
+            <div class="nvpro-select">
+              <select name="call_quality_audio">
+                <option value="auto" {% if profile_settings.call_quality_audio == 'auto' %}selected{% endif %}>Auto</option>
+                <option value="low" {% if profile_settings.call_quality_audio == 'low' %}selected{% endif %}>Low data</option>
+                <option value="standard" {% if profile_settings.call_quality_audio == 'standard' %}selected{% endif %}>Standard</option>
+                <option value="high" {% if profile_settings.call_quality_audio == 'high' %}selected{% endif %}>High quality</option>
+              </select>
+            </div>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Video quality</strong>
+              <span>Choose best quality for calls and conference calls</span>
+            </div>
+            <div class="nvpro-select">
+              <select name="call_quality_video">
+                <option value="auto" {% if profile_settings.call_quality_video == 'auto' %}selected{% endif %}>Auto</option>
+                <option value="360p" {% if profile_settings.call_quality_video == '360p' %}selected{% endif %}>360p data saver</option>
+                <option value="720p" {% if profile_settings.call_quality_video == '720p' %}selected{% endif %}>720p HD</option>
+                <option value="1080p" {% if profile_settings.call_quality_video == '1080p' %}selected{% endif %}>1080p Full HD</option>
+              </select>
+            </div>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>HD video</strong>
+              <span>Use sharper video when network is strong</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="hd_video" {% if profile_settings.hd_video != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Noise suppression</strong>
+              <span>Reduce background noise during calls</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="noise_suppression" {% if profile_settings.noise_suppression != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Echo cancellation</strong>
+              <span>Reduce speaker and microphone echo</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="echo_cancellation" {% if profile_settings.echo_cancellation != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="nvpro-section" id="encryption">
+        <div class="nvpro-section-header">
+          <i class="fas fa-shield-alt"></i>
+          <h2>End-to-End Encryption</h2>
+        </div>
+        <div class="nvpro-card">
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Encryption status</strong>
+              <span>Messages are encrypted when both parties have active keys</span>
+            </div>
+            <span class="nvpro-e2ee-badge" id="e2ee-settings-badge">Checking...</span>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Key fingerprint</strong>
+              <span>Your public key identifier for verification</span>
+            </div>
+            <code class="nvpro-fingerprint" id="e2ee-settings-fp">N/A</code>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Rotate encryption keys</strong>
+              <span>Generate a fresh keypair. Old messages stay readable.</span>
+            </div>
+            <button class="nvpro-btn nvpro-btn-sm" id="e2ee-settings-rotate" type="button">Rotate Keys</button>
+          </div>
+          <div class="nvpro-note">
+            <i class="fas fa-info-circle"></i>
+            <span>NamVibe uses hybrid encryption (RSA-2048 + AES-256-GCM). Encrypted messages show a lock icon. This is encryption-ready — not full Signal Protocol PFS.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="nvpro-section" id="ringing">
+        <div class="nvpro-section-header">
+          <i class="fas fa-bell"></i>
+          <h2>Ringing & Device</h2>
+        </div>
+        <div class="nvpro-card">
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Call ringtone</strong>
+              <span>Choose your incoming call tone</span>
+            </div>
+            <div class="nvpro-select">
+              <select name="call_ringtone" id="callRingtoneSelect">
+                <option value="namvibe_classic" {% if profile_settings.call_ringtone == 'namvibe_classic' %}selected{% endif %}>NamVibe Classic</option>
+                <option value="soft_ring" {% if profile_settings.call_ringtone == 'soft_ring' %}selected{% endif %}>Soft Ring</option>
+                <option value="premium_beep" {% if profile_settings.call_ringtone == 'premium_beep' %}selected{% endif %}>Premium Beep</option>
+                <option value="digital_chime" {% if profile_settings.call_ringtone == 'digital_chime' %}selected{% endif %}>Digital Chime</option>
+                <option value="sunrise" {% if profile_settings.call_ringtone == 'sunrise' %}selected{% endif %}>Sunrise</option>
+                <option value="mellow_tone" {% if profile_settings.call_ringtone == 'mellow_tone' %}selected{% endif %}>Mellow Tone</option>
+                <option value="silent" {% if profile_settings.call_ringtone == 'silent' %}selected{% endif %}>Silent</option>
+              </select>
+              <button type="button" class="nvpro-btn nvpro-btn-secondary" style="margin-left:8px;padding:6px 12px;font-size:12px" onclick="previewRingtone()">Preview</button>
+            </div>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Vibration</strong>
+              <span>Vibrate device when receiving calls where supported</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="call_vibration" {% if profile_settings.call_vibration != false %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Speaker by default</strong>
+              <span>Start calls on loudspeaker when possible</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="speaker_default" {% if profile_settings.speaker_default == true %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+          <div class="nvpro-row">
+            <div class="nvpro-row-text">
+              <strong>Auto-answer headset</strong>
+              <span>Answer faster when headset is connected</span>
+            </div>
+            <label class="nvpro-toggle">
+              <input type="checkbox" name="auto_answer_headset" {% if profile_settings.auto_answer_headset == true %}checked{% endif %}>
+              <span class="track"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <div class="nvpro-save-bar">
+        <a href="/profile/" class="nvpro-btn">Cancel</a>
+        <button class="nvpro-btn nvpro-btn-primary" type="submit">
+          <i class="fas fa-save"></i> Save Settings
+        </button>
+      </div>
     </form>
 
-    <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
-        <a href="/security/devices" style="padding:12px 24px;background:#f1f5f9;border-radius:999px;text-decoration:none;font-weight:800;color:#0f172a;font-size:14px">
-            <i class="fas fa-mobile-alt"></i> Device Management
-        </a>
-        <a href="/security/privacy" style="padding:12px 24px;background:#f1f5f9;border-radius:999px;text-decoration:none;font-weight:800;color:#0f172a;font-size:14px">
-            <i class="fas fa-user-shield"></i> Privacy Settings
-        </a>
-        <a href="/security/events" style="padding:12px 24px;background:#f1f5f9;border-radius:999px;text-decoration:none;font-weight:800;color:#0f172a;font-size:14px">
-            <i class="fas fa-history"></i> Security Events
-        </a>
-        <a href="/safety/trust" style="padding:12px 24px;background:#f1f5f9;border-radius:999px;text-decoration:none;font-weight:800;color:#0f172a;font-size:14px">
-            <i class="fas fa-shield-alt"></i> Trust Summary
-        </a>
-        <a href="/safety/creator-verification" style="padding:12px 24px;background:#f1f5f9;border-radius:999px;text-decoration:none;font-weight:800;color:#0f172a;font-size:14px">
-            <i class="fas fa-badge-check"></i> Creator Verification
-        </a>
+    <hr class="nvpro-divider">
+
+    <div class="nvpro-quick-links">
+      <a href="/security/devices" class="nvpro-quick-link"><i class="fas fa-mobile-alt"></i> Device Management</a>
+      <a href="/security/privacy" class="nvpro-quick-link"><i class="fas fa-user-shield"></i> Privacy Settings</a>
+      <a href="/security/events" class="nvpro-quick-link"><i class="fas fa-history"></i> Security Events</a>
+      <a href="/safety/trust" class="nvpro-quick-link"><i class="fas fa-shield-alt"></i> Trust Summary</a>
+      <a href="/safety/creator-verification" class="nvpro-quick-link"><i class="fas fa-badge-check"></i> Creator Verification</a>
+      <a href="/verification/center" class="nvpro-quick-link"><i class="fas fa-id-card"></i> Identity Verification</a>
+      <a href="/support" class="nvpro-quick-link"><i class="fas fa-headset"></i> Support Center</a>
     </div>
+
+  </div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', async function(){
-  try {
-    const res = await fetch('/encryption/api/status');
-    const data = await res.json();
-    const badge = document.getElementById('e2ee-settings-badge');
-    const fp = document.getElementById('e2ee-settings-fp');
-    if (data.ok) {
-      badge.textContent = data.has_keys ? 'E2EE Active' : 'Keys not set up';
-      badge.style.background = data.has_keys ? '#22c55e' : '#f59e0b';
-      badge.style.color = data.has_keys ? '#fff' : '#000';
-      if (data.public_key_fingerprint) {
-        fp.textContent = data.public_key_fingerprint.slice(0, 32) + '...';
+document.addEventListener('DOMContentLoaded', function() {
+
+  /* Sidebar nav scroll spy */
+  var sections = document.querySelectorAll('.nvpro-section');
+  var navLinks = document.querySelectorAll('.nvpro-settings-sidebar a');
+  var sidebar = document.getElementById('nvpro-sidebar');
+  var toggle = document.getElementById('nvpro-sidebar-toggle');
+
+  function updateActiveSection() {
+    var scrollY = window.scrollY + 120;
+    var activeId = '';
+    sections.forEach(function(s) {
+      if (s.offsetTop <= scrollY) {
+        activeId = s.getAttribute('id');
       }
-    }
-  } catch(e) {}
-});
-document.getElementById('e2ee-settings-rotate')?.addEventListener('click', async function(){
-  if (!confirm('Rotate encryption keys? Old messages stay readable.')) return;
-  try {
-    const res = await fetch('/encryption/api/rotate', { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) { alert('Keys rotated'); location.reload(); }
-    else { alert('Failed: ' + (data.error || 'unknown')); }
-  } catch(e) { alert('Request failed'); }
+    });
+    navLinks.forEach(function(a) {
+      a.classList.toggle('is-active', a.getAttribute('data-section') === activeId);
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveSection, { passive: true });
+  updateActiveSection();
+
+  /* Sidebar smooth scroll */
+  navLinks.forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      var target = document.getElementById(this.getAttribute('data-section'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      if (window.innerWidth <= 820) {
+        sidebar.classList.remove('is-open');
+      }
+    });
+  });
+
+  /* Mobile toggle */
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      sidebar.classList.toggle('is-open');
+    });
+    document.addEventListener('click', function(e) {
+      if (window.innerWidth <= 820 && sidebar.classList.contains('is-open') && !sidebar.contains(e.target) && e.target !== toggle) {
+        sidebar.classList.remove('is-open');
+      }
+    });
+  }
+
+  /* E2EE */
+  (async function() {
+    try {
+      var res = await fetch('/encryption/api/status');
+      var data = await res.json();
+      var badge = document.getElementById('e2ee-settings-badge');
+      var fp = document.getElementById('e2ee-settings-fp');
+      if (badge && data.ok) {
+        var isActive = data.has_keys;
+        badge.textContent = isActive ? 'E2EE Active' : 'Keys not set up';
+        badge.className = 'nvpro-e2ee-badge ' + (isActive ? 'active' : 'inactive');
+        if (data.public_key_fingerprint) {
+          fp.textContent = data.public_key_fingerprint.slice(0, 32) + '...';
+        }
+      }
+    } catch(e) {}
+  })();
+
+  document.getElementById('e2ee-settings-rotate')?.addEventListener('click', async function() {
+    if (!confirm('Rotate encryption keys? Old messages stay readable.')) return;
+    try {
+      var res = await fetch('/encryption/api/rotate', { method: 'POST' });
+      var data = await res.json();
+      if (data.ok) { alert('Keys rotated'); location.reload(); }
+      else { alert('Failed: ' + (data.error || 'unknown')); }
+    } catch(e) { alert('Request failed'); }
+  });
+
+  /* Ringtone preview */
+  window.previewRingtone = function() {
+    var sel = document.getElementById('callRingtoneSelect');
+    if (!sel) return;
+    var val = sel.value;
+    if (val === 'silent') { alert('Silent — no ringtone to preview.'); return; }
+    var audio = new Audio('/static/ringtones/' + val + '.mp3');
+    audio.volume = 0.5;
+    audio.play().catch(function(e) { alert('Tap the page first, then try Preview.'); });
+  };
+
 });
 </script>
 {% endblock %}

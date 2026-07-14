@@ -32,6 +32,7 @@ python scripts/audit_homepage_real_actions.py
 python scripts/test_homepage_click_hooks.py
 python scripts/test_phase178_homepage_experience_engine.py
 python scripts/test_phase179_social_interactions.py
+python scripts/test_e2e_creator_content.py
 ```
 
 ### Restart services
@@ -63,7 +64,13 @@ print('Done')
 - **CSS**: `static/css/namvibe_live.css` — 600+ lines: hub layout, category strip, live cards, go-live modal, room layout, video overlay, chat/gifts/participants/polls/products, gift animations, mobile responsive.
 - **JS**: `static/js/namvibe_live.js` — 500+ lines: `NamVibeLive` global with `initHub()` (loads rooms by category, filter, go-live modal) and `initRoom()` (chat/polling/gifts/participants/polls/webcam/mic/cam toggle/end stream/polling).
 - **API**: `api_routes/live_routes.py` — Blueprint at `/api/live/*` with endpoints: `rooms`, `scheduled`, `start`, `end`, `chat` (GET/POST), `gift`, `participants`, `polls`, `vote`, `products`, `stats`, `wallet/balance`, `wallet/transactions`, `wallet/purchase`, `wallet/packages`, `gifts`, `webrtc-config`, `livekit-token`, `livekit-status`, `turn-status`, `infra-health`.
-- **DB schema**: `sql/phase_live.sql` — original schema (11 tables). `sql/phase_nvc_live.sql` — NVC system: `chain_nvc_wallet`, `chain_nvc_transactions`, `chain_live_gift_catalog` (58 gifts across 5 tiers).
+- **DB schema**: `sql/phase_live.sql` — original schema (11 tables). `sql/phase_nvc_live.sql` — NVC system: `chain_nvc_wallet`, `chain_nvc_transactions`, `chain_live_gift_catalog` (58 gifts across 5 tiers). `sql/phase_config_tables.sql` — 10 config tables with seed data.
+
+## Config API
+- **Blueprint**: `api_routes/config_routes.py` at `/api/config/*` — 11 endpoints serving live config data from Neon DB (categories, gifts, gift tiers, live types, room types, interests, languages, creator types, notification types, reactions, bulk `all`)
+- **DB tables**: `sql/phase_config_tables.sql` — 10 tables with seed data (chain_live_categories, chain_gift_tiers, chain_live_gift_catalog, chain_live_types, chain_room_types, chain_interests, chain_languages, chain_creator_types, chain_notification_types, chain_reaction_types)
+- **Usage**: JS files (`namvibe_live.js`, `notifications_center.js`, `notifications_premium.js`) and onboarding template fetch config via `/api/config/all` or per-endpoint instead of hardcoded data
+- **Test**: `scripts/test_e2e_creator_content.py` — 16/16 tests verifying content creation and public visibility
 
 ## Key files
 - `templates/chain_home.html` — Main homepage template (now loads emoji picker + creative studio CSS/JS)
@@ -88,6 +95,9 @@ print('Done')
 - `templates/founder/dashboard.html` — Full system dashboard (all sections)
 - `sql/phase_founder_dashboard.sql` — Table creation + seed for `chain_founder`
 - `sql/phase_live.sql` — Live DB schema (10 tables + gift seeds)
+- `sql/phase_config_tables.sql` — 10 config tables with seed data
+- `api_routes/config_routes.py` — Config API blueprint (`/api/config/*`)
+- `scripts/test_e2e_creator_content.py` — E2E creator content visibility tests
 
 ## Founder Dashboard
 - URL: `http://localhost:8080/system/login`

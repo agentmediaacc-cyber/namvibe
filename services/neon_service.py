@@ -22,22 +22,62 @@ from services.log_rate_limit_service import sql_fingerprint, should_log
 # Avoid slow pg_attribute/pg_class schema checks during hot requests.
 CHAIN_STATIC_COLUMNS = {
     "chain_profiles": {
-        "id", "auth_user_id", "email", "username", "display_name", "full_name",
-        "avatar_url", "thumbnail_url", "town", "city",
-        "location", "region", "country", "country_origin", "current_country", "current_location",
-        "cover_url", "cover_path", "banner_url", "banner_path",
-        "avatar_size_bytes", "cover_size_bytes", "avatar_mime_type", "cover_mime_type",
-        "avatar_storage_bucket", "cover_storage_bucket", "avatar_storage_path",
-        "cover_storage_path", "avatar_updated_at", "cover_updated_at",
-        "is_verified", "verified", "is_online", "is_online_status", "is_creator", "creator_category",
-        "dating_mode_enabled", "is_premium", "wallet_balance", "profile_completed",
-        "followers_count", "following_count", "posts_count", "reels_count", "friends_count", "saved_count",
-        "tagged_count", "bio", "is_public", "photo_url",
-        "deleted_at", "created_at", "updated_at", "bio",
-        "visibility", "profile_visibility", "profile_type", "terms_accepted_at",
-        "privacy_accepted_at", "privacy_accepted", "privacy_version", "terms_version",
-        "who_can_message", "who_can_call", "who_can_see_status",
-        "message_only_after_match", "tour_seen"
+        "account_data_requested_at","account_delete_requested_at","account_mode","account_trust_level",
+        "account_type","active_theme","activities","activity_level","activity_status","age",
+        "ai_bio_suggestions","ai_creator_recommendations","ai_friend_suggestions","ai_growth_analysis",
+        "ai_profile_summary","allow_birthday_notifications","allow_dating","allow_gifts","allow_messages",
+        "allow_zodiac_display","anonymous_profile","auth_provider","auth_user_id","avatar_mime_type",
+        "avatar_size_bytes","avatar_storage_bucket","avatar_storage_path","avatar_updated_at",
+        "avatar_upload_id","avatar_url","banner_path","banner_url","bio","business_appointments_enabled",
+        "business_badge","business_booking_url","business_catalogue","business_category",
+        "business_contact_email","business_contact_phone","business_delivery_enabled",
+        "business_description","business_licence","business_location_data","business_name",
+        "business_opening_hours","business_products","business_services","business_website","chain_score",
+        "cities_visited","city","city_name","community_rating","company","completion_percentage",
+        "contact_button_label","contact_button_url","countries_visited","country","country_flag",
+        "country_of_birth","country_origin","cover_mime_type","cover_path","cover_size_bytes",
+        "cover_storage_bucket","cover_storage_path","cover_updated_at","cover_upload_id","cover_url",
+        "cover_video_url","created_at","creator_badge","creator_category","creator_level",
+        "creator_level_updated_at","creator_mode_enabled","current_activity","current_country",
+        "current_location","current_residential_location","date_of_birth","dating_mode_enabled",
+        "deleted_at","display_name","driving_licence","earnings_badge","email","email_verified",
+        "employee_card","favorite_artists","favorite_games","favorite_songs","fitness_calories",
+        "fitness_cycling","fitness_goals","fitness_running","fitness_sleep","fitness_steps",
+        "fitness_workouts","followers_count","following_count","friendliness_score","friends_count",
+        "full_name","gaming_achievements","gaming_level","gender","gold_badge","government_badge",
+        "has_active_verified_badge","health_card","human_confirmed","id","identity_verified","interests",
+        "is_creator","is_fake","is_online","is_premium","is_public","is_verified","languages",
+        "last_email_change","last_ip","last_login_at","last_password_change","last_phone_change",
+        "last_trust_update","linked_providers","live_rooms_count","local_time","location","login_count",
+        "looking_for","marketplace_items_selling","marketplace_purchased","marketplace_reviews",
+        "marketplace_wishlist","medical_badge","member_since","message_only_after_match","mood_emoji",
+        "mood_text","nationality","ngo_badge","normalized_email","normalized_phone","oauth_metadata",
+        "occupation","onboarding_step","password_set","phone","photo_url","playlists","popularity_score",
+        "portfolio_projects","portfolio_url","posts_count","preferred_language","premium_badge",
+        "premium_mode_enabled","premium_only_follow","premium_tier","privacy_accepted",
+        "privacy_accepted_at","privacy_version","professional_membership","profile_completed",
+        "profile_completion","profile_level","profile_photo","profile_score","profile_theme",
+        "profile_type","profile_video_url","profile_views","profile_visibility","pronouns",
+        "provider_user_id","quote_of_day","rank","recently_played","reels_count","region",
+        "relationship_goal","relationship_status","report_count","require_coins_to_follow",
+        "residential_address","response_rate","response_time","safety_score","saved_count",
+        "scam_protection","school","seller_mode_enabled","show_email_publicly","show_location_publicly",
+        "show_phone_publicly","show_zodiac","skills","storage_bucket","storage_path","student_badge",
+        "student_card","subscribers_count","subscriptions_count","supporter_count","suspicious_score",
+        "tagged_count","teacher_badge","terms_accepted","terms_accepted_at","terms_version",
+        "theme_purchased","thumbnail_url","total_achievements","total_albums","total_bookmarks",
+        "total_collections","total_comments","total_downloads","total_earnings","total_earnings_cents",
+        "total_followers","total_gifts_cents","total_likes","total_live_hours",
+        "total_marketplace_sales","total_messages","total_post_likes","total_profile_views",
+        "total_shares","total_subscribers","total_tips_cents","total_video_calls","total_views",
+        "total_voice_calls","tour_seen","town","travel_wishlist","trust_score","university",
+        "updated_at","username","username_slug","verification_date","verification_type","verified",
+        "verified_badge","verified_id","video_intro_url","visibility","volunteer_badge","wallet_balance",
+        "wallet_revenue","wallet_rewards","wallet_tips","weather_emoji","weather_temp","website",
+        "who_can_call","who_can_follow","who_can_follow_me","who_can_message","who_can_message_me",
+        "who_can_see_followers","who_can_see_following","who_can_see_posts","who_can_see_reels",
+        "who_can_see_status","who_can_see_stories","who_can_send_friend_requests","who_can_view_posts",
+        "who_can_view_reels","zodiac_sign",
     },
     "chain_posts": {
         "id", "profile_id", "body", "caption", "content", "post_type", "link_url",
@@ -55,6 +95,12 @@ CHAIN_STATIC_COLUMNS = {
         "likes_count", "comments_count", "shares_count", "views_count",
         "is_archived", "is_pinned", "scheduled_at",
         "deleted_at", "created_at", "updated_at"
+    },
+    "chain_reel_reactions": {
+        "id", "profile_id", "reel_id", "reaction_type", "created_at"
+    },
+    "chain_reel_comments": {
+        "id", "profile_id", "reel_id", "body", "created_at"
     },
     "chain_message_threads": {
         "id", "thread_type", "created_by_profile_id", "folder_type",
@@ -211,7 +257,7 @@ def _schema_checks_disabled() -> bool:
 
 
 def _startup_db_ping_disabled() -> bool:
-    return _flag_enabled("CHAIN_DISABLE_DB_PING") or _flag_enabled("CHAIN_FAST_LOCAL")
+    return _flag_enabled("CHAIN_DISABLE_DB_PING")
 
 # Configuration from Environment
 DATABASE_URL = (get_env("DATABASE_URL", "") or "").strip()
@@ -830,7 +876,7 @@ def get_neon_health():
 
 def prime_neon_runtime():
     """Pre-warms the connection pool."""
-    if _flag_enabled("CHAIN_FAST_LOCAL") or _flag_enabled("CHAIN_DISABLE_PREWARM") or _startup_db_ping_disabled():
+    if _flag_enabled("CHAIN_DISABLE_PREWARM") or _startup_db_ping_disabled():
         return None
     _DB_EXECUTOR.submit(_pool_instance)
 

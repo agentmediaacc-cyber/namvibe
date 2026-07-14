@@ -206,7 +206,7 @@ input,select,textarea{font-size:16px!important;color:#0f172a!important;backgroun
       <div><dt>Phone</dt><dd>{{ p.contact_phone }}</dd></div>
       {% endif %}
       <div><dt>Category</dt><dd>{{ p.category|title or 'Business' }}</dd></div>
-      <div><dt>Joined</dt><dd>{{ p.created_at[:10] if p.created_at else 'N/A' }}</dd></div>
+      <div><dt>Joined</dt><dd>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else 'N/A' }}</dd></div>
     </div>
   </div>
 

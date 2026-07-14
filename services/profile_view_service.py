@@ -12,6 +12,44 @@ def _as_int(value):
         return 0
 
 
+def _compute_years(created_at):
+    if not created_at:
+        return 0
+    try:
+        if isinstance(created_at, str):
+            dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        else:
+            dt = created_at
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return max(1, (datetime.now(timezone.utc) - dt).days // 365)
+    except Exception:
+        return 0
+
+
+def _member_year(created_at):
+    if not created_at:
+        return ""
+    try:
+        if isinstance(created_at, str):
+            dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        else:
+            dt = created_at
+        return str(dt.year)
+    except Exception:
+        return ""
+
+
+def _format_list(value):
+    if not value:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(x) for x in value if x)
+    return str(value)
+
+
 def _present(value):
     return value not in (None, "", [], {})
 
@@ -218,4 +256,121 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "has_active_stories": bool(content.get("stories") if isinstance(content, dict) else False),
         "mutual_friends": mutual_friends.get("items") or [],
         "report_url": f"/report/profile/{profile.get('id')}" if profile.get("id") else None,
+
+        # ─── Premium profile field passthrough ───
+        "pronouns": profile.get("pronouns"),
+        "occupation": profile.get("occupation"),
+        "company": profile.get("company"),
+        "school": profile.get("school"),
+        "university": profile.get("university"),
+        "premium_tier": profile.get("premium_tier") or "free",
+        "verification_type": profile.get("verification_type") or ("gold" if profile.get("verified") and (profile.get("identity_verified") or profile.get("professional_membership")) else ("blue" if profile.get("verified") or profile.get("is_verified") else "none")),
+        "is_gold_verified": bool(profile.get("verification_type") == "gold" or (bool(profile.get("verified")) and (bool(profile.get("identity_verified")) or bool(profile.get("professional_membership"))))),
+        "gold_badge": bool(profile.get("gold_badge") or (profile.get("verification_type") == "gold")),
+        "premium_badge": bool(profile.get("premium_badge")),
+        "creator_badge": bool(profile.get("creator_badge")),
+        "business_badge": bool(profile.get("business_badge")),
+        "government_badge": bool(profile.get("government_badge")),
+        "ngo_badge": bool(profile.get("ngo_badge")),
+        "student_badge": bool(profile.get("student_badge")),
+        "medical_badge": bool(profile.get("medical_badge")),
+        "teacher_badge": bool(profile.get("teacher_badge")),
+        "profile_score": _as_int(profile.get("profile_score")),
+        "profile_level": profile.get("profile_level") or "Bronze",
+        "country_flag": profile.get("country_flag"),
+        "city_name": profile.get("city_name"),
+        "current_activity": profile.get("current_activity"),
+        "mood_emoji": profile.get("mood_emoji"),
+        "mood_text": profile.get("mood_text"),
+        "local_time": profile.get("local_time"),
+        "weather_emoji": profile.get("weather_emoji"),
+        "weather_temp": profile.get("weather_temp"),
+        "quote_of_day": profile.get("quote_of_day"),
+        "activity_status": profile.get("activity_status") or "online",
+        "total_profile_views": _as_int(profile.get("total_profile_views") or profile.get("profile_views")),
+        "total_likes": _as_int(profile.get("total_likes") or stats.get("likes")),
+        "total_shares": _as_int(profile.get("total_shares")),
+        "total_bookmarks": _as_int(profile.get("total_bookmarks")),
+        "total_achievements": _as_int(profile.get("total_achievements")),
+        "total_collections": _as_int(profile.get("total_collections")),
+        "total_albums": _as_int(profile.get("total_albums")),
+        "years_on_namvibe": _compute_years(profile.get("created_at")),
+        "trust_score": _as_int(profile.get("trust_score")),
+        "community_rating": profile.get("community_rating"),
+        "friendliness_score": _as_int(profile.get("friendliness_score")),
+        "safety_score": _as_int(profile.get("safety_score")),
+        "response_rate": _as_int(profile.get("response_rate")),
+        "response_time": profile.get("response_time") or "< 1h",
+        "popularity_score": _as_int(profile.get("popularity_score")),
+        "activity_level": _as_int(profile.get("activity_level")),
+        "identity_verified": bool(profile.get("identity_verified") or profile.get("is_verified")),
+        "scam_protection": bool(profile.get("scam_protection") if profile.get("scam_protection") is not None else True),
+        "languages_list": _format_list(profile.get("languages") or profile.get("preferred_language")),
+        "interests_list": _format_list(profile.get("interests")),
+        "skills_list": _format_list(profile.get("skills")),
+        "member_since_year": _member_year(profile.get("created_at")),
+        "city": (profile.get("city_name") or profile.get("city") or profile.get("town") or ""),
+        "total_comments": _as_int(profile.get("total_comments")),
+        "total_downloads": _as_int(profile.get("total_downloads")),
+        "total_live_hours": _as_int(profile.get("total_live_hours")),
+        "total_voice_calls": _as_int(profile.get("total_voice_calls")),
+        "total_video_calls": _as_int(profile.get("total_video_calls")),
+        "total_messages": _as_int(profile.get("total_messages")),
+        "total_visits": _as_int(profile.get("total_visits") or profile.get("profile_views")),
+        "total_earnings": profile.get("total_earnings") or 0,
+        "total_marketplace_sales": _as_int(profile.get("total_marketplace_sales")),
+        "relationship_status": profile.get("relationship_status") or "",
+        "email": profile.get("email") or "",
+        "phone": profile.get("phone") or "",
+        "cover_video_url": profile.get("cover_video_url") or profile.get("profile_video_url") or "",
+        "nationality": profile.get("nationality") or "",
+        "verified_id": bool(profile.get("verified_id") or profile.get("identity_verified")),
+        "driving_licence": bool(profile.get("driving_licence")),
+        "student_card": bool(profile.get("student_card")),
+        "employee_card": bool(profile.get("employee_card")),
+        "health_card": bool(profile.get("health_card")),
+        "business_licence": bool(profile.get("business_licence")),
+        "professional_membership": bool(profile.get("professional_membership")),
+        "volunteer_badge": bool(profile.get("volunteer_badge")),
+        "favorite_songs": profile.get("favorite_songs") or [],
+        "recently_played": profile.get("recently_played") or [],
+        "playlists": profile.get("playlists") or [],
+        "favorite_artists": profile.get("favorite_artists") or [],
+        "favorite_games_list": profile.get("favorite_games") or [],
+        "gaming_level": profile.get("gaming_level") or "",
+        "gaming_achievements": profile.get("gaming_achievements") or [],
+        "countries_visited": profile.get("countries_visited") or [],
+        "cities_visited": profile.get("cities_visited") or [],
+        "travel_wishlist": profile.get("travel_wishlist") or [],
+        "fitness_steps": _as_int(profile.get("fitness_steps")),
+        "fitness_workouts": _as_int(profile.get("fitness_workouts")),
+        "fitness_cycling": _as_int(profile.get("fitness_cycling")),
+        "fitness_running": _as_int(profile.get("fitness_running")),
+        "fitness_calories": _as_int(profile.get("fitness_calories")),
+        "fitness_goals": profile.get("fitness_goals") or "",
+        "fitness_sleep": profile.get("fitness_sleep") or "",
+        "marketplace_items_selling": _as_int(profile.get("marketplace_items_selling")),
+        "marketplace_wishlist": _as_int(profile.get("marketplace_wishlist")),
+        "marketplace_purchased": _as_int(profile.get("marketplace_purchased")),
+        "marketplace_reviews": _as_int(profile.get("marketplace_reviews")),
+        "wallet_coins": _as_int(wallet.get("coin_balance") if isinstance(wallet, dict) else 0),
+        "wallet_rewards": _as_int(profile.get("wallet_rewards")),
+        "wallet_tips": _as_int(profile.get("wallet_tips")),
+        "wallet_revenue": _as_int(profile.get("wallet_revenue")),
+        "subscriptions_count": _as_int(profile.get("subscriptions_count")),
+        "subscribers_count": _as_int(profile.get("subscribers_count")),
+        "studio_enabled": bool(creator.get("studio_enabled") if isinstance(creator, dict) else False),
+        "business_name": profile.get("business_name") or profile.get("company") or "",
+        "business_hours": profile.get("business_opening_hours") or "",
+        "business_map": profile.get("business_location_data") or "",
+        "business_whatsapp": profile.get("business_contact_phone") or "",
+        "business_booking": profile.get("business_booking_url") or "",
+        "business_appointments": profile.get("business_appointments_enabled") or False,
+        "business_delivery": profile.get("business_delivery_enabled") or False,
+        "business_catalogue": profile.get("business_catalogue") or [],
+        "ai_profile_summary": profile.get("ai_profile_summary") or "",
+        "ai_bio_suggestions": profile.get("ai_bio_suggestions") or [],
+        "ai_friend_suggestions": profile.get("ai_friend_suggestions") or [],
+        "ai_creator_recommendations": profile.get("ai_creator_recommendations") or [],
+        "ai_growth_analysis": profile.get("ai_growth_analysis") or "",
     }

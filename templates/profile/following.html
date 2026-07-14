@@ -29,7 +29,7 @@
       <div class="people-info">
         <strong>{{ f.display_name or f.username or 'NamVibe User' }}</strong>
         <span>@{{ f.username or 'user' }}</span>
-        {% if f.created_at %}<small>Followed {{ f.created_at[:10] }}</small>{% endif %}
+        {% if f.created_at %}<small>Followed {{ f.created_at.strftime('%Y-%m-%d') }}</small>{% endif %}
       </div>
       <div class="people-actions">
         <a href="/profile/@{{ f.username }}" class="action-btn" title="View Profile"><i class="fas fa-user"></i></a>

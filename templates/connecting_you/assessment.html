@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Relationship Assessment — Connecting You{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <a href="/dating/connecting-you/" class="cy-back">← Back</a>
+    <h1>Relationship Assessment 🧩</h1>
+    <p>Answer these questions to build your compatibility profile. The more you share, the better your matches.</p>
+  </div>
+
+  {% if responses %}
+  <div class="cy-alert cy-alert-info">
+    <strong>You've completed {{ responses|length }}/{{ questions|length }} questions.</strong> Your compatibility score: {{ enrollment.compatibility_score or 0 }}%
+  </div>
+  {% endif %}
+
+  <form id="cyAssessmentForm" class="cy-form">
+    <div class="cy-progress-bar">
+      <div class="cy-progress-fill" id="cyProgress" style="width: 0%"></div>
+      <span id="cyProgressText">0/{{ questions|length }}</span>
+    </div>
+
+    {% set answered_map = {} %}
+    {% for r in responses %}
+    {% set _ = answered_map.update({r.question_id: r.answer}) %}
+    {% endfor %}
+
+    {% for q in questions %}
+    <div class="cy-assess-card" data-qid="{{ q.id }}">
+      <div class="cy-assess-category">{{ q.category|title }}</div>
+      <h3>{{ q.question }}</h3>
+      <div class="cy-assess-options">
+        {% for opt in q.options %}
+        <label class="cy-assess-opt {% if answered_map.get(q.id) == opt %}cy-assess-opt-active{% endif %}">
+          <input type="radio" name="q_{{ q.id }}" value="{{ opt }}" {% if answered_map.get(q.id) == opt %}checked{% endif %}>
+          <span>{{ opt }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="cy-btn cy-btn-primary cy-btn-lg cy-btn-full">
+      Save Assessment {% if responses %}(Update){% endif %}
+    </button>
+  </form>
+</div>
+<script>
+(function() {
+  var form = document.getElementById('cyAssessmentForm');
+  var total = document.querySelectorAll('.cy-assess-card').length;
+  var progress = document.getElementById('cyProgress');
+  var progressText = document.getElementById('cyProgressText');
+
+  function updateProgress() {
+    var answered = document.querySelectorAll('.cy-assess-opt-active').length;
+    var pct = total > 0 ? (answered / total * 100) : 0;
+    progress.style.width = pct + '%';
+    progressText.textContent = answered + '/' + total;
+  }
+  document.querySelectorAll('.cy-assess-opt input').forEach(function(inp) {
+    inp.addEventListener('change', function() {
+      var card = this.closest('.cy-assess-card');
+      card.querySelectorAll('.cy-assess-opt').forEach(function(o) { o.classList.remove('cy-assess-opt-active'); });
+      this.closest('.cy-assess-opt').classList.add('cy-assess-opt-active');
+      updateProgress();
+    });
+  });
+  updateProgress();
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var answers = [];
+    document.querySelectorAll('.cy-assess-card').forEach(function(card) {
+      var qid = parseInt(card.dataset.qid);
+      var checked = card.querySelector('input:checked');
+      if (checked) answers.push({question_id: qid, answer: checked.value});
+    });
+    fetch('/dating/connecting-you/api/assessment/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+      body: JSON.stringify({answers: answers})
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.ok) { alert('Assessment saved! Your score: ' + d.score + '%'); window.location.href = '/dating/connecting-you/browse'; }
+      else { alert(d.error || 'Failed to save'); }
+    });
+  });
+})();
+</script>
+{% endblock %}

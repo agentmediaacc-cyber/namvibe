@@ -293,3 +293,75 @@ def upload_live_cover(profile_id, file):
         return None, error
     upload_id = record_media_upload(profile_id, "live_cover", result["bucket"], result["path"], result["url"], result["mime_type"], result["size_bytes"], file.filename)
     return {**result, "upload_id": upload_id}, None
+
+def upload_support_attachment(file, ticket_id, profile_id):
+    """Upload a support ticket attachment with proper validation.
+
+    Security:
+    - Validates file extension (images, documents, video)
+    - Validates MIME type against allowlist
+    - Validates extension/MIME match
+    - Validates file size (max 10MB)
+    - Uses secure_filename to prevent path traversal
+    - Links to ticket and profile for ownership verification
+    - Files are stored as private (not publicly accessible)
+    - Rejects empty files
+    """
+    from services.neon_service import execute as db_execute
+    import os, time
+    from werkzeug.utils import secure_filename
+
+    # Validate file exists
+    if not file or not getattr(file, "filename", ""):
+        return None, "No file provided"
+
+    # Secure filename to prevent path traversal
+    original_filename = file.filename or "attachment"
+    filename = secure_filename(original_filename)
+    if not filename:
+        filename = f"attachment_{int(time.time())}"
+
+    # Extension to MIME mapping for validation
+    allowed_types = {
+        "jpg": {"image/jpeg"},
+        "jpeg": {"image/jpeg"},
+        "png": {"image/png"},
+        "webp": {"image/webp"},
+        "gif": {"image/gif"},
+        "pdf": {"application/pdf"},
+        "mp4": {"video/mp4"},
+        "mov": {"video/quicktime"},
+        "webm": {"video/webm"},
+    }
+
+    # Validate extension
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    if ext not in allowed_types:
+        return None, f"File type not allowed. Allowed: {', '.join(sorted(allowed_types.keys()))}"
+
+    # Validate MIME type and match with extension
+    content_type = file.content_type or ''
+    if content_type not in allowed_types.get(ext, set()):
+        return None, "File extension and MIME type do not match"
+
+    # Check file size (max 10MB)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    if file_size == 0:
+        return None, "Empty file not allowed"
+    if file_size > 10 * 1024 * 1024:
+        return None, "File too large. Max 10MB allowed."
+
+    # Upload to storage
+    result, error = upload_file_to_bucket(file, 'chain-support', profile_id, 'support_attachment', public=False)
+    if error:
+        return None, error
+
+    # Record attachment metadata
+    db_execute(
+        "INSERT INTO chain_support_ticket_attachments (ticket_id, profile_id, filename, filepath, file_size, mime_type) VALUES (%s,%s,%s,%s,%s,%s)",
+        (ticket_id, profile_id, filename, result.get("path") or result.get("url", ""), file_size, content_type),
+        timeout_ms=5000,
+    )
+    return result, None

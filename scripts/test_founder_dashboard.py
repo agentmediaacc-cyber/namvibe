@@ -671,7 +671,7 @@ class TestFounderSQLContract(unittest.TestCase):
         path = os.path.join(os.path.dirname(__file__), "..", "sql", "phase_founder_dashboard.sql")
         with open(path) as f:
             content = f.read()
-        self.assertIn("CREATE TABLE IF NOT EXISTS chain_founder", content)
+        self.assertIn("CREATE TABLE chain_founder", content)
         self.assertIn("password_hash VARCHAR(255) NOT NULL", content)
         self.assertIn("username VARCHAR(100) UNIQUE NOT NULL", content)
 
@@ -680,7 +680,7 @@ class TestFounderSQLContract(unittest.TestCase):
         path = os.path.join(os.path.dirname(__file__), "..", "sql", "phase_founder_dashboard.sql")
         with open(path) as f:
             content = f.read()
-        self.assertIn("CREATE INDEX IF NOT EXISTS", content)
+        self.assertIn("CREATE INDEX idx_chain_founder", content)
 
     def test_sql_has_constraints(self):
         """SQL should have constraints on password_hash length."""

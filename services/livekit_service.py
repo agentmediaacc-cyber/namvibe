@@ -4,6 +4,7 @@ import os
 import time
 import logging
 from typing import Optional
+import re
 
 from services.env_service import get_env
 
@@ -11,11 +12,31 @@ logger = logging.getLogger(__name__)
 
 LIVEKIT_API_KEY = get_env("LIVEKIT_API_KEY", "")
 LIVEKIT_API_SECRET = get_env("LIVEKIT_API_SECRET", "")
-LIVEKIT_HOST = get_env("LIVEKIT_HOST", "localhost:7880")
-LIVEKIT_WS_URL = get_env("LIVEKIT_WS_URL", "ws://localhost:7880")
+LIVEKIT_URL = get_env("LIVEKIT_URL", "")
+LIVEKIT_WS_URL = get_env("LIVEKIT_WS_URL", "")
+
+# Derive LIVEKIT_WS_URL from LIVEKIT_URL if not set
+if not LIVEKIT_WS_URL and LIVEKIT_URL:
+    LIVEKIT_WS_URL = LIVEKIT_URL.replace("https://", "wss://")
+
+# Derive LIVEKIT_HOST from LIVEKIT_URL if not set
+_lk_host_raw = get_env("LIVEKIT_HOST", "")
+if not _lk_host_raw and LIVEKIT_URL:
+    from urllib.parse import urlparse
+    _parsed = urlparse(LIVEKIT_URL)
+    _lk_host_raw = _parsed.hostname or ""
+    port = _parsed.port or 443
+    _lk_host_raw += f":{port}"
+LIVEKIT_HOST = _lk_host_raw or "localhost:7880"
 
 _ACCESS_TOKEN_CACHE = {}
 _ROOM_CACHE = {}
+
+
+def sanitize_room_name(room_name: str) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9:_-]+", "-", str(room_name or "").strip())
+    cleaned = cleaned.strip("-:_")
+    return (cleaned or "live-room")[:128]
 
 def livekit_configured() -> bool:
     return bool(LIVEKIT_API_KEY and LIVEKIT_API_SECRET and LIVEKIT_HOST)
@@ -38,15 +59,18 @@ def create_livekit_token(identity: str, room_name: str, *,
         return None
     try:
         from livekit.api import AccessToken, VideoGrants
+        import datetime
+        room_name = sanitize_room_name(room_name)
         grant = VideoGrants(
             room_join=True,
             room=room_name,
             can_publish=can_publish,
             can_subscribe=can_subscribe,
         )
-        token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, 
-                           identity=identity, ttl=ttl_seconds)
-        token.add_grant(grant)
+        token = AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        token.with_identity(identity)
+        token.with_ttl(datetime.timedelta(seconds=ttl_seconds))
+        token.with_grants(grant)
         jwt = token.to_jwt()
         cache_key = f"{identity}:{room_name}"
         _ACCESS_TOKEN_CACHE[cache_key] = {"token": jwt, "expires": time.time() + ttl_seconds}
@@ -55,7 +79,7 @@ def create_livekit_token(identity: str, room_name: str, *,
         logger.error("[livekit] livekit package not installed. Run: pip install livekit")
         return None
     except Exception as e:
-        logger.error(f"[livekit] Token creation failed: {e}")
+        logger.error("[livekit] Token creation failed")
         return None
 
 def create_ingress_token(identity: str, room_name: str) -> Optional[str]:
@@ -106,20 +130,42 @@ def check_livekit_health() -> dict:
         return {"status": "not_configured", "ok": False}
     try:
         from livekit.api import LiveKitAPI
+        from livekit.api.room_service import ListRoomsRequest
         import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        api = LiveKitAPI(LIVEKIT_HOST, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
-        rooms = loop.run_until_complete(api.room.list_rooms())
-        loop.run_until_complete(api.aclose())
-        loop.close()
+        import aiohttp
+        import ssl
+        api_url = LIVEKIT_URL or f"https://{LIVEKIT_HOST.split(':')[0]}:443"
+        host = LIVEKIT_HOST.split(":")[0] or "localhost"
+
+        async def _check():
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+            timeout = aiohttp.ClientTimeout(total=10)
+            connector = aiohttp.TCPConnector(ssl=ssl_ctx)
+            session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+            try:
+                api = LiveKitAPI(
+                    url=api_url,
+                    api_key=LIVEKIT_API_KEY,
+                    api_secret=LIVEKIT_API_SECRET,
+                    session=session,
+                )
+                req = ListRoomsRequest()
+                resp = await api.room.list_rooms(req)
+                await api.aclose()
+                return resp.rooms
+            finally:
+                await session.close()
+
+        rooms = asyncio.run(_check())
         return {
             "status": "ok",
             "ok": True,
             "room_count": len(rooms),
-            "host": LIVEKIT_HOST,
+            "host": host,
         }
-    except ImportError:
-        return {"status": "no_sdk", "ok": False, "message": "livekit package not installed"}
+    except ImportError as e:
+        return {"status": "no_sdk", "ok": False, "message": f"livekit package not installed: {e}"}
     except Exception as e:
         return {"status": "error", "ok": False, "error": str(e)[:200]}

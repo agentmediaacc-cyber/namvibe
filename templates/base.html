@@ -365,10 +365,6 @@
         input, textarea, select, button, [contenteditable] {
             font-size: 16px !important;
         }
-        ::placeholder, [placeholder] {
-            color: #64748b !important;
-            opacity: 1 !important;
-        }
         input, select, textarea {
             color: #0f172a !important;
             background: #f8fafc !important;
@@ -405,17 +401,16 @@
         <nav class="sidebar-nav">
             <a href="/" class="sidebar-link active"><i class="fas fa-home"></i> Home</a>
             <a href="/discover/" class="sidebar-link"><i class="fas fa-compass"></i> Discover</a>
-            <a href="/live/" class="sidebar-link"><i class="fas fa-video"></i> Live</a>
             <a href="/reels/" class="sidebar-link"><i class="fas fa-film"></i> Reels</a>
             <a href="/status/" class="sidebar-link"><i class="fas fa-circle-notch"></i> Stories</a>
+            <a href="/messages/" class="sidebar-link"><i class="fas fa-comment-dots"></i> Messages</a>
+            <a href="/dating/" class="sidebar-link"><i class="fas fa-heart"></i> Dating</a>
+            <a href="/calls/" class="sidebar-link"><i class="fas fa-phone"></i> Calls</a>
             
             {% if g_current %}
-            <a href="/inbox/" class="sidebar-link"><i class="fas fa-inbox"></i> Inbox</a>
-            <a href="/contacts/" class="sidebar-link"><i class="fas fa-address-book"></i> Contacts</a>
-            <a href="/wallet/" class="sidebar-link"><i class="fas fa-wallet"></i> Wallet</a>
-            <a href="/dating/discover" class="sidebar-link"><i class="fas fa-heart"></i> Dating</a>
+            <a href="/marketplace/" class="sidebar-link"><i class="fas fa-store"></i> Marketplace</a>
+            <a href="/live/" class="sidebar-link"><i class="fas fa-video"></i> Live</a>
             <a href="/notifications/" class="sidebar-link"><i class="fas fa-bell"></i> Notifications</a>
-            <a href="/safety/" class="sidebar-link"><i class="fas fa-shield-alt"></i> Safety Center</a>
             <a href="/profile/" class="sidebar-link"><i class="fas fa-user-circle"></i> Profile</a>
             <a href="/profile/settings" class="sidebar-link"><i class="fas fa-cog"></i> Settings</a>
             <hr style="border: none; border-top: 1px solid var(--chain-border); margin: 15px 0;">
@@ -437,15 +432,16 @@
         <nav class="social-drawer__nav">
             <a href="/"><i class="fas fa-home"></i>Home</a>
             <a href="/discover/"><i class="fas fa-compass"></i>Discover</a>
-            <a href="/live/"><i class="fas fa-video"></i>Live</a>
             <a href="/reels/"><i class="fas fa-film"></i>Reels</a>
             <a href="/status/"><i class="fas fa-circle-notch"></i>Stories</a>
-            <a href="/inbox/"><i class="fas fa-inbox"></i>Inbox</a>
-            <a href="/contacts/"><i class="fas fa-address-book"></i>Contacts</a>
-            <a href="/calls/recent"><i class="fas fa-phone"></i>Calls</a>
-            <a href="/dating/discover"><i class="fas fa-heart"></i>Dating</a>
-            <a href="/wallet/"><i class="fas fa-wallet"></i>Wallet</a>
+            <a href="/messages/"><i class="fas fa-comment-dots"></i>Messages</a>
+            <a href="/dating/"><i class="fas fa-heart"></i>Dating</a>
+            <a href="/calls/"><i class="fas fa-phone"></i>Calls</a>
+            <a href="/marketplace/"><i class="fas fa-store"></i>Marketplace</a>
+            <a href="/live/"><i class="fas fa-video"></i>Live</a>
+            <a href="/notifications/"><i class="fas fa-bell"></i>Notifications</a>
             <a href="/profile/"><i class="fas fa-user-circle"></i>Profile</a>
+            <a href="/profile/settings"><i class="fas fa-cog"></i>Settings</a>
             {% if g_current %}
             <a href="/auth/logout"><i class="fas fa-sign-out-alt"></i>Sign Out</a>
             {% else %}
@@ -463,8 +459,8 @@
         {% if not is_auth_surface %}
         <header class="top-header">
             {% if not is_admin_surface %}
-            <button type="button" class="social-menu-btn" data-social-drawer-open aria-label="Open menu" aria-expanded="false" aria-controls="social-drawer">
-                <i class="fas fa-bars"></i>
+            <button type="button" class="nv-hamburger" data-social-drawer-open aria-label="Open menu" aria-expanded="false" aria-controls="social-drawer">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             </button>
             <a href="/" class="social-top-brand" aria-label="NamVibe home">NamVibe</a>
             {% endif %}
@@ -772,12 +768,12 @@
           .then(function(r){ return r.ok ? r.json() : null; })
           .then(function(data){
             if (!data || data.ok === false) {
-              b.textContent = "Connection lost. Trying to reconnect...";
+              b.textContent = "Reconnecting...";
               b.classList.add("show");
             }
           })
           .catch(function(){
-            b.textContent = "Connection lost. Trying to reconnect...";
+            b.textContent = "Reconnecting...";
             b.classList.add("show");
           });
         reconnectTimer = null;

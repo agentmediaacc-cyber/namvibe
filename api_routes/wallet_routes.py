@@ -454,7 +454,8 @@ def index():
         summary = f_summary.result()
         breakdown = f_breakdown.result()
         payout_methods = f_payout.result()
-    return render_template('wallet/index.html', profile=profile, wallet=wallet, transactions=txs, summary=summary, breakdown=breakdown, payout_methods=payout_methods)
+    from services.pricing_config import COIN_PACKS, MEMBERSHIP_TIERS, CREATOR_SUBSCRIPTION_TIERS, LIVE_GIFTS, VERIFICATION_FEES, PROFILE_THEMES, ADVERTISING, EXTRA_STORAGE, EARNING_METHODS, COIN_VALUE_NAD
+    return render_template('wallet/index.html', profile=profile, wallet=wallet, transactions=txs, summary=summary, breakdown=breakdown, payout_methods=payout_methods, coin_packs=COIN_PACKS, membership_tiers=MEMBERSHIP_TIERS, creator_subscription_tiers=CREATOR_SUBSCRIPTION_TIERS, live_gifts=LIVE_GIFTS, verification_fees=VERIFICATION_FEES, profile_themes=PROFILE_THEMES, advertising=ADVERTISING, extra_storage=EXTRA_STORAGE, earning_methods=EARNING_METHODS, coin_value_nad=COIN_VALUE_NAD)
 
 
 @wallet_bp.route('/withdraw')

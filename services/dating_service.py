@@ -62,6 +62,24 @@ def _rows_to_list(rows):
     return [_row_to_dict(r) for r in rows]
 
 
+def _may_see_phone(viewer_profile, dating_profile):
+    """Phone is only visible if viewer is premium AND dating profile has show_phone_publicly=true."""
+    if not viewer_profile or not dating_profile:
+        return False
+    is_premium = bool(viewer_profile.get("is_premium") or viewer_profile.get("premium_tier") not in (None, "", "free"))
+    show_phone = bool(dating_profile.get("show_phone_publicly", False))
+    return is_premium and show_phone
+
+
+def _strip_sensitive(dating_row):
+    """Remove sensitive fields (phone) from a dating profile row."""
+    if not dating_row:
+        return dating_row
+    if isinstance(dating_row, dict):
+        dating_row.pop("phone", None)
+    return dating_row
+
+
 # ─── DATING PROFILE ──────────────────────────────────────────
 
 def get_dating_profile(profile_id):
@@ -89,6 +107,7 @@ def update_dating_profile(profile_id, **kwargs):
         "dating_mode_on", "relationship_goal", "age_range_min", "age_range_max",
         "location_preference", "bio", "interests", "photos", "verification_status",
         "trust_score", "safety_badge", "hide_from_contacts", "visible_to_verified_only",
+        "show_phone_publicly",
     ]
     sets = []
     vals = []
@@ -214,6 +233,17 @@ def _record_action(actor_id, target_id, action_type):
             )
             result["is_match"] = True
             result["match"] = {"id": mid, "compatibility_score": score}
+
+            # Create a dating message thread for the match
+            tid = str(uuid.uuid4())
+            _write(
+                "INSERT INTO chain_message_threads (id, created_by_profile_id, thread_type, folder_type, created_at, updated_at) VALUES (%s, %s, 'direct', 'dating', now(), now())",
+                (tid, actor),
+            )
+            _write(
+                "INSERT INTO chain_thread_members (thread_id, profile_id, joined_at) VALUES (%s, %s, now()), (%s, %s, now())",
+                (tid, actor, tid, target),
+            )
 
     return result
 
@@ -445,3 +475,61 @@ def restrict_dating_visibility(profile_id, hide_from_contacts_val=False, visible
 
 def set_dating_preferences(profile_id, **kwargs):
     return update_dating_preferences(profile_id, **kwargs)
+
+
+# ─── BECOME FRIENDS ──────────────────────────────────────────
+
+def become_friends(profile_id, match_id):
+    """Convert a dating match to normal friends. Closes the dating chat and makes them real friends."""
+    pid = _uuid(profile_id)
+    rows = _run(
+        "SELECT * FROM chain_dating_matches WHERE id = %s AND (profile_id_a = %s OR profile_id_b = %s) AND is_active = true LIMIT 1",
+        (match_id, pid, pid),
+    )
+    if not rows:
+        return {"ok": False, "error": "match_not_found"}
+    match = rows[0]
+    other_id = str(match["profile_id_a"]) if str(match["profile_id_b"]) == pid else str(match["profile_id_b"])
+
+    # Mark match as inactive
+    _write("UPDATE chain_dating_matches SET is_active = false WHERE id = %s", (match_id,))
+
+    # Create a real friend relationship
+    from services.friend_service import send_friend_request, accept_friend_request
+    req = send_friend_request(pid, other_id, message="We matched on NamVibe Dating ❤️")
+    if req.get("ok"):
+        accept_friend_request(other_id, pid)
+
+    # Close the dating thread (move to primary)
+    thread_rows = _run(
+        "SELECT id FROM chain_message_threads WHERE folder_type = 'dating' AND deleted_at IS NULL AND id IN ("
+        "SELECT thread_id FROM chain_thread_members WHERE profile_id = %s "
+        "INTERSECT SELECT thread_id FROM chain_thread_members WHERE profile_id = %s"
+        ") LIMIT 1",
+        (pid, other_id),
+    )
+    if thread_rows:
+        from services.messaging_engine import move_thread
+        move_thread(str(thread_rows[0]["id"]), "primary")
+
+    return {"ok": True, "new_friend_id": other_id}
+
+
+# ─── SOS / EMERGENCY ─────────────────────────────────────────
+
+def sos_alert(profile_id, lat=None, lng=None):
+    """Send emergency alert with live location to trusted contacts."""
+    pid = _uuid(profile_id)
+    profile = get_profile_by_id(pid)
+    if not profile:
+        return {"ok": False, "error": "profile_not_found"}
+    name = profile.get("display_name") or profile.get("full_name") or "A NamVibe user"
+    loc_str = f"https://www.google.com/maps?q={lat},{lng}" if lat and lng else "Location unavailable"
+    from services.notification_engine import send_notification
+    send_notification(
+        recipient_profile_id=pid,
+        type_="sos_alert",
+        title="🚨 SOS Alert Sent",
+        body=f"Your emergency contacts have been notified. Location: {loc_str}",
+    )
+    return {"ok": True, "location_url": loc_str}

@@ -69,7 +69,7 @@
                 <div class="tx-info">
                     <div class="tx-type">{{ e.earning_type }} <span class="tx-sub">Gross: N$ {{ "%.2f"|format(e.gross_amount_cents / 100) }}</span></div>
                     <div class="tx-desc">Fee: N$ {{ "%.2f"|format(e.platform_fee_cents / 100) }} | Net: N$ {{ "%.2f"|format(e.net_amount_cents / 100) }}</div>
-                    <div class="tx-date">{{ e.created_at[:10] if e.created_at else '' }}</div>
+                    <div class="tx-date">{{ e.created_at.strftime('%Y-%m-%d') if e.created_at else '' }}</div>
                 </div>
                 <div class="tx-amount earned">+N$ {{ "%.2f"|format(e.net_amount_cents / 100) }}</div>
             </div>

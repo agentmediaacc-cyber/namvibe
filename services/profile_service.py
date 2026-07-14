@@ -9,7 +9,7 @@ from psycopg2.extras import Json
 
 from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
 from engines.performance_engine import normalize_username, profile_completion_score, safe_int
-from services.neon_service import fetch_one, write_query, fast_query, get_cached_table_columns, table_exists as neon_table_exists
+from services.neon_service import execute, fetch_one, write_query, fast_query, get_cached_table_columns, table_exists as neon_table_exists
 from services.supabase_safe import column_safe_payload, safe_count, safe_insert, safe_update, table_exists
 from services.logging_service import log_error, log_info, log_warning
 
@@ -1866,13 +1866,13 @@ def update_profile_privacy(profile_id, privacy_settings):
     except Exception:
         return False
 
-def update_profile_setup(profile_id, setup_data):
+def update_profile_setup(profile_id, setup_data, current_profile=None):
     try:
         allowed = {"display_name", "bio", "location", "website", "avatar_url", "cover_url",
                     "date_of_birth", "gender", "phone", "full_name", "username"}
         updates = {k: v for k, v in setup_data.items() if k in allowed and v is not None}
         if not updates:
-            return True
+            return True, current_profile
         updates["updated_at"] = "NOW()"
         set_clause = ", ".join(f"{k} = %s" for k in updates if k != "updated_at")
         vals = [v for k, v in updates.items() if k != "updated_at"]
@@ -1881,9 +1881,9 @@ def update_profile_setup(profile_id, setup_data):
                 f"UPDATE chain_profiles SET {set_clause}, updated_at = NOW() WHERE id = %s",
                 (*vals, profile_id)
             )
-        return True
-    except Exception:
-        return False
+        return True, current_profile
+    except Exception as e:
+        return False, str(e)
 
 def update_reel_visibility(reel_id, profile_id, visibility):
     from services.reels_engine import update_reel_visibility as _f

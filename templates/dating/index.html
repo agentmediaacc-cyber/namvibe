@@ -3,13 +3,49 @@
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="/static/css/dating_premium.css">
+<style>
+  .dt-setup-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dt-setup-card {
+    background: var(--dt-surface, #1e1e2e); border-radius: 20px;
+    padding: 40px; max-width: 520px; width: 90%; text-align: center;
+  }
+  .dt-setup-card h2 { margin-bottom: 8px; font-size: 24px; }
+  .dt-setup-card p { opacity: 0.7; margin-bottom: 24px; font-size: 14px; }
+  .dt-intent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .dt-intent-btn {
+    background: var(--dt-bg, #2a2a3e); border: 2px solid transparent; border-radius: 14px;
+    padding: 20px 16px; cursor: pointer; transition: all 0.2s; text-align: center;
+  }
+  .dt-intent-btn:hover { border-color: var(--dt-primary, #ec4899); background: rgba(236,72,153,0.1); }
+  .dt-intent-btn.is-selected { border-color: var(--dt-primary, #ec4899); background: rgba(236,72,153,0.15); }
+  .dt-intent-btn i { font-size: 28px; display: block; margin-bottom: 8px; }
+  .dt-intent-btn span { font-size: 14px; font-weight: 600; }
+  .dt-intent-btn small { display: block; font-size: 11px; opacity: 0.6; margin-top: 4px; }
+  .dt-setup-btn { width: 100%; padding: 14px; border-radius: 50px; border: none;
+    background: var(--dt-primary, #ec4899); color: #fff; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s; }
+  .dt-setup-btn:disabled { opacity: 0.4; cursor: default; }
+  .dt-setup-skip { background: none; border: none; color: var(--dt-muted, #888);
+    margin-top: 12px; cursor: pointer; font-size: 13px; }
+  .dt-sos-btn { position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    width: 56px; height: 56px; border-radius: 50%; border: none;
+    background: #ef4444; color: #fff; font-size: 24px; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(239,68,68,0.4); transition: transform 0.2s; }
+  .dt-sos-btn:hover { transform: scale(1.1); }
+  .dt-premium-badge { display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg,#f59e0b,#ec4899); color: #fff;
+    padding: 4px 12px; border-radius: 50px; font-size: 11px; font-weight: 700; }
+</style>
 {% endblock %}
 {% block content %}
 <div class="dt-wrap">
   <div class="dt-header">
     <div class="dt-header-left">
-      <p class="dt-kicker">Dating</p>
-      <h1 class="dt-title">Discover Matches</h1>
+      <p class="dt-kicker">❤️ Dating</p>
+      <h1 class="dt-title">Find Your Match</h1>
     </div>
     <div class="dt-header-right">
       <button class="dt-btn dt-btn-ghost" id="dtModeToggle"><i class="fas fa-toggle-on"></i> <span id="dtModeLabel">On</span></button>
@@ -17,16 +53,16 @@
   </div>
 
   <div class="dt-tabs" id="dtTabs">
-    <button class="dt-tab is-active" data-tab="discover"><i class="fas fa-compass"></i> Discover</button>
-    <button class="dt-tab" data-tab="matches"><i class="fas fa-heart"></i> Matches <span class="dt-badge-sm" id="dtMatchCount">0</span></button>
-    <button class="dt-tab" data-tab="likes-you"><i class="fas fa-star"></i> Likes You</button>
-    <button class="dt-tab" data-tab="messages"><i class="fas fa-comment-dots"></i> Messages</button>
-    <button class="dt-tab" data-tab="verified"><i class="fas fa-check-circle"></i> Verified</button>
+    <button class="dt-tab is-active" data-tab="foryou"><i class="fas fa-heart"></i> For You</button>
     <button class="dt-tab" data-tab="nearby"><i class="fas fa-map-marker-alt"></i> Nearby</button>
-    <button class="dt-tab" data-tab="safety"><i class="fas fa-shield-alt"></i> Safety</button>
+    <button class="dt-tab" data-tab="matches"><i class="fas fa-handshake"></i> Matches <span class="dt-badge-sm" id="dtMatchCount">0</span></button>
+    <button class="dt-tab" data-tab="likes"><i class="fas fa-star"></i> Likes</button>
+    <button class="dt-tab" data-tab="requests"><i class="fas fa-envelope"></i> Requests</button>
+    <button class="dt-tab" data-tab="video"><i class="fas fa-video"></i> Video</button>
+    <button class="dt-tab" data-tab="premium"><i class="fas fa-crown"></i> Premium</button>
   </div>
 
-  <div id="dtPanel-discover" class="dt-panel is-active">
+  <div id="dtPanel-foryou" class="dt-panel is-active">
     <div class="dt-stack-shell">
       <div class="dt-card-stack" id="dtCardStack">
         <div class="dt-skeleton dt-skeleton-card"></div>
@@ -45,51 +81,6 @@
     </div>
   </div>
 
-  <div id="dtPanel-matches" class="dt-panel">
-    <div class="dt-grid dt-grid-matches" id="dtMatchesGrid">
-      <div class="dt-skeleton dt-skeleton-card-sm"></div>
-      <div class="dt-skeleton dt-skeleton-card-sm"></div>
-      <div class="dt-skeleton dt-skeleton-card-sm"></div>
-    </div>
-    <div class="dt-empty" id="dtMatchesEmpty" style="display:none;">
-      <i class="fas fa-heart-broken"></i>
-      <h3>No matches yet</h3>
-      <p>Keep swiping to find your match!</p>
-    </div>
-  </div>
-
-  <div id="dtPanel-likes-you" class="dt-panel">
-    <div class="dt-grid dt-grid-likes" id="dtLikesGrid">
-      <div class="dt-skeleton dt-skeleton-card-sm"></div>
-      <div class="dt-skeleton dt-skeleton-card-sm"></div>
-      <div class="dt-skeleton dt-skeleton-card-sm"></div>
-    </div>
-    <div class="dt-empty" id="dtLikesEmpty" style="display:none;">
-      <i class="fas fa-star"></i>
-      <h3>No one has liked you yet</h3>
-      <p>Your profile will appear as you swipe.</p>
-    </div>
-  </div>
-
-  <div id="dtPanel-messages" class="dt-panel">
-    <div class="dt-empty">
-      <i class="fas fa-comment-dots"></i>
-      <h3>Match Messages</h3>
-      <p>Chat with your matches here after you connect.</p>
-      <a href="/messages/" class="dt-btn dt-btn-primary">Go to Messages</a>
-    </div>
-  </div>
-
-  <div id="dtPanel-verified" class="dt-panel">
-    <div class="dt-section-card">
-      <h2><i class="fas fa-check-circle" style="color:var(--dt-cyan);"></i> Verified Users</h2>
-      <p>Browse profiles with verified badges for a safer experience.</p>
-      <div class="dt-grid dt-grid-verified" id="dtVerifiedGrid">
-        <div class="dt-skeleton dt-skeleton-card-sm"></div>
-      </div>
-    </div>
-  </div>
-
   <div id="dtPanel-nearby" class="dt-panel">
     <div class="dt-section-card">
       <h2><i class="fas fa-map-marker-alt" style="color:var(--dt-green);"></i> Nearby</h2>
@@ -100,65 +91,92 @@
     </div>
   </div>
 
-  <div id="dtPanel-safety" class="dt-panel">
-    <div class="dt-section-card">
-      <h2><i class="fas fa-shield-alt" style="color:var(--dt-gold);"></i> Safety Center</h2>
-      <p class="dt-muted">Your safety matters. Control who sees you and report concerns.</p>
+  <div id="dtPanel-matches" class="dt-panel">
+    <div class="dt-grid dt-grid-matches" id="dtMatchesGrid">
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
     </div>
-    <div class="dt-section-card">
-      <h3>Dating Mode</h3>
-      <label class="dt-toggle">
-        <input type="checkbox" id="dtSafetyMode" checked>
-        <span class="dt-toggle-slider"></span>
-        <span class="dt-toggle-label">Visible on Dating</span>
-      </label>
+    <div class="dt-empty" id="dtMatchesEmpty" style="display:none;">
+      <i class="fas fa-handshake"></i>
+      <h3>No matches yet</h3>
+      <p>Keep swiping to find your match!</p>
     </div>
-    <div class="dt-section-card">
-      <h3>Restrict Visibility</h3>
-      <label class="dt-toggle">
-        <input type="checkbox" id="dtHideContacts">
-        <span class="dt-toggle-slider"></span>
-        <span class="dt-toggle-label">Hide from Contacts</span>
-      </label>
-      <label class="dt-toggle" style="margin-top:10px;">
-        <input type="checkbox" id="dtVerifiedOnly">
-        <span class="dt-toggle-slider"></span>
-        <span class="dt-toggle-label">Visible to Verified Only</span>
-      </label>
+  </div>
+
+  <div id="dtPanel-likes" class="dt-panel">
+    <div class="dt-grid dt-grid-likes" id="dtLikesGrid">
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      <div class="dt-skeleton dt-skeleton-card-sm"></div>
     </div>
+    <div class="dt-empty" id="dtLikesEmpty" style="display:none;">
+      <i class="fas fa-star"></i>
+      <h3>No likes yet</h3>
+      <p>Your profile will appear as you swipe.</p>
+    </div>
+  </div>
+
+  <div id="dtPanel-requests" class="dt-panel">
     <div class="dt-section-card">
-      <h3>Report a User</h3>
-      <div class="dt-form-row">
-        <input class="dt-input" id="dtReportTarget" placeholder="Profile ID to report" autocomplete="off">
-        <select class="dt-input" id="dtReportReason">
-          <option value="">Select reason...</option>
-          <option value="impersonation">Impersonation or suspicious profile</option>
-          <option value="harassment">Harassment</option>
-          <option value="inappropriate">Inappropriate Content</option>
-          <option value="spam">Spam</option>
-          <option value="other">Other</option>
-        </select>
-        <textarea class="dt-input" id="dtReportDetails" placeholder="Details (optional)" rows="3"></textarea>
-        <button class="dt-btn dt-btn-danger" id="dtReportBtn"><i class="fas fa-flag"></i> Report</button>
+      <h2><i class="fas fa-envelope" style="color:var(--dt-gold);"></i> Message Requests</h2>
+      <p>Dating message requests from your matches.</p>
+      <div class="dt-empty">
+        <i class="fas fa-inbox"></i>
+        <h3>No requests</h3>
+        <p>You'll see dating message requests here.</p>
       </div>
     </div>
+  </div>
+
+  <div id="dtPanel-video" class="dt-panel">
     <div class="dt-section-card">
-      <h3>Block a User</h3>
-      <div class="dt-form-row" style="display:flex;gap:10px;">
-        <input class="dt-input" id="dtBlockTarget" placeholder="Profile ID to block" autocomplete="off" style="flex:1;">
-        <button class="dt-btn dt-btn-danger" id="dtBlockBtn"><i class="fas fa-ban"></i> Block</button>
+      <h2><i class="fas fa-video" style="color:var(--dt-cyan);"></i> Video Profiles</h2>
+      <p>Browse profiles with video introductions for a more personal connection.</p>
+      <div class="dt-grid dt-grid-video" id="dtVideoGrid">
+        <div class="dt-skeleton dt-skeleton-card-sm"></div>
+      </div>
+      <div class="dt-empty" id="dtVideoEmpty">
+        <i class="fas fa-video-slash"></i>
+        <h3>No video profiles yet</h3>
+        <p>Be the first to add a video to your dating profile!</p>
       </div>
     </div>
+  </div>
+
+  <div id="dtPanel-premium" class="dt-panel">
     <div class="dt-section-card">
-      <h3>Your Trust Score</h3>
-      <div class="dt-trust-bar">
-        <div class="dt-trust-fill" id="dtTrustFill" style="width:50%;"></div>
-      </div>
-      <p class="dt-muted" id="dtTrustLabel">Score: 50</p>
+      <h2><i class="fas fa-crown" style="color:var(--dt-gold);"></i> Premium Dating</h2>
+      <p>Unlock premium features to get more matches.</p>
     </div>
     <div class="dt-section-card">
-      <h3>Safety Badge</h3>
-      <p id="dtSafetyBadgeStatus">Not earned yet. <button class="dt-btn dt-btn-sm" id="dtRequestVerification">Request Verification</button></p>
+      <h3><i class="fas fa-eye"></i> See Who Liked You</h3>
+      <p>View all profiles that liked you before swiping.</p>
+      <button class="dt-btn dt-btn-primary" id="dtPremiumSeeLikes"><i class="fas fa-crown"></i> Unlock</button>
+    </div>
+    <div class="dt-section-card">
+      <h3><i class="fas fa-rocket"></i> Boost</h3>
+      <p>Get 10x more visibility for 30 minutes.</p>
+      <button class="dt-btn dt-btn-primary"><i class="fas fa-crown"></i> Boost Now</button>
+    </div>
+    <div class="dt-section-card">
+      <h3><i class="fas fa-star"></i> Super Like</h3>
+      <p>Stand out with a Super Like — you get 5 per day free.</p>
+    </div>
+    <div class="dt-section-card">
+      <h3><i class="fas fa-globe"></i> Passport</h3>
+      <p>Discover matches in other cities and countries.</p>
+      <button class="dt-btn dt-btn-primary"><i class="fas fa-crown"></i> Unlock Passport</button>
+    </div>
+    <div class="dt-section-card">
+      <h3><i class="fas fa-robot"></i> AI Compatibility Insights</h3>
+      <p>Get AI-powered compatibility analysis with your matches.</p>
+      <button class="dt-btn dt-btn-ghost" onclick="window.location.href='/ai/'">Try AI Insights</button>
+    </div>
+    <div class="dt-section-card">
+      <h3><i class="fas fa-sliders-h"></i> Advanced Filters</h3>
+      <p>Filter by height, lifestyle, education, and more.</p>
+      <button class="dt-btn dt-btn-primary"><i class="fas fa-crown"></i> Unlock</button>
     </div>
   </div>
 </div>
@@ -174,7 +192,268 @@
     </div>
   </div>
 </div>
+
+<!-- Setup overlay — multi-step registration wizard -->
+<div class="dt-setup-overlay" id="dtSetupOverlay" style="display:none;">
+  <div class="dt-setup-card" id="dtSetupStep1">
+    <i class="fas fa-heart" style="font-size:48px;color:var(--dt-primary);margin-bottom:16px;"></i>
+    <h2>Welcome to NamVibe Dating</h2>
+    <p style="margin-bottom:4px;">You have a NamVibe account — now set up your Dating profile.</p>
+    <p style="margin-bottom:20px;font-size:13px;opacity:0.6;">Your personal details (phone, email) stay private. Only premium members can choose to show their phone.</p>
+    <h3 style="font-size:16px;margin-bottom:12px;">What are you looking for?</h3>
+    <div class="dt-intent-grid">
+      <button class="dt-intent-btn" data-intent="friendship">
+        <i class="fas fa-user-friends"></i>
+        <span>Friendship</span>
+        <small>Meet new friends</small>
+      </button>
+      <button class="dt-intent-btn" data-intent="dating">
+        <i class="fas fa-heart"></i>
+        <span>Dating</span>
+        <small>Casual dating</small>
+      </button>
+      <button class="dt-intent-btn" data-intent="relationship">
+        <i class="fas fa-ring"></i>
+        <span>Serious Relationship</span>
+        <small>Long-term partner</small>
+      </button>
+      <button class="dt-intent-btn" data-intent="marriage">
+        <i class="fas fa-gem"></i>
+        <span>Marriage</span>
+        <small>Life partnership</small>
+      </button>
+    </div>
+    <button class="dt-setup-btn" id="dtSetupNext1" disabled>Continue</button>
+    <button class="dt-setup-skip" id="dtSetupSkip">Not now</button>
+  </div>
+
+  <div class="dt-setup-card" id="dtSetupStep2" style="display:none;">
+    <i class="fas fa-tags" style="font-size:48px;color:var(--dt-primary);margin-bottom:16px;"></i>
+    <h2>Your Interests</h2>
+    <p>Select the interests that describe you best. This helps us find better matches.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:20px;">
+      <button class="dt-intent-btn dt-pick-btn" data-value="Music" style="padding:10px 16px;font-size:13px;"><i class="fas fa-music"></i> Music</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Travel" style="padding:10px 16px;font-size:13px;"><i class="fas fa-plane"></i> Travel</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Fitness" style="padding:10px 16px;font-size:13px;"><i class="fas fa-dumbbell"></i> Fitness</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Art" style="padding:10px 16px;font-size:13px;"><i class="fas fa-palette"></i> Art</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Cooking" style="padding:10px 16px;font-size:13px;"><i class="fas fa-utensils"></i> Cooking</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Movies" style="padding:10px 16px;font-size:13px;"><i class="fas fa-film"></i> Movies</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Gaming" style="padding:10px 16px;font-size:13px;"><i class="fas fa-gamepad"></i> Gaming</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Reading" style="padding:10px 16px;font-size:13px;"><i class="fas fa-book"></i> Reading</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Photography" style="padding:10px 16px;font-size:13px;"><i class="fas fa-camera"></i> Photography</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Sports" style="padding:10px 16px;font-size:13px;"><i class="fas fa-running"></i> Sports</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Fashion" style="padding:10px 16px;font-size:13px;"><i class="fas fa-tshirt"></i> Fashion</button>
+      <button class="dt-intent-btn dt-pick-btn" data-value="Technology" style="padding:10px 16px;font-size:13px;"><i class="fas fa-laptop-code"></i> Technology</button>
+    </div>
+    <button class="dt-setup-btn" id="dtSetupNext2">Continue</button>
+    <button class="dt-setup-skip" onclick="showSetupStep(3)">Skip</button>
+  </div>
+
+  <div class="dt-setup-card" id="dtSetupStep3" style="display:none;">
+    <i class="fas fa-sliders-h" style="font-size:48px;color:var(--dt-primary);margin-bottom:16px;"></i>
+    <h2>Partner Preferences</h2>
+    <p>Who are you interested in meeting?</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px;">
+      <button class="dt-intent-btn dt-pref-btn" data-value="men" style="padding:12px 20px;"><i class="fas fa-male"></i> Men</button>
+      <button class="dt-intent-btn dt-pref-btn" data-value="women" style="padding:12px 20px;"><i class="fas fa-female"></i> Women</button>
+      <button class="dt-intent-btn dt-pref-btn" data-value="everyone" style="padding:12px 20px;"><i class="fas fa-user-friends"></i> Everyone</button>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;justify-content:center;">
+      <label style="font-size:13px;">Age: <select id="dtPrefMinAge" style="background:var(--dt-bg);color:#fff;border:1px solid var(--dt-border,#333);border-radius:8px;padding:6px 10px;">
+        <script>for(var i=18;i<=99;i++) document.write('<option value="'+i+'">'+i+'</option>');</script>
+      </select> to <select id="dtPrefMaxAge" style="background:var(--dt-bg);color:#fff;border:1px solid var(--dt-border,#333);border-radius:8px;padding:6px 10px;">
+        <script>for(var i=18;i<=99;i++) document.write('<option value="'+i+'">'+i+'</option>');</script>
+      </select></label>
+      <label style="font-size:13px;">Distance: <select id="dtPrefDistance" style="background:var(--dt-bg);color:#fff;border:1px solid var(--dt-border,#333);border-radius:8px;padding:6px 10px;">
+        <option value="10">10 km</option>
+        <option value="25">25 km</option>
+        <option value="50">50 km</option>
+        <option value="100" selected>100 km</option>
+        <option value="250">250 km</option>
+        <option value="500">500 km</option>
+        <option value="0">Anywhere</option>
+      </select></label>
+    </div>
+    <button class="dt-setup-btn" id="dtSetupNext3">Continue</button>
+    <button class="dt-setup-skip" onclick="showSetupStep(4)">Skip</button>
+  </div>
+
+  <div class="dt-setup-card" id="dtSetupStep4" style="display:none;">
+    <i class="fas fa-camera" style="font-size:48px;color:var(--dt-primary);margin-bottom:16px;"></i>
+    <h2>Add a Photo</h2>
+    <p>Profiles with photos get 10x more matches. Add at least one to get started.</p>
+    <div id="dtPhotoPreview" style="width:120px;height:120px;border-radius:50%;margin:12px auto;background:var(--dt-bg);border:2px dashed var(--dt-border,#444);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;" onclick="document.getElementById('dtPhotoInput').click()">
+      <i class="fas fa-plus" style="font-size:32px;color:#666;"></i>
+    </div>
+    <input type="file" id="dtPhotoInput" accept="image/*" style="display:none;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:12px 0;">
+      <span id="dtPhotoPreviewMini" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;"></span>
+    </div>
+    <button class="dt-setup-btn" id="dtSetupConfirm">Complete Registration</button>
+    <button class="dt-setup-skip" onclick="completeDatingSetup()">Skip photo</button>
+  </div>
+
+  <div class="dt-setup-card" id="dtSetupStep5" style="display:none;">
+    <i class="fas fa-check-circle" style="font-size:48px;color:#22c55e;margin-bottom:16px;"></i>
+    <h2>You're all set!</h2>
+    <p>Your Dating profile is active. Start discovering matches now.</p>
+    <button class="dt-setup-btn" id="dtSetupDone" style="background:var(--dt-primary);">Start Exploring</button>
+  </div>
+</div>
+
+<!-- SOS / Panic Button -->
+<button class="dt-sos-btn" id="dtSosBtn" title="Emergency"><i class="fas fa-shield-alt"></i></button>
 {% endblock %}
 {% block extra_js %}
 <script src="/static/js/dating_premium.js"></script>
+<script>
+(function(){
+  var CSRF = (function(){var m=document.querySelector('meta[name="csrf-token"]');return m?m.getAttribute('content'):'';})();
+  var setupData = {};
+
+  function showSetupStep(n) {
+    for (var i=1;i<=5;i++) {
+      var el = document.getElementById('dtSetupStep'+i);
+      if (el) el.style.display = i===n?'block':'none';
+    }
+  }
+
+  // Show setup wizard if dating mode not yet configured
+  fetch('/dating/api/preferences').then(function(r){ return r.json(); }).then(function(d){
+    var dp = d.dating_profile;
+    if (dp && dp.dating_mode_on === false && !sessionStorage.getItem('dt_setup_done')) {
+      document.getElementById('dtSetupOverlay').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+    }
+  });
+
+  // Step 1: Intent selection
+  var intentBtns = document.querySelectorAll('#dtSetupStep1 .dt-intent-btn');
+  intentBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      intentBtns.forEach(function(b){ b.classList.remove('is-selected'); });
+      btn.classList.add('is-selected');
+      setupData.relationship_goal = btn.getAttribute('data-intent');
+      document.getElementById('dtSetupNext1').disabled = false;
+    });
+  });
+  document.getElementById('dtSetupNext1').addEventListener('click', function(){ showSetupStep(2); });
+
+  // Step 2: Interests
+  var selectedInterests = [];
+  document.querySelectorAll('#dtSetupStep2 .dt-pick-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      btn.classList.toggle('is-selected');
+      selectedInterests = [];
+      document.querySelectorAll('#dtSetupStep2 .dt-pick-btn.is-selected').forEach(function(b){
+        selectedInterests.push(b.getAttribute('data-value'));
+      });
+    });
+  });
+  document.getElementById('dtSetupNext2').addEventListener('click', function(){
+    setupData.interests = selectedInterests;
+    showSetupStep(3);
+  });
+
+  // Step 3: Partner preferences
+  var selectedPref = 'everyone';
+  document.querySelectorAll('#dtSetupStep3 .dt-pref-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('#dtSetupStep3 .dt-pref-btn').forEach(function(b){ b.classList.remove('is-selected'); });
+      btn.classList.add('is-selected');
+      selectedPref = btn.getAttribute('data-value');
+    });
+  });
+  var prefEveryone = document.querySelector('#dtSetupStep3 .dt-pref-btn[data-value="everyone"]');
+  if (prefEveryone) prefEveryone.classList.add('is-selected');
+
+  document.getElementById('dtSetupNext3').addEventListener('click', function(){
+    var minAge = parseInt(document.getElementById('dtPrefMinAge').value) || 18;
+    var maxAge = parseInt(document.getElementById('dtPrefMaxAge').value) || 99;
+    if (minAge > maxAge) { alert('Min age must be less than max age'); return; }
+    setupData.interested_in = selectedPref;
+    setupData.min_age = minAge;
+    setupData.max_age = maxAge;
+    setupData.max_distance_km = parseInt(document.getElementById('dtPrefDistance').value) || 100;
+    showSetupStep(4);
+  });
+
+  // Step 4: Photo upload
+  var uploadedPhotos = [];
+  document.getElementById('dtPhotoInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      uploadedPhotos.push(ev.target.result);
+      var preview = document.getElementById('dtPhotoPreview');
+      preview.innerHTML = '<img src="'+ev.target.result+'" style="width:100%;height:100%;object-fit:cover;">';
+      var mini = document.getElementById('dtPhotoPreviewMini');
+      mini.innerHTML = uploadedPhotos.map(function(u){ return '<img src="'+u+'" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:2px solid var(--dt-primary);">'; }).join('');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function completeDatingSetup() {
+    var body = {
+      dating_mode_on: true,
+      relationship_goal: setupData.relationship_goal || 'friendship',
+    };
+    if (setupData.interests && setupData.interests.length) body.interests = setupData.interests;
+    if (setupData.interested_in) body.interested_in = setupData.interested_in;
+    if (setupData.min_age) body.min_age = setupData.min_age;
+    if (setupData.max_age) body.max_age = setupData.max_age;
+    if (setupData.max_distance_km) body.max_distance_km = setupData.max_distance_km;
+    if (uploadedPhotos.length) body.photos = uploadedPhotos;
+
+    fetch('/dating/api/preferences', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); }).then(function(res){
+      if (res.ok) {
+        sessionStorage.setItem('dt_setup_done', '1');
+        showSetupStep(5);
+      } else {
+        alert('Setup failed: ' + (res.error || 'unknown'));
+      }
+    });
+  }
+
+  document.getElementById('dtSetupConfirm').addEventListener('click', completeDatingSetup);
+
+  document.getElementById('dtSetupDone').addEventListener('click', function(){
+    document.getElementById('dtSetupOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+    var label = document.getElementById('dtModeLabel');
+    if (label) label.textContent = 'On';
+    window.location.reload();
+  });
+
+  document.getElementById('dtSetupSkip').addEventListener('click', function(){
+    sessionStorage.setItem('dt_setup_done', '1');
+    document.getElementById('dtSetupOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+  });
+
+  // SOS button — share live location
+  document.getElementById('dtSosBtn').addEventListener('click', function(){
+    if (!confirm('Share your live location with your emergency contact?')) return;
+    if (!navigator.geolocation) { alert('Geolocation not available'); return; }
+    navigator.geolocation.getCurrentPosition(function(pos){
+      fetch('/dating/api/sos', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','X-CSRFToken': CSRF},
+        body: JSON.stringify({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        })
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if (d.ok) alert('Your location has been shared with your emergency contact.');
+        else alert('SOS failed: ' + (d.error || 'unknown'));
+      });
+    }, function(){ alert('Could not get location. Check permissions.'); });
+  });
+})();
+</script>
 {% endblock %}

@@ -2,6 +2,7 @@
 
 from services.neon_service import fast_query
 from services.blocking_service import is_blocked_any
+from services.friendship_service import are_friends
 from services.relationship_cache_service import get_relationship_state
 from services.relationship_privacy_service import (
     can_view_profile as rp_can_view_profile,
@@ -98,10 +99,14 @@ def can_chat(current_profile_id, target_profile_id, target_profile=None):
         return False
     if is_blocked_any(current_profile_id, target_profile_id):
         return False
+    # Friends can always chat
+    if are_friends(current_profile_id, target_profile_id):
+        return True
+    # Non-friends: check if target allows public messages
     if target_profile:
-        if not rp_can_message(current_profile_id, target_profile):
-            return False
-    return are_friends(current_profile_id, target_profile_id)
+        who = target_profile.get("who_can_message", "everyone")
+        return who == "everyone"
+    return False
 
 
 def can_like_post(current_profile_id, post):
@@ -185,6 +190,11 @@ def get_primary_action(current_profile_id, target_profile):
                 return "request_follow"
             return "follow"
         return "none"
+
+    # Non-friends: if target allows public messages, primary action is "message"
+    who_msg = target_profile.get("who_can_message", "everyone")
+    if who_msg == "everyone" and can_chat(current_profile_id, target_id, target_profile=target_profile):
+        return "message"
 
     if can_send_friend_request(current_profile_id, target_profile):
         return "friend_request"
@@ -277,7 +287,7 @@ def get_action_policy(current_profile_id, target_profile):
         "can_follow": can_follow(current_profile_id, target_profile),
         "can_send_friend_request": can_send_friend_request(current_profile_id, target_profile),
         "can_chat": chat_allowed,
-        "can_call": chat_allowed,
+        "can_call": are_friends(current_profile_id, target_id),
         "can_message_self": False,
         "can_call_self": False,
         "can_like": not self_check,

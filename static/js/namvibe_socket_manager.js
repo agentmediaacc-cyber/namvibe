@@ -52,7 +52,10 @@
   function showBanner() {
     var b = getBanner();
     if (!b) return;
-    b.textContent = 'Connection lost. Trying to reconnect...';
+    var isLiveRoom = window.location.pathname.indexOf('/live/') === 0;
+    var inChat = document.querySelector('[data-chat-panel], .lv-room-layout') !== null;
+    if (!isLiveRoom && !inChat) return;
+    b.textContent = 'Reconnecting...';
     b.classList.add('show');
     b.setAttribute('aria-hidden', 'false');
   }

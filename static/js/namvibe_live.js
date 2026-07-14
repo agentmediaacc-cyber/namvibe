@@ -29,133 +29,60 @@
   var isHost = false;
   var mediaStream = null;
   var nvcBalance = 0;
+  var liveState = {
+    joined: false,
+    socketBound: false,
+    livekitToken: null,
+    livekitWsUrl: null,
+    connectionState: 'idle'
+  };
 
-  var CATEGORIES = [
-    { id: 'all', label: 'All', icon: '🔥' },
-    { id: 'friends', label: 'Friends', icon: '👥', live: true },
-    { id: 'featured', label: 'Featured', icon: '⭐', live: true },
-    { id: 'trending', label: 'Trending', icon: '📈', live: true },
-    { id: 'music', label: 'Music', icon: '🎵' },
-    { id: 'gaming', label: 'Gaming', icon: '🎮' },
-    { id: 'business', label: 'Business', icon: '💼' },
-    { id: 'shopping', label: 'Shopping', icon: '🛍' },
-    { id: 'church', label: 'Church', icon: '⛪' },
-    { id: 'education', label: 'Education', icon: '📚' },
-    { id: 'government', label: 'Government', icon: '🏛' },
-    { id: 'health', label: 'Health', icon: '🏥' },
-    { id: 'sports', label: 'Sports', icon: '⚽' },
-    { id: 'entertainment', label: 'Entertainment', icon: '🎭' },
-    { id: 'new', label: 'New Creators', icon: '🌟' },
-    { id: 'scheduled', label: 'Scheduled', icon: '📅' }
-  ];
+  function setConnectionState(label) {
+    liveState.connectionState = label;
+    var el = document.getElementById('lvConnectionState');
+    if (el) el.textContent = label;
+  }
 
-  /* ── TIERED GIFT CATALOG (60+ gifts, 5 tiers, NVC pricing) ── */
-  var TIERS = [
-    { id: 'bronze', label: 'Bronze', range: '1–10 NVC', color: '#cd7f32' },
-    { id: 'silver', label: 'Silver', range: '10–50 NVC', color: '#c0c0c0' },
-    { id: 'gold', label: 'Gold', range: '50–200 NVC', color: '#ffd700' },
-    { id: 'diamond', label: 'Diamond', range: '200–1000 NVC', color: '#00ffff' },
-    { id: 'legendary', label: 'Legendary', range: '1000+ NVC', color: '#ff1493' },
-  ];
+  /* ── Data from DB (fetched from API) ── */
+  var CATEGORIES = [];
+  var TIERS = [];
+  var GIFTS = [];
+  var GIFT_TIERS = [];
+  var LIVE_TYPES = [];
+  var ROOM_TYPES = [];
 
-  var GIFTS = [
-    /* Bronze (1–10) */
-    { emoji: '❤️', name: 'Heart', price_nvc: 1, tier: 'bronze', premium: false },
-    { emoji: '🌹', name: 'Rose', price_nvc: 2, tier: 'bronze', premium: false },
-    { emoji: '☕', name: 'Coffee', price_nvc: 3, tier: 'bronze', premium: false },
-    { emoji: '🍪', name: 'Cookie', price_nvc: 3, tier: 'bronze', premium: false },
-    { emoji: '🍩', name: 'Donut', price_nvc: 4, tier: 'bronze', premium: false },
-    { emoji: '🍭', name: 'Lollipop', price_nvc: 3, tier: 'bronze', premium: false },
-    { emoji: '🍬', name: 'Candy', price_nvc: 2, tier: 'bronze', premium: false },
-    { emoji: '🍕', name: 'Pizza', price_nvc: 5, tier: 'bronze', premium: false },
-    { emoji: '🍔', name: 'Burger', price_nvc: 6, tier: 'bronze', premium: false },
-    { emoji: '🍟', name: 'Fries', price_nvc: 5, tier: 'bronze', premium: false },
-    { emoji: '🌮', name: 'Taco', price_nvc: 6, tier: 'bronze', premium: false },
-    { emoji: '🍿', name: 'Popcorn', price_nvc: 5, tier: 'bronze', premium: false },
-    { emoji: '🍦', name: 'Ice Cream', price_nvc: 4, tier: 'bronze', premium: false },
-    { emoji: '🎂', name: 'Cake', price_nvc: 8, tier: 'bronze', premium: false },
-    { emoji: '🍺', name: 'Beer', price_nvc: 7, tier: 'bronze', premium: false },
-    /* Silver (10–50) */
-    { emoji: '💎', name: 'Diamond', price_nvc: 10, tier: 'silver', premium: false },
-    { emoji: '💋', name: 'Lip Kiss', price_nvc: 12, tier: 'silver', premium: false },
-    { emoji: '🔥', name: 'Fire', price_nvc: 15, tier: 'silver', premium: false },
-    { emoji: '💯', name: '100', price_nvc: 18, tier: 'silver', premium: false },
-    { emoji: '👏', name: 'Clap', price_nvc: 20, tier: 'silver', premium: false },
-    { emoji: '🎤', name: 'Mic', price_nvc: 22, tier: 'silver', premium: false },
-    { emoji: '🎸', name: 'Guitar', price_nvc: 25, tier: 'silver', premium: false },
-    { emoji: '🎧', name: 'Headphones', price_nvc: 28, tier: 'silver', premium: false },
-    { emoji: '🏆', name: 'Trophy', price_nvc: 30, tier: 'silver', premium: false },
-    { emoji: '🥇', name: 'Gold Medal', price_nvc: 35, tier: 'silver', premium: false },
-    { emoji: '🎮', name: 'Gamepad', price_nvc: 40, tier: 'silver', premium: false },
-    { emoji: '🎨', name: 'Palette', price_nvc: 45, tier: 'silver', premium: false },
-    { emoji: '🚀', name: 'Rocket', price_nvc: 50, tier: 'silver', premium: false },
-    /* Gold (50–200) */
-    { emoji: '👑', name: 'Crown', price_nvc: 60, tier: 'gold', premium: false },
-    { emoji: '💍', name: 'Ring', price_nvc: 70, tier: 'gold', premium: false },
-    { emoji: '💠', name: 'Gem', price_nvc: 80, tier: 'gold', premium: false },
-    { emoji: '😍', name: 'Heart Eyes', price_nvc: 90, tier: 'gold', premium: false },
-    { emoji: '💏', name: 'Kiss', price_nvc: 100, tier: 'gold', premium: false },
-    { emoji: '💌', name: 'Love Letter', price_nvc: 115, tier: 'gold', premium: false },
-    { emoji: '💐', name: 'Bouquet', price_nvc: 130, tier: 'gold', premium: false },
-    { emoji: '🎵', name: 'Music Notes', price_nvc: 145, tier: 'gold', premium: false },
-    { emoji: '🎉', name: 'Party', price_nvc: 160, tier: 'gold', premium: false },
-    { emoji: '🎊', name: 'Confetti', price_nvc: 175, tier: 'gold', premium: false },
-    { emoji: '🎈', name: 'Balloon', price_nvc: 190, tier: 'gold', premium: false },
-    { emoji: '🎁', name: 'Gift Box', price_nvc: 200, tier: 'gold', premium: false },
-    /* Diamond (200–1000) Premium */
-    { emoji: '🚗', name: 'Sports Car', price_nvc: 250, tier: 'diamond', premium: true },
-    { emoji: '🏍', name: 'Motorcycle', price_nvc: 300, tier: 'diamond', premium: true },
-    { emoji: '🛥', name: 'Yacht', price_nvc: 400, tier: 'diamond', premium: true },
-    { emoji: '✈️', name: 'Airplane', price_nvc: 500, tier: 'diamond', premium: true },
-    { emoji: '🚁', name: 'Helicopter', price_nvc: 600, tier: 'diamond', premium: true },
-    { emoji: '🛩', name: 'Private Jet', price_nvc: 700, tier: 'diamond', premium: true },
-    { emoji: '🚀', name: 'Spaceship', price_nvc: 800, tier: 'diamond', premium: true },
-    { emoji: '🛸', name: 'UFO', price_nvc: 900, tier: 'diamond', premium: true },
-    { emoji: '🏰', name: 'Castle', price_nvc: 1000, tier: 'diamond', premium: true },
-    /* Legendary (1000–10000) Premium Animated */
-    { emoji: '🌌', name: 'Galaxy', price_nvc: 1250, tier: 'legendary', premium: true },
-    { emoji: '🎆', name: 'Fireworks', price_nvc: 1500, tier: 'legendary', premium: true },
-    { emoji: '🌈', name: 'Rainbow', price_nvc: 2000, tier: 'legendary', premium: true },
-    { emoji: '🌋', name: 'Volcano', price_nvc: 2500, tier: 'legendary', premium: true },
-    { emoji: '🐉', name: 'Dragon', price_nvc: 3000, tier: 'legendary', premium: true },
-    { emoji: '🦅', name: 'Phoenix', price_nvc: 4000, tier: 'legendary', premium: true },
-    { emoji: '🦄', name: 'Unicorn', price_nvc: 5000, tier: 'legendary', premium: true },
-    { emoji: '💫', name: 'Supernova', price_nvc: 7500, tier: 'legendary', premium: true },
-    { emoji: '👑', name: 'NamVibe Crown', price_nvc: 10000, tier: 'legendary', premium: true },
-  ];
-
-  var GIFT_TIERS = ['bronze','silver','gold','diamond','legendary'];
-
-  var LIVE_TYPES = [
-    { id: 'public', label: 'Public Live' },
-    { id: 'friends', label: 'Friends Only' },
-    { id: 'followers', label: 'Followers Only' },
-    { id: 'subscribers', label: 'Subscribers Only' },
-    { id: 'invite', label: 'Invite Only' },
-    { id: 'password', label: 'Password Protected' },
-    { id: 'private', label: 'Private' },
-    { id: 'group', label: 'Group Live' },
-    { id: 'audio', label: 'Audio Only' },
-    { id: 'video', label: 'Video Live' },
-    { id: 'screenshare', label: 'Screen Share' },
-    { id: 'camera_screen', label: 'Camera + Screen' }
-  ];
-
-  var ROOM_TYPES = [
-    { id: 'music', label: 'Music Room' },
-    { id: 'business', label: 'Business Room' },
-    { id: 'gaming', label: 'Gaming Room' },
-    { id: 'dating', label: 'Dating Room' },
-    { id: 'church', label: 'Church Room' },
-    { id: 'school', label: 'School Room' },
-    { id: 'university', label: 'University Room' },
-    { id: 'family', label: 'Family Room' },
-    { id: 'podcast', label: 'Podcast Room' },
-    { id: 'debate', label: 'Debate Room' },
-    { id: 'news', label: 'News Room' },
-    { id: 'health', label: 'Health Room' },
-    { id: 'jobfair', label: 'Job Fair Room' }
-  ];
+  function loadConfig(cb) {
+    apiGet('/api/config/all', function(data) {
+      if (data && data.live_categories) {
+        CATEGORIES = data.live_categories.map(function(c) {
+          return { id: c.slug, label: c.label, icon: c.icon, live: c.is_live };
+        });
+      }
+      if (data && data.gift_tiers) {
+        TIERS = data.gift_tiers.map(function(t) {
+          var rng = t.min_nvc + '–' + (t.max_nvc >= 999999 ? '10000+' : t.max_nvc) + ' NVC';
+          return { id: t.slug, label: t.label, range: rng, color: t.color };
+        });
+        GIFT_TIERS = data.gift_tiers.map(function(t) { return t.slug; });
+      }
+      if (data && data.gifts) {
+        GIFTS = data.gifts.map(function(g) {
+          return { emoji: g.emoji, name: g.name, price_nvc: parseFloat(g.price_nvc), tier: g.tier, premium: g.is_premium };
+        });
+      }
+      if (data && data.live_types) {
+        LIVE_TYPES = data.live_types.map(function(t) {
+          return { id: t.slug, label: t.label };
+        });
+      }
+      if (data && data.room_types) {
+        ROOM_TYPES = data.room_types.map(function(t) {
+          return { id: t.slug, label: t.label };
+        });
+      }
+      if (cb) cb();
+    });
+  }
 
   /* ── SVG Icons ── */
   function icon(path) {
@@ -566,10 +493,14 @@
   /* ── Live Room ── */
   function initRoom(roomId) {
     currentRoom = roomId;
+    socket = window.chainSocket || (typeof io !== 'undefined' ? io() : null);
+    bindLiveSocket(roomId);
     var chatInput = document.getElementById('lvChatInput');
     var chatSend = document.getElementById('lvChatSend');
     var giftBtn = document.getElementById('lvGiftBtn');
     var emojiBtn = document.getElementById('lvEmojiBtn');
+    var startBtn = document.querySelector('[data-action="start-live-session"]');
+    var reactionBtn = document.querySelector('[data-action="send-reaction"]');
 
     /* Load NVC balance */
     loadWalletBalance();
@@ -593,7 +524,9 @@
       if (!text) return;
       if (chatInput) chatInput.value = '';
       apiPost('/api/live/' + roomId + '/chat', { body: text }, function (d) {
-        if (d && d.message) appendChat(d.message);
+        if (!(d && d.ok)) {
+          toast((d && d.error) || 'Could not send message');
+        }
       });
     }
     if (chatSend) chatSend.addEventListener('click', sendChat);
@@ -727,6 +660,12 @@
     }
 
     /* Room controls */
+    if (startBtn) {
+      startBtn.addEventListener('click', function () {
+        startLiveSession(roomId);
+      });
+    }
+
     var endBtn = document.querySelector('[data-action="end-live"]');
     if (endBtn) {
       endBtn.addEventListener('click', function () {
@@ -762,6 +701,12 @@
             ? icon('<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>')
             : icon('<line x1="1" y1="1" x2="23" y2="23"/><path d="M21 8l-5 4 5 4V8z"/><rect x="3" y="6" width="13" height="12" rx="2"/>');
         }
+      });
+    }
+
+    if (reactionBtn) {
+      reactionBtn.addEventListener('click', function () {
+        sendReaction(roomId, reactionBtn.dataset.reaction || 'heart');
       });
     }
 
@@ -825,9 +770,6 @@
       }
     });
 
-    /* Start webcam for host */
-    if (isHost) startWebcam();
-
     /* Polling */
     var lastChatId = 0;
     setInterval(function () {
@@ -864,6 +806,82 @@
     el.firstChild?.setAttribute('data-msg-id', msg.id || '');
     chatBox.appendChild(el.firstChild || el);
     chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function bindLiveSocket(roomId) {
+    if (!socket || liveState.socketBound) return;
+    liveState.socketBound = true;
+
+    socket.on('live:viewers', function (payload) {
+      if (!payload || payload.room_id && payload.room_id !== roomId) return;
+      var viewerEl = document.getElementById('lvViewerCount');
+      if (viewerEl && payload.count != null) viewerEl.textContent = payload.count;
+    });
+
+    socket.on('live:chat', function (payload) {
+      if (payload) appendChat(payload);
+    });
+
+    socket.on('live:reaction', function (payload) {
+      if (!payload) return;
+      showGiftAnimation(payload.reaction_type === 'heart' ? '❤️' : '🔥', payload.reaction_type || 'reaction', 'bronze');
+    });
+
+    socket.on('live:room_ended', function (payload) {
+      if (!payload || payload.room_id !== roomId) return;
+      setConnectionState('Stream ended');
+      stopLocalMedia();
+      toast('This live stream has ended');
+    });
+  }
+
+  function joinSocketRoom(roomId) {
+    if (!socket || liveState.joined) return;
+    socket.emit('join_live_room', { room_id: roomId });
+    liveState.joined = true;
+  }
+
+  function leaveSocketRoom(roomId) {
+    if (!socket || !liveState.joined) return;
+    socket.emit('leave_live_room', { room_id: roomId });
+    liveState.joined = false;
+  }
+
+  function stopLocalMedia() {
+    if (!mediaStream) return;
+    mediaStream.getTracks().forEach(function (track) { track.stop(); });
+    mediaStream = null;
+  }
+
+  function sendReaction(roomId, reactionType) {
+    if (!socket) return;
+    socket.emit('live_reaction', { room_id: roomId, reaction_type: reactionType || 'heart' });
+  }
+
+  function startLiveSession(roomId) {
+    setConnectionState(isHost ? 'Requesting camera and microphone…' : 'Joining stream…');
+    if (isHost) {
+      startWebcam(function (ok) {
+        if (ok) requestProviderSession(roomId, 'host');
+      });
+    } else {
+      requestProviderSession(roomId, 'viewer');
+    }
+  }
+
+  function requestProviderSession(roomId, role) {
+    joinSocketRoom(roomId);
+    apiPost('/api/live/livekit-token', { room_id: roomId, role: role }, function (d) {
+      if (d && d.ok && d.token) {
+        liveState.livekitToken = d.token;
+        liveState.livekitWsUrl = d.ws_url || '';
+        setConnectionState('Connected');
+        return;
+      }
+      apiGet('/api/live/webrtc-config', function () {
+        setConnectionState(role === 'host' ? 'Broadcast ready' : 'Connected');
+      });
+    });
   }
 
   /* ── Premium Tiered Gift Animations ── */
@@ -908,57 +926,76 @@
     }
   }
 
-  function startWebcam() {
+  function startWebcam(done) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       toast('Camera not available');
+      setConnectionState('Camera not available');
+      if (done) done(false);
       return;
     }
     var videoEl = document.querySelector('.lv-room-video video') || document.querySelector('.lv-room-video');
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: true })
+    navigator.mediaDevices.getUserMedia({ video: isHost ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } : false, audio: true })
       .then(function (stream) {
         mediaStream = stream;
         if (videoEl && videoEl.tagName === 'VIDEO') {
           videoEl.srcObject = stream;
+          videoEl.muted = true;
+          videoEl.setAttribute('playsinline', 'playsinline');
+          videoEl.style.display = 'block';
           videoEl.play();
         } else if (videoEl) {
           var vid = document.createElement('video');
           vid.srcObject = stream;
           vid.autoplay = true;
           vid.muted = true;
-          vid.playsinline = true;
+          vid.playsInline = true;
           vid.style.width = '100%';
           vid.style.height = '100%';
           vid.style.objectFit = 'cover';
           videoEl.innerHTML = '';
           videoEl.appendChild(vid);
         }
+        var placeholder = document.getElementById('lvStreamPlaceholder');
+        if (placeholder) placeholder.style.display = 'none';
+        setConnectionState('Media ready');
+        if (done) done(true);
       })
-      .catch(function () {
-        toast('Camera permission denied');
+      .catch(function (error) {
+        toast('Camera or microphone permission denied');
+        setConnectionState((error && error.message) || 'Media permission denied');
+        if (done) done(false);
       });
   }
 
   /* ── Init ── */
-  if (document.querySelector('.lv-app')) {
+  function boot() {
     if (document.querySelector('[data-room-id]')) loadHub();
     if (document.getElementById('lvChatBox')) {
-      var match = window.location.pathname.match(/\/live\/(\d+)/);
-      if (match) {
-        isHost = !!document.querySelector('[data-action="end-live"]');
-        initRoom(match[1]);
+      var roomRoot = document.querySelector('[data-live-room-id]');
+      if (roomRoot && roomRoot.dataset.liveRoomId) {
+        isHost = roomRoot.dataset.liveIsHost === 'true';
+        initRoom(roomRoot.dataset.liveRoomId);
       }
     }
   }
 
+  if (document.querySelector('.lv-app')) {
+    loadConfig(boot);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     if (document.querySelector('.lv-app') && !document.getElementById('lvChatBox')) {
-      loadHub();
+      loadConfig(function() { loadHub(); });
     }
     var goLiveBtn = document.querySelector('[data-action="go-live"]');
     if (goLiveBtn) goLiveBtn.addEventListener('click', openGoLive);
 
     var scheduleBtn = document.querySelector('[data-action="schedule-live"]');
     if (scheduleBtn) scheduleBtn.addEventListener('click', openGoLive);
+    window.addEventListener('beforeunload', function () {
+      if (currentRoom) leaveSocketRoom(currentRoom);
+      stopLocalMedia();
+    });
   });
 
   window.NamVibeLive = {

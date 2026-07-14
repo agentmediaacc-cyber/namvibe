@@ -7,6 +7,10 @@ LOG_DIR="$APP_DIR/logs"
 ACCESS_LOG="$LOG_DIR/gunicorn_access.log"
 ERROR_LOG="$LOG_DIR/gunicorn_error.log"
 PID_FILE="$LOG_DIR/gunicorn.pid"
+CF_LOG="$LOG_DIR/cloudflared.log"
+CF_PID_FILE="$LOG_DIR/cloudflared.pid"
+CF_TUNNEL_NAME="${CF_TUNNEL_NAME:-namvibe}"
+CF_CONFIG="${CF_CONFIG:-$HOME/.cloudflared/config.yml}"
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8080}"
 HEALTH_URL="http://127.0.0.1:${PORT}/healthz"
@@ -18,6 +22,8 @@ MAX_ATTEMPTS=15
 print_failure_logs() {
   echo "[fail] Recent Gunicorn error log:"
   tail -n 80 "$ERROR_LOG" 2>/dev/null || true
+  echo "[fail] Recent Cloudflared log:"
+  tail -n 80 "$CF_LOG" 2>/dev/null || true
 }
 
 cleanup_port() {
@@ -67,8 +73,14 @@ if [ -f "$PID_FILE" ]; then
   rm -f "$PID_FILE"
 fi
 
+if [ -f "$CF_PID_FILE" ]; then
+  echo "[start] Removing stale Cloudflared PID file $CF_PID_FILE"
+  rm -f "$CF_PID_FILE"
+fi
+
 : > "$ACCESS_LOG"
 : > "$ERROR_LOG"
+: > "$CF_LOG"
 
 export PORT
 export FLASK_ENV=production
@@ -153,3 +165,52 @@ echo "  Local healthz: $HEALTH_URL"
 echo "  Local home:    http://127.0.0.1:${PORT}/"
 echo "  Access log:    $ACCESS_LOG"
 echo "  Error log:     $ERROR_LOG"
+
+echo "[start] Stopping any existing Cloudflared tunnel processes..."
+pkill -f "cloudflared.*tunnel.*${CF_TUNNEL_NAME}" 2>/dev/null || true
+sleep 1
+
+echo "[start] Validating Cloudflared ingress config..."
+if ! cloudflared tunnel --config "$CF_CONFIG" ingress validate >/dev/null 2>&1; then
+  echo "[fail] Cloudflared ingress config is invalid: $CF_CONFIG"
+  print_failure_logs
+  exit 1
+fi
+
+echo "[start] Launching Cloudflared tunnel in HTTP/2 mode..."
+nohup cloudflared tunnel \
+  --config "$CF_CONFIG" \
+  --protocol http2 \
+  --logfile "$CF_LOG" \
+  --loglevel info \
+  run "$CF_TUNNEL_NAME" >/dev/null 2>&1 &
+CF_PID=$!
+echo "$CF_PID" > "$CF_PID_FILE"
+sleep 5
+
+if ! kill -0 "$CF_PID" 2>/dev/null; then
+  echo "[fail] Cloudflared exited before readiness checks"
+  print_failure_logs
+  exit 1
+fi
+
+ACTIVE=0
+for attempt in $(seq 1 10); do
+  if cloudflared tunnel info "$CF_TUNNEL_NAME" 2>/tmp/namvibe_cf_info_err.$$ | rg -q "active connection|active connections"; then
+    ACTIVE=1
+    break
+  fi
+  echo "[start] Waiting for active Cloudflared connection ($attempt/10)..."
+  sleep 3
+done
+rm -f /tmp/namvibe_cf_info_err.$$
+
+if [ "$ACTIVE" != "1" ]; then
+  echo "[fail] Cloudflared did not establish an active connection"
+  print_failure_logs
+  exit 1
+fi
+
+echo "[ok] Cloudflared tunnel is active"
+echo "  Tunnel name:   $CF_TUNNEL_NAME"
+echo "  Cloudflare log: $CF_LOG"

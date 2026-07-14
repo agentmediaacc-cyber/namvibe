@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}NamVibe | Live{% endblock %}
+{% block body_class %}lv-body{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/namvibe_live.css">
+<style>
+  .lv-body .chain-shell { background: var(--lv-bg, #0a0a1a); }
+  .lv-body .main-container { padding: 0; max-width: 100%; background: transparent; }
+  .lv-body .content-body { padding: 0 !important; background: transparent; }
+  .lv-body .top-header, .lv-body .mobile-nav { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="lv-app">
+  <!-- TOP BAR -->
+  <header class="lv-topbar">
+    <h1>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      NamVibe Live
+    </h1>
+    <div class="lv-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" placeholder="Search streams, creators, categories..." id="lvSearch">
+    </div>
+  </header>
+
+  <!-- CATEGORIES -->
+  <nav class="lv-categories" id="lvCategories"></nav>
+
+  <!-- FEATURED -->
+  <section class="lv-section" data-live-section="featured">
+    <h2>⭐ Featured Lives <span class="lv-count">— Top streams right now</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- FRIENDS LIVE -->
+  <section class="lv-section" data-live-section="friends">
+    <h2>👥 Friends Live <span class="lv-count">— People you follow</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- TRENDING -->
+  <section class="lv-section" data-live-section="trending">
+    <h2>📈 Trending <span class="lv-count">— Popular in your area</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- MUSIC -->
+  <section class="lv-section" data-live-section="music">
+    <h2>🎵 Music <span class="lv-count">— Concerts, jams & sessions</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- GAMING -->
+  <section class="lv-section" data-live-section="gaming">
+    <h2>🎮 Gaming <span class="lv-count">— Live gameplay & esports</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- BUSINESS -->
+  <section class="lv-section" data-live-section="business">
+    <h2>💼 Business <span class="lv-count">— Product launches, meetings & more</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- SHOPPING -->
+  <section class="lv-section" data-live-section="shopping">
+    <h2>🛍 Shopping <span class="lv-count">— Live commerce & deals</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- CHURCH -->
+  <section class="lv-section" data-live-section="church">
+    <h2>⛪ Church <span class="lv-count">— Services & community</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- EDUCATION -->
+  <section class="lv-section" data-live-section="education">
+    <h2>📚 Education <span class="lv-count">— Classes, tutorials & workshops</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- GOVERNMENT -->
+  <section class="lv-section" data-live-section="government">
+    <h2>🏛 Government <span class="lv-count">— Public announcements & town halls</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- HEALTH -->
+  <section class="lv-section" data-live-section="health">
+    <h2>🏥 Health <span class="lv-count">— Wellness, fitness & medical</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- SPORTS -->
+  <section class="lv-section" data-live-section="sports">
+    <h2>⚽ Sports <span class="lv-count">— Games, analysis & training</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- ENTERTAINMENT -->
+  <section class="lv-section" data-live-section="entertainment">
+    <h2>🎭 Entertainment <span class="lv-count">— Shows, comedy & variety</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- NEW CREATORS -->
+  <section class="lv-section" data-live-section="new">
+    <h2>🌟 New Live Creators <span class="lv-count">— Discover fresh talent</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+
+  <!-- SCHEDULED -->
+  <section class="lv-section" data-live-section="scheduled">
+    <h2>📅 Scheduled Lives <span class="lv-count">— Upcoming streams</span></h2>
+    <div class="lv-grid"></div>
+  </section>
+</div>
+
+<!-- GO LIVE FAB -->
+<button class="lv-go-live" data-action="go-live">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+  Go Live
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/namvibe_live.js"></script>
+{% endblock %}

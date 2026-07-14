@@ -216,7 +216,7 @@ def gallery_page(profile_id):
         sub_status = "inactive"
         try:
             sub_check = fast_query(
-                "SELECT status FROM chain_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
+                "SELECT status FROM chain_creator_subscriptions WHERE subscriber_id = %s AND creator_id = %s AND status = 'active' LIMIT 1",
                 (viewer["id"], profile_id), default=[]
             )
             if sub_check:

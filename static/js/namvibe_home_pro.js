@@ -1,6 +1,11 @@
 (function () {
   "use strict";
 
+  if (window.__NAMVIBE_HOME_PRO_INITIALIZED__) {
+    return;
+  }
+  window.__NAMVIBE_HOME_PRO_INITIALIZED__ = true;
+
   function logRuntimeGuard(scope, error) {
     var message = error && error.message ? error.message : String(error);
     console.error("[nvpro-homepage:" + scope + "]", message);
@@ -52,7 +57,23 @@
     setTimeout(function () { toastEl.classList.remove("is-visible"); }, 2500);
   }
 
+  function scheduleAfterPaint(fn) {
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(fn, { timeout: 1200 });
+      return;
+    }
+    setTimeout(fn, 350);
+  }
+
+  function logHomepageTimings(source, timings) {
+    if (!timings) return;
+    try {
+      console.info("[namvibe-homepage-timing][" + source + "]", timings);
+    } catch (_) {}
+  }
+
   var likeErrorLogged = false;
+  var pendingLikeRequests = Object.create(null);
 
   /* ── Phase 168: Real-time badge updates via Socket.IO ── */
   function initRealtimeHooks() {
@@ -360,7 +381,23 @@
         var loadMode = index < 3 ? "eager" : "lazy";
         vidHtml = '<div class="nvpro-post-media"><img src="' + escapeHtml(mediaUrl) + '" alt="' + escapeHtml(text) + '" loading="' + loadMode + '" class="nvpro-post-media"></div>';
       }
-      html += '<article class="nvpro-post-card" data-item-id="' + (item.id || "") + '" data-type="' + vAttr + '" data-href="/post/' + (item.id || "") + '" style="cursor:pointer">';
+      html += '<article class="nvpro-post-card"'
+        + ' data-item-id="' + (item.id || "") + '"'
+        + ' data-post-id="' + (item.id || "") + '"'
+        + ' data-video-id="' + (item.id || "") + '"'
+        + ' data-video-url="' + escapeHtml(videoUrl) + '"'
+        + ' data-thumbnail-url="' + escapeHtml(thumbnail) + '"'
+        + ' data-caption="' + escapeHtml(text) + '"'
+        + ' data-creator-name="' + escapeHtml(displayName) + '"'
+        + ' data-creator-username="' + escapeHtml(username) + '"'
+        + ' data-creator-avatar="' + escapeHtml(avatar || "/static/img/default-avatar.png") + '"'
+        + ' data-creator-profile-id="' + escapeHtml(item.profile_id || "") + '"'
+        + ' data-following="' + (item.viewer_is_following ? "true" : "false") + '"'
+        + ' data-likes-count="' + (item.likes_count || 0) + '"'
+        + ' data-comments-count="' + (item.comments_count || 0) + '"'
+        + ' data-shares-count="' + (item.shares_count || 0) + '"'
+        + ' data-sound-label="' + escapeHtml(item.music_title || item.title || "") + '"'
+        + ' data-type="' + vAttr + '" data-href="/post/' + (item.id || "") + '" style="cursor:pointer">';
       html += '<div class="nvpro-post-head">';
       html += '<a href="' + profileHref(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
@@ -439,11 +476,11 @@
   });
 
   function fetchFeed(tab) {
-    var url = tab === "for_you" ? "/api/feed?limit=20" : "/api/homepage/feed?tab=" + encodeURIComponent(tab) + "&limit=20";
+    var url = "/api/homepage/feed?tab=" + encodeURIComponent(tab || "for_you") + "&limit=20";
     apiFetch(url)
       .then(function (data) {
         if (data.ok && data.payload) {
-          var items = tab === "for_you" ? (data.payload.feed_items || []).concat(data.payload.reels || []) : (data.payload.feed_items || []);
+          var items = (data.payload.feed_items || []);
           nextCursor = data.payload.next_cursor || null;
           hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
           if (window.NamVibeCache) { window.NamVibeCache.saveFeed(data.payload); } else { try { localStorage.setItem("namvibe_feed_cache", JSON.stringify(data.payload)); } catch(e) {} }
@@ -461,7 +498,7 @@
       .catch(function () {
         function tryCachedData(cached) {
           if (cached) {
-            var citems = tab === "for_you" ? (cached.feed_items || []).concat(cached.reels || []) : (cached.feed_items || []);
+            var citems = cached.feed_items || [];
             if (citems.length) { renderFeedItems(feedEl, citems); return true; }
           }
           return false;
@@ -648,6 +685,7 @@
   document.addEventListener("click", function (e) {
     var media = e.target.closest("[data-nv-video]");
     if (!media) return;
+    if (isMobileReelsMode()) return;
     var vid = media.querySelector("video");
     if (!vid) return;
     if (vid.paused) {
@@ -666,6 +704,7 @@
   document.addEventListener("click", function (e) {
     var media = e.target.closest("[data-nv-video]");
     if (!media) return;
+    if (isMobileReelsMode()) return;
     var now = Date.now();
     if (now - lastVideoTap < 400) {
       // Double tap
@@ -968,8 +1007,17 @@
       return false;
     }
     btn.classList.toggle("is-liked", data.liked);
-    var span = btn.querySelector("span");
+    var span = btn.querySelector("[data-mobile-like-count]") || btn.querySelector("strong") || btn.querySelector("span");
     if (span && typeof data.count === "number") span.textContent = data.count;
+    if (btn.dataset.id && typeof data.count === "number") {
+      syncCardCounters(btn.dataset.id, "like", data.count, data.liked);
+      var viewerBtn = mobileViewerState.feed && mobileViewerState.feed.querySelector('.nvpro-mobile-reel-slide[data-video-id="' + btn.dataset.id + '"] [data-action="like"]');
+      if (viewerBtn) {
+        viewerBtn.classList.toggle("is-liked", data.liked);
+        var viewerCount = viewerBtn.querySelector("[data-mobile-like-count]");
+        if (viewerCount) viewerCount.textContent = String(data.count);
+      }
+    }
     showToast(data.liked ? "Liked" : "Unliked");
     return true;
   }
@@ -985,12 +1033,14 @@
     var id = btn.dataset.id;
     var type = btn.dataset.type || "post";
     if (!id) return;
+    if (pendingLikeRequests[id]) return;
     var wasLiked = btn.classList.contains("is-liked");
-    var span = btn.querySelector("span");
+    var span = btn.querySelector("[data-mobile-like-count]") || btn.querySelector("strong") || btn.querySelector("span");
     var oldCount = span ? parseInt(span.textContent, 10) : 0;
     btn.classList.toggle("is-liked");
     if (span) span.textContent = wasLiked ? Math.max(oldCount - 1, 0) : oldCount + 1;
     var url = "/api/social/" + encodeURIComponent(type) + "/" + encodeURIComponent(id) + "/like";
+    pendingLikeRequests[id] = true;
     apiFetch(url, { method: "POST" })
       .then(function (data) {
         if (!_handleLikeResult(btn, data)) {
@@ -1005,6 +1055,9 @@
         if (span) span.textContent = oldCount;
         showToast("Could not like. Try again.");
         _logLikeErrorOnce({ type: type, id: id });
+      })
+      .finally(function () {
+        delete pendingLikeRequests[id];
       });
   });
 
@@ -1020,6 +1073,11 @@
       .then(function (data) {
         if (data.ok) {
           btn.classList.toggle("is-saved");
+          if (mobileViewerState.feed && btn.dataset.id) {
+            mobileViewerState.feed.querySelectorAll('.nvpro-mobile-reel-slide[data-video-id="' + btn.dataset.id + '"] [data-action="save"]').forEach(function (viewerBtn) {
+              viewerBtn.classList.toggle("is-saved", btn.classList.contains("is-saved"));
+            });
+          }
           showToast(btn.classList.contains("is-saved") ? "Saved" : "Unsaved");
         }
       })
@@ -1041,13 +1099,402 @@
     }
   });
 
+  function isMobileReelsMode() {
+    return window.innerWidth <= 768;
+  }
+
+  var mobileViewerState = {
+    shell: null,
+    feed: null,
+    close: null,
+    drawer: null,
+    drawerList: null,
+    drawerInput: null,
+    drawerSend: null,
+    items: [],
+    activeIndex: 0,
+    activeId: null,
+    observer: null,
+    fetchMorePending: false,
+    hasMore: true,
+    lastTapAt: 0,
+    lastTapVideoId: null
+  };
+
+  function ensureMobileViewer() {
+    if (mobileViewerState.shell) return mobileViewerState;
+    mobileViewerState.shell = document.getElementById("nvVideoOverlayShell");
+    mobileViewerState.feed = document.getElementById("nvMobileReelsFeed");
+    mobileViewerState.close = document.getElementById("nvMobileReelsClose");
+    mobileViewerState.drawer = document.getElementById("nvMobileCommentsDrawer");
+    mobileViewerState.drawerList = document.getElementById("nvMobileCommentsList");
+    mobileViewerState.drawerInput = document.getElementById("nvMobileCommentsInput");
+    mobileViewerState.drawerSend = document.getElementById("nvMobileCommentsSend");
+    if (!mobileViewerState.shell || !mobileViewerState.feed) return mobileViewerState;
+    mobileViewerState.close.addEventListener("click", closeMobileViewer);
+    mobileViewerState.drawer.addEventListener("click", function (e) {
+      if (e.target === mobileViewerState.drawer || e.target.closest("[data-mobile-comments-close]")) closeMobileComments();
+    });
+    mobileViewerState.drawerSend.addEventListener("click", function () {
+      submitMobileComment();
+    });
+    mobileViewerState.drawerInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") submitMobileComment();
+    });
+    mobileViewerState.observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var slide = entry.target;
+        var video = slide.querySelector("video");
+        if (!video) return;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.65) {
+          mobileViewerState.activeIndex = parseInt(slide.dataset.index || "0", 10) || 0;
+          mobileViewerState.activeId = slide.dataset.videoId || null;
+          try { sessionStorage.setItem("namvibe:last_reel_index", String(mobileViewerState.activeIndex)); } catch (_) {}
+          video.play().catch(function () {});
+          preloadAdjacentViewerVideos(mobileViewerState.activeIndex);
+          maybeFetchMoreMobileReels();
+        } else {
+          video.pause();
+          if (Math.abs((parseInt(slide.dataset.index || "0", 10) || 0) - mobileViewerState.activeIndex) > 2) {
+            try {
+              video.removeAttribute("src");
+              video.load();
+            } catch (_) {}
+          }
+        }
+      });
+    }, { threshold: [0.65] });
+    return mobileViewerState;
+  }
+
+  function bindViewerVideoEvents(slide) {
+    var video = slide.querySelector("video");
+    var buffer = slide.querySelector("[data-mobile-buffer]");
+    if (!video || !buffer || video.dataset.mobileBound === "1") return;
+    video.dataset.mobileBound = "1";
+    function showBuffer() { buffer.hidden = false; }
+    function hideBuffer() { buffer.hidden = true; }
+    video.addEventListener("waiting", showBuffer, { passive: true });
+    video.addEventListener("stalled", showBuffer, { passive: true });
+    video.addEventListener("seeking", showBuffer, { passive: true });
+    video.addEventListener("canplay", hideBuffer, { passive: true });
+    video.addEventListener("play", hideBuffer, { passive: true });
+    video.addEventListener("loadeddata", hideBuffer, { passive: true });
+    video.addEventListener("error", hideBuffer, { passive: true });
+  }
+
+  function collectMobileViewerItems() {
+    return Array.prototype.slice.call(document.querySelectorAll(".nvpro-post-card[data-video-url]")).map(function (card) {
+      return {
+        id: card.dataset.videoId || card.dataset.postId || "",
+        video_url: card.dataset.videoUrl || "",
+        thumbnail_url: card.dataset.thumbnailUrl || "",
+        caption: card.dataset.caption || "",
+        creator_name: card.dataset.creatorName || "Creator",
+        creator_username: card.dataset.creatorUsername || "",
+        creator_avatar: card.dataset.creatorAvatar || "/static/img/default-avatar.png",
+        creator_profile_id: card.dataset.creatorProfileId || "",
+        following: card.dataset.following === "true",
+        likes_count: parseInt(card.dataset.likesCount || "0", 10) || 0,
+        comments_count: parseInt(card.dataset.commentsCount || "0", 10) || 0,
+        shares_count: parseInt(card.dataset.sharesCount || "0", 10) || 0,
+        sound_label: card.dataset.soundLabel || "",
+        type: card.dataset.type || "post"
+      };
+    }).filter(function (item) {
+      return !!item.video_url;
+    });
+  }
+
+  function buildMobileViewerSlide(item, index) {
+    var followLabel = item.following ? "Following" : "Follow";
+    return '<section class="nvpro-mobile-reel-slide" data-index="' + index + '" data-video-id="' + escapeHtml(item.id) + '">' +
+      '<video src="' + escapeHtml(item.video_url) + '" poster="' + escapeHtml(item.thumbnail_url) + '" playsinline preload="metadata"></video>' +
+      '<button type="button" class="nvpro-mobile-reel-hitbox" data-mobile-toggle="' + escapeHtml(item.id) + '" aria-label="Toggle playback"></button>' +
+      '<div class="nvpro-mobile-reel-heart" data-mobile-heart="' + escapeHtml(item.id) + '">' + icon("heart") + '</div>' +
+      '<div class="nvpro-mobile-reel-buffer" data-mobile-buffer hidden><span class="nvpro-mobile-reel-buffer-spinner"></span></div>' +
+      '<div class="nvpro-mobile-reel-rail">' +
+      '<a href="' + profileHref(item.creator_username) + '" class="nvpro-mobile-reel-avatar"><img src="' + escapeHtml(item.creator_avatar) + '" alt=""></a>' +
+      '<button type="button" class="nvpro-mobile-reel-action" data-action="like" data-id="' + escapeHtml(item.id) + '" data-type="' + escapeHtml(item.type) + '"><span>' + icon("heart") + '</span><strong data-mobile-like-count>' + item.likes_count + '</strong></button>' +
+      '<button type="button" class="nvpro-mobile-reel-action" data-mobile-comment-open="' + escapeHtml(item.id) + '"><span>' + icon("comment") + '</span><strong data-mobile-comment-count>' + item.comments_count + '</strong></button>' +
+      '<button type="button" class="nvpro-mobile-reel-action" data-action="share" data-id="' + escapeHtml(item.id) + '"><span>' + icon("share") + '</span><strong>' + item.shares_count + '</strong></button>' +
+      '<button type="button" class="nvpro-mobile-reel-action" data-action="save" data-id="' + escapeHtml(item.id) + '" data-type="' + escapeHtml(item.type) + '"><span>' + icon("save") + '</span><strong>Save</strong></button>' +
+      '</div>' +
+      '<div class="nvpro-mobile-reel-meta">' +
+      '<div class="nvpro-mobile-reel-userline"><a href="' + profileHref(item.creator_username) + '">@' + escapeHtml(item.creator_username || item.creator_name) + '</a><button type="button" class="nvpro-mobile-follow" data-follow-id="' + escapeHtml(item.creator_profile_id) + '">' + followLabel + '</button></div>' +
+      '<p>' + escapeHtml(item.caption || "") + '</p>' +
+      '<span class="nvpro-mobile-reel-sound">' + escapeHtml(item.sound_label || "Original sound") + '</span>' +
+      '</div>' +
+      '</section>';
+  }
+
+  function syncCardCounters(id, kind, value, liked) {
+    var card = document.querySelector('.nvpro-post-card[data-video-id="' + id + '"], .nvpro-post-card[data-post-id="' + id + '"]');
+    if (!card) return;
+    if (kind === "like") {
+      card.dataset.likesCount = String(value);
+      card.querySelectorAll('[data-action="like"] span').forEach(function (span) { span.textContent = String(value); });
+      card.querySelectorAll('[data-action="like"]').forEach(function (btn) { btn.classList.toggle("is-liked", !!liked); });
+    }
+    if (kind === "comment") {
+      card.dataset.commentsCount = String(value);
+      card.querySelectorAll('[data-action="comment"] span').forEach(function (span) { span.textContent = String(value); });
+    }
+  }
+
+  function openMobileViewer(startId) {
+    var state = ensureMobileViewer();
+    state.items = collectMobileViewerItems();
+    if (!state.items.length) return;
+    state.hasMore = true;
+    state.feed.innerHTML = state.items.map(buildMobileViewerSlide).join("");
+    state.feed.querySelectorAll(".nvpro-mobile-reel-slide").forEach(function (slide) {
+      slide.dataset.videoUrl = state.items[parseInt(slide.dataset.index || "0", 10) || 0].video_url || "";
+      slide.dataset.observed = "1";
+      bindViewerVideoEvents(slide);
+      state.observer.observe(slide);
+    });
+    state.shell.hidden = false;
+    state.shell.setAttribute("aria-hidden", "false");
+    state.shell.classList.add("active");
+    document.body.classList.add("nvpro-mobile-viewer-open");
+    var storedIndex = 0;
+    try { storedIndex = parseInt(sessionStorage.getItem("namvibe:last_reel_index") || "0", 10) || 0; } catch (_) {}
+    var targetIndex = Math.max(0, state.items.findIndex(function (item) { return item.id === startId; }));
+    if (!startId && storedIndex > 0 && storedIndex < state.items.length) targetIndex = storedIndex;
+    var target = state.feed.querySelector('.nvpro-mobile-reel-slide[data-index="' + targetIndex + '"]');
+    if (target) target.scrollIntoView({ block: "start" });
+    preloadAdjacentViewerVideos(targetIndex);
+  }
+
+  function closeMobileViewer() {
+    var state = ensureMobileViewer();
+    closeMobileComments();
+    state.shell.classList.remove("active");
+    state.shell.hidden = true;
+    state.shell.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("nvpro-mobile-viewer-open");
+    state.feed.querySelectorAll("video").forEach(function (video) { video.pause(); });
+    state.feed.innerHTML = "";
+  }
+
+  function preloadAdjacentViewerVideos(index) {
+    var slides = mobileViewerState.feed ? mobileViewerState.feed.querySelectorAll(".nvpro-mobile-reel-slide video") : [];
+    Array.prototype.forEach.call(slides, function (video, slideIndex) {
+      var slide = video.closest(".nvpro-mobile-reel-slide");
+      var desiredSrc = slide ? slide.dataset.videoUrl : "";
+      if (Math.abs(slideIndex - index) <= 1) {
+        video.preload = "metadata";
+        if (!video.getAttribute("src") && desiredSrc) {
+          video.setAttribute("src", desiredSrc);
+          video.load();
+        }
+      } else {
+        video.preload = "none";
+        if (Math.abs(slideIndex - index) > 2 && desiredSrc) {
+          try {
+            video.removeAttribute("src");
+            video.load();
+          } catch (_) {}
+        }
+      }
+    });
+  }
+
+  function toggleMobileViewerPlayback(videoId) {
+    var slide = mobileViewerState.feed && mobileViewerState.feed.querySelector('.nvpro-mobile-reel-slide[data-video-id="' + videoId + '"]');
+    if (!slide) return;
+    var video = slide.querySelector("video");
+    if (!video) return;
+    if (video.ended) {
+      video.currentTime = 0;
+      video.play().catch(function () {});
+      return;
+    }
+    if (video.paused) video.play().catch(function () {});
+    else video.pause();
+  }
+
+  function animateMobileHeart(videoId) {
+    var heart = mobileViewerState.feed && mobileViewerState.feed.querySelector('[data-mobile-heart="' + videoId + '"]');
+    if (!heart) return;
+    heart.classList.remove("is-popping");
+    void heart.offsetWidth;
+    heart.classList.add("is-popping");
+  }
+
+  function openMobileComments(videoId) {
+    var state = ensureMobileViewer();
+    state.activeId = videoId;
+    state.drawer.classList.add("is-open");
+    state.drawer.setAttribute("aria-hidden", "false");
+    state.drawerList.innerHTML = '<div class="nvpro-mobile-comments-empty">Comments are loading…</div>';
+    state.drawerInput.value = "";
+    apiFetch("/api/home/post/" + encodeURIComponent(videoId) + "/comments", { method: "GET" })
+      .then(function (data) {
+        var comments = data.comments || data.items || [];
+        if (!comments.length) {
+          state.drawerList.innerHTML = '<div class="nvpro-mobile-comments-empty">Start the conversation.</div>';
+          return;
+        }
+        state.drawerList.innerHTML = comments.map(function (comment) {
+          return '<article class="nvpro-mobile-comment"><strong>' + escapeHtml(comment.author_name || comment.display_name || comment.username || "User") + '</strong><p>' + escapeHtml(comment.body || comment.text || "") + '</p></article>';
+        }).join("");
+      })
+      .catch(function () {
+        state.drawerList.innerHTML = '<div class="nvpro-mobile-comments-empty">Could not load comments.</div>';
+      });
+  }
+
+  function closeMobileComments() {
+    var state = ensureMobileViewer();
+    if (!state.drawer) return;
+    state.drawer.classList.remove("is-open");
+    state.drawer.setAttribute("aria-hidden", "true");
+  }
+
+  function submitMobileComment() {
+    var state = ensureMobileViewer();
+    var id = state.activeId;
+    var body = (state.drawerInput.value || "").trim();
+    if (!id || !body) return;
+    apiFetch("/api/home/post/" + encodeURIComponent(id) + "/comment", { method: "POST", body: { body: body } })
+      .then(function () {
+        state.drawerInput.value = "";
+        var slide = state.feed.querySelector('.nvpro-mobile-reel-slide[data-video-id="' + id + '"]');
+        if (slide) {
+          var countEl = slide.querySelector("[data-mobile-comment-count]");
+          var nextCount = (parseInt(countEl.textContent || "0", 10) || 0) + 1;
+          countEl.textContent = String(nextCount);
+          syncCardCounters(id, "comment", nextCount);
+        }
+        openMobileComments(id);
+      })
+      .catch(function () { showToast("Could not send comment."); });
+  }
+
+  function renderMobileViewerSkeletons() {
+    return '<section class="nvpro-mobile-reel-slide nvpro-mobile-reel-slide-skeleton">' +
+      '<div class="nvpro-mobile-reel-skeleton-media"></div>' +
+      '<div class="nvpro-mobile-reel-skeleton-rail"></div>' +
+      '<div class="nvpro-mobile-reel-skeleton-meta"></div>' +
+      '</section>';
+  }
+
+  function setMobileViewerEndMessage(message) {
+    if (!mobileViewerState.feed) return;
+    var existing = mobileViewerState.feed.querySelector(".nvpro-mobile-reels-end");
+    if (existing) existing.remove();
+    var node = document.createElement("div");
+    node.className = "nvpro-mobile-reels-end";
+    node.textContent = message;
+    mobileViewerState.feed.appendChild(node);
+  }
+
+  function maybeFetchMoreMobileReels() {
+    if (!mobileViewerState.shell || !mobileViewerState.shell.classList.contains("active")) return;
+    if (mobileViewerState.fetchMorePending || !mobileViewerState.hasMore) return;
+    if (mobileViewerState.activeIndex < Math.max(0, mobileViewerState.items.length - 3)) return;
+    mobileViewerState.fetchMorePending = true;
+    mobileViewerState.feed.insertAdjacentHTML("beforeend", renderMobileViewerSkeletons());
+    apiFetch("/api/homepage/feed?tab=for_you&limit=20")
+      .then(function (data) {
+        mobileViewerState.feed.querySelectorAll(".nvpro-mobile-reel-slide-skeleton").forEach(function (n) { n.remove(); });
+        var items = ((data && data.payload && data.payload.reels) || []).filter(function (item) {
+          return item && item.video_url && !mobileViewerState.items.some(function (existing) { return existing.id === item.id; });
+        }).map(function (item) {
+          return {
+            id: item.id,
+            video_url: item.video_url,
+            thumbnail_url: item.thumbnail_url || item.image_url || item.media_url || "",
+            caption: item.caption || item.body || "",
+            creator_name: item.creator_name || item.display_name || item.username || "Creator",
+            creator_username: item.creator_username || item.username || "",
+            creator_avatar: item.creator_avatar || item.avatar_url || "/static/img/default-avatar.png",
+            creator_profile_id: item.creator_id || item.profile_id || "",
+            following: false,
+            likes_count: (item.stats && item.stats.likes) || item.likes_count || 0,
+            comments_count: (item.stats && item.stats.comments) || item.comments_count || 0,
+            shares_count: (item.stats && item.stats.shares) || item.shares_count || 0,
+            sound_label: item.music_title || item.title || "",
+            type: item.type || "reel"
+          };
+        });
+        if (!items.length) {
+          mobileViewerState.hasMore = false;
+          setMobileViewerEndMessage("You’re caught up.");
+          return;
+        }
+        var start = mobileViewerState.items.length;
+        mobileViewerState.items = mobileViewerState.items.concat(items);
+        items.forEach(function (item, offset) {
+          mobileViewerState.feed.insertAdjacentHTML("beforeend", buildMobileViewerSlide(item, start + offset));
+        });
+        mobileViewerState.feed.querySelectorAll(".nvpro-mobile-reel-slide").forEach(function (slide) {
+          if (!slide.dataset.observed) {
+            slide.dataset.videoUrl = mobileViewerState.items[parseInt(slide.dataset.index || "0", 10) || 0].video_url || "";
+            slide.dataset.observed = "1";
+            bindViewerVideoEvents(slide);
+            mobileViewerState.observer.observe(slide);
+          }
+        });
+      })
+      .catch(function () {
+        mobileViewerState.feed.querySelectorAll(".nvpro-mobile-reel-slide-skeleton").forEach(function (n) { n.remove(); });
+      })
+      .finally(function () {
+        mobileViewerState.fetchMorePending = false;
+      });
+  }
+
+  document.addEventListener("click", function (e) {
+    var toggleBtn = e.target.closest("[data-mobile-toggle]");
+    if (!toggleBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var videoId = toggleBtn.getAttribute("data-mobile-toggle");
+    var now = Date.now();
+    if (mobileViewerState.lastTapVideoId === videoId && now - mobileViewerState.lastTapAt < 280) {
+      animateMobileHeart(videoId);
+      var likeBtn = mobileViewerState.feed.querySelector('.nvpro-mobile-reel-slide[data-video-id="' + videoId + '"] [data-action="like"]');
+      if (likeBtn && !likeBtn.classList.contains("is-liked") && !pendingLikeRequests[videoId]) likeBtn.click();
+      if (navigator.vibrate) navigator.vibrate(16);
+    } else {
+      toggleMobileViewerPlayback(videoId);
+    }
+    mobileViewerState.lastTapAt = now;
+    mobileViewerState.lastTapVideoId = videoId;
+  }, true);
+
   /* ── Comment action ── */
   document.addEventListener("click", function (e) {
+    var mobileCommentBtn = e.target.closest("[data-mobile-comment-open]");
+    if (mobileCommentBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openMobileComments(mobileCommentBtn.getAttribute("data-mobile-comment-open"));
+      return;
+    }
     var btn = e.target.closest("[data-action=comment]");
     if (!btn) return;
     var id = btn.dataset.id;
+    if (id && mobileViewerState.shell && mobileViewerState.shell.classList.contains("active")) {
+      openMobileComments(id);
+      return;
+    }
     if (id) window.location.href = "/post/" + id;
   });
+
+  document.addEventListener("click", function (e) {
+    if (!isMobileReelsMode()) return;
+    var reelCard = e.target.closest("[data-mobile-reel-card]");
+    if (!reelCard) return;
+    if (e.target.closest("button, a, input, textarea")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var card = reelCard.closest(".nvpro-post-card");
+    if (card) openMobileViewer(card.dataset.videoId || card.dataset.postId || "");
+  }, true);
 
   /* ── Follow action ── */
   document.addEventListener("click", function (e) {
@@ -1086,6 +1533,7 @@
     }
     // Always hydrate from API to ensure freshest content
     hydrateHomepage();
+    scheduleAfterPaint(loadDeferredHomepageWidgets);
     // Phase 168: Real-time hooks (delayed to let socket connect)
     setTimeout(function () {
       if (!initRealtimeHooks()) {
@@ -1114,7 +1562,7 @@
     if (loadingMore || !hasMoreFeed) return;
     loadingMore = true;
     var url = activeTab === "for_you"
-      ? "/api/feed?limit=20" + (nextCursor ? "&cursor=" + encodeURIComponent(nextCursor) : "")
+      ? "/api/homepage/feed?tab=for_you&limit=20" + (nextCursor ? "&cursor=" + encodeURIComponent(nextCursor) : "")
       : "/api/home/feed?tab=" + encodeURIComponent(activeTab) + "&page=" + (pageNum + 1) + "&limit=20";
     apiFetch(url)
       .then(function (data) {
@@ -1156,7 +1604,7 @@
       var isVideo = videoUrl || item.is_video || item.media_type === "video" || item.media_type === "reel" || (item.mime_type && item.mime_type.indexOf("video/") === 0) || (item.post_type === "video");
       var vidHtml = "";
       if (isVideo && videoUrl) {
-        vidHtml = '<div class="nvpro-post-media" data-nv-video="' + escapeHtml(videoUrl) + '" data-nv-thumb="' + escapeHtml(thumbnail) + '">' +
+        vidHtml = '<div class="nvpro-post-media" data-nv-video="' + escapeHtml(videoUrl) + '" data-nv-thumb="' + escapeHtml(thumbnail) + '" data-mobile-reel-card="true">' +
           '<div class="nvpro-loading-skeleton"></div>' +
           '<div class="nvpro-video-overlay"><div class="nvpro-video-play-icon">' + icon("play") + "</div></div></div>";
       } else if (mediaUrl) {
@@ -1178,7 +1626,7 @@
       html += '<span class="nvpro-post-time">' + (item.created_label || "Just now") + "</span>";
       html += "</div>";
       if (item.profile_id) {
-        html += '<button type="button" class="nvpro-follow-pill" data-follow-id="' + item.profile_id + '">Follow</button>';
+        html += '<button type="button" class="nvpro-follow-pill' + (item.viewer_is_following ? ' is-following' : '') + '" data-follow-id="' + item.profile_id + '">' + (item.viewer_is_following ? 'Following' : 'Follow') + '</button>';
       }
       html += "</div>";
       if (text) html += '<div class="nvpro-post-body">' + escapeHtml(text) + "</div>";
@@ -1225,22 +1673,44 @@
 
   /* ── Phase 156: Hamburger menu toggle ── */
   function setupHamburgerMenu() {
-    var btn = document.getElementById("nvpro-hamburger");
-    var drawer = document.getElementById("nvpro-drawer");
-    var overlay = document.getElementById("nvpro-drawer-overlay");
+    var btn = document.getElementById("nvpro-hamburger") || document.querySelector("[data-action='open-menu']");
+    var drawer = document.getElementById("nvpro-drawer") || document.getElementById("nvMobileMenu");
+    var overlay = document.getElementById("nvpro-drawer-overlay") || document.getElementById("nvMobileMenuOverlay");
     if (!btn || !drawer) return;
+    btn.setAttribute("aria-expanded", "false");
+    function syncDrawer(open) {
+      drawer.classList.toggle("is-open", open);
+      drawer.hidden = !open;
+      drawer.setAttribute("aria-hidden", open ? "false" : "true");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (overlay) {
+        overlay.classList.toggle("is-open", open);
+        overlay.hidden = !open;
+      }
+      document.body.classList.toggle("nvpro-drawer-open", open);
+      if (open) {
+        var focusTarget = drawer.querySelector("[data-action='close-menu'], a, button");
+        if (focusTarget) focusTarget.focus();
+      } else {
+        btn.focus();
+      }
+    }
     btn.addEventListener("click", function () {
-      drawer.classList.toggle("is-open");
-      if (overlay) overlay.classList.toggle("is-open");
-      document.body.classList.toggle("nvpro-drawer-open");
+      syncDrawer(!drawer.classList.contains("is-open"));
+    });
+    drawer.querySelectorAll("[data-action='close-menu'], .nv-mobile-menu-links a").forEach(function (node) {
+      node.addEventListener("click", function () { syncDrawer(false); });
     });
     if (overlay) {
       overlay.addEventListener("click", function () {
-        drawer.classList.remove("is-open");
-        overlay.classList.remove("is-open");
-        document.body.classList.remove("nvpro-drawer-open");
+        syncDrawer(false);
       });
     }
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && drawer.classList.contains("is-open")) {
+        syncDrawer(false);
+      }
+    });
   }
 
   /* ── Phase 158a: Hydrate homepage from API or server data ── */
@@ -1344,6 +1814,10 @@
     if (window.NAMVIBE_HOME) {
       doHydrate(window.NAMVIBE_HOME);
     }
+    var widgetsRoot = document.getElementById("nv-home-widgets-root");
+    if (widgetsRoot && widgetsRoot.dataset.homepageTimings) {
+      try { logHomepageTimings("server", JSON.parse(widgetsRoot.dataset.homepageTimings)); } catch (_) {}
+    }
 
     // Then fetch fresh data from API and re-hydrate
     var controller = new AbortController();
@@ -1351,7 +1825,7 @@
       controller.abort();
     }, 15000);
 
-    fetch("/api/feed?limit=20", {
+    fetch("/api/homepage/feed?tab=for_you&limit=20", {
       method: "GET",
       headers: { "X-CSRFToken": csrfToken() },
       signal: controller.signal,
@@ -1369,6 +1843,7 @@
           nextCursor = data.payload.next_cursor || null;
           hasMoreFeed = typeof data.payload.has_more === "boolean" ? data.payload.has_more : true;
           doHydrate(data.payload);
+          logHomepageTimings("feed_api", data.payload.timings);
           if (window.NamVibeCache) {
             window.NamVibeCache.saveFeed(data.payload);
           } else {
@@ -1388,6 +1863,106 @@
           }
         }
       });
+  }
+
+  function loadDeferredHomepageWidgets() {
+    var root = document.getElementById("nv-home-widgets-root");
+    if (!root || !root.dataset.widgetsUrl) return;
+    fetch(root.dataset.widgetsUrl, {
+      method: "GET",
+      headers: { "X-CSRFToken": csrfToken() },
+      credentials: "same-origin"
+    })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data || !data.ok) return;
+        logHomepageTimings("widgets_api", data.timings);
+        hydrateDeferredWidgets(data);
+      })
+      .catch(function (err) {
+        logRuntimeGuard("widgets", err);
+      });
+  }
+
+  function hydrateDeferredWidgets(data) {
+    var statsBar = document.getElementById("nvStatsBar");
+    var onlineUsers = data.online_users || [];
+    var counts = data.counts || {};
+    var trends = data.trending_hashtags || [];
+    var liveRooms = data.live_rooms || [];
+    var suggestions = data.suggested_creators || data.suggested_people || [];
+
+    if (statsBar && (onlineUsers.length || counts.live_now)) {
+      statsBar.hidden = false;
+      var onlineEl = document.getElementById("nvStatOnline");
+      var liveEl = document.getElementById("nvStatLive");
+      if (onlineEl) onlineEl.textContent = String(onlineUsers.length);
+      if (liveEl) liveEl.textContent = String(counts.live_now || 0);
+      var avatarWrap = document.getElementById("nvStatAvatars");
+      if (avatarWrap) {
+        avatarWrap.innerHTML = "";
+        onlineUsers.slice(0, 5).forEach(function (u) {
+          var link = document.createElement("a");
+          link.href = "/profile/" + (u.id || "");
+          link.className = "nv-stat-avatar-wrap";
+          link.title = u.creator_name || u.display_name || u.username || "Online user";
+          link.innerHTML = '<img src="' + escapeHtml(u.avatar_url || "/static/img/default-avatar.png") + '" alt="" class="nv-stat-avatar" loading="lazy"><span class="nv-stat-online-dot"></span>';
+          avatarWrap.appendChild(link);
+        });
+      }
+    }
+
+    var liveSection = document.getElementById("nv-home-live-section");
+    if (liveSection) {
+      if (!liveRooms.length) {
+        liveSection.hidden = true;
+      } else {
+        liveSection.hidden = false;
+        var liveBody = liveSection.querySelectorAll(".nvpro-sidebar-row, .nvpro-sidebar-empty");
+        liveBody.forEach(function (node) { node.remove(); });
+        liveRooms.forEach(function (live) {
+          liveSection.insertAdjacentHTML("beforeend",
+            '<a class="nvpro-sidebar-row nv-live" href="' + escapeHtml(live.watch_url || ("/live/" + (live.id || ""))) + '">' +
+            '<span class="nvpro-live-dot"></span>' +
+            ((live.creator_avatar || "") ? '<img src="' + escapeHtml(live.creator_avatar) + '" alt="" class="nvpro-sidebar-avatar-sm">' : '') +
+            '<div class="nvpro-sidebar-row-info"><strong class="nvpro-sidebar-row-name">' + escapeHtml(live.creator_name || live.title || "Live") + '</strong><span class="nvpro-live-tag">LIVE</span><small class="nv-live-count">' + escapeHtml(String(live.viewer_count || 0)) + ' watching</small></div></a>');
+        });
+      }
+    }
+
+    var hashtagsSection = document.getElementById("nv-home-hashtags-section");
+    if (hashtagsSection) {
+      if (!trends.length) {
+        hashtagsSection.hidden = true;
+      } else {
+        hashtagsSection.hidden = false;
+        hashtagsSection.querySelectorAll(".nvpro-sidebar-row").forEach(function (node) { node.remove(); });
+        trends.forEach(function (trend) {
+          hashtagsSection.insertAdjacentHTML("beforeend",
+            '<a class="nvpro-sidebar-row nv-trend" href="/discover/" data-nav-url="/hashtag/' + encodeURIComponent(trend.tag || trend.hashtag || "") + '">' +
+            '<span class="nvpro-hashtag">#' + escapeHtml(trend.tag || trend.hashtag || "") + '</span><small>' + escapeHtml(String(trend.count || trend.posts_count || 0)) + ' posts</small></a>');
+        });
+      }
+    }
+
+    var suggestionsSection = document.getElementById("nv-home-suggestions-section");
+    if (suggestionsSection) {
+      if (!suggestions.length) {
+        suggestionsSection.hidden = true;
+      } else {
+        suggestionsSection.hidden = false;
+        suggestionsSection.querySelectorAll(".nvpro-sidebar-row").forEach(function (node) { node.remove(); });
+        suggestions.forEach(function (creator) {
+          suggestionsSection.insertAdjacentHTML("beforeend",
+            '<a class="nvpro-sidebar-row nv-chat" href="/profile/" data-nav-url="/profile/' + escapeHtml(creator.creator_username || creator.username || creator.id || "") + '">' +
+            '<span class="nvpro-sidebar-avatar-sm nv-avatar-wrap"><img src="' + escapeHtml(creator.creator_avatar || creator.avatar_url || "/static/img/default-avatar.png") + '" alt=""></span>' +
+            '<div class="nvpro-sidebar-row-info"><strong class="nvpro-sidebar-row-name">' + escapeHtml(creator.creator_name || creator.display_name || creator.username || "Creator") + '</strong><small>' + escapeHtml(String(creator.followers_count || 0)) + ' followers</small></div></a>');
+        });
+      }
+    }
   }
 
   /* ── Media Preloading with IntersectionObserver ── */

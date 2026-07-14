@@ -120,10 +120,7 @@
             <article class="onboard-step" data-step="2">
                 <h2>Your Interests</h2>
                 <p>Select what you love.</p>
-                <div class="chip-grid" data-target="interests">
-                    {% for interest in ['Music', 'Gaming', 'Fashion', 'Sports', 'Business', 'Travel', 'Dating', 'Technology', 'Movies', 'Food', 'Photography'] %}
-                    <div class="choice-chip" data-value="{{ interest }}">{{ interest }}</div>
-                    {% endfor %}
+                <div class="chip-grid" data-target="interests" data-api="/api/config/interests" data-field="interests" data-label="name" data-value="name">
                 </div>
                 <input type="hidden" name="interests" id="interests-input" value="{{ profile.interests|join(',') if profile.interests else '' }}">
             </article>
@@ -132,10 +129,7 @@
             <article class="onboard-step" data-step="3">
                 <h2>Languages</h2>
                 <p>What languages do you speak?</p>
-                <div class="chip-grid" data-target="languages">
-                    {% for lang in ['English', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Portuguese', 'Arabic', 'Hindi'] %}
-                    <div class="choice-chip" data-value="{{ lang }}">{{ lang }}</div>
-                    {% endfor %}
+                <div class="chip-grid" data-target="languages" data-api="/api/config/languages" data-field="languages" data-label="name" data-value="name">
                 </div>
                 <input type="hidden" name="languages" id="languages-input" value="{{ profile.languages|join(',') if profile.languages else '' }}">
             </article>
@@ -144,10 +138,7 @@
             <article class="onboard-step" data-step="4">
                 <h2>Creator Type</h2>
                 <p>How will you use NamVibe?</p>
-                <div class="chip-grid" data-target="creator_type">
-                    {% for type in ['Viewer', 'Creator', 'Streamer', 'Business', 'Musician', 'Influencer'] %}
-                    <div class="choice-chip" data-value="{{ type }}">{{ type }}</div>
-                    {% endfor %}
+                <div class="chip-grid" data-target="creator_type" data-api="/api/config/creator-types" data-field="types" data-label="label" data-value="label">
                 </div>
                 <input type="hidden" name="profile_type" id="creator_type-input" value="{{ profile.profile_type or 'viewer' }}">
             </article>
@@ -174,6 +165,46 @@
 
 {% block extra_js %}
 <script>
+    fetch('/api/config/all').then(function(r){return r.json()}).then(function(data){
+      document.querySelectorAll('.chip-grid[data-api]').forEach(function(grid){
+        var apiPath = grid.dataset.api;
+        var field = grid.dataset.field;
+        var labelKey = grid.dataset.label;
+        var valueKey = grid.dataset.value;
+        var items = data;
+        apiPath.split('/').forEach(function(part){
+          if(part && items) items = items[part.replace(/-/g,'_')];
+        });
+        if(!items) return;
+        if(items && items.length) items = items;
+        else if(items && items[field]) items = items[field];
+        grid.innerHTML = items.map(function(item){
+          var val = item[valueKey];
+          var lab = item[labelKey] || val;
+          return '<div class="choice-chip" data-value="' + val + '">' + lab + '</div>';
+        }).join('');
+        // Re-attach chip listeners
+        grid.querySelectorAll('.choice-chip').forEach(function(chip){
+          var targetId = grid.dataset.target;
+          var input = document.getElementById(targetId + '-input');
+          if(input && input.value.split(',').filter(Boolean).includes(chip.dataset.value)){
+            chip.classList.add('is-selected');
+          }
+          chip.addEventListener('click', function(){
+            if(targetId === 'creator_type'){
+              grid.querySelectorAll('.choice-chip').forEach(function(c){c.classList.remove('is-selected')});
+              chip.classList.add('is-selected');
+              input.value = chip.dataset.value;
+            } else {
+              chip.classList.toggle('is-selected');
+              var selected = Array.from(grid.querySelectorAll('.choice-chip.is-selected')).map(function(c){return c.dataset.value});
+              input.value = selected.join(',');
+            }
+          });
+        });
+      });
+    }).catch(function(){});
+
     let currentStep = 1;
     const totalSteps = 5;
     const form = document.getElementById('onboarding-form');

@@ -284,7 +284,7 @@
       if (el) el.classList.toggle('active', prefs[k] !== false);
     });
     var muted = prefs.muted_types || [];
-    var types = ['follow','follow_accepted','mention','comment','reply','post_like','reel_like','story_reaction','story_mention','live_started','creator_subscription','wallet_transfer','wallet_received','dating_match','verification_approved','security_alert','system_announcement','new_message','message_reaction'];
+    var types = (window._NOTIFICATION_TYPES && window._NOTIFICATION_TYPES.length) ? window._NOTIFICATION_TYPES : ['follow','follow_accepted','mention','comment','reply','post_like','reel_like','story_reaction','story_mention','live_started','creator_subscription','wallet_transfer','wallet_received','dating_match','verification_approved','security_alert','system_announcement','new_message','message_reaction'];
     var html = '';
     types.forEach(function (t) {
       var isMuted = muted.indexOf(t) !== -1;

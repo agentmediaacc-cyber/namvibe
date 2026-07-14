@@ -2,10 +2,276 @@
 {% block title %}Messages | NamVibe{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_home_premium_v2.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/message_requests.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_messages_pro.css') }}">
 <style>
+:root {
+  --chain-primary: #ec4899;
+  --chain-bg: #fff5f7;
+  --chain-bg-soft: #fff5f7;
+  --chain-bg-panel: #ffffff;
+  --chain-bg-panel-strong: #ffffff;
+  --chain-text: #1a1a2e;
+  --chain-muted: #8e8ea0;
+  --chain-border: rgba(236, 72, 153, 0.12);
+}
+.chain-msg-app {
+  background: #fff5f7 !important;
+  color: #1a1a2e !important;
+}
+.chain-msg-sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.chain-msg-top { border-bottom: 1px solid rgba(236, 72, 153, 0.08) !important; }
+.chain-msg-head .chain-msg-logo {
+  background: linear-gradient(135deg, #ec4899, #f472b6) !important;
+  color: #fff !important;
+}
+.chain-msg-brand h1 { color: #1a1a2e !important; }
+.chain-msg-brand span { color: #8e8ea0 !important; }
+.msg-search input {
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+  background: #fff5f7 !important;
+  color: #1a1a2e !important;
+}
+.msg-search i { color: #8e8ea0 !important; }
+.msg-tabs button, .msg-tabs a {
+  color: #2d2d44 !important;
+  background: rgba(236, 72, 153, 0.06) !important;
+}
+.msg-tabs .active {
+  color: #fff !important;
+  background: #ec4899 !important;
+}
+.thread-card {
+  color: #1a1a2e !important;
+  border-color: transparent !important;
+}
+.thread-card:hover, .thread-card.active {
+  background: rgba(236, 72, 153, 0.06) !important;
+  border-color: rgba(236, 72, 153, 0.12) !important;
+}
+.thread-avatar {
+  background: linear-gradient(135deg, #ec4899, #f472b6) !important;
+}
+.thread-time { color: #8e8ea0 !important; }
+.thread-preview { color: #8e8ea0 !important; }
+.thread-pill {
+  background: rgba(236, 72, 153, 0.06) !important;
+  color: #2d2d44 !important;
+}
+.thread-pill.live { background: #ec4899 !important; color: #fff !important; }
+.thread-draft-indicator { color: #ec4899 !important; }
+.thread-online-dot { border-color: #ffffff !important; }
+.chain-chat-panel {
+  background: #fff5f7 !important;
+}
+.chat-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.chat-user h2 { color: #1a1a2e !important; }
+.chat-user p { color: #8e8ea0 !important; }
+.chat-online-dot { border-color: #ffffff !important; }
+.action-circle {
+  background: rgba(236, 72, 153, 0.06) !important;
+  color: #ec4899 !important;
+}
+.action-circle.call { background: rgba(236, 72, 153, 0.1) !important; }
+.action-circle.video { background: rgba(236, 72, 153, 0.1) !important; }
+.hamburger, .icon-btn {
+  background: rgba(236, 72, 153, 0.06) !important;
+  color: #1a1a2e !important;
+}
+.chat-empty { color: #1a1a2e !important; }
+.chat-empty h3 { color: #1a1a2e !important; }
+.chat-empty p { color: #8e8ea0 !important; }
+.empty-phone {
+  background: linear-gradient(135deg, #ec4899, #f472b6) !important;
+  color: #fff !important;
+}
+.bubble { background: #ffffff !important; border: 1px solid rgba(236, 72, 153, 0.12) !important; }
+.bubble.me {
+  background: linear-gradient(135deg, #ec4899, #f472b6) !important;
+  color: #fff !important;
+}
+.bubble .sender { color: #ec4899 !important; }
+.bubble .delete-msg { color: #1a1a2e !important; }
+.composer {
+  background: #ffffff !important;
+  border-top: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.composer input, .composer select, .composer textarea#messageInput, .field {
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+  background: #fff5f7 !important;
+  color: #1a1a2e !important;
+}
+.premium-btn {
+  color: #1a1a2e !important;
+  background: rgba(236, 72, 153, 0.08) !important;
+}
+.premium-btn:hover { background: rgba(236, 72, 153, 0.15) !important; }
+.premium-btn.primary {
+  background: #ec4899 !important;
+  color: #fff !important;
+}
+.premium-btn.danger { background: #ef4444 !important; color: #fff !important; }
+.missed-call-badge { border-color: #ffffff !important; }
+.call-log-card { background: #ffffff !important; border: 1px solid rgba(236, 72, 153, 0.12) !important; }
+.call-log-card.phase41:hover { border-color: #ec4899 !important; }
+.call-log-card.phase41 .clc-avatar { background: linear-gradient(135deg, #ec4899, #f472b6) !important; }
+.call-log-card.phase41 .clc-status { color: #1a1a2e !important; }
+.call-log-card.phase41 .clc-line2 { color: #8e8ea0 !important; }
+.call-log-card.phase41 .clc-date { color: #8e8ea0 !important; }
+.call-log-card.phase41 .clc-callback { background: linear-gradient(135deg, #ec4899, #f472b6) !important; color: #fff !important; }
+.participant-chip { background: rgba(236, 72, 153, 0.06) !important; }
+.participant-chip .pc-avatar { background: linear-gradient(135deg, #ec4899, #f472b6) !important; }
+.modal-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+  color: #1a1a2e !important;
+}
+.drawer-card {
+  background: #ffffff !important;
+  border-right: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.drawer-link {
+  color: #1a1a2e !important;
+  background: rgba(236, 72, 153, 0.04) !important;
+}
+.drawer-link:hover { background: rgba(236, 72, 153, 0.1) !important; }
+.check-row { border-top: 1px solid rgba(236, 72, 153, 0.08) !important; }
+.call-log-card { border: 1px solid rgba(236, 72, 153, 0.12) !important; }
+.pinned-bar {
+  background: rgba(236, 72, 153, 0.06) !important;
+  border-bottom: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.pinned-bar i { color: #ec4899 !important; }
+.pinned-bar-text { color: #2d2d44 !important; }
+.pinned-bar-close { color: #8e8ea0 !important; }
+.multi-select-toolbar {
+  background: #ffffff !important;
+  border-top: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.multi-select-count { color: #ec4899 !important; }
+.multi-select-btn { background: rgba(236, 72, 153, 0.06) !important; color: #1a1a2e !important; }
+.multi-select-btn.forward:hover { background: #ec4899 !important; color: #fff !important; }
+.forward-contact { background: rgba(236, 72, 153, 0.04) !important; }
+.forward-contact:hover, .forward-contact.selected { background: rgba(236, 72, 153, 0.1) !important; border-color: rgba(236, 72, 153, 0.3) !important; }
+.forward-contact-avatar { background: linear-gradient(135deg, #ec4899, #f472b6) !important; }
+.forward-contact-preview { color: #8e8ea0 !important; }
+.friend-card { background: rgba(236, 72, 153, 0.04) !important; }
+.friend-card:hover { border-color: rgba(236, 72, 153, 0.12) !important; }
+.friend-card-avatar { background: linear-gradient(135deg, #ec4899, #f472b6) !important; }
+.friend-online-dot { border-color: #ffffff !important; }
+.friend-card-username { color: #8e8ea0 !important; }
+.friend-card-btn { background: rgba(236, 72, 153, 0.06) !important; color: #1a1a2e !important; }
+.friend-card-btn.msg:hover { background: rgba(236, 72, 153, 0.15) !important; color: #ec4899 !important; }
+.friend-card-btn.call:hover { background: rgba(236, 72, 153, 0.15) !important; color: #ec4899 !important; }
+.shared-drawer {
+  background: #ffffff !important;
+  border-left: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.shared-drawer-head { border-bottom: 1px solid rgba(236, 72, 153, 0.08) !important; }
+.shared-tabs { border-bottom: 1px solid rgba(236, 72, 153, 0.08) !important; }
+.shared-tab {
+  background: rgba(236, 72, 153, 0.06) !important;
+  color: #2d2d44 !important;
+}
+.shared-tab.active { background: #ec4899 !important; color: #fff !important; }
+.shared-empty { color: #8e8ea0 !important; }
+.shared-doc-item, .shared-link-item { background: rgba(236, 72, 153, 0.04) !important; }
+.reply-preview { background: rgba(236, 72, 153, 0.04) !important; border-top: 1px solid rgba(236, 72, 153, 0.08) !important; }
+.reply-preview-bar { background: linear-gradient(180deg, #ec4899, #f472b6) !important; }
+.reply-preview-sender { color: #ec4899 !important; }
+.reply-preview-text { color: #8e8ea0 !important; }
+.reply-preview-close { color: #8e8ea0 !important; }
+.voice-preview { background: #ffffff !important; border: 1px solid rgba(236, 72, 153, 0.12) !important; }
+.voice-wave span { background: #ec4899 !important; }
+.voice-speed-btn { background: rgba(236, 72, 153, 0.06) !important; color: #2d2d44 !important; }
+.voice-speed-btn.active { background: #ec4899 !important; color: #fff !important; }
+.voice-send { background: linear-gradient(135deg, #ec4899, #f472b6) !important; color: #fff !important; }
+.voice-delete { background: #ef4444 !important; }
+.emoji-panel {
+  background: #ffffff !important;
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.emoji-categories { border-bottom: 1px solid rgba(236, 72, 153, 0.08) !important; }
+.emoji-cat-btn { color: #2d2d44 !important; }
+.emoji-cat-btn.active { background: rgba(236, 72, 153, 0.1) !important; color: #1a1a2e !important; }
+.emoji-category-label { color: #8e8ea0 !important; }
+.emoji-panel button.emoji-item { background: rgba(236, 72, 153, 0.06) !important; }
+.emoji-panel button.emoji-item:hover { background: rgba(236, 72, 153, 0.15) !important; }
+.attach-menu {
+  background: #ffffff !important;
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.attach-item { background: rgba(236, 72, 153, 0.06) !important; color: #1a1a2e !important; }
+.attach-item i { color: #ec4899 !important; }
+.attach-item.photo i { color: #ec4899 !important; }
+.attach-item.document i { color: #ec4899 !important; }
+.attach-item.gif i { color: #ec4899 !important; }
+.sticker-gif-panel {
+  background: #ffffff !important;
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.sticker-gif-tabs { border-bottom: 1px solid rgba(236, 72, 153, 0.08) !important; }
+.sticker-gif-tab {
+  background: rgba(236, 72, 153, 0.06) !important;
+  color: #2d2d44 !important;
+}
+.sticker-gif-tab.active { background: #ec4899 !important; color: #fff !important; }
+.sticker-item { background: rgba(236, 72, 153, 0.06) !important; border-color: rgba(236, 72, 153, 0.08) !important; }
+.gif-search-bar input {
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+  background: #fff5f7 !important;
+  color: #1a1a2e !important;
+}
+.gif-grid-item { background: rgba(236, 72, 153, 0.06) !important; color: #8e8ea0 !important; }
+.group-empty-card {
+  background: rgba(236, 72, 153, 0.04) !important;
+  border-color: rgba(236, 72, 153, 0.12) !important;
+  color: #1a1a2e !important;
+}
+.group-empty-card h3 { color: #1a1a2e !important; }
+.group-empty-card p { color: #8e8ea0 !important; }
+.typing-line { color: #ec4899 !important; }
+.thread-context-menu {
+  background: #ffffff !important;
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.context-item { color: #1a1a2e !important; }
+.context-item:hover { background: rgba(236, 72, 153, 0.08) !important; }
+.context-item i { color: #1a1a2e !important; }
+.new-message-chip {
+  background: #ec4899 !important;
+  color: #fff !important;
+  border: 1px solid rgba(236, 72, 153, 0.2) !important;
+}
+.thread-search-bar {
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.thread-search-results {
+  background: #ffffff !important;
+  border: 1px solid rgba(236, 72, 153, 0.12) !important;
+}
+.thread-search-result-item { border-bottom: 1px solid rgba(236, 72, 153, 0.06) !important; }
+.thread-search-result-item:hover { background: rgba(236, 72, 153, 0.06) !important; }
+.thread-search-result-text { color: #2d2d44 !important; }
+.thread-search-result-date { color: #8e8ea0 !important; }
+.thread-unread-badge {
+  background: #ec4899 !important;
+  color: #fff !important;
+  border-color: #ffffff !important;
+}
+.thread-pill.new { background: rgba(236, 72, 153, 0.12) !important; color: #ec4899 !important; }
+.thread-pill { background: rgba(236, 72, 153, 0.06) !important; color: #2d2d44 !important; }
+.no-results { color: #8e8ea0 !important; }
+.friend-requests-header h3 { color: #1a1a2e !important; }
 body.chain-message-mode header,
 body.chain-message-mode nav,
 body.chain-message-mode aside:not(.chain-msg-sidebar),
@@ -15,7 +281,7 @@ body.chain-message-mode .navbar,
 body.chain-message-mode .desktop-nav,
 body.chain-message-mode .mobile-bottom-nav,
 body.chain-message-mode .search-global{display:none!important}
-body.chain-message-mode{background:#050505!important;overflow:hidden}
+body.chain-message-mode{background:#fff5f7!important;overflow:hidden}
 body.chain-message-mode main,
 body.chain-message-mode .content,
 body.chain-message-mode .container{max-width:none!important;width:100%!important;padding:0!important;margin:0!important}
@@ -566,7 +832,8 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
         <div class="chain-msg-top">
             <div class="chain-msg-head">
                 <div class="chain-msg-brand">
-                    <button class="hamburger" id="openDrawer" type="button"><i class="fas fa-bars"></i></button>
+                    <button class="nv-hamburger" id="openDrawer" type="button" aria-label="Open menu">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     <div class="chain-msg-logo">C</div>
                     <div><h1>Messages</h1><span>Chat • Calls • Groups</span></div>
                 </div>
@@ -615,7 +882,7 @@ body.chain-message-mode .container{max-width:none!important;width:100%!important
                             </span>
                             <span class="thread-time">{{ t.last_message_at|datetime if t.last_message_at else '' }}</span>
                         </div>
-                        <div class="thread-preview">{% if t.last_message_sender_id and t.last_message_sender_id == profile.id %}<span style="color:#00f2ea;font-weight:600;">You: </span>{% endif %}{{ t.last_message or 'Start the conversation' }}</div>
+                        <div class="thread-preview">{% if t.last_message_sender_id and t.last_message_sender_id == profile.id %}<span style="color:#ec4899;font-weight:600;">You: </span>{% endif %}{{ t.last_message or 'Start the conversation' }}</div>
                         <div class="thread-meta">
                             <span class="thread-pill">{{ 'Group' if t.thread_type == 'group' else 'Direct' }}</span>
                             {% if t.is_online %}<span class="thread-pill live">Online</span>{% endif %}

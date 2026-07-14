@@ -14,6 +14,7 @@ from services.neon_service import fetch_one
 def main():
     app = create_app()
     app.config["TESTING"] = True
+    app.config["WTF_CSRF_ENABLED"] = False
     client = app.test_client()
 
     auth_user_id = str(uuid.uuid4())

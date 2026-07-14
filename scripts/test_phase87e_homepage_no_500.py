@@ -77,6 +77,7 @@ def run():
         "live_available": False,
         "upload_video_available": False,
         "post_available": True,
+        "online_stats": {"online_count": 0, "live_count": 0, "online_users": []},
     }
     try:
         with app.test_request_context("/"):

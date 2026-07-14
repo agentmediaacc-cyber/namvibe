@@ -10,6 +10,7 @@
     peerConnection: null,
     pendingCandidates: [],
     ringingTimer: null,
+    ringingAudio: null,
     reconnectTimer: null,
     timeoutTimer: null,
     callTimer: null,
@@ -292,8 +293,23 @@
     }
   }
 
-  function startRinging(type) {
-    state.isRinging = true;
+  function _namvibeRingtoneUrl() {
+    var cached = sessionStorage.getItem("chain_ringtone_url");
+    if (cached) return Promise.resolve(cached);
+    return fetch("/profile/api/ringtone")
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok && d.ringtone_url) {
+          sessionStorage.setItem("chain_ringtone_url", d.ringtone_url);
+          sessionStorage.setItem("chain_ringtone_name", d.ringtone);
+          return d.ringtone_url;
+        }
+        return null;
+      })
+      .catch(function() { return null; });
+  }
+
+  function _namvibeSynthRing(type) {
     try {
       var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === "suspended") audioCtx.resume();
@@ -315,6 +331,19 @@
     }
   }
 
+  function startRinging(type) {
+    state.isRinging = true;
+    if (type === "outgoing") { _namvibeSynthRing("outgoing"); return; }
+    _namvibeRingtoneUrl().then(function(url) {
+      if (!url) { _namvibeSynthRing("incoming"); return; }
+      var audio = new Audio(url);
+      audio.loop = true;
+      audio.volume = 0.4;
+      audio.play().catch(function() { _namvibeSynthRing("incoming"); });
+      state.ringingAudio = audio;
+    });
+  }
+
   function stopRinging() {
     state.isRinging = false;
     if (state.ringingTimer) {
@@ -322,6 +351,10 @@
       try { state.ringingTimer.osc.stop(); } catch (_) {}
       try { state.ringingTimer.ctx.close(); } catch (_) {}
       state.ringingTimer = null;
+    }
+    if (state.ringingAudio) {
+      try { state.ringingAudio.pause(); state.ringingAudio.currentTime = 0; } catch (_) {}
+      state.ringingAudio = null;
     }
     var toast = $("call-ringtone-unlock");
     if (toast) toast.hidden = true;

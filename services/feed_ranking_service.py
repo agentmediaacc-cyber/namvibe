@@ -52,7 +52,7 @@ def _batch_following(follower_id, author_ids):
     if not follower_id or not author_ids:
         return set()
     rows = fast_query(
-        "SELECT following_profile_id FROM chain_follows WHERE follower_profile_id::text = %s AND following_profile_id::text = ANY(%s)",
+        "SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s::uuid AND following_profile_id = ANY(%s::uuid[])",
         (follower_id, list(author_ids)), timeout_ms=500, default=[]
     )
     return {r["following_profile_id"] for r in rows}

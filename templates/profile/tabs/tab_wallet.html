@@ -27,7 +27,7 @@
     <div class="people-card">
       <div class="people-info">
         <strong>{{ tx.description or tx.transaction_type or 'Transaction' }}</strong>
-        <span>{{ tx.created_at[:10] if tx.created_at else '' }}</span>
+        <span>{{ tx.created_at.strftime('%Y-%m-%d') if tx.created_at else '' }}</span>
       </div>
       <div class="people-actions">
         <span style="font-weight:900; {% if tx.direction == 'in' %}color:var(--profile-green){% else %}color:var(--profile-red){% endif %}">

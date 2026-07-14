@@ -413,33 +413,61 @@ function wToggleSpeaker() {
 }
 
 /* ---- Phase 2: Premium Ringtone Engine ---- */
+function _loadRingtoneUrl() {
+    var cached = sessionStorage.getItem('chain_ringtone_url');
+    if (cached) return Promise.resolve(cached);
+    return fetch('/profile/api/ringtone')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.ok && d.ringtone_url) {
+                sessionStorage.setItem('chain_ringtone_url', d.ringtone_url);
+                sessionStorage.setItem('chain_ringtone_name', d.ringtone);
+                return d.ringtone_url;
+            }
+            return null;
+        })
+        .catch(function() { return null; });
+}
+
 function startRingtone() {
     stopRingtone();
+    var savedPref = localStorage.getItem('chain_call_sound_enabled');
+    if (savedPref === 'false') { return; }
+    if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400, 100, 400]);
+    if ('Notification' in window && Notification.permission === 'granted') {
+        try { new Notification('Incoming ' + (CHAIN_WEBRTC.currentCallType || 'call') + ' call', { body: 'Someone is calling...', silent: true }); } catch(e) {}
+    }
+    _loadRingtoneUrl().then(function(url) {
+        if (!url) { _fallbackRingtone(); return; }
+        var audio = new Audio(url);
+        audio.loop = true;
+        audio.volume = 0.4;
+        audio.play().catch(function() {
+            _fallbackRingtone();
+        });
+        CHAIN_WEBRTC._ringtoneAudio = audio;
+    });
+}
+
+function _fallbackRingtone() {
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        let gainVal = 0.1;
-        const savedPref = localStorage.getItem('chain_call_sound_enabled');
-        if (savedPref === 'false') { stopRingtone(); return; }
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep() {
             if (localStorage.getItem('chain_call_sound_enabled') === 'false') return;
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
             osc.type = 'sine';
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.frequency.value = 440;
-            gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
             osc.start();
-            setTimeout(() => { try { osc.stop(); } catch(e) {} }, 600);
+            setTimeout(function() { try { osc.stop(); } catch(e) {} }, 600);
         }
         playBeep();
         CHAIN_WEBRTC.ringingInterval = setInterval(playBeep, 1200);
-        if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400, 100, 400]);
-        if ('Notification' in window && Notification.permission === 'granted') {
-            try { new Notification('Incoming ' + (CHAIN_WEBRTC.currentCallType || 'call') + ' call', { body: 'Someone is calling...', silent: true }); } catch(e) {}
-        }
-    } catch (e) {}
+    } catch(e) {}
 }
 
 function startRingbackTone() {
@@ -495,6 +523,10 @@ function stopRingtone() {
     if (CHAIN_WEBRTC.ringingInterval) {
         clearInterval(CHAIN_WEBRTC.ringingInterval);
         CHAIN_WEBRTC.ringingInterval = null;
+    }
+    if (CHAIN_WEBRTC._ringtoneAudio) {
+        try { CHAIN_WEBRTC._ringtoneAudio.pause(); CHAIN_WEBRTC._ringtoneAudio.currentTime = 0; } catch(e) {}
+        CHAIN_WEBRTC._ringtoneAudio = null;
     }
 }
 

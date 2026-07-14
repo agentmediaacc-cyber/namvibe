@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}NamVibe | Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block body_class %}st-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/namvibe_support.css">
+{% endblock %}
+{% block content %}
+<div class="st-app">
+  <header class="st-topbar">
+    <a href="/support/tickets" class="st-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></a>
+    <h1>{{ ticket.ticket_id }}</h1>
+  </header>
+
+  <div class="st-ticket-header">
+    <div class="st-ticket-meta">
+      <span class="st-badge st-badge-{{ ticket.status }}">{{ ticket.status.replace('_', ' ') }}</span>
+      <span class="st-badge st-priority-{{ ticket.priority }}">{{ ticket.priority }}</span>
+      <span class="st-category-tag">{{ categories.get(ticket.category, ticket.category) }}</span>
+    </div>
+    <h2>{{ ticket.subject }}</h2>
+    <p class="st-ticket-desc">{{ ticket.description }}</p>
+    <div class="st-ticket-dates">
+      <span>Created: {{ ticket.created_at|datetime }}</span>
+      {% if ticket.resolved_at %}<span>Resolved: {{ ticket.resolved_at|datetime }}</span>{% endif %}
+    </div>
+    {% if ticket.evidence_json %}
+    <details class="st-evidence">
+      <summary>Evidence Details</summary>
+      <pre>{{ ticket.evidence_json }}</pre>
+    </details>
+    {% endif %}
+  </div>
+
+  <div class="st-messages" id="stMessages">
+    {% for m in messages %}
+    <div class="st-msg {{ 'st-msg-agent' if m.is_agent else 'st-msg-user' }} {{ 'st-msg-internal' if m.is_internal_note else '' }}">
+      <div class="st-msg-avatar">
+        {% if m.avatar_url %}<img src="{{ m.avatar_url }}" alt="">{% else %}<div class="st-avatar-placeholder">{{ m.username[:1]|upper if m.username else '?' }}</div>{% endif %}
+      </div>
+      <div class="st-msg-body">
+        <div class="st-msg-header">
+          <strong>{{ m.username or 'Support Agent' }}</strong>
+          {% if m.is_agent %}<span class="st-badge st-badge-agent">Support</span>{% endif %}
+          {% if m.is_internal_note %}<span class="st-badge st-badge-internal">Internal Note</span>{% endif %}
+          <span class="st-msg-time">{{ m.created_at|datetime }}</span>
+        </div>
+        <div class="st-msg-text">{{ m.message }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if ticket.status not in ('resolved', 'closed', 'rejected') %}
+  <div class="st-reply-box">
+    <textarea id="stReplyInput" rows="3" placeholder="Type your reply..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();NamVibeSupport.sendReply()}" oninput="NamVibeSupport.onReplyInput()"></textarea>
+    <div class="st-reply-actions">
+      <button class="st-btn st-btn-primary" onclick="NamVibeSupport.sendReply()">Send</button>
+    </div>
+  </div>
+  {% elif ticket.status in ('resolved', 'closed', 'rejected') %}
+  <div class="st-resolved-actions">
+    {% if ticket.status in ('resolved', 'closed', 'rejected') %}
+    <button class="st-btn" onclick="NamVibeSupport.reopenTicket()">Reopen Ticket</button>
+    {% endif %}
+    {% if ticket.status == 'resolved' %}
+    <button class="st-btn st-btn-primary" onclick="NamVibeSupport.showFeedback()">Rate Support</button>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if ticket.assigned_to %}
+  <div class="st-assigned-info">
+    <small>Assigned to support team</small>
+  </div>
+  {% endif %}
+
+  <div class="st-events">
+    <h4>Activity Log</h4>
+    {% for e in events %}
+    <div class="st-event">
+      <span class="st-event-type">{{ e.event_type.replace('_', ' ') }}</span>
+      {% if e.field_name %}<span class="st-event-field">{{ e.field_name }}: {{ e.old_value or '' }} &rarr; {{ e.new_value or '' }}</span>{% endif %}
+      {% if e.reason %}<span class="st-event-reason">{{ e.reason }}</span>{% endif %}
+      <span class="st-event-time">{{ e.created_at|datetime }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+window.currentTicketId = '{{ ticket.ticket_id }}';
+</script>
+<script src="/static/js/namvibe_support.js"></script>
+{% endblock %}

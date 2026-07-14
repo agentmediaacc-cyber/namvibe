@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}NamVibe | Beta Feedback{% endblock %}
+{% block title %}NamVibe | Feedback{% endblock %}
 {% block body_class %}nv-feedback-page{% endblock %}
 
 {% block content %}
 <main class="chain-page">
-  <section class="chain-panel" style="max-width: 600px; margin: 0 auto;">
+  <section class="chain-panel nv-feedback-panel">
     <h1>Beta Feedback</h1>
-    <p style="color: var(--chain-muted, #8895a7); margin-bottom: 20px;">
+    <p class="nv-feedback-subtitle">
       Help us improve NamVibe! Share your feedback about the beta release.
     </p>
     
     <form method="post" action="/api/feedback" id="feedback-form">
-      <div class="chain-form-group" style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+      <div class="nv-feedback-form-group">
+        <label for="assistant-type" class="nv-feedback-label">
           Feedback Type
         </label>
-        <select name="assistant_type" required style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--chain-border, rgba(255,255,255,.12)); background: var(--chain-bg-panel, #1a1a1a); color: inherit;">
+        <select name="assistant_type" id="assistant-type" required class="nv-feedback-select" title="Select feedback type">
           <option value="">Select type...</option>
           <option value="bug_report">Bug Report</option>
           <option value="feature_request">Feature Request</option>
@@ -25,11 +25,11 @@
         </select>
       </div>
       
-      <div class="chain-form-group" style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+      <div class="nv-feedback-form-group">
+        <label for="rating" class="nv-feedback-label">
           Rating (1-5)
         </label>
-        <select name="rating" required style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--chain-border, rgba(255,255,255,.12)); background: var(--chain-bg-panel, #1a1a1a); color: inherit;">
+        <select name="rating" id="rating" required class="nv-feedback-select" title="Select a rating from 1 to 5">
           <option value="">Select rating...</option>
           <option value="5">5 - Excellent</option>
           <option value="4">4 - Good</option>
@@ -39,18 +39,18 @@
         </select>
       </div>
       
-      <div class="chain-form-group" style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+      <div class="nv-feedback-form-group">
+        <label for="comment" class="nv-feedback-label">
           Your Feedback
         </label>
-        <textarea name="comment" rows="5" placeholder="Describe your experience, suggest improvements, or report issues..." required style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--chain-border, rgba(255,255,255,.12)); background: var(--chain-bg-panel, #1a1a1a); color: inherit; resize: vertical;"></textarea>
+        <textarea name="comment" id="comment" rows="5" placeholder="Describe your experience, suggest improvements, or report issues..." required class="nv-feedback-textarea"></textarea>
       </div>
       
-      <div style="display: flex; gap: 12px; margin-top: 20px;">
-        <button type="submit" class="chain-btn primary" style="flex: 1;">
+      <div class="nv-feedback-actions">
+        <button type="submit" class="chain-btn primary nv-feedback-btn-flex">
           Send Feedback
         </button>
-        <a href="/" class="chain-btn outline" style="flex: 1; text-align: center;">
+        <a href="/" class="chain-btn outline nv-feedback-btn-flex">
           Back to Home
         </a>
       </div>

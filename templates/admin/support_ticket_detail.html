@@ -1,0 +1,108 @@
+{% extends "admin/ads_base.html" %}
+{% block title %}NamVibe | Ticket {{ ticket.ticket_id }}{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/namvibe_support.css">
+{% endblock %}
+{% block content %}
+<div class="st-admin">
+  <div class="st-admin-ticket-header">
+    <a href="/admin/support" class="st-back">&larr; Dashboard</a>
+    <h1>{{ ticket.ticket_id }}</h1>
+    <div class="st-ticket-meta">
+      <span class="st-badge st-badge-{{ ticket.status }}">{{ ticket.status.replace('_', ' ') }}</span>
+      <span class="st-badge st-priority-{{ ticket.priority }}">{{ ticket.priority }}</span>
+      <span class="st-category-tag">{{ categories.get(ticket.category, ticket.category) }}</span>
+    </div>
+  </div>
+
+  <div class="st-admin-layout">
+    <div class="st-admin-main">
+      <div class="st-ticket-info">
+        <h2>{{ ticket.subject }}</h2>
+        <p>{{ ticket.description }}</p>
+        {% if ticket.evidence_json %}<pre class="st-evidence">{{ ticket.evidence_json }}</pre>{% endif %}
+      </div>
+
+      <div class="st-messages" id="stMessages">
+        {% for m in messages %}
+        <div class="st-msg {{ 'st-msg-agent' if m.is_agent else 'st-msg-user' }} {{ 'st-msg-internal' if m.is_internal_note else '' }}">
+          <div class="st-msg-avatar">
+            {% if m.avatar_url %}<img src="{{ m.avatar_url }}" alt="">{% else %}<div class="st-avatar-placeholder">{{ m.username[:1]|upper if m.username else '?' }}</div>{% endif %}
+          </div>
+          <div class="st-msg-body">
+            <div class="st-msg-header">
+              <strong>{{ m.username or 'Support' }}</strong>
+              {% if m.is_agent %}<span class="st-badge st-badge-agent">Support</span>{% endif %}
+              {% if m.is_internal_note %}<span class="st-badge st-badge-internal">Internal</span>{% endif %}
+              <span class="st-msg-time">{{ m.created_at|datetime }}</span>
+            </div>
+            <div class="st-msg-text">{{ m.message }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="st-reply-box">
+        <textarea id="stAdminReply" rows="3" placeholder="Type your reply..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();NamVibeSupportAdmin.sendReply()}"></textarea>
+        <label class="st-checkbox">
+          <input type="checkbox" id="stInternalNote"> Internal note only
+        </label>
+        <button class="st-btn st-btn-primary" onclick="NamVibeSupportAdmin.sendReply()">Send Reply</button>
+      </div>
+    </div>
+
+    <div class="st-admin-sidebar">
+      <div class="st-sidebar-card">
+        <h4>Actions</h4>
+        <select id="stStatusSelect" class="st-select">
+          {% for s in statuses %}
+          <option value="{{ s }}" {% if s == ticket.status %}selected{% endif %}>{{ s.replace('_', ' ') }}</option>
+          {% endfor %}
+        </select>
+        <button class="st-btn st-btn-block" onclick="NamVibeSupportAdmin.updateStatus()">Update Status</button>
+        <hr>
+        <h4>Assign To</h4>
+        <select id="stAssignSelect" class="st-select">
+          <option value="">Select agent...</option>
+        </select>
+        <button class="st-btn st-btn-block" onclick="NamVibeSupportAdmin.assignTicket()">Assign</button>
+        <hr>
+        <h4>Escalate</h4>
+        <select id="stEscalateTo" class="st-select">
+          <option value="">Select team...</option>
+          <option value="safety">Safety Team</option>
+          <option value="admin">Admin Team</option>
+          <option value="finance">Finance Team</option>
+          <option value="tech">Tech Team</option>
+        </select>
+        <button class="st-btn st-btn-block" onclick="NamVibeSupportAdmin.escalate()">Escalate</button>
+        <hr>
+        <button class="st-btn st-btn-danger st-btn-block" onclick="NamVibeSupportAdmin.suspendUser()">Suspend User</button>
+      </div>
+
+      <div class="st-sidebar-card">
+        <h4>Audit Log</h4>
+        <div class="st-event-list">
+          {% for e in events %}
+          <div class="st-event-item">
+            <span class="st-event-type">{{ e.event_type.replace('_', ' ') }}</span>
+            {% if e.field_name %}<code>{{ e.field_name }}: {{ e.old_value or '' }} &rarr; {{ e.new_value or '' }}</code>{% endif %}
+            {% if e.reason %}<p class="st-event-reason">{{ e.reason }}</p>{% endif %}
+            <small>{{ e.created_at|datetime }}</small>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+window.currentTicketId = '{{ ticket.ticket_id }}';
+window.currentTicketDbId = {{ ticket.id }};
+window.currentProfileId = {{ ticket.profile_id }};
+</script>
+<script src="/static/js/namvibe_support.js"></script>
+<script>NamVibeSupportAdmin.initTicket();</script>
+{% endblock %}

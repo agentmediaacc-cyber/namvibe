@@ -2,85 +2,55 @@
   'use strict';
 
   var state = {
-    filter: 'all',
     page: 1,
     hasMore: true,
     loading: false,
     items: [],
-    socket: null,
   };
 
   var DOM = {};
   var toastTimer = null;
-
-  var FILTER_API_MAP = {
-    all: 'all',
-    unread: 'unread',
-    social: 'social',
-    messages: 'messages',
-    system: 'system',
-  };
+  var deleteTimer = null;
+  var DELETE_DELAY = 600;
 
   function init() {
-    DOM.header = document.getElementById('nvNotifsHeader');
-    DOM.title = document.getElementById('nvNotifsTitle');
-    DOM.unreadCount = document.getElementById('nvUnreadCount');
-    DOM.filters = document.getElementById('nvFilters');
     DOM.feed = document.getElementById('nvFeed');
     DOM.sentinel = document.getElementById('nvSentinel');
     DOM.skeleton = document.getElementById('nvSkeleton');
     DOM.empty = document.getElementById('nvEmpty');
-    DOM.markAllBtn = document.getElementById('nvMarkAllBtn');
-    DOM.settingsBtn = document.getElementById('nvSettingsBtn');
     DOM.toastContainer = document.getElementById('nvToastContainer');
+    DOM.markAllBtn = document.querySelector('[data-action="mark-all-read"]');
+    DOM.deleteModal = document.getElementById('deleteConfirmModal');
+    DOM.deleteConfirm = document.getElementById('deleteConfirmAction');
+    DOM.deleteCancel = document.getElementById('deleteConfirmCancel');
 
-    DOM.filters.addEventListener('click', onFilterClick);
     if (DOM.markAllBtn) DOM.markAllBtn.addEventListener('click', onMarkAllRead);
-    if (DOM.settingsBtn) DOM.settingsBtn.addEventListener('click', toggleSettings);
 
     setupInfiniteScroll();
-    connectSocket();
-
-    switchFilter('all');
-    fetchUnreadCount();
-    setInterval(fetchUnreadCount, 30000);
+    fetchFeed(1, true);
+    // Clear badge on page load — user has seen their notifications
+    setTimeout(clearBadge, 500);
   }
 
-  function onFilterClick(e) {
-    var pill = e.target.closest('.nv-filter-pill');
-    if (!pill) return;
-    switchFilter(pill.dataset.filter);
+  /* ── Clear badge when notifications page is opened ── */
+  function clearBadge() {
+    fetch('/api/notifications/read-all', {
+      method: 'POST', credentials: 'same-origin',
+    }).then(function () { updateBadge(); }).catch(function () {});
   }
 
-  function switchFilter(filter) {
-    state.filter = filter;
-    state.page = 1;
-    state.hasMore = true;
-    state.items = [];
-
-    document.querySelectorAll('.nv-filter-pill').forEach(function (p) {
-      p.classList.toggle('active', p.dataset.filter === filter);
-    });
-
-    showSkeleton();
-    fetchFeed(filter, 1, true);
-  }
-
-  function fetchFeed(filter, page, replace) {
+  /* ── Feed API ── */
+  function fetchFeed(page, replace) {
     if (state.loading) return;
     state.loading = true;
 
-    var apiFilter = FILTER_API_MAP[filter] || 'all';
-    var url = '/api/notifications?tab=' + encodeURIComponent(apiFilter) + '&page=' + page;
+    var url = '/api/notifications?tab=all&page=' + page;
 
     fetch(url, { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         state.loading = false;
-        if (!data.ok) {
-          showSkeleton();
-          return;
-        }
+        if (!data.ok) { showSkeleton(); return; }
         hideSkeleton();
         state.hasMore = data.has_more;
 
@@ -96,7 +66,7 @@
         });
 
         updateEmptyState();
-        updateInfiniteScroll();
+        updateSentinel();
       })
       .catch(function () {
         state.loading = false;
@@ -104,9 +74,8 @@
       });
   }
 
+  /* ── Create notification card ── */
   function createCard(item) {
-    if (item.grouped) return createGroupedCard(item);
-
     var card = document.createElement('div');
     card.className = 'nv-notif-card' + (item.is_read ? ' read' : ' unread');
     card.dataset.id = item.id;
@@ -114,239 +83,71 @@
     var senderName = item.sender_display_name || item.actor_display_name || item.actor_username || 'Someone';
     var previewText = item.preview_text || item.body || '';
     var actionText = item.action_text || item.title || 'sent a notification';
-    var openUrl = item.open_url || item.action_url || '';
+    var openUrl = item.open_url || item.action_url || (item.actor_username ? '/profile/' + item.actor_username : '');
     var avatarUrl = item.sender_avatar_url || item.actor_avatar || '';
-    var avatarHtml = '';
+
+    var avatarHtml;
     if (avatarUrl) {
-      avatarHtml = '<img src="' + esc(avatarUrl) + '" alt="' + esc(senderName) + '" loading="lazy">';
+      avatarHtml = '<img src="' + esc(avatarUrl) + '" alt="" loading="lazy">';
+    } else {
+      var initial = (senderName || '?')[0].toUpperCase();
+      avatarHtml = '<span class="nv-notif-avatar-fallback">' + esc(initial) + '</span>';
     }
-    var avatarBlock = avatarUrl
-      ? '<div class="nv-notif-avatar">' + avatarHtml + '</div>'
-      : '<div class="nv-notif-avatar"><span class="nv-notif-avatar-fallback">' + esc(item.sender_initials || senderName.slice(0, 1).toUpperCase()) + '</span></div>';
 
     var unreadDot = item.is_read ? '' : '<div class="nv-notif-unread-dot"></div>';
-    var rightDot = item.is_read ? '' : '<div class="nv-notif-right-dot"></div>';
-
-    var actionHtml = buildActions(item, openUrl);
 
     card.innerHTML =
-      '<div class="nv-notif-avatar-wrap" style="position:relative;flex-shrink:0">' +
-        avatarBlock + unreadDot +
+      '<div class="nv-notif-avatar-wrap">' +
+        avatarHtml + unreadDot +
       '</div>' +
       '<div class="nv-notif-body">' +
         '<p class="nv-notif-title"><strong>' + esc(senderName) + '</strong> ' + esc(actionText) + '</p>' +
-        '<p class="nv-notif-preview">' + esc(previewText || 'Open to view details.') + '</p>' +
+        '<p class="nv-notif-preview">' + esc(previewText || '') + '</p>' +
         '<span class="nv-notif-time">' + timeAgo(item.created_at) + '</span>' +
-        actionHtml +
       '</div>' +
-      rightDot;
+      '<button class="nv-notif-delete-btn" data-nv-action="delete">✕</button>';
 
+    /* ── Friend request: add accept/reject buttons ── */
+    if (item.event_type === 'friend_request' || item.event_type === 'follow_request') {
+      var actionsDiv = document.createElement('div');
+      actionsDiv.className = 'nv-notif-actions';
+      actionsDiv.innerHTML =
+        '<button class="nv-notif-action-btn nv-action-accept" data-nv-action="accept" data-nv-type="' + esc(item.event_type) + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '">✓ Accept</button>' +
+        '<button class="nv-notif-action-btn nv-action-decline" data-nv-action="decline" data-nv-type="' + esc(item.event_type) + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '">✕ Decline</button>';
+      card.querySelector('.nv-notif-body').appendChild(actionsDiv);
+    }
+
+    /* ── Click: mark read + navigate ── */
     card.addEventListener('click', function (e) {
       var actBtn = e.target.closest('.nv-notif-action-btn');
-      if (actBtn) {
-        if (actBtn.dataset.nvAction === 'mark-read') {
-          e.stopPropagation();
-          markRead(item.id, card);
-          return;
-        }
-        e.stopPropagation();
-        handleAction(actBtn, item, card);
-        return;
-      }
+      var delBtn = e.target.closest('.nv-notif-delete-btn');
+      if (delBtn) { e.stopPropagation(); showDeleteConfirm(item.id, card); return; }
+      if (actBtn) { e.stopPropagation(); handleAction(actBtn, item, card); return; }
 
+      if (!item.is_read) markRead(item.id, card);
       if (openUrl) {
-        window.location.href = openUrl;
-      } else if (!item.is_read) {
-        markRead(item.id, card);
+        setTimeout(function () { window.location.href = openUrl; }, 100);
       }
     });
+
+    /* ── Long press for delete ── */
+    card.addEventListener('touchstart', function () {
+      deleteTimer = setTimeout(function () { card.classList.add('show-delete'); }, DELETE_DELAY);
+    }, { passive: true });
+    card.addEventListener('touchend', function () { clearTimeout(deleteTimer); deleteTimer = null; });
+    card.addEventListener('touchmove', function () { clearTimeout(deleteTimer); deleteTimer = null; }, { passive: true });
+
+    card.addEventListener('mousedown', function (e) {
+      if (e.target.closest('.nv-notif-action-btn') || e.target.closest('.nv-notif-delete-btn')) return;
+      deleteTimer = setTimeout(function () { card.classList.add('show-delete'); }, DELETE_DELAY);
+    });
+    card.addEventListener('mouseup', function () { clearTimeout(deleteTimer); deleteTimer = null; });
+    card.addEventListener('mouseleave', function () { clearTimeout(deleteTimer); deleteTimer = null; });
 
     return card;
   }
 
-  function createGroupedCard(item) {
-    var card = document.createElement('div');
-    card.className = 'nv-notif-card' + (item.is_read ? ' read' : ' unread');
-    card.dataset.id = item.id;
-    card.dataset.grouped = 'true';
-
-    var avatars = '';
-    if (item.actor_avatars && item.actor_avatars.length > 0) {
-      var maxShow = Math.min(item.actor_avatars.length, 3);
-      avatars = '<div class="nv-avatar-stack">';
-      for (var i = 0; i < maxShow; i++) {
-        avatars += '<div class="nv-avatar-stack-item" style="z-index:' + (maxShow - i) + ';margin-left:' + (i > 0 ? '-12px' : '0') + '"><img src="' + esc(item.actor_avatars[i]) + '" alt=""></div>';
-      }
-      if (item.actor_count > maxShow) {
-        avatars += '<div class="nv-avatar-stack-item nv-avatar-stack-more" style="z-index:0;margin-left:-12px">+' + (item.actor_count - maxShow) + '</div>';
-      }
-      avatars += '</div>';
-    }
-
-    var groupBadge = item.group_count > 1 ? '<span class="nv-group-count">' + item.group_count + '</span>' : '';
-    var unreadDot = item.is_read ? '' : '<div class="nv-notif-unread-dot"></div>';
-
-    card.innerHTML =
-      '<div class="nv-notif-avatar-wrap" style="position:relative;flex-shrink:0">' +
-        (avatars || '<div class="nv-notif-avatar"><i class="fas fa-bell"></i></div>') +
-        unreadDot +
-      '</div>' +
-      '<div class="nv-notif-body">' +
-        '<p class="nv-notif-title">' + esc(item.title || '') + '</p>' +
-        (item.body ? '<p class="nv-notif-preview">' + esc(item.body) + '</p>' : '') +
-        '<span class="nv-notif-time">' + timeAgo(item.latest_created_at || item.created_at) + '</span>' +
-        groupBadge +
-      '</div>' +
-      (item.is_read ? '' : '<div class="nv-notif-right-dot"></div>');
-
-    card.addEventListener('click', function (e) {
-      if (item.open_url || item.action_url) {
-        window.location.href = item.open_url || item.action_url;
-      } else if (!item.is_read) {
-        markGroupRead(item, card);
-      }
-    });
-
-    return card;
-  }
-
-  function markGroupRead(item, card) {
-    var ids = item.notification_ids || [item.id];
-    fetch('/api/notifications/read-group', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ ids: ids }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.ok) {
-          card.classList.remove('unread');
-          card.classList.add('read');
-          var dot = card.querySelector('.nv-notif-unread-dot');
-          if (dot) dot.remove();
-          var rdot = card.querySelector('.nv-notif-right-dot');
-          if (rdot) rdot.remove();
-          fetchUnreadCount();
-        }
-      })
-      .catch(function () {});
-  }
-
-  function buildActions(item, openUrl) {
-    var profileUrl = item.actor_profile_url || openUrl || item.action_url || (item.actor_username ? '/profile/@' + item.actor_username : '');
-    if ((item.event_type === 'friend_request' || item.event_type === 'follow_request') && item.entity_id) {
-      return (
-        '<div class="nv-notif-actions">' +
-          '<button class="nv-notif-action-btn nv-action-accept" data-nv-action="accept" data-nv-type="' + item.event_type + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-check"></i> Approve</button>' +
-          '<button class="nv-notif-action-btn nv-action-decline" data-nv-action="decline" data-nv-type="' + item.event_type + '" data-request-id="' + esc(item.entity_id) + '" data-notif-id="' + esc(item.id) + '"><i class="fas fa-times"></i> Decline</button>' +
-          (profileUrl ? '<a href="' + esc(profileUrl) + '" class="nv-notif-action-btn nv-action-profile"><i class="fas fa-user"></i> Profile</a>' : '') +
-        '</div>'
-      );
-    }
-
-    if (item.event_type === 'friend_request_accepted' || item.event_type === 'friend_accepted' || item.event_type === 'follow_request_approved') {
-      return (
-        '<div class="nv-notif-actions">' +
-          '<a href="/messages/" class="nv-notif-action-btn nv-action-message"><i class="fas fa-comment"></i> Message</a>' +
-          (profileUrl ? '<a href="' + esc(profileUrl) + '" class="nv-notif-action-btn nv-action-profile"><i class="fas fa-user"></i> Profile</a>' : '') +
-        '</div>'
-      );
-    }
-
-    return (
-      '<div class="nv-notif-actions">' +
-        (openUrl ? '<a class="nv-notif-action-btn nv-action-open" href="' + esc(openUrl) + '">Open</a>' : '') +
-        (item.is_read ? '' : '<button class="nv-notif-action-btn nv-action-read" data-nv-action="mark-read" data-notif-id="' + esc(item.id) + '">Mark read</button>') +
-      '</div>'
-    );
-  }
-
-  function getCsrfToken() {
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    return meta ? meta.getAttribute('content') : '';
-  }
-
-  function handleAction(btn, item, card) {
-    var action = btn.dataset.nvAction;
-    var type = btn.dataset.nvType || 'friend_request';
-    var requestId = btn.dataset.requestId;
-    var notifId = btn.dataset.notifId || item.id;
-
-    if (action === 'accept' && requestId) {
-      btn.disabled = true;
-      btn.textContent = '...';
-      var url, fetchOpts;
-      if (type === 'follow_request') {
-        url = '/api/follow/approve/' + encodeURIComponent(requestId);
-        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCsrfToken() } };
-      } else {
-        url = '/social/friends/accept';
-        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify({request_id: requestId}) };
-      }
-      fetch(url, fetchOpts)
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.ok || data.success) {
-            card.querySelector('.nv-notif-actions').innerHTML =
-              '<div class="nv-notif-actions">' +
-                '<span style="font-size:13px;color:#2ecc71;font-weight:600"><i class="fas fa-check-circle"></i> Approved</span>' +
-              '</div>';
-            var dot = card.querySelector('.nv-notif-unread-dot');
-            if (dot) dot.remove();
-            card.classList.remove('unread');
-            card.classList.add('read');
-            markRead(notifId, card);
-            showToast(type === 'follow_request' ? 'Follow request approved!' : 'Friend request accepted!');
-            fetchUnreadCount();
-          } else {
-            btn.disabled = false;
-            btn.textContent = 'Approve';
-            showToast(data.error || 'Failed to approve');
-          }
-        })
-        .catch(function () {
-          btn.disabled = false;
-          btn.textContent = 'Approve';
-          showToast('Network error');
-        });
-      return;
-    }
-
-    if (action === 'decline' && requestId) {
-      btn.disabled = true;
-      btn.textContent = '...';
-      var url, fetchOpts;
-      if (type === 'follow_request') {
-        url = '/api/follow/decline/' + encodeURIComponent(requestId);
-        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCsrfToken() } };
-      } else {
-        url = '/social/friends/decline';
-        fetchOpts = { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() }, body: JSON.stringify({request_id: requestId}) };
-      }
-      fetch(url, fetchOpts)
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.ok || data.success) {
-            markRead(notifId, card);
-            card.remove();
-            showToast(type === 'follow_request' ? 'Follow request declined' : 'Friend request declined');
-            fetchUnreadCount();
-          } else {
-            btn.disabled = false;
-            btn.textContent = 'Decline';
-            showToast(data.error || 'Failed to decline');
-          }
-        })
-        .catch(function () {
-          btn.disabled = false;
-          btn.textContent = 'Decline';
-          showToast('Network error');
-        });
-      return;
-    }
-  }
-
+  /* ── Mark read ── */
   function markRead(id, card) {
     fetch('/notifications/api/read/' + encodeURIComponent(id), {
       method: 'POST', credentials: 'same-origin',
@@ -358,14 +159,13 @@
           card.classList.add('read');
           var dot = card.querySelector('.nv-notif-unread-dot');
           if (dot) dot.remove();
-          var rdot = card.querySelector('.nv-notif-right-dot');
-          if (rdot) rdot.remove();
-          fetchUnreadCount();
+          updateBadge();
         }
       })
       .catch(function () {});
   }
 
+  /* ── Mark all read ── */
   function onMarkAllRead() {
     fetch('/api/notifications/read-all', {
       method: 'POST', credentials: 'same-origin',
@@ -378,200 +178,173 @@
             c.classList.add('read');
             var dot = c.querySelector('.nv-notif-unread-dot');
             if (dot) dot.remove();
-            var rdot = c.querySelector('.nv-notif-right-dot');
-            if (rdot) rdot.remove();
           });
           showToast('All marked as read');
-          fetchUnreadCount();
+          updateBadge();
         }
       })
       .catch(function () {});
   }
 
-  function fetchUnreadCount() {
+  /* ── Handle accept/decline actions ── */
+  function handleAction(btn, item, card) {
+    var action = btn.dataset.nvAction;
+    var type = btn.dataset.nvType || 'friend_request';
+    var requestId = btn.dataset.requestId;
+    var notifId = btn.dataset.notifId || item.id;
+
+    if (action === 'accept' && requestId) {
+      btn.disabled = true; btn.textContent = '...';
+      var url = type === 'follow_request'
+        ? '/api/follow/approve/' + encodeURIComponent(requestId)
+        : '/social/friends/accept';
+      var fetchOpts = type === 'follow_request'
+        ? { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCSRF() } }
+        : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() }, body: JSON.stringify({request_id: requestId}) };
+      fetch(url, fetchOpts)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok || data.success) {
+            var actionsEl = card.querySelector('.nv-notif-actions');
+            if (actionsEl) actionsEl.innerHTML = '<span style="font-size:13px;color:#22c55e;font-weight:600">✓ Approved</span>';
+            markRead(notifId, card);
+            showToast(type === 'follow_request' ? 'Follow request approved!' : 'Friend request accepted!');
+            updateBadge();
+          } else {
+            btn.disabled = false; btn.textContent = 'Accept';
+            showToast(data.error || 'Failed');
+          }
+        })
+        .catch(function () { btn.disabled = false; btn.textContent = 'Accept'; showToast('Network error'); });
+      return;
+    }
+
+    if (action === 'decline' && requestId) {
+      btn.disabled = true; btn.textContent = '...';
+      var url = type === 'follow_request'
+        ? '/api/follow/decline/' + encodeURIComponent(requestId)
+        : '/social/friends/decline';
+      var fetchOpts = type === 'follow_request'
+        ? { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCSRF() } }
+        : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() }, body: JSON.stringify({request_id: requestId}) };
+      fetch(url, fetchOpts)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.ok || data.success) {
+            markRead(notifId, card);
+            card.remove();
+            showToast(type === 'follow_request' ? 'Follow request declined' : 'Friend request declined');
+            updateBadge();
+          } else {
+            btn.disabled = false; btn.textContent = 'Decline';
+            showToast(data.error || 'Failed');
+          }
+        })
+        .catch(function () { btn.disabled = false; btn.textContent = 'Decline'; showToast('Network error'); });
+      return;
+    }
+  }
+
+  /* ── Delete ── */
+  function showDeleteConfirm(notifId, card) {
+    if (!DOM.deleteModal) return;
+    DOM.deleteModal.hidden = false;
+    DOM.deleteModal.dataset.notifId = notifId;
+    DOM.deleteConfirm.onclick = function () {
+      deleteNotification(notifId, card);
+      DOM.deleteModal.hidden = true;
+    };
+    DOM.deleteCancel.onclick = function () { DOM.deleteModal.hidden = true; };
+    DOM.deleteModal.addEventListener('click', function (e) {
+      if (e.target === DOM.deleteModal) DOM.deleteModal.hidden = true;
+    });
+  }
+
+  function deleteNotification(id, card) {
+    fetch('/api/notifications/' + encodeURIComponent(id) + '/delete', {
+      method: 'POST', credentials: 'same-origin',
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          card.remove();
+          state.items = state.items.filter(function (i) { return i.id !== id; });
+          updateBadge();
+          updateEmptyState();
+          showToast('Notification deleted');
+        }
+      })
+      .catch(function () {});
+  }
+
+  /* ── Badge update ── */
+  function updateBadge() {
     fetch('/api/notifications/unread-count', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var count = data.count || 0;
-        if (DOM.unreadCount) {
-          if (count > 0) {
-            DOM.unreadCount.textContent = count + ' new';
-            DOM.unreadCount.classList.remove('hidden');
-          } else {
-            DOM.unreadCount.classList.add('hidden');
-          }
-        }
         var navBadge = document.querySelector('.notif-count');
         if (navBadge) {
-          if (count > 0) {
-            navBadge.textContent = count > 99 ? '99+' : count;
-            navBadge.style.display = '';
-          } else {
-            navBadge.style.display = 'none';
-          }
+          if (count > 0) { navBadge.textContent = count > 99 ? '99+' : count; navBadge.style.display = ''; }
+          else { navBadge.style.display = 'none'; }
         }
       })
       .catch(function () {});
   }
 
-  function updateEmptyState() {
-    if (state.items.length === 0 && DOM.skeleton.style.display === 'none') {
-      DOM.empty.classList.remove('hidden');
-    } else {
-      DOM.empty.classList.add('hidden');
-    }
-  }
-
-  function showSkeleton() {
-    DOM.skeleton.style.display = 'flex';
-    DOM.empty.classList.add('hidden');
-  }
-
-  function hideSkeleton() {
-    DOM.skeleton.style.display = 'none';
-    updateEmptyState();
-  }
-
+  /* ── Infinite scroll ── */
   function setupInfiniteScroll() {
     if (window.IntersectionObserver) {
       var obs = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
-          if (entry.isIntersecting && !state.loading && state.hasMore) {
-            loadMore();
-          }
+          if (entry.isIntersecting && !state.loading && state.hasMore) loadMore();
         });
       }, { rootMargin: '200px' });
-      obs.observe(DOM.sentinel);
+      if (DOM.sentinel) obs.observe(DOM.sentinel);
     } else {
       window.addEventListener('scroll', function () {
-        if (state.loading || !state.hasMore) return;
+        if (state.loading || !state.hasMore || !DOM.sentinel) return;
         var rect = DOM.sentinel.getBoundingClientRect();
-        if (rect.top < window.innerHeight + 200) {
-          loadMore();
-        }
+        if (rect.top < window.innerHeight + 200) loadMore();
       }, { passive: true });
     }
   }
 
-  function updateInfiniteScroll() {
-    DOM.sentinel.style.display = state.hasMore ? 'block' : 'none';
+  function updateSentinel() {
+    if (DOM.sentinel) DOM.sentinel.style.display = state.hasMore ? 'block' : 'none';
   }
 
   function loadMore() {
     if (state.loading || !state.hasMore) return;
     state.page++;
-    fetchFeed(state.filter, state.page, false);
+    fetchFeed(state.page, false);
   }
 
-  function connectSocket() {
-    if (typeof io === 'undefined') return;
-    try {
-      state.socket = io();
-      state.socket.on('notification:new', function (payload) {
-        if (state.filter === 'all' || state.filter === 'unread') {
-          var el = createCard(payload);
-          el.classList.add('nv-new');
-          DOM.feed.insertBefore(el, DOM.feed.firstChild);
-          state.items.unshift(payload);
-          DOM.empty.classList.add('hidden');
-          setTimeout(function () { el.classList.remove('nv-new'); }, 500);
-        }
-        fetchUnreadCount();
-      });
-    } catch (e) {}
+  /* ── UI helpers ── */
+  function updateEmptyState() {
+    if (state.items.length === 0 && DOM.skeleton && DOM.skeleton.style.display === 'none') {
+      if (DOM.empty) DOM.empty.classList.remove('hidden');
+    } else {
+      if (DOM.empty) DOM.empty.classList.add('hidden');
+    }
   }
 
-  function toggleSettings() {
-    var existing = document.querySelector('.nv-settings-overlay');
-    if (existing) { existing.remove(); return; }
-
-    fetch('/api/notifications/preferences', { credentials: 'same-origin' })
-      .then(function (r) { return r.json(); })
-      .then(function (data) { renderSettings(data.preferences || {}); })
-      .catch(function () { renderSettings({}); });
+  function showSkeleton() {
+    if (DOM.skeleton) DOM.skeleton.style.display = 'flex';
+    if (DOM.empty) DOM.empty.classList.add('hidden');
   }
 
-  function renderSettings(prefs) {
-    var overlay = document.createElement('div');
-    overlay.className = 'nv-settings-overlay';
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) overlay.remove();
-    });
-
-    var muted = prefs.muted_types || [];
-    var email = prefs.email_enabled !== false;
-    var push = prefs.push_enabled !== false;
-    var inApp = prefs.in_app_enabled !== false;
-    var sms = prefs.sms_enabled === true;
-
-    var muteRows = '';
-    var types = ['follow','mention','comment','reply','post_like','live_started','wallet_transfer','security_alert','system_announcement'];
-    types.forEach(function (t) {
-      var isMuted = muted.indexOf(t) !== -1;
-      muteRows +=
-        '<div class="nv-settings-row">' +
-          '<span class="nv-settings-label">' + esc(t.replace(/_/g, ' ').replace(/\b\w/g, function(l){ return l.toUpperCase(); })) + '</span>' +
-          '<button class="nv-toggle' + (!isMuted ? ' active' : '') + '" data-mute="' + t + '"></button>' +
-        '</div>';
-    });
-
-    overlay.innerHTML =
-      '<div class="nv-settings-drawer">' +
-        '<div class="nv-settings-header">' +
-          '<h3>Notification Settings</h3>' +
-          '<button class="nv-settings-close"><i class="fas fa-times"></i></button>' +
-        '</div>' +
-        '<div class="nv-settings-section">' +
-          '<h4>Delivery</h4>' +
-          '<div class="nv-settings-row"><span class="nv-settings-label">In-App</span><button class="nv-toggle' + (inApp ? ' active' : '') + '" data-pref="in_app_enabled"></button></div>' +
-          '<div class="nv-settings-row"><span class="nv-settings-label">Push</span><button class="nv-toggle' + (push ? ' active' : '') + '" data-pref="push_enabled"></button></div>' +
-          '<div class="nv-settings-row"><span class="nv-settings-label">Email</span><button class="nv-toggle' + (email ? ' active' : '') + '" data-pref="email_enabled"></button></div>' +
-        '</div>' +
-        '<div class="nv-settings-section">' +
-          '<h4>Muted Types</h4>' +
-          muteRows +
-        '</div>' +
-      '</div>';
-
-    overlay.addEventListener('click', function (e) {
-      var toggle = e.target.closest('.nv-toggle');
-      if (toggle) {
-        toggle.classList.toggle('active');
-        savePrefs(overlay);
-        return;
-      }
-      if (e.target.closest('.nv-settings-close')) {
-        overlay.remove();
-      }
-    });
-
-    document.body.appendChild(overlay);
-  }
-
-  function savePrefs(overlay) {
-    var prefs = {
-      email_enabled: !!overlay.querySelector('[data-pref="email_enabled"].active'),
-      push_enabled: !!overlay.querySelector('[data-pref="push_enabled"].active'),
-      in_app_enabled: !!overlay.querySelector('[data-pref="in_app_enabled"].active'),
-      muted_types: [],
-    };
-    overlay.querySelectorAll('[data-mute]').forEach(function (btn) {
-      if (!btn.classList.contains('active')) prefs.muted_types.push(btn.dataset.mute);
-    });
-    fetch('/api/notifications/preferences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify(prefs),
-    }).catch(function () {});
+  function hideSkeleton() {
+    if (DOM.skeleton) DOM.skeleton.style.display = 'none';
+    updateEmptyState();
   }
 
   function showToast(msg) {
-    if (toastTimer) { clearTimeout(toastTimer); DOM.toastContainer.innerHTML = ''; }
+    if (toastTimer) { clearTimeout(toastTimer); if (DOM.toastContainer) DOM.toastContainer.innerHTML = ''; }
     var el = document.createElement('div');
     el.className = 'nv-toast';
     el.textContent = msg;
-    DOM.toastContainer.appendChild(el);
+    if (DOM.toastContainer) DOM.toastContainer.appendChild(el);
     toastTimer = setTimeout(function () { el.remove(); toastTimer = null; }, 3000);
   }
 
@@ -585,10 +358,15 @@
     return new Date(dateStr).toLocaleDateString();
   }
 
+  function getCSRF() {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m ? m.getAttribute('content') : '';
+  }
+
   function esc(str) {
     if (typeof str !== 'string') return str || '';
     return str.replace(/[&<>"']/g, function (m) {
-      return { '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;' }[m];
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
     });
   }
 

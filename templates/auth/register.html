@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 
 {% block title %}Create Account | NamVibe{% endblock %}
-{% block body_class %}chain-wallpaper-auth{% endblock %}
+{% block body_class %}chain-wallpaper-auth chain-auth-pink{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/chain_auth.css?v=phase77">
+<link rel="stylesheet" href="/static/css/chain_auth.css?v=phase72b">
+<link rel="stylesheet" href="/static/css/chain_auth_pink.css?v=phase88">
 {% endblock %}
 
 {% block content %}
@@ -29,8 +30,8 @@
         <p>{{ error.message }}</p>
         {% if error.exists %}
         <div class="chain-auth-inline-actions">
-          <a href="/auth/login" class="chain-auth-link--strong" style="color:#fff;">Log in</a>
-          <a href="/auth/forgot-password?email={{ error.email }}" class="chain-auth-link--strong" style="color:#fff;">Reset password</a>
+          <a href="/auth/login">Log in</a>
+          <a href="/auth/forgot-password?email={{ error.email }}">Reset password</a>
         </div>
         {% endif %}
       {% else %}
@@ -40,11 +41,13 @@
     {% endif %}
 
     <div class="chain-auth-oauth-grid chain-auth-oauth-grid--stacked" style="margin-bottom:4px;">
-      <a href="/auth/google?mode=register" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Google...">
+      <a href="{{ '/auth/google?mode=register' if google_oauth_enabled else '#' }}" class="chain-auth-oauth{% if google_oauth_enabled %} oauth-trigger{% endif %}" {% if google_oauth_enabled %}data-loading="Connecting to Google..."{% else %}aria-disabled="true"{% endif %}>
         <strong>Continue with Google</strong>
+        {% if not google_oauth_enabled %}<span>Temporarily unavailable</span>{% endif %}
       </a>
-      <a href="/auth/facebook?mode=register" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Facebook...">
+      <a href="{{ '/auth/facebook?mode=register' if facebook_oauth_enabled else '#' }}" class="chain-auth-oauth{% if facebook_oauth_enabled %} oauth-trigger{% endif %}" {% if facebook_oauth_enabled %}data-loading="Connecting to Facebook..."{% else %}aria-disabled="true"{% endif %}>
         <strong>Continue with Facebook</strong>
+        {% if not facebook_oauth_enabled %}<span>Temporarily unavailable</span>{% endif %}
       </a>
     </div>
 
@@ -89,10 +92,6 @@
 
       <div class="field-row">
         <label class="field">
-          <span class="field-label">Date of birth <span class="optional">(optional)</span></span>
-          <input type="date" name="date_of_birth" id="register_date_of_birth" value="{{ form.get('date_of_birth') if form else '' }}">
-        </label>
-        <label class="field">
           <span class="field-label">Gender <span class="optional">(optional)</span></span>
           <select name="gender" id="register_gender">
             <option value="" {% if not form or not form.get('gender') %}selected{% endif %}>Prefer not to say</option>
@@ -132,8 +131,7 @@
         <span>I agree to the NamVibe terms and privacy policy.</span>
       </label>
 
-      <button type="submit" class="register-btn primary" id="register_submit" data-loading-text="Creating account...">Create Account</button>
-      <p class="field-hint">Complete profile after signup.</p>
+      <button type="submit" class="register-btn" id="register_submit" data-loading-text="Creating account...">Create Account</button>
     </form>
 
     <p class="register-footer">Already have an account? <a href="/auth/login">Log in</a></p>
@@ -142,5 +140,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/auth_minimal.js?v=phase87"></script>
+<script src="/static/js/chain_register.js?v=phase72b"></script>
+<script src="/static/js/chain_locations.js?v=phase72b"></script>
 {% endblock %}

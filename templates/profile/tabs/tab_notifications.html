@@ -17,7 +17,7 @@
       <div class="people-info">
         <strong>{{ n.title or 'Notification' }}</strong>
         <span>{{ n.body or n.preview or '' }}</span>
-        <small>{{ n.created_at[:10] if n.created_at else '' }}</small>
+        <small>{{ n.created_at.strftime('%Y-%m-%d') if n.created_at else '' }}</small>
       </div>
     </a>
     {% endfor %}

@@ -182,9 +182,9 @@
     <!-- TOP BAR -->
     <header class="nvpro-header nv-topbar">
       <div class="nvpro-header-inner">
-      <button class="nv-menu-btn" data-action="open-menu" aria-label="Menu">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
+<button class="nv-hamburger" data-action="open-menu" aria-label="Menu">
+         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+       </button>
       <div class="nvpro-search-wrap nv-search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input class="nvpro-search-input" type="search" aria-label="Search NamVibe, friends, reels, hashtags" data-action="search" />
@@ -199,7 +199,7 @@
     </header>
 
     <!-- ONLINE & LIVE STATS BAR -->
-    <section class="nv-stats-bar nvpro-content-fade-in" id="nvStatsBar">
+    <section class="nv-stats-bar" id="nvStatsBar">
       <a class="nv-stat-item" href="/discover/?online=1" title="Online users">
         <div class="nv-stat-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -475,7 +475,7 @@
       <div class="nvpro-sidebar-empty nv-card-empty">No live streams right now</div>
       {% endfor %}
     </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-hashtags-section" {% if not (trending_hashtags or hashtags) %}hidden{% endif %}>
+    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-hashtags-section" {% if (empty_states or {}).get('hashtags') or not (trending_hashtags or hashtags) %}hidden{% endif %}>
       <h3 class="nvpro-sidebar-card-head">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
         Trending Namibia
@@ -487,7 +487,7 @@
       </a>
       {% endfor %}
     </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-suggestions-section" {% if not (suggested_creators or suggested_people) %}hidden{% endif %}>
+    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-suggestions-section" {% if (empty_states or {}).get('suggested') or not (suggested_creators or suggested_people) %}hidden{% endif %}>
       <h3 class="nvpro-sidebar-card-head">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Suggested Creators
@@ -674,7 +674,6 @@
 {% block extra_js %}
 <script src="/static/js/namvibe_emoji_picker.js"></script>
 <script src="/static/js/namvibe_creative_studio.js"></script>
-<script src="/static/js/namvibe_home_premium_v2.js"></script>
 <script src="/static/js/namvibe_home_pro.js"></script>
 <script src="/static/js/namvibe_ai_tracking.js"></script>
 <script>

@@ -1,43 +1,76 @@
 {% extends "base.html" %}
-
 {% block title %}Notifications | NamVibe{% endblock %}
+{% block body_class %}nvpro-home{% endblock %}
 
-{% block extra_head %}
+{% block top_header %}{% endblock %}
+{% block mobile_nav %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/namvibe_home_premium_v2.css">
 <link rel="stylesheet" href="/static/css/namvibe_notifications.css">
+<style>
+  .nvpro-home .chain-shell { background: var(--bg); }
+  .nvpro-home .main-container { padding: 0; max-width: 100%; background: var(--bg); }
+  .nvpro-home .content-body { padding: 0 !important; background: var(--bg); }
+  .nvpro-home .top-header, .nvpro-home .mobile-nav { display: none !important; }
+  :root {
+    --nv-red: #ec4899 !important;
+    --nv-purple: #f472b6 !important;
+    --nv-gradient: linear-gradient(135deg, #ec4899, #f472b6) !important;
+    --nv-card-bg: #ffffff !important;
+    --nv-card-border: rgba(236, 72, 153, 0.12) !important;
+    --nv-text: #1a1a2e !important;
+    --nv-muted: #8e8ea0 !important;
+    --nv-unread-bg: rgba(236, 72, 153, 0.06) !important;
+    --nv-unread-border: rgba(236, 72, 153, 0.2) !important;
+    --nv-accent: #ec4899 !important;
+    --bg: #fff5f7 !important;
+  }
+  .nv-notifs { padding-top: 0; }
+  .nv-notifs-header { background: var(--bg); }
+  .nv-notif-card { border-radius: 14px; margin: 0 12px 8px; padding: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); background: var(--panel); }
+  .nv-notif-card.read { opacity: .7; }
+  .nv-notif-card.read .nv-notif-title strong { color: var(--muted); font-weight: 500; }
+  .nv-notif-card.read .nv-notif-preview { color: var(--muted); }
+  .nv-notif-card.unread { background: rgba(236, 72, 153, 0.04); border-left: 3px solid var(--accent); }
+  .nv-notif-card.unread .nv-notif-title strong { color: var(--accent3); font-weight: 700; }
+  .nv-notif-card.unread .nv-notif-preview { color: var(--text2); }
+  .nv-btn-icon { color: var(--text); }
+  .nv-btn-icon:hover { background: var(--panel2); }
+  .nv-notif-title strong { color: var(--accent3); }
+  .nv-notif-time { color: var(--muted); }
+  .nv-notif-action-btn { border: 1px solid var(--border); color: var(--text2); background: var(--panel); }
+  .nv-notif-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nv-skeleton-item { background: var(--panel); border: 1px solid var(--border); }
+  .nv-skeleton-avatar { background: var(--bg-alt); }
+  .nv-skeleton-line { background: var(--bg-alt); }
+  .nv-empty-icon { color: var(--muted); }
+  .nv-empty-title { color: var(--text); }
+  .nv-empty-text { color: var(--muted); }
+  .nv-notif-delete-btn { position: absolute; top: 8px; right: 8px; background: var(--accent); color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 12px; cursor: pointer; display: grid; place-items: center; opacity: 0; transition: opacity .2s; z-index: 5; }
+  .nv-notif-card:hover .nv-notif-delete-btn,
+  .nv-notif-card.show-delete .nv-notif-delete-btn { opacity: 1; }
+  .nv-notif-card { position: relative; }
+  @media (max-width: 640px) {
+    .nv-notif-card { margin: 0 0 8px; border-radius: 0; }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
 <main class="nv-notifs">
-  <div class="nv-notifs-header" id="nvNotifsHeader">
-    <div class="nv-notifs-title-group">
-      <h1 class="nv-notifs-title" id="nvNotifsTitle">Notifications</h1>
-      <span class="nv-notifs-unread-count hidden" id="nvUnreadCount">0 new</span>
-    </div>
-    <div class="nv-notifs-actions">
-      <button class="nv-btn-icon" id="nvMarkAllBtn" title="Mark all as read">
-        <i class="fas fa-check-double"></i>
-      </button>
-      <button class="nv-btn-icon" id="nvSettingsBtn" title="Notification settings">
-        <i class="fas fa-cog"></i>
-      </button>
-    </div>
-  </div>
-
-  <div class="nv-notifs-filters" id="nvFilters">
-    {% for tab in tabs %}
-    <button class="nv-filter-pill{% if loop.first %} active{% endif %}" data-filter="{{ tab.key }}">
-      {{ tab.label }}
-      {% if tab.key == 'unread' %}
-      <span class="nv-pill-badge hidden" id="nvPillBadge">0</span>
-      {% endif %}
+  <header class="nv-topbar" style="position:sticky;top:0;z-index:100;background:var(--bg);padding:8px 12px 12px;display:flex;align-items:center;gap:10px;">
+    <a href="/" class="nv-menu-btn" style="text-decoration:none;display:grid;place-items:center;">←</a>
+    <div style="flex:1;font-weight:700;font-size:18px;color:var(--text);">Notifications</div>
+    <button class="nv-notif-btn" data-action="mark-all-read" title="Mark all as read" style="font-size:16px;">
+      ✓✓
     </button>
-    {% endfor %}
-  </div>
+  </header>
 
   <div class="nv-notifs-feed" id="nvFeed"></div>
 
   <div class="nv-skeleton-list" id="nvSkeleton" style="display:flex">
-    {% for i in range(4) %}
+    {% for i in range(3) %}
     <div class="nv-skeleton-item">
       <div class="nv-skeleton-avatar"></div>
       <div class="nv-skeleton-lines">
@@ -51,16 +84,27 @@
   <div class="nv-sentinel" id="nvSentinel"></div>
 
   <div class="nv-empty-state hidden" id="nvEmpty">
-    <div class="nv-empty-icon">
-      <i class="fas fa-bell"></i>
-    </div>
-    <h2 class="nv-empty-title">You're all caught up</h2>
-    <p class="nv-empty-text">No new notifications right now.</p>
+    <div class="nv-empty-icon">🔔</div>
+    <h2 class="nv-empty-title">All caught up</h2>
+    <p class="nv-empty-text">No notifications right now.</p>
   </div>
 
   <div class="nv-toast-container" id="nvToastContainer"></div>
-</main>
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <!-- DELETE CONFIRM POPUP -->
+  <div class="nv-modal" id="deleteConfirmModal" hidden>
+    <div class="nv-modal-card">
+      <h2>Delete Notification?</h2>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">This cannot be undone.</p>
+      <div style="display:flex;gap:10px;">
+        <button id="deleteConfirmCancel" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--text);font-weight:600;cursor:pointer;">Cancel</button>
+        <button id="deleteConfirmAction" style="flex:1;padding:10px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;">Delete</button>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
 <script src="/static/js/namvibe_notifications.js"></script>
 {% endblock %}

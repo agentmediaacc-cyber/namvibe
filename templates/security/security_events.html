@@ -57,7 +57,7 @@
         <span>Device: {{ evt.metadata.device_name }}</span>
         {% endif %}
       </div>
-      <div class="event-time">{{ evt.created_at[:10] if evt.created_at else '' }} {{ evt.created_at[11:19] if evt.created_at else '' }}</div>
+      <div class="event-time">{{ evt.created_at.strftime('%Y-%m-%d') if evt.created_at else '' }} {{ evt.created_at.strftime('%H:%M:%S') if evt.created_at else '' }}</div>
     </div>
     {% endfor %}
   {% else %}

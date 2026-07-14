@@ -1,29 +1,16 @@
 {% extends "base.html" %}
 
 {% block title %}Login | NamVibe{% endblock %}
-{% block body_class %}chain-wallpaper-auth{% endblock %}
+{% block body_class %}chain-wallpaper-auth chain-auth-pink{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/chain_auth.css">
+<link rel="stylesheet" href="/static/css/chain_auth_pink.css?v=phase88">
 {% endblock %}
 
 {% block content %}
 <section class="chain-auth-shell chain-auth-shell--login auth-page auth-mobile-social auth-mobile-login">
     <div class="chain-auth-layout">
-        <aside class="chain-auth-brand-panel">
-            <div class="chain-auth-brand-mark" aria-hidden="true">NV</div>
-            <h2>One account for the full social experience.</h2>
-            <p>Jump back into live rooms, stories, reels, chats, creator tools and verified communities.</p>
-            <div class="chain-auth-benefits">
-                <span>Live rooms</span>
-                <span>Stories</span>
-                <span>Reels</span>
-                <span>Safe chat</span>
-                <span>Creator wallet</span>
-                <span>Verified profiles</span>
-            </div>
-        </aside>
-
         <div class="chain-auth-card chain-auth-card--login auth-social-card">
             <button type="button" class="auth-back-btn js-go-back" data-go-back aria-label="Go back"><i class="fas fa-arrow-left"></i> Back</button>
             <div class="chain-auth-head">
@@ -69,11 +56,13 @@
 
             <div class="chain-auth-panel">
                 <div class="chain-auth-oauth-grid chain-auth-oauth-grid--stacked">
-                    <a href="/auth/google?mode=login" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Google...">
+                    <a href="{{ '/auth/google?mode=login' if google_oauth_enabled else '#' }}" class="chain-auth-oauth{% if google_oauth_enabled %} oauth-trigger{% endif %}" {% if google_oauth_enabled %}data-loading="Connecting to Google..."{% else %}aria-disabled="true"{% endif %}>
                         <strong>Continue with Google</strong>
+                        {% if not google_oauth_enabled %}<span>Temporarily unavailable</span>{% endif %}
                     </a>
-                    <a href="/auth/facebook?mode=login" class="chain-auth-oauth oauth-trigger" data-loading="Connecting to Facebook...">
+                    <a href="{{ '/auth/facebook?mode=login' if facebook_oauth_enabled else '#' }}" class="chain-auth-oauth{% if facebook_oauth_enabled %} oauth-trigger{% endif %}" {% if facebook_oauth_enabled %}data-loading="Connecting to Facebook..."{% else %}aria-disabled="true"{% endif %}>
                         <strong>Continue with Facebook</strong>
+                        {% if not facebook_oauth_enabled %}<span>Temporarily unavailable</span>{% endif %}
                     </a>
                 </div>
 
@@ -85,33 +74,37 @@
                     {% if next_path %}
                     <input type="hidden" name="next" value="{{ next_path }}">
                     {% endif %}
-                    <label>
-                        <span>Email or Username</span>
+                    <label style="display:grid;gap:6px;margin-bottom:12px;">
+                        <span style="font-weight:700;font-size:13px;color:#1e293b;">Email or Username</span>
                         <input type="text" name="login_id" placeholder="Enter your email or username" required>
                     </label>
-                    <label>
-                        <span>Password</span>
-                        <input type="password" name="password" placeholder="••••••••" required>
+                    <label style="display:grid;gap:6px;margin-bottom:12px;">
+                        <span style="font-weight:700;font-size:13px;color:#1e293b;">Password</span>
+                        <div class="password-wrap">
+                            <input type="password" name="password" id="login_password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required>
+                            <button type="button" class="toggle-password" data-target="login_password">Show</button>
+                        </div>
                     </label>
-                    <label class="field-checkbox">
+                    <label class="field-checkbox" style="margin-bottom:12px;">
                         <input type="checkbox" name="remember_me" value="1" checked>
                         <span>Keep me signed in</span>
                     </label>
-                    <button type="submit" class="primary auth-submit-btn" data-loading-text="Logging in...">
+                    <button type="submit" class="auth-submit-btn primary" data-loading-text="Logging in...">
                         <span class="btn-label">Log In</span>
                         <span class="btn-spinner" aria-hidden="true"></span>
                     </button>
                 </form>
 
-                <div class="chain-auth-trust-row">Private chats • Verified profiles • Creator tools</div>
+                <div class="chain-auth-trust-row">Private chats &#8226; Verified profiles &#8226; Creator tools</div>
             </div>
 
             <div class="chain-auth-actions chain-auth-actions--stack">
                 <a href="/auth/forgot-password" class="chain-auth-link">Forgot password?</a>
+                <a href="/support" class="chain-auth-link" style="display:block;text-align:center;margin-top:4px;">Need help?</a>
             </div>
-            <div class="chain-auth-register-prompt">
-                <span>No account?</span>
-                <a href="/auth/register" class="chain-auth-link chain-auth-link--strong chain-auth-register-btn">Create account</a>
+            <div class="chain-auth-register-prompt" style="text-align:center;margin-top:4px;">
+                <span style="color:#64748b;font-size:14px;">No account?</span>
+                <a href="/auth/register" class="chain-auth-link chain-auth-link--strong" style="margin-left:4px;">Create account</a>
             </div>
         </div>
     </div>
@@ -119,5 +112,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/auth_minimal.js?v=phase87"></script>
+<script src="/static/js/auth_minimal.js?v=phase88"></script>
 {% endblock %}

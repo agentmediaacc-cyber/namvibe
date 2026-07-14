@@ -8,6 +8,7 @@ from engines.performance_engine import clean_email, normalize_username
 from services.auth_service import (
     get_current_profile,
     get_current_user,
+    get_supabase_auth_configuration_status,
     get_oauth_url,
     handle_oauth_callback,
     check_account_availability,
@@ -25,6 +26,7 @@ from services.auth_service import (
 )
 from services.logging_service import log_warning
 from services.rate_limit_service import limiter
+from services.session_service import establish_login_session
 
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -215,6 +217,14 @@ def _queue_oauth_error():
     session["oauth_error_message"] = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
 
 
+def _provider_template_flags():
+    status = get_supabase_auth_configuration_status()
+    return {
+        "google_oauth_enabled": bool(status.get("google_provider_expected")),
+        "facebook_oauth_enabled": bool(status.get("facebook_provider_expected")),
+    }
+
+
 def _clear_oauth_error_state():
     session.pop("oauth_error_message", None)
     flashes = session.get("_flashes", [])
@@ -339,11 +349,14 @@ def login():
         else:
             _clear_oauth_error_state()
             
-    return _no_cache_headers(render_template("auth/login.html", 
-                                              error=error, 
-                                              oauth_error=oauth_error, 
-                                              success_message=success_message,
-                                              next_path=session.get("auth_next")))
+    return _no_cache_headers(render_template(
+        "auth/login.html",
+        error=error,
+        oauth_error=oauth_error,
+        success_message=success_message,
+        next_path=session.get("auth_next"),
+        **_provider_template_flags(),
+    ))
 
 
 @auth_bp.route("/register", methods=["GET"])
@@ -352,7 +365,7 @@ def register():
     existing_target = _existing_session_redirect()
     if existing_target:
         return redirect(existing_target)
-    return _no_cache_headers(render_template("auth/register.html", error=None, form=None))
+    return _no_cache_headers(render_template("auth/register.html", error=None, form=None, **_provider_template_flags()))
 
 
 @auth_bp.route("/register", methods=["POST"])
@@ -386,18 +399,18 @@ def register_post():
             auth_provider_used="pending",
         )
         if not (username or "").strip():
-            return _no_cache_headers(render_template("auth/register.html", error="Enter a name or username.", form=request.form))
+            return _no_cache_headers(render_template("auth/register.html", error="Enter a name or username.", form=request.form, **_provider_template_flags()))
         if not _email_valid(email):
-            return _no_cache_headers(render_template("auth/register.html", error="Enter a valid email address.", form=request.form))
+            return _no_cache_headers(render_template("auth/register.html", error="Enter a valid email address.", form=request.form, **_provider_template_flags()))
         if not password:
-            return _no_cache_headers(render_template("auth/register.html", error="Password is required.", form=request.form))
+            return _no_cache_headers(render_template("auth/register.html", error="Password is required.", form=request.form, **_provider_template_flags()))
         if len(password) < 8:
-            return _no_cache_headers(render_template("auth/register.html", error="Password must be at least 8 characters.", form=request.form))
+            return _no_cache_headers(render_template("auth/register.html", error="Password must be at least 8 characters.", form=request.form, **_provider_template_flags()))
         if password != confirm_password:
             error = "Passwords do not match."
-            return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
+            return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form, **_provider_template_flags()))
         if not request.form.get("terms"):
-            return _no_cache_headers(render_template("auth/register.html", error="You must accept the terms before creating your account.", form=request.form))
+            return _no_cache_headers(render_template("auth/register.html", error="You must accept the terms before creating your account.", form=request.form, **_provider_template_flags()))
 
         result = register_chain_user(
             email,
@@ -433,13 +446,19 @@ def register_post():
             error=result.get("error"),
         )
         if result.get("ok"):
-            _apply_registration_session(result)
-            redirect_to = "/profile/"
-            _log_registration_route_state(result, redirect_to=redirect_to)
-            if result.get("dev_fallback"):
-                flash("Account created. Email verification skipped for local testing.", "success")
+            if result.get("requires_confirmation"):
+                return _no_cache_headers(render_template("auth/check_email.html", email=email))
+
+            auth_session = result.get("session")
+            user = result.get("user")
+            profile = result.get("profile") or {}
+            if auth_session and user:
+                establish_login_session(auth_session, user, profile=profile, provider="password", remember=True)
             else:
-                flash("Account created. Complete your profile when you are ready.", "success")
+                _apply_registration_session(result)
+            redirect_to = "/profile/" if profile.get("profile_completed") else "/profile/onboarding"
+            _log_registration_route_state(result, redirect_to=redirect_to)
+            flash("Account created successfully.", "success")
             response = redirect(redirect_to)
             current_app.session_interface.save_session(current_app, session, response)
             log_warning(
@@ -458,15 +477,15 @@ def register_post():
             error = {
                 "message": "This email already has a NamVibe account.",
                 "email": request.form.get("email"),
-                "exists": True
+                "exists": True,
             }
         else:
             error = result.get("error") or "Registration failed. Please try again."
-        return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form))
+        return _no_cache_headers(render_template("auth/register.html", error=error, form=request.form, **_provider_template_flags()))
     except Exception as _route_err:
         log_warning("auth_register_route_unexpected_error", error=str(_route_err)[:240])
         return _no_cache_headers(
-            render_template("auth/register.html", error="Registration is temporarily unavailable. Please try again later.", form=request.form)
+            render_template("auth/register.html", error="Registration is temporarily unavailable. Please try again later.", form=request.form, **_provider_template_flags())
         )
 
 
@@ -597,10 +616,15 @@ def debug_session():
 
 @auth_bp.route("/google")
 def google_login():
+    if not _provider_template_flags().get("google_oauth_enabled"):
+        session["oauth_error_message"] = "Google sign-in is temporarily unavailable."
+        return redirect(url_for("auth.login", oauth_error=1))
+    state = os.urandom(16).hex()
     session["oauth_mode"] = request.args.get("mode", "login")
     session["auth_provider"] = "google"
+    session["oauth_state"] = state
     session["auth_next"] = _next_target()
-    url = get_oauth_url("google")
+    url = get_oauth_url("google", state=state)
     if url:
         return redirect(url)
     _queue_oauth_error()
@@ -609,10 +633,15 @@ def google_login():
 
 @auth_bp.route("/facebook")
 def facebook_login():
+    if not _provider_template_flags().get("facebook_oauth_enabled"):
+        session["oauth_error_message"] = "Facebook sign-in is temporarily unavailable."
+        return redirect(url_for("auth.login", oauth_error=1))
+    state = os.urandom(16).hex()
     session["oauth_mode"] = request.args.get("mode", "login")
     session["auth_provider"] = "facebook"
+    session["oauth_state"] = state
     session["auth_next"] = _next_target()
-    url = get_oauth_url("facebook")
+    url = get_oauth_url("facebook", state=state)
     if url:
         return redirect(url)
     _queue_oauth_error()
@@ -627,43 +656,34 @@ def oauth_callback():
     Unified callback handler for Supabase redirects.
     Handles OAuth codes and recovery tokens.
     """
-    # 1. Check for recovery/password reset
-    if request.args.get("type") == "recovery" or (request.args.get("code") and not session.get("auth_provider")):
-        # If we have a code but no provider, it's likely a recovery flow
-        # Redirect to reset-password with the query params
+    if request.args.get("type") == "recovery" or request.args.get("token_hash"):
         return redirect(url_for("auth.reset_password", **request.args))
 
-    # 2. Check for OAuth errors
     if request.args.get("error") or request.args.get("error_description"):
         session["oauth_error_message"] = request.args.get("error_description") or "Auth failed."
         return redirect(url_for("auth.login", oauth_error=1))
 
-    # 3. Handle Provider Callbacks
     provider = session.get("auth_provider")
     if not provider and "/google/" in request.path:
         provider = "google"
     elif not provider and "/facebook/" in request.path:
         provider = "facebook"
-    
+
     if not provider:
-        # If no provider in session or path, check if it's a generic callback
-        # that might have tokens in hash (handled by JS on the target page)
-        return redirect(url_for("auth.reset_password"))
+        session["oauth_error_message"] = "Could not determine the sign-in provider. Please try again."
+        return redirect(url_for("auth.login", oauth_error=1))
 
     mode = session.pop("oauth_mode", "login")
+    expected_state = session.pop("oauth_state", None)
     if not request.args.get("code"):
-        print(f"[auth.oauth_callback] {provider} callback missing code: {dict(request.args)}")
-        session["oauth_error_message"] = "Google sign-in could not complete. Try email registration or check OAuth callback settings."
+        session["oauth_error_message"] = "Social sign-in could not complete. Please try again."
         return redirect(url_for("auth.login", oauth_error=1))
-    
-    ok, result = handle_oauth_callback(provider, request.args, mode=mode)
+
+    ok, result = handle_oauth_callback(provider, request.args, mode=mode, expected_state=expected_state)
     if ok:
         session["auth_provider"] = provider
         return redirect(_post_login_redirect(result))
-    
-    if result == "OAUTH_SIGNUP_REQUIRED":
-        return redirect(url_for("auth.register", oauth_signup_required=1))
-        
+
     session["oauth_error_message"] = result
     return redirect(url_for("auth.login", oauth_error=1))
 
@@ -673,20 +693,13 @@ def oauth_diagnostics():
     """
     Diagnostic page for OAuth configuration.
     """
-    base = request.host_url.rstrip("/")
-    supabase_url = "https://kcxphxihykonzuagtgke.supabase.co"
-    
+    status = get_supabase_auth_configuration_status()
+    site_url = status.get("site_url")
     data = {
-        "site_url": base,
-        "redirect_urls": [
-            f"{base}/auth/callback",
-            f"{base}/auth/google/callback",
-            f"{base}/auth/facebook/callback",
-            "http://127.0.0.1:5000/auth/callback",
-            "http://localhost:5000/auth/callback"
-        ],
-        "google_redirect": f"{supabase_url}/auth/v1/callback",
-        "facebook_redirect": f"{supabase_url}/auth/v1/callback"
+        **status,
+        "redirect_urls": [f"{site_url}{path}" for path in status.get("allowed_callback_routes", [])],
+        "google_redirect": f"{os.getenv('SUPABASE_URL', '').rstrip('/')}/auth/v1/callback" if os.getenv("SUPABASE_URL") else "",
+        "facebook_redirect": f"{os.getenv('SUPABASE_URL', '').rstrip('/')}/auth/v1/callback" if os.getenv("SUPABASE_URL") else "",
     }
     return render_template("auth/oauth_diagnostics.html", **data)
 

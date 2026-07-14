@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block title %}Account Verification | NamVibe{% endblock %}
 {% block body_class %}chain-wallpaper-profile{% endblock %}
 {% block extra_css %}
@@ -42,37 +41,130 @@
     .status-pending { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
     .status-approved { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
     .status-rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .vtype-option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 18px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 8px;
+    }
+    .vtype-option:hover { border-color: var(--chain-accent); background: rgba(255,255,255,0.06); }
+    .vtype-option.selected { border-color: var(--chain-accent); background: rgba(236,72,153,0.1); }
+    .vtype-option input[type="radio"] { accent-color: var(--chain-accent); margin-right: 10px; }
+    .progress-ring { display: inline-flex; align-items: center; gap: 8px; }
+    .progress-ring .ring { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; border: 3px solid; }
+    .progress-ring .ring.complete { border-color: #10b981; color: #10b981; }
+    .progress-ring .ring.incomplete { border-color: #f59e0b; color: #f59e0b; }
+    .fee-tag { font-size: 13px; font-weight: 600; color: var(--chain-accent); }
 </style>
 {% endblock %}
-
 {% block content %}
 <section class="chain-portal-shell chain-portal-shell--narrow">
     <div class="verification-card">
         <h1 style="margin-bottom:10px;">Verify your account</h1>
-        <p class="chain-portal-copy" style="margin-bottom:30px;">Verification builds trust and unlocks premium creator features. Our team will review your identity documents within 24-48 hours.</p>
+        <p class="chain-portal-copy" style="margin-bottom:30px;">Verification unlocks premium features, a verified badge on your profile, and increased trust with your audience.</p>
 
-        {% if verification %}
+        {% if verification and verification.verification_status == 'approved' %}
+        <div style="text-align:center; padding:60px 20px;">
+            <div style="font-size:64px; margin-bottom:20px;">✅</div>
+            <h2 style="margin-bottom:15px;">You're Verified!</h2>
+            <p style="opacity:0.7;">Your identity has been approved. Your verified badge is now live on your profile.</p>
+            <a href="/profile/" class="primary" style="display:inline-block; margin-top:20px; padding:12px 30px;">View Profile</a>
+        </div>
+        {% elif verification and verification.verification_status == 'pending' %}
         <div class="chain-data-card" style="margin-bottom:30px; background: rgba(255,255,255,0.02);">
-            <div style="display:flex; justify-content:between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                    <span class="status-badge status-{{ verification.verification_status }}">
-                        {{ verification.verification_status|title }}
-                    </span>
+                    <span class="status-badge status-pending">Pending Review</span>
+                    <span style="margin-left:10px; font-size:13px; opacity:0.6;">{{ verification.verification_type|default('Blue')|title }} Verification</span>
                 </div>
                 <div style="font-size:12px; opacity:0.5;">
-                    Submitted: {{ verification.created_at }}
+                    Submitted: {{ verification.created_at.strftime('%Y-%m-%d') if verification.created_at else '' }}
+                </div>
+            </div>
+            <div style="margin-top:15px; padding:12px; background:rgba(245,158,11,0.1); border-radius:10px; font-size:14px;">
+                <i class="fas fa-clock" style="margin-right:8px;"></i>
+                Your application is being reviewed. You'll be notified once approved.
+            </div>
+        </div>
+        {% elif verification and verification.verification_status == 'rejected' %}
+        <div class="chain-data-card" style="margin-bottom:30px; background: rgba(255,255,255,0.02);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <span class="status-badge status-rejected">Rejected</span>
                 </div>
             </div>
             {% if verification.rejection_reason %}
             <div style="margin-top:15px; padding:12px; background:rgba(239,68,68,0.1); border-radius:10px; color:#ef4444; font-size:14px;">
-                <strong>Rejection Reason:</strong> {{ verification.rejection_reason }}
+                <strong>Reason:</strong> {{ verification.rejection_reason }}
             </div>
             {% endif %}
+            <p style="margin-top:15px; opacity:0.7;">You can re-apply with corrected documents below.</p>
         </div>
         {% endif %}
 
-        {% if not verification or verification.verification_status == 'rejected' %}
+        {% if not verification or verification.verification_status != 'approved' %}
         <form method="POST" enctype="multipart/form-data" class="chain-form-grid">
+
+            <!-- Profile Completion Check -->
+            <div style="background:rgba(255,255,255,0.02); padding:20px; border-radius:15px; margin-bottom:25px;">
+                <h3 style="font-size:15px; margin-bottom:12px;">📋 Profile Completion</h3>
+                <div class="progress-ring">
+                    <div class="ring {{ 'complete' if profile_complete else 'incomplete' }}">
+                        {{ completion.percentage|default(0) }}%
+                    </div>
+                    <span style="font-size:13px; opacity:0.7;">
+                        {% if profile_complete %}
+                        ✅ Profile is complete enough for verification
+                        {% else %}
+                        ⚠️ Complete at least 55% of your profile to verify ({{ completion.missing|default([])|length }} fields remaining)
+                        {% endif %}
+                    </span>
+                </div>
+                {% if not profile_complete and completion.missing %}
+                <div style="margin-top:10px; font-size:12px; opacity:0.6;">
+                    Missing: {{ completion.missing|join(', ') }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Verification Type Selector -->
+            <div style="margin-bottom:20px;">
+                <label style="display:block; margin-bottom:10px; font-weight:600;">Verification Type</label>
+                {% for vid, vfee in verification_fees.items() %}
+                <label class="vtype-option">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="radio" name="verification_type" value="{{ vid }}" {{ 'checked' if vid == 'blue' else '' }}>
+                        <div>
+                            <strong>{{ vfee.label }}</strong>
+                            {% if vfee.note %}<br><small style="opacity:0.6;">{{ vfee.note }}</small>{% endif %}
+                        </div>
+                    </div>
+                    <span class="fee-tag">
+                        {% if vfee.coins > 0 %}
+                        {{ vfee.coins }} NVC · N${{ vfee.nad }}
+                        {% else %}
+                        Free
+                        {% endif %}
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+
+            <!-- Payment Notice -->
+            <div style="background:rgba(236,72,153,0.05); padding:16px; border-radius:12px; margin-bottom:25px; border:1px solid rgba(236,72,153,0.15);">
+                <p style="font-size:13px; margin:0;">
+                    <i class="fas fa-credit-card" style="margin-right:8px; color:var(--chain-accent);"></i>
+                    <strong>Application fee:</strong> The fee will be deducted from your wallet balance. Make sure you have enough NVC before applying.
+                </p>
+            </div>
+
+            <!-- Document Upload -->
             <div class="form-group" style="margin-bottom:20px;">
                 <label><span>Selfie with ID</span></label>
                 <p style="font-size:12px; opacity:0.6; margin-bottom:10px;">Hold your ID card next to your face. Ensure both are clearly visible.</p>
@@ -104,23 +196,18 @@
                 </p>
             </div>
             
-            <button type="submit" class="primary" style="width:100%; height:55px; font-size:16px;">Submit for Verification</button>
+            <button type="submit" class="primary" style="width:100%; height:55px; font-size:16px;" {{ 'disabled' if not profile_complete else '' }}>
+                {% if profile_complete %}
+                Pay &amp; Submit for Verification
+                {% else %}
+                Complete Your Profile First
+                {% endif %}
+            </button>
         </form>
-        {% else %}
-        <div style="text-align:center; padding:60px 20px;">
-            <div style="position:relative; display:inline-block; margin-bottom:30px;">
-                <i class="fas fa-user-check" style="font-size:64px; color:rgba(255,255,255,0.1);"></i>
-                <i class="fas fa-clock" style="position:absolute; bottom:-5px; right:-5px; font-size:24px; color:#f59e0b; background:#1a1a1a; border-radius:50%; padding:2px;"></i>
-            </div>
-            <h2 style="margin-bottom:15px;">Submission Received</h2>
-            <p style="opacity:0.7; max-width:400px; margin:0 auto 30px;">We're reviewing your documents. You'll receive a notification and a blue badge once approved.</p>
-            <a href="/profile/" class="secondary" style="padding:12px 30px;">Back to Profile</a>
-        </div>
         {% endif %}
     </div>
 </section>
 {% endblock %}
-
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -128,7 +215,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const input = document.getElementById(inputId);
         const preview = document.getElementById(previewId);
         if (!input || !preview) return;
-
         input.addEventListener('change', function() {
             const file = this.files[0];
             if (file) {
@@ -149,9 +235,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
     setupPreview('selfie_input', 'selfie_preview');
     setupPreview('id_document_input', 'id_document_preview');
+
+    // Highlight selected verification type
+    document.querySelectorAll('input[name="verification_type"]').forEach(r => {
+        r.addEventListener('change', function() {
+            document.querySelectorAll('.vtype-option').forEach(o => o.classList.remove('selected'));
+            this.closest('.vtype-option').classList.add('selected');
+        });
+    });
+    // Preselect default
+    document.querySelector('input[name="verification_type"]:checked')?.closest('.vtype-option')?.classList.add('selected');
 });
 </script>
 {% endblock %}

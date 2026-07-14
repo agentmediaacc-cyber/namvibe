@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+import html
+import re
 
 from flask import request, session
 from flask_socketio import emit, join_room, leave_room
@@ -38,11 +40,13 @@ from services.redis_service import (
     set_members,
     set_remove,
 )
+from services.neon_service import execute, fetch_one, get_cached_table_columns, table_exists
 from services.socketio_service import emit_to_live_room, emit_to_profile, emit_to_thread, live_room, profile_room, socketio, thread_room
 from services.wallet_engine import send_gift
 from services import message_feature_service as phase30_messages
 from services import call_feature_service as phase30_calls
 from services.ai.interaction_service import track_interaction_safe
+from services.blocking_service import is_blocked_any
 from services.message_delivery_service import (
     update_presence as mds_update_presence,
     set_offline as mds_set_offline,
@@ -89,6 +93,8 @@ def _socket_rate_limit(key, max_per_minute=30):
 
 _SOCKET_STATE_TTL_SECONDS = 300
 _EVENT_DEDUPE_TTL_SECONDS = 120
+_LIVE_CHAT_MAX_LENGTH = 500
+_LIVE_REACTION_TYPES = {"heart", "like", "fire", "clap", "wow"}
 
 
 def _utcnow_iso():
@@ -147,6 +153,171 @@ def _recover_rooms(profile_id):
     return list(state.get("rooms") or [])
 
 
+def _live_columns(table_name):
+    try:
+        return set(get_cached_table_columns(table_name) or [])
+    except Exception:
+        return set()
+
+
+def _live_room_row(room_id):
+    room_cols = _live_columns("chain_live_rooms")
+    if not room_cols or not table_exists("chain_live_rooms"):
+        return None
+    owner_col = None
+    for key in ("profile_id", "host_profile_id", "host_id", "creator_id"):
+        if key in room_cols:
+            owner_col = key
+            break
+    if not owner_col:
+        return None
+    try:
+        row = fetch_one(
+            f"SELECT id, {owner_col} AS owner_profile_id, COALESCE(status, '') AS status, COALESCE(is_live, FALSE) AS is_live, COALESCE(viewer_count, 0) AS viewer_count FROM chain_live_rooms WHERE id = %s LIMIT 1",
+            (room_id,),
+        )
+        return dict(row) if row else None
+    except Exception:
+        return None
+
+
+def _live_access_allowed(room_id, profile_id):
+    room = _live_room_row(room_id)
+    if not room:
+        return None, "room_not_found"
+    if room.get("status") in {"ended", "cancelled", "failed"} or (room.get("is_live") is False and room.get("status") not in {"live", "starting", "scheduled"}):
+        return room, "stream_ended"
+    owner_id = room.get("owner_profile_id")
+    if profile_id and owner_id:
+        try:
+            if is_blocked_any(str(profile_id), str(owner_id)):
+                return room, "blocked"
+        except Exception:
+            pass
+    return room, None
+
+
+def _upsert_live_participant(room_id, profile_id, role="viewer"):
+    if not profile_id or not table_exists("chain_live_participants"):
+        return
+    cols = _live_columns("chain_live_participants")
+    if not {"room_id", "profile_id"}.issubset(cols):
+        return
+    try:
+        existing = fetch_one(
+            "SELECT id FROM chain_live_participants WHERE room_id = %s AND profile_id = %s ORDER BY joined_at DESC NULLS LAST LIMIT 1",
+            (room_id, profile_id),
+        )
+        updates = []
+        params = []
+        if "role" in cols:
+            updates.append("role = %s")
+            params.append(role)
+        if "is_active" in cols:
+            updates.append("is_active = TRUE")
+        if "left_at" in cols:
+            updates.append("left_at = NULL")
+        if "last_seen_at" in cols:
+            updates.append("last_seen_at = NOW()")
+        if "session_id" in cols:
+            updates.append("session_id = %s")
+            params.append(request.sid)
+        if existing:
+            if updates:
+                execute(f"UPDATE chain_live_participants SET {', '.join(updates)} WHERE id = %s", tuple(params + [existing["id"]]))
+            return
+        payload = {"room_id": room_id, "profile_id": profile_id}
+        if "role" in cols:
+            payload["role"] = role
+        if "joined_at" in cols:
+            payload["joined_at"] = _utcnow_iso()
+        if "is_active" in cols:
+            payload["is_active"] = True
+        if "last_seen_at" in cols:
+            payload["last_seen_at"] = _utcnow_iso()
+        if "session_id" in cols:
+            payload["session_id"] = request.sid
+        fields = list(payload.keys())
+        execute(
+            f"INSERT INTO chain_live_participants ({', '.join(fields)}) VALUES ({', '.join(['%s'] * len(fields))})",
+            tuple(payload[field] for field in fields),
+        )
+    except Exception:
+        return
+
+
+def _deactivate_live_participant(room_id, profile_id):
+    if not profile_id or not table_exists("chain_live_participants"):
+        return
+    cols = _live_columns("chain_live_participants")
+    if not {"room_id", "profile_id"}.issubset(cols):
+        return
+    updates = []
+    if "is_active" in cols:
+        updates.append("is_active = FALSE")
+    if "left_at" in cols:
+        updates.append("left_at = NOW()")
+    if "last_seen_at" in cols:
+        updates.append("last_seen_at = NOW()")
+    if not updates:
+        return
+    try:
+        execute(f"UPDATE chain_live_participants SET {', '.join(updates)} WHERE room_id = %s AND profile_id = %s", (room_id, profile_id))
+    except Exception:
+        return
+
+
+def _live_viewer_count(room):
+    room_id = (room or {}).get("id")
+    owner_id = (room or {}).get("owner_profile_id")
+    participant_cols = _live_columns("chain_live_participants")
+    if room_id and participant_cols and table_exists("chain_live_participants"):
+        clauses = ["room_id = %s"]
+        params = [room_id]
+        if "is_active" in participant_cols:
+            clauses.append("COALESCE(is_active, TRUE) = TRUE")
+        if "left_at" in participant_cols:
+            clauses.append("left_at IS NULL")
+        if "profile_id" in participant_cols and owner_id:
+            clauses.append("profile_id <> %s")
+            params.append(owner_id)
+        try:
+            row = fetch_one(f"SELECT COUNT(DISTINCT profile_id) AS cnt FROM chain_live_participants WHERE {' AND '.join(clauses)}", tuple(params))
+            return int((row or {}).get("cnt") or 0)
+        except Exception:
+            pass
+    room_id = (room or {}).get("id")
+    if room_id:
+        return len(set_members(f"live_viewers:{room_id}"))
+    return 0
+
+
+def _sync_live_viewer_count(room):
+    count = _live_viewer_count(room)
+    room_cols = _live_columns("chain_live_rooms")
+    if room and room_cols and table_exists("chain_live_rooms"):
+        updates = []
+        params = []
+        if "viewer_count" in room_cols:
+            updates.append("viewer_count = %s")
+            params.append(count)
+        if "peak_viewer_count" in room_cols:
+            updates.append("peak_viewer_count = GREATEST(COALESCE(peak_viewer_count, 0), %s)")
+            params.append(count)
+        if updates:
+            try:
+                execute(f"UPDATE chain_live_rooms SET {', '.join(updates)} WHERE id = %s", tuple(params + [room["id"]]))
+            except Exception:
+                pass
+    return count
+
+
+def _sanitize_live_message(value):
+    text = html.escape((value or "").strip())
+    text = re.sub(r"\s+", " ", text)
+    return text[:_LIVE_CHAT_MAX_LENGTH]
+
+
 def _record_sid(profile_id):
     if not profile_id:
         return
@@ -200,6 +371,13 @@ def handle_disconnect(*args):
         # Leave all tracked rooms on disconnect
         rooms = _recover_rooms(profile_id)
         for room_name in rooms:
+            if room_name.startswith("live:"):
+                room_id = room_name.split(":", 1)[1]
+                set_remove(f"live_viewers:{room_id}", request.sid)
+                _deactivate_live_participant(room_id, profile_id)
+                room = _live_room_row(room_id)
+                viewer_count = _sync_live_viewer_count(room)
+                emit_to_live_room(room_id, "live:viewers", {"count": viewer_count, "room_id": room_id})
             try:
                 leave_room(room_name)
             except Exception:
@@ -293,24 +471,27 @@ def handle_leave_thread(data):
 def handle_join_live(data):
     room_id = (data or {}).get("room_id")
     profile_id = _get_profile_id()
-    if room_id:
-        room_name = live_room(room_id)
-        join_room(room_name)
-        if profile_id:
-            _track_joined_room(profile_id, room_name)
-        set_add(f"live_viewers:{room_id}", request.sid, ttl=_SOCKET_STATE_TTL_SECONDS)
-        viewer_count = len(set_members(f"live_viewers:{room_id}"))
-        emit_to_live_room(room_id, "live:viewers", {"count": viewer_count})
-        if profile_id:
-            track_interaction_safe(
-                profile_id,
-                target_type="live",
-                target_id=room_id,
-                action_type="join",
-                source_surface="live",
-            )
-        return {"joined": True, "room_id": room_id, "viewer_count": viewer_count}
-    return {"joined": False}
+    if not profile_id or not room_id:
+        return {"joined": False, "error": "unauthorized"}
+    room, error = _live_access_allowed(room_id, profile_id)
+    if error:
+        return {"joined": False, "error": error}
+    room_name = live_room(room_id)
+    join_room(room_name)
+    _track_joined_room(profile_id, room_name)
+    set_add(f"live_viewers:{room_id}", request.sid, ttl=_SOCKET_STATE_TTL_SECONDS)
+    role = "host" if str(room.get("owner_profile_id")) == str(profile_id) else "viewer"
+    _upsert_live_participant(room_id, profile_id, role=role)
+    viewer_count = _sync_live_viewer_count(room)
+    emit_to_live_room(room_id, "live:viewers", {"count": viewer_count, "room_id": room_id})
+    track_interaction_safe(
+        profile_id,
+        target_type="live",
+        target_id=room_id,
+        action_type="join",
+        source_surface="live",
+    )
+    return {"joined": True, "room_id": room_id, "viewer_count": viewer_count}
 
 
 @socketio.on("leave_live_room")
@@ -318,13 +499,15 @@ def handle_leave_live(data):
     room_id = (data or {}).get("room_id")
     profile_id = _get_profile_id()
     if room_id:
+        room = _live_room_row(room_id)
         room_name = live_room(room_id)
         leave_room(room_name)
         if profile_id:
             _track_left_room(profile_id, room_name)
+            _deactivate_live_participant(room_id, profile_id)
         set_remove(f"live_viewers:{room_id}", request.sid)
-        viewer_count = len(set_members(f"live_viewers:{room_id}"))
-        emit_to_live_room(room_id, "live:viewers", {"count": viewer_count})
+        viewer_count = _sync_live_viewer_count(room)
+        emit_to_live_room(room_id, "live:viewers", {"count": viewer_count, "room_id": room_id})
         return {"left": True, "room_id": room_id, "viewer_count": viewer_count}
     return {"left": False}
 
@@ -656,18 +839,99 @@ def handle_reconnect_sync(data):
 @socketio.on("live_chat_message")
 def handle_live_chat(data):
     room_id = (data or {}).get("room_id")
-    message = (data or {}).get("message")
+    message = _sanitize_live_message((data or {}).get("message"))
     profile_id = _get_profile_id()
+    if not profile_id:
+        return {"ok": False, "error": "unauthorized"}
+    if _socket_rate_limit(f"live_chat:{profile_id}", 12):
+        return {"ok": False, "error": "rate_limited"}
     if _ignore_duplicate_event("live_chat_message", data, f"{profile_id}:{room_id}:{message}"):
         return {"ok": True, "duplicate": True}
     if room_id and message:
-        payload = {
+        room, error = _live_access_allowed(room_id, profile_id)
+        if error:
+            return {"ok": False, "error": error}
+        display_name = session.get("username", "User")
+        try:
+            profile = get_current_profile()
+            if profile:
+                display_name = profile.get("display_name") or profile.get("username") or display_name
+        except Exception:
+            pass
+        if table_exists("chain_live_chat_messages"):
+            cols = _live_columns("chain_live_chat_messages")
+            payload = {}
+            if "room_id" in cols:
+                payload["room_id"] = room_id
+            if "profile_id" in cols:
+                payload["profile_id"] = profile_id
+            if "display_name" in cols:
+                payload["display_name"] = display_name
+            if "body" in cols:
+                payload["body"] = message
+            if payload:
+                try:
+                    fields = list(payload.keys())
+                    execute(
+                        f"INSERT INTO chain_live_chat_messages ({', '.join(fields)}) VALUES ({', '.join(['%s'] * len(fields))})",
+                        tuple(payload[field] for field in fields),
+                    )
+                except Exception:
+                    pass
+        emit_payload = {
             "profile_id": profile_id,
-            "username": session.get("username", "Anonymous"),
-            "message": message,
-            "timestamp": _utcnow_iso(),
+            "sender_name": display_name,
+            "body": message,
+            "message_type": "text",
+            "created_at": _utcnow_iso(),
         }
-        emit_to_live_room(room_id, "live:chat", payload)
+        emit_to_live_room(room_id, "live:chat", emit_payload)
+        _upsert_live_participant(room_id, profile_id, role="host" if room and str(room.get("owner_profile_id")) == str(profile_id) else "viewer")
+        return {"ok": True}
+    return {"ok": False, "error": "invalid_message"}
+
+
+@socketio.on("live_reaction")
+def handle_live_reaction(data):
+    room_id = (data or {}).get("room_id")
+    profile_id = _get_profile_id()
+    reaction_type = str((data or {}).get("reaction_type") or (data or {}).get("reaction") or "heart").strip().lower()
+    if not profile_id:
+        return {"ok": False, "error": "unauthorized"}
+    if reaction_type not in _LIVE_REACTION_TYPES:
+        return {"ok": False, "error": "invalid_reaction"}
+    if _socket_rate_limit(f"live_reaction:{profile_id}", 30):
+        return {"ok": False, "error": "rate_limited"}
+    if _ignore_duplicate_event("live_reaction", data, f"{profile_id}:{room_id}:{reaction_type}"):
+        return {"ok": True, "duplicate": True}
+    room, error = _live_access_allowed(room_id, profile_id)
+    if error:
+        return {"ok": False, "error": error}
+    if table_exists("chain_live_reactions"):
+        cols = _live_columns("chain_live_reactions")
+        payload = {}
+        if "room_id" in cols:
+            payload["room_id"] = room_id
+        if "profile_id" in cols:
+            payload["profile_id"] = profile_id
+        if "reaction_type" in cols:
+            payload["reaction_type"] = reaction_type
+        if payload:
+            try:
+                fields = list(payload.keys())
+                execute(
+                    f"INSERT INTO chain_live_reactions ({', '.join(fields)}) VALUES ({', '.join(['%s'] * len(fields))})",
+                    tuple(payload[field] for field in fields),
+                )
+            except Exception:
+                pass
+    emit_to_live_room(room_id, "live:reaction", {
+        "room_id": room_id,
+        "profile_id": profile_id,
+        "reaction_type": reaction_type,
+        "created_at": _utcnow_iso(),
+    })
+    return {"ok": True}
 
 
 @socketio.on("live_gift")

@@ -1,4 +1,4 @@
-"""NamVibe TURN/STUN Service — WebRTC NAT Traversal via coturn"""
+"""NamVibe TURN/STUN Service — WebRTC NAT Traversal via LiveKit Cloud or coturn"""
 
 import os
 import logging
@@ -10,6 +10,7 @@ TURN_URL = get_env("TURN_URL", "")
 TURN_USERNAME = get_env("TURN_USERNAME", "")
 TURN_CREDENTIAL = get_env("TURN_CREDENTIAL", "")
 TURN_REALM = get_env("TURN_REALM", "namvibe.com")
+LIVEKIT_API_KEY = get_env("LIVEKIT_API_KEY", "")
 
 STUN_SERVERS = [
     {"urls": ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]},
@@ -19,6 +20,9 @@ STUN_SERVERS = [
 def turn_configured() -> bool:
     return bool(TURN_URL and TURN_USERNAME and TURN_CREDENTIAL)
 
+def turn_handled_by_livekit() -> bool:
+    return bool(LIVEKIT_API_KEY)
+
 def get_turn_config() -> dict:
     config = {
         "iceServers": list(STUN_SERVERS),
@@ -26,26 +30,32 @@ def get_turn_config() -> dict:
         "iceCandidatePoolSize": 10,
     }
     if turn_configured():
+        urls = [part.strip() for part in str(TURN_URL).split(",") if part.strip()]
+        if not urls:
+            urls = [TURN_URL]
         config["iceServers"].append({
-            "urls": [TURN_URL],
+            "urls": urls,
             "username": TURN_USERNAME,
             "credential": TURN_CREDENTIAL,
         })
     return config
 
 def get_turn_status() -> dict:
+    lk_handles = turn_handled_by_livekit()
     return {
-        "configured": turn_configured(),
-        "turn_url": TURN_URL or "not_set",
+        "configured": turn_configured() or lk_handles,
+        "turn_url": (TURN_URL.split(",")[0].strip() if TURN_URL else ("livekit_cloud" if lk_handles else "not_set")),
         "stun_servers": len(STUN_SERVERS),
         "realm": TURN_REALM,
+        "handled_by_livekit": lk_handles,
     }
 
 def get_coturn_install_guide() -> str:
     return """
 # ── coturn STUN/TURN Server Setup ──
+# NOTE: Not needed when using LiveKit Cloud — it provides built-in TURN relay.
 
-## Install
+## Install (only if NOT using LiveKit Cloud)
   brew install coturn          # macOS
   apt install coturn           # Ubuntu/Debian
 

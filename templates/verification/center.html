@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% block title %}Verification Center | NamVibe{% endblock %}
+{% block body_class %}chain-wallpaper-profile{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chain_portal.css">
+<style>
+  :root {
+    --vrf-bg: rgba(255,255,255,0.03);
+    --vrf-border: rgba(255,255,255,0.08);
+    --vrf-accent: #1d9bf0;
+    --vrf-success: #10b981;
+    --vrf-error: #ef4444;
+    --vrf-warning: #f59e0b;
+    --vrf-text: rgba(255,255,255,0.85);
+  }
+  .vrf-container { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+  .vrf-card {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--vrf-border);
+    border-radius: 20px;
+    padding: 30px;
+  }
+  .vrf-header { text-align: center; margin-bottom: 30px; }
+  .vrf-header h1 { font-size: 24px; margin-bottom: 6px; }
+  .vrf-header p { opacity: 0.6; font-size: 14px; }
+
+  /* Step indicators */
+  .vrf-steps {
+    display: flex; justify-content: center; gap: 8px; margin-bottom: 30px;
+  }
+  .vrf-step-dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.3);
+    transition: all 0.3s;
+  }
+  .vrf-step-dot.active {
+    border-color: var(--vrf-accent);
+    background: rgba(29,155,240,0.2);
+    color: var(--vrf-accent);
+  }
+  .vrf-step-dot.done {
+    border-color: var(--vrf-success);
+    background: rgba(16,185,129,0.2);
+    color: var(--vrf-success);
+  }
+
+  /* Country grid */
+  .vrf-country-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 20px;
+  }
+  .vrf-country-option {
+    padding: 12px; border-radius: 12px;
+    background: var(--vrf-bg); border: 1px solid var(--vrf-border);
+    cursor: pointer; text-align: center; transition: all 0.2s;
+    font-size: 13px;
+  }
+  .vrf-country-option:hover { border-color: var(--vrf-accent); }
+  .vrf-country-option.selected { border-color: var(--vrf-accent); background: rgba(29,155,240,0.1); }
+  .vrf-country-option .flag { font-size: 24px; display: block; margin-bottom: 4px; }
+
+  /* Doc type */
+  .vrf-doc-option {
+    padding: 16px; border-radius: 12px;
+    background: var(--vrf-bg); border: 1px solid var(--vrf-border);
+    cursor: pointer; margin-bottom: 8px; transition: all 0.2s;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .vrf-doc-option:hover { border-color: var(--vrf-accent); }
+  .vrf-doc-option.selected { border-color: var(--vrf-accent); background: rgba(29,155,240,0.1); }
+  .vrf-doc-option .doc-icon { font-size: 20px; width: 36px; text-align: center; }
+  .vrf-doc-option .doc-info { flex: 1; }
+  .vrf-doc-option .doc-name { font-weight: 600; font-size: 14px; }
+  .vrf-doc-option .doc-desc { font-size: 12px; opacity: 0.5; }
+
+  /* Upload boxes */
+  .vrf-upload-box {
+    width: 100%; min-height: 160px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.02);
+    border: 2px dashed rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.3s; margin-bottom: 16px;
+    overflow: hidden; position: relative;
+  }
+  .vrf-upload-box:hover { border-color: var(--vrf-accent); background: rgba(255,255,255,0.04); }
+  .vrf-upload-box.has-image { border-style: solid; border-color: var(--vrf-success); }
+  .vrf-upload-placeholder { text-align: center; padding: 20px; }
+  .vrf-upload-placeholder i { font-size: 32px; opacity: 0.3; margin-bottom: 10px; display: block; }
+  .vrf-upload-placeholder span { font-size: 13px; opacity: 0.5; }
+
+  /* Requirements list */
+  .vrf-reqs { background: rgba(255,255,255,0.02); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .vrf-reqs li { font-size: 13px; opacity: 0.65; margin-bottom: 6px; list-style: none; }
+  .vrf-reqs li i { width: 18px; margin-right: 6px; }
+
+  /* Selfie */
+  .vrf-selfie-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; }
+  .vrf-selfie-container video { width: 100%; border-radius: 12px; background: #000; }
+  .vrf-selfie-container canvas { width: 100%; border-radius: 12px; display: none; }
+  .vrf-selfie-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border: 3px dashed rgba(255,255,255,0.3); border-radius: 12px;
+    pointer-events: none;
+  }
+  .vrf-liveness-steps {
+    display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; justify-content: center;
+  }
+  .vrf-liveness-step {
+    padding: 8px 14px; border-radius: 50px; font-size: 12px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    opacity: 0.5; transition: all 0.3s;
+  }
+  .vrf-liveness-step.done { opacity: 1; border-color: var(--vrf-success); background: rgba(16,185,129,0.15); color: var(--vrf-success); }
+
+  /* Buttons */
+  .vrf-btn {
+    padding: 12px 24px; border-radius: 50px; border: none; font-size: 14px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .vrf-btn-primary { background: var(--vrf-accent); color: #fff; }
+  .vrf-btn-primary:hover { background: #1a85d9; }
+  .vrf-btn-secondary { background: rgba(255,255,255,0.06); color: var(--vrf-text); }
+  .vrf-btn-secondary:hover { background: rgba(255,255,255,0.1); }
+  .vrf-btn-success { background: var(--vrf-success); color: #fff; }
+  .vrf-btn-success:hover { background: #059669; }
+  .vrf-btn-danger { background: var(--vrf-error); color: #fff; }
+  .vrf-btn-sm { padding: 8px 16px; font-size: 12px; }
+  .vrf-nav { display: flex; justify-content: space-between; margin-top: 24px; gap: 12px; }
+  .vrf-nav button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Review rows */
+  .vrf-review-row {
+    display: flex; justify-content: space-between; padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .vrf-review-row span { opacity: 0.6; font-size: 14px; }
+  .vrf-review-row strong { font-size: 14px; }
+
+  /* Already verified */
+  .vrf-verified-hero { text-align: center; padding: 40px 20px; }
+  .vrf-verified-hero .badge-icon { font-size: 80px; margin-bottom: 16px; }
+  .vrf-verified-hero h2 { font-size: 28px; margin-bottom: 8px; }
+  .vrf-verified-hero p { opacity: 0.6; max-width: 400px; margin: 0 auto 20px; }
+
+  /* Pending state */
+  .vrf-pending-card {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px;
+  }
+
+  /* Privacy notice */
+  .vrf-privacy {
+    background: rgba(255,255,255,0.02); padding: 16px; border-radius: 12px;
+    font-size: 12px; opacity: 0.55; line-height: 1.6; margin-top: 16px;
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="vrf-container">
+  <div class="vrf-card">
+    {% if status and status.request_status == 'approved' %}
+      <!-- Already Verified -->
+      <div class="vrf-verified-hero">
+        <div class="badge-icon">✓</div>
+        <h2>Identity Verified</h2>
+        <p>Your identity has been verified. Your verified badge is live across NamVibe.</p>
+        <div style="display:inline-block;padding:8px 20px;border-radius:50px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#10b981;font-weight:600;font-size:14px;margin-bottom:16px;">
+          <i class="fas fa-check-circle"></i> Level {{ status.level }} — {{ status.level_info.name if status.level_info else 'Verified' }}
+        </div>
+        {% if request and request.country %}
+        <p style="font-size:13px;opacity:0.5;">Verified with {{ request.country }} {{ request.document_type or 'document' }}</p>
+        {% endif %}
+        <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+          <a href="/profile/" class="vrf-btn vrf-btn-secondary">View Profile</a>
+          <a href="/profile/settings" class="vrf-btn vrf-btn-secondary">Settings</a>
+        </div>
+      </div>
+
+    {% elif status and status.request_status in ('pending', 'needs_review') %}
+      <!-- Pending -->
+      <div class="vrf-header">
+        <h1>Verification in Progress</h1>
+        <p>Your application is being reviewed by our team</p>
+      </div>
+      <div class="vrf-pending-card">
+        <i class="fas fa-clock" style="font-size:32px;color:var(--vrf-warning);margin-bottom:10px;"></i>
+        <p style="font-size:14px;margin-bottom:4px;">Status: <strong>{{ status.request_status|title }}</strong></p>
+        <p style="font-size:12px;opacity:0.6;">We'll notify you once the review is complete.</p>
+      </div>
+      {% if request %}
+      <div style="margin-top:16px;">
+        <p style="font-size:13px;opacity:0.5;">Country: {{ request.country or '—' }} · Document: {{ request.document_type or '—' }}</p>
+        <p style="font-size:12px;opacity:0.4;">Submitted: {{ request.created_at.strftime('%Y-%m-%d %H:%M') if request.created_at else '—' }}</p>
+      </div>
+      {% endif %}
+
+    {% elif status and status.request_status == 'rejected' %}
+      <!-- Rejected — show re-apply flow -->
+      <div class="vrf-header">
+        <h1>Verification Rejected</h1>
+        <p>Your previous application did not pass review</p>
+      </div>
+      {% if request and request.rejection_reason %}
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:16px;margin-bottom:20px;color:var(--vrf-error);font-size:14px;">
+        <i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>
+        <strong>Reason:</strong> {{ request.rejection_reason }}
+      </div>
+      {% endif %}
+      <p style="font-size:14px;opacity:0.7;margin-bottom:20px;">Please correct the issues and re-apply using the steps below.</p>
+      <div id="vrfRequestStatus" data-status="{{ status.request_status }}" data-reason="{{ request.rejection_reason or '' }}"></div>
+      <!-- Fall through to wizard -->
+
+    {% elif status and status.request_status == 'needs_more_info' %}
+      <!-- Needs more info — show wizard to re-upload -->
+      <div class="vrf-header">
+        <h1>Additional Information Needed</h1>
+        {% if request and request.admin_notes %}
+        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:16px;margin-bottom:16px;font-size:14px;">
+          <i class="fas fa-info-circle" style="margin-right:8px;color:var(--vrf-warning);"></i>
+          {{ request.admin_notes }}
+        </div>
+        {% endif %}
+      </div>
+      <!-- Fall through to wizard -->
+
+    {% else %}
+      <!-- No request yet — show start -->
+      <div id="vrfRequestStatus" data-status="none"></div>
+    {% endif %}
+
+    <!-- Multi-step wizard (shown unless already approved) -->
+    {% if not status or status.request_status != 'approved' %}
+    <div class="vrf-steps">
+      <div class="vrf-step-dot active" id="vrfDot1">1</div>
+      <div class="vrf-step-dot" id="vrfDot2">2</div>
+      <div class="vrf-step-dot" id="vrfDot3">3</div>
+      <div class="vrf-step-dot" id="vrfDot4">4</div>
+      <div class="vrf-step-dot" id="vrfDot5">5</div>
+      <div class="vrf-step-dot" id="vrfDot6">6</div>
+      <div class="vrf-step-dot" id="vrfDot7">7</div>
+    </div>
+
+    <!-- Step 1: Start -->
+    <div id="step1">
+      <div class="vrf-header">
+        <h1>Get Verified</h1>
+        <p>Complete these steps to earn your verified badge</p>
+      </div>
+      <div class="vrf-reqs">
+        <li><i class="fas fa-flag"></i> Select your country</li>
+        <li><i class="fas fa-id-card"></i> Choose document type</li>
+        <li><i class="fas fa-camera"></i> Upload your documents</li>
+        <li><i class="fas fa-user"></i> Take a selfie</li>
+        <li><i class="fas fa-shield-alt"></i> Submit for review</li>
+      </div>
+      <div style="text-align:center;margin-top:20px;">
+        <button class="vrf-btn vrf-btn-primary" id="vrfStartBtn" style="padding:14px 40px;font-size:16px;">
+          <i class="fas fa-check-circle"></i> Start Verification
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Country -->
+    <div id="step2" style="display:none;">
+      <div class="vrf-header">
+        <h1>Select Your Country</h1>
+        <p>Choose the country that issued your identity document</p>
+      </div>
+      <input type="text" id="vrfCountrySearch" placeholder="Search your country..." oninput="filterCountries(this.value)" style="width:100%;padding:12px 16px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--vrf-border);color:var(--vrf-text);font-size:14px;outline:none;margin-bottom:16px;box-sizing:border-box;">
+      <div class="vrf-country-grid" id="vrfCountryGrid">
+        {% for c in countries %}
+        <label class="vrf-country-option" data-name="{{ c.name|lower }}">
+          <input type="radio" name="vrfCountry" value="{{ c.name }}" style="display:none;">
+          <span class="flag">{{ c.flag }}</span>
+          <span>{{ c.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Step 3: Document type -->
+    <div id="step3" style="display:none;">
+      <div class="vrf-header">
+        <h1>Choose Document Type</h1>
+        <p>Select the identity document you'll upload</p>
+      </div>
+      {% for dt in doc_types %}
+      <label class="vrf-doc-option">
+        <input type="radio" name="vrfDocType" value="{{ dt.id }}" style="display:none;" data-has-back="{{ 'true' if dt.has_back else 'false' }}">
+        <div class="doc-icon"><i class="fas fa-{{ dt.icon }}"></i></div>
+        <div class="doc-info">
+          <div class="doc-name">{{ dt.label }}</div>
+          <div class="doc-desc">{% if dt.has_back %}Front and back required{% else %}Single page{% endif %}</div>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+
+    <!-- Step 4: Upload documents -->
+    <div id="step4" style="display:none;">
+      <div class="vrf-header">
+        <h1>Upload Documents</h1>
+        <p>Make sure documents are clear, uncropped, and well-lit</p>
+      </div>
+      <div class="vrf-reqs">
+        <li><i class="fas fa-check-circle" style="color:var(--vrf-success);"></i> Full document visible</li>
+        <li><i class="fas fa-check-circle" style="color:var(--vrf-success);"></i> No glare or shadows</li>
+        <li><i class="fas fa-check-circle" style="color:var(--vrf-success);"></i> High resolution</li>
+        <li><i class="fas fa-check-circle" style="color:var(--vrf-success);"></i> No cropped edges</li>
+      </div>
+      <div>
+        <label style="font-size:14px;font-weight:600;margin-bottom:8px;display:block;">Front of Document</label>
+        <div class="vrf-upload-box" id="vrfFrontPreview" onclick="document.getElementById('vrfFrontInput').click();">
+          <div class="vrf-upload-placeholder">
+            <i class="fas fa-id-card"></i>
+            <span>Tap to upload front image</span>
+          </div>
+        </div>
+        <input type="file" id="vrfFrontInput" accept="image/*" capture="environment" style="display:none;">
+      </div>
+      <div id="vrfBackGroup">
+        <label style="font-size:14px;font-weight:600;margin-bottom:8px;display:block;">Back of Document</label>
+        <div class="vrf-upload-box" id="vrfBackPreview" onclick="document.getElementById('vrfBackInput').click();">
+          <div class="vrf-upload-placeholder">
+            <i class="fas fa-id-card"></i>
+            <span>Tap to upload back image</span>
+          </div>
+        </div>
+        <input type="file" id="vrfBackInput" accept="image/*" capture="environment" style="display:none;">
+      </div>
+    </div>
+
+    <!-- Step 5: Selfie + Liveness -->
+    <div id="step5" style="display:none;">
+      <div class="vrf-header">
+        <h1>Selfie Verification</h1>
+        <p>Take a photo to verify your identity</p>
+      </div>
+      <div class="vrf-selfie-container">
+        <video id="vrfSelfieVideo" autoplay playsinline muted></video>
+        <canvas id="vrfSelfieCanvas"></canvas>
+        <div class="vrf-selfie-overlay"></div>
+      </div>
+      <div class="vrf-liveness-steps">
+        <span class="vrf-liveness-step" id="vrfLivenessLook"><i class="fas fa-eye"></i> Look straight</span>
+        <span class="vrf-liveness-step" id="vrfLivenessTurn"><i class="fas fa-undo"></i> Turn left/right</span>
+        <span class="vrf-liveness-step" id="vrfLivenessBlink"><i class="fas fa-eye"></i> Blink</span>
+        <span class="vrf-liveness-step" id="vrfLivenessSmile"><i class="fas fa-smile"></i> Smile</span>
+      </div>
+      <div style="text-align:center;margin-bottom:12px;">
+        <button class="vrf-btn vrf-btn-primary" id="vrfSnapBtn"><i class="fas fa-camera"></i> Capture</button>
+        <button class="vrf-btn vrf-btn-secondary" id="vrfRetakeBtn" style="display:none;"><i class="fas fa-redo"></i> Retake</button>
+        <button class="vrf-btn vrf-btn-success" id="vrfSelfieConfirm" style="display:none;"><i class="fas fa-check"></i> Use Photo</button>
+      </div>
+      <!-- Fallback file upload if camera fails -->
+      <div id="vrfSelfieFallback" style="display:none;">
+        <label style="font-size:14px;font-weight:600;margin-bottom:8px;display:block;">Upload a selfie instead</label>
+        <input type="file" id="vrfSelfieFile" accept="image/*" capture="user" style="width:100%;padding:12px;border-radius:12px;background:var(--vrf-bg);border:1px solid var(--vrf-border);color:var(--vrf-text);">
+      </div>
+      <input type="hidden" id="vrfSelfieImg" value="">
+      <div class="vrf-privacy">
+        <strong><i class="fas fa-shield-alt"></i> Privacy:</strong> Your selfie is used only for identity verification. It is encrypted and stored securely. We do not share biometric data with third parties.
+      </div>
+    </div>
+
+    <!-- Step 6: Review -->
+    <div id="step6" style="display:none;">
+      <div class="vrf-header">
+        <h1>Review Information</h1>
+        <p>Please confirm your details are correct</p>
+      </div>
+      <div id="vrfReviewSummary"></div>
+      <div style="margin-top:16px;font-size:13px;opacity:0.6;">
+        <p><i class="fas fa-info-circle"></i> By submitting, you confirm that the documents and photo are your own and are accurate.</p>
+      </div>
+    </div>
+
+    <!-- Step 7: Submit -->
+    <div id="step7" style="display:none;">
+      <div class="vrf-header">
+        <h1>Almost Done!</h1>
+        <p>Your documents will be reviewed by our verification team</p>
+      </div>
+      <div class="vrf-privacy" style="opacity:0.7;">
+        <p><i class="fas fa-shield-alt" style="margin-right:6px;"></i> <strong>Why we collect documents:</strong> To verify your identity and prevent fraud.</p>
+        <p><i class="fas fa-clock" style="margin-right:6px;"></i> <strong>How long we keep them:</strong> Documents are stored securely for the duration of your account and deleted if verification is withdrawn.</p>
+        <p><i class="fas fa-lock" style="margin-right:6px;"></i> <strong>Who can access them:</strong> Only verified compliance administrators. The public sees only your verified badge.</p>
+        <p><i class="fas fa-trash" style="margin-right:6px;"></i> <strong>Deletion:</strong> Documents are deleted within 30 days if you withdraw verification.</p>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="vrf-nav">
+      <button class="vrf-btn vrf-btn-secondary" id="vrfPrevBtn" style="display:none;">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+      <button class="vrf-btn vrf-btn-primary" id="vrfNextBtn">
+        Continue <i class="fas fa-arrow-right"></i>
+      </button>
+      <button class="vrf-btn vrf-btn-success" id="vrfSubmitBtn" style="display:none;">
+        <i class="fas fa-check-circle"></i> Submit for Review
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/js/verification_center.js"></script>
+<script>
+function filterCountries(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.vrf-country-option').forEach(function(el) {
+    var name = el.getAttribute('data-name') || '';
+    el.style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

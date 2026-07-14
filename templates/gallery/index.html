@@ -79,7 +79,7 @@ input,select,textarea{font-size:16px!important}
         {% if album.description %}<p>{{ album.description[:80] }}{% if album.description|length > 80 %}...{% endif %}</p>{% endif %}
         <div class="album-meta">
           <span><i class="fas fa-image"></i> {{ album.item_count or 0 }} items</span>
-          <span><i class="fas fa-calendar"></i> {{ album.created_at[:10] if album.created_at else '' }}</span>
+          <span><i class="fas fa-calendar"></i> {{ album.created_at.strftime('%Y-%m-%d') if album.created_at else '' }}</span>
         </div>
         {% if is_owner %}
         <div style="margin-top:10px;display:flex;gap:6px">
@@ -138,7 +138,7 @@ input,select,textarea{font-size:16px!important}
       {% endif %}
       {% if item.visibility != 'subscribers' or is_owner or is_subscriber %}
       <div class="gallery-item-overlay">
-        <span>{{ item.created_at[:10] if item.created_at else '' }}</span>
+        <span>{{ item.created_at.strftime('%Y-%m-%d') if item.created_at else '' }}</span>
         <div style="display:flex;gap:6px">
           {% if is_owner %}
           <button style="background:0;border:0;color:#fff;cursor:pointer" data-media-edit="true" data-media-id="{{ item.id }}"><i class="fas fa-pen"></i></button>

@@ -336,6 +336,12 @@ def edit_message(message_id, editor_profile_id, new_body):
             default=[],
         )
         if not rows:
+            for messages in _MESSAGES.values():
+                for message in messages:
+                    if message.get("id") == message_id and _uuid(message.get("sender_profile_id")) == editor_profile_id:
+                        message["body"] = new_body
+                        message["edited_at"] = _now()
+                        return {"ok": True, "message_id": message_id, "body": new_body}
             return {"ok": False, "error": "forbidden"}
         old_body = rows[0].get("body")
         _safe_write("UPDATE chain_messages SET body = %s, edited_at = now() WHERE id = %s AND sender_profile_id = %s", (new_body, message_id, editor_profile_id))
@@ -362,6 +368,17 @@ def delete_message(message_id, profile_id, for_everyone=False):
                 default=[],
             )
             if not rows:
+                for messages in _MESSAGES.values():
+                    for message in messages:
+                        if message.get("id") == message_id:
+                            if _uuid(message.get("sender_profile_id")) != profile_id:
+                                return {"ok": False, "error": "forbidden"}
+                            message["deleted_at"] = _now()
+                            thread_id = message.get("thread_id") or message_thread_id(message_id)
+                            payload = {"message_id": message_id, "thread_id": thread_id, "for_everyone": True}
+                            emit_to_thread(thread_id, "message:delete", payload)
+                            emit_to_thread(thread_id, "message:deleted", payload)
+                            return {"ok": True}
                 return {"ok": False, "error": "forbidden"}
             _safe_write("UPDATE chain_messages SET deleted_at = now(), deleted_for_everyone = TRUE WHERE id = %s AND sender_profile_id = %s", (message_id, profile_id))
         else:

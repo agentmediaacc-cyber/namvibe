@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Connecting You Admin — Founder Dashboard{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <h1>Connecting You — Admin Dashboard</h1>
+  </div>
+
+  <!-- STATS -->
+  <section class="cy-section">
+    <h2>Overview</h2>
+    <div class="cy-admin-stats">
+      <div class="cy-admin-stat"><strong>{{ stats.total_enrolled }}</strong><span>Enrolled</span></div>
+      <div class="cy-admin-stat cy-admin-stat-warn"><strong>{{ stats.pending_approval }}</strong><span>Pending</span></div>
+      <div class="cy-admin-stat cy-admin-stat-ok"><strong>{{ stats.active_members }}</strong><span>Active</span></div>
+      <div class="cy-admin-stat cy-admin-stat-ok"><strong>{{ stats.verified_members }}</strong><span>Verified</span></div>
+      <div class="cy-admin-stat cy-admin-stat-heart"><strong>{{ stats.active_matches }}</strong><span>Matches</span></div>
+      <div class="cy-admin-stat"><strong>{{ stats.total_introductions }}</strong><span>Intros</span></div>
+      <div class="cy-admin-stat"><strong>{{ stats.upcoming_events }}</strong><span>Events</span></div>
+      <div class="cy-admin-stat cy-admin-stat-story"><strong>{{ stats.success_stories }}</strong><span>Stories</span></div>
+    </div>
+  </section>
+
+  <!-- TABS -->
+  <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;">
+    <button class="cy-btn cy-btn-sm cy-btn-primary" onclick="showTab('approvals')">Approvals</button>
+    <button class="cy-btn cy-btn-sm cy-btn-outline" onclick="showTab('mentors')">Mentors</button>
+    <button class="cy-btn cy-btn-sm cy-btn-outline" onclick="showTab('events')">Events</button>
+    <button class="cy-btn cy-btn-sm cy-btn-outline" onclick="showTab('intros')">Introductions</button>
+    <button class="cy-btn cy-btn-sm cy-btn-outline" onclick="showTab('announcements')">Announcements</button>
+  </div>
+
+  <!-- TAB: PENDING APPROVALS -->
+  <div id="tab-approvals" class="cy-section">
+    <h2>Pending Approvals ({{ pending|length }})</h2>
+    {% if not pending %}
+    <div class="cy-empty-sm">No pending applications.</div>
+    {% else %}
+    <div class="cy-admin-table-wrap">
+      <table class="cy-admin-table">
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Goal</th>
+            <th>Region</th>
+            <th>Score</th>
+            <th>Enrolled</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in pending %}
+          <tr>
+            <td>
+              <div class="cy-admin-user">
+                <img src="{{ e.avatar_url or '' }}" alt="" class="cy-admin-avatar">
+                <div><strong>{{ e.display_name or e.username }}</strong><small>{{ e.username }}</small></div>
+              </div>
+            </td>
+            <td><span class="cy-tag">{{ e.relationship_goal|replace('_',' ')|title }}</span></td>
+            <td>{{ e.region }}</td>
+            <td>{{ e.compatibility_score|int }}%</td>
+            <td>{{ e.enrolled_at.strftime('%b %d') if e.enrolled_at else '' }}</td>
+            <td class="cy-admin-actions">
+              <button class="cy-btn cy-btn-xs cy-btn-primary" onclick="adminAction('{{ e.profile_id }}','approve')">Approve</button>
+              <button class="cy-btn cy-btn-xs" style="background:#fee2e2;color:#991b1b" onclick="adminAction('{{ e.profile_id }}','suspend')">Reject</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- TAB: MENTORS -->
+  <div id="tab-mentors" class="cy-section" style="display:none">
+    <h2>Mentors</h2>
+    <div style="margin-bottom:16px">
+      <button class="cy-btn cy-btn-sm cy-btn-primary" onclick="document.getElementById('mentor-form').style.display=document.getElementById('mentor-form').style.display==='none'?'block':'none'">+ Add Mentor</button>
+    </div>
+    <div id="mentor-form" style="display:none;background:var(--cy-surface);padding:20px;border-radius:var(--cy-radius);margin-bottom:20px;box-shadow:var(--cy-shadow)">
+      <h3 style="margin:0 0 12px">Create Mentor Profile</h3>
+      <div class="cy-form-grid">
+        <div class="cy-field"><label>Full Name</label><input id="m-name" placeholder="e.g. Dr. Amalia Shikongo"></div>
+        <div class="cy-field"><label>Title</label><input id="m-title" placeholder="e.g. Relationship Psychologist"></div>
+        <div class="cy-field"><label>Specialty</label><input id="m-specialty" placeholder="e.g. Conflict Resolution"></div>
+        <div class="cy-field"><label>Profile ID (optional)</label><input id="m-pid" placeholder="Link to platform user"></div>
+      </div>
+      <div class="cy-field" style="margin-top:12px"><label>Bio</label><textarea id="m-bio" rows="3" placeholder="Brief bio..."></textarea></div>
+      <button class="cy-btn cy-btn-primary" style="margin-top:12px" onclick="createMentor()">Save Mentor</button>
+    </div>
+    <div id="mentors-list"><div class="cy-empty-sm">Loading mentors...</div></div>
+  </div>
+
+  <!-- TAB: EVENTS -->
+  <div id="tab-events" class="cy-section" style="display:none">
+    <h2>Events</h2>
+    <div style="margin-bottom:16px">
+      <button class="cy-btn cy-btn-sm cy-btn-primary" onclick="document.getElementById('event-form').style.display=document.getElementById('event-form').style.display==='none'?'block':'none'">+ Create Event</button>
+    </div>
+    <div id="event-form" style="display:none;background:var(--cy-surface);padding:20px;border-radius:var(--cy-radius);margin-bottom:20px;box-shadow:var(--cy-shadow)">
+      <h3 style="margin:0 0 12px">Create Event</h3>
+      <div class="cy-form-grid">
+        <div class="cy-field"><label>Title</label><input id="ev-title" placeholder="e.g. Coffee & Connect"></div>
+        <div class="cy-field"><label>Type</label>
+          <select id="ev-type">
+            <option value="meet_up">Meet Up</option>
+            <option value="mentor_session">Mentor Session</option>
+            <option value="live_show">Live Show</option>
+            <option value="balloon_pop">Balloon Pop</option>
+            <option value="speed_dating">Speed Dating</option>
+          </select>
+        </div>
+        <div class="cy-field"><label>Date & Time</label><input id="ev-date" type="datetime-local"></div>
+        <div class="cy-field"><label>Region</label>
+          <select id="ev-region">
+            <option value="all">All Regions</option>
+            {% for r in regions %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="cy-field"><label>Capacity (0 = unlimited)</label><input id="ev-cap" type="number" value="0"></div>
+        <div class="cy-field"><label>Venue</label><input id="ev-venue" placeholder="Physical venue or 'Virtual'"></div>
+      </div>
+      <div class="cy-field" style="margin-top:12px"><label>Description</label><textarea id="ev-desc" rows="3" placeholder="Event description..."></textarea></div>
+      <button class="cy-btn cy-btn-primary" style="margin-top:12px" onclick="createEvent()">Create Event</button>
+    </div>
+    <div id="events-list"><div class="cy-empty-sm">Loading events...</div></div>
+  </div>
+
+  <!-- TAB: INTRODUCTIONS -->
+  <div id="tab-intros" class="cy-section" style="display:none">
+    <h2>Create Introduction</h2>
+    <div style="background:var(--cy-surface);padding:20px;border-radius:var(--cy-radius);box-shadow:var(--cy-shadow)">
+      <div class="cy-form-grid">
+        <div class="cy-field"><label>Profile A (UUID)</label><input id="intro-a" placeholder="First person's profile ID"></div>
+        <div class="cy-field"><label>Profile B (UUID)</label><input id="intro-b" placeholder="Second person's profile ID"></div>
+      </div>
+      <div class="cy-field" style="margin-top:12px"><label>Admin Notes (optional)</label><textarea id="intro-notes" rows="2" placeholder="Why these two?"></textarea></div>
+      <button class="cy-btn cy-btn-primary" style="margin-top:12px" onclick="createIntro()">Create Introduction</button>
+    </div>
+  </div>
+
+  <!-- TAB: ANNOUNCEMENTS -->
+  <div id="tab-announcements" class="cy-section" style="display:none">
+    <h2>Announcements</h2>
+    <div style="background:var(--cy-surface);padding:20px;border-radius:var(--cy-radius);margin-bottom:20px;box-shadow:var(--cy-shadow)">
+      <h3 style="margin:0 0 12px">Send Announcement</h3>
+      <div class="cy-form-grid">
+        <div class="cy-field"><label>Title</label><input id="ann-title" placeholder="Announcement title"></div>
+        <div class="cy-field"><label>Audience</label>
+          <select id="ann-audience">
+            <option value="all">All Members</option>
+            <option value="enrolled">Enrolled Only</option>
+            <option value="verified">Verified Only</option>
+            <option value="region">Specific Region</option>
+          </select>
+        </div>
+      </div>
+      <div class="cy-field" style="margin-top:12px"><label>Message</label><textarea id="ann-body" rows="3" placeholder="Announcement message..."></textarea></div>
+      <button class="cy-btn cy-btn-primary" style="margin-top:12px" onclick="createAnnouncement()">Send Announcement</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('[id^="tab-"]').forEach(function(t) { t.style.display = 'none'; });
+  document.getElementById('tab-' + name).style.display = '';
+}
+
+function adminAction(pid, action) {
+  fetch('/dating/admin/api/enrollments/' + pid + '/' + action, {
+    method: 'POST',
+    headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''}
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) window.location.reload();
+    else alert(d.error || 'Failed');
+  });
+}
+
+function createMentor() {
+  fetch('/dating/admin/api/mentors/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify({
+      name: document.getElementById('m-name').value,
+      title: document.getElementById('m-title').value,
+      specialty: document.getElementById('m-specialty').value,
+      bio: document.getElementById('m-bio').value,
+      profile_id: document.getElementById('m-pid').value || null
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { alert('Mentor created!'); loadMentors(); }
+    else alert(d.error || 'Failed');
+  });
+}
+
+function loadMentors() {
+  fetch('/dating/admin/api/mentors', { headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''} })
+  .then(function(r) { return r.json(); }).then(function(d) {
+    var el = document.getElementById('mentors-list');
+    var mentors = d.mentors || [];
+    if (!mentors.length) { el.innerHTML = '<div class="cy-empty-sm">No mentors yet. Create one above.</div>'; return; }
+    var html = '<div class="cy-admin-table-wrap"><table class="cy-admin-table"><thead><tr><th>Name</th><th>Title</th><th>Specialty</th><th>Sessions</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+    mentors.forEach(function(m) {
+      html += '<tr><td><strong>' + m.name + '</strong></td><td>' + (m.title||'') + '</td><td>' + (m.specialty||'') + '</td><td>' + (m.session_count||0) + '</td><td>' + (m.is_active ? '<span style="color:#22c55e">Active</span>' : '<span style="color:#991b1b">Inactive</span>') + '</td><td><button class="cy-btn cy-btn-xs" onclick="toggleMentor(' + m.id + ',' + !m.is_active + ')">' + (m.is_active ? 'Deactivate' : 'Activate') + '</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  });
+}
+
+function toggleMentor(id, active) {
+  fetch('/dating/admin/api/mentors/' + id + '/toggle', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify({is_active: active})
+  }).then(function(r) { return r.json(); }).then(function() { loadMentors(); });
+}
+
+function createEvent() {
+  fetch('/dating/admin/api/events/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify({
+      title: document.getElementById('ev-title').value,
+      event_type: document.getElementById('ev-type').value,
+      event_date: document.getElementById('ev-date').value,
+      region: document.getElementById('ev-region').value,
+      max_participants: parseInt(document.getElementById('ev-cap').value) || 0,
+      venue: document.getElementById('ev-venue').value,
+      description: document.getElementById('ev-desc').value
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { alert('Event created!'); loadEvents(); }
+    else alert(d.error || 'Failed');
+  });
+}
+
+function loadEvents() {
+  fetch('/dating/admin/api/events', { headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''} })
+  .then(function(r) { return r.json(); }).then(function(d) {
+    var el = document.getElementById('events-list');
+    var events = d.events || [];
+    if (!events.length) { el.innerHTML = '<div class="cy-empty-sm">No events yet. Create one above.</div>'; return; }
+    var html = '<div class="cy-admin-table-wrap"><table class="cy-admin-table"><thead><tr><th>Title</th><th>Type</th><th>Region</th><th>Date</th><th>Attendees</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+    events.forEach(function(ev) {
+      var typeClass = 'cy-event-type-' + ev.event_type;
+      html += '<tr><td><strong>' + ev.title + '</strong></td><td><span class="cy-event-type ' + typeClass + '">' + ev.event_type.replace('_',' ') + '</span></td><td>' + (ev.region||'all') + '</td><td style="font-size:12px;">' + (ev.event_date ? ev.event_date.substring(0,16).replace('T',' ') : '-') + '</td><td>' + (ev.current_participants||0) + (ev.max_participants ? '/'+ev.max_participants : '') + '</td><td>' + ev.status + '</td><td><a href="/dating/connecting-you/events/' + ev.id + '" class="cy-btn cy-btn-xs cy-btn-outline">View</a></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+  });
+}
+
+function createIntro() {
+  fetch('/dating/admin/api/introductions/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify({
+      profile_a: document.getElementById('intro-a').value,
+      profile_b: document.getElementById('intro-b').value,
+      notes: document.getElementById('intro-notes').value
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) alert('Introduction created! Compatibility: ' + d.compatibility + '%');
+    else alert(d.error || 'Failed');
+  });
+}
+
+function createAnnouncement() {
+  fetch('/dating/admin/api/announcements', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify({
+      title: document.getElementById('ann-title').value,
+      body: document.getElementById('ann-body').value,
+      audience: document.getElementById('ann-audience').value
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { alert('Announcement sent!'); document.getElementById('ann-title').value=''; document.getElementById('ann-body').value=''; }
+    else alert(d.error || 'Failed');
+  });
+}
+
+loadMentors();
+loadEvents();
+</script>
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Connecting You — NamVibe Dating Program{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+
+  <!-- HERO -->
+  <section class="cy-hero">
+    <div class="cy-hero-bg"></div>
+    <div class="cy-hero-content">
+      <div class="cy-hero-badge">Namibia's #1 Dating Program</div>
+      <h1>Connecting You <span class="cy-heart">❤️</span></h1>
+      <p class="cy-hero-sub">Stop swiping. Start connecting. Join a real hosted program that helps you find meaningful relationships through guided matchmaking, live events, and mentorship.</p>
+      <div class="cy-hero-actions">
+        {% if enrollment and enrollment.status in ('approved','active') %}
+        <a href="/dating/connecting-you/browse" class="cy-btn cy-btn-primary">Browse Matches</a>
+        <a href="/dating/connecting-you/matches" class="cy-btn cy-btn-outline">My Matches</a>
+        {% elif enrollment and enrollment.status == 'pending' %}
+        <span class="cy-btn cy-btn-pending">Application Under Review</span>
+        {% else %}
+        <a href="/dating/connecting-you/enroll" class="cy-btn cy-btn-primary">Join Connecting You ❤️</a>
+        {% endif %}
+        <a href="/dating/connecting-you/events" class="cy-btn cy-btn-ghost">View Events</a>
+      </div>
+      <div class="cy-hero-stats">
+        <div class="cy-stat"><strong>{{ stats.total_enrolled or 0 }}</strong><span>Enrolled</span></div>
+        <div class="cy-stat"><strong>{{ stats.active_matches or 0 }}</strong><span>Matches Made</span></div>
+        <div class="cy-stat"><strong>{{ stats.success_stories or 0 }}</strong><span>Success Stories</span></div>
+        <div class="cy-stat"><strong>{{ stats.verified_members or 0 }}</strong><span>Verified</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="cy-section">
+    <h2>How It Works</h2>
+    <div class="cy-steps">
+      <div class="cy-step">
+        <div class="cy-step-num">1</div>
+        <div class="cy-step-icon">📝</div>
+        <h3>Register</h3>
+        <p>Complete your profile with interests, relationship goals, personality traits, and what matters to you in a partner.</p>
+      </div>
+      <div class="cy-step">
+        <div class="cy-step-num">2</div>
+        <div class="cy-step-icon">✅</div>
+        <h3>Verify</h3>
+        <p>Verify your identity with government ID, selfie, phone, and email. Earn a trusted badge that builds real trust.</p>
+      </div>
+      <div class="cy-step">
+        <div class="cy-step-num">3</div>
+        <div class="cy-step-icon">🧩</div>
+        <h3>Assess</h3>
+        <p>Answer deeper relationship questions about conflict, values, communication, and future goals. Build your compatibility profile.</p>
+      </div>
+      <div class="cy-step">
+        <div class="cy-step-num">4</div>
+        <div class="cy-step-icon">💕</div>
+        <h3>Connect</h3>
+        <p>Get matched by our admins and compatibility system. Meet at live events, balloon pops, and guided introductions.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- RELATIONSHIP GOALS -->
+  <section class="cy-section cy-goals">
+    <h2>What Are You Looking For?</h2>
+    <div class="cy-goal-grid">
+      <div class="cy-goal"><span class="cy-goal-icon">💍</span><strong>Marriage</strong><span>Ready for forever</span></div>
+      <div class="cy-goal"><span class="cy-goal-icon">❤️</span><strong>Serious Relationship</strong><span>Looking for something real</span></div>
+      <div class="cy-goal"><span class="cy-goal-icon">🤝</span><strong>Friendship</strong><span>Building genuine connections</span></div>
+      <div class="cy-goal"><span class="cy-goal-icon">🌟</span><strong>Networking</strong><span>Growing your circle</span></div>
+      <div class="cy-goal"><span class="cy-goal-icon">💼</span><strong>Business Partner</strong><span>Find your match professionally</span></div>
+    </div>
+  </section>
+
+  <!-- UPCOMING EVENTS -->
+  {% if events %}
+  <section class="cy-section cy-events-preview">
+    <h2>Upcoming Events <a href="/dating/connecting-you/events" class="cy-link">View All →</a></h2>
+    <div class="cy-event-grid">
+      {% for ev in events %}
+      <div class="cy-event-card" onclick="location.href='/dating/connecting-you/events/{{ ev.id }}'">
+        <div class="cy-event-type cy-event-type-{{ ev.event_type }}">{{ ev.event_type|replace('_',' ')|title }}</div>
+        <h3>{{ ev.title }}</h3>
+        <p>{{ ev.description[:100] }}{% if ev.description|length > 100 %}...{% endif %}</p>
+        <div class="cy-event-meta">
+          <span>📅 {{ ev.event_date.strftime('%b %d, %Y') if ev.event_date else 'TBA' }}</span>
+          <span>{{ '💻 Virtual' if ev.is_virtual else '📍 ' ~ (ev.venue or ev.region) }}</span>
+        </div>
+        {% if ev.mentor_name %}
+        <div class="cy-event-mentor">🎤 {{ ev.mentor_name }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- MENTORS -->
+  {% if mentors %}
+  <section class="cy-section cy-mentors">
+    <h2>Our Mentors</h2>
+    <div class="cy-mentor-grid">
+      {% for m in mentors %}
+      <div class="cy-mentor-card">
+        <div class="cy-mentor-avatar">{{ m.name[0] }}</div>
+        <h3>{{ m.name }}</h3>
+        <div class="cy-mentor-title">{{ m.title }}</div>
+        <div class="cy-mentor-specialty">{{ m.specialty }}</div>
+        <p>{{ m.bio[:120] }}{% if m.bio|length > 120 %}...{% endif %}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- SUCCESS STORIES -->
+  {% if stories %}
+  <section class="cy-section cy-stories-preview">
+    <h2>Success Stories <a href="/dating/connecting-you/stories" class="cy-link">Read More →</a></h2>
+    <div class="cy-story-grid">
+      {% for s in stories %}
+      <div class="cy-story-card">
+        {% if s.photo_urls %}
+        <div class="cy-story-img" style="background-image:url('{{ s.photo_urls[0] }}')"></div>
+        {% else %}
+        <div class="cy-story-img cy-story-placeholder">❤️</div>
+        {% endif %}
+        <div class="cy-story-body">
+          <h3>{{ s.couple_names }}</h3>
+          <div class="cy-story-region">📍 {{ s.region or 'Namibia' }}</div>
+          <p>{{ s.story[:200] }}{% if s.story|length > 200 %}...{% endif %}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- SAFETY -->
+  <section class="cy-section cy-safety">
+    <h2>Your Safety Is Our Priority</h2>
+    <div class="cy-safety-grid">
+      <div class="cy-safety-item"><span class="cy-safety-icon">🔒</span><strong>Mutual Consent</strong><span>No introductions without both parties agreeing</span></div>
+      <div class="cy-safety-item"><span class="cy-safety-icon">🛡️</span><strong>Verified Members</strong><span>Government ID, selfie, and phone verification</span></div>
+      <div class="cy-safety-item"><span class="cy-safety-icon">🚫</span><strong>Block & Report</strong><span>Instantly block or report anyone</span></div>
+      <div class="cy-safety-item"><span class="cy-safety-icon">🤖</span><strong>AI Moderation</strong><span>Automated + human content moderation</span></div>
+      <div class="cy-safety-item"><span class="cy-safety-icon">🔐</span><strong>Privacy Controls</strong><span>You choose what information is visible</span></div>
+      <div class="cy-safety-item"><span class="cy-safety-icon">📍</span><strong>Namibia First</strong><span>Starting in your city, expanding across the country</span></div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cy-section cy-cta">
+    <h2>Ready to Find Your Person?</h2>
+    <p>Join hundreds of Namibians who are choosing real connections over endless swiping.</p>
+    {% if not enrollment or enrollment.status not in ('approved','active','pending') %}
+    <a href="/dating/connecting-you/enroll" class="cy-btn cy-btn-primary cy-btn-lg">Join Connecting You ❤️</a>
+    {% else %}
+    <a href="/dating/connecting-you/browse" class="cy-btn cy-btn-primary cy-btn-lg">Browse Matches</a>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

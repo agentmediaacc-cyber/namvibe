@@ -1,0 +1,517 @@
+/* ══════════════════════════════════════════════════════════════
+   PHASE 88 — WHITE + PINK AUTH THEME
+   Clean, minimal override for all auth pages.
+   ══════════════════════════════════════════════════════════════ */
+
+.chain-auth-pink {
+  --pink: #ec4899;
+  --pink-hover: #db2777;
+  --pink-light: #fdf2f8;
+  --pink-border: #fbcfe8;
+  --pink-focus: rgba(236, 72, 153, 0.15);
+  color-scheme: light;
+}
+
+.chain-auth-pink .auth-social-card,
+.chain-auth-pink .register-card,
+.chain-auth-pink .chain-auth-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: none !important;
+}
+
+.chain-auth-pink .chain-auth-brand-panel {
+  display: none !important;
+}
+
+.chain-auth-pink .chain-auth-layout {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.chain-auth-pink .chain-auth-head h1,
+.chain-auth-pink .register-header h1 {
+  color: #0f172a !important;
+  font-size: clamp(28px, 6vw, 36px);
+  letter-spacing: -0.02em;
+}
+
+.chain-auth-pink .chain-auth-head p,
+.chain-auth-pink .register-header p {
+  color: #64748b !important;
+}
+
+.chain-auth-pink .chain-auth-panel {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.chain-auth-pink label,
+.chain-auth-pink .field-label {
+  color: #1e293b !important;
+  font-weight: 700;
+  font-size: 13px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.chain-auth-pink input,
+.chain-auth-pink select,
+.chain-auth-pink textarea {
+  min-height: 48px;
+  width: 100%;
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.chain-auth-pink input:focus,
+.chain-auth-pink select:focus,
+.chain-auth-pink textarea:focus {
+  border-color: var(--pink) !important;
+  box-shadow: 0 0 0 3px var(--pink-focus) !important;
+}
+
+.chain-auth-pink input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.chain-auth-pink input[type="date"] {
+  color-scheme: light;
+}
+
+.chain-auth-pink .password-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.chain-auth-pink .password-wrap input {
+  min-width: 0;
+}
+
+.chain-auth-pink .toggle-password {
+  min-height: 48px;
+  min-width: 72px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 12px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.chain-auth-pink .toggle-password:hover {
+  background: var(--pink-light);
+  border-color: var(--pink-border);
+}
+
+.chain-auth-pink .password-meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #f1f5f9;
+  margin-top: 6px;
+}
+
+.chain-auth-pink .password-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #dc2626;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.chain-auth-pink .password-meter span[data-score="3"] {
+  background: #f59e0b;
+}
+
+.chain-auth-pink .password-meter span[data-score="4"],
+.chain-auth-pink .password-meter span[data-score="5"] {
+  background: #16a34a;
+}
+
+.chain-auth-pink .field-hint {
+  font-size: 13px;
+  color: #64748b;
+  min-height: 1em;
+  margin-top: 2px;
+}
+
+.chain-auth-pink .field-hint.is-available {
+  color: #16a34a;
+}
+
+.chain-auth-pink .field-hint.is-unavailable,
+.chain-auth-pink .field-hint.is-weak {
+  color: #dc2626;
+}
+
+.chain-auth-pink .field-hint.is-strong {
+  color: #16a34a;
+}
+
+.chain-auth-pink .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.chain-auth-pink .field {
+  display: grid;
+  gap: 4px;
+}
+
+.chain-auth-pink .req {
+  color: var(--pink);
+}
+
+.chain-auth-pink .optional {
+  color: #94a3b8;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.chain-auth-pink .field-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.chain-auth-pink .field-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  min-height: auto;
+}
+
+.chain-auth-pink .field-checkbox span {
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chain-auth-pink .field-checkbox a {
+  color: var(--pink);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.chain-auth-pink .register-btn,
+.chain-auth-pink .auth-submit-btn,
+.chain-auth-pink .primary {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 12px !important;
+  border: none !important;
+  background: var(--pink) !important;
+  color: #ffffff !important;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: none !important;
+}
+
+.chain-auth-pink .register-btn:hover,
+.chain-auth-pink .auth-submit-btn:hover,
+.chain-auth-pink .primary:hover {
+  background: var(--pink-hover) !important;
+}
+
+.chain-auth-pink .register-btn:active,
+.chain-auth-pink .auth-submit-btn:active,
+.chain-auth-pink .primary:active {
+  transform: scale(0.98);
+}
+
+.chain-auth-pink .register-btn:disabled,
+.chain-auth-pink .auth-submit-btn:disabled,
+.chain-auth-pink .primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.chain-auth-pink .btn-spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: pink-spin 0.6s linear infinite;
+}
+
+.chain-auth-pink .auth-submit-btn.loading .btn-label {
+  opacity: 0.7;
+}
+
+.chain-auth-pink .auth-submit-btn.loading .btn-spinner {
+  display: inline-block;
+}
+
+@keyframes pink-spin {
+  to { transform: rotate(360deg); }
+}
+
+.chain-auth-pink .chain-auth-oauth-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.chain-auth-pink .chain-auth-oauth-grid--stacked {
+  grid-template-columns: 1fr;
+}
+
+.chain-auth-pink .chain-auth-oauth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.chain-auth-pink .chain-auth-oauth:hover {
+  border-color: var(--pink) !important;
+  background: var(--pink-light) !important;
+}
+
+.chain-auth-pink .chain-auth-oauth strong {
+  color: #1e293b;
+}
+
+.chain-auth-pink .chain-auth-divider {
+  position: relative;
+  text-align: center;
+  margin: 4px 0;
+}
+
+.chain-auth-pink .chain-auth-divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.chain-auth-pink .chain-auth-divider span {
+  position: relative;
+  padding: 0 12px;
+  background: #ffffff !important;
+  color: #94a3b8 !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chain-auth-pink .chain-auth-alert {
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chain-auth-pink .chain-auth-alert--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.chain-auth-pink .chain-auth-alert--info {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+}
+
+.chain-auth-pink .chain-auth-alert--success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+
+.chain-auth-pink .chain-auth-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chain-auth-pink .chain-auth-actions--stack {
+  justify-content: center;
+  text-align: center;
+  flex-direction: column;
+}
+
+.chain-auth-pink .chain-auth-link {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.chain-auth-pink .chain-auth-link:hover {
+  color: var(--pink);
+  text-decoration: underline;
+}
+
+.chain-auth-pink .chain-auth-link--strong {
+  color: var(--pink);
+  font-weight: 800;
+}
+
+.chain-auth-pink .register-footer,
+.chain-auth-pink .chain-auth-trust-row {
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}
+
+.chain-auth-pink .register-footer a {
+  color: var(--pink);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.chain-auth-pink .register-footer a:hover {
+  text-decoration: underline;
+}
+
+.chain-auth-pink .chain-auth-inline-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.chain-auth-pink .chain-auth-inline-actions a {
+  color: var(--pink) !important;
+}
+
+.chain-auth-pink .auth-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 10px;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  color: #1e293b !important;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  width: fit-content;
+}
+
+.chain-auth-pink .auth-back-btn:hover {
+  background: var(--pink-light) !important;
+  border-color: var(--pink-border) !important;
+}
+
+.chain-auth-pink .suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chain-auth-pink .suggestions button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chain-auth-pink .suggestions button:hover {
+  border-color: var(--pink);
+  background: var(--pink-light);
+}
+
+.chain-auth-pink .register-loading-overlay {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  color: #1e293b;
+}
+
+.chain-auth-pink .register-loading-spinner {
+  border-color: #f1f5f9;
+  border-top-color: var(--pink);
+}
+
+.chain-auth-pink .register-loading-text {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.chain-auth-pink .register-loading-hint {
+  font-size: 13px;
+  color: #64748b;
+}
+
+@media (max-width: 640px) {
+  .chain-auth-pink .register-card,
+  .chain-auth-pink .auth-social-card,
+  .chain-auth-pink .chain-auth-card {
+    padding: 22px 16px !important;
+    border-radius: 20px !important;
+  }
+
+  .chain-auth-pink .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chain-auth-pink .password-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .chain-auth-pink .password-wrap .toggle-password {
+    width: 100%;
+  }
+
+  .chain-auth-pink input,
+  .chain-auth-pink select {
+    font-size: 16px;
+    min-height: 48px;
+  }
+}

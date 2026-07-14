@@ -68,6 +68,18 @@ def check_repeated_content(profile_id, content):
     normalized = re.sub(r"\s+", " ", (content or "").strip().lower())
     if not normalized:
         return {"ok": True, "repeated": False, "score": 0, "reasons": []}
+    if _db_available():
+        rows = fast_query(
+            "SELECT COUNT(*) as c FROM chain_spam_events WHERE profile_id=%s AND event_type='repeated_content' AND metadata->>'content'=%s AND created_at > now() - interval '1 hour'",
+            (profile_id, normalized), default=[{"c": 0}]
+        )
+        repeats = rows[0]["c"] if rows else 0
+        if repeats < 2:
+            write_query(
+                "INSERT INTO chain_spam_events (id, profile_id, event_type, score, metadata) VALUES (%s,%s,'repeated_content',0,%s::jsonb)",
+                (str(uuid4()), profile_id, '{"content":"' + normalized.replace('"', '\\"') + '"}')
+            )
+        return {"ok": True, "repeated": repeats >= 2, "score": min(100, (repeats+1) * 30), "reasons": ["repeated_content"] if repeats >= 2 else []}
     recent = _RECENT_CONTENT.setdefault(profile_id or "anonymous", [])
     repeats = recent.count(normalized)
     recent.append(normalized)
@@ -77,6 +89,14 @@ def check_repeated_content(profile_id, content):
 
 
 def analyze_message_frequency(profile_id, window_seconds=60):
+    if _db_available():
+        rows = fast_query(
+            "SELECT COUNT(*) as c FROM chain_spam_events WHERE profile_id=%s AND event_type='message_sent' AND created_at > now() - interval '%s seconds'",
+            (profile_id, window_seconds), default=[{"c": 0}]
+        )
+        count = rows[0]["c"] if rows else 0
+        score = 80 if count >= 12 else 40 if count >= 8 else 0
+        return {"ok": True, "rapid": score >= 40, "score": score, "count": count, "reasons": ["rapid_send_frequency"] if score else []}
     events = [e for e in _FAKE_SPAM_EVENTS if e.get("profile_id") == profile_id and e.get("event_type") == "message_sent"]
     count = len(events[-20:])
     score = 80 if count >= 12 else 40 if count >= 8 else 0
@@ -114,5 +134,12 @@ def is_spammy_message(profile_id, text):
 
 
 def get_spam_summary(profile_id=None):
+    if _db_available():
+        if profile_id:
+            rows = fast_query("SELECT * FROM chain_spam_events WHERE profile_id=%s ORDER BY created_at DESC LIMIT 100", (profile_id,), default=[])
+        else:
+            rows = fast_query("SELECT * FROM chain_spam_events ORDER BY created_at DESC LIMIT 100", default=[])
+        scores = [r.get("score", 0) or 0 for r in rows]
+        return {"ok": True, "events": rows, "count": len(rows), "max_score": max(scores, default=0)}
     events = [e for e in _FAKE_SPAM_EVENTS if not profile_id or e.get("profile_id") == profile_id]
     return {"ok": True, "events": events[-100:], "count": len(events), "max_score": max([e["score"] for e in events], default=0)}

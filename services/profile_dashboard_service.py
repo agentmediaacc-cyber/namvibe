@@ -98,7 +98,7 @@ def build_profile_dashboard(profile=None, viewer=None, bundle=None):
     marketplace_rating = 0
 
     live_gifts = _safe_count_if_exists("chain_live_gifts", filters={"host_profile_id": profile_id}) if profile_id else 0
-    subscriptions = _safe_count_if_exists("chain_subscriptions", filters={"creator_profile_id": profile_id}) if profile_id else 0
+    subscriptions = _safe_count_if_exists("chain_creator_subscriptions", filters={"creator_profile_id": profile_id}) if profile_id else 0
     live_viewers = _safe_count_if_exists("chain_live_viewers", filters={"profile_id": profile_id}) if profile_id else 0
     business_metrics = (_safe_select_if_exists("chain_business_metrics", limit=1, order_by="metric_date", desc=True) or [{}])[0]
 

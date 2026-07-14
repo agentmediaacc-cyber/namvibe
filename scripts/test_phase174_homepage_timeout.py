@@ -25,6 +25,8 @@ def main():
     homepage_times = []
 
     with app.test_client() as client:
+        # Warm-up: trigger Neon pool init + cache fill (cold start can take ~20s)
+        client.get("/", follow_redirects=True)
         for index in range(HOMEPAGE_RUNS):
             response, elapsed = timed_get(client, "/")
             homepage_times.append(elapsed)

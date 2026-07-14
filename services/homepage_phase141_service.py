@@ -49,7 +49,8 @@ def _format_relative(value):
 
 # Profile batch fetch columns for efficient loading
 _PROFILE_BATCH_COLUMNS = [
-    "id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified"
+    "id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified",
+    "is_online", "profile_score", "profile_level", "activity_status"
 ]
 
 
@@ -206,6 +207,9 @@ def normalize_post_v2(row, profile_map):
         media_type = "video" if mime_type.startswith("video/") else "image" if mime_type.startswith("image/") else ""
     is_video = bool(video_url) or media_type in ("video", "reel") or mime_type.startswith("video/")
     
+    is_online = bool(profile.get("is_online"))
+    profile_score = int(profile.get("profile_score") or 0)
+    profile_level = profile.get("profile_level") or ""
     return {
         "id": row.get("id"),
         "type": row.get("type") or ("reel" if row.get("video_url") and row.get("music_title") else "post"),
@@ -213,6 +217,9 @@ def normalize_post_v2(row, profile_map):
         "username": username,
         "avatar_url": _profile_avatar(profile),
         "verified": bool(profile.get("verified")),
+        "is_online": is_online,
+        "profile_score": profile_score,
+        "profile_level": profile_level,
         "caption": caption,
         "excerpt": caption[:180] + ("..." if len(caption) > 180 else ""),
         "media_url": media_url,
@@ -235,6 +242,7 @@ def normalize_post_v2(row, profile_map):
         "category": row.get("category") or "",
         "is_liked": bool(row.get("is_liked")),
         "user_liked": bool(row.get("is_liked")),
+        "viewer_has_liked": bool(row.get("is_liked")),
         "created_label": _format_relative(row.get("created_at")),
         "profile_url": f"/profile/@{username}" if username else "/discover/",
     }
@@ -252,6 +260,9 @@ def normalize_profile_v2(row):
         "display_name": display_name,
         "avatar_url": _profile_avatar(row),
         "verified": bool(row.get("verified") or row.get("is_verified")),
+        "is_online": bool(row.get("is_online")),
+        "profile_score": int(row.get("profile_score") or 0),
+        "profile_level": row.get("profile_level") or "",
         "followers_count": int(row.get("followers_count") or 0),
         "town": row.get("town") or "",
         "location": row.get("location") or "",
@@ -314,7 +325,7 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
         normalized = [r for r in normalized if r.get("id")]
 
         result = normalized[:limit]
-        set_cache(cache_key_str, result, ttl=30)
+        set_cache(cache_key_str, result, ttl=60)
         return result, False, None
 
     except Exception as e:
@@ -382,7 +393,7 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
             if len(merged) >= limit:
                 break
         result = merged[:limit]
-        set_cache(cache_key_str, result, ttl=30)
+        set_cache(cache_key_str, result, ttl=60)
         return result, False, None
         
     except Exception as e:
@@ -444,7 +455,7 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
             if ad_slots and len(ranked) >= 3:
                 ranked.insert(3, ad_slots[0])
         result = ranked[:limit]
-        set_cache(cache_key_str, result, ttl=30)
+        set_cache(cache_key_str, result, ttl=60)
         return result, False, None
         
     except Exception as e:
@@ -478,7 +489,7 @@ def fetch_live_rooms_v2(live_columns, timeout_ms=800, limit=5):
         normalized = [r for r in normalized if r.get("id")]
         
         result = normalized[:limit]
-        set_cache(cache_key_str, result, ttl=30)
+        set_cache(cache_key_str, result, ttl=60)
         return result, False, None
         
     except Exception as e:

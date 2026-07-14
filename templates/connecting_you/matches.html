@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}My Matches — Connecting You{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <a href="/dating/connecting-you/" class="cy-back">← Back</a>
+    <h1>My Matches & Introductions 💕</h1>
+  </div>
+
+  <!-- INTRODUCTIONS -->
+  <section class="cy-section">
+    <h2>Introductions</h2>
+    {% if not introductions %}
+    <div class="cy-empty-sm">No introductions yet. Our admins are working on finding great matches for you.</div>
+    {% else %}
+    <div class="cy-intro-list">
+      {% for i in introductions %}
+      <div class="cy-intro-card" data-id="{{ i.id }}">
+        <div class="cy-intro-compat">
+          <div class="cy-intro-score">{{ i.compatibility_score|int }}%</div>
+          <span>Match</span>
+        </div>
+        <div class="cy-intro-people">
+          <div class="cy-intro-person">
+            <img src="{{ i.a_avatar or '/static/img/default-avatar.png' }}" alt="">
+            <strong>{{ i.a_name or i.a_username }}</strong>
+          </div>
+          <div class="cy-intro-heart">❤️</div>
+          <div class="cy-intro-person">
+            <img src="{{ i.b_avatar or '/static/img/default-avatar.png' }}" alt="">
+            <strong>{{ i.b_name or i.b_username }}</strong>
+          </div>
+        </div>
+        <div class="cy-intro-status cy-intro-status-{{ i.status }}">{{ i.status|title }}</div>
+        {% if i.status == 'pending' %}
+        <div class="cy-intro-actions">
+          {% set my_response = i.a_response if i.profile_a|string in request.path else i.b_response %}
+          {% if my_response == 'pending' %}
+          <button class="cy-btn cy-btn-sm cy-btn-primary" onclick="respondIntro('{{ i.id }}', 'accept')">Accept ❤️</button>
+          <button class="cy-btn cy-btn-sm cy-btn-outline" onclick="respondIntro('{{ i.id }}', 'maybe')">Maybe Later</button>
+          <button class="cy-btn cy-btn-sm cy-btn-ghost" onclick="respondIntro('{{ i.id }}', 'decline')">Decline</button>
+          {% else %}
+          <span class="cy-intro-waiting">Waiting for the other person...</span>
+          {% endif %}
+        </div>
+        {% elif i.status == 'matched' %}
+        <div class="cy-intro-matched">🎉 It's a match! You can now chat privately.</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- MATCHES -->
+  <section class="cy-section">
+    <h2>My Matches</h2>
+    {% if not matches %}
+    <div class="cy-empty-sm">No matches yet. Complete your assessment and browse to start connecting.</div>
+    {% else %}
+    <div class="cy-match-list">
+      {% for m in matches %}
+      <div class="cy-match-row">
+        <div class="cy-match-row-avatar">
+          {% set other_name = m.b_name if m.profile_a|string == request.path.split('/')[-1] else m.a_name %}
+          {% set other_avatar = m.b_avatar if m.profile_a|string == request.path.split('/')[-1] else m.a_avatar %}
+          <img src="{{ other_avatar or '/static/img/default-avatar.png' }}" alt="">
+        </div>
+        <div class="cy-match-row-info">
+          <strong>{{ other_name }}</strong>
+          <span>Matched {{ m.match_date.strftime('%b %d, %Y') if m.match_date else '' }}</span>
+        </div>
+        <div class="cy-match-row-actions">
+          <button class="cy-btn cy-btn-sm cy-btn-primary">Message 💬</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+<script>
+function respondIntro(id, response) {
+  fetch('/dating/connecting-you/api/introductions/' + id + '/respond', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''},
+    body: JSON.stringify({response: response})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) { window.location.reload(); }
+    else { alert(d.error || 'Failed'); }
+  });
+}
+</script>
+{% endblock %}

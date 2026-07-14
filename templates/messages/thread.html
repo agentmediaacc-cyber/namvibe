@@ -3,13 +3,22 @@
 {% block title %}{{ thread.display_name }} | NamVibe{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_home_premium_v2.css') }}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_messages_pro.css') }}">
 <style>
     :root {
-        --chat-mine-bg: var(--chain-primary);
-        --chat-theirs-bg: var(--chain-bg-panel);
+        --chat-mine-bg: #ec4899;
+        --chat-theirs-bg: #ffffff;
+        --chain-primary: #ec4899;
+        --chain-bg: #fff5f7;
+        --chain-bg-soft: #fff5f7;
+        --chain-bg-panel: #ffffff;
+        --chain-bg-panel-strong: #ffffff;
+        --chain-text: #1a1a2e;
+        --chain-muted: #8e8ea0;
+        --chain-border: rgba(236, 72, 153, 0.12);
+        --safe-bottom: 0px;
     }
     
     .chat-container {

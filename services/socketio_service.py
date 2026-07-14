@@ -136,52 +136,7 @@ def broadcast_notification(profile_id, payload):
 
 # ─── LIVE ROOM EVENT HANDLERS ─────────────────────────────
 def register_live_room_handlers(socketio_app):
-    """Registers Socket.IO event handlers for live rooms."""
-
-    @socketio_app.on("live:join")
-    def on_live_join(data):
-        from flask import request as _req
-        sid = _get_sid()
-        room_id = data.get("room_id") if isinstance(data, dict) else None
-        profile_id = data.get("profile_id") if isinstance(data, dict) else None
-        if not room_id:
-            return
-        room = live_room(room_id)
-        join_room(room)
-        emit("live:user_joined", {
-            "profile_id": profile_id,
-            "room_id": room_id,
-            "sid": sid,
-        }, room=room, include_self=False)
-
-    @socketio_app.on("live:leave")
-    def on_live_leave(data):
-        sid = _get_sid()
-        room_id = data.get("room_id") if isinstance(data, dict) else None
-        profile_id = data.get("profile_id") if isinstance(data, dict) else None
-        if not room_id:
-            return
-        room = live_room(room_id)
-        leave_room(room)
-        emit("live:user_left", {
-            "profile_id": profile_id,
-            "room_id": room_id,
-            "sid": sid,
-        }, room=room, include_self=False)
-
-    @socketio_app.on("live:gift")
-    def on_live_gift(data):
-        room_id = data.get("room_id") if isinstance(data, dict) else None
-        if not room_id:
-            return
-        emit("live:gift_received", data, room=live_room(room_id), include_self=False)
-
-    @socketio_app.on("live:reaction")
-    def on_live_reaction(data):
-        room_id = data.get("room_id") if isinstance(data, dict) else None
-        if not room_id:
-            return
-        emit("live:reaction", data, room=live_room(room_id), include_self=False)
+    """Registers only auxiliary live events not already secured in socket_events."""
 
     @socketio_app.on("live:raise_hand")
     def on_raise_hand(data):
@@ -232,28 +187,7 @@ def register_live_room_handlers(socketio_app):
             return
         emit("live:user_muted", data, room=live_room(room_id), include_self=False)
 
-    @socketio_app.on("live:webrtc_offer")
-    def on_webrtc_offer(data):
-        target_sid = data.get("target_sid") if isinstance(data, dict) else None
-        if not target_sid:
-            return
-        emit("live:webrtc_offer", data, room=target_sid)
-
-    @socketio_app.on("live:webrtc_answer")
-    def on_webrtc_answer(data):
-        target_sid = data.get("target_sid") if isinstance(data, dict) else None
-        if not target_sid:
-            return
-        emit("live:webrtc_answer", data, room=target_sid)
-
-    @socketio_app.on("live:webrtc_ice")
-    def on_webrtc_ice(data):
-        target_sid = data.get("target_sid") if isinstance(data, dict) else None
-        if not target_sid:
-            return
-        emit("live:webrtc_ice", data, room=target_sid)
-
-    safe_print("[socketio] Live room event handlers registered")
+    safe_print("[socketio] Auxiliary live room event handlers registered")
 
 
 def _get_sid():

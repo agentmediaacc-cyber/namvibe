@@ -1,0 +1,27 @@
+{% macro verified_badge(profile, size='sm') %}
+{% set level = profile.get('verification_level', 0) if profile else 0 %}
+{% set is_v = profile.get('is_verified') or profile.get('verified') if profile else false %}
+{% if level >= 2 or is_v %}
+  {% if level >= 5 %}
+    <span class="nv-vbadge nv-vbadge-gov" title="Government Verified (Level {{ level }})" style="display:inline-flex;align-items:center;gap:3px;font-size:{{ '14px' if size == 'lg' else '12px' if size == 'md' else '10px' }};color:#10b981;font-weight:600;">
+      <i class="fas fa-building" style="font-size:{{ '16px' if size == 'lg' else '14px' if size == 'md' else '12px' }};"></i>
+      {% if size != 'sm' %}Gov Verified{% endif %}
+    </span>
+  {% elif level >= 4 %}
+    <span class="nv-vbadge nv-vbadge-business" title="Business Verified (Level {{ level }})" style="display:inline-flex;align-items:center;gap:3px;font-size:{{ '14px' if size == 'lg' else '12px' if size == 'md' else '10px' }};color:#f59e0b;font-weight:600;">
+      <i class="fas fa-briefcase" style="font-size:{{ '16px' if size == 'lg' else '14px' if size == 'md' else '12px' }};"></i>
+      {% if size != 'sm' %}Business{% endif %}
+    </span>
+  {% elif level >= 3 %}
+    <span class="nv-vbadge nv-vbadge-creator" title="Creator Verified (Level {{ level }})" style="display:inline-flex;align-items:center;gap:3px;font-size:{{ '14px' if size == 'lg' else '12px' if size == 'md' else '10px' }};color:#ec4899;font-weight:600;">
+      <i class="fas fa-star" style="font-size:{{ '16px' if size == 'lg' else '14px' if size == 'md' else '12px' }};"></i>
+      {% if size != 'sm' %}Creator{% endif %}
+    </span>
+  {% else %}
+    <span class="nv-vbadge nv-vbadge-identity" title="Identity Verified (Level {{ level }})" style="display:inline-flex;align-items:center;gap:3px;font-size:{{ '14px' if size == 'lg' else '12px' if size == 'md' else '10px' }};color:#1d9bf0;font-weight:600;">
+      <i class="fas fa-check-circle" style="font-size:{{ '16px' if size == 'lg' else '14px' if size == 'md' else '12px' }};"></i>
+      {% if size != 'sm' %}Verified{% endif %}
+    </span>
+  {% endif %}
+{% endif %}
+{% endmacro %}

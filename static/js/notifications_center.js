@@ -1,6 +1,10 @@
 (function () {
   'use strict';
 
+  fetch('/api/config/notification-types').then(function(r){return r.json()}).then(function(d){
+    window._NOTIFICATION_TYPES = (d && d.types) ? d.types.map(function(t){return t.slug}) : [];
+  }).catch(function(){});
+
   var state = {
     tab: 'unread',
     page: 1,
@@ -460,7 +464,7 @@
     var sms = prefs.sms_enabled === true;
 
     var muteRows = '';
-    var types = [
+    var types = (window._NOTIFICATION_TYPES && window._NOTIFICATION_TYPES.length) ? window._NOTIFICATION_TYPES : [
       'follow', 'follow_accepted', 'mention', 'comment', 'reply',
       'post_like', 'reel_like', 'story_reaction', 'story_mention',
       'live_started', 'creator_subscription', 'wallet_transfer',

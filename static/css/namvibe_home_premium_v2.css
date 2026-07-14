@@ -34,11 +34,25 @@ body.nv-overlay-open {
 }
 
 /* ── Performance: reduce paint/layout on off-screen cards ── */
-.nv-feed { contain: layout style; }
+.nv-feed { contain: layout style; min-height: 200px; }
 .nv-post { content-visibility: auto; contain-intrinsic-size: 480px; contain: layout style paint; }
 @media (max-width: 767px) {
   .nv-post { contain-intrinsic-size: 400px; }
 }
+
+/* ── Reserve space for images/videos to prevent layout shift ── */
+.nv-media img { width: 100%; height: auto; }
+.nv-media video { width: 100%; height: auto; aspect-ratio: 16/9; max-height: 420px; }
+.nv-reel-card video { width: 100%; aspect-ratio: 9/16; background: #000; }
+.nvpro-post-media { contain: layout style; }
+.nv-stats-bar { min-height: 48px; contain: layout style; }
+.nv-stories { min-height: 80px; contain: layout style; }
+.nv-stats-bar.nvpro-content-fade-in { animation: none; opacity: 1; }
+.nv-mobile-menu-links a { transition: color .15s, border-color .15s, background .15s; }
+.nv-menu a { transition: background .15s, color .15s; }
+
+/* ── Sidebar sections: skip off-screen paint ── */
+.nv-rightbar > section { content-visibility: auto; contain-intrinsic-size: 120px; contain: layout style paint; }
 
 /* ── APP CONTAINER ── */
 .nv-app {
@@ -55,6 +69,9 @@ body.nv-overlay-open {
   background: rgba(190, 24, 93, 0.18);
   backdrop-filter: blur(6px);
   z-index: 260;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
 }
 
 .nv-mobile-menu {
@@ -71,6 +88,23 @@ body.nv-overlay-open {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  transform: translateX(-100%);
+  transition: transform .24s ease;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.nv-mobile-menu-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nv-mobile-menu.is-open {
+  transform: translateX(0);
+}
+
+body.nvpro-drawer-open {
+  overflow: hidden;
 }
 
 .nv-mobile-menu-head {
@@ -250,6 +284,146 @@ body.nv-overlay-open {
   border-radius: 50%;
   border: 2px solid var(--bg);
 }
+
+/* ── STATS BAR ── */
+.nv-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 8px 0 4px;
+  margin: 0 0 4px;
+}
+.nv-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.nv-stat-item:hover { background: var(--panel2); }
+.nv-stat-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--panel2);
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.nv-stat-icon-live { color: var(--accent3); }
+.nv-stat-body {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.nv-stat-number {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.nv-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.nv-stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.nv-stat-avatars {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 8px;
+}
+.nv-stat-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: block;
+}
+.nv-stat-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  margin-left: -6px;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+  cursor: pointer;
+  text-decoration: none;
+}
+.nv-stat-avatar-wrap:first-child { margin-left: 0; }
+.nv-stat-avatar-wrap:hover { transform: scale(1.15); z-index: 2; }
+.nv-stat-online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px rgba(34,197,94,.3);
+}
+.nv-stat-more {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--panel2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -6px;
+  border: 2px solid var(--panel);
+  flex-shrink: 0;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.nv-stat-more:hover { background: var(--border); color: var(--text); }
+.nv-stat-no-users {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.nv-stat-action, .nv-stat-say-hi {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.nv-stat-action:hover, .nv-stat-say-hi:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.nv-stat-action { margin-left: 8px; }
+.nv-stat-say-hi { margin-left: 6px; }
 
 /* ── STORIES ── */
 .nv-stories {
@@ -1030,8 +1204,20 @@ body.nv-overlay-open {
 .nv-video-overlay video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   max-height: 100vh;
+}
+
+.nvpro-mobile-reels-feed {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-type: y mandatory;
+}
+
+.nvpro-mobile-reel-slide {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
 }
 .nv-video-overlay .nv-vo-close {
   position: absolute;
@@ -1161,6 +1347,14 @@ body.nv-overlay-open {
 @media (max-width: 767px) {
   .nv-main { padding: 0 0 80px; }
   .nv-topbar { padding: 8px 12px 8px; }
+  .nv-stats-bar { padding: 6px 12px 2px; gap: 4px; flex-wrap: wrap; }
+  .nv-stat-item { padding: 4px 8px; }
+  .nv-stat-avatar { width: 26px; height: 26px; }
+  .nv-stat-avatar-wrap { width: 30px; height: 30px; }
+  .nv-stat-more { width: 26px; height: 26px; font-size: 10px; }
+  .nv-stat-online-dot { width: 8px; height: 8px; bottom: -1px; right: -1px; }
+  .nv-stat-action, .nv-stat-say-hi { padding: 4px 8px; font-size: 10px; }
+  .nv-stat-action span, .nv-stat-say-hi span { display: none; }
   .nv-stories { padding: 8px 12px; }
   .nv-tabs { padding: 4px 12px 8px; }
   .nv-feed { padding: 0 8px; gap: 10px; }

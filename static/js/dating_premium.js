@@ -77,15 +77,31 @@
       "</div></div></div>";
   }
 
+  function becomeFriends(matchId) {
+    postJSON("/dating/api/become-friends/" + matchId, {}).then(function(res){
+      if (res.ok) {
+        toast("You are now friends! 🎉", "success");
+        loadMatches();
+      } else {
+        toast(res.error || "Could not become friends", "error");
+      }
+    });
+  }
+
   function renderGridCard(p, type) {
     var name = esc(p.display_name || p.full_name || p.match_display_name || p.username || "User");
     var photo = p.avatar_url || p.match_avatar_url || "";
     var compat = p.compatibility_score || p.match_score || "";
-    return '<div class="dt-grid-card">' +
+    var matchId = p.id || "";
+    var html = '<div class="dt-grid-card">' +
       '<div class="dt-grid-card-img" style="background-image:url(\'' + esc(photo) + '\');background-color:#1a1a2e;"></div>' +
       '<div class="dt-grid-card-body"><h4>' + name + "</h4>" +
-      (compat ? '<p>' + compat + '% match</p>' : "") +
-      "</div></div>";
+      (compat ? '<p>' + compat + '% match</p>' : "");
+    if (type === "match" && matchId) {
+      html += '<button class="dt-btn dt-btn-sm dt-btn-friend" onclick="event.stopPropagation();becomeFriends(\'' + esc(matchId) + '\')" style="margin-top:6px;font-size:10px;background:var(--dt-green);color:#fff;border:none;border-radius:50px;padding:4px 10px;cursor:pointer;"><i class="fas fa-user-plus"></i> Become Friends</button>';
+    }
+    html += "</div></div>";
+    return html;
   }
 
   function loadDiscover() {
@@ -280,11 +296,83 @@
     });
   }
 
+  function loadNearby() {
+    var grid = document.getElementById("dtNearbyGrid");
+    if (!grid) return;
+    fetchJSON(API.discover + "?limit=20").then(function(res){
+      grid.innerHTML = "";
+      if (!res.ok || !res.data || !res.data.length) {
+        var empty = document.getElementById("dtNearbyGrid");
+        if (empty) empty.innerHTML = '<div class="dt-empty"><i class="fas fa-map-marker-alt"></i><h3>No one nearby</h3><p>Check back later.</p></div>';
+        return;
+      }
+      res.data.slice(0, 12).forEach(function(p){
+        var div = document.createElement("div");
+        div.innerHTML = renderGridCard(p, "nearby");
+        var card = div.firstElementChild;
+        if (card) { card.style.cursor = "pointer"; card.onclick = function(){ window.location.href = "/dating/profile/" + p.profile_id; }; }
+        grid.appendChild(card);
+      });
+    });
+  }
+
+  function loadVideoProfiles() {
+    var grid = document.getElementById("dtVideoGrid");
+    var empty = document.getElementById("dtVideoEmpty");
+    if (!grid) return;
+    fetchJSON(API.discover + "?limit=20").then(function(res){
+      grid.innerHTML = "";
+      if (!res.ok || !res.data || !res.data.length) { if (empty) empty.style.display = "block"; return; }
+      var hasVideo = res.data.filter(function(p){ return p.photos && p.photos.length > 1; });
+      if (!hasVideo.length) { if (empty) empty.style.display = "block"; return; }
+      if (empty) empty.style.display = "none";
+      hasVideo.slice(0, 8).forEach(function(p){
+        var div = document.createElement("div");
+        div.innerHTML = renderGridCard(p, "video");
+        var card = div.firstElementChild;
+        if (card) { card.style.cursor = "pointer"; card.onclick = function(){ window.location.href = "/dating/profile/" + p.profile_id; }; }
+        grid.appendChild(card);
+      });
+    });
+  }
+
+  function loadDatingChats() {
+    var panel = document.getElementById("dtPanel-requests");
+    if (!panel) return;
+    fetch("/messages/api/threads?folder=dating").then(function(r){ return r.json(); }).then(function(res){
+      var grid = document.createElement("div");
+      grid.className = "dt-grid dt-grid-chats";
+      if (res.ok && res.threads && res.threads.length) {
+        res.threads.forEach(function(t){
+          var card = document.createElement("div");
+          card.className = "dt-grid-card";
+          card.style.cursor = "pointer";
+          card.onclick = function(){ window.location.href = "/messages/" + t.id; };
+          var name = esc(t.thread_name || t.other_display_name || "Match");
+          var avatar = t.avatar_url || t.other_avatar_url || "";
+          var lastMsg = esc(t.last_message_body || "");
+          card.innerHTML = '<div class="dt-grid-card-img" style="background-image:url(\'' + esc(avatar) + '\');background-color:#1a1a2e;width:48px;height:48px;border-radius:50%;margin:10px auto;"></div>' +
+            '<div class="dt-grid-card-body"><h4>' + name + '</h4>' +
+            (lastMsg ? '<p style="font-size:11px;opacity:0.6;">' + lastMsg.slice(0, 60) + '</p>' : '') +
+            '</div>';
+          grid.appendChild(card);
+        });
+        panel.innerHTML = '<div class="dt-section-card"><h2><i class="fas fa-comment-dots" style="color:var(--dt-primary);"></i> Dating Chats</h2></div>';
+        panel.appendChild(grid);
+      } else {
+        panel.innerHTML = '<div class="dt-section-card"><h2><i class="fas fa-comment-dots" style="color:var(--dt-primary);"></i> Dating Chats</h2><div class="dt-empty"><i class="fas fa-inbox"></i><h3>No chats yet</h3><p>Start by matching with someone!</p></div></div>';
+      }
+    });
+  }
+
   function loadTab(tab) {
-    if (tab === "discover") loadDiscover();
+    if (tab === "foryou") loadDiscover();
+    else if (tab === "nearby") loadNearby();
     else if (tab === "matches") loadMatches();
-    else if (tab === "likes-you") loadLikesYou();
-    else if (tab === "safety") loadSafety();
+    else if (tab === "likes") loadLikesYou();
+    else if (tab === "requests") loadDatingChats();
+    else if (tab === "video") loadVideoProfiles();
+    else if (tab === "premium") {} // static content
   }
 
   function switchTab(tab) {

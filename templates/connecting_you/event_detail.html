@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ event.title }} — Connecting You{% endblock %}
+{% block body_class %}cy-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/connecting_you.css">
+{% endblock %}
+{% block content %}
+<div class="cy-app">
+  <div class="cy-page-header">
+    <a href="/dating/connecting-you/events" class="cy-back">← Back to Events</a>
+    <h1>{{ event.title }}</h1>
+  </div>
+
+  <div class="cy-event-detail">
+    <div class="cy-event-detail-main">
+      <div class="cy-event-type cy-event-type-{{ event.event_type }}">{{ event.event_type|replace('_',' ')|title }}</div>
+      <p class="cy-event-desc">{{ event.description }}</p>
+
+      <div class="cy-event-info-grid">
+        <div class="cy-event-info-item">
+          <span class="cy-event-info-label">📅 Date</span>
+          <span>{{ event.event_date.strftime('%A, %B %d, %Y at %H:%M') if event.event_date else 'TBA' }}</span>
+        </div>
+        <div class="cy-event-info-item">
+          <span class="cy-event-info-label">⏱️ Duration</span>
+          <span>{{ event.duration_minutes }} minutes</span>
+        </div>
+        <div class="cy-event-info-item">
+          <span class="cy-event-info-label">{{ '💻' if event.is_virtual else '📍' }}</span>
+          <span>{{ 'Virtual Event' if event.is_virtual else (event.venue or event.region) }}</span>
+        </div>
+        {% if event.venue_address %}
+        <div class="cy-event-info-item">
+          <span class="cy-event-info-label">🗺️ Address</span>
+          <span>{{ event.venue_address }}</span>
+        </div>
+        {% endif %}
+        {% if event.max_participants > 0 %}
+        <div class="cy-event-info-item">
+          <span class="cy-event-info-label">👥 Capacity</span>
+          <span>{{ event.current_participants }}/{{ event.max_participants }} registered</span>
+        </div>
+        {% endif %}
+        {% if event.region and event.region != 'all' %}
+        <div class="cy-event-info-item">
+          <span class="cy-event-info-label">📍 Region</span>
+          <span>{{ event.region }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if event.mentor_name %}
+      <div class="cy-event-mentor-detail">
+        <div class="cy-mentor-avatar">{{ event.mentor_name[0] }}</div>
+        <div>
+          <strong>{{ event.mentor_name }}</strong>
+          <div>{{ event.mentor_title }}</div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if event.tags %}
+      <div class="cy-event-tags">
+        {% for tag in event.tags %}
+        <span class="cy-tag">{{ tag }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="cy-event-detail-sidebar">
+      <div class="cy-event-action-card">
+        <h3>Ready to Join?</h3>
+        <p>{% if event.event_type == 'meet_up' %}Come meet fellow members in person!{% elif event.event_type == 'mentor_session' %}Learn from relationship experts live.{% elif event.event_type == 'live_show' %}Watch the live matchmaking show!{% else %}Join this Connecting You event.{% endif %}</p>
+        <button class="cy-btn cy-btn-primary cy-btn-full" onclick="registerEvent('{{ event.id }}')">
+          Register Now ❤️
+        </button>
+        <div class="cy-event-status" id="cyEventStatus"></div>
+      </div>
+
+      {% if event.status == 'live' %}
+      <div class="cy-event-live-badge">
+        <span class="cy-live-dot"></span> LIVE NOW
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+function registerEvent(id) {
+  fetch('/dating/connecting-you/api/events/' + id + '/register', {
+    method: 'POST',
+    headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''}
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var el = document.getElementById('cyEventStatus');
+    if (d.ok) { el.innerHTML = '<span class="cy-alert-success">✅ Registered! ' + (d.status === 'waitlisted' ? '(Waitlisted)' : '') + '</span>'; }
+    else { el.innerHTML = '<span class="cy-alert-error">❌ ' + (d.error || 'Failed') + '</span>'; }
+  });
+}
+</script>
+{% endblock %}

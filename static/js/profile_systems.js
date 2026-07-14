@@ -240,6 +240,7 @@
     // Follow button
     var followBtn = root.querySelector('[data-action="follow"]');
     var friendBtn = root.querySelector('[data-action="friend"]');
+    var addFriendBtn = root.querySelector('[data-action="add-friend"]');
     if (followBtn) {
       followBtn.addEventListener("click", function () {
         var state = this.dataset.state;
@@ -279,6 +280,26 @@
           }
         }).catch(function () {
           showToast("Could not update friendship.", "error");
+        });
+      });
+    }
+    if (addFriendBtn) {
+      addFriendBtn.addEventListener("click", function () {
+        fetch("/api/social/friends/request", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ recipient_id: PROFILE_ID })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+          if (d.success || d.ok) {
+            showToast("Friend request sent!", "success");
+            addFriendBtn.disabled = true;
+            addFriendBtn.innerHTML = '<i class="fas fa-clock"></i> Request Pending';
+          } else {
+            showToast((d.error || d.msg || "Could not send request"), "error");
+          }
+        }).catch(function () {
+          showToast("Could not send friend request.", "error");
         });
       });
     }

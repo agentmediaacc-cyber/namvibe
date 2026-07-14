@@ -1,11 +1,28 @@
 {% extends "base.html" %}
 {% block title %}Stories | NamVibe{% endblock %}
+{% block body_class %}nvpro-home{% endblock %}
+
+{% block top_header %}{% endblock %}
+{% block mobile_nav %}{% endblock %}
+
 {% block extra_css %}
+<link rel="stylesheet" href="/static/css/namvibe_home_premium_v2.css">
+<style>
+  .nvpro-home .chain-shell { background: var(--bg); }
+  .nvpro-home .main-container { padding: 0; max-width: 100%; background: var(--bg); }
+  .nvpro-home .content-body { padding: 0 !important; background: var(--bg); }
+  .nvpro-home .top-header, .nvpro-home .mobile-nav { display: none !important; }
+</style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/stories.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/namvibe_stories_engine.css') }}">
 {% endblock %}
 {% block content %}
-<main id="stories-app" class="stories-container">
+<main id="stories-app" class="stories-container" style="padding-top:0;">
+  <header class="nv-topbar" style="position:sticky;top:0;z-index:100;background:var(--bg);padding:8px 12px 12px;display:flex;align-items:center;gap:10px;">
+    <a href="/" class="nv-menu-btn" style="text-decoration:none;display:grid;place-items:center;">←</a>
+    <div style="flex:1;font-weight:700;font-size:18px;color:var(--text);">Stories</div>
+    <button class="nv-notif-btn" data-action="create-story" style="font-size:16px;border:none;background:var(--panel);border-radius:50%;width:40px;height:40px;display:grid;place-items:center;cursor:pointer;">+</button>
+  </header>
   <!-- Premium story tray -->
   <div class="nv-story-tray" id="nv-story-tray"></div>
 

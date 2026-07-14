@@ -23,7 +23,7 @@
           &middot; {{ (c.duration_seconds // 60) }}:{{ '%02d' % (c.duration_seconds % 60) }}
           {% endif %}
         </span>
-        <small>{{ c.created_at[:10] if c.created_at else '' }}</small>
+        <small>{{ c.created_at.strftime('%Y-%m-%d') if c.created_at else '' }}</small>
       </div>
     </div>
     {% endfor %}

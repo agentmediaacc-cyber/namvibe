@@ -1,6 +1,6 @@
 import time
 from datetime import datetime, timezone
-from flask import session, request, current_app
+from flask import session, request, current_app, has_request_context
 from services.supabase_safe import safe_select, safe_update
 from utils.supabase_client import get_supabase
 
@@ -20,10 +20,28 @@ K_PROFILE_WARNING = "profile_warning"
 K_AGE_CHECK_REQUIRED = "age_check_required"
 K_PENDING_DATE_OF_BIRTH = "pending_date_of_birth"
 
+
+def get_auth_user_id():
+    if not has_request_context():
+        return None
+    return session.get(K_USER_ID) or session.get("auth_user_id") or session.get("user_id")
+
+
+def _preserve_session_keys():
+    preserved = {}
+    if not has_request_context():
+        return preserved
+    for key in ("_csrf_token",):
+        if key in session:
+            preserved[key] = session.get(key)
+    return preserved
+
 def store_auth_session(auth_session, user, profile=None, provider='password', remember=False):
     """
     Store Supabase auth session and user details in Flask session.
     """
+    if not has_request_context():
+        return False
     now = int(time.time())
     
     # Supabase session details
@@ -62,6 +80,19 @@ def store_auth_session(auth_session, user, profile=None, provider='password', re
         session.pop(K_USERNAME, None)
         session.pop(K_FULL_NAME, None)
         session.pop(K_PROFILE_WARNING, None)
+    return True
+
+
+def establish_login_session(auth_session, user, profile=None, provider="password", remember=False):
+    if not has_request_context():
+        return False
+    preserved = _preserve_session_keys()
+    session.clear()
+    for key, value in preserved.items():
+        session[key] = value
+    store_auth_session(auth_session, user, profile=profile, provider=provider, remember=remember)
+    session.modified = True
+    return True
 
 def get_current_auth_user():
     """
@@ -129,6 +160,8 @@ def clear_auth_session():
     """
     Clear all auth-related keys from the session.
     """
+    if not has_request_context():
+        return False
     keys_to_clear = [
         K_USER_ID, K_EMAIL, K_PROVIDER, K_ACCESS_TOKEN, K_REFRESH_TOKEN,
         K_EXPIRES_AT, K_PROFILE_ID, K_USERNAME, K_FULL_NAME, K_LOGIN_AT,
@@ -140,15 +173,26 @@ def clear_auth_session():
         session.pop(key, None)
     session.permanent = False
     session.modified = True
+    return True
+
+
+def clear_login_session():
+    clear_auth_session()
 
 def is_logged_in():
     """
     Lightweight check if user is logged in.
     """
+    if not has_request_context():
+        return False
     return bool(session.get(K_USER_ID) and (session.get(K_ACCESS_TOKEN) or session.get(K_PROFILE_ID)))
 
 def get_current_profile_id():
+    if not has_request_context():
+        return None
     return session.get(K_PROFILE_ID)
 
 def get_current_username():
+    if not has_request_context():
+        return None
     return session.get(K_USERNAME)

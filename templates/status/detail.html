@@ -136,7 +136,7 @@
         <div style="position: absolute; right: 0; top: 0; bottom: 0; width: 30%; z-index: 20;" onclick="nextStatus()"></div>
 
         {% if 'video' in (status.media_type or '') %}
-        <video src="{{ status.media_url }}" class="status-media" id="status-video" autoplay playsinline></video>
+        <video src="{{ status.media_url }}" class="status-media" id="status-video" autoplay playsinline controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false"></video>
         {% else %}
         <img src="{{ status.media_url }}" class="status-media">
         {% endif %}

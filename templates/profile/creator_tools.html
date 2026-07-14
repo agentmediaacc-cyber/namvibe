@@ -246,7 +246,7 @@
         </div>
         <div class="people-info">
           <strong>{{ f.display_name or f.username or 'Unknown' }}</strong>
-          <span>Friend since {{ f.created_at[:10] if f.created_at else 'recently' }}</span>
+          <span>Friend since {{ f.created_at.strftime('%Y-%m-%d') if f.created_at else 'recently' }}</span>
         </div>
       </div>
       {% endfor %}

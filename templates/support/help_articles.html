@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}NamVibe | Help Center{% endblock %}
+{% block body_class %}st-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/namvibe_support.css">
+{% endblock %}
+{% block content %}
+<div class="st-app">
+  <header class="st-topbar">
+    <a href="/support" class="st-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></a>
+    <h1>Help Center</h1>
+  </header>
+
+  <div class="st-categories">
+    {% for cat in categories %}
+    <a href="#cat-{{ cat.slug }}" class="st-cat-pill">{{ cat.name }} ({{ cat.article_count }})</a>
+    {% endfor %}
+  </div>
+
+  <div class="st-article-list">
+    {% for cat in categories %}
+    <h3 id="cat-{{ cat.slug }}">{{ cat.name }}</h3>
+    {% for article in articles if article.category_slug == cat.slug %}
+    <a href="/support/help/{{ article.slug }}" class="st-article-card">
+      <strong>{{ article.title }}</strong>
+      <p>{{ article.content[:150]|striptags }}{% if article.content|length > 150 %}...{% endif %}</p>
+      <small>{{ article.views }} views</small>
+    </a>
+    {% else %}
+    <p class="st-empty">No articles in this category yet.</p>
+    {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/js/namvibe_support.js"></script>
+{% endblock %}

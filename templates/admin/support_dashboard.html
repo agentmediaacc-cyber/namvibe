@@ -1,0 +1,69 @@
+{% extends "admin/ads_base.html" %}
+{% block title %}NamVibe | Support Dashboard{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/namvibe_support.css">
+{% endblock %}
+{% block content %}
+<div class="st-admin">
+  <header class="st-admin-header">
+    <h1>Support Dashboard</h1>
+    <div class="st-admin-nav">
+      <button class="st-btn st-btn-sm active" data-view="tickets" onclick="NamVibeSupportAdmin.switchView('tickets')">Tickets</button>
+      <button class="st-btn st-btn-sm" data-view="stats" onclick="NamVibeSupportAdmin.switchView('stats')">Stats</button>
+      <button class="st-btn st-btn-sm" data-view="agents" onclick="NamVibeSupportAdmin.switchView('agents')">Agents</button>
+    </div>
+  </header>
+
+  <div class="st-stats-bar">
+    <div class="st-stat-card"><span class="st-stat-num">{{ stats.open }}</span><span>Open</span></div>
+    <div class="st-stat-card"><span class="st-stat-num">{{ stats.pending_support }}</span><span>Pending Support</span></div>
+    <div class="st-stat-card"><span class="st-stat-num">{{ stats.pending_user }}</span><span>Pending User</span></div>
+    <div class="st-stat-card"><span class="st-stat-num">{{ stats.escalated }}</span><span>Escalated</span></div>
+    <div class="st-stat-card"><span class="st-stat-num">{{ stats.resolved_today }}</span><span>Resolved Today</span></div>
+  </div>
+
+  <div class="st-admin-filters">
+    <select id="stFilterStatus" onchange="NamVibeSupportAdmin.loadTickets()">
+      <option value="">All Statuses</option>
+      {% for s in statuses %}
+      <option value="{{ s }}">{{ s.replace('_', ' ') }}</option>
+      {% endfor %}
+    </select>
+    <select id="stFilterCategory" onchange="NamVibeSupportAdmin.loadTickets()">
+      <option value="">All Categories</option>
+      {% for key, label in categories.items() %}
+      <option value="{{ key }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select id="stFilterPriority" onchange="NamVibeSupportAdmin.loadTickets()">
+      <option value="">All Priorities</option>
+      <option value="urgent">Urgent</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <button class="st-btn st-btn-primary" onclick="NamVibeSupportAdmin.loadTickets()">Refresh</button>
+  </div>
+
+  <div class="st-admin-table" id="stTicketTable">
+    <div class="st-table-header">
+      <span>Ticket ID</span><span>Subject</span><span>User</span><span>Category</span><span>Priority</span><span>Status</span><span>Assigned</span><span>Last Activity</span>
+    </div>
+    <div id="stTableBody">
+      <div class="st-loading">Loading tickets...</div>
+    </div>
+  </div>
+
+  <div id="stAdminStatsView" style="display:none">
+    <div class="st-stats-grid" id="stStatsGrid"></div>
+  </div>
+
+  <div id="stAdminAgentsView" style="display:none">
+    <div class="st-agents-list" id="stAgentsList"></div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/js/namvibe_support.js"></script>
+<script>NamVibeSupportAdmin.init();</script>
+{% endblock %}

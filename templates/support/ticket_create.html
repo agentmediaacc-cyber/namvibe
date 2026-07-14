@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}NamVibe | Create Ticket{% endblock %}
+{% block body_class %}st-body{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/namvibe_support.css">
+{% endblock %}
+{% block content %}
+<div class="st-app">
+  <header class="st-topbar">
+    <a href="/support" class="st-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></a>
+    <h1>Create Ticket</h1>
+  </header>
+
+  <form class="st-form" id="stCreateForm" onsubmit="return NamVibeSupport.createTicket(event)">
+    <div class="st-field">
+      <label for="stCategory">Category</label>
+      <select id="stCategory" required onchange="NamVibeSupport.onCategoryChange()">
+        <option value="">Select a category...</option>
+        {% for key, label in categories.items() %}
+        <option value="{{ key }}" {% if key == selected_category %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="st-field">
+      <label for="stSubject">Subject</label>
+      <input type="text" id="stSubject" placeholder="Brief summary of your issue" required maxlength="255">
+    </div>
+
+    <div class="st-field">
+      <label for="stDescription">Description</label>
+      <textarea id="stDescription" rows="6" placeholder="Describe your issue in detail. Include any relevant information..." required></textarea>
+    </div>
+
+    <div class="st-field" id="stRelatedFields" style="display:none">
+      <label>Related Information</label>
+      <div id="stRelatedContent"></div>
+    </div>
+
+    <div class="st-field">
+      <label for="stPriority">Priority</label>
+      <select id="stPriority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+    </div>
+
+    <div class="st-field">
+      <label>Attachments (optional)</label>
+      <div class="st-file-upload" onclick="document.getElementById('stFileInput').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Upload screenshots or files</span>
+      </div>
+      <input type="file" id="stFileInput" multiple style="display:none" onchange="NamVibeSupport.onFilesSelected(event)">
+      <div id="stFilePreview"></div>
+    </div>
+
+    <button type="submit" class="st-btn st-btn-primary st-btn-block">Submit Ticket</button>
+  </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+window.relatedProfile = '{{ related_profile or "" }}';
+window.relatedPost = '{{ related_post or "" }}';
+window.relatedOrder = '{{ related_order or "" }}';
+window.relatedTransaction = '{{ related_transaction or "" }}';
+</script>
+<script src="/static/js/namvibe_support.js"></script>
+{% endblock %}

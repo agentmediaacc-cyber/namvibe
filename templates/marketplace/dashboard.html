@@ -75,7 +75,7 @@
             <td style="font-size:12px;color:var(--mp-muted)">{{ b.id|truncate(8, True, '..') }}</td>
             <td><span class="mp-status mp-status-{{ b.status }}">{{ b.status }}</span></td>
             <td>N$ {{ "%.2f"|format((b.amount_cents|default(0))/100) }}</td>
-            <td style="font-size:13px;color:var(--mp-muted)">{{ b.created_at[:10] if b.created_at else '—' }}</td>
+            <td style="font-size:13px;color:var(--mp-muted)">{{ b.created_at.strftime('%Y-%m-%d') if b.created_at else '—' }}</td>
           </tr>
           {% endfor %}
         </tbody>
