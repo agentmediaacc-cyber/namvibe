@@ -8,7 +8,6 @@ from services.job_queue_service import active_unique_job_exists, enqueue_unique_
 _TASKS = {}
 
 DEFAULT_TASKS = [
-    ("homepage_cache_warmup", "homepage_cache_warmup", 30),
     ("call_timeouts", "call_timeout_check", 30),
     ("notification_delivery", "notification_delivery", 15),
     ("safety_scans", "safety_scan", 60),

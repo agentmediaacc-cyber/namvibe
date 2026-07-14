@@ -45,10 +45,9 @@ def main():
     assert second.status_code == 200
     assert second_ms < 500, f"second request too slow: {second_ms:.1f}ms"
 
-    cache = client.get("/system/api/cache-status")
-    print(f"cache_status={cache.get_json()}")
-    assert cache.status_code == 200
-    assert cache.get_json().get("homepage_cached") is True
+    cache_info = homepage_cache_info()
+    print(f"cache_status={cache_info}")
+    assert cache_info.get("homepage_cached") is True
 
     print("homepage warmup benchmark passed")
 

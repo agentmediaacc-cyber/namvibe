@@ -1246,6 +1246,20 @@ def create_app():
                 data["wallet_balance"] = (cached_payload.get("wallet") or {}).get("coin_balance", 0)
                 return data
             data = dict(shell)
+            if not _app_test_mode():
+                data["homepage_timings"] = {}
+                data["homepage_payload"] = {
+                    "stories": [],
+                    "feed_items": [],
+                    "posts": [],
+                    "reels": [],
+                    "friend_activity": [],
+                    "online_users": [],
+                    "counts": {},
+                    "timings": {},
+                }
+                data["wallet_balance"] = 0
+                return data
             try:
                 from api_routes.homepage_api import _build_homepage_contract
                 fast_payload = _build_homepage_contract(
@@ -1303,7 +1317,6 @@ def create_app():
             data["notifications"] = []
             data["marketplace_items"] = []
             data["chats"] = []
-            pid_for_home = (get_current_profile() or {}).get("id")
             response = make_response(render_template("chain_home.html", **data), 200)
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
@@ -1656,16 +1669,20 @@ def create_app():
             return
         _prewarm_done = True
         _log_reels_prewarm("considered", path=request.path, prewarm_considered=True)
-        if _skip_first_request_neon_prewarm():
-            _log_reels_prewarm("skipped", path=request.path, prewarm_skipped=True, skip_reason="reels_request")
+        if _skip_first_request_neon_prewarm() or _is_fast_public_request():
+            _log_reels_prewarm(
+                "skipped",
+                path=request.path,
+                prewarm_skipped=True,
+                skip_reason="fast_public_request" if _is_fast_public_request() else "reels_request",
+            )
             return
-        if not _startup_fast_mode() and not _app_test_mode() and _flag_enabled("CHAIN_ALLOW_WORKER_BACKGROUND_WARM"):
-            _log_reels_prewarm("started", path=request.path, prewarm_started=True, skip_reason="worker_background_warm_enabled")
-            threading.Thread(target=lambda: (
-                prime_neon_runtime(),
-                time.sleep(0.1),
-                warm_homepage_cache(),
-            ), daemon=True).start()
+        _log_reels_prewarm(
+            "skipped",
+            path=request.path,
+            prewarm_skipped=True,
+            skip_reason="worker_background_warm_disabled",
+        )
 
     @app.after_request
     def apply_performance_headers(response):
