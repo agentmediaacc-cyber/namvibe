@@ -49,6 +49,7 @@ from api_routes.public_routes import public_bp
 from api_routes.matching_routes import matching_bp
 from api_routes.dating_routes import dating_bp
 from api_routes.message_routes import message_bp
+from api_routes.messaging_routes import messaging_api_bp
 from api_routes.call_routes import call_bp, messages_call_bp, api_calls_bp
 from api_routes.notification_routes import notification_engine_bp
 from api_routes.wallet_routes import wallet_bp
@@ -550,6 +551,7 @@ def create_app():
     app.register_blueprint(matching_bp)
     app.register_blueprint(dating_bp)
     app.register_blueprint(message_bp)
+    app.register_blueprint(messaging_api_bp)
     app.register_blueprint(call_bp)
     app.register_blueprint(notification_engine_bp)
     app.register_blueprint(wallet_bp)

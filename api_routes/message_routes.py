@@ -1534,6 +1534,7 @@ def api_decline_message_request(request_id):
 # ============================================================
 
 @message_bp.route("/api/send", methods=["POST"])
+@message_bp.route("/api/messages/send", methods=["POST"])
 @login_required
 def api_messages_send():
     profile = get_current_profile()
