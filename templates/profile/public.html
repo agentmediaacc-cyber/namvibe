@@ -42,7 +42,7 @@
         {% if content.reels %}
             <div class="vertical-grid vertical-grid--reels">
                 {% for reel in content.reels %}
-                <article class="reel-thumbnail glass-card" onclick="window.location.href='/reels/{{ reel.id }}'">
+                <article class="reel-thumbnail glass-card"{% if reel.id %} onclick="window.location.href='/reels/{{ reel.id }}'"{% endif %}>
                     <img src="{{ reel.thumbnail_url or reel.media_url }}" alt="Reel">
                     <div class="reel-stats">
                         <span><i class="fas fa-play"></i> {{ reel.views_count or 0 }}</span>

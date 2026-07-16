@@ -27,6 +27,7 @@ os.environ["FLASK_TESTING"] = "1"
 PASS = 0
 FAIL = 0
 SKIP = 0
+VIEWER_ID = "11111111-1111-1111-1111-111111111111"
 
 def ok(msg):
     global PASS; PASS += 1
@@ -48,7 +49,7 @@ try:
 
     mock_item = {
         "id": "test-1",
-        "profile_id": "prof-1",
+        "profile_id": "11111111-1111-1111-1111-111111111111",
         "type": "post",
         "caption": "Test post",
         "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
@@ -66,13 +67,13 @@ try:
 
     score = _compute_item_score(mock_item, is_following=True, is_friend=False,
                                  interest_profile={"hashtag:namibia": 5.0, "location:windhoek": 3.0},
-                                 profile_id="viewer-1", feed_type="for_you")
+                                 profile_id=VIEWER_ID, feed_type="for_you")
     ok(f"Score computed: {score:.2f}" if score > 0 else "Score is positive")
     ok(f"Following boost applied" if score > 50 else "Following boost present")
 
     score_not_following = _compute_item_score(mock_item, is_following=False, is_friend=False,
                                                interest_profile=None,
-                                               profile_id="viewer-1", feed_type="for_you")
+                                               profile_id=VIEWER_ID, feed_type="for_you")
     ok("Score without following lower" if score_not_following < score else "Following increases score")
 
     # Recent item scores higher
@@ -80,12 +81,12 @@ try:
     old_item["created_at"] = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
     score_old = _compute_item_score(old_item, is_following=False, is_friend=False,
                                      interest_profile=None,
-                                     profile_id="viewer-1", feed_type="for_you")
+                                     profile_id=VIEWER_ID, feed_type="for_you")
     ok("Recency decay works" if score_old < score_not_following else "Older items score lower")
 
     # Score multiple items
     items = [mock_item, old_item]
-    ranked = score_feed_items("viewer-1", items, feed_type="for_you")
+    ranked = score_feed_items(VIEWER_ID, items, feed_type="for_you")
     ok(f"score_feed_items returns ranked list ({len(ranked)} items)" if ranked else "Ranked non-empty")
     if len(ranked) >= 2:
         r0 = ranked[0].get("_score", 0)
@@ -327,7 +328,7 @@ try:
     for i in range(100):
         many_items.append({
             "id": f"perf-{i}",
-            "profile_id": f"prof-{i % 20}",
+            "profile_id": f"00000000-0000-0000-0000-{i % 1000000000000:012d}",
             "type": "post" if i % 2 == 0 else "reel",
             "caption": f"Performance test {i}",
             "created_at": (datetime.now(timezone.utc) - timedelta(hours=i)).isoformat(),

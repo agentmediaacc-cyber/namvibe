@@ -9,6 +9,7 @@ from services.blocking_service import is_blocked_any
 from services.logging_service import log_warning
 from services.neon_service import fetch_all, execute, table_exists
 from services.redis_service import cache_get, cache_set
+from services.id_validation import normalize_uuid
 
 
 MAX_LIMIT = 50
@@ -88,6 +89,9 @@ def _as_list(value):
 
 
 def _viewer_negative_sets(profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return set(), set()
     hidden_ids = set()
     reported_ids = set()
     for row in get_recent_interactions(profile_id, limit=200):
@@ -102,6 +106,7 @@ def _viewer_negative_sets(profile_id):
 def recommend_profiles(profile_id, limit=20, offset=0):
     safe_limit = _safe_limit(limit)
     safe_offset = _safe_offset(offset)
+    profile_id = normalize_uuid(profile_id)
     if not is_ai_feature_enabled("ai_recommendations", profile_id=profile_id):
         return []
     cache_key = _cache_key("profiles", profile_id, safe_limit, safe_offset)
@@ -178,6 +183,7 @@ def recommend_profiles(profile_id, limit=20, offset=0):
 def _recommend_content_rows(profile_id, table_name, target_type, limit=20, offset=0):
     safe_limit = _safe_limit(limit)
     safe_offset = _safe_offset(offset)
+    profile_id = normalize_uuid(profile_id)
     if not is_ai_feature_enabled("ai_recommendations", profile_id=profile_id):
         return []
     cache_key = _cache_key(target_type, profile_id, safe_limit, safe_offset)
@@ -191,6 +197,9 @@ def _recommend_content_rows(profile_id, table_name, target_type, limit=20, offse
     hidden_ids, reported_ids = _viewer_negative_sets(profile_id)
     select_views = "views_count," if table_name in {"chain_reels", "chain_stories"} else ""
     try:
+        profile_filter = "AND c.profile_id <> %s" if profile_id else ""
+        params = [profile_id] if profile_id else []
+        params.extend([max(safe_limit * 4, 40), safe_offset])
         rows = fetch_all(
             f"""
             SELECT
@@ -202,11 +211,11 @@ def _recommend_content_rows(profile_id, table_name, target_type, limit=20, offse
             WHERE c.deleted_at IS NULL
               AND p.deleted_at IS NULL
               AND COALESCE(p.is_public, TRUE) = TRUE
-              AND c.profile_id <> %s
+              {profile_filter}
             ORDER BY c.created_at DESC, c.id ASC
             LIMIT %s OFFSET %s
             """,
-            (profile_id, max(safe_limit * 4, 40), safe_offset),
+            tuple(params),
             timeout_ms=3000,
         ) or []
     except Exception as error:

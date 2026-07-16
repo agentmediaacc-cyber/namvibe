@@ -7,6 +7,7 @@ from services.ai.privacy_guard import sanitize_metadata
 from services.logging_service import log_warning
 from services.neon_service import execute, fetch_all, table_exists
 from services.redis_service import get_json, set_json
+from services.id_validation import normalize_uuid
 
 
 VALID_TARGET_TYPES = {
@@ -85,6 +86,7 @@ def _dedupe_impression_key(profile_id, target_type, target_id, source_surface):
 
 
 def record_interaction(profile_id, target_type, target_id, action_type, source_surface=None, session_id=None, dwell_time_ms=None, metadata=None, action_weight=None):
+    profile_id = normalize_uuid(profile_id)
     if not profile_id or not is_ai_feature_enabled("ai_interaction_tracking", profile_id=profile_id):
         return {"ok": False, "skipped": True}
     target_type = normalize_target_type(target_type)
@@ -186,6 +188,7 @@ def record_interactions_batch(profile_id, interactions):
 
 def get_recent_interactions(profile_id, limit=100):
     safe_limit = max(1, min(int(limit or 100), 100))
+    profile_id = normalize_uuid(profile_id)
     if not profile_id or not table_exists("chain_ai_interactions"):
         return []
     try:

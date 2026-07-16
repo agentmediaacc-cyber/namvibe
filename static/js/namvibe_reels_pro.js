@@ -30,6 +30,12 @@
     return h;
   }
 
+  function safeReelUrl(id) {
+    var text = String(id || '').trim();
+    if (!text) return '';
+    return window.location.origin + '/reels/' + encodeURIComponent(text);
+  }
+
   function loadReels(cursorVal) {
     if (isLoading || !hasMore) return;
     isLoading = true;
@@ -217,7 +223,8 @@
   }
 
   function shareReel(id) {
-    var url = window.location.origin + '/reels/' + id;
+    var url = safeReelUrl(id);
+    if (!url) return;
     if (navigator.share) {
       navigator.share({ title: 'NamVibe Reel', url: url });
     } else {

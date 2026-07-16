@@ -26,6 +26,12 @@
     return finalHeaders;
   }
 
+  function safeReelUrl(reelId) {
+    var id = String(reelId || '').trim();
+    if (!id) return '';
+    return window.location.origin + '/reels/' + encodeURIComponent(id);
+  }
+
   async function requestJson(url, options) {
     var finalOptions = Object.assign({ credentials: 'same-origin' }, options || {});
     finalOptions.headers = csrfHeaders(finalOptions.headers || { 'Content-Type': 'application/json' });
@@ -96,7 +102,8 @@
     try {
       await requestJson('/reels/api/reels/' + encodeURIComponent(reelId) + '/share', { method: 'POST' });
       updateCount(button, null, 1);
-      var url = window.location.origin + '/reels#reel-' + encodeURIComponent(reelId);
+      var url = safeReelUrl(reelId);
+      if (!url) return;
       if (navigator.share) {
         await navigator.share({ title: 'NamVibe reel', url: url }).catch(function () {});
       } else if (navigator.clipboard) {
@@ -113,7 +120,8 @@
   function openComments(reelId) {
     var overlay = document.getElementById('nv-comment-overlay');
     if (!overlay) {
-      window.location.href = '/reels#reel-' + encodeURIComponent(reelId);
+      var url = safeReelUrl(reelId);
+      if (url) window.location.href = url;
       return;
     }
     overlay.classList.add('is-open');

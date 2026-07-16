@@ -22,13 +22,28 @@ def check(name, condition, detail=""):
 def session_login(client):
     with client.session_transaction() as session:
         session["auth_user_id"] = "auth-1"
-        session["profile_id"] = "profile-1"
-        session["profile_data"] = {"id": "profile-1", "username": "tester"}
+        session["profile_id"] = "11111111-1111-1111-1111-111111111111"
+        session["profile_data"] = {"id": "11111111-1111-1111-1111-111111111111", "username": "tester"}
 
 
 def read(path):
     with open(os.path.join(ROOT, path), "r", encoding="utf-8") as handle:
         return handle.read()
+
+
+class _ImmediateThread:
+    def __init__(self, target=None, args=(), kwargs=None, daemon=None):
+        self._target = target
+        self._args = args
+        self._kwargs = kwargs or {}
+        self.daemon = daemon
+
+    def start(self):
+        if self._target:
+            self._target(*self._args, **self._kwargs)
+
+    def join(self, timeout=None):
+        return None
 
 
 failures = 0
@@ -123,15 +138,17 @@ with patch("api_routes.call_routes.get_current_profile", return_value={"id": "pr
         failures += check("call action name", track_call.call_args.args[3] == "call")
 
 with patch("api_routes.reels_routes.track_interaction_safe") as track_reel_complete, \
-     patch("api_routes.reels_routes.get_current_profile", return_value={"id": "profile-1"}), \
-     patch("api_routes.reels_routes.track_reel_watch", return_value=None):
-    resp = client.post("/reels/api/reels/reel-1/watch-v2", json={"watch_ms": 5, "completion_percent": 50}, headers={"X-CSRFToken": "test"})
+     patch("api_routes.reels_routes.get_session_profile_id", return_value="11111111-1111-1111-1111-111111111111"), \
+     patch("api_routes.reels_routes.track_reel_watch", return_value=None), \
+     patch("api_routes.reels_routes.threading.Thread", side_effect=lambda *args, **kwargs: _ImmediateThread(*args, **kwargs)):
+    resp = client.post("/reels/api/reels/11111111-1111-1111-1111-111111111111/watch-v2", json={"watch_ms": 5, "completion_percent": 50}, headers={"X-CSRFToken": "test"})
     failures += check("reel incomplete does not record complete", resp.status_code == 200 and not any(call.args[3] == "complete" for call in track_reel_complete.call_args_list))
 
 with patch("api_routes.reels_routes.track_interaction_safe") as track_reel_complete, \
-     patch("api_routes.reels_routes.get_current_profile", return_value={"id": "profile-1"}), \
-     patch("api_routes.reels_routes.track_reel_watch", return_value=None):
-    resp = client.post("/reels/api/reels/reel-1/watch-v2", json={"watch_ms": 9, "completion_percent": 95}, headers={"X-CSRFToken": "test"})
+     patch("api_routes.reels_routes.get_session_profile_id", return_value="11111111-1111-1111-1111-111111111111"), \
+     patch("api_routes.reels_routes.track_reel_watch", return_value=None), \
+     patch("api_routes.reels_routes.threading.Thread", side_effect=lambda *args, **kwargs: _ImmediateThread(*args, **kwargs)):
+    resp = client.post("/reels/api/reels/11111111-1111-1111-1111-111111111111/watch-v2", json={"watch_ms": 9, "completion_percent": 95}, headers={"X-CSRFToken": "test"})
     failures += check("reel complete recorded at threshold", resp.status_code == 200 and any(call.args[3] == "complete" for call in track_reel_complete.call_args_list))
 
 with patch("api_routes.homepage_api.toggle_like", return_value={"success": True, "liked": True, "count": 1}), \

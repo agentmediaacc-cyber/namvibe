@@ -72,6 +72,12 @@
     } catch (_) {}
   }
 
+  function safeReelUrl(reelId) {
+    var id = String(reelId || "").trim();
+    if (!id || id === "None" || id === "null" || id === "undefined") return "/reels/";
+    return "/reels/" + encodeURIComponent(id);
+  }
+
   var likeErrorLogged = false;
   var pendingLikeRequests = Object.create(null);
 
@@ -402,9 +408,9 @@
       html += '<a href="' + profileHref(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
         html += '<img src="' + escapeHtml(avatar) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
-        html += '<span class="nvpro-avatar-initials" style="display:none">' + initial + "</span>";
+        html += '<span class="nvpro-avatar-initials gen-avatar" style="display:none">' + initial + "</span>";
       } else {
-        html += '<span class="nvpro-avatar-initials">' + initial + "</span>";
+        html += '<span class="nvpro-avatar-initials gen-avatar">' + initial + "</span>";
       }
       html += "</a>";
       html += '<div class="nvpro-post-meta">';
@@ -1208,13 +1214,14 @@
 
   function buildMobileViewerSlide(item, index) {
     var followLabel = item.following ? "Following" : "Follow";
+    var creatorInitial = (item.creator_name || item.creator_username || "Creator").charAt(0).toUpperCase();
     return '<section class="nvpro-mobile-reel-slide" data-index="' + index + '" data-video-id="' + escapeHtml(item.id) + '">' +
       '<video src="' + escapeHtml(item.video_url) + '" poster="' + escapeHtml(item.thumbnail_url) + '" playsinline preload="metadata"></video>' +
       '<button type="button" class="nvpro-mobile-reel-hitbox" data-mobile-toggle="' + escapeHtml(item.id) + '" aria-label="Toggle playback"></button>' +
       '<div class="nvpro-mobile-reel-heart" data-mobile-heart="' + escapeHtml(item.id) + '">' + icon("heart") + '</div>' +
       '<div class="nvpro-mobile-reel-buffer" data-mobile-buffer hidden><span class="nvpro-mobile-reel-buffer-spinner"></span></div>' +
       '<div class="nvpro-mobile-reel-rail">' +
-      '<a href="' + profileHref(item.creator_username) + '" class="nvpro-mobile-reel-avatar"><img src="' + escapeHtml(item.creator_avatar) + '" alt=""></a>' +
+      '<a href="' + profileHref(item.creator_username) + '" class="nvpro-mobile-reel-avatar">' + (item.creator_avatar ? '<img src="' + escapeHtml(item.creator_avatar) + '" alt="">' : '<span class="nvpro-avatar-initials gen-avatar">' + escapeHtml(creatorInitial) + '</span>') + '</a>' +
       '<button type="button" class="nvpro-mobile-reel-action" data-action="like" data-id="' + escapeHtml(item.id) + '" data-type="' + escapeHtml(item.type) + '"><span>' + icon("heart") + '</span><strong data-mobile-like-count>' + item.likes_count + '</strong></button>' +
       '<button type="button" class="nvpro-mobile-reel-action" data-mobile-comment-open="' + escapeHtml(item.id) + '"><span>' + icon("comment") + '</span><strong data-mobile-comment-count>' + item.comments_count + '</strong></button>' +
       '<button type="button" class="nvpro-mobile-reel-action" data-action="share" data-id="' + escapeHtml(item.id) + '"><span>' + icon("share") + '</span><strong>' + item.shares_count + '</strong></button>' +
@@ -1616,9 +1623,9 @@
       html += '<a href="' + profileHref(username) + '" class="nvpro-post-avatar">';
       if (avatar) {
         html += '<img src="' + escapeHtml(avatar) + '" alt="" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">';
-        html += '<span class="nvpro-avatar-initials" style="display:none">' + initial + "</span>";
+        html += '<span class="nvpro-avatar-initials gen-avatar" style="display:none">' + initial + "</span>";
       } else {
-        html += '<span class="nvpro-avatar-initials">' + initial + "</span>";
+        html += '<span class="nvpro-avatar-initials gen-avatar">' + initial + "</span>";
       }
       html += "</a>";
       html += '<div class="nvpro-post-meta">';
@@ -1758,9 +1765,9 @@
               '<div class="nvpro-story-ring' + ringCls + '">';
             if (avatar) {
               itemsHtml += '<img src="' + avatar + '" alt="" class="nvpro-story-avatar" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
-                '<span class="nvpro-avatar-initials" style="display:none">' + initial + '</span>';
+                '<span class="nvpro-avatar-initials gen-avatar" style="display:none">' + initial + '</span>';
             } else {
-              itemsHtml += '<span class="nvpro-avatar-initials">' + initial + '</span>';
+              itemsHtml += '<span class="nvpro-avatar-initials gen-avatar">' + initial + '</span>';
             }
             itemsHtml += '</div><span class="nvpro-story-label">' + name.substring(0, 10) + '</span></a>';
           });
@@ -1794,7 +1801,7 @@
             var thumb = r.thumbnail_url || r.media_url || r.public_url || r.image_url || r.video_url || "";
             var name = r.display_name || r.username || "Creator";
             var caption = (r.caption || "").substring(0, 60);
-            rh += '<a href="/reels/' + (r.id || "") + '" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
+            rh += '<a href="' + safeReelUrl(r.id) + '" class="nvpro-reel-card" data-reel-id="' + (r.id || "") + '">' +
               '<div class="nvpro-reel-thumb">';
             if (thumb) {
               rh += '<img src="' + thumb + '" alt="" loading="lazy" onerror="this.parentElement.innerHTML=\'<svg viewBox=\\\'0 0 24 24\\\' fill=\\\'none\\\' stroke=\\\'currentColor\\\' width=\\\'36\\\' height=\\\'36\\\'><polygon points=\\\'23 7 16 12 23 17 23 7\\\'/><rect x=\\\'1\\\' y=\\\'5\\\' width=\\\'15\\\' height=\\\'14\\\' rx=\\\'2\\\' ry=\\\'2\\\'/></svg>\'">';
@@ -1924,10 +1931,11 @@
         var liveBody = liveSection.querySelectorAll(".nvpro-sidebar-row, .nvpro-sidebar-empty");
         liveBody.forEach(function (node) { node.remove(); });
         liveRooms.forEach(function (live) {
+          var liveInitial = (live.creator_name || live.title || "Live").charAt(0).toUpperCase();
           liveSection.insertAdjacentHTML("beforeend",
             '<a class="nvpro-sidebar-row nv-live" href="' + escapeHtml(live.watch_url || ("/live/" + (live.id || ""))) + '">' +
             '<span class="nvpro-live-dot"></span>' +
-            ((live.creator_avatar || "") ? '<img src="' + escapeHtml(live.creator_avatar) + '" alt="" class="nvpro-sidebar-avatar-sm">' : '') +
+            '<span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">' + ((live.creator_avatar || "") ? '<img src="' + escapeHtml(live.creator_avatar) + '" alt="" class="nvpro-sidebar-avatar-sm">' : '<span class="nvpro-avatar-initials gen-avatar">' + escapeHtml(liveInitial) + '</span>') + '</span>' +
             '<div class="nvpro-sidebar-row-info"><strong class="nvpro-sidebar-row-name">' + escapeHtml(live.creator_name || live.title || "Live") + '</strong><span class="nvpro-live-tag">LIVE</span><small class="nv-live-count">' + escapeHtml(String(live.viewer_count || 0)) + ' watching</small></div></a>');
         });
       }
@@ -1956,9 +1964,10 @@
         suggestionsSection.hidden = false;
         suggestionsSection.querySelectorAll(".nvpro-sidebar-row").forEach(function (node) { node.remove(); });
         suggestions.forEach(function (creator) {
+          var creatorInitial = (creator.creator_name || creator.display_name || creator.username || "Creator").charAt(0).toUpperCase();
           suggestionsSection.insertAdjacentHTML("beforeend",
             '<a class="nvpro-sidebar-row nv-chat" href="/profile/" data-nav-url="/profile/' + escapeHtml(creator.creator_username || creator.username || creator.id || "") + '">' +
-            '<span class="nvpro-sidebar-avatar-sm nv-avatar-wrap"><img src="' + escapeHtml(creator.creator_avatar || creator.avatar_url || "/static/img/default-avatar.png") + '" alt=""></span>' +
+            '<span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">' + ((creator.creator_avatar || creator.avatar_url || "") ? '<img src="' + escapeHtml(creator.creator_avatar || creator.avatar_url) + '" alt="" width="34" height="34">' : '<span class="nvpro-avatar-initials gen-avatar">' + escapeHtml(creatorInitial) + '</span>') + '</span>' +
             '<div class="nvpro-sidebar-row-info"><strong class="nvpro-sidebar-row-name">' + escapeHtml(creator.creator_name || creator.display_name || creator.username || "Creator") + '</strong><small>' + escapeHtml(String(creator.followers_count || 0)) + ' followers</small></div></a>');
         });
       }

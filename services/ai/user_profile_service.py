@@ -7,6 +7,7 @@ from services.ai.privacy_guard import sanitize_metadata
 from services.logging_service import log_warning
 from services.neon_service import execute, fetch_one, fetch_all, get_cached_table_columns, table_exists
 from services.profile_service import get_profile_by_id
+from services.id_validation import normalize_uuid
 
 
 def _listify(values, limit=20):
@@ -22,6 +23,7 @@ def _listify(values, limit=20):
 
 
 def get_or_create_ai_user_profile(profile_id):
+    profile_id = normalize_uuid(profile_id)
     if not profile_id:
         return None
     if not table_exists("chain_ai_user_profiles"):
@@ -51,6 +53,9 @@ def get_or_create_ai_user_profile(profile_id):
 
 
 def update_explicit_interests(profile_id, interests):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return []
     cleaned = _listify(interests)
     execute(
         "UPDATE chain_ai_user_profiles SET explicit_interests = %s::jsonb, updated_at = now() WHERE profile_id = %s",
@@ -61,6 +66,9 @@ def update_explicit_interests(profile_id, interests):
 
 
 def update_language_preferences(profile_id, languages):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return []
     cleaned = _listify(languages, limit=10)
     execute(
         "UPDATE chain_ai_user_profiles SET preferred_languages = %s::jsonb, updated_at = now() WHERE profile_id = %s",
@@ -71,6 +79,9 @@ def update_language_preferences(profile_id, languages):
 
 
 def rebuild_inferred_interests(profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return []
     interactions = get_recent_interactions(profile_id, limit=200)
     profile = get_profile_by_id(profile_id) or {}
     counter = Counter()
@@ -100,6 +111,18 @@ def rebuild_inferred_interests(profile_id):
 
 
 def get_recommendation_context(profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return {
+            "profile_id": None,
+            "region": None,
+            "town": None,
+            "explicit_interests": [],
+            "inferred_interests": [],
+            "preferred_languages": [],
+            "preferred_content_types": [],
+            "recommendation_settings": {},
+        }
     ai_profile = get_or_create_ai_user_profile(profile_id) or {}
     profile = get_profile_by_id(profile_id) or {}
     if not ai_profile.get("inferred_interests"):

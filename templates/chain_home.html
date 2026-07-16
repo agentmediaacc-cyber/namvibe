@@ -255,7 +255,11 @@
       <button class="nvpro-story-item nv-story" data-story-id="{{ story.id }}">
         <div class="nvpro-story-ring {% if not story.is_viewed %}is-unseen{% endif %}">
           <span class="nv-avatar-wrap">
-            <img class="nvpro-story-avatar" src="{{ story.avatar_url or story.thumbnail_url or '/static/img/default-avatar.png' }}" alt="" width="48" height="48">
+            {% if story.avatar_url or story.thumbnail_url %}
+            <img class="nvpro-story-avatar" src="{{ story.avatar_url or story.thumbnail_url }}" alt="" width="48" height="48">
+            {% else %}
+            <span class="nvpro-avatar-initials gen-avatar">{{ (story.display_name or story.username or 'User')[:1] }}</span>
+            {% endif %}
             {% if story.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
           </span>
         </div>
@@ -311,7 +315,11 @@
         <div class="nvpro-post-head nv-post-head">
           <a class="nvpro-post-avatar nv-user" href="/profile/" data-nav-url="/profile/{{ item.username or item.id }}" data-profile-preview="{{ item.username or '' }}">
             <span class="nv-avatar-wrap">
-              <img src="{{ item.avatar_url or '/static/img/default-avatar.png' }}" alt="" width="38" height="38" loading="lazy">
+              {% if item.avatar_url %}
+              <img src="{{ item.avatar_url }}" alt="" width="38" height="38" loading="lazy">
+              {% else %}
+              <span class="nvpro-avatar-initials gen-avatar">{{ (item.display_name or item.username or 'User')[:1] }}</span>
+              {% endif %}
               {% if item.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
             </span>
             <div class="nvpro-post-meta">
@@ -441,7 +449,11 @@
       {% for chat in (chats or []) %}
       <a class="nvpro-sidebar-row nv-chat" href="/messages/{{ chat.thread_id or chat.id }}">
         <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
-          <img src="{{ chat.avatar_url or '/static/img/default-avatar.png' }}" alt="" width="34" height="34">
+          {% if chat.avatar_url %}
+          <img src="{{ chat.avatar_url }}" alt="" width="34" height="34">
+          {% else %}
+          <span class="nvpro-avatar-initials gen-avatar">{{ (chat.display_name or chat.name or '?')[:1] }}</span>
+          {% endif %}
           {% if chat.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
         </span>
         <div class="nvpro-sidebar-row-info">
@@ -462,9 +474,13 @@
       {% for live in (live_rooms or []) %}
       <a class="nvpro-sidebar-row nv-live" href="{{ live.watch_url or '/live/' + (live.id|string) }}">
         <span class="nvpro-live-dot"></span>
-        {% if live.creator_avatar %}
-        <img src="{{ live.creator_avatar }}" alt="" class="nvpro-sidebar-avatar-sm" width="34" height="34">
-        {% endif %}
+        <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
+          {% if live.creator_avatar %}
+          <img src="{{ live.creator_avatar }}" alt="" width="34" height="34">
+          {% else %}
+          <span class="nvpro-avatar-initials gen-avatar">{{ (live.creator_name or live.title or 'Live')[:1] }}</span>
+          {% endif %}
+        </span>
         <div class="nvpro-sidebar-row-info">
           <strong class="nvpro-sidebar-row-name">{{ live.creator_name or live.title or 'Live' }}</strong>
           <span class="nvpro-live-tag">LIVE</span>
@@ -495,7 +511,11 @@
       {% for creator in (suggested_creators or suggested_people or []) %}
       <a class="nvpro-sidebar-row nv-chat" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
         <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
-          <img src="{{ creator.avatar_url or creator.profile_photo or '/static/img/default-avatar.png' }}" alt="" width="34" height="34">
+          {% if creator.avatar_url or creator.profile_photo %}
+          <img src="{{ creator.avatar_url or creator.profile_photo }}" alt="" width="34" height="34">
+          {% else %}
+          <span class="nvpro-avatar-initials gen-avatar">{{ (creator.display_name or creator.username or 'Creator')[:1] }}</span>
+          {% endif %}
           {% if creator.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
         </span>
         <div class="nvpro-sidebar-row-info">
@@ -518,7 +538,11 @@
       {% for activity in (friend_activity or [])[:5] %}
       <a class="nvpro-sidebar-row nv-chat" href="{{ activity.action_url or '#' }}">
         <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
-          <img src="{{ activity.actor_avatar or activity.p_avatar_url or '/static/img/default-avatar.png' }}" alt="" width="34" height="34">
+          {% if activity.actor_avatar or activity.p_avatar_url %}
+          <img src="{{ activity.actor_avatar or activity.p_avatar_url }}" alt="" width="34" height="34">
+          {% else %}
+          <span class="nvpro-avatar-initials gen-avatar">{{ (activity.actor_name or activity.p_username or 'Someone')[:1] }}</span>
+          {% endif %}
         </span>
         <div class="nvpro-sidebar-row-info">
           <small>{{ activity.text or activity.p_username or 'Someone' }} did something</small>

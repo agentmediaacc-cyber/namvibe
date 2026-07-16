@@ -21,6 +21,12 @@
   const COMPLETION_THRESHOLD = 0.9;
   const PRELOAD_COUNT = 2;
 
+  function safeReelUrl(reelId) {
+    const id = String(reelId || "").trim();
+    if (!id || id === "None" || id === "null" || id === "undefined") return "/reels/";
+    return `/reels/${encodeURIComponent(id)}`;
+  }
+
   // ── Init ──
   function init() {
     state.viewport = document.getElementById("nv-reels-viewport");
@@ -102,19 +108,19 @@
         ${reel.music_title ? `<div class="nv-reel-music"><i class="fas fa-music"></i> ${escapeHtml(reel.music_title)} ${reel.music_artist ? '· ' + escapeHtml(reel.music_artist) : ''}</div>` : ''}
       </div>
       <div class="nv-reel-actions">
-        <button class="nv-reel-action-btn" data-action="like" data-reel-id="${reel.id}">
+        <button class="nv-reel-action-btn" data-action="like" data-reel-id="${reel.id || ''}" ${reel.id ? '' : 'disabled'}>
           <i class="fas fa-heart${reel.viewer_has_liked ? ' liked' : ''}"></i>
         </button>
         <span class="nv-reel-action-label">${formatCount(reel.likes_count || 0)}</span>
-        <button class="nv-reel-action-btn" data-action="comment" data-reel-id="${reel.id}">
+        <button class="nv-reel-action-btn" data-action="comment" data-reel-id="${reel.id || ''}" ${reel.id ? '' : 'disabled'}>
           <i class="fas fa-comment"></i>
         </button>
         <span class="nv-reel-action-label">${formatCount(reel.comments_count || 0)}</span>
-        <button class="nv-reel-action-btn ${reel.viewer_has_saved ? 'saved' : ''}" data-action="save" data-reel-id="${reel.id}">
+        <button class="nv-reel-action-btn ${reel.viewer_has_saved ? 'saved' : ''}" data-action="save" data-reel-id="${reel.id || ''}" ${reel.id ? '' : 'disabled'}>
           <i class="fas fa-bookmark"></i>
         </button>
         <span class="nv-reel-action-label">${formatCount(reel.saves_count || 0)}</span>
-        <button class="nv-reel-action-btn" data-action="share" data-reel-id="${reel.id}">
+        <button class="nv-reel-action-btn" data-action="share" data-reel-id="${reel.id || ''}" ${reel.id ? '' : 'disabled'}>
           <i class="fas fa-share"></i>
         </button>
       </div>
@@ -476,7 +482,7 @@
       if (!opt) return;
       const rId = opt.dataset.reelId;
       const type = opt.dataset.share;
-      const url = `${window.location.origin}/reels/${rId}`;
+      const url = `${window.location.origin}${safeReelUrl(rId)}`;
       if (type === "link") {
         try {
           await navigator.clipboard.writeText(url);

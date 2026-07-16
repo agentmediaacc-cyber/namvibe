@@ -32,6 +32,12 @@
     initKeyboardNav();
   }
 
+  function safeReelUrl(reelId) {
+    var id = String(reelId || '').trim();
+    if (!id) return '';
+    return window.location.origin + '/reels/' + encodeURIComponent(id);
+  }
+
   /* ================================================================
      Reel Scroll / Navigation
      ================================================================ */
@@ -467,7 +473,7 @@
     if (!overlay) return;
     var urlInput = document.getElementById('tt-share-url');
     if (urlInput) {
-      urlInput.value = window.location.origin + '/reels#reel-' + reelId;
+      urlInput.value = safeReelUrl(reelId);
     }
     overlay.classList.add('is-open');
     document.body.style.overflow = 'hidden';

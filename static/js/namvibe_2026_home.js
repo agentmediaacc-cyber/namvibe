@@ -42,6 +42,12 @@
     initNavActive();
   }
 
+  function safeReelUrl(reelId) {
+    var id = String(reelId || '').trim();
+    if (!id) return '';
+    return window.location.origin + '/reels/' + encodeURIComponent(id);
+  }
+
   /* ================================================================
      TIKTOK FEED — scroll-based reel navigation with snap
      ================================================================ */
@@ -547,7 +553,7 @@
     if (!overlay) return;
     var urlInput = document.getElementById('nv-share-url');
     if (urlInput) {
-      urlInput.value = window.location.origin + '/reels#reel-' + reelId;
+      urlInput.value = safeReelUrl(reelId);
     }
     overlay.classList.add('is-open');
     document.body.style.overflow = 'hidden';

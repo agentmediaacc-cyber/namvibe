@@ -140,15 +140,22 @@ try:
 except Exception as e:
     check("template check", False, str(e))
 
-# ── 10. Generated avatars class present in template ──
+# ── 10. Generated avatar fallback contract ──
 print("\n--- 10. Generated avatars ---")
 try:
     with open("templates/chain_home.html") as f:
         tmpl = f.read()
-    gen_avatar_count = tmpl.count('class="gen-avatar')
-    check("gen-avatar classes found", gen_avatar_count > 5, f"found {gen_avatar_count} instances")
+    with open("static/js/namvibe_home_pro.js") as f:
+        js = f.read()
+    tmpl_gen_avatar_count = len(re.findall(r'\bgen-avatar\b', tmpl))
+    js_gen_avatar_count = len(re.findall(r'\bgen-avatar\b', js))
+    check("template keeps gen-avatar fallback", tmpl_gen_avatar_count > 5, f"found {tmpl_gen_avatar_count} instances")
+    check("homepage JS keeps gen-avatar fallback", js_gen_avatar_count > 2, f"found {js_gen_avatar_count} instances")
+    check("template uses safe avatar fallback markup", 'nvpro-avatar-initials gen-avatar' in tmpl)
+    check("homepage JS uses safe avatar fallback markup", 'nvpro-avatar-initials gen-avatar' in js)
+    check("template keeps profile links", '/profile/' in tmpl)
 except Exception as e:
-    check("gen-avatar classes", False, str(e))
+    check("gen-avatar contract", False, str(e))
 
 # ── Summary ──
 print(f"\n═══ Results: {PASS} passed, {FAIL} failed ═══\n")
