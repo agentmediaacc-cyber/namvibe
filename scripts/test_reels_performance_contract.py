@@ -17,6 +17,9 @@ def assert_true(expr, msg):
 
 
 def main():
+    build_slide = re.search(r"function buildSlide\(item\) \{.*?\n  \}", JS, re.S)
+    assert_true(build_slide is not None, "expected buildSlide renderer")
+    assert_true("innerHTML" not in build_slide.group(0), "expected DOM-building slide renderer without innerHTML in buildSlide")
     assert_true("IntersectionObserver" in JS, "expected IntersectionObserver playback")
     assert_true("__NAMVIBE_REELS_INITIALIZED__" in JS, "expected init guard")
     assert_true("loadObserver" in JS, "expected infinite-load observer")
@@ -24,7 +27,6 @@ def main():
     assert_true("navigator.sendBeacon" in JS and "fetch(" in JS, "expected beacon fallback transport")
     assert_true("saveData" in JS, "expected save-data handling")
     assert_true("visibilitychange" in JS, "expected visibility handling")
-    assert_true("function buildSlide" in JS and "innerHTML" not in JS, "expected DOM-building slide renderer without innerHTML")
     assert_true("data-next-cursor" in TEMPLATE and "data-has-more" in TEMPLATE, "expected cursor bootstrap in template")
     assert_true("SELECT r.*" in SERVICE and "JOIN chain_profiles p ON p.id = r.profile_id" in SERVICE, "expected batched creator join")
     assert_true("fast_query(query, params" in SERVICE, "expected bounded feed query")

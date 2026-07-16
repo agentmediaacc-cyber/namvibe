@@ -13,38 +13,142 @@
 .reels-viewport {
   flex: 1;
   overflow-y: scroll;
+  height: 100vh;
+  height: 100dvh;
   scroll-snap-type: y mandatory;
+  scroll-snap-stop: always;
+  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  background: #000;
 }
 .reels-viewport::-webkit-scrollbar { display: none; }
 
 .reel-slide {
+  height: 100vh;
   height: 100dvh;
+  min-height: 100dvh;
   scroll-snap-align: start;
+  scroll-snap-stop: always;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #000;
+  overflow: hidden;
 }
 
+.reel-media-shell,
 .reel-media-wrap {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  background: #111;
 }
 .reel-video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center center;
+  background: transparent;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+.reel-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 1;
+  background: linear-gradient(135deg, #111827, #000 55%, #111827);
+}
+.reel-poster[loading="lazy"],
+.reel-poster[loading="eager"] {
+  background: #111827;
+}
+.reel-poster-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.85);
+  font-size: clamp(64px, 14vw, 120px);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+}
+.reel-loading,
+.reel-play-retry {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.reel-loading {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.18);
+  border-top-color: rgba(255,255,255,.92);
+  animation: reelSpin 1s linear infinite;
+  opacity: 0;
+  pointer-events: none;
+  background: transparent;
+}
+.reel-slide.is-buffering .reel-loading,
+.reel-slide.is-loading .reel-loading,
+.reel-slide.is-stalled .reel-loading,
+.reel-slide.is-play-blocked .reel-play-retry,
+.reel-slide.has-error .reel-play-retry {
+  opacity: 1;
+  pointer-events: auto;
+}
+.reel-media-shell.has-rendered-frame .reel-video,
+.reel-slide.is-playing .reel-video {
+  opacity: 1;
+}
+.reel-media-shell.has-rendered-frame .reel-poster {
+  opacity: 0;
+  visibility: hidden;
+}
+.reel-slide.is-playing .reel-loading {
+  opacity: 0;
+}
+.reel-play-retry {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: rgba(0,0,0,.7);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  opacity: 0;
+}
+@keyframes reelSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 .reel-no-video {
-  color: #555;
+  position: absolute;
+  inset: 0;
+  color: #bbb;
   text-align: center;
   font-size: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #101018, #050509 60%, #101018);
+  z-index: 1;
 }
 .reel-no-video i { font-size: 48px; margin-bottom: 8px; }
 
@@ -83,8 +187,8 @@
 /* Sidebar actions */
 .reel-sidebar {
   position: absolute;
-  right: 12px;
-  bottom: 140px;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(var(--reels-bottom-ui-height, 140px) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -117,7 +221,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 92px 16px 24px;
+  padding: 92px max(16px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   z-index: 10;
   color: #fff;
 }
@@ -178,8 +282,20 @@
   line-height: 1.4;
   max-height: 3.6em;
   overflow: hidden;
+  margin-right: 84px;
 }
 .reel-caption-user { font-weight: 600; color: #fff; text-decoration: none; margin-right: 4px; }
+
+.reel-slide.is-play-blocked .reel-poster,
+.reel-slide.has-error .reel-poster {
+  opacity: 1;
+}
+
+.reel-slide[data-fit="contain"] .reel-video,
+.reel-slide[data-fit="contain"] .reel-poster {
+  object-fit: contain;
+  background: #000;
+}
 
 /* Drawers */
 .reel-drawer {
@@ -317,4 +433,51 @@
 /* Desktop keyboard hint */
 @media (min-width: 769px) {
   .reel-slide { max-width: 480px; margin: 0 auto; }
+}
+
+.reel-auth-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+}
+
+.reel-auth-prompt[hidden] {
+  display: none;
+}
+
+.reel-auth-prompt__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 8, 16, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.reel-auth-prompt__card {
+  position: relative;
+  width: min(92vw, 420px);
+  border-radius: 22px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, rgba(20, 20, 30, 0.98), rgba(12, 12, 20, 0.98));
+  color: #fff;
+  padding: 24px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+}
+
+.reel-auth-prompt__card h2 {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+}
+
+.reel-auth-prompt__card p {
+  margin: 0 0 18px;
+  color: rgba(255,255,255,0.78);
+  line-height: 1.45;
+}
+
+.reel-auth-prompt__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }

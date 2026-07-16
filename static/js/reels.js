@@ -8,6 +8,7 @@
   if (!viewport) return;
 
   const statusEl = document.getElementById('reels-feed-status');
+  const emptyStateEl = qs('.reels-empty', viewport);
   const slides = new Set();
   const seenIds = new Set();
   const controller = {
@@ -26,8 +27,15 @@
     mountedLimit: 24,
     pageVisible: document.visibilityState !== 'hidden',
     networkOffline: !navigator.onLine,
-    fetchPageOneGuard: true
+    fetchPageOneGuard: true,
+    lastPlayError: null,
+    initialServerItemCount: qsa('.reel-slide', viewport).length,
+    firstPageRequested: false,
+    firstPageStatus: 0,
+    firstPageItemCount: 0,
+    emptyStateVisible: !!emptyStateEl
   };
+  let scrollUpdateRaf = 0;
 
   function qs(sel, root = document) { return root.querySelector(sel); }
   function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
@@ -45,6 +53,37 @@
       return '';
     }
   }
+  function safeReelUrl(reelId) {
+    const id = String(reelId || '').trim();
+    if (!id) return '';
+    return `${window.location.origin}/reels/${encodeURIComponent(id)}`;
+  }
+  function scheduleActiveSlideUpdate() {
+    if (scrollUpdateRaf) return;
+    scrollUpdateRaf = window.requestAnimationFrame(() => {
+      scrollUpdateRaf = 0;
+      updateActiveSlideFromViewport();
+    });
+  }
+  function updateActiveSlideFromViewport() {
+    if (!slides.size) return;
+    const viewportRect = viewport.getBoundingClientRect();
+    const centerY = viewportRect.top + viewportRect.height * 0.5;
+    let bestSlide = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    slides.forEach(slide => {
+      if (!slide || !document.contains(slide)) return;
+      const rect = slide.getBoundingClientRect();
+      if (rect.bottom < viewportRect.top || rect.top > viewportRect.bottom) return;
+      const slideCenter = rect.top + rect.height * 0.5;
+      const distance = Math.abs(slideCenter - centerY);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestSlide = slide;
+      }
+    });
+    if (bestSlide && bestSlide !== controller.activeSlide) updateActiveState(bestSlide);
+  }
   function toast(msg) {
     if (window.NamVibeToast && typeof window.NamVibeToast.show === 'function') {
       window.NamVibeToast.show(msg);
@@ -52,10 +91,135 @@
     }
     console.log(msg);
   }
+  function ensureAuthPrompt() {
+    let modal = document.getElementById('reel-auth-prompt');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'reel-auth-prompt';
+    modal.className = 'reel-auth-prompt';
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div class="reel-auth-prompt__backdrop" data-auth-close></div>
+      <div class="reel-auth-prompt__card" role="dialog" aria-modal="true" aria-labelledby="reel-auth-title">
+        <h2 id="reel-auth-title">Join NamVibe to connect</h2>
+        <p>Watch public reels freely. Sign in or create an account to like, comment, save, follow, or message.</p>
+        <div class="reel-auth-prompt__actions">
+          <a class="px-btn px-btn--gold" data-auth-login href="/auth/login">Log in</a>
+          <a class="px-btn px-btn--outline" data-auth-register href="/auth/register">Create account</a>
+          <button type="button" class="px-btn px-btn--ghost" data-auth-close>Not now</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (event) => {
+      if (event.target.closest('[data-auth-close]')) {
+        modal.hidden = true;
+      }
+    });
+    return modal;
+  }
+  function showAuthPrompt(loginUrl, registerUrl) {
+    const modal = ensureAuthPrompt();
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    const login = modal.querySelector('[data-auth-login]');
+    const register = modal.querySelector('[data-auth-register]');
+    if (login) login.href = loginUrl || `/auth/login?next=${encodeURIComponent(current)}`;
+    if (register) register.href = registerUrl || `/auth/register?next=${encodeURIComponent(current)}`;
+    modal.hidden = false;
+    const focusable = modal.querySelector('a,button');
+    if (focusable) focusable.focus();
+  }
+  function handleAuthResponse(data) {
+    const error = data && (data.error || data.message || '');
+    const isAuth = String(error).toLowerCase().includes('auth') || error === 'authentication_required';
+    if (isAuth) {
+      showAuthPrompt(data.login_url, data.register_url);
+      return true;
+    }
+    return false;
+  }
   function setStatus(msg, show) {
     if (!statusEl) return;
     statusEl.hidden = !show;
     statusEl.textContent = msg || '';
+  }
+
+  function getFeedItems(payload) {
+    if (Array.isArray(payload && payload.items)) return payload.items;
+    if (Array.isArray(payload && payload.reels)) return payload.reels;
+    return [];
+  }
+
+  function setLoadingShell(message) {
+    if (emptyStateEl) {
+      emptyStateEl.hidden = false;
+      emptyStateEl.style.display = 'grid';
+      emptyStateEl.setAttribute('aria-hidden', 'false');
+      const title = qs('h2', emptyStateEl);
+      const body = qs('p', emptyStateEl);
+      const action = qs('a', emptyStateEl);
+      if (title) title.textContent = message || 'Loading Reels…';
+      if (body) body.textContent = 'Fetching public Reels.';
+      if (action) {
+        action.textContent = 'Upload Reel';
+        action.href = '/reels/upload';
+        action.onclick = null;
+      }
+    }
+    setStatus(message || 'Loading Reels…', true);
+    controller.emptyStateVisible = true;
+  }
+
+  function showGenuineEmptyState() {
+    if (emptyStateEl) {
+      emptyStateEl.hidden = false;
+      emptyStateEl.style.display = 'grid';
+      emptyStateEl.setAttribute('aria-hidden', 'false');
+      const title = qs('h2', emptyStateEl);
+      const body = qs('p', emptyStateEl);
+      const action = qs('a', emptyStateEl);
+      if (title) title.textContent = 'No reels yet';
+      if (body) body.textContent = 'Be the first to share a short video on NamVibe.';
+      if (action) {
+        action.textContent = 'Upload Reel';
+        action.href = '/reels/upload';
+        action.onclick = null;
+      }
+    }
+    setStatus('', false);
+    controller.emptyStateVisible = true;
+  }
+
+  function showLoadErrorState(message) {
+    if (emptyStateEl) {
+      emptyStateEl.hidden = false;
+      emptyStateEl.style.display = 'grid';
+      emptyStateEl.setAttribute('aria-hidden', 'false');
+      const title = qs('h2', emptyStateEl);
+      const body = qs('p', emptyStateEl);
+      const action = qs('a', emptyStateEl);
+      if (title) title.textContent = 'Reels could not load.';
+      if (body) body.textContent = message || 'Tap retry to try again.';
+      if (action) {
+        action.textContent = 'Retry';
+        action.href = '#';
+        action.onclick = (event) => {
+          event.preventDefault();
+          loadFirstPage({ force: true });
+        };
+      }
+    }
+    setStatus(message || 'Reels could not load. Tap to retry.', true);
+    controller.emptyStateVisible = true;
+  }
+
+  function hideEmptyState() {
+    if (emptyStateEl) {
+      emptyStateEl.hidden = true;
+      emptyStateEl.style.display = 'none';
+      emptyStateEl.setAttribute('aria-hidden', 'true');
+    }
+    setStatus('', false);
+    controller.emptyStateVisible = false;
   }
 
   function csrfToken() {
@@ -93,11 +257,28 @@
     return slide ? qs('.reel-video', slide) : null;
   }
 
+  function mediaShellFor(slide) {
+    return slide ? qs('.reel-media-shell', slide) : null;
+  }
+
+  function posterFor(slide) {
+    return slide ? qs('.reel-poster', slide) : null;
+  }
+
+  function loadingFor(slide) {
+    return slide ? qs('.reel-loading', slide) : null;
+  }
+
+  function retryFor(slide) {
+    return slide ? qs('.reel-play-retry', slide) : null;
+  }
+
   function setMuted(muted) {
     controller.muted = !!muted;
     sessionStorage.setItem('namvibe_reels_muted', controller.muted ? 'true' : 'false');
     qsa('.reel-video', viewport).forEach(v => { v.muted = controller.muted; });
     updateMuteButtons();
+    updateDebugState();
   }
 
   function updateMuteButtons() {
@@ -112,6 +293,7 @@
     controller.activeSlide = slide;
     const video = videoFor(slide);
     if (!video) return;
+    controller.activeVideo = video;
     qsa('.reel-video', viewport).forEach(v => {
       if (v !== video) {
         v.pause();
@@ -119,31 +301,123 @@
         v.preload = controller.networkOffline || navigator.connection?.saveData ? 'metadata' : 'none';
       }
     });
+    if (video.readyState === 0) video.load();
     video.preload = 'auto';
     video.muted = controller.muted;
+    video.defaultMuted = controller.muted;
+    video.playsInline = true;
+    video.setAttribute('muted', '');
+    slide.classList.add('is-loading');
+    slide.classList.remove('has-error', 'is-play-blocked');
     attemptPlay(video, slide);
     controller.currentIndex = Array.from(slides).indexOf(slide);
     updatePreloadWindow();
     startProgressLoop();
+    updateDebugState();
   }
 
-  function attemptPlay(video, slide) {
+  async function attemptPlay(video, slide) {
     if (!video) return;
     if (!controller.pageVisible) return;
     if (controller.openPanel) return;
-    if (video.readyState < 2) video.preload = 'auto';
-    const p = video.play();
-    if (p && typeof p.catch === 'function') {
-      p.catch(() => {
-        slide.dataset.playBlocked = 'true';
-        showTapToPlay(slide, true);
-      });
+    if (video.readyState === 0) video.load();
+    controller.lastPlayError = null;
+    showTapToPlay(slide, false);
+    if (controller.muted !== true && sessionStorage.getItem('namvibe_reels_muted') !== 'false') {
+      setMuted(true);
     }
+    video.muted = controller.muted;
+    video.defaultMuted = controller.muted;
+    try {
+      await video.play();
+      slide.classList.add('is-playing');
+      slide.classList.remove('is-buffering', 'is-stalled', 'is-play-blocked', 'has-error', 'is-loading');
+      await waitForRenderedFrame(video, slide);
+      markRenderedFrame(slide);
+      showTapToPlay(slide, false);
+    } catch (error) {
+      controller.lastPlayError = String(error && error.message ? error.message : error || 'play_failed');
+      if (!controller.muted) {
+        setMuted(true);
+        try {
+          await video.play();
+          slide.classList.add('is-playing');
+          slide.classList.remove('is-buffering', 'is-stalled', 'is-play-blocked', 'has-error', 'is-loading');
+          await waitForRenderedFrame(video, slide);
+          markRenderedFrame(slide);
+          showTapToPlay(slide, false);
+          updateDebugState();
+          return;
+        } catch (secondError) {
+          controller.lastPlayError = String(secondError && secondError.message ? secondError.message : secondError || 'play_failed');
+        }
+      }
+      slide.dataset.playBlocked = 'true';
+      slide.classList.add('is-play-blocked');
+      showTapToPlay(slide, true);
+    }
+    updateDebugState();
   }
 
   function showTapToPlay(slide, on) {
     if (!slide) return;
     slide.classList.toggle('is-play-blocked', !!on);
+    const retry = retryFor(slide);
+    if (retry) retry.hidden = !on;
+    const loading = loadingFor(slide);
+    if (loading) loading.hidden = !!on;
+    const shell = mediaShellFor(slide);
+    if (shell && on) shell.classList.remove('has-rendered-frame');
+  }
+
+  function markRenderedFrame(slide) {
+    if (!slide) return;
+    const video = videoFor(slide);
+    const shell = mediaShellFor(slide);
+    if (!video || !shell) return;
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
+      shell.classList.add('has-rendered-frame');
+      slide.classList.remove('is-loading');
+      showTapToPlay(slide, false);
+    }
+  }
+
+  function waitForRenderedFrame(video, slide, timeoutMs = 5000) {
+    if (!video || !slide) return Promise.resolve(null);
+    if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      markRenderedFrame(slide);
+      return Promise.resolve({ width: video.videoWidth, height: video.videoHeight, currentTime: video.currentTime });
+    }
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timer = window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        reject(new Error('No rendered video frame'));
+      }, timeoutMs);
+      const finish = (metadata) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(metadata);
+      };
+      const onReady = () => {
+        if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          markRenderedFrame(slide);
+          finish({ width: video.videoWidth, height: video.videoHeight, currentTime: video.currentTime });
+        }
+      };
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        video.requestVideoFrameCallback((_now, metadata) => {
+          markRenderedFrame(slide);
+          finish(metadata);
+        });
+        return;
+      }
+      video.addEventListener('timeupdate', onReady);
+      video.addEventListener('loadeddata', onReady, { once: true });
+      video.addEventListener('playing', onReady, { once: true });
+    });
   }
 
   function updatePreloadWindow() {
@@ -161,6 +435,9 @@
       else video.preload = saveData ? 'none' : 'metadata';
     });
   }
+
+  viewport.addEventListener('scroll', scheduleActiveSlideUpdate, { passive: true });
+  window.addEventListener('resize', scheduleActiveSlideUpdate, { passive: true });
 
   function startProgressLoop() {
     if (controller.progressRaf) return;
@@ -220,17 +497,42 @@
     const reelId = reelIdFor(slide);
     if (reelId) seenIds.add(reelId);
     const video = videoFor(slide);
+    const retry = retryFor(slide);
     if (video) {
       video.preload = 'metadata';
       video.muted = controller.muted;
+      video.defaultMuted = controller.muted;
       video.setAttribute('playsinline', '');
       video.setAttribute('webkit-playsinline', '');
-      video.addEventListener('waiting', () => slide.classList.add('is-buffering'));
-      video.addEventListener('playing', () => slide.classList.remove('is-buffering', 'is-play-blocked'));
-      video.addEventListener('stalled', () => slide.classList.add('is-stalled'));
-      video.addEventListener('error', () => slide.classList.add('has-error'));
+      video.setAttribute('muted', '');
+      video.setAttribute('disablepictureinpicture', '');
+      video.setAttribute('controlslist', 'nodownload noplaybackrate');
+      video.addEventListener('loadedmetadata', () => slide.classList.remove('is-loading'));
+      video.addEventListener('loadeddata', () => {
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) slide.classList.remove('is-loading');
+      });
+      video.addEventListener('canplay', () => {
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) slide.classList.remove('is-loading');
+      });
+      video.addEventListener('waiting', () => { slide.classList.add('is-buffering'); slide.classList.remove('is-playing'); });
+      video.addEventListener('playing', () => { slide.classList.add('is-playing'); slide.classList.remove('is-buffering', 'is-stalled', 'is-play-blocked', 'has-error', 'is-loading'); markRenderedFrame(slide); });
+      video.addEventListener('stalled', () => { slide.classList.add('is-stalled'); slide.classList.remove('is-playing'); showTapToPlay(slide, true); });
+      video.addEventListener('error', () => { slide.classList.add('has-error'); slide.classList.remove('is-playing', 'is-loading'); showTapToPlay(slide, true); controller.lastPlayError = 'media_error'; updateDebugState(); });
+      video.addEventListener('emptied', () => { slide.classList.remove('is-playing'); slide.classList.add('is-loading'); });
       video.addEventListener('ended', () => {
         sendTelemetry(`/reels/api/reels/${reelId}/event`, { event_type: 'complete', watch_ms: Math.round((video.currentTime || 0) * 1000) });
+      });
+    }
+    if (retry) {
+      retry.hidden = true;
+      retry.addEventListener('click', () => {
+        showTapToPlay(slide, false);
+        if (video) {
+          if (video.readyState === 0) video.load();
+          video.muted = true;
+          setMuted(true);
+          attemptPlay(video, slide);
+        }
       });
     }
     if (slide.classList.contains('is-active')) updateActiveState(slide);
@@ -362,14 +664,13 @@
     if (controller.loadingMore || !controller.hasMore || !controller.nextCursor || controller.networkOffline) return;
     controller.loadingMore = true;
     setStatus('Loading more reels...', true);
-    const url = `/reels/api/reels/feed?limit=5&cursor=${encodeURIComponent(controller.nextCursor)}`;
-    fetch(url, { credentials: 'same-origin' })
+    fetchFeedPage(controller.nextCursor)
       .then(r => {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
       .then(data => {
-        const items = Array.isArray(data.items) ? data.items : Array.isArray(data.reels) ? data.reels : [];
+        const items = getFeedItems(data);
         const filtered = items.filter(item => item && item.id && !seenIds.has(item.id));
         if (filtered.length) appendSlides(filtered);
         controller.nextCursor = data.next_cursor || null;
@@ -384,8 +685,63 @@
       });
   }
 
+  function fetchFeedPage(cursor) {
+    const url = cursor
+      ? `/reels/api/reels/feed?limit=5&cursor=${encodeURIComponent(cursor)}`
+      : '/reels/api/reels/feed?limit=5';
+    return fetch(url, { credentials: 'same-origin' });
+  }
+
+  async function loadFirstPage(opts = {}) {
+    const force = !!opts.force;
+    if (controller.loadingMore) return null;
+    if (controller.firstPageRequested && !force) return null;
+    controller.firstPageRequested = true;
+    controller.fetchPageOneGuard = false;
+    controller.firstPageStatus = 0;
+    controller.firstPageItemCount = 0;
+    controller.loadingMore = true;
+    setLoadingShell('Loading Reels…');
+    try {
+      const response = await fetchFeedPage(null);
+      controller.firstPageStatus = response.status;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const payload = await response.json();
+      const items = getFeedItems(payload).filter(item => item && item.id && !seenIds.has(item.id));
+      controller.firstPageItemCount = items.length;
+      controller.nextCursor = payload.next_cursor || null;
+      controller.hasMore = !!payload.has_more && !!controller.nextCursor;
+      if (items.length) {
+        hideEmptyState();
+        appendSlides(items);
+        requestAnimationFrame(() => {
+          const first = Array.from(slides)[0];
+          if (first) updateActiveState(first);
+        });
+      } else {
+        if (controller.hasMore) {
+          hideEmptyState();
+        } else {
+          showGenuineEmptyState();
+        }
+      }
+      updateDebugState();
+      return payload;
+    } catch (error) {
+      controller.lastPlayError = String(error && error.message ? error.message : error || 'feed_failed');
+      showLoadErrorState('Reels could not load. Tap to retry.');
+      updateDebugState();
+      return null;
+    } finally {
+      controller.loadingMore = false;
+    }
+  }
+
   function appendSlides(items) {
     const anchor = qs('#reels-feed-end');
+    if (items.length) hideEmptyState();
     items.forEach(item => {
       const slide = buildSlide(item);
       if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(slide, anchor);
@@ -423,22 +779,45 @@
     slide.dataset.creatorId = item.creator_id || item.profile_id || '';
     slide.dataset.visibilityScore = '1';
     const mediaWrap = document.createElement('div');
-    mediaWrap.className = 'reel-media-wrap';
+    mediaWrap.className = 'reel-media-shell';
+    const poster = document.createElement(item.thumbnail_url ? 'img' : 'div');
+    if (item.thumbnail_url) {
+      poster.className = 'reel-poster';
+      poster.alt = '';
+      poster.setAttribute('aria-hidden', 'true');
+      poster.src = item.thumbnail_url;
+    } else {
+      poster.className = 'reel-poster reel-poster-fallback';
+      poster.setAttribute('aria-hidden', 'true');
+      poster.dataset.reelFallback = (item.creator_username || item.username || item.id || 'R').charAt(0).toUpperCase();
+      const fallback = document.createElement('span');
+      fallback.textContent = escText((item.creator_username || item.username || item.id || 'R').charAt(0).toUpperCase());
+      poster.appendChild(fallback);
+    }
+    mediaWrap.appendChild(poster);
     if (item.video_url) {
       const video = document.createElement('video');
       video.className = 'reel-video';
       video.src = item.video_url;
       if (item.thumbnail_url) video.poster = item.thumbnail_url;
       video.preload = 'metadata';
-      video.autoplay = true;
       video.loop = true;
       video.playsInline = true;
+      video.autoplay = true;
       video.muted = controller.muted;
+      video.defaultMuted = controller.muted;
       video.setAttribute('webkit-playsinline', '');
       video.setAttribute('controlslist', 'nodownload noplaybackrate');
       video.setAttribute('disablepictureinpicture', '');
       video.setAttribute('oncontextmenu', 'return false');
       mediaWrap.appendChild(video);
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'reel-play-retry';
+      retry.hidden = true;
+      retry.textContent = 'Tap to play';
+      retry.setAttribute('aria-label', 'Tap to play reel');
+      mediaWrap.appendChild(retry);
     } else {
       const noVideo = document.createElement('div');
       noVideo.className = 'reel-no-video';
@@ -451,12 +830,15 @@
     }
     const gradient = document.createElement('div');
     gradient.className = 'reel-gradient-bottom';
+    const loading = document.createElement('div');
+    loading.className = 'reel-loading';
+    loading.setAttribute('aria-hidden', 'true');
     const heart = document.createElement('div');
     heart.className = 'double-tap-heart';
     const heartIcon = document.createElement('i');
     heartIcon.className = 'fas fa-heart';
     heart.appendChild(heartIcon);
-    mediaWrap.append(gradient, heart);
+    mediaWrap.append(loading, gradient, heart);
     slide.appendChild(mediaWrap);
 
     const sidebar = document.createElement('div');
@@ -562,7 +944,7 @@
         }
       });
       if (best && best.slide !== controller.activeSlide) updateActiveState(best.slide);
-    }, { threshold: [0, 0.25, 0.6, 0.75, 1] });
+    }, { threshold: [0.6, 0.75, 0.9] });
     qsa('.reel-slide', viewport).forEach(slide => {
       if (!slide.__reelsObserved) {
         slide.__reelsObserved = true;
@@ -614,6 +996,9 @@
     fetch(`/reels/api/reels/${reelId}/like`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() }, credentials: 'same-origin' })
       .then(r => r.json())
       .then(data => {
+        if (data && handleAuthResponse(data)) {
+          throw new Error('authentication_required');
+        }
         if (!data.success) throw new Error(data.error || 'like_failed');
         btn.classList.toggle('is-active', !!data.liked);
         if (countEl && typeof data.count === 'number') countEl.textContent = data.count;
@@ -635,6 +1020,9 @@
     fetch(`/reels/api/reels/${reelId}/save`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() }, credentials: 'same-origin' })
       .then(r => r.json())
       .then(data => {
+        if (data && handleAuthResponse(data)) {
+          throw new Error('authentication_required');
+        }
         if (!data.success) throw new Error(data.error || 'save_failed');
         btn.classList.toggle('is-active', !!data.saved);
         syncVisibleCount(reelId, 'save', data.count, !!data.saved);
@@ -652,6 +1040,9 @@
     fetch(`/api/home/follow/${creatorId}`, { method: 'POST', headers: { 'X-CSRFToken': csrfToken() }, credentials: 'same-origin' })
       .then(r => r.json())
       .then(data => {
+        if (data && handleAuthResponse(data)) {
+          throw new Error('authentication_required');
+        }
         if (!data.success && !data.following) throw new Error('follow_failed');
         btn.textContent = 'Following';
         toast('Following creator');
@@ -662,7 +1053,8 @@
 
   function openShare(slide, btn, reelId) {
     pauseActive('share');
-    const url = `${window.location.origin}/reels/${reelId}`;
+    const url = safeReelUrl(reelId);
+    if (!url) return;
     if (navigator.share) {
       navigator.share({ title: 'NamVibe Reel', url }).catch(() => {});
       return;
@@ -697,6 +1089,9 @@
     })
       .then(r => r.json())
       .then(data => {
+        if (data && handleAuthResponse(data)) {
+          throw new Error('authentication_required');
+        }
         if (!data.success || !data.comment) throw new Error('comment_failed');
         input.value = '';
         renderComment(data.comment, reelId);
@@ -781,7 +1176,8 @@
     const copy = qs('[data-copy-link]');
     if (copy) copy.addEventListener('click', function () {
       const reelId = this.closest('.reel-drawer')?.dataset?.reelId;
-      const url = `${window.location.origin}/reels/${reelId}`;
+      const url = safeReelUrl(reelId);
+      if (!url) return;
       navigator.clipboard?.writeText(url).then(() => {
         this.textContent = 'Copied!';
         toast('Link copied');
@@ -871,7 +1267,10 @@
     if (first) {
       first.scrollIntoView({ behavior: 'auto', block: 'start' });
       updateActiveState(first);
+    } else {
+      loadFirstPage();
     }
+    updateDebugState();
   }
 
   init();
@@ -882,7 +1281,33 @@
       seen: seenIds.size,
       active: reelIdFor(controller.activeSlide),
       hasMore: controller.hasMore,
-      nextCursor: controller.nextCursor
+      nextCursor: controller.nextCursor,
+      initialServerItemCount: controller.initialServerItemCount,
+      firstPageRequested: controller.firstPageRequested,
+      firstPageStatus: controller.firstPageStatus,
+      firstPageItemCount: controller.firstPageItemCount,
+      emptyStateVisible: controller.emptyStateVisible
     })
   };
+
+  function updateDebugState() {
+    if (!window.__NAMVIBE_REELS_BROWSER_DEBUG__ && !window.__NAMVIBE_REELS_DEBUG__) return;
+    const slide = controller.activeSlide;
+    const video = videoFor(slide);
+    window.__NAMVIBE_REELS_DEBUG__ = {
+      activeReelId: reelIdFor(slide),
+      mountedSlides: slides.size,
+      playingVideos: qsa('.reel-video', viewport).filter(v => !v.paused && !v.ended && v.readyState > 2).length,
+      lastPlayError: controller.lastPlayError,
+      activeReadyState: video ? video.readyState : 0,
+      activeNetworkState: video ? video.networkState : 0,
+      activeMuted: video ? !!video.muted : controller.muted,
+      activeVideoSrc: video ? video.currentSrc || video.src || '' : '',
+      initialServerItemCount: controller.initialServerItemCount,
+      firstPageRequested: controller.firstPageRequested,
+      firstPageStatus: controller.firstPageStatus,
+      firstPageItemCount: controller.firstPageItemCount,
+      emptyStateVisible: controller.emptyStateVisible
+    };
+  }
 })();

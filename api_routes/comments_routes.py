@@ -7,6 +7,21 @@ from services.comments_service import (
 )
 from services.engagement_service import add_comment as add_engagement_comment
 from services.ai.interaction_service import track_interaction_safe
+from flask import request
+
+
+def _auth_required_response(content_type=None, content_id=None):
+    next_url = request.referrer or request.path
+    if content_type == "reel" and content_id:
+        next_url = f"/reels/{content_id}"
+    return jsonify({
+        "ok": False,
+        "error": "authentication_required",
+        "message": "Authentication required",
+        "login_url": f"/auth/login?next={next_url}",
+        "register_url": f"/auth/register?next={next_url}",
+        "next": next_url,
+    }), 401
 
 comments_bp = Blueprint("comments", __name__, url_prefix="/api/comments")
 
@@ -47,7 +62,7 @@ def api_add(content_type, content_id):
     profile = get_current_profile()
     user_id = (profile or {}).get("id")
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return _auth_required_response(content_type, content_id)
     data = request.get_json(silent=True) or {}
     body = (
         data.get("body")
@@ -99,7 +114,7 @@ def api_reply(comment_id):
     profile = get_current_profile()
     user_id = (profile or {}).get("id")
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return _auth_required_response("comment", comment_id)
     data = request.get_json(silent=True) or {}
     body = data.get("body", "")
     comment_id = add_comment_record("reply", comment_id, user_id, body, parent_id=comment_id)
@@ -112,7 +127,7 @@ def api_react(comment_id):
     profile = get_current_profile()
     user_id = (profile or {}).get("id")
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return _auth_required_response("comment", comment_id)
     data = request.get_json(silent=True) or {}
     reaction_type = data.get("reaction_type", "like")
     result = react_to_comment(comment_id, user_id, reaction_type)
@@ -123,7 +138,7 @@ def api_edit(comment_id):
     profile = get_current_profile()
     user_id = (profile or {}).get("id")
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return _auth_required_response("comment", comment_id)
     data = request.get_json(silent=True) or {}
     body = data.get("body", "")
     if edit_comment(comment_id, user_id, body):
@@ -135,7 +150,7 @@ def api_delete(comment_id):
     profile = get_current_profile()
     user_id = (profile or {}).get("id")
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        return _auth_required_response("comment", comment_id)
     is_admin = profile.get("is_admin", False) or profile.get("role") == "admin"
     delete_comment(comment_id, user_id, is_admin=is_admin)
     return jsonify({"success": True}), 200

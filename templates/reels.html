@@ -1,25 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Reels | NamVibe{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/reels.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reels.css') }}?v=20260714-1">
 {% endblock %}
 {% block content %}
 <main id="reels-app" class="reels-fullscreen">
   <div id="reels-viewport" class="reels-viewport" data-next-cursor="{{ next_cursor or '' }}" data-has-more="{{ 'true' if next_cursor else 'false' }}">
     {% if reels %}
       {% for reel in reels %}
-      <section class="reel-slide" data-reel-id="{{ reel.id }}" data-index="{{ loop.index0 }}" data-creator-id="{{ reel.creator_id or reel.profile_id }}">
-        <div class="reel-media-wrap">
+      <section class="reel-slide" data-reel-id="{{ reel.id if reel.id else '' }}" data-index="{{ loop.index0 }}" data-creator-id="{{ reel.creator_id or reel.profile_id }}">
+        <div class="reel-media-shell">
+          {% if reel.thumbnail_url %}
+          <img class="reel-poster" src="{{ reel.thumbnail_url }}" alt="" aria-hidden="true" decoding="async" {% if loop.index0 == 0 %}fetchpriority="high" loading="eager"{% else %}loading="lazy"{% endif %}>
+          {% else %}
+          <div class="reel-poster reel-poster-fallback" aria-hidden="true" data-reel-fallback="{{ (reel.creator_username or reel.username or reel.id or 'R')[:1]|upper }}">
+            <span>{{ (reel.creator_username or reel.username or reel.id or 'R')[:1]|upper }}</span>
+          </div>
+          {% endif %}
           {% if reel.video_url %}
-          <video class="reel-video" src="{{ reel.video_url }}" poster="{{ reel.thumbnail_url or '' }}" preload="metadata" autoplay loop playsinline webkit-playsinline muted controlslist="nodownload noplaybackrate" disablepictureinpicture oncontextmenu="return false"></video>
+          <video class="reel-video" preload="metadata" loop playsinline webkit-playsinline muted controlslist="nodownload noplaybackrate" disablepictureinpicture oncontextmenu="return false">
+            <source src="{{ reel.video_url }}" type="video/mp4">
+          </video>
+          <button type="button" class="reel-play-retry" aria-label="Tap to play reel" hidden>Tap to play</button>
           {% else %}
           <div class="reel-no-video"><i class="fas fa-film"></i><p>Video unavailable</p></div>
           {% endif %}
+          <div class="reel-loading" aria-hidden="true"></div>
           <div class="reel-gradient-bottom"></div>
           <div class="double-tap-heart"><i class="fas fa-heart"></i></div>
         </div>
         <div class="reel-sidebar">
-          <button class="reel-action-btn" data-like data-reel-id="{{ reel.id }}" aria-label="Like">
+          <button class="reel-action-btn" data-like data-reel-id="{{ reel.id if reel.id else '' }}" aria-label="Like" {% if not reel.id %}disabled{% endif %}>
             <i class="fas fa-heart"></i>
             <span class="reel-count" id="reel-likes-{{ reel.id }}">{{ reel.likes_count or 0 }}</span>
           </button>
@@ -27,11 +38,11 @@
             <i class="fas fa-comment"></i>
             <span class="reel-count" id="reel-comments-{{ reel.id }}">{{ reel.comments_count or 0 }}</span>
           </button>
-          <button class="reel-action-btn" data-save data-reel-id="{{ reel.id }}" aria-label="Save">
+          <button class="reel-action-btn" data-save data-reel-id="{{ reel.id if reel.id else '' }}" aria-label="Save" {% if not reel.id %}disabled{% endif %}>
             <i class="fas fa-bookmark"></i>
             <span class="reel-count">Save</span>
           </button>
-          <button class="reel-action-btn" data-share data-reel-id="{{ reel.id }}" aria-label="Share">
+          <button class="reel-action-btn" data-share data-reel-id="{{ reel.id if reel.id else '' }}" aria-label="Share" {% if not reel.id %}disabled{% endif %}>
             <i class="fas fa-share"></i>
             <span class="reel-count">Share</span>
           </button>
@@ -55,11 +66,11 @@
               <span class="reel-music">{{ (reel.music.title if reel.music else reel.music_title) or 'Original Audio' }}</span>
             </div>
             {% if profile %}
-            <button class="reel-follow-btn" data-follow data-creator-id="{{ reel.profile_id }}"
+            <button class="reel-follow-btn" data-follow data-creator-id="{{ reel.profile_id if reel.profile_id else '' }}"
               {% if follow_map and follow_map.get(reel.profile_id) %}style="display:none"{% endif %}>
               Follow
             </button>
-            <button class="reel-following-btn" data-following data-creator-id="{{ reel.profile_id }}"
+            <button class="reel-following-btn" data-following data-creator-id="{{ reel.profile_id if reel.profile_id else '' }}"
               {% if not follow_map or not follow_map.get(reel.profile_id) %}style="display:none"{% endif %}>
               Following
             </button>
@@ -75,8 +86,8 @@
     {% else %}
     <div class="reels-empty">
       <i class="fas fa-film"></i>
-      <h2>No reels yet</h2>
-      <p>Be the first to share a short video on NamVibe.</p>
+      <h2>Loading Reels…</h2>
+      <p>Fetching public Reels.</p>
       <a href="{{ url_for('reels.upload') }}" class="px-btn px-btn--gold">Upload Reel</a>
     </div>
     {% endif %}
@@ -112,5 +123,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/reels.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reel_auth_prompt.js') }}?v=20260715-1"></script>
+<script>window.__NAMVIBE_REELS_BROWSER_DEBUG__ = true;</script>
+<script src="{{ url_for('static', filename='js/reels.js') }}?v=20260714-1"></script>
 {% endblock %}

@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT))
 
 from services.reels_serialization_service import serialize_reel, serialize_reels
 
+VIEWER_ID = "11111111-1111-1111-1111-111111111111"
 
 def check(name, cond, detail=""):
     if cond:
@@ -20,7 +21,7 @@ def check(name, cond, detail=""):
 
 row = {
     "id": "reel-1",
-    "profile_id": "prof-1",
+    "profile_id": "11111111-1111-1111-1111-111111111111",
     "caption": "Hello",
     "video_url": "https://cdn.example/video.mp4",
     "thumbnail_url": "https://cdn.example/thumb.jpg",
@@ -45,8 +46,23 @@ check("safe bool true", item["is_saved"] is True, item)
 check("aspect ratio", round(item["aspect_ratio"], 3) == round(720 / 1280, 3), item)
 check("profile url canonical", item["creator_url"].startswith("/profile/@maya"), item)
 
-items = serialize_reels((r for r in [row]), viewer_id="viewer-1")
+items = serialize_reels((r for r in [row]), viewer_id=VIEWER_ID)
 check("generator input", len(items) == 1, items)
 check("same payload", items[0]["id"] == "reel-1", items)
+
+mixed = serialize_reels(
+    (
+        {
+            "id": "reel-2",
+            "profile_id": "22222222-2222-2222-2222-222222222222",
+            "caption": "Hello 2",
+            "video_url": "https://cdn.example/video2.mp4",
+            "thumbnail_url": "https://cdn.example/thumb2.jpg",
+            "created_at": "2026-07-14T00:00:00Z",
+        },
+    ),
+    viewer_id=VIEWER_ID,
+)
+check("mixed valid uuid input", len(mixed) == 1, mixed)
 
 print("OK")

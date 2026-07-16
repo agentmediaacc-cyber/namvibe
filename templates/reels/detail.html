@@ -84,7 +84,9 @@
           <div class="rd-time">{{ reel.get("created_at") | datetime if reel.get("created_at") else "Just now" }}</div>
         </div>
       </div>
-      <video src="{{ reel.get('video_url') or reel.get('media_url') }}" class="rd-video" controls playsinline preload="metadata" controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false" poster="{{ reel.get('thumbnail_url') or '' }}"></video>
+      <div class="rd-video-shell" style="position:relative;background:#000">
+      <video src="{{ reel.get('video_url') or reel.get('media_url') }}" class="rd-video" controls playsinline webkit-playsinline muted preload="metadata" controlsList="nodownload noplaybackrate" disablePictureInPicture oncontextmenu="return false"{% if reel.get('thumbnail_url') %} poster="{{ reel.get('thumbnail_url') }}"{% endif %}></video>
+      </div>
       {% set caption = reel.get("caption") or "" %}
       {% if caption %}
       <div class="rd-caption">{{ caption }}</div>
@@ -134,6 +136,7 @@
     </div>
   </div>
   <div class="rd-toast" id="rd-toast"></div>
+  <script src="/static/js/reel_auth_prompt.js?v=20260715-1"></script>
   <script src="/static/js/namvibe_ai_tracking.js"></script>
   <script>
     (function() {
@@ -160,8 +163,14 @@
         opts.headers = headers;
         opts.credentials = "same-origin";
         return fetch(url, opts).then(function(r) {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.json();
+          return r.json().catch(function() { return {}; }).then(function(data) {
+            if (r.status === 401 && window.NamVibeReelAuthPrompt && window.NamVibeReelAuthPrompt.shouldHandleAuthResponse(data)) {
+              window.NamVibeReelAuthPrompt.show(data.login_url, data.register_url);
+              throw new Error("authentication_required");
+            }
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return data;
+          });
         });
       }
       document.addEventListener("click", function(e) {
@@ -201,6 +210,15 @@
               }
             });
           return;
+        }
+        var commentBtn = e.target.closest('[data-action="comment-scroll"]');
+        if (commentBtn) {
+          if (!document.getElementById("rd-comment-input")) {
+            if (window.NamVibeReelAuthPrompt) {
+              window.NamVibeReelAuthPrompt.show("/auth/login?next=" + encodeURIComponent(window.location.pathname + window.location.search), "/auth/register?next=" + encodeURIComponent(window.location.pathname + window.location.search));
+            }
+            return;
+          }
         }
         var shareBtn = e.target.closest("[data-action=share]");
         if (shareBtn) {
@@ -353,7 +371,13 @@
           if (e.key === "Enter") postComment();
         });
       }
-      document.querySelector('[data-action="comment-scroll"]').addEventListener("click", loadComments);
+      document.querySelector('[data-action="comment-scroll"]').addEventListener("click", function () {
+        if (!document.getElementById("rd-comment-input") && window.NamVibeReelAuthPrompt) {
+          window.NamVibeReelAuthPrompt.show("/auth/login?next=" + encodeURIComponent(window.location.pathname + window.location.search), "/auth/register?next=" + encodeURIComponent(window.location.pathname + window.location.search));
+          return;
+        }
+        loadComments();
+      });
     })();
   </script>
 </body>
