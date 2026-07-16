@@ -88,6 +88,21 @@ def _check_muted(caller_id, receiver_id):
     return {"ok": True, "muted": False}
 
 
+def _is_call_participant(call_id, profile_id):
+    try:
+        rows = fast_query(
+            """SELECT 1 FROM chain_call_participants
+               WHERE (call_id = %s OR call_session_id = %s) AND profile_id = %s
+               LIMIT 1""",
+            (call_id, call_id, profile_id),
+            timeout_ms=5000,
+            default=[],
+        )
+        return bool(rows)
+    except Exception:
+        return False
+
+
 def _db_available():
     if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
         return False
@@ -265,6 +280,8 @@ def accept_call(call_id, profile_id):
         return {"ok": False, "error": "not_found"}
     if call["status"] != "ringing":
         return {"ok": False, "error": "not_ringing"}
+    if str(call.get("receiver_profile_id")) != str(profile_id):
+        return {"ok": False, "error": "unauthorized"}
 
     try:
         write_query(
@@ -289,6 +306,8 @@ def reject_call(call_id, profile_id):
     call = get_call(call_id)
     if not call:
         return {"ok": False, "error": "not_found"}
+    if str(call.get("receiver_profile_id")) != str(profile_id):
+        return {"ok": False, "error": "unauthorized"}
 
     try:
         write_query(
@@ -313,6 +332,8 @@ def cancel_call(call_id, profile_id):
     call = get_call(call_id)
     if not call:
         return {"ok": False, "error": "not_found"}
+    if str(call.get("caller_profile_id")) != str(profile_id):
+        return {"ok": False, "error": "unauthorized"}
 
     try:
         write_query(
@@ -336,6 +357,8 @@ def end_call(call_id, profile_id, end_reason="hung_up"):
     call = get_call(call_id)
     if not call:
         return {"ok": False, "error": "not_found"}
+    if not _is_call_participant(call_id, profile_id):
+        return {"ok": False, "error": "unauthorized"}
 
     started = call.get("accepted_at") or call.get("started_at")
     duration = 0
