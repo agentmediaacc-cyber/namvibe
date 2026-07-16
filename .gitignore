@@ -48,3 +48,4 @@ tmp/
 
 # Local/generated audit output
 audit_results.json
+nohup.out
