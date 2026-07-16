@@ -8,6 +8,7 @@ import json
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from services.neon_service import fast_query
+from services.media_pipeline import normalize_public_media_url
 
 
 MAX_FEED_LIMIT = 20
@@ -87,7 +88,18 @@ def _profile_index(profile_rows: Iterable[Mapping[str, Any]]) -> Dict[str, Mappi
 
 
 def load_creator_profiles(profile_ids: Iterable[Any]) -> Dict[str, Mapping[str, Any]]:
-    ids = list(dict.fromkeys(str(pid) for pid in (profile_ids or []) if pid))
+    ids = []
+    for pid in (profile_ids or []):
+        if not pid:
+            continue
+        value = str(pid)
+        try:
+            from uuid import UUID
+            UUID(value)
+        except Exception:
+            continue
+        ids.append(value)
+    ids = list(dict.fromkeys(ids))
     if not ids:
         return {}
     rows = fast_query(
@@ -112,8 +124,8 @@ def serialize_reel(row: Optional[Mapping[str, Any]], *, viewer_id: Any = None, c
     username = creator.get("username") or row.get("username") or ""
     display_name = creator.get("display_name") or creator.get("full_name") or row.get("display_name") or username
     avatar_url = creator.get("avatar_url") or creator.get("profile_photo") or row.get("avatar_url") or ""
-    video_url = row.get("video_url") or row.get("media_url") or ""
-    thumbnail_url = row.get("thumbnail_url") or row.get("poster_url") or ""
+    video_url = normalize_public_media_url(row.get("video_url") or row.get("media_url") or "")
+    thumbnail_url = normalize_public_media_url(row.get("thumbnail_url") or row.get("poster_url") or "")
     duration = row.get("duration_seconds")
     width = row.get("width")
     height = row.get("height")
@@ -145,6 +157,7 @@ def serialize_reel(row: Optional[Mapping[str, Any]], *, viewer_id: Any = None, c
         "caption": row.get("caption") or "",
         "video_url": video_url,
         "thumbnail_url": thumbnail_url,
+        "poster_url": thumbnail_url,
         "duration_seconds": float(duration) if duration is not None else None,
         "aspect_ratio": aspect_ratio,
         "visibility": row.get("visibility") or "public",

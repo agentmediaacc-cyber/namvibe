@@ -1,4 +1,5 @@
 import time
+import threading
 
 from services.homepage_cache_service import (
     HOMEPAGE_TTL_SECONDS,
@@ -8,11 +9,49 @@ from services.homepage_cache_service import (
     get_full,
     get_payload,
 )
-from services.homepage_service import build_homepage_payload, get_homepage_data
 from services.logging_service import log_info, log_warning
 from engines.cache_engine import cache_key, set_cache
 
-from flask import has_app_context, current_app
+_REFRESH_LOCK = threading.Lock()
+_REFRESH_IN_FLIGHT = False
+_REFRESH_EVENT = threading.Event()
+_REFRESH_EVENT.set()
+
+
+def is_homepage_refresh_in_flight():
+    with _REFRESH_LOCK:
+        return _REFRESH_IN_FLIGHT
+
+
+def wait_for_homepage_refresh(timeout_seconds=0.0):
+    if timeout_seconds <= 0:
+        return is_homepage_refresh_in_flight()
+    if not is_homepage_refresh_in_flight():
+        return False
+    return _REFRESH_EVENT.wait(timeout_seconds)
+
+
+def _refresh_worker():
+    global _REFRESH_IN_FLIGHT
+    try:
+        warm_homepage_cache()
+    except Exception as exc:
+        log_warning("homepage_cache_warmup_uncaught", error=str(exc))
+    finally:
+        with _REFRESH_LOCK:
+            _REFRESH_IN_FLIGHT = False
+            _REFRESH_EVENT.set()
+
+
+def schedule_homepage_refresh():
+    global _REFRESH_IN_FLIGHT
+    with _REFRESH_LOCK:
+        if _REFRESH_IN_FLIGHT:
+            return False
+        _REFRESH_IN_FLIGHT = True
+        _REFRESH_EVENT.clear()
+    threading.Thread(target=_refresh_worker, daemon=True).start()
+    return True
 
 
 def warm_homepage_cache():
@@ -40,7 +79,23 @@ def warm_homepage_cache():
 
     # ── Cold start: lightweight payload warmup only (no full context) ──
     try:
-        payload = build_homepage_payload(async_warm=True)
+        from api_routes.homepage_api import _build_homepage_contract
+
+        payload = _build_homepage_contract(
+            viewer_id=None,
+            limit=6,
+            include_widgets=False,
+            cold_start=True,
+        ) or {}
+        has_content = bool(
+            payload.get("feed_items")
+            or payload.get("posts")
+            or payload.get("reels")
+            or payload.get("stories")
+            or payload.get("live_rooms")
+        )
+        if not has_content:
+            raise RuntimeError("homepage refresh produced no public content")
 
         # Store a minimal full context from the payload (avoids duplicate
         # expensive calls to get_homepage_data on cold start)
@@ -60,19 +115,6 @@ def warm_homepage_cache():
             ttl=HOMEPAGE_TTL_SECONDS,
         )
         set_full("public", full_context, ttl=HOMEPAGE_TTL_SECONDS)
-
-        if has_app_context() and (payload.get("stories") or payload.get("reels")):
-            with current_app.test_request_context("/"):
-                try:
-                    full_context = get_homepage_data()
-                    set_cache(
-                        cache_key("homepage", "full", "public"),
-                        full_context,
-                        ttl=HOMEPAGE_TTL_SECONDS,
-                    )
-                    set_full("public", full_context, ttl=HOMEPAGE_TTL_SECONDS)
-                except Exception:
-                    pass  # non-blocking — payload cache is already populated
 
         mark_homepage_cached()
     except Exception as exc:

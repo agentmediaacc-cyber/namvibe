@@ -3,6 +3,8 @@ import time
 import threading
 import json
 import functools
+import socket
+import random
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from typing import Any, Optional, List, Dict, Union
 import uuid
@@ -268,6 +270,10 @@ STATEMENT_TIMEOUT_DEFAULT = int(get_env("DB_STATEMENT_TIMEOUT", "30000") or "300
 
 # State Management
 _POOL = None
+_POOL_PID = None
+_POOL_STATE = "uninitialized"
+_POOL_FAILURE_AT = 0.0
+_POOL_NEXT_RETRY_AT = 0.0
 _POOL_LOCK = threading.Lock()
 _CONN_CREATED_AT = {} # id(conn) -> float (timestamp)
 _LAST_SUCCESS_AT = 0.0
@@ -475,18 +481,101 @@ def _safe_optimize_dsn(url: str) -> str:
     except Exception:
         return (url or "").strip()
 
+
+def _canonical_database_url() -> str:
+    raw_url = (DATABASE_URL or "").strip()
+    if not raw_url:
+        return ""
+    if raw_url.lower().startswith(("postgres://", "postgresql://")):
+        return raw_url
+    return _safe_optimize_dsn(raw_url)
+
+
+def _dsn_summary(url: str) -> Dict[str, Any]:
+    parsed = urlparse((url or "").strip()) if url else None
+    return {
+        "host": parsed.hostname or "" if parsed else "",
+        "port": parsed.port or 5432 if parsed else 5432,
+        "database": parsed.path.lstrip("/") if parsed and parsed.path else "",
+        "sslmode": bool(parsed and "sslmode=" in (parsed.query or "")),
+    }
+
+
+def _pool_state() -> str:
+    if _POOL is None:
+        return _POOL_STATE
+    return "ready"
+
+
+def _discard_pool_locked(reason: str = "reset") -> None:
+    global _POOL, _POOL_PID, _POOL_STATE, _POOL_FAILURE_AT, _POOL_NEXT_RETRY_AT
+    pool_inst = _POOL
+    _POOL = None
+    _POOL_PID = None
+    _POOL_STATE = "closed" if reason == "close" else "degraded"
+    _POOL_FAILURE_AT = time.monotonic()
+    _POOL_NEXT_RETRY_AT = _POOL_FAILURE_AT + 1.0
+    if not pool_inst:
+        return
+    try:
+        pool_inst.closeall()
+    except Exception:
+        pass
+
+
+def reset_neon_pool(reason: str = "manual") -> None:
+    with _POOL_LOCK:
+        _discard_pool_locked(reason=reason)
+
+
+def _pool_retry_delay() -> float:
+    if _POOL_FAILURE_AT <= 0:
+        return 0.0
+    elapsed = time.monotonic() - _POOL_FAILURE_AT
+    if elapsed >= 30:
+        return 0.0
+    return max(0.5, min(5.0, 0.5 * (2 ** min(3, int(elapsed)))))
+
+
+def _connect_direct(dsn: str, timeout_ms: int):
+    conn = psycopg2.connect(dsn, connect_timeout=max(1, int(timeout_ms / 1000) or 5))
+    with conn.cursor() as cur:
+        cur.execute(f"SET statement_timeout = {int(timeout_ms)}")
+        cur.execute("SELECT 1")
+        cur.fetchone()
+    return conn
+
+
+def _connect_with_retries(dsn: str, timeout_ms: int, attempts: int = 6):
+    last_error = None
+    for attempt in range(1, max(1, attempts) + 1):
+        try:
+            return _connect_direct(dsn, timeout_ms)
+        except Exception as exc:
+            last_error = exc
+            if attempt >= attempts:
+                break
+            time.sleep(min(4.0, 0.5 * (2 ** (attempt - 1))) + random.uniform(0.0, 0.25))
+    raise last_error
+
+
+def _dsn_resolves(dsn: str) -> bool:
+    try:
+        parsed = urlparse((dsn or "").strip())
+        host = parsed.hostname or ""
+        port = parsed.port or 5432
+        if not host:
+            return False
+        socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        return True
+    except Exception:
+        return False
+
 def _get_dsn_kwargs():
     """Returns kwargs for psycopg2 connection."""
-    optimized_url = _safe_optimize_dsn(DATABASE_URL)
-    # Validate the optimized URL looks like a Postgres DSN. If not, fall back
-    # to the original environment value (stripped). This avoids producing
-    # malformed DSNs such as 'SET?sslmode=...' when env content is unexpected.
-    dsn_candidate = (optimized_url or "").strip()
-    if not dsn_candidate.lower().startswith(("postgres://", "postgresql://")):
-        dsn_candidate = (DATABASE_URL or "").strip()
+    dsn_candidate = _canonical_database_url()
     return {
         "dsn": dsn_candidate,
-        "cursor_factory": RealDictCursor,
     }
 
 
@@ -560,46 +649,74 @@ def _discard_broken_connection(conn):
 
 def _pool_instance():
     """Returns the singleton connection pool instance, initializing if needed."""
-    global _POOL
+    global _POOL, _POOL_PID, _POOL_STATE, _POOL_FAILURE_AT, _POOL_NEXT_RETRY_AT
     if not DATABASE_URL:
         return None
         
     if not _NEON_BREAKER.allow():
         return None
 
+    current_pid = os.getpid()
+    if _POOL is not None and _POOL_PID not in (None, current_pid):
+        with _POOL_LOCK:
+            if _POOL is not None and _POOL_PID not in (None, current_pid):
+                _discard_pool_locked(reason="pid_mismatch")
+
     if _POOL is None:
         with _POOL_LOCK:
+            if _POOL is None and time.monotonic() < _POOL_NEXT_RETRY_AT:
+                return None
             if _POOL is None:
                 try:
-                    # Debug: log the optimized DSN masked for diagnosis (no secrets)
-                    try:
-                        from urllib.parse import urlparse
-                        optimized = _optimize_dsn(DATABASE_URL) or ""
-                        p = urlparse(optimized)
-                        host = p.hostname or ''
-                        db = p.path.lstrip('/')
-                        # If the optimized DSN does not look like a Postgres URL
-                        # (no postgres scheme or no hostname) then skip pool
-                        # initialization rather than passing an invalid DSN to
-                        # psycopg2 which previously caused errors like
-                        # "missing \"=\" after \"SET\" in connection info string".
-                        scheme = (p.scheme or '').lower()
-                        if scheme not in ('postgres', 'postgresql') or not host:
-                            log_warning("neon_pool_init_skipped_invalid_dsn", host=host, db=db)
-                            return None
-                        log_info("neon_pool_init_dsn", host=host, db=db)
-                    except Exception:
-                        pass
+                    dsn = _get_dsn_kwargs()["dsn"]
+                    parsed = urlparse(dsn or "")
+                    host = parsed.hostname or ""
+                    db = parsed.path.lstrip("/")
+                    if not host:
+                        log_warning("neon_pool_init_skipped_invalid_dsn", host=host, db=db)
+                        return None
+                    log_info("neon_pool_init_dsn", host=host, db=db)
                     start_time = time.perf_counter()
-                    _POOL = pool.ThreadedConnectionPool(
-                        minconn=POOL_MIN,
-                        maxconn=POOL_MAX,
-                        **_get_dsn_kwargs()
-                    )
+                    init_error = None
+                    for attempt in range(1, 7):
+                        try:
+                            candidate = pool.ThreadedConnectionPool(
+                                minconn=POOL_MIN,
+                                maxconn=POOL_MAX,
+                                dsn=dsn
+                            )
+                            probe_conn = None
+                            try:
+                                probe_conn = candidate.getconn()
+                                with probe_conn.cursor() as cur:
+                                    cur.execute("SELECT 1")
+                                    cur.fetchone()
+                            finally:
+                                if probe_conn is not None:
+                                    try:
+                                        candidate.putconn(probe_conn)
+                                    except Exception:
+                                        try:
+                                            probe_conn.close()
+                                        except Exception:
+                                            pass
+                            _POOL = candidate
+                            break
+                        except Exception as exc:
+                            init_error = exc
+                            if attempt < 6:
+                                time.sleep(min(4.0, 0.5 * (2 ** (attempt - 1))) + random.uniform(0.0, 0.2))
+                    if _POOL is None:
+                        raise init_error
+                    _POOL_PID = current_pid
+                    _POOL_STATE = "ready"
+                    _POOL_FAILURE_AT = 0.0
+                    _POOL_NEXT_RETRY_AT = 0.0
                     latency = (time.perf_counter() - start_time) * 1000
                     log_info("neon_pool_initialized", minconn=POOL_MIN, maxconn=POOL_MAX, latency_ms=latency)
                     log_metric("db.pool.init_ms", latency)
                 except Exception as e:
+                    _discard_pool_locked(reason="init_failed")
                     _NEON_BREAKER.failure(e)
                     log_error("neon_pool_init_failed", error=e)
                     return None
@@ -615,7 +732,16 @@ def get_connection(timeout_ms: int = 5000, **kwargs):
     
     pool_inst = _pool_instance()
     if not pool_inst:
-        raise CircuitOpenError("Database connection pool is unavailable")
+        try:
+            dsn = _get_dsn_kwargs()["dsn"]
+            conn = _connect_with_retries(dsn, timeout_ms, attempts=6)
+            return conn
+        except Exception as e:
+            _NEON_BREAKER.failure(e)
+            with _POOL_LOCK:
+                _discard_pool_locked(reason="direct_failed")
+            log_error("neon_direct_conn_failed", error=e)
+            raise CircuitOpenError("Database connection pool is unavailable")
 
     conn = None
     now = time.time()
@@ -651,6 +777,8 @@ def get_connection(timeout_ms: int = 5000, **kwargs):
                 _CONN_CREATED_AT.pop(id(conn), None)
             
             if attempt == 1:
+                with _POOL_LOCK:
+                    _discard_pool_locked(reason="acquire_failed")
                 _NEON_BREAKER.failure(e)
                 log_error("neon_conn_acquire_failed", error=e)
                 raise NeonError(f"Failed to acquire database connection: {e}")
@@ -661,7 +789,7 @@ def release_connection(conn):
     """Safely returns a connection to the pool."""
     if not conn:
         return
-    pool_inst = _POOL
+    pool_inst = _POOL if _POOL_PID == os.getpid() else None
     if not pool_inst:
         try: conn.close()
         except: pass
@@ -778,17 +906,10 @@ def fast_query(sql_text, params: Any = None, timeout_ms: int = 10000, default: A
         if sql_str.strip().upper() == "SELECT 1":
             return [{"?column?": 1}] if default is None else default
 
-    future = _DB_EXECUTOR.submit(_run, sql_text, params, "all", timeout_ms)
-    # A fresh process may spend most of its budget initializing the Neon pool
-    # before the first query even starts. Allow a small cold-start grace window
-    # so one-shot scripts do not falsely treat the first real DB query as empty.
-    wait_timeout_s = timeout_ms / 1000.0
-    if _POOL is None:
-        wait_timeout_s += 5.0
     try:
-        results = future.result(timeout=wait_timeout_s)
+        results = _run(sql_text, params, "all", timeout_ms)
         return results if results is not None else (default if default is not None else [])
-    except (FutureTimeoutError, Exception) as e:
+    except Exception as e:
         if isinstance(e, FutureTimeoutError):
             sql_str = str(sql_text) if isinstance(sql_text, sql.Composable) else sql_text
             log_warning("neon_wall_timeout", timeout_ms=timeout_ms, sql=sql_str[:100])
@@ -885,6 +1006,8 @@ def get_pool_status():
     return {
         "configured": bool(DATABASE_URL),
         "pool_ready": _POOL is not None,
+        "pool_pid": _POOL_PID,
+        "pool_state": _pool_state(),
         "circuit_open": not _NEON_BREAKER.allow(),
         "ever_connected": _LAST_SUCCESS_AT > 0,
         "recent_success": (time.time() - _LAST_SUCCESS_AT) < 60 if _LAST_SUCCESS_AT > 0 else False

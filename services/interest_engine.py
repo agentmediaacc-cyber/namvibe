@@ -8,6 +8,7 @@ from collections import defaultdict
 
 from services.neon_service import fast_query
 from services.redis_service import cache_get, cache_set
+from services.id_validation import normalize_uuid
 
 INTEREST_TTL = 3600
 MAX_HASHTAGS = 50
@@ -29,6 +30,7 @@ def _extract_hashtags(text):
 
 
 def build_interest_profile(profile_id):
+    profile_id = normalize_uuid(profile_id)
     if not profile_id:
         return _empty_profile()
 
@@ -56,9 +58,12 @@ def build_interest_profile(profile_id):
 
 
 def _collect_liked_posts(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
-            """SELECT p.caption, p.content, p.category, p.town_tag, p.created_at
+            """SELECT p.caption, p.category, p.town_tag, p.created_at
                FROM chain_post_reactions l
                JOIN chain_posts p ON p.id = l.post_id
                WHERE l.profile_id = %s AND l.reaction_type = 'like'
@@ -73,9 +78,12 @@ def _collect_liked_posts(vectors, profile_id):
 
 
 def _collect_liked_reels(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
-            """SELECT r.caption, r.content, r.category, r.created_at
+            """SELECT r.caption, r.category, r.created_at
                FROM chain_reel_reactions l
                JOIN chain_reels r ON r.id = l.reel_id
                WHERE l.profile_id = %s AND l.reaction_type = 'like'
@@ -90,9 +98,12 @@ def _collect_liked_reels(vectors, profile_id):
 
 
 def _collect_saved_posts(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
-            """SELECT p.caption, p.content, p.category, p.town_tag, p.created_at
+            """SELECT p.caption, p.category, p.town_tag, p.created_at
                FROM chain_saved_items s
                JOIN chain_posts p ON p.id = s.item_id
                WHERE s.profile_id = %s AND s.item_type = 'post'
@@ -107,9 +118,12 @@ def _collect_saved_posts(vectors, profile_id):
 
 
 def _collect_saved_reels(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
-            """SELECT r.caption, r.content, r.category, r.created_at
+            """SELECT r.caption, r.category, r.created_at
                FROM chain_saved_items s
                JOIN chain_reels r ON r.id = s.item_id
                WHERE s.profile_id = %s AND s.item_type = 'reel'
@@ -124,12 +138,15 @@ def _collect_saved_reels(vectors, profile_id):
 
 
 def _collect_shared_posts(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
-            """SELECT p.caption, p.content, p.category, p.town_tag, p.created_at
-               FROM chain_shares s
-               JOIN chain_posts p ON p.id = s.post_id
-               WHERE s.profile_id = %s AND s.deleted_at IS NULL
+            """SELECT p.caption, p.category, p.town_tag, p.created_at
+               FROM chain_share_events s
+               JOIN chain_posts p ON p.id = s.entity_id
+               WHERE s.profile_id = %s AND s.entity_type = 'post'
                ORDER BY s.created_at DESC LIMIT 200""",
             (profile_id,), default=[]
         )
@@ -141,9 +158,12 @@ def _collect_shared_posts(vectors, profile_id):
 
 
 def _collect_watched_reels(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
-            """SELECT r.caption, r.content, r.category, r.created_at
+            """SELECT r.caption, r.category, r.created_at
                FROM chain_reel_events v
                JOIN chain_reels r ON r.id = v.reel_id
                WHERE v.user_id = %s AND v.event_type = 'view'
@@ -158,9 +178,12 @@ def _collect_watched_reels(vectors, profile_id):
 
 
 def _collect_commented_posts(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
-            """SELECT p.caption, p.content, p.category, p.town_tag, p.created_at
+            """SELECT p.caption, p.category, p.town_tag, p.created_at
                FROM chain_comments c
                JOIN chain_posts p ON p.id = c.post_id
                WHERE c.profile_id = %s AND c.deleted_at IS NULL
@@ -175,6 +198,9 @@ def _collect_commented_posts(vectors, profile_id):
 
 
 def _collect_followed_creators(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
             """SELECT p.creator_category, p.current_location, p.interests
@@ -207,6 +233,9 @@ def _collect_followed_creators(vectors, profile_id):
 
 
 def _collect_search_history(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
             """SELECT query FROM chain_search_history
@@ -225,6 +254,9 @@ def _collect_search_history(vectors, profile_id):
 
 
 def _collect_profile_location(vectors, profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return
     try:
         rows = fast_query(
             """SELECT current_location, region, country_origin, interests

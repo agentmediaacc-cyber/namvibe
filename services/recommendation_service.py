@@ -11,6 +11,7 @@ from services.redis_service import cache_get, cache_set
 from services.request_cache import get_or_set
 from services.interest_engine import build_interest_profile, interest_match_score
 from services.homepage_real_data_guard import filter_profiles, public_profile_sql
+from services.id_validation import normalize_uuid, filter_valid_uuids
 
 # ── Scoring weights ──
 W_WATCH_TIME = 1.0
@@ -86,6 +87,8 @@ def score_feed_items(profile_id, items, feed_type="for_you"):
     """Rank a list of feed items using the comprehensive scoring formula."""
     if not items:
         return []
+
+    profile_id = normalize_uuid(profile_id)
 
     blocked = _blocked_ids(profile_id) if profile_id else set()
     hidden = _hidden_ids(profile_id) if profile_id else set()
@@ -366,6 +369,7 @@ def detect_viral_items(items):
 
 def get_recommended_profiles(profile_id, limit=10):
     limit = max(1, min(int(limit or 10), 50))
+    profile_id = normalize_uuid(profile_id)
     cache_key = f"recommend:v2:profiles:{profile_id or 'anon'}:{limit}"
     cached = cache_get(cache_key)
     if cached is not None:
@@ -472,6 +476,7 @@ def get_recommended_profiles(profile_id, limit=10):
 
 def get_recommended_posts(profile_id, limit=10):
     limit = max(1, min(int(limit or 10), 50))
+    profile_id = normalize_uuid(profile_id)
     cache_key = f"recommend:v2:posts:{profile_id or 'anon'}:{limit}"
     cached = cache_get(cache_key)
     if cached is not None:
@@ -522,6 +527,7 @@ def get_recommended_posts(profile_id, limit=10):
 
 def get_nearby_content(profile_id, content_type="all", limit=20):
     """Get content geographically close to the viewer."""
+    profile_id = normalize_uuid(profile_id)
     if not profile_id:
         return []
     cache_key = f"nearby:v2:{profile_id}:{content_type}:{limit}"
@@ -715,6 +721,7 @@ def get_trending_posts(limit=10):
 # ═══════════════════════════════════════════════════════════════
 
 def _blocked_ids(profile_id):
+    profile_id = normalize_uuid(profile_id)
     if not profile_id:
         return set()
     rows = fast_query(
@@ -729,6 +736,9 @@ def _blocked_ids(profile_id):
 
 
 def _following_ids(profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return []
     rows = fast_query(
         "SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s AND deleted_at IS NULL",
         (profile_id,), default=[],
@@ -737,6 +747,9 @@ def _following_ids(profile_id):
 
 
 def _friend_ids(profile_id):
+    profile_id = normalize_uuid(profile_id)
+    if not profile_id:
+        return []
     rows = fast_query(
         """SELECT f1.follower_profile_id AS friend_id
            FROM chain_follows f1
@@ -751,6 +764,7 @@ def _friend_ids(profile_id):
 
 
 def _hidden_ids(profile_id):
+    profile_id = normalize_uuid(profile_id)
     if not profile_id:
         return set()
     try:
@@ -764,6 +778,7 @@ def _hidden_ids(profile_id):
 
 
 def _viewer_location(profile_id):
+    profile_id = normalize_uuid(profile_id)
     if not profile_id:
         return None
     rows = fast_query(

@@ -20,6 +20,7 @@ from services.media_pipeline import extract_video_duration, queue_reel_processin
 from services.request_cache import build_request_key, request_memoize
 from services.content_service import create_reel_record, invalidate_content_caches, local_content
 from services.reels_serialization_service import serialize_reel, serialize_reels, encode_feed_cursor, decode_feed_cursor
+from services.media_pipeline import normalize_public_media_url
 
 def list_reels(limit=20):
     """Lists published reels."""
@@ -505,8 +506,9 @@ def _reel_row_to_dict(row):
         "display_name": row.get("display_name", ""),
         "avatar_url": row.get("avatar_url", ""),
         "caption": row.get("caption", ""),
-        "video_url": row.get("video_url", ""),
-        "thumbnail_url": row.get("thumbnail_url", ""),
+        "video_url": normalize_public_media_url(row.get("video_url") or row.get("media_url") or ""),
+        "thumbnail_url": normalize_public_media_url(row.get("thumbnail_url") or row.get("poster_url") or ""),
+        "poster_url": normalize_public_media_url(row.get("thumbnail_url") or row.get("poster_url") or ""),
         "music_title": row.get("music_title", ""),
         "music_artist": row.get("music_artist", ""),
         "likes_count": row.get("likes_count", 0) or 0,

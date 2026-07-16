@@ -1,20 +1,26 @@
 import random
 import re
 import os
+import time
+from collections import OrderedDict
 from datetime import datetime, timezone
 import uuid
 
 from flask import g, has_request_context, session
-from psycopg2.extras import Json
+from psycopg2.extras import Json, RealDictCursor
 
 from engines.cache_engine import cache_key, delete_cache, get_cache, set_cache
 from engines.performance_engine import normalize_username, profile_completion_score, safe_int
-from services.neon_service import execute, fetch_one, write_query, fast_query, get_cached_table_columns, table_exists as neon_table_exists
+from services.neon_service import execute, fetch_one, write_query, fast_query, get_cached_table_columns, table_exists as neon_table_exists, get_connection, release_connection
 from services.supabase_safe import column_safe_payload, safe_count, safe_insert, safe_update, table_exists
 from services.logging_service import log_error, log_info, log_warning
 
 _CHAIN_PROFILE_COLUMNS_CACHE = None
 _NEON_PROFILES_ENABLED_CACHE = None
+_PUBLIC_PROFILE_REF_MISS_CACHE = OrderedDict()
+_PUBLIC_PROFILE_REF_MISS_CACHE_LIMIT = 1024
+_PUBLIC_PROFILE_REF_POSITIVE_TTL = 30
+_PUBLIC_PROFILE_REF_NEGATIVE_TTL = 15
 NEON_JSON_COLUMNS = {"interests", "activities", "looking_for", "linked_providers", "oauth_metadata", "portfolio_projects", "business_opening_hours", "business_location_data", "business_services", "business_products"}
 
 CHAIN_PROFILE_SAFE_COLUMNS = {
@@ -694,6 +700,95 @@ def _drop_missing_profile_column(column):
         _CHAIN_PROFILE_COLUMNS_CACHE.discard(column)
 
 
+def _public_profile_ref_missing_marker():
+    return {"__profile_public_ref_missing__": True}
+
+
+def _public_profile_ref_cache_key(username=None, profile_id=None):
+    if profile_id:
+        return cache_key("profile_public_ref", "v2", "id", profile_id)
+    normalized = _normalize_public_profile_handle(username)
+    return cache_key("profile_public_ref", "v2", "username", normalized)
+
+
+def _normalize_public_profile_handle(username):
+    raw = str(username or "").strip().lstrip("@")
+    if not raw or len(raw) > 64 or not re.search(r"[A-Za-z0-9]", raw):
+        return None
+    return normalize_username(raw)
+
+
+def _public_profile_ref_cache_store(*, username=None, profile_id=None, profile=None, missing=False):
+    key = _public_profile_ref_cache_key(username=username, profile_id=profile_id)
+    if not key:
+        return None
+    if missing:
+        marker = _public_profile_ref_missing_marker()
+        set_cache(key, marker, ttl=_PUBLIC_PROFILE_REF_NEGATIVE_TTL)
+        _PUBLIC_PROFILE_REF_MISS_CACHE[key] = {"value": marker, "expires_at": time.time() + _PUBLIC_PROFILE_REF_NEGATIVE_TTL}
+        while len(_PUBLIC_PROFILE_REF_MISS_CACHE) > _PUBLIC_PROFILE_REF_MISS_CACHE_LIMIT:
+            _PUBLIC_PROFILE_REF_MISS_CACHE.popitem(last=False)
+        return None
+    if profile is None:
+        return None
+    set_cache(key, profile, ttl=_PUBLIC_PROFILE_REF_POSITIVE_TTL)
+    if key in _PUBLIC_PROFILE_REF_MISS_CACHE:
+        _PUBLIC_PROFILE_REF_MISS_CACHE.pop(key, None)
+    return profile
+
+
+def _public_profile_ref_cache_get(*, username=None, profile_id=None):
+    key = _public_profile_ref_cache_key(username=username, profile_id=profile_id)
+    if not key:
+        return None, key, False
+    now = time.time()
+    cached = _PUBLIC_PROFILE_REF_MISS_CACHE.get(key)
+    if cached is not None:
+        if cached.get("expires_at", 0) > now:
+            _PUBLIC_PROFILE_REF_MISS_CACHE.move_to_end(key)
+            return None, key, True
+        _PUBLIC_PROFILE_REF_MISS_CACHE.pop(key, None)
+    cached = get_cache(key)
+    if cached is not None and isinstance(cached, dict) and cached.get("__profile_public_ref_missing__"):
+        _PUBLIC_PROFILE_REF_MISS_CACHE[key] = {"value": cached, "expires_at": now + _PUBLIC_PROFILE_REF_NEGATIVE_TTL}
+        while len(_PUBLIC_PROFILE_REF_MISS_CACHE) > _PUBLIC_PROFILE_REF_MISS_CACHE_LIMIT:
+            _PUBLIC_PROFILE_REF_MISS_CACHE.popitem(last=False)
+        return None, key, True
+    return cached, key, False
+
+
+def _fetch_public_profile_reference(sql_text, params, timeout_ms=1200):
+    conn = None
+    try:
+        conn = get_connection(timeout_ms=timeout_ms)
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(f"SET statement_timeout = {int(timeout_ms)}")
+                cur.execute(sql_text, params)
+                row = cur.fetchone()
+                return dict(row) if row else None
+    finally:
+        if conn:
+            release_connection(conn)
+
+
+def invalidate_public_profile_reference_cache(profile=None, profile_id=None, username=None, previous_username=None):
+    candidates = []
+    if profile and isinstance(profile, dict):
+        profile_id = profile_id or profile.get("id")
+        username = username or profile.get("username")
+        previous_username = previous_username or profile.get("previous_username")
+    if profile_id:
+        candidates.append(_public_profile_ref_cache_key(profile_id=profile_id))
+    for candidate_username in (username, previous_username):
+        if candidate_username:
+            candidates.append(_public_profile_ref_cache_key(username=candidate_username))
+    for key in candidates:
+        if key:
+            delete_cache(key)
+            _PUBLIC_PROFILE_REF_MISS_CACHE.pop(key, None)
+
+
 def _neon_profile_columns():
     """Return optimized set of profile columns for lookups.
 
@@ -1243,18 +1338,82 @@ def get_profile_by_username(username):
     return profile
 
 
+def get_public_profile_reference(username=None, profile_id=None):
+    """Return a lightweight public-profile reference for routing and existence checks.
+
+    This intentionally avoids the broader username fallbacks used by
+    get_profile_by_username() so public profile routes can fail fast on a miss
+    before any expensive hydration work starts.
+    """
+    if not username and not profile_id:
+        return None
+
+    if profile_id:
+        try:
+            uuid.UUID(str(profile_id))
+        except (ValueError, TypeError):
+            return None
+        cached, cache_key_str, is_cached = _public_profile_ref_cache_get(profile_id=profile_id)
+        if is_cached or cached is not None:
+            return cached
+        row = _fetch_public_profile_reference(
+            "SELECT id, username, display_name, full_name, avatar_url, cover_url, bio, is_verified, verified, is_public, visibility, deleted_at "
+            "FROM chain_profiles WHERE id = %s AND deleted_at IS NULL LIMIT 1",
+            [profile_id],
+            timeout_ms=1200,
+        )
+        if row:
+            ref = normalize_profile(row)
+            return _public_profile_ref_cache_store(profile_id=profile_id, profile=ref)
+        if cache_key_str:
+            _public_profile_ref_cache_store(profile_id=profile_id, missing=True)
+        return None
+
+    normalized_username = _normalize_public_profile_handle(username)
+    if not normalized_username:
+        return None
+
+    cached, cache_key_str, is_cached = _public_profile_ref_cache_get(username=normalized_username)
+    if is_cached or cached is not None:
+        return cached
+
+    row = _fetch_public_profile_reference(
+        "SELECT id, username, display_name, full_name, avatar_url, cover_url, bio, is_verified, verified, is_public, visibility, deleted_at "
+        "FROM chain_profiles WHERE deleted_at IS NULL AND username = %s LIMIT 1",
+        [normalized_username],
+        timeout_ms=1200,
+    )
+
+    if row:
+        ref = normalize_profile(row)
+        return _public_profile_ref_cache_store(username=normalized_username, profile=ref)
+    _public_profile_ref_cache_store(username=normalized_username, missing=True)
+    return None
+
+
 def update_profile(profile_id, updates):
     """Update profile and invalidate caches."""
     if not profile_id or not updates:
         return None
 
+    previous = None
+    try:
+        previous = get_profile_by_id(profile_id)
+    except Exception:
+        previous = None
     updated = _neon_update_profile(profile_id, updates)
     if updated:
         # Invalidate all profile caches
         delete_cache(cache_key("profile_full", profile_id, 60, 0))
         delete_cache(cache_key("profile_light", profile_id, 60, 0))
         delete_cache(cache_key("profile_username", updated.get("username", ""), 60, 0))
-        session.pop("profile_data", None)
+        invalidate_public_profile_reference_cache(
+            profile_id=profile_id,
+            username=updated.get("username"),
+            previous_username=(previous or {}).get("username"),
+        )
+        if has_request_context():
+            session.pop("profile_data", None)
     return updated
 
 
@@ -1433,7 +1592,12 @@ def delete_reel(reel_id, profile_id):
 def invalidate_profile_cache(pid):
     """Re-exported from profile_2026_service for backward compatibility."""
     from services.profile_2026_service import invalidate_profile_cache as _invalidate
-    return _invalidate(pid)
+    result = _invalidate(pid)
+    try:
+        invalidate_public_profile_reference_cache(profile_id=pid)
+    except Exception:
+        pass
+    return result
 
 
 def batch_get_profiles(profile_ids):
@@ -1441,8 +1605,18 @@ def batch_get_profiles(profile_ids):
     if not profile_ids:
         return {}
 
-    # Remove duplicates and invalid IDs
-    valid_ids = list(set(pid for pid in profile_ids if pid))
+    # Remove duplicates and invalid IDs before hitting uuid-typed SQL.
+    valid_ids = []
+    for pid in profile_ids:
+        if not pid:
+            continue
+        try:
+            from uuid import UUID
+            UUID(str(pid))
+        except Exception:
+            continue
+        valid_ids.append(str(pid))
+    valid_ids = list(dict.fromkeys(valid_ids))
 
     if not valid_ids:
         return {}
@@ -1883,10 +2057,16 @@ def update_post_visibility(post_id, profile_id, visibility):
 def update_profile_privacy(profile_id, privacy_settings):
     try:
         import json
+        previous = None
+        try:
+            previous = get_profile_by_id(profile_id)
+        except Exception:
+            previous = None
         execute(
             "UPDATE chain_profiles SET privacy_settings = %s, updated_at = NOW() WHERE id = %s",
             (json.dumps(privacy_settings) if isinstance(privacy_settings, dict) else privacy_settings, profile_id)
         )
+        invalidate_public_profile_reference_cache(profile_id=profile_id, username=(previous or {}).get("username"))
         return True
     except Exception:
         return False
@@ -1906,6 +2086,11 @@ def update_profile_setup(profile_id, setup_data, current_profile=None):
                 f"UPDATE chain_profiles SET {set_clause}, updated_at = NOW() WHERE id = %s",
                 (*vals, profile_id)
             )
+        invalidate_public_profile_reference_cache(
+            profile_id=profile_id,
+            username=(current_profile or {}).get("username"),
+            previous_username=(current_profile or {}).get("previous_username"),
+        )
         return True, current_profile
     except Exception as e:
         return False, str(e)

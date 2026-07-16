@@ -32,6 +32,7 @@ from services.homepage_cache_service import (
 from services.query_optimizer import HOMEPAGE_QUERY_BUDGET_MS, batch_load_profiles, profiled_query
 from services.logging_service import log_info
 from services.profile_service import get_current_profile
+from services.id_validation import normalize_uuid, filter_valid_uuids
 
 # Phase 141: Import fast functions that avoid expensive JOINs
 from services.homepage_phase141_service import (
@@ -1216,7 +1217,8 @@ def _age_hours_from_value(value, default=9999.0):
 
 
 def _homepage_relationship_context(viewer_id, creator_ids):
-    creator_ids = [str(cid) for cid in set(creator_ids or []) if cid]
+    viewer_id = normalize_uuid(viewer_id)
+    creator_ids = filter_valid_uuids(creator_ids)
     context = {"following_ids": set(), "friend_ids": set(), "creator_history": {}, "video_history": {}}
     if not viewer_id or not creator_ids:
         return context
@@ -1228,7 +1230,7 @@ def _homepage_relationship_context(viewer_id, creator_ids):
             WHERE follower_profile_id = %s::uuid
               AND following_profile_id = ANY(%s::uuid[])
             """,
-            (str(viewer_id), creator_ids),
+            (viewer_id, creator_ids),
             timeout_ms=700,
             default=[],
         )
@@ -1251,7 +1253,7 @@ def _homepage_relationship_context(viewer_id, creator_ids):
                  OR profile_id_2 = ANY(%s::uuid[])
               )
             """,
-            (str(viewer_id), str(viewer_id), str(viewer_id), creator_ids, creator_ids),
+            (viewer_id, viewer_id, viewer_id, creator_ids, creator_ids),
             timeout_ms=700,
             default=[],
         )
@@ -1272,7 +1274,7 @@ def _homepage_relationship_context(viewer_id, creator_ids):
             ORDER BY created_at DESC
             LIMIT 500
             """,
-            (str(viewer_id), creator_ids),
+            (viewer_id, creator_ids),
             timeout_ms=700,
             default=[],
         )
@@ -2692,7 +2694,7 @@ def _feed_for_you(profile_id=None, limit=20, offset=0):
         return items
     try:
         rows = _post_rows_with_profile(
-            "po.deleted_at IS NULL AND (po.visibility IS NULL OR po.visibility = 'public')",
+            f"po.deleted_at IS NULL AND (po.visibility IS NULL OR po.visibility = 'public') AND po.profile_id IN ({public_profile_subquery()})",
             "po.created_at DESC NULLS LAST",
             limit,
             offset=offset,
@@ -2762,7 +2764,7 @@ def _feed_public_posts(profile_id=None, limit=20, offset=0):
         return []
     try:
         rows = _post_rows_with_profile(
-            "po.deleted_at IS NULL AND (po.visibility IS NULL OR po.visibility = 'public')",
+            f"po.deleted_at IS NULL AND (po.visibility IS NULL OR po.visibility = 'public') AND po.profile_id IN ({public_profile_subquery()})",
             "po.created_at DESC NULLS LAST",
             limit,
             offset=offset,
@@ -2779,7 +2781,7 @@ def _feed_trending(profile_id=None, limit=20, offset=0):
         return []
     try:
         rows = _post_rows_with_profile(
-            "po.deleted_at IS NULL",
+            f"po.deleted_at IS NULL AND po.profile_id IN ({public_profile_subquery()})",
             "(COALESCE(po.likes_count,0) + COALESCE(po.comments_count,0)) DESC, po.created_at DESC NULLS LAST",
             limit,
             offset=offset,
@@ -3201,7 +3203,7 @@ def fetch_trending_creators(limit=10):
         order = "followers_count DESC NULLS LAST" if "followers_count" in cols else "created_at DESC NULLS LAST"
         rows, _ = _run_sql(
             "trending_creators",
-            f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL ORDER BY {order} LIMIT %s",
+            f"SELECT {', '.join(cols)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL AND {public_profile_sql('chain_profiles')} ORDER BY {order} LIMIT %s",
             [limit],
             timeout_ms=1000,
         )

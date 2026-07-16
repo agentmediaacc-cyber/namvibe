@@ -49,10 +49,13 @@ def main():
 
     with patch("api_routes.profile_routes.get_profile_by_username", return_value=profile), \
          patch("api_routes.profile_routes.get_current_profile", return_value=None), \
+         patch("api_routes.profile_routes.get_public_profile_reference", return_value=profile), \
+         patch("api_routes.profile_routes.get_profile_by_id", side_effect=fail_if_called), \
          patch("api_routes.profile_routes.record_profile_view", return_value=True), \
          patch("api_routes.profile_routes.emit_activity", return_value=True), \
          patch("api_routes.profile_routes.track_interaction_safe", return_value=True), \
          patch("api_routes.profile_routes.get_profile_bundle", return_value=bundle), \
+         patch("api_routes.profile_routes.build_profile_dashboard", side_effect=fail_if_called), \
          patch("services.social_action_policy.get_action_policy", return_value={"primary_action": "follow", "can_chat": False, "can_call": False}), \
          patch("services.social_action_policy.can_view_profile", return_value={"can_view_full_profile": True}), \
          patch("services.profile_premium_service.get_achievements", side_effect=fail_if_called), \
@@ -71,6 +74,7 @@ def main():
     check("public profile returned", response.status_code == 200, response.status_code)
     check("real public content rendered", "Public post" in html or "Public Creator" in html, html[:500])
     check("no premium sections rendered", "education" not in html.lower() or "premium profile data" not in html.lower(), html[:500])
+    check("public shell route avoids premium dashboard", "nv-pp-panel" in html or "profile-tabs-container" in html, html[:500])
     print("OK")
 
 

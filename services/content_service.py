@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 from engines.cache_engine import cache_key, delete_cache
 from services.neon_service import fast_query, write_query, get_table_columns
 from services.logging_service import log_error, log_info, log_warning
+from engines.cache_engine import get_cache as _get_local_cache, set_cache as _set_local_cache
 
 
 IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
@@ -54,6 +55,24 @@ CONTENT_TABLES = [
 ]
 
 _REELS_CACHE_VERSION_TTL = 60 * 60 * 24 * 7
+_REELS_CACHE_VERSION_LOCAL_TTL = 300
+_REELS_CACHE_VERSION_LOCAL = {}
+
+
+def _local_reels_version_get(scope):
+    record = _REELS_CACHE_VERSION_LOCAL.get(scope)
+    if not record:
+        return None
+    expires_at, value = record
+    if expires_at and expires_at <= time.monotonic():
+        _REELS_CACHE_VERSION_LOCAL.pop(scope, None)
+        return None
+    return value
+
+
+def _local_reels_version_set(scope, value, ttl=_REELS_CACHE_VERSION_LOCAL_TTL):
+    _REELS_CACHE_VERSION_LOCAL[scope] = (time.monotonic() + max(int(ttl), 1), int(value or 1))
+    return int(value or 1)
 
 
 def _redis_version_key(name):
@@ -61,6 +80,17 @@ def _redis_version_key(name):
 
 
 def get_reels_content_version(scope="public"):
+    local_value = _local_reels_version_get(scope)
+    if local_value is not None:
+        return int(local_value or 1)
+    local_key = _redis_version_key(scope)
+    try:
+        local_value = _get_local_cache(local_key)
+        if local_value is not None:
+            _local_reels_version_set(scope, local_value)
+            return int(local_value or 1)
+    except Exception:
+        pass
     try:
         from services.redis_service import redis_manager
         key = _redis_version_key(scope)
@@ -69,9 +99,17 @@ def get_reels_content_version(scope="public"):
         if value is None:
             value = 1
             redis_manager.set_json_result(key, value, ttl=_REELS_CACHE_VERSION_TTL, require_shared=True)
-        return int(value or 1)
+        try:
+            _set_local_cache(local_key, int(value or 1), ttl=_REELS_CACHE_VERSION_LOCAL_TTL)
+        except Exception:
+            pass
+        return _local_reels_version_set(scope, value)
     except Exception:
-        return 1
+        try:
+            _set_local_cache(local_key, 1, ttl=_REELS_CACHE_VERSION_LOCAL_TTL)
+        except Exception:
+            pass
+        return _local_reels_version_set(scope, 1)
 
 
 def bump_reels_content_version(scope="public"):
@@ -79,6 +117,11 @@ def bump_reels_content_version(scope="public"):
         from services.redis_service import redis_manager
         if redis_manager.backend_state() in {"redis_remote", "redis_local"}:
             value = redis_manager.incr_with_ttl(_redis_version_key(scope), _REELS_CACHE_VERSION_TTL)
+            try:
+                _set_local_cache(_redis_version_key(scope), int(value or 1), ttl=_REELS_CACHE_VERSION_LOCAL_TTL)
+            except Exception:
+                pass
+            _local_reels_version_set(scope, value)
             return int(value or 1)
     except Exception:
         pass
@@ -88,6 +131,11 @@ def bump_reels_content_version(scope="public"):
         current = redis_manager.get_json_result(key).get("value")
         value = int(current or 1)
         redis_manager.set_json_result(key, value, ttl=_REELS_CACHE_VERSION_TTL, require_shared=True)
+        try:
+            _set_local_cache(key, value, ttl=_REELS_CACHE_VERSION_LOCAL_TTL)
+        except Exception:
+            pass
+        _local_reels_version_set(scope, value)
         return value
     except Exception:
         return 1

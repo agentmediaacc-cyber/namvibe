@@ -5,6 +5,7 @@ import os
 import time
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request, session
 from services.profile_service import get_current_profile
@@ -15,7 +16,7 @@ from services.homepage_service import (
     rank_homepage_sections,
     _fetch_friend_activity,
 )
-from services.homepage_cache_service import get_full, get_payload
+from services.homepage_cache_service import get_full, get_full_with_stale, get_payload, get_payload_with_stale
 from services.homepage_phase141_service import (
     fetch_posts_v2,
     fetch_reels_v2,
@@ -23,11 +24,15 @@ from services.homepage_phase141_service import (
     fetch_live_rooms_v2,
     fetch_suggested_people_v2,
     fetch_liked_entity_ids,
+    fetch_profiles_batch,
+    normalize_post_v2,
 )
 from services.engagement_service import follow_profile, unfollow_profile, toggle_like, toggle_save
 from services.ai.interaction_service import track_interaction_safe
 from services.neon_service import fast_query, is_circuit_open
 from services.homepage_real_data_guard import filter_content, filter_profiles, public_profile_sql
+from services.media_pipeline import normalize_public_media_url
+from services.logging_service import log_info
 from api_routes.profile_routes import login_required
 
 homepage_api_bp = Blueprint("homepage_api", __name__)
@@ -95,7 +100,13 @@ _HOMEPAGE_WIDGET_CACHE_TTL = 45
 
 
 def _cached_public_homepage_snapshot():
-    return get_full("public") or get_payload() or {}
+    full, _ = get_full_with_stale("public")
+    if full:
+        return full
+    payload, _ = get_payload_with_stale()
+    if payload:
+        return payload
+    return {}
 
 
 def _homepage_response_from_snapshot(snapshot, viewer_id=None, limit=20, tab="for_you"):
@@ -213,9 +224,10 @@ def _normalize_content_item(item, default_type):
         "title": item.get("title") or "",
         "caption": caption,
         "body": item.get("body") or caption,
-        "media_url": item.get("media_url") or item.get("public_url") or item.get("image_url") or item.get("thumbnail_url") or item.get("video_url") or "",
-        "video_url": item.get("video_url") or "",
-        "image_url": item.get("image_url") or item.get("media_url") or item.get("thumbnail_url") or "",
+        "media_url": normalize_public_media_url(item.get("media_url") or item.get("public_url") or item.get("image_url") or item.get("thumbnail_url") or item.get("video_url") or ""),
+        "video_url": normalize_public_media_url(item.get("video_url") or ""),
+        "image_url": normalize_public_media_url(item.get("image_url") or item.get("media_url") or item.get("thumbnail_url") or ""),
+        "poster_url": normalize_public_media_url(item.get("thumbnail_url") or item.get("poster_url") or item.get("image_url") or ""),
         "creator_id": item.get("profile_id") or item.get("creator_id"),
         "creator_name": item.get("display_name") or item.get("creator_name") or item.get("username") or "",
         "creator_username": item.get("username") or item.get("creator_username") or "",
@@ -250,9 +262,10 @@ def _normalize_story_item(item):
         "title": "",
         "caption": item.get("caption") or item.get("text_content") or "",
         "body": item.get("text_content") or item.get("caption") or "",
-        "media_url": item.get("media_url") or item.get("thumbnail_url") or item.get("video_url") or "",
-        "video_url": item.get("video_url") or "",
-        "image_url": item.get("thumbnail_url") or item.get("media_url") or "",
+        "media_url": normalize_public_media_url(item.get("media_url") or item.get("thumbnail_url") or item.get("video_url") or ""),
+        "video_url": normalize_public_media_url(item.get("video_url") or ""),
+        "image_url": normalize_public_media_url(item.get("thumbnail_url") or item.get("media_url") or ""),
+        "poster_url": normalize_public_media_url(item.get("thumbnail_url") or item.get("poster_url") or item.get("media_url") or ""),
         "creator_id": item.get("profile_id"),
         "creator_name": item.get("display_name") or item.get("username") or "",
         "creator_username": item.get("username") or "",
@@ -284,9 +297,10 @@ def _normalize_live_room_item(item):
         "title": item.get("title") or item.get("creator_name") or "Live",
         "caption": "",
         "body": "",
-        "media_url": item.get("cover_url") or "",
+        "media_url": normalize_public_media_url(item.get("cover_url") or ""),
         "video_url": "",
-        "image_url": item.get("cover_url") or "",
+        "image_url": normalize_public_media_url(item.get("cover_url") or ""),
+        "poster_url": normalize_public_media_url(item.get("cover_url") or ""),
         "creator_id": item.get("profile_id") or item.get("creator_id"),
         "creator_name": item.get("creator_name") or "",
         "creator_username": item.get("creator_username") or "",
@@ -312,9 +326,10 @@ def _normalize_profile_item(item):
         "title": "",
         "caption": item.get("bio") or "",
         "body": item.get("bio") or "",
-        "media_url": item.get("avatar_url") or item.get("profile_photo") or "",
+        "media_url": normalize_public_media_url(item.get("avatar_url") or item.get("profile_photo") or ""),
         "video_url": "",
-        "image_url": item.get("avatar_url") or item.get("profile_photo") or "",
+        "image_url": normalize_public_media_url(item.get("avatar_url") or item.get("profile_photo") or ""),
+        "poster_url": normalize_public_media_url(item.get("avatar_url") or item.get("profile_photo") or ""),
         "creator_id": item.get("id"),
         "creator_name": item.get("display_name") or item.get("username") or "",
         "creator_username": item.get("username") or "",
@@ -419,12 +434,16 @@ def _fetch_real_online_users(limit=8):
     ]
 
 
-def _build_homepage_contract(viewer_id=None, limit=20, tab="for_you", include_widgets=True):
+def _build_homepage_contract(viewer_id=None, limit=20, tab="for_you", include_widgets=True, cold_start=False):
     timings = {}
     fast_payload = _timed_section(
         "posts",
         timings,
-        lambda: _fast_homepage_feed_payload(limit=limit, viewer_id=viewer_id) or _minimal_feed_payload(),
+        lambda: _fast_homepage_feed_payload(
+            limit=limit,
+            viewer_id=viewer_id,
+            cold_start=cold_start,
+        ) or _minimal_feed_payload(),
     )
 
     stories = _timed_section("stories", timings, lambda: [_normalize_story_item(item) for item in filter_content(fast_payload.get("stories") or [])])
@@ -508,7 +527,7 @@ def warm_homepage_cache():
         pass
     return False
 
-def _fast_homepage_feed_payload(limit=20, viewer_id=None):
+def _fast_homepage_feed_payload(limit=20, viewer_id=None, cold_start=False):
     started = time.perf_counter()
     budget_seconds = 30.0
 
@@ -518,87 +537,143 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
         return _HOMEPAGE_CACHE["payload"]
 
     payload = _minimal_feed_payload()
+    stage_timings = {}
 
     # Run all fetches in parallel via ThreadPoolExecutor
-    timeout_s = max(1.0, min(2.5, budget_seconds - (time.perf_counter() - started)))
+    timeout_s = 10.0 if cold_start else max(1.0, min(2.5, budget_seconds - (time.perf_counter() - started)))
     import threading
     _results = {}
     _lock = threading.Lock()
 
     def _fetch_stories():
         try:
+            stage_started = time.perf_counter()
             s, _, _ = fetch_stories_v2(
                 ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "created_at"],
-                timeout_ms=5000, limit=min(limit, 8), viewer_id=viewer_id,
+                timeout_ms=2500 if cold_start else 5000, limit=min(limit, 4 if cold_start else 8), viewer_id=viewer_id,
             )
-            with _lock: _results["stories"] = s[: min(limit, 8)] if s else []
+            with _lock: _results["stories"] = s[: min(limit, 4 if cold_start else 8)] if s else []
+            stage_timings["stories"] = round((time.perf_counter() - stage_started) * 1000, 2)
         except Exception:
             with _lock: _results["stories"] = []
+            stage_timings["stories"] = round((time.perf_counter() - stage_started) * 1000, 2)
 
     def _fetch_posts():
         try:
+            stage_started = time.perf_counter()
             p, _, _ = fetch_posts_v2(
                 ["id", "profile_id", "caption", "content", "body", "thumbnail_url", "media_url", "video_url", "mime_type", "post_type", "likes_count", "comments_count", "views_count", "shares_count", "created_at"],
-                timeout_ms=5000, limit=min(limit, 12), viewer_id=viewer_id,
+                timeout_ms=1200 if cold_start else 5000, limit=min(limit, 2 if cold_start else 12), viewer_id=viewer_id, include_ads=not cold_start, return_raw=cold_start,
             )
-            with _lock: _results["feed_items"] = p[: min(limit, 12)] if p else []
+            with _lock:
+                _results["feed_items_raw" if cold_start else "feed_items"] = p[: min(limit, 2 if cold_start else 12)] if p else []
+            stage_timings["posts"] = round((time.perf_counter() - stage_started) * 1000, 2)
         except Exception:
-            with _lock: _results["feed_items"] = []
+            with _lock:
+                _results["feed_items_raw" if cold_start else "feed_items"] = []
+            stage_timings["posts"] = round((time.perf_counter() - stage_started) * 1000, 2)
 
     def _fetch_reels():
         try:
+            stage_started = time.perf_counter()
             r, _, _ = fetch_reels_v2(
                 ["id", "profile_id", "caption", "thumbnail_url", "media_url", "video_url", "mime_type", "likes_count", "comments_count", "views_count", "shares_count", "music_title", "created_at"],
-                timeout_ms=5000, limit=min(limit, 8), viewer_id=viewer_id,
+                timeout_ms=1000 if cold_start else 5000, limit=min(limit, 1 if cold_start else 8), viewer_id=viewer_id, return_raw=cold_start,
             )
-            with _lock: _results["reels"] = r[: min(limit, 8)] if r else []
+            with _lock:
+                _results["reels_raw" if cold_start else "reels"] = r[: min(limit, 1 if cold_start else 8)] if r else []
+            stage_timings["reels"] = round((time.perf_counter() - stage_started) * 1000, 2)
         except Exception:
-            with _lock: _results["reels"] = []
+            with _lock:
+                _results["reels_raw" if cold_start else "reels"] = []
+            stage_timings["reels"] = round((time.perf_counter() - stage_started) * 1000, 2)
 
     def _fetch_live():
         try:
+            stage_started = time.perf_counter()
             lr, _, _ = fetch_live_rooms_v2(
                 ["id", "profile_id", "category", "status", "is_live", "viewer_count", "cover_url", "thumbnail_url", "entry_fee", "created_at"],
-                timeout_ms=5000, limit=min(limit, 5),
+                timeout_ms=2000 if cold_start else 5000, limit=min(limit, 4 if cold_start else 5),
             )
-            with _lock: _results["live_rooms"] = lr[: min(limit, 5)] if lr else []
+            with _lock: _results["live_rooms"] = lr[: min(limit, 4 if cold_start else 5)] if lr else []
+            stage_timings["live_rooms"] = round((time.perf_counter() - stage_started) * 1000, 2)
         except Exception:
             with _lock: _results["live_rooms"] = []
+            stage_timings["live_rooms"] = round((time.perf_counter() - stage_started) * 1000, 2)
 
     def _fetch_suggested():
         try:
+            stage_started = time.perf_counter()
             sc, _ = fetch_suggested_people_v2(
                 ["id", "username", "display_name", "avatar_url", "profile_photo", "is_verified", "verified", "followers_count", "town", "location", "is_online", "profile_score", "profile_level"],
-                timeout_ms=5000, limit=min(limit, 5),
+                timeout_ms=1500 if cold_start else 5000, limit=min(limit, 4 if cold_start else 5),
             )
             with _lock:
-                _results["suggested_creators"] = sc[: min(limit, 5)] if sc else []
+                _results["suggested_creators"] = sc[: min(limit, 4 if cold_start else 5)] if sc else []
+            stage_timings["suggested_creators"] = round((time.perf_counter() - stage_started) * 1000, 2)
         except Exception:
             with _lock: _results["suggested_creators"] = []
+            stage_timings["suggested_creators"] = round((time.perf_counter() - stage_started) * 1000, 2)
 
     def _fetch_activity():
+        if cold_start:
+            with _lock:
+                _results["friend_activity"] = []
+            stage_timings["friend_activity"] = 0.0
+            return
         try:
+            stage_started = time.perf_counter()
             act = _fetch_friend_activity(viewer_id=viewer_id, limit=10)
             with _lock: _results["friend_activity"] = list(act) if act else []
+            stage_timings["friend_activity"] = round((time.perf_counter() - stage_started) * 1000, 2)
         except Exception:
             with _lock: _results["friend_activity"] = []
+            stage_timings["friend_activity"] = round((time.perf_counter() - stage_started) * 1000, 2)
 
-    with ThreadPoolExecutor(max_workers=6) as exe:
-        fs = [
-            exe.submit(_fetch_stories),
-            exe.submit(_fetch_posts),
-            exe.submit(_fetch_reels),
-            exe.submit(_fetch_live),
-            exe.submit(_fetch_suggested),
-            exe.submit(_fetch_activity),
-        ]
-        for f in as_completed(fs, timeout=timeout_s):
-            try: f.result()
-            except Exception: pass
+    jobs = [_fetch_posts, _fetch_reels]
+    if not cold_start:
+        jobs.insert(0, _fetch_stories)
+        jobs.extend([_fetch_live, _fetch_suggested, _fetch_activity])
+    exe = ThreadPoolExecutor(max_workers=len(jobs))
+    fs = [exe.submit(job) for job in jobs]
+    try:
+        try:
+            for f in as_completed(fs, timeout=timeout_s):
+                try:
+                    f.result()
+                except Exception:
+                    pass
+        except FuturesTimeoutError:
+            for f in fs:
+                if not f.done():
+                    f.cancel()
+            fast_payload_timeout = True
+        else:
+            fast_payload_timeout = False
+    finally:
+        exe.shutdown(wait=False, cancel_futures=True)
 
     payload["stories"] = _results.get("stories") or []
-    payload["feed_items"] = _results.get("feed_items") or []
-    payload["reels"] = _results.get("reels") or []
+    if cold_start:
+        raw_posts = _results.get("feed_items_raw") or []
+        raw_reels = _results.get("reels_raw") or []
+        shared_profile_ids = []
+        seen_profile_ids = set()
+        for row in list(raw_posts) + list(raw_reels):
+            pid = row.get("profile_id") if isinstance(row, dict) else None
+            if pid and pid not in seen_profile_ids:
+                seen_profile_ids.add(pid)
+                shared_profile_ids.append(pid)
+        profile_batch_started = time.perf_counter()
+        shared_profile_map = fetch_profiles_batch(shared_profile_ids, timeout_ms=5000) if shared_profile_ids else {}
+        stage_timings["profile_batch"] = round((time.perf_counter() - profile_batch_started) * 1000, 2)
+        posts = [normalize_post_v2(row, shared_profile_map) for row in raw_posts if isinstance(row, dict) and row.get("id")]
+        reels = [normalize_post_v2(row, shared_profile_map) for row in raw_reels if isinstance(row, dict) and row.get("id")]
+        payload["feed_items"] = [row for row in posts if row.get("id")]
+        payload["reels"] = [row for row in reels if row.get("id")]
+    else:
+        payload["feed_items"] = _results.get("feed_items") or []
+        payload["reels"] = _results.get("reels") or []
     payload["live_rooms"] = _results.get("live_rooms") or []
     suggested = _results.get("suggested_creators") or []
     payload["suggested_creators"] = list(suggested)
@@ -610,11 +685,25 @@ def _fast_homepage_feed_payload(limit=20, viewer_id=None):
     payload = rank_homepage_sections(payload, viewer_id=viewer_id, feed_limit=limit)
 
     payload["homepage_degraded"] = not bool(payload.get("feed_items") or payload.get("stories") or payload.get("reels"))
+    if fast_payload_timeout and not payload["homepage_degraded"]:
+        payload["homepage_degraded"] = False
 
     # Store in in-memory cache for anonymous users
     if not viewer_id:
         _HOMEPAGE_CACHE["payload"] = payload
         _HOMEPAGE_CACHE["expires_at"] = time.time() + _HOMEPAGE_CACHE_TTL
+
+    log_info(
+        "homepage_feed_stage_timing",
+        viewer_authenticated=bool(viewer_id),
+        cold_start=bool(cold_start),
+        stage_timings=stage_timings,
+        feed_items=len(payload.get("feed_items") or []),
+        reels=len(payload.get("reels") or []),
+        stories=len(payload.get("stories") or []),
+        live_rooms=len(payload.get("live_rooms") or []),
+        suggested=len(payload.get("suggested_creators") or []),
+    )
 
     return payload
 
@@ -726,13 +815,20 @@ def _get_homepage_widgets(viewer_id=None, posts=None, reels=None, stories=None,
             results["counts"]["unread_messages"] = 0
 
     jobs = [fetch_live, fetch_suggestions, fetch_online, fetch_hashtags, fetch_notifications, fetch_wallet, fetch_unread]
-    with ThreadPoolExecutor(max_workers=len(jobs)) as exe:
-        futures = [exe.submit(job) for job in jobs]
+    exe = ThreadPoolExecutor(max_workers=len(jobs))
+    futures = [exe.submit(job) for job in jobs]
+    try:
         for future in as_completed(futures, timeout=2.0):
             try:
                 future.result()
             except Exception:
                 pass
+    except FuturesTimeoutError:
+        for future in futures:
+            if not future.done():
+                future.cancel()
+    finally:
+        exe.shutdown(wait=False, cancel_futures=True)
 
     _set_widget_cache(viewer_id, results)
     return results
@@ -1034,7 +1130,7 @@ def api_homepage_feed():
         else:
             payload = None
         if payload is None:
-            payload = _build_homepage_contract(viewer_id=viewer_id, limit=limit, tab=tab)
+            payload = _build_homepage_contract(viewer_id=viewer_id, limit=limit, tab=tab, include_widgets=False)
         has_data = bool(payload.get("posts") or payload.get("reels") or payload.get("stories") or payload.get("live_rooms"))
         if not has_data:
             payload = _safe_degraded_homepage_payload()

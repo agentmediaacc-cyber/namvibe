@@ -1,5 +1,6 @@
 import os
 import time
+import traceback
 from datetime import datetime, timezone
 from functools import wraps
 
@@ -39,6 +40,7 @@ from services.profile_service import (
     get_profile_bundle,
     get_profile_by_id,
     get_profile_by_username,
+    get_public_profile_reference,
     get_profile_content,
     get_profile_posts,
     get_profile_privacy,
@@ -111,7 +113,21 @@ def login_required(f):
                 refresh_supabase_session_if_needed()
         if not is_logged_in() and not has_local_session:
             if request.path.startswith('/api/') or request.path.startswith('/reels/api/') or request.path.startswith('/posts/api/') or request.path.startswith('/status/api/'):
-                return jsonify({"error": "Unauthorized", "message": "Authentication required"}), 401
+                login_next = request.referrer or request.path
+                if request.path.startswith("/reels/api/reels/"):
+                    reel_id = request.path.split("/reels/api/reels/", 1)[1].split("/", 1)[0]
+                    if reel_id:
+                        login_next = f"/reels/{reel_id}"
+                login_url = url_for("auth.login", next=login_next)
+                register_url = url_for("auth.register", next=login_next)
+                return jsonify({
+                    "ok": False,
+                    "error": "authentication_required",
+                    "message": "Authentication required",
+                    "login_url": login_url,
+                    "register_url": register_url,
+                    "next": login_next,
+                }), 401
             return redirect(url_for("auth.login", next=request.path))
         return f(*args, **kwargs)
 
@@ -168,6 +184,29 @@ def _safe_number(value, default=0):
         return int(float(value))
     except (TypeError, ValueError):
         return default
+
+
+def _coerce_sequence(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, dict):
+        for key in ("items", "results", "data", "rows"):
+            nested = value.get(key)
+            if isinstance(nested, list):
+                return nested
+            if isinstance(nested, tuple):
+                return list(nested)
+        return []
+    if isinstance(value, (str, bytes)):
+        return [value]
+    try:
+        return list(value)
+    except TypeError:
+        return []
 
 
 def _with_profile_defaults(profile):
@@ -382,6 +421,19 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
     context["profile"] = render_profile
     context["viewer"] = _with_profile_defaults(viewer) if viewer else None
     profile_content = dict(context.get("content") or {})
+    profile_content["friends"] = _coerce_sequence(profile_content.get("friends"))
+    profile_content["posts"] = _coerce_sequence(profile_content.get("posts"))
+    profile_content["reels"] = _coerce_sequence(profile_content.get("reels"))
+    profile_content["stories"] = _coerce_sequence(profile_content.get("stories"))
+    profile_content["gallery"] = _coerce_sequence(profile_content.get("gallery"))
+    profile_content["gallery_preview"] = _coerce_sequence(profile_content.get("gallery_preview"))
+    profile_content["photos"] = _coerce_sequence(profile_content.get("photos"))
+    profile_content["videos"] = _coerce_sequence(profile_content.get("videos"))
+    profile_content["saved"] = _coerce_sequence(profile_content.get("saved"))
+    profile_content["saved_items"] = _coerce_sequence(profile_content.get("saved_items"))
+    profile_content["tagged"] = _coerce_sequence(profile_content.get("tagged"))
+    profile_content["albums"] = _coerce_sequence(profile_content.get("albums"))
+    profile_content["favorites"] = _coerce_sequence(profile_content.get("favorites"))
     profile_content["mutual_friends"] = context.get("mutual_friends") or render_bundle.get("mutual_friends") or {"count": 0, "items": []}
     profile_content["profile_strength"] = context.get("profile_strength") or render_bundle.get("profile_strength") or {"score": 0, "level": "Fresh", "checks": []}
     # Query real content if bundle left it empty
@@ -398,6 +450,18 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
         except Exception:
             pass
     context["content"] = profile_content
+    context["collections"] = _coerce_sequence(context.get("collections"))
+    context["visitors"] = _coerce_sequence(context.get("visitors"))
+    context["activity"] = _coerce_sequence(context.get("activity"))
+    context["timeline"] = _coerce_sequence(context.get("timeline"))
+    context["education"] = _coerce_sequence(context.get("education"))
+    context["works"] = _coerce_sequence(context.get("works"))
+    context["skills"] = _coerce_sequence(context.get("skills"))
+    context["achievements"] = _coerce_sequence(context.get("achievements"))
+    context["badges"] = _coerce_sequence(context.get("badges"))
+    context["favorites_music"] = _coerce_sequence(context.get("favorites_music"))
+    context["favorites_games"] = _coerce_sequence(context.get("favorites_games"))
+    context["recently_active_friends"] = _coerce_sequence(context.get("recently_active_friends"))
     if not context.get("action_policy"):
         from services.social_action_policy import get_action_policy
         viewer_id = viewer.get("id") if viewer else None
@@ -455,25 +519,30 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
 
 def _resolve_profile_route(username=None, user_id=None):
     start = time.perf_counter()
+    public_handle_route = bool(username and not user_id)
     fast_profile_shell = (
         request.args.get("shell") == "1"
         or
         os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
         or os.getenv("CHAIN_FAST_LOCAL", "").lower() in ("1", "true", "yes", "on")
         or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
+        or public_handle_route
     )
-    viewer = None if fast_profile_shell else (get_current_profile() if is_logged_in() else None)
-    profile = None
-    if username:
-        cleaned_username = username[1:] if username.startswith("@") else username
-        profile = get_profile_by_username(cleaned_username)
-    elif user_id:
-        profile = get_profile_by_id(user_id)
-
-    if not profile:
+    cleaned_username = username[1:] if username and username.startswith("@") else username
+    profile_ref = get_public_profile_reference(username=cleaned_username, profile_id=user_id)
+    if not profile_ref:
         log_warning("public_profile_missing", username=username, user_id=user_id)
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False)
-        return render_template("profile/not_found.html", username=username or user_id or ''), 404
+        return render_template("profile/not_found_light.html", username=username or user_id or ""), 404
+
+    visibility = str(profile_ref.get("visibility") or "public").strip().lower()
+    if profile_ref.get("is_public") is False or visibility in {"private", "friends", "followers"}:
+        log_warning("public_profile_hidden", username=username, user_id=user_id, visibility=visibility)
+        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=True, visibility=visibility, hidden=True)
+        return render_template("profile/not_found_light.html", username=username or user_id or ""), 404
+
+    profile = profile_ref
+    viewer = None if fast_profile_shell else (get_current_profile() if is_logged_in() else None)
 
     if fast_profile_shell:
         shell_profile = {
@@ -579,6 +648,7 @@ def my_profile():
             return render_template("profile/index.html", **context)
 
         session.pop(K_PROFILE_WARNING, None)
+        is_owner = bool(viewer and viewer.get("id") and session.get("profile_id") and str(viewer.get("id")) == str(session.get("profile_id")))
 
         ok, result = verify_profile_age(viewer)
         if not ok:
@@ -628,11 +698,10 @@ def my_profile():
             context["pv"] = context["profile_view"]
             return render_template("profile/index.html", **context)
 
+        unread_count = 0
         try:
             if is_owner:
                 _, _, unread_count = get_my_notifications()
-            else:
-                unread_count = 0
         except Exception as error:
             log_warning("profile_notifications_failed", profile_id=viewer.get("id"), error=str(error))
             unread_count = 0
@@ -794,8 +863,14 @@ def view_profile(username=None, user_id=None):
     try:
         return _resolve_profile_route(username=username, user_id=user_id)
     except Exception as error:
-        log_error("view_profile_failed", username=username, user_id=user_id, error=str(error))
-        return render_template("profile/not_found.html", username=username or user_id or ''), 404
+        log_error(
+            "view_profile_failed",
+            username=username,
+            user_id=user_id,
+            error=str(error),
+            traceback=traceback.format_exc(),
+        )
+        return render_template("auth/profile_error.html", error_detail="Profile could not be loaded right now."), 500
 
 
 @profile_bp.route("", methods=["GET"])
@@ -933,8 +1008,13 @@ def public_profile(username):
     try:
         return _resolve_profile_route(username=username)
     except Exception as error:
-        log_error("public_profile_failed", username=username, error=str(error))
-        return render_template("profile/not_found.html", username=username or ''), 404
+        log_error(
+            "public_profile_failed",
+            username=username,
+            error=str(error),
+            traceback=traceback.format_exc(limit=8),
+        )
+        return render_template("auth/profile_error.html", error_detail="Profile could not be loaded right now."), 500
 
 
 @profile_bp.route("/api/summary")

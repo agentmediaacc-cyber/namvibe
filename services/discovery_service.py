@@ -5,10 +5,11 @@ from services.neon_service import fast_query, is_circuit_open
 from services.profile_service import normalize_profile
 from services.recommendation_service import get_recommended_posts
 from services.request_cache import get_or_set
-from services.homepage_real_data_guard import filter_feed_posts, public_profile_sql, public_profile_subquery
+from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, public_profile_sql, public_profile_subquery
 from services.relationship_cache_service import get_many_relationship_states
 from services.logging_service import log_info
 from services.social_action_policy import get_action_policy
+from services.id_validation import normalize_uuid, filter_valid_uuids
 
 
 DISCOVERY_PROFILE_COLUMNS = [
@@ -157,6 +158,8 @@ def _profile_strength(profile):
 
 
 def _batch_mutual_friend_counts(viewer_id, target_ids):
+    viewer_id = normalize_uuid(viewer_id)
+    target_ids = filter_valid_uuids(target_ids)
     if not viewer_id or not target_ids:
         return {}
     placeholders = ", ".join(["%s"] * len(target_ids))
@@ -197,6 +200,7 @@ def _batch_mutual_friend_counts(viewer_id, target_ids):
 
 
 def _batch_presence(target_ids):
+    target_ids = filter_valid_uuids(target_ids)
     if not target_ids:
         return {}
     rows = fast_query(
@@ -317,6 +321,7 @@ def get_discovery_data(section, viewer_id=None, limit=50, offset=0, q=""):
             viewer_profile = normalize_profile(viewer_rows[0]) if viewer_rows else {}
         if section == "dating":
             profiles = _load_profiles("AND COALESCE(dating_mode_enabled, FALSE) = TRUE", limit=limit, offset=offset, timeout_ms=5000)
+            profiles = filter_profiles(profiles)
             for p in profiles:
                 if p["id"] == viewer_id:
                     continue
@@ -330,15 +335,18 @@ def get_discovery_data(section, viewer_id=None, limit=50, offset=0, q=""):
             title = "Live Now"
         elif section == "members" or section == "recommended":
             data = _load_profiles(limit=limit, offset=offset)
+            data = filter_profiles(data)
             title = "Recommended Members"
         elif section == "trending":
             data = filter_feed_posts(get_recommended_posts(viewer_id, limit=limit) or _load_trending(limit=limit))
             title = "Trending Feed"
         elif section == "nearby":
             data = _load_profiles("AND current_location IS NOT NULL", limit=limit, offset=offset)
+            data = filter_profiles(data)
             title = "Nearby Members"
         else:
             data = _load_profiles(limit=limit, offset=offset)
+            data = filter_profiles(data)
         log_info("discovery_timing", section=section, viewer=bool(viewer_id), phase="load_items", item_count=len(data or []), duration_ms=_ms(load_start))
 
         enriched = []

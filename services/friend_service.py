@@ -7,6 +7,7 @@ from services.neon_service import fast_query, write_query
 from services.logging_service import log_info, log_error
 from services.notification_engine import create_notification
 from services.redis_service import cache_get, cache_set, cache_delete
+from services.homepage_real_data_guard import public_profile_sql
 
 def _get_ordered_pair(id1, id2):
     return (id1, id2) if id1 < id2 else (id2, id1)
@@ -312,28 +313,36 @@ def get_mutual_friends(profile_id_1, profile_id_2, limit=20, offset=0):
 
 def suggest_friends(profile_id, limit=20):
     """Suggests friends based on mutual friends of friends (simplified)."""
-    # 1. Get current friends
-    # 2. Get friends of friends
-    # 3. Exclude current friends and pending requests
-    # For now, let's just suggest popular profiles that are not friends yet
+    # Exclude current friends, blocked profiles, and pending requests.
+    public_sql = public_profile_sql("chain_profiles")
     query = """
-        SELECT id, username, display_name, avatar_url, is_verified
+        SELECT id, username, display_name, avatar_url, is_verified, followers_count
         FROM chain_profiles
-        WHERE id != %s
+        WHERE deleted_at IS NULL
+          AND COALESCE(is_public, TRUE) = TRUE
+          AND {public_sql}
+          AND id != %s
           AND id NOT IN (
               SELECT profile_id_1 FROM chain_friends WHERE profile_id_2 = %s
               UNION
               SELECT profile_id_2 FROM chain_friends WHERE profile_id_1 = %s
           )
           AND id NOT IN (
+              SELECT blocked_profile_id FROM chain_blocks WHERE blocker_profile_id = %s AND deleted_at IS NULL
+              UNION
+              SELECT blocker_profile_id FROM chain_blocks WHERE blocked_profile_id = %s AND deleted_at IS NULL
+          )
+          AND id NOT IN (
               SELECT recipient_profile_id FROM chain_friend_requests WHERE sender_profile_id = %s AND status = 'pending'
               UNION
               SELECT sender_profile_id FROM chain_friend_requests WHERE recipient_profile_id = %s AND status = 'pending'
+              UNION
+              SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s AND deleted_at IS NULL
           )
-        ORDER BY followers_count DESC
+        ORDER BY COALESCE(followers_count, 0) DESC, created_at DESC
         LIMIT %s
-    """
-    res = fast_query(query, [profile_id, profile_id, profile_id, profile_id, profile_id, limit])
+    """.format(public_sql=public_sql)
+    res = fast_query(query, [profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, limit])
     return res
 
 def set_friend_status(profile_id, friend_id, status):

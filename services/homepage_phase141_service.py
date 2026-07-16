@@ -16,6 +16,8 @@ from services.neon_service import fast_query
 from engines.cache_engine import cache_key, get_cache, set_cache
 from services.feed_ranking_service import rank_feed
 from services.ads_service import get_ads_for_feed
+from services.homepage_real_data_guard import public_profile_sql
+from services.id_validation import normalize_uuid, filter_valid_uuids
 
 def _format_relative(value):
     """Format relative time - duplicated to avoid circular import."""
@@ -62,6 +64,7 @@ def _profile_avatar(profile):
 
 def fetch_liked_entity_ids(entity_type, viewer_id, entity_ids, timeout_ms=5000):
     """Return the entity IDs liked by the current viewer for homepage rendering."""
+    viewer_id = normalize_uuid(viewer_id)
     if not viewer_id or not entity_ids:
         return set()
 
@@ -74,7 +77,7 @@ def fetch_liked_entity_ids(entity_type, viewer_id, entity_ids, timeout_ms=5000):
         return set()
 
     table_name, column_name = table_info
-    normalized_ids = [str(entity_id) for entity_id in entity_ids if entity_id]
+    normalized_ids = filter_valid_uuids(entity_ids)
     if not normalized_ids:
         return set()
 
@@ -86,7 +89,7 @@ def fetch_liked_entity_ids(entity_type, viewer_id, entity_ids, timeout_ms=5000):
                 f"WHERE profile_id = %s AND reaction_type = 'like' "
                 f"AND {column_name} IN ({placeholders})"
             ),
-            [str(viewer_id), *normalized_ids],
+            [viewer_id, *normalized_ids],
             timeout_ms=timeout_ms,
             default=[],
         )
@@ -108,7 +111,7 @@ def fetch_profiles_batch(profile_ids, timeout_ms=5000):
     """
     if not profile_ids:
         return {}
-    unique_ids = list(set(str(pid) for pid in profile_ids if pid))
+    unique_ids = filter_valid_uuids(profile_ids)
     if not unique_ids:
         return {}
     
@@ -270,7 +273,7 @@ def normalize_profile_v2(row):
     }
 
 
-def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
+def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None, include_status_posts=True):
     """Phase 141: Fetch stories WITHOUT expensive profile JOIN.
 
     Visibility rules:
@@ -289,7 +292,7 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
 
     try:
         # Build visibility-aware query
-        profile_id_param = str(viewer_id) if viewer_id else None
+        profile_id_param = normalize_uuid(viewer_id)
         base_query = f"SELECT {', '.join(story_columns)} FROM chain_status_posts WHERE (expires_at IS NULL OR expires_at > NOW()) AND deleted_at IS NULL"
         
         if profile_id_param:
@@ -310,6 +313,30 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
             query = base_query + """ AND (visibility IS NULL OR visibility = 'public')
                 ORDER BY created_at DESC LIMIT %s"""
             rows = fast_query(query, [limit], timeout_ms=timeout_ms, default=[])
+
+        if include_status_posts:
+            sp_cols = _status_select()
+            if sp_cols:
+                sc = ", ".join(f"sp.{c}" for c in sp_cols)
+                status_available = set(sp_cols)
+                status_where = []
+                status_params = []
+                if "deleted_at" in status_available:
+                    status_where.append("sp.deleted_at IS NULL")
+                if "expires_at" in status_available:
+                    status_where.append("(sp.expires_at IS NULL OR sp.expires_at > %s)")
+                    status_params.append(_utcnow())
+                if "visibility" in status_available:
+                    status_where.append("sp.visibility = 'public'")
+                if "status" in status_available:
+                    status_where.append("COALESCE(sp.status, '') <> 'deleted'")
+                status_query = (
+                    f"SELECT {sc} FROM chain_status_posts sp "
+                    f"{'WHERE ' + ' AND '.join(status_where) if status_where else ''} "
+                    f"ORDER BY sp.created_at DESC LIMIT {limit}"
+                )
+                status_rows = fast_query(status_query, status_params, timeout_ms=timeout_ms, default=[])
+                rows = list(rows or []) + list(status_rows or [])
 
         if not rows:
             return [], False, None
@@ -332,7 +359,7 @@ def fetch_stories_v2(story_columns, timeout_ms=800, limit=20, viewer_id=None):
         return [], False, f"stories: error {e}"
 
 
-def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
+def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None, return_raw=False):
     """Phase 141: Fetch reels WITHOUT expensive profile JOIN.
     
     Visibility rules:
@@ -349,7 +376,7 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
         return [], False, "reels: unavailable"
     
     try:
-        profile_id_param = str(viewer_id) if viewer_id else None
+        profile_id_param = normalize_uuid(viewer_id)
         base_query = f"SELECT {', '.join(reel_columns)} FROM chain_reels WHERE deleted_at IS NULL AND video_url IS NOT NULL AND video_url != ''"
         
         if profile_id_param:
@@ -369,12 +396,16 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
         if not rows:
             return [], False, None
         
-        profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
-        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
         liked_ids = fetch_liked_entity_ids("reel", viewer_id, [r.get("id") for r in rows], timeout_ms=5000)
         for row in rows:
             row["type"] = "reel"
             row["is_liked"] = str(row.get("id")) in liked_ids
+
+        if return_raw:
+            return rows, False, None
+
+        profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
+        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
 
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
@@ -400,7 +431,7 @@ def fetch_reels_v2(reel_columns, timeout_ms=800, limit=20, viewer_id=None):
         return [], False, f"reels: error {e}"
 
 
-def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
+def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None, include_ads=True, return_raw=False):
     """Phase 141: Fetch posts WITHOUT expensive profile JOIN.
     
     Visibility rules:
@@ -417,7 +448,7 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
         return [], False, "posts: unavailable"
     
     try:
-        profile_id_param = str(viewer_id) if viewer_id else None
+        profile_id_param = normalize_uuid(viewer_id)
         base_query = f"SELECT {', '.join(post_columns)} FROM chain_posts WHERE deleted_at IS NULL"
         
         if profile_id_param:
@@ -439,18 +470,22 @@ def fetch_posts_v2(post_columns, timeout_ms=800, limit=20, viewer_id=None):
         if not rows:
             return [], False, None
         
-        profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
-        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
         liked_ids = fetch_liked_entity_ids("post", viewer_id, [r.get("id") for r in rows], timeout_ms=5000)
         for row in rows:
             row["type"] = row.get("type") or "post"
             row["is_liked"] = str(row.get("id")) in liked_ids
 
+        if return_raw:
+            return rows, False, None
+
+        profile_ids = [r.get("profile_id") for r in rows if r.get("profile_id")]
+        profile_map = fetch_profiles_batch(profile_ids, timeout_ms=5000)
+
         normalized = [normalize_post_v2(r, profile_map) for r in rows if r.get("id")]
         normalized = [r for r in normalized if r.get("id")]
         
         ranked = rank_feed(normalized, viewer_id=viewer_id, tab="trending", limit=limit)
-        if viewer_id is None:
+        if include_ads and viewer_id is None:
             ad_slots = get_ads_for_feed(viewer_id=None, slot_count=1)
             if ad_slots and len(ranked) >= 3:
                 ranked.insert(3, ad_slots[0])
@@ -507,13 +542,25 @@ def fetch_suggested_people_v2(profile_columns, timeout_ms=500, limit=10):
         return [], False
     
     try:
+        public_sql = public_profile_sql("chain_profiles")
         rows = fast_query(
-            f"SELECT {', '.join(profile_columns)} FROM chain_profiles WHERE is_creator = TRUE AND deleted_at IS NULL ORDER BY created_at DESC LIMIT {limit}",
+            f"""
+            SELECT {', '.join(profile_columns)}
+            FROM chain_profiles
+            WHERE deleted_at IS NULL
+              AND COALESCE(is_public, TRUE) = TRUE
+              AND {public_sql}
+            ORDER BY COALESCE(is_verified, FALSE) DESC,
+                     COALESCE(followers_count, 0) DESC,
+                     created_at DESC
+            LIMIT {limit * 3}
+            """,
             timeout_ms=timeout_ms,
             default=[]
         )
         
         normalized = [normalize_profile_v2(r) for r in rows if r.get("id")]
+        normalized = [r for r in normalized if r.get("id")]
         result = normalized[:limit]
         set_cache(cache_key_str, result, ttl=60)
         return result, False

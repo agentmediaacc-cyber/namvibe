@@ -29,3 +29,15 @@ max_requests_jitter = 50
 
 # Worker connections for gevent
 worker_connections = 1000
+
+
+def post_worker_init(worker):
+    if os.environ.get("CHAIN_DISABLE_PREWARM", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return
+
+    try:
+        from services.homepage_warmup_service import schedule_homepage_refresh
+
+        schedule_homepage_refresh()
+    except Exception as exc:
+        worker.log.warning("worker homepage refresh scheduling failed: %s", exc)

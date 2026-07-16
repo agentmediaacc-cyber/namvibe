@@ -70,21 +70,86 @@ def _completion_payload(profile):
     return calculate_profile_completion(profile)
 
 
+def _coerce_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, dict):
+        for key in ("items", "results", "data", "rows"):
+            nested = value.get(key)
+            if isinstance(nested, list):
+                return nested
+            if isinstance(nested, tuple):
+                return list(nested)
+        return []
+    if isinstance(value, (str, bytes)):
+        return [value]
+    try:
+        return list(value)
+    except TypeError:
+        return []
+
+
+def _normalize_content(content):
+    content = content or {}
+    if not isinstance(content, dict):
+        content = {}
+    normalized = dict(content)
+    for key in ("posts", "reels", "rooms", "stories", "gallery", "gallery_preview", "photos", "videos", "saved", "saved_items", "tagged", "albums", "favorites"):
+        normalized[key] = _coerce_list(normalized.get(key))
+    normalized["friends"] = _coerce_list(normalized.get("friends"))
+    normalized["highlights"] = _coerce_list(normalized.get("highlights"))
+    normalized["mutual_friends"] = normalized.get("mutual_friends") if isinstance(normalized.get("mutual_friends"), dict) else {"count": 0, "items": _coerce_list(normalized.get("mutual_friends"))}
+    normalized["profile_strength"] = normalized.get("profile_strength") if isinstance(normalized.get("profile_strength"), dict) else {"score": 0, "level": "Fresh", "checks": []}
+    return normalized
+
+
+def _normalize_activity(activity):
+    if isinstance(activity, list):
+        return activity
+    if isinstance(activity, tuple):
+        return list(activity)
+    if isinstance(activity, dict):
+        for key in ("items", "results", "data", "rows"):
+            nested = activity.get(key)
+            if isinstance(nested, list):
+                return nested
+            if isinstance(nested, tuple):
+                return list(nested)
+        return []
+    if isinstance(activity, (str, bytes)):
+        return [activity]
+    try:
+        return list(activity)
+    except TypeError:
+        return []
+
+
 def build_profile_dashboard(profile=None, viewer=None, bundle=None):
     profile = profile or {}
     bundle = bundle or (get_profile_bundle(profile_id=profile.get("id"), viewer=viewer) if profile.get("id") else None) or {}
     profile = bundle.get("profile") or profile or {}
     viewer = viewer or profile
     stats = bundle.get("stats") or {}
-    content = bundle.get("content") or {"posts": [], "reels": [], "rooms": [], "stories": [], "marketplace": [], "albums": []}
+    content = _normalize_content(bundle.get("content") or {"posts": [], "reels": [], "rooms": [], "stories": [], "marketplace": [], "albums": []})
     wallet = bundle.get("wallet") or {"coin_balance": 0, "gift_earnings": 0, "pending_withdrawal": 0}
     creator_tools = bundle.get("creator_tools") or {"studio_enabled": False, "featured_links": []}
-    activity = bundle.get("activity") or {"gifts": [], "favorites": [], "recent_views": []}
+    activity = _normalize_activity(bundle.get("activity") or [])
     actions = bundle.get("actions") or []
     presence = bundle.get("presence") or {"status": "offline", "last_seen": None}
     mutual_friends = bundle.get("mutual_friends") or {"count": 0, "items": []}
+    if not isinstance(mutual_friends, dict):
+        mutual_friends = {"count": 0, "items": _coerce_list(mutual_friends)}
+    else:
+        mutual_friends = dict(mutual_friends)
+        mutual_friends["items"] = _coerce_list(mutual_friends.get("items"))
     profile_strength = bundle.get("profile_strength") or {"score": 0, "level": "Fresh", "checks": []}
-    recently_active_friends = bundle.get("recently_active_friends") or []
+    if not isinstance(profile_strength, dict):
+        profile_strength = {"score": 0, "level": "Fresh", "checks": []}
+    recently_active_friends = _coerce_list(bundle.get("recently_active_friends") or [])
 
     profile_id = profile.get("id")
     settings = {
@@ -248,9 +313,9 @@ def build_profile_dashboard(profile=None, viewer=None, bundle=None):
         "level": level,
         "story_highlights": ["Travel", "Business", "Family", "Education", "Projects"],
         "pinned": {
-            "posts": content.get("posts", [])[:3],
-            "reels": content.get("reels", [])[:3],
-            "products": marketplace_items[:3],
+            "posts": _coerce_list(content.get("posts"))[:3],
+            "reels": _coerce_list(content.get("reels"))[:3],
+            "products": _coerce_list(marketplace_items)[:3],
         },
         "contact": {
             "call": permissions["can_call"],

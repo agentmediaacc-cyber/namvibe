@@ -1,11 +1,13 @@
 import os
 import uuid
+import threading
 from datetime import datetime, timezone
 from html import escape
 
 from services.neon_service import fast_query, write_query
 from services import neon_service
 from services.supabase_safe import safe_count, safe_delete, safe_insert, safe_select, safe_update, table_exists
+from services.redis_service import cache_get, cache_set
 
 
 def _utcnow_iso():
@@ -35,22 +37,21 @@ def _owner_for(entity_type, entity_id):
     if not table_info:
         return None
     table, owner_columns = table_info
-    row = _first(table, {"id": entity_id}, columns="*", order_by=None) or {}
+    try:
+        neon_row = fast_query(
+            f"SELECT {', '.join(owner_columns)} FROM {table} WHERE id = %s LIMIT 1",
+            (entity_id,), timeout_ms=1000, default=[]
+        )
+        if neon_row:
+            for column in owner_columns:
+                if neon_row[0].get(column):
+                    return neon_row[0][column]
+    except Exception:
+        pass
+    row = _first(table, {"id": entity_id}, columns=",".join(owner_columns), order_by=None) or {}
     for column in owner_columns:
         if row.get(column):
             return row.get(column)
-    if table in ("chain_posts", "chain_reels", "chain_status_posts"):
-        try:
-            neon_row = fast_query(
-                f"SELECT {', '.join(owner_columns)} FROM {table} WHERE id = %s",
-                (entity_id,), timeout_ms=1000, default=[]
-            )
-            if neon_row:
-                for column in owner_columns:
-                    if neon_row[0].get(column):
-                        return neon_row[0][column]
-        except Exception:
-            pass
     return None
 
 
@@ -90,6 +91,10 @@ def _notify(recipient_id, actor_id, event_type, title, body, target_url, entity_
         )
     except Exception:
         return False
+
+
+def _notify_async(*args, **kwargs):
+    threading.Thread(target=_notify, args=args, kwargs=kwargs, daemon=True).start()
 
 
 def _set_count(table, entity_id, column, count):
@@ -153,27 +158,37 @@ def _table_available(table_name):
     limited to the listed tables to avoid bypassing Supabase behavior
     globally.
     """
+    cache_key_name = f"engagement:table_available:{table_name}"
+    cached = cache_get(cache_key_name)
+    if isinstance(cached, dict) and "exists" in cached:
+        return bool(cached.get("exists"))
+
     neon_preferred_tables = {"chain_post_reactions", "chain_story_reactions", "chain_post_comments", "chain_reel_reactions", "chain_reel_comments", "chain_saved_items"}
     try:
         if table_name in neon_preferred_tables:
             if os.getenv("CHAIN_DISABLE_SCHEMA_CHECK", "").strip().lower() in {"1", "true", "yes", "on"}:
+                cache_set(cache_key_name, {"exists": True}, ttl=300)
                 return True
             try:
                 if neon_service.table_exists(table_name, timeout_ms=10000):
+                    cache_set(cache_key_name, {"exists": True}, ttl=300)
                     return True
             except Exception:
                 # fall back to supabase check
                 pass
     except Exception:
         pass
-    return table_exists(table_name)
+    exists = table_exists(table_name)
+    cache_set(cache_key_name, {"exists": bool(exists)}, ttl=60 if exists else 20)
+    return exists
 
 
 def toggle_like(profile_id, entity_type, entity_id):
     config = _reaction_config(entity_type)
     if not profile_id or not entity_id or not config:
         return {"success": False, "error": "Invalid like target."}
-    if not _table_available(config["table"]):
+    table_ready = _table_available(config["table"])
+    if not table_ready:
         return {"success": False, "error": f"{config['table']} is not available."}
 
     owner_id = _owner_for(entity_type, entity_id)
@@ -244,7 +259,7 @@ def toggle_like(profile_id, entity_type, entity_id):
 
     if liked:
         target_url = config["target_url"].format(id=entity_id)
-        _notify(
+        _notify_async(
             _owner_for(entity_type, entity_id),
             profile_id,
             config["event_type"],
@@ -352,17 +367,17 @@ def add_comment(profile_id, entity_type, entity_id, body):
             )
             if not inserted:
                 return {"success": False, "error": "Could not save comment."}
-            count = fast_query(
-                "SELECT COUNT(*) as count FROM {} WHERE {} = %s".format(config["table"], config["entity_column"]),
-                (entity_id,), default=[{"count": 0}]
-            )[0]["count"]
-            write_query("UPDATE {} SET {} = %s WHERE id = %s".format(config["target_table"], config["count_column"]), (count, entity_id))
         else:
             inserted = safe_insert(config["table"], insert_payload)
             if not inserted:
                 return {"success": False, "error": "Could not save comment."}
-            count = safe_count(config["table"], filters={config["entity_column"]: entity_id})
-            _set_count(config["target_table"], entity_id, config["count_column"], count)
+        count_rows = fast_query(
+            f"UPDATE {config['target_table']} SET {config['count_column']} = COALESCE({config['count_column']}, 0) + 1 WHERE id = %s RETURNING {config['count_column']} AS count",
+            (entity_id,),
+            timeout_ms=2000,
+            default=[],
+        ) or []
+        count = int((count_rows[0] or {}).get("count") or 0) if count_rows else 0
     except Exception as error:
         inserted = safe_insert(config["table"], {
             "id": str(uuid.uuid4()),
@@ -373,9 +388,14 @@ def add_comment(profile_id, entity_type, entity_id, body):
         })
         if not inserted:
             return {"success": False, "error": str(error) or "Could not save comment."}
-        count = safe_count(config["table"], filters={config["entity_column"]: entity_id})
-        _set_count(config["target_table"], entity_id, config["count_column"], count)
-    _notify(
+        count_rows = fast_query(
+            f"UPDATE {config['target_table']} SET {config['count_column']} = COALESCE({config['count_column']}, 0) + 1 WHERE id = %s RETURNING {config['count_column']} AS count",
+            (entity_id,),
+            timeout_ms=2000,
+            default=[],
+        ) or []
+        count = int((count_rows[0] or {}).get("count") or 0) if count_rows else 0
+    _notify_async(
         _owner_for(entity_type, entity_id),
         profile_id,
         config["event_type"],
@@ -398,10 +418,6 @@ def add_comment(profile_id, entity_type, entity_id, body):
             comment = None
     except Exception:
         comment = None
-
-    if comment and comment.get("id"):
-        comments = list_comments(entity_type, entity_id, limit=100)
-        comment = next((row for row in comments if str(row.get("id")) == str(comment.get("id"))), comment)
 
     return {"success": True, "comment": comment, "count": count}
 
@@ -598,12 +614,13 @@ def is_following(follower_id, following_id):
 def toggle_save(profile_id, item_type, item_id):
     if item_type not in {"post", "reel"} or not profile_id or not item_id:
         return {"success": False, "error": "Invalid saved item."}
-    if not _table_available("chain_saved_items"):
+    table_ready = _table_available("chain_saved_items")
+    if not table_ready:
         return {"success": False, "error": "Saved items table is not available."}
     filters = {"profile_id": profile_id, "item_type": item_type, "item_id": item_id}
     # Prefer Neon for saved items to avoid Supabase schema cache
     try:
-        if _table_available("chain_saved_items") and neon_service.table_exists("chain_saved_items"):
+        if table_ready:
             existing = fast_query(
                 "SELECT id FROM chain_saved_items WHERE profile_id = %s AND item_type = %s AND item_id = %s LIMIT 1",
                 (profile_id, item_type, item_id),
@@ -617,7 +634,7 @@ def toggle_save(profile_id, item_type, item_id):
     saved = not bool(existing)
     if existing:
         try:
-            if neon_service.table_exists("chain_saved_items"):
+            if table_ready:
                 write_query("DELETE FROM chain_saved_items WHERE id = %s", (existing["id"],))
             else:
                 safe_delete("chain_saved_items", eq={"id": existing["id"]})
@@ -625,7 +642,7 @@ def toggle_save(profile_id, item_type, item_id):
             safe_delete("chain_saved_items", eq={"id": existing["id"]})
     else:
         try:
-            if neon_service.table_exists("chain_saved_items"):
+            if table_ready:
                 inserted = neon_service.insert_row("chain_saved_items", {**filters, "created_at": _utcnow_iso()}, returning="id, profile_id, item_type, item_id, created_at")
                 if not inserted:
                     return {"success": False, "error": "Could not save item."}

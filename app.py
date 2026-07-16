@@ -34,10 +34,11 @@ from flask_wtf.csrf import CSRFError, CSRFProtect, generate_csrf
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
-from engines.cache_engine import init_cache
+from engines.cache_engine import init_cache, set_cache as set_local_cache
 from engines.performance_engine import timed
 from engines.scheduler_engine import init_scheduler
 from services.env_service import get_env, load_project_env
+from services.id_validation import normalize_uuid
 
 load_project_env()
 
@@ -48,7 +49,6 @@ from api_routes.public_routes import public_bp
 from api_routes.matching_routes import matching_bp
 from api_routes.dating_routes import dating_bp
 from api_routes.message_routes import message_bp
-from api_routes.messaging_routes import messaging_api_bp
 from api_routes.call_routes import call_bp, messages_call_bp, api_calls_bp
 from api_routes.notification_routes import notification_engine_bp
 from api_routes.wallet_routes import wallet_bp
@@ -118,8 +118,8 @@ from services.homepage_phase141_service import (
     fetch_suggested_people_v2,
     fetch_profiles_batch,
 )
-from services.homepage_warmup_service import warm_homepage_cache
-from services.homepage_cache_service import get_full, HOMEPAGE_TTL_SECONDS
+from services.homepage_warmup_service import warm_homepage_cache, schedule_homepage_refresh, wait_for_homepage_refresh
+from services.homepage_cache_service import get_full, get_full_with_stale, HOMEPAGE_TTL_SECONDS
 from services.cache_service import set as cache_set
 from services.content_service import hashtag_links
 from services.profile_service import get_current_profile, get_profile_by_username
@@ -436,7 +436,7 @@ def create_app():
             return
             
         # Lightweight session restore only for protected routes
-        protected_blueprints = {"profile", "message", "messaging_api", "wallet", "admin", "creator", "dating", "call", "notifications"}
+        protected_blueprints = {"profile", "message", "wallet", "admin", "creator", "dating", "call", "notifications"}
         
         # Check if current endpoint is in a protected blueprint
         if request.blueprint in protected_blueprints:
@@ -550,7 +550,6 @@ def create_app():
     app.register_blueprint(matching_bp)
     app.register_blueprint(dating_bp)
     app.register_blueprint(message_bp)
-    app.register_blueprint(messaging_api_bp)
     app.register_blueprint(call_bp)
     app.register_blueprint(notification_engine_bp)
     app.register_blueprint(wallet_bp)
@@ -665,6 +664,7 @@ def create_app():
         # Add latency header for monitoring
         if hasattr(g, 'request_started_at'):
             latency = (time.perf_counter() - g.request_started_at) * 1000
+            response.headers["X-Worker-Pid"] = str(os.getpid())
             response.headers["X-Response-Time-Ms"] = f"{latency:.1f}"
             if latency > 1000:
                 log_warning("slow_request_detected", path=request.path, latency_ms=latency)
@@ -1127,7 +1127,7 @@ def create_app():
             return cached
         try:
             from api_routes.homepage_api import _build_homepage_contract
-            payload = _build_homepage_contract(viewer_id=(get_current_profile() or {}).get("id"), limit=20)
+            payload = _build_homepage_contract(viewer_id=None, limit=20, include_widgets=False)
             result = {
                 "online_count": len(payload.get("online_users") or []),
                 "live_count": int((payload.get("counts") or {}).get("live_now") or 0),
@@ -1221,9 +1221,28 @@ def create_app():
                     or cached_payload.get("live_rooms")
                 )
                 if not has_content and not _app_test_mode():
+                    if wait_for_homepage_refresh(timeout_seconds=5.0):
+                        try:
+                            cached_again, _ = get_full_with_stale("public")
+                            if cached_again:
+                                cached_payload = cached_again
+                                has_content = bool(
+                                    cached_payload.get("feed_items")
+                                    or cached_payload.get("posts")
+                                    or cached_payload.get("reels")
+                                    or cached_payload.get("stories")
+                                    or cached_payload.get("live_rooms")
+                                )
+                        except Exception:
+                            pass
                     try:
-                        from services.homepage_service import get_homepage_data
-                        live_payload = get_homepage_data() or {}
+                        from api_routes.homepage_api import _build_homepage_contract
+                        live_payload = _build_homepage_contract(
+                            limit=6,
+                            viewer_id=None,
+                            include_widgets=False,
+                            cold_start=True,
+                        ) or {}
                         if live_payload.get("feed_items") or live_payload.get("reels") or live_payload.get("stories") or live_payload.get("live_rooms"):
                             cached_payload = live_payload
                             has_content = True
@@ -1233,8 +1252,8 @@ def create_app():
                     try:
                         from api_routes.homepage_api import _build_homepage_contract
                         live_payload = _build_homepage_contract(
-                            limit=20,
-                            viewer_id=(get_current_profile() or {}).get("id"),
+                            limit=6,
+                            viewer_id=None,
                             include_widgets=False,
                         ) or {}
                         if live_payload.get("feed_items") or live_payload.get("reels") or live_payload.get("stories") or live_payload.get("live_rooms"):
@@ -1279,19 +1298,13 @@ def create_app():
             try:
                 from api_routes.homepage_api import _build_homepage_contract
                 fast_payload = _build_homepage_contract(
-                    limit=20,
-                    viewer_id=(get_current_profile() or {}).get("id"),
+                    limit=6,
+                    viewer_id=None,
                     include_widgets=False,
+                    cold_start=True,
                 ) or {}
             except Exception:
-                if not _app_test_mode():
-                    try:
-                        from services.homepage_service import get_homepage_data
-                        fast_payload = get_homepage_data() or {}
-                    except Exception:
-                        fast_payload = {}
-                else:
-                    fast_payload = {}
+                fast_payload = {}
             data = dict(shell)
             data["feed_items"] = fast_payload.get("feed_items") or []
             data["feed_for_you"] = list(data["feed_items"])
@@ -1329,11 +1342,21 @@ def create_app():
 
         with timed("home"):
             home_start = time.perf_counter()
-            cached_payload = get_full("public")
+            cached_payload, cached_is_stale = get_full_with_stale("public")
+            if cached_is_stale:
+                try:
+                    schedule_homepage_refresh()
+                except Exception:
+                    pass
+            if cached_payload:
+                try:
+                    set_local_cache("homepage:full:public", cached_payload, ttl=HOMEPAGE_TTL_SECONDS)
+                except Exception:
+                    pass
             data = build_fast_shell(cached_payload=cached_payload)
             if not cached_payload:
                 try:
-                    cache_set("homepage:full:public", data, ttl=HOMEPAGE_TTL_SECONDS)
+                    set_local_cache("homepage:full:public", data, ttl=HOMEPAGE_TTL_SECONDS)
                 except Exception:
                     pass
             data.update(base_routes)
@@ -1349,6 +1372,7 @@ def create_app():
             log_info(
                 "homepage_timing",
                 homepage_cache_hit=bool(cached_payload),
+                homepage_cache_stale=bool(cached_is_stale),
                 homepage_total_ms=total_ms,
                 homepage_posts_ms=(data.get("homepage_timings") or {}).get("posts", 0),
                 homepage_posts_normalize_ms=(data.get("homepage_timings") or {}).get("posts_normalize", 0),
@@ -1567,6 +1591,13 @@ def create_app():
         from services.profile_service import get_current_profile
         from services.engagement_service import is_liked
         from services.ai.interaction_service import track_interaction_safe
+        reel_id = normalize_uuid(reel_id)
+        if not reel_id:
+            return render_template(
+                "errors/post_not_found.html",
+                message="This reel could not be found.",
+                profile=None,
+            ), 404
         profile = get_current_profile()
         reel = get_reel(reel_id)
         if not reel:
@@ -1713,6 +1744,7 @@ def create_app():
         started = getattr(g, "request_started_at", None)
         if started is not None:
             elapsed_ms = (time.perf_counter() - started) * 1000
+            response.headers["X-Worker-Pid"] = str(os.getpid())
             response.headers["X-Response-Time-ms"] = f"{elapsed_ms:.1f}"
             response.headers["X-Request-Id"] = getattr(g, "request_id", "")
             observe_route(request.path, elapsed_ms, response.status_code)
@@ -1784,6 +1816,8 @@ def create_app():
 
     _log_startup_stage("create_app_complete", create_app_total_ms=round((time.perf_counter() - startup_perf_started) * 1000, 2))
 
+    _startup_background_prewarm(app)
+
     return app
 
 
@@ -1797,8 +1831,19 @@ def _startup_background_prewarm(app):
         print("[app] Prewarming homepage cache and Neon pool...")
         with app.app_context():
             try:
-                prime_neon_runtime()
+                from services.neon_service import _pool_instance
+                _pool_instance()
                 check_readiness()
+                try:
+                    from services.reels_service import get_reel_feed, get_reel_comments_page
+                    feed = get_reel_feed(limit=5, viewer_id=None) or {}
+                    items = feed.get("items") or []
+                    if items:
+                        first_reel_id = (items[0] or {}).get("id")
+                        if first_reel_id:
+                            get_reel_comments_page(first_reel_id, limit=20, cursor=None)
+                except Exception:
+                    pass
                 prime_live_rooms_public_cache(limit=8)
                 warm_homepage_cache()
                 print("[app] Startup prewarm complete")

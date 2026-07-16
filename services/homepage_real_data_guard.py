@@ -25,12 +25,12 @@ _TEST_USER_PATTERNS = [
     re.compile(r"^partner$", re.I),
     re.compile(r"^demo_", re.I),
     re.compile(r"^dev_", re.I),
-    re.compile(r".*seed.*", re.I),
+    re.compile(r"^seed_", re.I),
     # Phase 87e: additional user patterns
     re.compile(r"debug_test", re.I),
     re.compile(r"ui_test", re.I),
-    re.compile(r"tester", re.I),
-    re.compile(r"debug", re.I),
+    re.compile(r"^tester_", re.I),
+    re.compile(r"^debug_", re.I),
 ]
 
 # ── Email patterns for test accounts ──
@@ -46,19 +46,15 @@ _TEST_DISPLAY_PATTERNS = [
     re.compile(r"\bTest\b", re.I),
     re.compile(r"\bTester\b", re.I),
     re.compile(r"\bUI Test\b", re.I),
-    re.compile(r"\bDebug\b", re.I),
     re.compile(r"Promo.*UI Test", re.I),
     re.compile(r"phase\s*8\s*persistence", re.I),
     re.compile(r"phase8", re.I),
     re.compile(r"production\s*reel", re.I),
     re.compile(r"test\s*reel", re.I),
-    re.compile(r"seed", re.I),
 ]
 
 # ── Content/caption/body patterns for test/debug ──
 _TEST_CONTENT_PATTERNS = [
-    re.compile(r"\btest\b", re.I),
-    re.compile(r"\bdebug\b", re.I),
     re.compile(r"\bUI Test\b", re.I),
     re.compile(r"Promo.*UI Test", re.I),
     re.compile(r"Real JPEG upload test", re.I),
@@ -243,11 +239,12 @@ def public_profile_sql(alias="chain_profiles"):
         f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'test_%%' "
         f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'testuser%%' "
         f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'phase8_%%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE '%%seed%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'seed_%%' "
         f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'devsetup_%%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE '%%debug_test%%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE '%%ui_test%%' "
-        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE '%%tester%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'debug_%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'ui_test%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'debug_test%%' "
+        f"AND LOWER(COALESCE({prefix}username, '')) NOT LIKE 'tester_%%' "
         f"AND LOWER(COALESCE({prefix}email, '')) NOT LIKE '%%.local' "
         f"AND LOWER(COALESCE({prefix}email, '')) NOT LIKE '%%@chain.local'"
     )

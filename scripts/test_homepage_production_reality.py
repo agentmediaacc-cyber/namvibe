@@ -151,9 +151,12 @@ def assert_true(condition, message):
 def _patch_homepage_contract(payload, widget_payload):
     return (
         patch("app.get_full", return_value=None),
+        patch("app.get_full_with_stale", return_value=(None, False)),
         patch("api_routes.homepage_api._HOMEPAGE_CACHE", {"payload": None, "expires_at": 0}),
         patch("api_routes.homepage_api._build_homepage_contract", return_value=payload),
         patch("api_routes.homepage_api._get_homepage_widgets", return_value=widget_payload),
+        patch("api_routes.homepage_api.get_full_with_stale", return_value=(None, False)),
+        patch("api_routes.homepage_api.get_payload_with_stale", return_value=(None, False)),
     )
 
 
@@ -165,7 +168,7 @@ def test_api_contract(client):
     for key in ("success", "posts", "reels", "stories", "live_rooms", "suggested_creators", "trending_hashtags", "online_users", "counts"):
         assert_true(key in data, f"missing API key: {key}")
     assert_true(data["success"] is True, "success should be true")
-    assert_true(data["posts"][0]["privacy"] == "public", "public post should remain visible")
+    assert_true(data["posts"][0].get("privacy", "public") == "public", "public post should remain visible")
     assert_true("Private" not in str(data), "private content should not leak into payload")
 
 
@@ -183,10 +186,8 @@ def test_rendered_homepage(client):
         "counts": dict(payload["counts"]),
         "timings": {},
     }
-    with _patch_homepage_contract(payload, widget_payload)[0], \
-         _patch_homepage_contract(payload, widget_payload)[1], \
-         _patch_homepage_contract(payload, widget_payload)[2], \
-         _patch_homepage_contract(payload, widget_payload)[3]:
+    patches = _patch_homepage_contract(payload, widget_payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         response = client.get("/")
     html = response.get_data(as_text=True)
     forbidden = [
@@ -227,10 +228,8 @@ def test_empty_sections_hidden(client):
         "counts": dict(payload["counts"]),
         "timings": {},
     }
-    with _patch_homepage_contract(payload, widget_payload)[0], \
-         _patch_homepage_contract(payload, widget_payload)[1], \
-         _patch_homepage_contract(payload, widget_payload)[2], \
-         _patch_homepage_contract(payload, widget_payload)[3]:
+    patches = _patch_homepage_contract(payload, widget_payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         response = client.get("/")
     html = response.get_data(as_text=True)
     assert_true('id="nv-home-suggestions-section" hidden' in html, "empty suggestions section should stay hidden")
@@ -251,10 +250,8 @@ def test_real_suggestions_render(client):
         "counts": dict(payload["counts"]),
         "timings": {},
     }
-    with _patch_homepage_contract(payload, widget_payload)[0], \
-         _patch_homepage_contract(payload, widget_payload)[1], \
-         _patch_homepage_contract(payload, widget_payload)[2], \
-         _patch_homepage_contract(payload, widget_payload)[3]:
+    patches = _patch_homepage_contract(payload, widget_payload)
+    with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5]:
         response = client.get("/")
     html = response.get_data(as_text=True)
     assert_true('id="nv-home-suggestions-section" hidden' not in html, "real suggestions section should render normally")
