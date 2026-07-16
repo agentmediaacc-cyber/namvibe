@@ -20,7 +20,7 @@ os.environ.setdefault("ENV", "development")
 os.environ.setdefault("FLASK_TESTING", "1")
 os.environ.setdefault("CHAIN_DISABLE_PREWARM", "1")
 os.environ.setdefault("CHAIN_DISABLE_DB_PING", "1")
-os.environ.setdefault("SECRET_KEY", "namvibe-local-dev-secret-change-before-production")
+os.environ.setdefault("SECRET_KEY", "GENERATE_A_STRONG_RANDOM_VALUE")
 
 from app import create_app
 from services.neon_service import fast_query
@@ -61,7 +61,7 @@ class Phase78PreApkReady:
         config_path = os.path.join(ROOT, "config", "settings.py")
         with open(config_path) as f:
             settings = f.read()
-        secret_stable = "uuid.uuid4" not in settings and "namvibe-local-dev-secret-change-before-production" in settings
+        secret_stable = "uuid.uuid4" not in settings and "GENERATE_A_STRONG_RANDOM_VALUE" in settings
         self.check("SECRET_KEY stable in local dev", secret_stable)
         self.check("SESSION_COOKIE_SECURE=False for local HTTP", self.app.config.get("SESSION_COOKIE_SECURE") is False, str(self.app.config.get("SESSION_COOKIE_SECURE")))
         self.check('SESSION_COOKIE_SAMESITE="Lax"', self.app.config.get("SESSION_COOKIE_SAMESITE") == "Lax", str(self.app.config.get("SESSION_COOKIE_SAMESITE")))

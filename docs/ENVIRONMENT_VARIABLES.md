@@ -1,17 +1,17 @@
 # NamVibe Environment Variables Reference
 
-> Never commit secrets to git. Use Google Secret Manager (Cloud Run) or Render Dashboard secrets (sync: false).
+> Never commit secrets to git. Use Google Secret Manager (Cloud Run), Render Dashboard secrets (sync: false), or another approved secret manager.
 
 ## Required (App Will Not Start Without These)
 
 | Variable | Description | Example |
 |---|---|---|
-| `SECRET_KEY` | Flask session signing key (≥32 chars, random) | `k3bX...mq9` |
-| `DATABASE_URL` | Neon PostgreSQL connection string (pooler endpoint) | `postgresql://ep-xxx-pooler.us-east-1.aws.neon.tech/neondb` |
-| `REDIS_URL` or `REDIS_TLS_URL` | Upstash Redis with TLS | `rediss://fluent-rabbit-xxx.upstash.io:6379` |
-| `SUPABASE_URL` | Supabase project URL | `https://xxx.supabase.co` |
-| `SUPABASE_ANON_KEY` | Supabase anon/public key | `eyJhbGci...` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | `eyJhbGci...` |
+| `SECRET_KEY` | Flask session signing key (≥32 chars, random) | `GENERATE_A_STRONG_RANDOM_VALUE` |
+| `DATABASE_URL` | Neon PostgreSQL connection string (pooler endpoint) | `postgresql://USERNAME:PASSWORD@YOUR_NEON_HOST/YOUR_DATABASE?sslmode=require` |
+| `REDIS_URL` or `REDIS_TLS_URL` | Upstash Redis with TLS | `rediss://default:YOUR_REDIS_TOKEN@YOUR_REDIS_HOST:6379` |
+| `SUPABASE_URL` | Supabase project URL | `https://YOUR_PROJECT.supabase.co` |
+| `SUPABASE_ANON_KEY` | Supabase anon/public key | `YOUR_SUPABASE_ANON_KEY` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | `YOUR_SUPABASE_SERVICE_ROLE_KEY` |
 
 ## Environment Mode
 

@@ -24,7 +24,7 @@ class _FakeApp:
 
 def main():
     fake_app = _FakeApp()
-    redis_url = "rediss://default:token-value@example.upstash.io:6379/0"
+    redis_url = "rediss://default:YOUR_REDIS_TOKEN@example.upstash.io:6379/0"
 
     from io import StringIO
     import contextlib
@@ -48,7 +48,7 @@ def main():
         raise AssertionError(f"credential-bearing redis URL leaked: {output}")
     if "rediss://example.upstash.io:6379" not in output:
         raise AssertionError("sanitized redis URL not present")
-    if "token-value" in output or "default:" in output:
+    if "YOUR_REDIS_TOKEN" in output or "default:" in output:
         raise AssertionError("credential fragments leaked into startup logs")
     print("TEST_OK redis startup log contract")
 

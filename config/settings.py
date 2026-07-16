@@ -12,7 +12,7 @@ class Config:
     if not SECRET_KEY:
         if get_env("FLASK_ENV") == "production" or get_env("ENV") == "production":
             raise RuntimeError("SECRET_KEY environment variable is required in production.")
-        SECRET_KEY = "namvibe-local-dev-secret-change-before-production"
+        SECRET_KEY = "GENERATE_A_STRONG_RANDOM_VALUE"
     SUPABASE_URL = get_env("SUPABASE_URL")
     SUPABASE_ANON_KEY = get_env("SUPABASE_ANON_KEY") or get_env("SUPABASE_KEY")
     SUPABASE_SERVICE_ROLE_KEY = get_env("SUPABASE_SERVICE_ROLE_KEY")

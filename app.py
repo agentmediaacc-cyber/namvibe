@@ -382,7 +382,7 @@ def create_app():
         raise RuntimeError("SECRET_KEY environment variable is required in production.")
     
     if not secret_key and not is_prod:
-        secret_key = "namvibe-local-dev-secret-change-before-production"
+        secret_key = "GENERATE_A_STRONG_RANDOM_VALUE"
     app.secret_key = secret_key
     
     # Session and Performance Configuration

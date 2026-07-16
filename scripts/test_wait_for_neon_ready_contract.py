@@ -15,7 +15,7 @@ import scripts.wait_for_neon_ready as ready
 
 def _run_with_side_effects(resolve_side_effect, fetch_side_effect, attempts=3):
     buf = io.StringIO()
-    with mock.patch.object(ready, "DATABASE_URL", "postgresql://user:pass@ep-lucky-sunset-ap27vysx-pooler.c-7.us-east-1.aws.neon.tech/db"), \
+    with mock.patch.object(ready, "DATABASE_URL", "postgresql://db.example.invalid/db"), \
          mock.patch.object(ready, "_resolve", side_effect=resolve_side_effect), \
          mock.patch.object(ready, "fetch_one", side_effect=fetch_side_effect), \
          mock.patch.object(ready.time, "sleep", return_value=None), \

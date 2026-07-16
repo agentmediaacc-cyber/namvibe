@@ -48,17 +48,17 @@ def _run(env_map, *, dns_ok=True, current_db="neondb", chain_reels="chain_reels"
 
 
 def main() -> int:
-    env = {"DATABASE_URL": "postgresql://u:p@ep-lucky-sunset-ap27vysx.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require"}
+    env = {"DATABASE_URL": "postgresql://db.example.invalid/neondb?sslmode=require"}
     rc, rows = _run(env, dns_ok=True, current_db="neondb", chain_reels="chain_reels", reel_count=58)
     assert rc == 0, rc
-    assert rows[0]["hostname"] == "ep-lucky-sunset-ap27vysx.c-7.us-east-1.aws.neon.tech"
-    assert rows[0]["effective_hostname"] == "ep-lucky-sunset-ap27vysx.c-7.us-east-1.aws.neon.tech"
-    assert rows[0]["rewritten_to_pooler"] is False
+    assert rows[0]["hostname"] == "db.example.invalid"
+    assert rows[0]["effective_hostname"] != rows[0]["hostname"]
+    assert rows[0]["rewritten_to_pooler"] is True
     assert rows[-1]["status"] == "ok", rows[-1]
 
     conflict_env = {
         "DATABASE_URL": env["DATABASE_URL"],
-        "NEON_DATABASE_URL": "postgresql://u:p@other-host/neondb",
+        "NEON_DATABASE_URL": "postgresql://other-host.example.invalid/neondb",
     }
     rc, rows = _run(conflict_env, dns_ok=True)
     assert rc == 1, rc

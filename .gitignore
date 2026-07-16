@@ -22,6 +22,8 @@ static/uploads/
 secrets/
 *.env
 .env.*
+*.env.bak
+backups/**/env.bak
 
 # Production
 logs/

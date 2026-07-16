@@ -21,13 +21,13 @@ bash scripts/vps_install_dependencies.sh
 ## 3. Environment Configuration
 Create a `.env` file in the root directory (copy from `.env.production.example`):
 ```bash
-SECRET_KEY=your-long-secure-random-key
+SECRET_KEY=GENERATE_A_STRONG_RANDOM_VALUE
 FLASK_ENV=production
-DATABASE_URL=postgres://host/db
-SUPABASE_URL=https://xyz.supabase.co
-SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-REDIS_URL=redis://localhost:6379/0
+DATABASE_URL=postgresql://USERNAME:PASSWORD@YOUR_NEON_HOST/YOUR_DATABASE?sslmode=require
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
+REDIS_URL=rediss://default:YOUR_REDIS_TOKEN@YOUR_REDIS_HOST:6379/0
 ```
 
 ## 4. Production Hardening
