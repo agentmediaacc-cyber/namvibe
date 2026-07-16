@@ -8,6 +8,7 @@ from services.logging_service import log_info, log_error
 from services.notification_engine import create_notification
 from services.redis_service import cache_get, cache_set, cache_delete
 from services.homepage_real_data_guard import public_profile_sql
+from services.profile_service import get_profile_by_id
 
 def _get_ordered_pair(id1, id2):
     return (id1, id2) if id1 < id2 else (id2, id1)
@@ -60,15 +61,16 @@ def send_friend_request(sender_id, recipient_id):
         return {"success": False, "error": str(e)}
 
 def _notify_friend_request(sender_id, recipient_id):
-    sender = fast_query("SELECT username FROM chain_profiles WHERE id = %s", [sender_id])
-    username = sender[0]['username'] if sender else "Someone"
+    sender = get_profile_by_id(sender_id) or {}
+    username = sender.get("username") or "Someone"
+    sender_url = f"/profile/@{username}" if username else f"/profile/id/{sender_id}"
     create_notification(
         recipient_id,
         "friend_request",
         "New Friend Request",
         f"{username} sent you a friend request.",
         actor_profile_id=sender_id,
-        action_url=f"/profile/{sender_id}"
+        action_url=sender_url
     )
 
 def accept_friend_request(profile_id, request_id):
@@ -131,15 +133,16 @@ def _invalidate_friend_cache(p1, p2):
         _DB_EXECUTOR.submit(list_friends, pid)
 
 def _notify_friend_accepted(accepter_id, sender_id):
-    accepter = fast_query("SELECT username FROM chain_profiles WHERE id = %s", [accepter_id])
-    username = accepter[0]['username'] if accepter else "Someone"
+    accepter = get_profile_by_id(accepter_id) or {}
+    username = accepter.get("username") or "Someone"
+    accepter_url = f"/profile/@{username}" if username else f"/profile/id/{accepter_id}"
     create_notification(
         sender_id,
         "friend_accepted",
         "Friend Request Accepted",
         f"{username} accepted your friend request. You are now friends!",
         actor_profile_id=accepter_id,
-        action_url=f"/profile/{accepter_id}"
+        action_url=accepter_url
     )
 
 def decline_friend_request(profile_id, request_id):

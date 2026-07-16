@@ -1,3 +1,4 @@
+import fnmatch
 import json
 import os
 import re
@@ -702,6 +703,34 @@ def invalidate_namespace(prefix):
             deleted += 1
     except Exception as error:
         redis_manager._remember_failure(error)
+    return deleted
+
+
+def invalidate_pattern(*parts):
+    """Delete all cached keys matching a namespaced glob pattern.
+
+    The pattern is evaluated against the canonical `chain:` prefix and also
+    against the in-memory fallback maps when Redis is unavailable.
+    """
+    client = redis_manager.get_client()
+    pattern = namespaced_key(*parts)
+    deleted = 0
+    if client:
+        try:
+            for key in client.scan_iter(pattern):
+                client.delete(key)
+                deleted += 1
+        except Exception as error:
+            redis_manager._remember_failure(error)
+    matched = [
+        key for key in list(_MEMORY_FALLBACK.keys())
+        if fnmatch.fnmatch(key, pattern)
+    ]
+    for key in matched:
+        _MEMORY_FALLBACK.pop(key, None)
+        _SET_FALLBACK.pop(key, None)
+        _TTL_FALLBACK.pop(key, None)
+        deleted += 1
     return deleted
 
 

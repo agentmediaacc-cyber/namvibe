@@ -13,7 +13,7 @@ from typing import Dict, List
 
 from psycopg2 import sql
 from services.neon_service import fast_query
-from services.redis_service import cache_get, cache_set, cache_mget, cache_set_bulk, cache_delete
+from services.redis_service import cache_get, cache_set, cache_mget, cache_set_bulk, cache_delete, invalidate_pattern
 
 
 REL_CACHE_TTL = 60
@@ -273,8 +273,10 @@ def invalidate_profile_relationships(profile_id: str):
     """
     if not profile_id:
         return
-    cache_delete(f"rel:state:{profile_id}:*")
-    pass
+    if not is_uuid(profile_id):
+        return
+    invalidate_pattern("cache", "rel:state", profile_id, "*")
+    invalidate_pattern("cache", "rel:state", "*", profile_id)
 
 
 def _chunks(lst, n):
