@@ -39,6 +39,7 @@ mkdir -p "$RUN_DIR"
 cat >"$LAUNCH_WRAPPER" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
+cd "$REPO"
 exec /bin/bash "$JOB_WRAPPER" "$RUN_DIR" "$REPO" "$RUNTIME_REPO" "$VENV" "$WRAPPER_COPY"
 EOF
 chmod +x "$LAUNCH_WRAPPER"
