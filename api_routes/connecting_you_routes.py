@@ -33,18 +33,17 @@ def cy_home():
     profile = get_current_profile()
     pid = profile["id"] if profile else None
     enrollment = get_enrollment(pid) if pid else None
-    stories = get_success_stories(featured_only=True, limit=6)
-    events = list_events(limit=6)
-    stats = get_match_stats()
-    mentors = list_mentors()
+    # Keep the participant landing page lightweight; the heavy mentor/stat/story
+    # hydration lives on the dedicated browse, events, and stories pages.
+    events = list_events(limit=3)
     return render_template(
         "connecting_you/index.html",
         profile=profile,
         enrollment=enrollment,
-        stories=stories,
         events=events,
-        stats=stats,
-        mentors=mentors,
+        stories=[],
+        stats={},
+        mentors=[],
         regions=NAMIBIA_REGIONS,
     )
 
