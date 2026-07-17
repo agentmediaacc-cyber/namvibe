@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+REPO="${REPO:-$HOME/Desktop/chain_app}"
+RUNTIME_REPO="${RUNTIME_REPO:-$REPO}"
+VENV="${VENV:-$REPO/venv}"
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+LABEL="com.namvibe.release-verification.$RUN_ID"
+DOMAIN="gui/$(id -u)"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo)
+      REPO="${2:?missing repo}"; shift 2 ;;
+    --runtime-repo)
+      RUNTIME_REPO="${2:?missing runtime repo}"; shift 2 ;;
+    --venv)
+      VENV="${2:?missing venv}"; shift 2 ;;
+    --wait)
+      WAIT=1; shift ;;
+    *)
+      echo "usage: $0 [--repo PATH] [--runtime-repo PATH] [--venv PATH] [--wait]" >&2
+      exit 2 ;;
+  esac
+done
+WAIT="${WAIT:-0}"
+WAIT_TIMEOUT_SECONDS="${WAIT_TIMEOUT_SECONDS:-3600}"
+RESULTS_ROOT="$REPO/tmp/release-verification"
+RUN_DIR="$RESULTS_ROOT/$RUN_ID"
+PLIST_FILE="$RUN_DIR/com.namvibe.release-verification.$RUN_ID.plist"
+JOB_SCRIPT="$REPO/scripts/run_release_host_verification_macos_job.sh"
+WRAPPER_SCRIPT="$REPO/scripts/run_release_host_verification.sh"
+LAUNCH_WRAPPER="/private/tmp/namvibe-release-launch-$RUN_ID.sh"
+JOB_WRAPPER="/private/tmp/namvibe-release-job-$RUN_ID.sh"
+WRAPPER_COPY="/private/tmp/namvibe-release-wrapper-$RUN_ID.sh"
+
+mkdir -p "$RUN_DIR"
+
+cat >"$LAUNCH_WRAPPER" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+exec /bin/bash "$JOB_WRAPPER" "$RUN_DIR" "$REPO" "$RUNTIME_REPO" "$VENV" "$WRAPPER_COPY"
+EOF
+chmod +x "$LAUNCH_WRAPPER"
+
+cp "$JOB_SCRIPT" "$JOB_WRAPPER"
+chmod +x "$JOB_WRAPPER"
+cp "$WRAPPER_SCRIPT" "$WRAPPER_COPY"
+chmod +x "$WRAPPER_COPY"
+
+cat >"$PLIST_FILE" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>$LAUNCH_WRAPPER</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/private/tmp</string>
+  <key>StandardOutPath</key>
+  <string>$RUN_DIR/launchd-stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>$RUN_DIR/launchd-stderr.log</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+</dict>
+</plist>
+EOF
+
+plutil -lint "$PLIST_FILE"
+
+cat >"$RUN_DIR/launcher-status.txt" <<EOF
+run_id=$RUN_ID
+launcher_method=launchd
+launchd_label=$LABEL
+run_dir=$RUN_DIR
+plist_file=$PLIST_FILE
+launch_wrapper=$LAUNCH_WRAPPER
+job_script=$JOB_SCRIPT
+wrapper_script=$WRAPPER_SCRIPT
+wrapper_copy=$WRAPPER_COPY
+domain=$DOMAIN
+repo=$REPO
+runtime_repo=$RUNTIME_REPO
+venv=$VENV
+EOF
+
+launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+set +e
+launchctl bootstrap "$DOMAIN" "$PLIST_FILE"
+bootstrap_status=$?
+launchctl kickstart -k "$DOMAIN/$LABEL"
+kickstart_status=$?
+launchctl_print_status=0
+launchctl print "$DOMAIN/$LABEL" >"$RUN_DIR/launchctl-print.txt" 2>&1
+launchctl_print_status=$?
+set -e
+
+{
+  printf 'bootstrap_status=%s\n' "$bootstrap_status"
+  printf 'kickstart_status=%s\n' "$kickstart_status"
+  printf 'launchctl_print_status=%s\n' "$launchctl_print_status"
+} >>"$RUN_DIR/launcher-status.txt"
+
+if [[ "$WAIT" -eq 1 ]]; then
+  STATUS_FILE="$RUN_DIR/host-status.txt"
+  max_tries=$((WAIT_TIMEOUT_SECONDS / 2))
+  if (( max_tries < 1 )); then
+    max_tries=1
+  fi
+  for _ in $(seq 1 "$max_tries"); do
+    if [[ -f "$STATUS_FILE" ]]; then
+      break
+    fi
+    sleep 2
+  done
+  if [[ ! -f "$STATUS_FILE" ]]; then
+    {
+      echo "launcher_wait=timeout"
+      echo "launchd_print_exists=$( [[ -f "$RUN_DIR/launchctl-print.txt" ]] && echo yes || echo no )"
+      echo "launchd_stdout_exists=$( [[ -f "$RUN_DIR/launchd-stdout.log" ]] && echo yes || echo no )"
+      echo "launchd_stderr_exists=$( [[ -f "$RUN_DIR/launchd-stderr.log" ]] && echo yes || echo no )"
+    } >>"$RUN_DIR/launcher-status.txt"
+    exit 1
+  fi
+  launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+  cat "$STATUS_FILE"
+else
+  printf 'result_file=%s\n' "$RUN_DIR/host-output.log"
+  printf 'status_file=%s\n' "$RUN_DIR/host-status.txt"
+fi
