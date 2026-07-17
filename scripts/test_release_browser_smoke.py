@@ -1,118 +1,70 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-RESULTS_ROOT = ROOT / "tmp" / "release-verification"
+
+def candidate_browsers():
+    return [
+        os.getenv("PLAYWRIGHT_CHROME_PATH"),
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        None,
+    ]
 
 
-def emit(result: str, stage: str, **payload) -> None:
-    print(json.dumps({"result": result, "stage": stage, **payload}, sort_keys=True))
-
-
-def _viewport(name: str) -> dict:
-    if name == "mobile":
-        return {"width": 390, "height": 844}
-    return {"width": 1440, "height": 900}
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--viewport", choices=("desktop", "mobile"), default="desktop")
-    args = parser.parse_args()
-
+def main():
+    tried = []
     try:
         from playwright.sync_api import sync_playwright
     except Exception as exc:
-        emit("BLOCKED_EXTERNAL", "import", reason="playwright unavailable", error_type=type(exc).__name__)
-        return 2
+        print(json.dumps({"result": "BLOCKED_EXTERNAL", "reason": type(exc).__name__}))
+        return 3
 
-    RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
-    out_dir = RESULTS_ROOT / f"browser_{args.viewport}"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    urls = [
-        ("homepage", "http://127.0.0.1:8080/"),
-        ("profile", "http://127.0.0.1:8080/profile/@namvibe"),
-        ("missing_profile", "http://127.0.0.1:8080/profile/@definitely-missing-profile"),
-        ("discover", "http://127.0.0.1:8080/discover"),
-        ("reels", "http://127.0.0.1:8080/reels/"),
-        ("notifications", "http://127.0.0.1:8080/notifications"),
-        ("messages", "http://127.0.0.1:8080/messages"),
-        ("calls", "http://127.0.0.1:8080/calls"),
+    base = "http://127.0.0.1:8080"
+    pages = [
+        ("desktop", {"width": 1440, "height": 1200}),
+        ("mobile", {"width": 390, "height": 844, "is_mobile": True, "has_touch": True}),
     ]
-
-    candidates = [
-        os.environ.get("PLAYWRIGHT_CHROME_PATH", ""),
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        os.environ.get("NAMVIBE_BROWSER_PATH", ""),
-    ]
-    with sync_playwright() as pw:
-        browser = None
-        launch_error = None
-        selected_path = "playwright-managed"
-        for chrome_path in candidates:
-            launch_kwargs = {"headless": True}
-            if chrome_path and Path(chrome_path).exists():
-                selected_path = chrome_path
-                launch_kwargs["executable_path"] = chrome_path
-                launch_kwargs["args"] = ["--disable-dev-shm-usage", "--disable-gpu"]
-            else:
-                selected_path = "playwright-managed"
+    with sync_playwright() as p:
+        last_error = None
+        for chrome in candidate_browsers():
+            tried.append(chrome or "playwright-default")
             try:
-                browser = pw.chromium.launch(**launch_kwargs)
+                browser = p.chromium.launch(headless=True, executable_path=chrome) if chrome else p.chromium.launch(headless=True)
+                print(json.dumps({"browser": chrome or "playwright-default"}))
                 break
             except Exception as exc:
-                launch_error = exc
+                last_error = exc
                 browser = None
-                continue
-        if browser is None:
-            emit(
-                "BLOCKED_EXTERNAL",
-                "launch",
-                error_type=type(launch_error).__name__ if launch_error else "LaunchError",
-                message=str(launch_error)[:180] if launch_error else "browser launch failed",
-                executable_path=selected_path,
-            )
-            return 2
-        page = browser.new_page(viewport=_viewport(args.viewport))
-        page.set_default_timeout(15000)
-        failures = []
-
-        def check(name: str, url: str) -> None:
-            try:
-                wait_until = "domcontentloaded"
-                resp = page.goto(url, wait_until=wait_until)
-                emit("PASS", name, url=url, status_code=resp.status if resp else None, title=page.title()[:120])
-                if page.screenshot is not None:
-                    page.screenshot(path=str(out_dir / f"{name}.png"), full_page=True)
-            except Exception as exc:
-                failures.append((name, type(exc).__name__, str(exc)[:180]))
-                emit("FAIL", name, url=url, error_type=type(exc).__name__, message=str(exc)[:180])
-
-        for name, url in urls:
-            check(name, url)
-
+        if not browser:
+            print(json.dumps({"result": "BLOCKED_EXTERNAL", "reason": type(last_error).__name__ if last_error else "browser_launch_failed", "tried": tried}))
+            return 3
         try:
-            page.goto("http://127.0.0.1:8080/", wait_until="domcontentloaded")
-            emit("PASS", "socketio_check", websocket="not_opened", note="smoke only")
-        except Exception as exc:
-            failures.append(("socketio_check", type(exc).__name__, str(exc)[:180]))
-            emit("FAIL", "socketio_check", error_type=type(exc).__name__, message=str(exc)[:180])
-
-        browser.close()
-
-    if failures:
-        emit("FAIL", "summary", failure_count=len(failures), viewport=args.viewport)
-        return 1
-    emit("PASS", "summary", viewport=args.viewport)
-    return 0
+            for label, vp in pages:
+                page = browser.new_page(viewport={k: v for k, v in vp.items() if k in {"width", "height"}})
+                page.set_default_timeout(20000)
+                errs = []
+                page.on("console", lambda msg: errs.append(msg.text) if msg.type == "error" else None)
+                page.goto(f"{base}/", wait_until="domcontentloaded")
+                assert page.title()
+                page.goto(f"{base}/profile/@namvibe", wait_until="domcontentloaded")
+                page.goto(f"{base}/profile/@definitely-missing-profile", wait_until="domcontentloaded")
+                page.goto(f"{base}/discover", wait_until="domcontentloaded")
+                page.goto(f"{base}/reels/", wait_until="domcontentloaded")
+                page.goto(f"{base}/notifications", wait_until="domcontentloaded")
+                page.goto(f"{base}/messages", wait_until="domcontentloaded")
+                page.goto(f"{base}/calls", wait_until="domcontentloaded")
+                page.goto(f"{base}/socket.io/?EIO=4&transport=polling", wait_until="domcontentloaded")
+                print(json.dumps({"result": "PASS", "stage": f"browser_{label}"}))
+                page.close()
+            print(json.dumps({"result": "PASS", "stage": "summary"}))
+            return 0
+        finally:
+            browser.close()
 
 
 if __name__ == "__main__":

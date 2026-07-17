@@ -33,6 +33,27 @@ def discover():
     return render_template("dating/discover.html", items=profiles, current=profile)
 
 
+@dating_bp.route("/matches")
+@login_required
+def matches_page():
+    profile = get_current_profile()
+    return render_template("dating/index.html", profile=profile, start_tab="matches")
+
+
+@dating_bp.route("/preferences")
+@login_required
+def preferences_page():
+    profile = get_current_profile()
+    return render_template("dating/index.html", profile=profile, start_tab="premium")
+
+
+@dating_bp.route("/safety")
+@login_required
+def safety_page():
+    profile = get_current_profile()
+    return render_template("dating/index.html", profile=profile, start_tab="premium")
+
+
 @dating_bp.route("/profile/<profile_id>")
 def dating_profile(profile_id):
     from services.profile_service import get_profile_bundle

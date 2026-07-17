@@ -148,6 +148,17 @@
         return meta ? meta.getAttribute('content') : '';
     }
 
+    function postJSON(url, body) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify(body || {}),
+        });
+    }
+
     async function swipe(direction) {
         if (currentCard >= cards.length) return;
         
@@ -166,11 +177,7 @@
             body = { target_id: profile.id };
         }
 
-        fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-            body: JSON.stringify(body),
-        }).then(r => r.json()).catch(() => {});
+        postJSON(apiUrl, body).then(r => r.json()).catch(() => {});
 
         if (direction === 'left') {
             card.style.transform = 'translateX(-1000px) rotate(-30deg)';

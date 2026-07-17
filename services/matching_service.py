@@ -135,8 +135,7 @@ def like_target(target_id):
 
         return True, "match"
 
-    create_notification(target_id, "💘 New Like", f"{current.get('full_name')} liked your profile.", "like", "/matching/likes")
-    return True, "liked"
+        return True, "liked"
 
 
 def pass_target(target_id):

@@ -31,9 +31,13 @@
   }
 
   function postJSON(url, data) {
+    var meta = document.querySelector('meta[name="csrf-token"]');
     return fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": meta ? meta.getAttribute("content") : "",
+      },
       body: JSON.stringify(data || {}),
     }).then(function (r) { return r.json(); });
   }
@@ -499,8 +503,9 @@
 
     initModeToggle();
     initSafetyControls();
-    loadDiscover();
-    loadMatches();
+    var wrap = document.querySelector(".dt-wrap");
+    var startTab = wrap ? (wrap.getAttribute("data-dating-start-tab") || "foryou") : "foryou";
+    switchTab(startTab);
   }
 
   if (document.readyState === "loading") {

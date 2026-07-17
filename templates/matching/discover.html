@@ -34,7 +34,7 @@
       <section class="swipe-grid">
         {% for p in profiles %}
         <article class="swipe-card">
-          <a href="/profile/@{{ p.username }}" class="photo" style="background-image:url('{{ p.profile_photo or p.cover_photo }}')">
+            <a href="/profile/@{{ p.username }}" class="photo" style="background-image:url('{{ p.profile_photo or p.cover_photo }}')">
             <span class="score">{{ p.match_score }}% Match</span>
             {% if p.is_creator %}<span class="creator">👑 Creator</span>{% endif %}
           </a>
@@ -50,11 +50,12 @@
               {% endfor %}
             </div>
 
-            <div class="actions">
-              <a class="pass" href="/matching/pass/{{ p.id }}">✖ Pass</a>
-              <a class="like" href="/matching/like/{{ p.id }}">💘 Like</a>
-              <a class="super" href="/matching/super-like/{{ p.id }}">⭐ Super</a>
-            </div>
+            <form class="actions" method="post" action="/matching/pass/{{ p.id }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="pass">✖ Pass</button>
+              <button type="submit" formaction="/matching/like/{{ p.id }}" class="like">💘 Like</button>
+              <button type="submit" formaction="/matching/super-like/{{ p.id }}" class="super">⭐ Super</button>
+            </form>
           </div>
         </article>
         {% endfor %}

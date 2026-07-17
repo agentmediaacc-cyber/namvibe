@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for
+from flask import Blueprint, render_template, redirect, url_for, request
 from services.matching_service import (
     get_discover_profiles,
     like_target,
@@ -19,25 +19,29 @@ def discover():
     return render_template("matching/discover.html", profiles=profiles, current=current)
 
 
-@matching_bp.route("/like/<target_id>")
+@matching_bp.route("/like/<target_id>", methods=["GET", "POST"])
 @login_required
 def like(target_id):
+    if request.method == "GET":
+        return redirect(url_for("matching.discover"))
     ok, result = like_target(target_id)
     if result == "match":
         return redirect(url_for("matching.matches"))
     return redirect(url_for("matching.discover"))
 
-
-@matching_bp.route("/pass/<target_id>")
+@matching_bp.route("/pass/<target_id>", methods=["GET", "POST"])
 @login_required
 def pass_profile(target_id):
+    if request.method == "GET":
+        return redirect(url_for("matching.discover"))
     pass_target(target_id)
     return redirect(url_for("matching.discover"))
 
-
-@matching_bp.route("/super-like/<target_id>")
+@matching_bp.route("/super-like/<target_id>", methods=["GET", "POST"])
 @login_required
 def super_like(target_id):
+    if request.method == "GET":
+        return redirect(url_for("matching.discover"))
     super_like_target(target_id)
     return redirect(url_for("matching.discover"))
 

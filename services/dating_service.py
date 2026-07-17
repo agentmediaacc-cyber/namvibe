@@ -3,10 +3,15 @@ from datetime import datetime, timezone
 from services.neon_service import fast_query, write_query, get_pool_status
 from services.homepage_real_data_guard import public_profile_sql
 from services.profile_service import get_profile_by_id
+from services.blocking_service import is_blocked_any
+from services.relationship_privacy_service import can_view_profile
+from services.dating_compatibility_service import build_compatibility_profile, score_compatibility
 
 RELATIONSHIP_GOALS = ["friendship", "casual", "relationship", "marriage", "open"]
 ACTION_TYPES = ["like", "pass", "super_like"]
 REPORT_REASONS = ["fake_profile", "harassment", "inappropriate", "spam", "other"]
+DEFAULT_LIMIT = 30
+MAX_LIMIT = 60
 
 
 def _db_available():
@@ -80,6 +85,167 @@ def _strip_sensitive(dating_row):
     return dating_row
 
 
+def _clean_limit(value, default=DEFAULT_LIMIT, maximum=MAX_LIMIT):
+    try:
+        limit = int(value)
+    except (TypeError, ValueError):
+        limit = default
+    return max(1, min(maximum, limit))
+
+
+def _clean_offset(value):
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _parse_json_list(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(v).strip() for v in value if str(v).strip()]
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return []
+        try:
+            loaded = json.loads(value)
+            if isinstance(loaded, list):
+                return [str(v).strip() for v in loaded if str(v).strip()]
+        except Exception:
+            pass
+        return [part.strip() for part in value.split(",") if part.strip()]
+    return [str(value).strip()]
+
+
+def _profile_age(row):
+    if not row:
+        return None
+    for key in ("age",):
+        val = row.get(key)
+        if val not in (None, ""):
+            try:
+                return int(val)
+            except (TypeError, ValueError):
+                continue
+    dob = row.get("date_of_birth")
+    if not dob:
+        return None
+    try:
+        if isinstance(dob, str):
+            dob_dt = datetime.fromisoformat(dob.replace("Z", "+00:00"))
+        else:
+            dob_dt = dob
+        today = datetime.now(timezone.utc)
+        years = today.year - dob_dt.year - ((today.month, today.day) < (dob_dt.month, dob_dt.day))
+        return years
+    except Exception:
+        return None
+
+
+def _eligible_for_discovery(viewer, profile_row, prefs, blocked_ids, blocker_ids, dating_profile):
+    if not viewer or not profile_row or not dating_profile:
+        return False
+    pid = str(profile_row.get("id") or profile_row.get("profile_id") or "")
+    if not pid or pid == str(viewer):
+        return False
+    if pid in blocked_ids or pid in blocker_ids:
+        return False
+    if profile_row.get("deleted_at"):
+        return False
+    if profile_row.get("is_public") is False:
+        return False
+    if profile_row.get("dating_mode_enabled") is False:
+        return False
+    if profile_row.get("profile_visibility") in {"private", "hidden"}:
+        return False
+    if dating_profile.get("dating_mode_on") is False or dating_profile.get("is_enabled") is False:
+        return False
+    if dating_profile.get("hide_from_contacts") and profile_row.get("username") == viewer.get("username"):
+        return False
+    if prefs:
+        min_age = prefs.get("min_age")
+        max_age = prefs.get("max_age")
+        age = _profile_age(profile_row)
+        if age is None:
+            return False
+        if min_age not in (None, "") and age < int(min_age):
+            return False
+        if max_age not in (None, "") and age > int(max_age):
+            return False
+        interested_in = str(prefs.get("interested_in") or "everyone").lower()
+        gender = str(profile_row.get("gender") or "").lower()
+        if interested_in not in {"everyone", "all", ""} and gender:
+            if interested_in == "women" and gender not in {"female", "woman", "f"}:
+                return False
+            if interested_in == "men" and gender not in {"male", "man", "m"}:
+                return False
+    return True
+
+
+def _prefetch_candidate_ids(viewer_id):
+    rows = _run(
+        """
+        SELECT dp.profile_id
+        FROM chain_dating_profiles dp
+        JOIN chain_profiles p ON p.id = dp.profile_id
+        WHERE dp.dating_mode_on = true
+          AND dp.is_enabled = true
+          AND dp.profile_id != %s
+          AND COALESCE(p.deleted_at, NULL) IS NULL
+        ORDER BY dp.updated_at DESC, dp.created_at DESC, dp.profile_id DESC
+        LIMIT 200
+        """,
+        (_uuid(viewer_id),),
+    )
+    return [str(r["profile_id"]) for r in rows or []]
+
+
+def _emit_dating_match_notification(recipient_id, actor_id):
+    payload_event = (
+        str(uuid.uuid4()),
+        recipient_id,
+        actor_id,
+        "match",
+        "💘 It's a match!",
+        "You matched on NamVibe Dating.",
+        "/dating/matches",
+        datetime.now(timezone.utc),
+    )
+    payload_legacy = (
+        str(uuid.uuid4()),
+        recipient_id,
+        actor_id,
+        "match",
+        "💘 It's a match!",
+        "You matched on NamVibe Dating.",
+        "dating",
+        None,
+        "/dating/matches",
+        False,
+        datetime.now(timezone.utc),
+        None,
+        None,
+    )
+    try:
+        _write(
+            "INSERT INTO chain_notification_events (id, profile_id, actor_profile_id, event_type, title, body, target_url, is_read, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, false, %s)",
+            payload_event,
+        )
+        return True
+    except Exception:
+        pass
+    try:
+        _write(
+            "INSERT INTO chain_notifications (id, recipient_profile_id, actor_profile_id, event_type, title, body, entity_type, entity_id, action_url, is_read, created_at, read_at, deleted_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            payload_legacy,
+        )
+        return True
+    except Exception:
+        return False
+
+
 # ─── DATING PROFILE ──────────────────────────────────────────
 
 def get_dating_profile(profile_id):
@@ -138,6 +304,8 @@ def set_dating_mode(profile_id, on):
 
 def get_discover_profiles(viewer_id, limit=30, offset=0):
     viewer = _uuid(viewer_id)
+    limit = _clean_limit(limit)
+    offset = _clean_offset(offset)
     blocked = _get_blocked_ids(viewer)
     blocked_by = _get_blocker_ids(viewer)
     excluded = {viewer}
@@ -151,20 +319,21 @@ def get_discover_profiles(viewer_id, limit=30, offset=0):
     for r in liked_rows:
         excluded.add(str(r["target_profile_id"]))
 
-    preferences = get_dating_preferences(viewer)
-    dating_profile = get_or_create_dating_profile(viewer)
-    dating_mode_off = not (dating_profile or {}).get("dating_mode_on", True)
+    preferences = get_dating_preferences(viewer) or {}
+    dating_profile = get_or_create_dating_profile(viewer) or {}
 
+    candidate_ids = _prefetch_candidate_ids(viewer)
+    if not candidate_ids:
+        return []
     rows = _run(
-        f"""SELECT dp.*, p.username, p.display_name, p.avatar_url, p.full_name
+        f"""SELECT dp.*, p.username, p.display_name, p.avatar_url, p.full_name, p.gender, p.date_of_birth,
+                  p.deleted_at, p.is_public, p.profile_visibility, p.dating_mode_enabled, p.town, p.city, p.location, p.region
            FROM chain_dating_profiles dp
            JOIN chain_profiles p ON p.id = dp.profile_id
-           WHERE dp.dating_mode_on = true
-             AND dp.profile_id != %s
+           WHERE dp.profile_id::text = ANY(%s)
              AND {public_profile_sql("p")}
-           ORDER BY dp.trust_score DESC, dp.updated_at DESC
-           LIMIT %s OFFSET %s""",
-        (viewer, limit, offset),
+           ORDER BY dp.trust_score DESC, dp.updated_at DESC, dp.profile_id DESC""",
+        (candidate_ids,),
     )
 
     results = []
@@ -173,9 +342,17 @@ def get_discover_profiles(viewer_id, limit=30, offset=0):
         if pid in excluded:
             continue
         profile = _row_to_dict(r)
-        profile["compatibility_score"] = calculate_compatibility(viewer, pid, dating_profile)
+        if not _eligible_for_discovery(viewer, profile, preferences, blocked, blocked_by, dating_profile):
+            continue
+        compatibility = score_compatibility(
+            build_compatibility_profile(viewer=viewer, viewer_profile=dating_profile, target_profile=profile, preferences=preferences)
+        )
+        profile["compatibility_score"] = compatibility["score"]
+        profile["compatibility_reasons"] = compatibility["reasons"]
+        profile["compatibility_confidence"] = compatibility["confidence"]
         results.append(profile)
-    return _rows_to_list(results) if results else []
+    results.sort(key=lambda x: (-int(x.get("compatibility_score") or 0), str(x.get("updated_at") or ""), str(x.get("profile_id") or "")))
+    return _rows_to_list(results[offset:offset + limit]) if results else []
 
 
 # ─── LIKES / PASS / SUPER LIKE ───────────────────────────────
@@ -197,6 +374,8 @@ def _record_action(actor_id, target_id, action_type):
     target = _uuid(target_id)
     if actor == target:
         return {"ok": False, "error": "cannot_interact_with_self"}
+    if is_blocked_any(actor, target):
+        return {"ok": False, "error": "blocked_relationship"}
 
     existing = _run(
         "SELECT id, action_type FROM chain_dating_likes WHERE actor_profile_id = %s AND target_profile_id = %s LIMIT 1",
@@ -221,29 +400,50 @@ def _record_action(actor_id, target_id, action_type):
             (target, actor),
         )
         if reciprocal:
-            score = calculate_compatibility(actor, target)
-            mid = str(uuid.uuid4())
-            _write(
-                "INSERT INTO chain_dating_matches (id, profile_id_a, profile_id_b, compatibility_score) VALUES (%s, %s, %s, %s)",
-                (mid, actor, target, score),
+            score_payload = score_compatibility(
+                build_compatibility_profile(viewer=actor, viewer_profile=get_dating_profile(actor), target_profile=get_dating_profile(target))
             )
+            score = int(score_payload["score"])
+            existing_match = _run(
+                "SELECT id FROM chain_dating_matches WHERE ((profile_id_a = %s AND profile_id_b = %s) OR (profile_id_a = %s AND profile_id_b = %s)) AND is_active = true LIMIT 1",
+                (actor, target, target, actor),
+            )
+            mid = str(existing_match[0]["id"]) if existing_match else str(uuid.uuid4())
+            if not existing_match:
+                _write(
+                    "INSERT INTO chain_dating_matches (id, profile_id_a, profile_id_b, compatibility_score) VALUES (%s, %s, %s, %s)",
+                    (mid, actor, target, score),
+                )
             _write(
                 "UPDATE chain_dating_likes SET is_mutual = true WHERE (actor_profile_id = %s AND target_profile_id = %s) OR (actor_profile_id = %s AND target_profile_id = %s)",
                 (actor, target, target, actor),
             )
             result["is_match"] = True
-            result["match"] = {"id": mid, "compatibility_score": score}
+            result["match"] = {"id": mid, "compatibility_score": score, "reasons": score_payload["reasons"], "confidence": score_payload["confidence"]}
+            _emit_dating_match_notification(actor, target)
+            _emit_dating_match_notification(target, actor)
 
-            # Create a dating message thread for the match
-            tid = str(uuid.uuid4())
-            _write(
-                "INSERT INTO chain_message_threads (id, created_by_profile_id, thread_type, folder_type, created_at, updated_at) VALUES (%s, %s, 'direct', 'dating', now(), now())",
-                (tid, actor),
+            thread = _run(
+                """
+                SELECT t.id
+                FROM chain_message_threads t
+                JOIN chain_thread_members tm1 ON tm1.thread_id = t.id AND tm1.profile_id = %s
+                JOIN chain_thread_members tm2 ON tm2.thread_id = t.id AND tm2.profile_id = %s
+                WHERE COALESCE(t.folder_type, '') = 'dating'
+                LIMIT 1
+                """,
+                (actor, target),
             )
-            _write(
-                "INSERT INTO chain_thread_members (thread_id, profile_id, joined_at) VALUES (%s, %s, now()), (%s, %s, now())",
-                (tid, actor, tid, target),
-            )
+            if not thread:
+                tid = str(uuid.uuid4())
+                _write(
+                    "INSERT INTO chain_message_threads (id, created_by_profile_id, thread_type, folder_type, created_at, updated_at) VALUES (%s, %s, 'direct', 'dating', now(), now())",
+                    (tid, actor),
+                )
+                _write(
+                    "INSERT INTO chain_thread_members (thread_id, profile_id) VALUES (%s, %s), (%s, %s) ON CONFLICT DO NOTHING",
+                    (tid, actor, tid, target),
+                )
 
     return result
 
@@ -338,6 +538,8 @@ def report_user(reporter_id, reported_id, reason, details=""):
     reported = _uuid(reported_id)
     if reporter == reported:
         return {"ok": False, "error": "cannot_report_self"}
+    if reason not in REPORT_REASONS:
+        return {"ok": False, "error": "invalid_reason"}
     rid = str(uuid.uuid4())
     _write(
         "INSERT INTO chain_dating_reports (id, reporter_profile_id, reported_profile_id, reason, details) VALUES (%s, %s, %s, %s, %s)",
@@ -427,38 +629,13 @@ def calculate_compatibility(profile_id_a, profile_id_b, a_dating_profile=None):
     if not _db_available():
         return 50
     try:
-        if not a_dating_profile:
-            a_dating_profile = get_dating_profile(profile_id_a)
-        b_dating_profile = get_dating_profile(profile_id_b)
-        if not a_dating_profile or not b_dating_profile:
-            return 50
-
-        score = 50
-
-        a_interests = set(a_dating_profile.get("interests") or [])
-        b_interests = set(b_dating_profile.get("interests") or [])
-        if a_interests and b_interests:
-            common = a_interests & b_interests
-            total = a_interests | b_interests
-            ratio = len(common) / len(total) if total else 0
-            score += int(ratio * 20)
-
-        a_goal = a_dating_profile.get("relationship_goal", "")
-        b_goal = b_dating_profile.get("relationship_goal", "")
-        if a_goal and b_goal and a_goal == b_goal:
-            score += 10
-
-        a_loc = (a_dating_profile.get("location_preference") or "").strip().lower()
-        b_loc = (b_dating_profile.get("location_preference") or "").strip().lower()
-        if a_loc and b_loc and a_loc == b_loc:
-            score += 10
-
-        a_trust = int(a_dating_profile.get("trust_score", 50))
-        b_trust = int(b_dating_profile.get("trust_score", 50))
-        trust_avg = (a_trust + b_trust) / 2
-        score += int((trust_avg / 100) * 10)
-
-        return min(100, max(0, score))
+        profile = build_compatibility_profile(
+            viewer=profile_id_a,
+            viewer_profile=a_dating_profile or get_dating_profile(profile_id_a),
+            target_profile=get_dating_profile(profile_id_b),
+            preferences=get_dating_preferences(profile_id_a),
+        )
+        return score_compatibility(profile)["score"]
     except Exception:
         return 50
 

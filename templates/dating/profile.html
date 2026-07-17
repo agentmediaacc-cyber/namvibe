@@ -114,6 +114,11 @@
         .dating-action-btn:hover {
             transform: scale(1.1);
         }
+        .dating-action-btn:focus-visible,
+        .back-link:focus-visible {
+            outline: 2px solid var(--chain-cyan);
+            outline-offset: 3px;
+        }
         .dating-action-btn.nope {
             background: var(--chain-error);
             color: #fff;
@@ -230,9 +235,9 @@
         </div>
 
         <div class="dating-profile-actions">
-            <button class="dating-action-btn nope" onclick="fetch('/dating/api/pass',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_id:'{{ profile.id }}'})}).then(()=>window.history.back())" title="Pass"><i class="fas fa-times"></i></button>
-            <button class="dating-action-btn super" onclick="fetch('/dating/api/super-like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_id:'{{ profile.id }}'})}).then(()=>window.location='/dating/matches')" title="Super Like"><i class="fas fa-star"></i></button>
-            <button class="dating-action-btn like" onclick="fetch('/dating/api/like',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_id:'{{ profile.id }}'})}).then(()=>window.location='/dating/matches')" title="Like"><i class="fas fa-heart"></i></button>
+            <button class="dating-action-btn nope" onclick="datingAction('/dating/api/pass', '{{ profile.id }}', 'back')" title="Pass"><i class="fas fa-times"></i></button>
+            <button class="dating-action-btn super" onclick="datingAction('/dating/api/super-like', '{{ profile.id }}', 'matches')" title="Super Like"><i class="fas fa-star"></i></button>
+            <button class="dating-action-btn like" onclick="datingAction('/dating/api/like', '{{ profile.id }}', 'matches')" title="Like"><i class="fas fa-heart"></i></button>
         </div>
 
         <div class="dating-profile-section">
@@ -255,4 +260,24 @@
         </div>
     </div>
 </body>
+<script>
+function datingAction(url, targetId, nextRoute) {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    var csrf = meta ? meta.getAttribute('content') : '';
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf,
+        },
+        body: JSON.stringify({target_id: targetId}),
+    }).then(function() {
+        if (nextRoute === 'matches') {
+            window.location = '/dating/matches';
+        } else {
+            window.history.back();
+        }
+    });
+}
+</script>
 </html>
