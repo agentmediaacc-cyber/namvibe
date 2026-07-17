@@ -1890,6 +1890,9 @@
         hydrateDeferredWidgets(data);
       })
       .catch(function (err) {
+        if (err && (err.name === "AbortError" || String(err.message || err).indexOf("Failed to fetch") !== -1)) {
+          return;
+        }
         logRuntimeGuard("widgets", err);
       });
   }

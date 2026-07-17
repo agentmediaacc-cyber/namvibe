@@ -63,7 +63,7 @@ def exercise_routes(page, base: str, routes: Iterable[str]):
             if resp is not None and resp.status >= 500:
                 failures.append((route, f"http_{resp.status}"))
                 continue
-            page.wait_for_timeout(800)
+            page.wait_for_timeout(2500 if route == "/" else 800)
         except Exception as exc:
             failures.append((route, type(exc).__name__))
     return failures

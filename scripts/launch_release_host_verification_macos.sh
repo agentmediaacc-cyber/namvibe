@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO="${REPO:-$HOME/Desktop/chain_app}"
-RUNTIME_REPO="${RUNTIME_REPO:-$REPO}"
-VENV="${VENV:-$REPO/venv}"
+SOURCE_REPO="${REPO:-$HOME/Desktop/chain_app}"
+SOURCE_RUNTIME_REPO="${RUNTIME_REPO:-$SOURCE_REPO}"
+SOURCE_VENV="${VENV:-$SOURCE_REPO/venv}"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 LABEL="com.namvibe.release-verification.$RUN_ID"
 DOMAIN="gui/$(id -u)"
@@ -11,11 +11,11 @@ DOMAIN="gui/$(id -u)"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --repo)
-      REPO="${2:?missing repo}"; shift 2 ;;
+      SOURCE_REPO="${2:?missing repo}"; shift 2 ;;
     --runtime-repo)
-      RUNTIME_REPO="${2:?missing runtime repo}"; shift 2 ;;
+      SOURCE_RUNTIME_REPO="${2:?missing runtime repo}"; shift 2 ;;
     --venv)
-      VENV="${2:?missing venv}"; shift 2 ;;
+      SOURCE_VENV="${2:?missing venv}"; shift 2 ;;
     --wait)
       WAIT=1; shift ;;
     *)
@@ -25,16 +25,28 @@ while [[ $# -gt 0 ]]; do
 done
 WAIT="${WAIT:-0}"
 WAIT_TIMEOUT_SECONDS="${WAIT_TIMEOUT_SECONDS:-3600}"
-RESULTS_ROOT="$REPO/tmp/release-verification"
-RUN_DIR="$RESULTS_ROOT/$RUN_ID"
+VERIFY_ROOT="/private/tmp/namvibe-release-verification"
+RUN_DIR="$VERIFY_ROOT/$RUN_ID"
+REPO="$RUN_DIR/repo"
+RUNTIME_REPO="$REPO"
+VENV="$RUN_DIR/venv"
 PLIST_FILE="$RUN_DIR/com.namvibe.release-verification.$RUN_ID.plist"
-JOB_SCRIPT="$REPO/scripts/run_release_host_verification_macos_job.sh"
-WRAPPER_SCRIPT="$REPO/scripts/run_release_host_verification.sh"
+JOB_SCRIPT="$SOURCE_REPO/scripts/run_release_host_verification_macos_job.sh"
+WRAPPER_SCRIPT="$SOURCE_REPO/scripts/run_release_host_verification.sh"
 LAUNCH_WRAPPER="/private/tmp/namvibe-release-launch-$RUN_ID.sh"
 JOB_WRAPPER="/private/tmp/namvibe-release-job-$RUN_ID.sh"
 WRAPPER_COPY="/private/tmp/namvibe-release-wrapper-$RUN_ID.sh"
 
+mkdir -p "$VERIFY_ROOT"
+rm -rf "$REPO"
+git clone --no-hardlinks --branch "$(git -C "$SOURCE_REPO" branch --show-current)" "$SOURCE_REPO" "$REPO"
+git -C "$REPO" remote remove origin 2>/dev/null || true
+if [[ -f "$SOURCE_REPO/.env" ]]; then
+  install -m 600 "$SOURCE_REPO/.env" "$REPO/.env"
+fi
 mkdir -p "$RUN_DIR"
+rm -rf "$VENV"
+ditto "$SOURCE_VENV" "$VENV"
 
 cat >"$LAUNCH_WRAPPER" <<EOF
 #!/usr/bin/env bash
@@ -89,6 +101,9 @@ job_script=$JOB_SCRIPT
 wrapper_script=$WRAPPER_SCRIPT
 wrapper_copy=$WRAPPER_COPY
 domain=$DOMAIN
+source_repo=$SOURCE_REPO
+source_runtime_repo=$SOURCE_RUNTIME_REPO
+source_venv=$SOURCE_VENV
 repo=$REPO
 runtime_repo=$RUNTIME_REPO
 venv=$VENV
