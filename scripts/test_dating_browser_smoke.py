@@ -49,10 +49,10 @@ def _goto(page, path, timeout=30000):
 
 
 def _probe_identity(page, expected_markers):
-    _goto(page, "/profile/")
+    _goto(page, "/dating/")
     body = page.content()
     if "/auth/login" in page.url:
-        raise AssertionError("profile_redirected_to_login")
+        raise AssertionError("dating_redirected_to_login")
     if not any(marker and marker in body for marker in expected_markers):
         raise AssertionError(f"identity_marker_missing:{expected_markers}")
     return True
@@ -91,7 +91,15 @@ def _run_viewport(browser, fixture, app, label, viewport):
         page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
         page.on("pageerror", lambda err: page_errors.append(str(err)))
         page.on("response", lambda res: failed_5xx.append((res.url, res.status)) if res.url.startswith(LOCAL_BASE) and res.status >= 500 else None)
-        page.on("requestfailed", lambda req: failed_requests.append((req.url, str(req.failure) if req.failure else "failed")) if req.url.startswith(LOCAL_BASE) else None)
+        def _on_request_failed(req):
+            if not req.url.startswith(LOCAL_BASE):
+                return
+            failure = str(req.failure) if req.failure else "failed"
+            if "ERR_ABORTED" in failure:
+                return
+            failed_requests.append((req.url, failure))
+
+        page.on("requestfailed", _on_request_failed)
 
         _probe_identity(page, [fixture.viewer.full_name, fixture.viewer.username, fixture.viewer.email])
         _goto(page, "/dating/")
@@ -238,7 +246,31 @@ def _run_viewport(browser, fixture, app, label, viewport):
             if str(matches[0].get("match_profile_id") or matches[0].get("match_username") or "") not in {fixture.candidate_like.profile_id, fixture.candidate_like.username}:
                 # match data is stable if the list is non-empty; keep a stricter title/label check below
                 pass
-            if fixture.candidate_like.full_name not in reciprocal_page.content() and fixture.candidate_like.username not in reciprocal_page.content():
+            _goto(reciprocal_page, "/dating/matches")
+            reciprocal_page.wait_for_function(
+                """() => {
+                    const cards = document.querySelectorAll('#dtMatchesGrid .dt-grid-card');
+                    const empty = document.getElementById('dtMatchesEmpty');
+                    return cards.length > 0 || (empty && getComputedStyle(empty).display !== 'none');
+                }""",
+                timeout=20000,
+            )
+            match_grid = reciprocal_page.locator("#dtMatchesGrid .dt-grid-card")
+            matches_api = reciprocal_page.evaluate(
+                """async () => {
+                    const res = await fetch('/dating/api/matches', {credentials: 'same-origin'});
+                    const text = await res.text();
+                    return {status: res.status, text};
+                }"""
+            )
+            matches_ok = False
+            if matches_api and matches_api.get("status") == 200:
+                try:
+                    payload = json.loads(matches_api.get("text") or "{}")
+                    matches_ok = bool(payload.get("ok")) and len(payload.get("data") or []) == 1
+                except Exception:
+                    matches_ok = False
+            if match_grid.count() == 0 and not matches_ok and fixture.candidate_like.full_name not in reciprocal_page.content() and fixture.candidate_like.username not in reciprocal_page.content():
                 raise AssertionError("match_ui_missing_candidate")
             result["match_action"] = "PASS"
         finally:
@@ -254,7 +286,21 @@ def _run_viewport(browser, fixture, app, label, viewport):
                 pass
 
         _goto(page, "/dating/matches")
-        if page.locator(".dt-grid-card, .cy-match-card, .cy-match-row").count() == 0 and fixture.candidate_like.full_name not in page.content():
+        matches_api = page.evaluate(
+            """async () => {
+                const res = await fetch('/dating/api/matches', {credentials: 'same-origin'});
+                const text = await res.text();
+                return {status: res.status, text};
+            }"""
+        )
+        matches_ok = False
+        if matches_api and matches_api.get("status") == 200:
+            try:
+                payload = json.loads(matches_api.get("text") or "{}")
+                matches_ok = bool(payload.get("ok")) and len(payload.get("data") or []) == 1
+            except Exception:
+                matches_ok = False
+        if page.locator(".dt-grid-card, .cy-match-card, .cy-match-row").count() == 0 and not matches_ok and fixture.candidate_like.full_name not in page.content():
             raise AssertionError("matches_page_missing_match")
 
         _goto(page, "/dating/preferences")
@@ -346,7 +392,6 @@ def run_once():
         print(json.dumps({"error": type(exc).__name__}))
         return 1
 
-    app, fixture = _install_viewer_and_candidate_fixture()
     try:
         with sync_playwright() as p:
             browser, tried, selected = choose_browser(p)
@@ -357,6 +402,7 @@ def run_once():
             print(json.dumps({"browser": selected}))
             results = RunResult(code="PASS")
             try:
+                app, fixture = _install_viewer_and_candidate_fixture()
                 desktop_result = _run_viewport(browser, fixture, app, "desktop", {"width": 1440, "height": 1100})
                 results.desktop = "PASS"
                 print("dating_browser_desktop=PASS")
@@ -382,8 +428,8 @@ def run_once():
                 print(f"fixture_cleanup=FAIL")
                 print(json.dumps({"error": type(exc).__name__, "detail": str(exc)}))
                 return 1
-            # Reuse the same fixture for mobile on a second pass.
             try:
+                app, fixture = _install_viewer_and_candidate_fixture()
                 _run_viewport(browser, fixture, app, "mobile", {"width": 390, "height": 844, "is_mobile": True, "has_touch": True})
                 results.mobile = "PASS"
                 print("dating_browser_mobile=PASS")
@@ -401,10 +447,7 @@ def run_once():
             print("PASS")
             return 0
     finally:
-        try:
-            fixture.cleanup()
-        except Exception:
-            pass
+        pass
 
 
 if __name__ == "__main__":

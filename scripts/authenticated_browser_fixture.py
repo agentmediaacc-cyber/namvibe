@@ -246,56 +246,83 @@ class AuthenticatedBrowserFixture:
     def cleanup(self):
         from services.neon_service import fast_query, write_query
 
+        prefix = "__dating_browser_test__%"
+        def _safe_write(sql_text: str, params):
+            try:
+                write_query(sql_text, params)
+            except Exception:
+                pass
+
         for user in reversed(self.users):
             pid = user.profile_id
-            try:
-                write_query("DELETE FROM chain_notification_events WHERE profile_id = %s OR actor_profile_id = %s", (pid, pid))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_notifications WHERE recipient_profile_id = %s OR actor_profile_id = %s", (pid, pid))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_thread_members WHERE profile_id = %s", (pid,))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_messages WHERE sender_profile_id = %s OR recipient_profile_id = %s", (pid, pid))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_message_threads WHERE created_by_profile_id = %s", (pid,))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_dating_reports WHERE reporter_profile_id = %s OR reported_profile_id = %s", (pid, pid))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_dating_blocks WHERE blocker_profile_id = %s OR blocked_profile_id = %s", (pid, pid))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_dating_matches WHERE profile_id_a = %s OR profile_id_b = %s", (pid, pid))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_dating_likes WHERE actor_profile_id = %s OR target_profile_id = %s", (pid, pid))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_dating_preferences WHERE profile_id = %s", (pid,))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_dating_profiles WHERE profile_id = %s", (pid,))
-            except Exception:
-                pass
-            try:
-                write_query("DELETE FROM chain_profiles WHERE id = %s", (pid,))
-            except Exception:
-                pass
+            _safe_write("DELETE FROM chain_notification_events WHERE profile_id = %s OR actor_profile_id = %s", (pid, pid))
+            _safe_write("DELETE FROM chain_notifications WHERE recipient_profile_id = %s OR actor_profile_id = %s", (pid, pid))
+            _safe_write("DELETE FROM chain_thread_members WHERE profile_id = %s", (pid,))
+            _safe_write("DELETE FROM chain_messages WHERE sender_profile_id = %s OR recipient_profile_id = %s", (pid, pid))
+            _safe_write("DELETE FROM chain_message_threads WHERE created_by_profile_id = %s", (pid,))
+            _safe_write("DELETE FROM chain_dating_reports WHERE reporter_profile_id = %s OR reported_profile_id = %s", (pid, pid))
+            _safe_write("DELETE FROM chain_dating_blocks WHERE blocker_profile_id = %s OR blocked_profile_id = %s", (pid, pid))
+            _safe_write("DELETE FROM chain_dating_matches WHERE profile_id_a = %s OR profile_id_b = %s", (pid, pid))
+            _safe_write("DELETE FROM chain_dating_likes WHERE actor_profile_id = %s OR target_profile_id = %s", (pid, pid))
+            _safe_write("DELETE FROM chain_dating_preferences WHERE profile_id = %s", (pid,))
+            _safe_write("DELETE FROM chain_dating_profiles WHERE profile_id = %s", (pid,))
+            _safe_write("DELETE FROM chain_profiles WHERE id = %s", (pid,))
+
+        # Sweep any stale records from earlier fixture runs that share the same
+        # test prefix. This keeps repeated browser runs stable without touching
+        # non-test data.
+        table_cleanup = [
+            (
+                "DELETE FROM chain_notification_events WHERE profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s) OR actor_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix, prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_notifications WHERE recipient_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s) OR actor_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix, prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_thread_members WHERE profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_messages WHERE sender_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s) OR recipient_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix, prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_message_threads WHERE created_by_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_dating_reports WHERE reporter_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s) OR reported_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix, prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_dating_blocks WHERE blocker_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s) OR blocked_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix, prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_dating_matches WHERE profile_id_a IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s) OR profile_id_b IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix, prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_dating_likes WHERE actor_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s) OR target_profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix, prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_dating_preferences WHERE profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_dating_profiles WHERE profile_id IN (SELECT id FROM chain_profiles WHERE username LIKE %s OR email LIKE %s)",
+                (prefix, prefix),
+            ),
+            (
+                "DELETE FROM chain_profiles WHERE username LIKE %s OR email LIKE %s",
+                (prefix, prefix),
+            ),
+        ]
+        for sql, params in table_cleanup:
+            _safe_write(sql, params)
 
         remaining = fast_query(
             """
