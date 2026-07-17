@@ -466,6 +466,33 @@ def undo_last_action(profile_id):
     return {"ok": True, "undone": last["action_type"]}
 
 
+def unmatch_users(profile_id, target_id):
+    actor = _uuid(profile_id)
+    target = _uuid(target_id)
+    if actor == target:
+        return {"ok": False, "error": "cannot_unmatch_self"}
+    rows = _run(
+        """
+        SELECT id, profile_id_a, profile_id_b, is_active
+        FROM chain_dating_matches
+        WHERE ((profile_id_a = %s AND profile_id_b = %s) OR (profile_id_a = %s AND profile_id_b = %s))
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (actor, target, target, actor),
+    )
+    if not rows:
+        return {"ok": False, "error": "match_not_found"}
+    match = rows[0]
+    if not match.get("is_active", True):
+        return {"ok": True, "status": "already_inactive", "match_id": str(match["id"])}
+    _write(
+        "UPDATE chain_dating_matches SET is_active = false WHERE id = %s",
+        (match["id"],),
+    )
+    return {"ok": True, "status": "unmatched", "match_id": str(match["id"])}
+
+
 # ─── MATCHES ──────────────────────────────────────────────────
 
 def get_matches(profile_id, limit=50, offset=0):

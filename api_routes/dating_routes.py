@@ -6,7 +6,7 @@ from services.dating_service import (
     set_dating_mode, get_discover_profiles,
     like_profile, pass_profile, super_like_profile, undo_last_action,
     get_matches, get_likes_you,
-    block_user, report_user, is_blocked, is_blocked_by,
+    block_user, report_user, is_blocked, is_blocked_by, unmatch_users,
     get_dating_preferences, update_dating_preferences,
     calculate_compatibility, restrict_dating_visibility,
     become_friends, sos_alert,
@@ -199,6 +199,19 @@ def api_report():
     result = report_user(profile["id"], target_id, reason, details)
     if result.get("ok"):
         track_interaction_safe(profile["id"], "dating_profile", target_id, "report", source_surface="dating")
+    status = 200 if result.get("ok") else 400
+    return jsonify(result), status
+
+
+@dating_bp.route("/api/unmatch", methods=["POST"])
+@login_required
+def api_unmatch():
+    profile = get_current_profile()
+    body = request.get_json(silent=True) or {}
+    target_id = body.get("target_id")
+    if not target_id:
+        return jsonify({"ok": False, "error": "target_id_required"}), 400
+    result = unmatch_users(profile["id"], target_id)
     status = 200 if result.get("ok") else 400
     return jsonify(result), status
 

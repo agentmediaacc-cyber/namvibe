@@ -12,7 +12,7 @@ os.environ.setdefault("FLASK_TESTING", "0")
 
 from psycopg2.extras import Json
 from services.neon_service import fast_query, write_query
-from services.dating_service import get_discover_profiles, like_profile, get_matches, block_user
+from services.dating_service import get_discover_profiles, like_profile, get_matches, block_user, unmatch_users, report_user
 
 RESULTS = []
 
@@ -177,10 +177,22 @@ def main():
         if notif_total < 2:
             fail("FAIL_NOTIFICATION", "match notifications missing")
 
+        unmatch_result = unmatch_users(a, b)
+        if not unmatch_result.get("ok"):
+            fail("FAIL_MATCH", "unmatch should succeed")
+        if get_matches(a, limit=10, offset=0):
+            fail("FAIL_MATCH", "match should be inactive after unmatch")
+        if unmatch_users(a, b).get("status") not in {"already_inactive", "unmatched"}:
+            fail("FAIL_MATCH", "duplicate unmatch should be idempotent")
+        report_result = report_user(a, b, "spam", "testing")
+        if not report_result.get("ok"):
+            fail("FAIL_REPORT", "report should succeed")
+        if not report_user(a, a, "spam", "testing").get("error") == "cannot_report_self":
+            fail("FAIL_REPORT", "self report should reject")
+        if report_user(a, b, "invalid_reason", "testing").get("error") != "invalid_reason":
+            fail("FAIL_REPORT", "invalid reason should reject")
         if not block_user(a, b).get("ok"):
             fail("FAIL_BLOCK", "block should succeed")
-        if get_matches(a, limit=10, offset=0):
-            fail("FAIL_BLOCK", "block should deactivate match visibility")
         discover_after_block = get_discover_profiles(a, limit=10, offset=0)
         if any(str(row.get("profile_id")) == str(b) for row in discover_after_block):
             fail("FAIL_BLOCK", "blocked profile should disappear from discovery")

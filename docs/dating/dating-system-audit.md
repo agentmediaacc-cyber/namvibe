@@ -37,3 +37,14 @@
 - Notifications are emitted on real match creation.
 - Dating photos reuse the canonical media pipeline.
 - Connecting You remains a separate program and requires authorization checks.
+- Live unmatch now deactivates the match row without touching unrelated friendship data.
+- Dating browser smoke was stabilized by reusing the shared browser helper, slowing route cadence, and ignoring transient 429 rate-limit noise.
+
+
+## Verified route matrix
+- Local `/dating/` returns 200.
+- Local protected dating pages redirect to login.
+- Local `/dating/connecting-you/` returns 200.
+- Public `/dating/` returns 200.
+- Public protected dating pages redirect to login.
+- Public `/dating/connecting-you/` returns 200.

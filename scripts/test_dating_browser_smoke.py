@@ -10,5 +10,5 @@ sys.path.insert(0, str(ROOT))
 from scripts.browser_smoke_support import run_smoke
 
 if __name__ == "__main__":
-    routes = ["/", "/profile/@namvibe", "/profile/@definitely-missing-profile", "/discover", "/reels/", "/notifications", "/messages", "/calls", "/socket.io/?EIO=4&transport=polling"]
+    routes = ["/dating/", "/dating/discover", "/dating/matches", "/dating/preferences", "/dating/safety", "/dating/connecting-you/"]
     raise SystemExit(run_smoke(routes))
