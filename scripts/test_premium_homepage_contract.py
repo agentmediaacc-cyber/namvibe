@@ -52,8 +52,11 @@ def main() -> int:
         "@media (max-width: 980px)",
         "@media (max-width: 640px)",
         "@media (max-width: 520px)",
-        "grid-template-columns: minmax(240px, 272px) minmax(0, 1fr) minmax(296px, 340px)",
-        "grid-template-columns: minmax(0, 1fr)",
+        ".nv-home-rail--left {\n    display: none;",
+        ".nv-home-rail--right {\n    display: none;",
+        ".nv-home-module-grid {\n    grid-template-columns: repeat(2, minmax(0, 1fr));",
+        ".nv-home-module-grid {\n    grid-template-columns: 1fr;",
+        ".nv-home-composer {\n    grid-template-columns: 1fr;",
     ))
     duplicate_controller_count = tpl.count("/static/js/namvibe_home_pro.js") - 1
     hardcoded_fake_content_count = sum(

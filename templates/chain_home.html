@@ -447,7 +447,7 @@
         </div>
       </section>
 
-      <section class="nv-rail-card" {% if (empty_states or {}).get('hashtags') or not (trending_hashtags or hashtags) %}hidden{% endif %}>
+      <section class="nv-rail-card" id="nv-home-hashtags-section" {% if (empty_states or {}).get('hashtags') or not (trending_hashtags or hashtags) %}hidden{% endif %}>
         <div class="nv-rail-card__title">Trending Namibia</div>
         <div class="nv-home-tag-cloud nv-home-tag-cloud--rail">
           {% for trend in (trending_hashtags or hashtags or [])[:6] %}

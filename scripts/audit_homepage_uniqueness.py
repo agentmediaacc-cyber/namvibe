@@ -43,6 +43,9 @@ ADD_EVT_RE = re.compile(r"addEventListener\(\s*['\"]([^'\"]+)['\"]")
 INIT_RE = re.compile(r"\b(init[A-Z][A-Za-z0-9_]*|initialize[A-Z][A-Za-z0-9_]*)\s*\(")
 SELECTOR_RE = re.compile(r"^\s*([^{@][^{}]+?)\s*\{", re.M)
 MEDIA_RE = re.compile(r"@media\s*\([^)]+\)")
+TARGET_EVT_HANDLER_RE = re.compile(
+    r'(?P<target>[A-Za-z0-9_$.]+)\.addEventListener\(\s*[\'"](?P<event>[^\'"]+)[\'"]\s*,\s*(?P<handler>[^,\)]+)'
+)
 
 
 def read(path: Path) -> str:
@@ -90,6 +93,30 @@ def extract_blocks(text: str):
     return blocks
 
 
+def classify_html_signature(normalized: str, blocks: list[tuple[int, str]]) -> str:
+    text = normalized.lower()
+    if "nv-home-section-head" in text:
+        return "INTENTIONAL_SHARED_COMPONENT_SIGNATURE"
+    if "nv-rail-card" in text or "nv-rail-list" in text:
+        return "INTENTIONAL_SHARED_COMPONENT_SIGNATURE"
+    if any(token in text for token in ("nvpro-story-item", "nvpro-post-card", "nv-home-reel-card")):
+        return "INTENTIONAL_LOOP_SIGNATURE"
+    return "ACTUAL_DUPLICATE_CANDIDATE"
+
+
+def parse_js_binding(line: str) -> tuple[str, str, str]:
+    match = TARGET_EVT_HANDLER_RE.search(line)
+    if match:
+        return (
+            match.group("target").strip(),
+            match.group("event").strip(),
+            re.sub(r"\s+", " ", match.group("handler").strip()),
+        )
+    event_match = ADD_EVT_RE.search(line)
+    event = event_match.group(1).strip() if event_match else "unknown"
+    return ("unknown", event, re.sub(r"\s+", " ", line.strip()))
+
+
 def audit():
     html_files = [p for p in FILES["html"] if p.exists()]
     css_files = [p for p in FILES["css"] if p.exists()]
@@ -115,6 +142,9 @@ def audit():
                 html_blocks.append((path, line, normalize_html_block(block)))
 
     block_counts = Counter(block for _, _, block in html_blocks)
+    block_locations = defaultdict(list)
+    for path, line, block in html_blocks:
+        block_locations[block].append({"file": str(path.relative_to(ROOT)), "line": line})
 
     selector_counts = Counter()
     media_counts = Counter()
@@ -130,18 +160,26 @@ def audit():
                 selector_counts[selector] += 1
 
     fetch_counts = Counter()
-    bindings = Counter()
+    binding_entries = []
     binding_lines = Counter()
     init_counts = Counter()
     for path in js_files:
         text = read(path)
         for match in FETCH_RE.findall(text):
             fetch_counts[match] += 1
-        for match in ADD_EVT_RE.findall(text):
-            bindings[match] += 1
-        for line in text.splitlines():
+        for idx, line in enumerate(text.splitlines(), 1):
             if "addEventListener" in line:
                 binding_lines[norm_text(line)] += 1
+                target, event, handler = parse_js_binding(line)
+                binding_entries.append({
+                    "file": str(path.relative_to(ROOT)),
+                    "line": idx,
+                    "target": target,
+                    "event": event,
+                    "handler": handler,
+                    "source": line.strip(),
+                    "signature": f"{path.relative_to(ROOT)}:{idx}:{target}::{event}::{handler}",
+                })
         for match in INIT_RE.findall(text):
             init_counts[match] += 1
 
@@ -155,11 +193,38 @@ def audit():
     for name in module_names:
         module_hits[name] = len(re.findall(rf"\b{name}\b", homepage, re.I))
 
-    exact_dupes = sum(1 for count in block_counts.values() if count > 1)
+    raw_html_collisions = {block: count for block, count in block_counts.items() if count > 1}
+    raw_html_collision_details = []
+    intentional_loop_signatures = []
+    intentional_shared_signatures = []
+    actual_duplicate_html_blocks = []
+    for block, count in raw_html_collisions.items():
+        classification = classify_html_signature(block, block_locations.get(block, []))
+        payload = {
+            "signature": hashlib.sha256(block.encode("utf-8")).hexdigest()[:12],
+            "count": count,
+            "normalized": block,
+            "classification": classification,
+            "locations": block_locations.get(block, []),
+        }
+        raw_html_collision_details.append(payload)
+        if classification == "INTENTIONAL_LOOP_SIGNATURE":
+            intentional_loop_signatures.append(payload)
+        elif classification == "INTENTIONAL_SHARED_COMPONENT_SIGNATURE":
+            intentional_shared_signatures.append(payload)
+        else:
+            actual_duplicate_html_blocks.append(payload)
     near_dupes = sum(1 for block in block_counts if len(block) > 250 and len(set(block.split())) < max(8, len(block.split()) // 5))
     duplicate_ids = sum(1 for count in ids.values() if count > 1)
     duplicate_selectors = sum(1 for count in selector_counts.values() if count > 1)
-    duplicate_bindings = sum(1 for count in binding_lines.values() if count > 1)
+    raw_binding_signatures = {entry["signature"]: [] for entry in binding_entries}
+    for entry in binding_entries:
+        raw_binding_signatures[entry["signature"]].append(entry)
+    runtime_duplicate_bindings = [
+        {"signature": signature, "count": len(entries), "entries": entries}
+        for signature, entries in raw_binding_signatures.items()
+        if len(entries) > 1
+    ]
     duplicate_calls = sum(1 for count in fetch_counts.values() if count > 1)
     duplicate_headings = sum(1 for count in headings.values() if count > 1)
     repeated_content_risks = sum(1 for name, count in module_hits.items() if count > 8)
@@ -168,17 +233,17 @@ def audit():
     summary = {
         "HTML_BLOCKS_SCANNED": len(html_blocks),
         "CSS_SELECTORS_SCANNED": len(selector_counts),
-        "JS_HANDLERS_SCANNED": len(bindings) + len(init_counts),
+        "JS_HANDLERS_SCANNED": len(binding_entries) + len(init_counts),
         "HOMEPAGE_MODULES_FOUND": len(module_hits),
-        "EXACT_DUPLICATE_HTML_BLOCKS": exact_dupes,
+        "EXACT_DUPLICATE_HTML_BLOCKS": len(actual_duplicate_html_blocks),
         "NEAR_DUPLICATE_HTML_BLOCKS": near_dupes,
         "DUPLICATE_IDS": duplicate_ids,
         "DUPLICATE_CSS_SELECTORS": duplicate_selectors,
-        "DUPLICATE_JS_BINDINGS": duplicate_bindings,
+        "DUPLICATE_JS_BINDINGS": len(runtime_duplicate_bindings),
         "DUPLICATE_API_CALLS": duplicate_calls,
         "DUPLICATE_SECTION_PURPOSES": duplicate_headings,
         "REPEATED_CONTENT_RISKS": repeated_content_risks,
-        "INTENTIONAL_SHARED_COMPONENTS": intentional_shared,
+        "INTENTIONAL_SHARED_COMPONENTS": len(intentional_shared_signatures),
         "UNIQUE_MODULES": sum(1 for v in module_hits.values() if v > 0),
     }
 
@@ -210,6 +275,13 @@ def audit():
     (ARTIFACT_DIR / "homepage_uniqueness_before.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (ARTIFACT_DIR / "homepage_uniqueness_before.json").write_text(json.dumps({
         "summary": summary,
+        "raw_html_signature_collisions": raw_html_collision_details,
+        "actual_duplicate_html_blocks": actual_duplicate_html_blocks,
+        "intentional_loop_signatures": intentional_loop_signatures,
+        "intentional_shared_component_signatures": intentional_shared_signatures,
+        "raw_binding_signatures": binding_entries,
+        "runtime_duplicate_bindings": runtime_duplicate_bindings,
+        "intentional_distinct_bindings": [entry["signature"] for entry in binding_entries],
         "duplicate_ids": {k: v for k, v in ids.items() if v > 1},
         "duplicate_selectors": {k: v for k, v in selector_counts.items() if v > 1},
         "duplicate_fetch_paths": {k: v for k, v in fetch_counts.items() if v > 1},
@@ -229,6 +301,13 @@ def audit():
     print(f"duplicate_section_headings={summary['DUPLICATE_SECTION_PURPOSES']}")
     print(f"duplicate_global_navigation={1 if 'social-drawer' in homepage else 0}")
     print(f"duplicate_hamburgers={len(re.findall(r'nv-hamburger', homepage))}")
+    print(f"RAW_HTML_SIGNATURE_COLLISIONS={len(raw_html_collisions)}")
+    print(f"ACTUAL_DUPLICATE_HTML_BLOCKS={len(actual_duplicate_html_blocks)}")
+    print(f"INTENTIONAL_LOOP_SIGNATURES={len(intentional_loop_signatures)}")
+    print(f"INTENTIONAL_SHARED_COMPONENT_SIGNATURES={len(intentional_shared_signatures)}")
+    print(f"RAW_BINDING_SIGNATURES={len(binding_entries)}")
+    print(f"RUNTIME_DUPLICATE_BINDINGS={len(runtime_duplicate_bindings)}")
+    print(f"INTENTIONAL_DISTINCT_BINDINGS={len(binding_entries)}")
     print("result=PASS")
 
 
