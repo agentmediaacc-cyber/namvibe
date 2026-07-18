@@ -65,6 +65,30 @@
     setTimeout(fn, 350);
   }
 
+  function syncHomepageViewportHeight() {
+    var height = 0;
+    if (window.visualViewport && typeof window.visualViewport.height === "number") {
+      height = Math.round(window.visualViewport.height);
+    } else if (typeof window.innerHeight === "number") {
+      height = Math.round(window.innerHeight);
+    }
+    if (height > 0 && document.documentElement) {
+      document.documentElement.style.setProperty("--nv-home-vh", height + "px");
+    }
+  }
+
+  if (!window.__NAMVIBE_HOME_VIEWPORT_BOUND__) {
+    window.__NAMVIBE_HOME_VIEWPORT_BOUND__ = true;
+    syncHomepageViewportHeight();
+    window.addEventListener("resize", syncHomepageViewportHeight, { passive: true });
+    window.addEventListener("orientationchange", syncHomepageViewportHeight, { passive: true });
+    window.addEventListener("pageshow", syncHomepageViewportHeight, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncHomepageViewportHeight, { passive: true });
+      window.visualViewport.addEventListener("scroll", syncHomepageViewportHeight, { passive: true });
+    }
+  }
+
   function logHomepageTimings(source, timings) {
     if (!timings) return;
     try {
