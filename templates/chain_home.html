@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/hamburger_button.html" import hamburger_button %}
 {% block title %}NamVibe | Home{% endblock %}
 {% block body_class %}nvpro-home{% endblock %}
 
@@ -80,35 +81,6 @@
 {% endblock %}
 {% block content %}
 <div class="nvpro-shell nv-app">
-  <div class="nv-mobile-menu-overlay" id="nvMobileMenuOverlay" hidden></div>
-  <aside class="nv-mobile-menu" id="nvMobileMenu" hidden aria-hidden="true">
-    <div class="nv-mobile-menu-head">
-      <div class="nv-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        <strong>NamVibe</strong>
-      </div>
-      <button class="nv-close" type="button" data-action="close-menu" aria-label="Close menu">×</button>
-    </div>
-    <nav class="nv-mobile-menu-links" aria-label="Mobile menu">
-      <a href="{{ home_route or '/' }}" class="active">Home</a>
-      <a href="{{ discover_route or '/discover/' }}">Discover</a>
-      <a href="{{ reel_route or '/reels/' }}">Reels</a>
-      <a href="{{ stories_route or '/stories/' }}">Stories</a>
-      <a href="{{ dating_route or '/discover/' }}">{{ dating_label or 'Connecting You' }}</a>
-      <a href="{{ live_route or '/live/' }}">Live</a>
-      <a href="{{ drawer_messages or '/messages/' }}">Messages</a>
-      <a href="{{ drawer_calls or '/calls/' }}">Calls</a>
-      <a href="{{ drawer_wallet or '/wallet/' }}">Wallet</a>
-      <a href="{{ drawer_notifications or '/notifications/' }}">Notifications</a>
-      <a href="{{ drawer_profile or '/profile/' }}">Profile</a>
-      <a href="{{ drawer_settings or '/profile/settings' }}">Settings</a>
-      <a href="{{ support_route or '/support' }}">Support</a>
-      <a href="{{ terms_route or '/terms' }}">Terms</a>
-      <a href="{{ privacy_route or '/privacy' }}">Privacy</a>
-    </nav>
-    <button class="nv-create-btn nv-mobile-create-btn" type="button" data-action="open-create" data-nv-open-create aria-label="Open create menu">+ Create</button>
-  </aside>
-
   <!-- LEFT SIDEBAR (desktop) -->
   <aside class="nv-sidebar">
     <div class="nv-logo">
@@ -182,19 +154,17 @@
     <!-- TOP BAR -->
     <header class="nvpro-header nv-topbar">
       <div class="nvpro-header-inner">
-<button class="nv-hamburger" data-action="open-menu" aria-label="Menu">
-         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-       </button>
-      <div class="nvpro-search-wrap nv-search">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="nvpro-search-input" type="search" aria-label="Search NamVibe, friends, reels, hashtags" data-action="search" />
-      </div>
-      <div class="nvpro-header-actions">
-      <button class="nvpro-header-icon nv-notif-btn" data-action="open-notifications" title="Notifications">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        {% if notifications and notifications|length > 0 %}<span class="nvpro-badge"></span>{% endif %}
-      </button>
-      </div>
+        {{ hamburger_button('home-menu-toggle', 'social-drawer', 'Open menu') }}
+        <div class="nvpro-search-wrap nv-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="nvpro-search-input" type="search" aria-label="Search NamVibe, friends, reels, hashtags" data-action="search" />
+        </div>
+        <div class="nvpro-header-actions">
+          <button class="nvpro-header-icon nv-notif-btn" data-action="open-notifications" title="Notifications">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            {% if notifications and notifications|length > 0 %}<span class="nvpro-badge"></span>{% endif %}
+          </button>
+        </div>
       </div>
     </header>
 

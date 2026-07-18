@@ -1680,7 +1680,7 @@
 
   /* ── Phase 156: Hamburger menu toggle ── */
   function setupHamburgerMenu() {
-    var btn = document.getElementById("nvpro-hamburger") || document.querySelector("[data-action='open-menu']");
+    var btn = document.getElementById("nvpro-hamburger") || document.querySelector("[data-nv-menu-toggle]");
     var drawer = document.getElementById("nvpro-drawer") || document.getElementById("nvMobileMenu");
     var overlay = document.getElementById("nvpro-drawer-overlay") || document.getElementById("nvMobileMenuOverlay");
     if (!btn || !drawer) return;

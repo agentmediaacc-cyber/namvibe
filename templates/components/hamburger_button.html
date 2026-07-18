@@ -1,0 +1,24 @@
+{% macro hamburger_button(
+    button_id,
+    target_id,
+    label='Open menu',
+    extra_classes='',
+    theme='default'
+) %}
+<button
+    type="button"
+    id="{{ button_id }}"
+    class="nv-hamburger nv-hamburger--{{ theme }} {{ extra_classes }}"
+    data-nv-menu-toggle
+    data-nv-menu-target="{{ target_id }}"
+    aria-controls="{{ target_id }}"
+    aria-expanded="false"
+    aria-label="{{ label }}"
+>
+    <span class="nv-hamburger__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M4 7h16M4 12h16M4 17h16"></path>
+        </svg>
+    </span>
+</button>
+{% endmacro %}

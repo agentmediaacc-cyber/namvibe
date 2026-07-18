@@ -497,43 +497,69 @@ button, [role="button"], .clickable, a, input, select, textarea {
 
 /* ── HAMBURGER MENU COMPONENT ── */
 .nv-hamburger {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 15px;
+  padding: 0;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--nv-color-text-primary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background var(--nv-transition-fast), color var(--nv-transition-fast), transform var(--nv-transition-fast), box-shadow var(--nv-transition-fast);
   border: none;
+  min-width: 44px;
 }
 
 .nv-hamburger:hover {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.nv-hamburger svg {
+.nv-hamburger:focus-visible {
+  outline: 2px solid var(--nv-color-border-focus);
+  outline-offset: 2px;
+  box-shadow: var(--nv-shadow-focus);
+}
+
+.nv-hamburger__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nv-hamburger__icon svg {
   width: 22px;
   height: 22px;
+  overflow: visible;
+}
+
+.nv-hamburger__icon svg path {
+  fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.nv-hamburger .nv-hamburger-icon {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.nv-hamburger[aria-expanded="true"] {
+  background: rgba(37, 99, 235, 0.16);
+  color: var(--nv-color-accent);
 }
 
-.nv-hamburger .nv-hamburger-line {
-  width: 20px;
-  height: 2px;
-  background: currentColor;
-  border-radius: 2px;
+.nv-hamburger--light {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.nv-hamburger--dark {
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--nv-color-bg-primary);
+}
+
+.nv-hamburger--default {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--nv-color-text-primary);
 }
 
 /* Pink theme variant for nvpro-home */

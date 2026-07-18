@@ -1,0 +1,49 @@
+{% macro namvibe_global_menu(
+    drawer_id='namvibe-global-drawer',
+    brand_href='/',
+    brand_label='NamVibe',
+    current_path='',
+    authenticated=False,
+    current_role='member',
+    logout_href='/auth/logout',
+    login_href='/auth/login',
+    register_href='/auth/register'
+) %}
+{% set primary_links = [
+    ('Home', '/', 'fa-home'),
+    ('Discover', '/discover/', 'fa-compass'),
+    ('Reels', '/reels/', 'fa-film'),
+    ('Stories', '/status/', 'fa-circle-notch'),
+    ('Live', '/live/', 'fa-video'),
+    ('Messages', '/messages/', 'fa-comment-dots'),
+    ('Calls', '/calls/', 'fa-phone'),
+    ('Notifications', '/notifications/', 'fa-bell'),
+    ('Dating', '/dating/', 'fa-heart'),
+    ('Connecting You', '/dating/connecting-you/', 'fa-people-arrows'),
+    ('Profile', '/profile/', 'fa-user-circle'),
+    ('Wallet', '/wallet/', 'fa-coins'),
+    ('Marketplace', '/marketplace/', 'fa-store'),
+    ('Safety Center', '/safety/', 'fa-shield-halved'),
+    ('Settings', '/profile/settings', 'fa-cog'),
+] %}
+<div class="social-drawer-backdrop" data-nv-menu-backdrop data-nv-menu-target="{{ drawer_id }}" hidden></div>
+<aside id="{{ drawer_id }}" class="social-drawer" aria-hidden="true" data-nv-menu-panel>
+    <div class="social-drawer__head">
+        <a href="{{ brand_href }}" class="social-drawer__brand">{{ brand_label }}</a>
+        <button type="button" class="social-icon-btn" data-nv-menu-close data-nv-menu-target="{{ drawer_id }}" aria-label="Close menu"><i class="fas fa-times"></i></button>
+    </div>
+    <nav class="social-drawer__nav" aria-label="NamVibe menu">
+        {% for label, href, icon in primary_links %}
+        <a href="{{ href }}" class="{% if current_path and current_path.startswith(href) %}is-active{% endif %}">
+            <i class="fas {{ icon }}"></i>{{ label }}
+        </a>
+        {% endfor %}
+        {% if authenticated %}
+        <a href="{{ logout_href }}"><i class="fas fa-sign-out-alt"></i>Logout</a>
+        {% else %}
+        <a href="{{ login_href }}"><i class="fas fa-sign-in-alt"></i>Login</a>
+        <a href="{{ register_href }}"><i class="fas fa-user-plus"></i>Register</a>
+        {% endif %}
+    </nav>
+</aside>
+{% endmacro %}

@@ -128,26 +128,6 @@
     document.body.classList.remove('nv-overlay-open');
   }
 
-  function openMenu() {
-    var menu = document.getElementById('nvMobileMenu');
-    var overlay = document.getElementById('nvMobileMenuOverlay');
-    if (!menu || !overlay) return;
-    menu.hidden = false;
-    overlay.hidden = false;
-    menu.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('nv-overlay-open');
-  }
-
-  function closeMenu() {
-    var menu = document.getElementById('nvMobileMenu');
-    var overlay = document.getElementById('nvMobileMenuOverlay');
-    if (!menu || !overlay) return;
-    menu.hidden = true;
-    overlay.hidden = true;
-    menu.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('nv-overlay-open');
-  }
-
   function openComments(id) {
     var drawer = document.getElementById('commentsDrawer');
     drawer.hidden = false;
@@ -645,8 +625,6 @@
       case 'open-live': window.location.href = '/live/'; break;
       case 'open-chat': window.location.href = '/messages/'; break;
       case 'open-notifications': window.location.href = '/notifications/'; break;
-      case 'open-menu': openMenu(); break;
-      case 'close-menu': closeMenu(); break;
       case 'create-story': window.location.href = '/status/create'; break;
       case 'follow': followUser(btn, id); break;
       case 'open-studio':
@@ -660,7 +638,6 @@
   });
 
   document.addEventListener('click', function (e) {
-    if (e.target && e.target.id === 'nvMobileMenuOverlay') closeMenu();
     if (e.target && e.target.id === 'nv-create-modal') closeCreate();
     if (e.target && e.target.id === 'commentsDrawer') closeComments();
     if (e.target && e.target.id === 'bottomSheetOverlay') closePostMenu();
@@ -744,7 +721,6 @@
     } else if (e.key === 'Escape') {
       closeCreate();
       closeComments();
-      closeMenu();
       closePostMenu();
     }
   });

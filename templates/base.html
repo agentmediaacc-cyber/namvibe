@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+{% from "components/hamburger_button.html" import hamburger_button %}
+{% from "components/namvibe_global_menu.html" import namvibe_global_menu %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -423,33 +425,13 @@
         </nav>
     </aside>
     {% elif not is_auth_surface %}
-    <div class="social-drawer-backdrop" data-social-drawer-close hidden></div>
-    <aside id="social-drawer" class="social-drawer" aria-hidden="true">
-        <div class="social-drawer__head">
-            <a href="/" class="social-drawer__brand">NamVibe</a>
-            <button type="button" class="social-icon-btn" data-social-drawer-close aria-label="Close menu"><i class="fas fa-times"></i></button>
-        </div>
-        <nav class="social-drawer__nav">
-            <a href="/"><i class="fas fa-home"></i>Home</a>
-            <a href="/discover/"><i class="fas fa-compass"></i>Discover</a>
-            <a href="/reels/"><i class="fas fa-film"></i>Reels</a>
-            <a href="/status/"><i class="fas fa-circle-notch"></i>Stories</a>
-            <a href="/messages/"><i class="fas fa-comment-dots"></i>Messages</a>
-            <a href="/dating/"><i class="fas fa-heart"></i>Dating</a>
-            <a href="/calls/"><i class="fas fa-phone"></i>Calls</a>
-            <a href="/marketplace/"><i class="fas fa-store"></i>Marketplace</a>
-            <a href="/live/"><i class="fas fa-video"></i>Live</a>
-            <a href="/notifications/"><i class="fas fa-bell"></i>Notifications</a>
-            <a href="/profile/"><i class="fas fa-user-circle"></i>Profile</a>
-            <a href="/profile/settings"><i class="fas fa-cog"></i>Settings</a>
-            {% if g_current %}
-            <a href="/auth/logout"><i class="fas fa-sign-out-alt"></i>Sign Out</a>
-            {% else %}
-            <a href="/auth/login"><i class="fas fa-sign-in-alt"></i>Login</a>
-            <a href="/auth/register"><i class="fas fa-user-plus"></i>Register</a>
-            {% endif %}
-        </nav>
-    </aside>
+    {{ namvibe_global_menu(
+        drawer_id='social-drawer',
+        brand_href='/',
+        brand_label='NamVibe',
+        current_path=request.path,
+        authenticated=(g_current is not none)
+    ) }}
     {% endif %}
 
     {% block before_main %}{% endblock %}
@@ -459,9 +441,7 @@
         {% if not is_auth_surface %}
         <header class="top-header">
             {% if not is_admin_surface %}
-            <button type="button" class="nv-hamburger" data-social-drawer-open aria-label="Open menu" aria-expanded="false" aria-controls="social-drawer">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-            </button>
+            {{ hamburger_button('social-drawer-toggle', 'social-drawer', 'Open menu') }}
             <a href="/" class="social-top-brand" aria-label="NamVibe home">NamVibe</a>
             {% endif %}
             <form class="search-bar" id="chain-search-form" action="/search" method="get" autocomplete="off">
@@ -535,6 +515,7 @@
     {% endblock %}
     {% if not is_auth_surface %}
     <script src="/static/js/chain_theme_audit.js"></script>
+    <script src="/static/js/namvibe_menu.js"></script>
     <script src="/static/js/main.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
@@ -543,32 +524,6 @@
                     .catch(function(){});
             });
         }
-    </script>
-    <script>
-        (function(){
-            const drawer = document.getElementById("social-drawer");
-            const backdrop = document.querySelector("[data-social-drawer-close].social-drawer-backdrop");
-            const openBtn = document.querySelector("[data-social-drawer-open]");
-            const closeBtns = document.querySelectorAll("[data-social-drawer-close]");
-            if (!drawer || !openBtn) return;
-
-            function setOpen(open){
-                drawer.classList.toggle("is-open", open);
-                drawer.setAttribute("aria-hidden", open ? "false" : "true");
-                openBtn.setAttribute("aria-expanded", open ? "true" : "false");
-                if (backdrop) {
-                    backdrop.hidden = !open;
-                    backdrop.classList.toggle("is-open", open);
-                }
-                document.body.classList.toggle("social-drawer-open", open);
-            }
-
-            openBtn.addEventListener("click", function(){ setOpen(true); });
-            closeBtns.forEach(function(btn){ btn.addEventListener("click", function(){ setOpen(false); }); });
-            document.addEventListener("keydown", function(event){
-                if (event.key === "Escape") setOpen(false);
-            });
-        })();
     </script>
     {% endif %}
     <script id="CHAIN_CSRF_BRIDGE">

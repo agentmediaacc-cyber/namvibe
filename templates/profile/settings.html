@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/hamburger_button.html" import hamburger_button %}
 {% block title %}Settings | NamVibe{% endblock %}
 
 {% block extra_css %}
@@ -14,9 +15,7 @@
       <p>Control your profile, privacy, calls, and security</p>
     </div>
 
-    <button class="nv-hamburger" id="nvpro-sidebar-toggle" type="button" aria-label="Open menu">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
+    {{ hamburger_button('nvpro-sidebar-toggle', 'nvpro-sidebar', 'Open menu', '', 'dark') }}
 
     <nav class="nvpro-settings-sidebar" id="nvpro-sidebar">
       <a href="#profile-details" data-section="profile-details" class="is-active"><i class="fas fa-user"></i><span class="nav-label">Profile</span></a>
@@ -465,18 +464,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
-
-  /* Mobile toggle */
-  if (toggle) {
-    toggle.addEventListener('click', function() {
-      sidebar.classList.toggle('is-open');
-    });
-    document.addEventListener('click', function(e) {
-      if (window.innerWidth <= 820 && sidebar.classList.contains('is-open') && !sidebar.contains(e.target) && e.target !== toggle) {
-        sidebar.classList.remove('is-open');
-      }
-    });
-  }
 
   /* E2EE */
   (async function() {
