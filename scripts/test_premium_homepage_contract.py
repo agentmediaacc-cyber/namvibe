@@ -47,14 +47,18 @@ def main() -> int:
     stylesheet_contract = tpl.count("/static/css/namvibe_home_v3.css") == 1 and "nv-homepage-v3" in css
     controller_contract = tpl.count("/static/js/namvibe_home_pro.js") == 1 and "nvpro-feed" in js and "window.__NAMVIBE_HOME_PRO_INITIALIZED__" in js
     real_data_contract = all(token in tpl for token in ("stories", "feed_items", "reels", "live_rooms", "suggested_people")) and "placeholder" not in tpl.lower()
-    responsive_contract = all(token in css for token in (
-        "@media (max-width: 1240px)",
-        "@media (max-width: 980px)",
-        "@media (max-width: 640px)",
-        "@media (max-width: 520px)",
-        "grid-template-columns: minmax(240px, 272px) minmax(0, 1fr) minmax(296px, 340px)",
-        "grid-template-columns: minmax(0, 1fr)",
-    ))
+    responsive_contract = all([
+        re.search(r"@media\s*\(max-width:\s*1240px\)", css) is not None,
+        re.search(r"@media\s*\(max-width:\s*980px\)", css) is not None,
+        re.search(r"@media\s*\(max-width:\s*640px\)", css) is not None,
+        re.search(r"@media\s*\(max-width:\s*520px\)", css) is not None,
+        re.search(
+            r"grid-template-columns:\s*minmax\(var\(--nv-home-left-min,\s*240px\),\s*var\(--nv-home-left-max,\s*272px\)\)\s+minmax\(0,\s*1fr\)\s+minmax\(var\(--nv-home-right-min,\s*296px\),\s*var\(--nv-home-right-max,\s*340px\)\)",
+            css,
+        ) is not None,
+        re.search(r"\.nv-home-module-grid\s*\{\s*grid-template-columns:\s*1fr\s*;\s*\}", css, re.S) is not None,
+        re.search(r"\.nv-home-module-grid\s*\{\s*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)\s*;\s*\}", css, re.S) is not None,
+    ])
     duplicate_controller_count = tpl.count("/static/js/namvibe_home_pro.js") - 1
     hardcoded_fake_content_count = sum(
         count(pattern, tpl)
