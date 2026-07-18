@@ -85,6 +85,10 @@
   }
 
   function fetchStatus() {
+    if (window.NAMVIBE_HOME && window.NAMVIBE_HOME.viewer_authenticated === false) {
+      state.enabled = false;
+      return;
+    }
     if (state.pendingStatus) {
       return;
     }

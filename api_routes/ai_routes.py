@@ -51,7 +51,6 @@ def ai_index():
 
 
 @ai_bp.get("/api/ai/status")
-@login_required
 def api_ai_status():
     config = get_ai_config()
     profile = _current_profile()
@@ -60,6 +59,17 @@ def api_ai_status():
     cached = get_json(cache_key)
     if isinstance(cached, dict):
         return jsonify(cached)
+    if not profile_id:
+        payload = {
+            "ai_enabled": config.enabled,
+            "external_provider_enabled": bool(config.external_calls_enabled and config.provider not in {"", "disabled"}),
+            "interaction_tracking_enabled": False,
+            "recommendations_enabled": False,
+            "algorithm_version": config.recommendation_version,
+            "provider": config.provider,
+        }
+        set_json(cache_key, payload, ttl=min(config.cache_ttl_seconds, 60))
+        return jsonify(payload)
     payload = {
         "ai_enabled": config.enabled,
         "external_provider_enabled": bool(config.external_calls_enabled and config.provider not in {"", "disabled"}),

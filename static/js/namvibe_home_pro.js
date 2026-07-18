@@ -1827,6 +1827,9 @@
     }
 
     // Then fetch fresh data from API and re-hydrate
+    if (window.NAMVIBE_HOME && window.NAMVIBE_HOME.viewer_authenticated === false) {
+      return;
+    }
     var controller = new AbortController();
     var timeoutId = setTimeout(function () {
       controller.abort();

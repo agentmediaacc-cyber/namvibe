@@ -1,619 +1,598 @@
 {% extends "base.html" %}
 {% from "components/hamburger_button.html" import hamburger_button %}
 {% block title %}NamVibe | Home{% endblock %}
-{% block body_class %}nvpro-home{% endblock %}
+{% block body_class %}nv-homepage-v3 nvpro-home{% endblock %}
 
 {% block top_header %}{% endblock %}
 {% block mobile_nav %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/namvibe_home_premium_v2.css">
-<link rel="stylesheet" href="/static/css/namvibe_home_pro.css">
+<link rel="stylesheet" href="/static/css/namvibe_home_v3.css">
 <link rel="stylesheet" href="/static/css/namvibe_emoji_picker.css">
 <link rel="stylesheet" href="/static/css/namvibe_creative_studio.css">
-<style>
-  .nvpro-home .chain-shell { background: var(--bg); }
-  .nvpro-home .main-container { padding: 0; max-width: 100%; background: var(--bg); }
-  .nvpro-home .content-body { padding: 0 !important; background: var(--bg); }
-  .nvpro-home .social-drawer-backdrop.is-open { display: block; }
-  .nvpro-home .top-header, .nvpro-home .mobile-nav { display: none !important; }
-  @media (min-width: 768px) {
-    .nvpro-home .main-container { padding: 0; }
-  }
-  .nv-online-dot-sm { position:absolute; bottom:0; right:0; width:10px; height:10px; border-radius:50%; background:#22c55e; border:2px solid var(--bg,#0d0d1d); z-index:2; }
-  .nv-avatar-wrap { position:relative; display:inline-flex; }
-  .nv-score-badge { display:inline-flex; align-items:center; gap:2px; font-size:10px; font-weight:600; color:var(--accent,#e91e90); margin-left:4px; vertical-align:middle; }
-  .nv-level-tag { display:inline-flex; align-items:center; padding:0 5px; font-size:9px; font-weight:700; border-radius:3px; background:var(--accent,#e91e90); color:#fff; margin-left:4px; vertical-align:middle; line-height:16px; }
-  .nv-action:disabled, button:disabled { opacity:.5; pointer-events:none; }
-  .is-loading { opacity:.5; pointer-events:none; }
-  .nv-badge-pulse { animation: nv-badge-pulse-kf 2s infinite; }
-  @keyframes nv-badge-pulse-kf { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-  .nv-heart-burst { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:80px; pointer-events:none; animation:nv-heart-burst-kf .8s ease-out forwards; z-index:10; }
-  @keyframes nv-heart-burst-kf { 0% { transform:translate(-50%,-50%) scale(0); opacity:1; } 50% { transform:translate(-50%,-50%) scale(1.2); opacity:1; } 100% { transform:translate(-50%,-50%) scale(1.5); opacity:0; } }
-  @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
-  .nv-action:focus-visible, button:focus-visible, a:focus-visible { outline:2px solid var(--accent,#e91e90); outline-offset:2px; }
-  .nv-spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--border,#333); border-top-color:var(--accent,#e91e90); border-radius:50%; animation:nv-spin .6s linear infinite; }
-  @keyframes nv-spin { to { transform:rotate(360deg); } }
-  .nvpro-home .nv-main { padding-top: 0; }
-  .nvpro-home .nvpro-post-card { border-radius: var(--nvpro-radius); background: var(--panel,#fff); border: 1px solid var(--border,rgba(236,72,153,0.12)); box-shadow: var(--shadow,0 2px 12px rgba(236,72,153,0.08)); transition: all .25s ease; }
-  .nvpro-home .nvpro-post-card:hover { border-color: var(--accent,#ec4899); box-shadow: 0 8px 30px rgba(236,72,153,0.12); }
-  .nvpro-home .nvpro-sidebar-card { background: var(--panel,#fff); border: 1px solid var(--border,rgba(236,72,153,0.12)); border-radius: var(--nvpro-radius,16px); padding: 16px; box-shadow: var(--shadow,0 2px 12px rgba(236,72,153,0.08)); transition: all .25s ease; }
-  .nvpro-home .nvpro-sidebar-card:hover { border-color: var(--accent,#ec4899); box-shadow: 0 4px 20px rgba(236,72,153,0.1); }
-  .nvpro-home .nvpro-tab.is-active { background: var(--accent,#ec4899); color: #fff; border-color: var(--accent,#ec4899); }
-  .nvpro-home .nvpro-tab { border-radius: 999px; padding: 8px 18px; font-size: 13px; font-weight: 600; border: 1px solid var(--border,rgba(236,72,153,0.12)); color: var(--text2,#2d2d44); background: transparent; cursor: pointer; transition: all .2s ease; }
-  .nvpro-home .nvpro-tab:hover { border-color: var(--accent,#ec4899); color: var(--accent,#ec4899); }
-  .nvpro-home .nvpro-action-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--border,rgba(236,72,153,0.12)); background: transparent; color: var(--text2,#2d2d44); font-size: 13px; cursor: pointer; transition: all .2s ease; }
-  .nvpro-home .nvpro-action-btn:hover { border-color: var(--accent,#ec4899); color: var(--accent,#ec4899); background: rgba(236,72,153,0.04); }
-  .nvpro-home .nvpro-action-btn.is-liked { background: #fce4ec; border-color: var(--accent,#ec4899); color: var(--accent,#ec4899); }
-  .nvpro-home .nvpro-empty-card { text-align: center; padding: 60px 20px; }
-  .nvpro-home .nvpro-empty-card svg { width: 64px; height: 64px; color: var(--muted,#8e8ea0); margin-bottom: 16px; }
-  .nvpro-home .nvpro-empty-card h3 { font-size: 20px; margin: 0 0 8px; color: var(--text,#1a1a2e); }
-  .nvpro-home .nvpro-empty-card p { font-size: 14px; color: var(--muted,#8e8ea0); margin: 0 0 24px; }
-  .nvpro-home .nvpro-btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 10px 24px; border-radius: 999px; border: none; background: linear-gradient(135deg, var(--accent,#ec4899), var(--accent2,#f472b6)); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s ease; }
-  .nvpro-home .nvpro-btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(236,72,153,0.3); }
-  .nvpro-home .nvpro-btn-outline { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; border-radius: 999px; border: 1px solid var(--accent,#ec4899); background: transparent; color: var(--accent,#ec4899); font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s ease; }
-  .nvpro-home .nvpro-btn-outline:hover { background: rgba(236,72,153,0.06); }
-  .nvpro-home .nv-reel-card { position: relative; border-radius: var(--nvpro-radius,16px); overflow: hidden; box-shadow: var(--shadow,0 2px 12px rgba(236,72,153,0.08)); }
-  .nvpro-home .nv-reel-card video { width: 100%; display: block; }
-  .nvpro-home .nv-reel-actions { position: absolute; bottom: 16px; right: 12px; display: flex; flex-direction: column; gap: 8px; }
-  .nvpro-home .nv-reel-actions button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px; border: none; border-radius: 12px; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: var(--text,#1a1a2e); font-size: 12px; cursor: pointer; transition: all .2s ease; min-width: 48px; }
-  .nvpro-home .nv-reel-actions button:hover { background: rgba(255,255,255,0.95); transform: scale(1.05); }
-  .nvpro-home .nv-reel-actions button svg { width: 20px; height: 20px; }
-  .nvpro-home .nv-comment-box { display: flex; gap: 8px; padding: 12px 0; }
-  .nvpro-home .nv-comment-box input { flex: 1; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border,rgba(236,72,153,0.12)); background: var(--bg-alt,#ffe4ec); font-size: 13px; outline: none; transition: border-color .2s; }
-  .nvpro-home .nv-comment-box input:focus { border-color: var(--accent,#ec4899); }
-  .nvpro-home .nv-comment-box button { padding: 8px 18px; border-radius: 999px; border: none; background: linear-gradient(135deg, var(--accent,#ec4899), var(--accent2,#f472b6)); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
-  .nvpro-home .nv-comment-box button:hover { opacity: .9; }
-  .nvpro-home .nv-stats-bar { border-radius: var(--nvpro-radius,16px); background: var(--panel,#fff); border: 1px solid var(--border,rgba(236,72,153,0.12)); padding: 12px 16px; }
-  .nvpro-home .nv-stat-item:hover { background: rgba(236,72,153,0.04); border-radius: 10px; }
-  .nvpro-home .nv-bottom-nav { border-top: 1px solid var(--border,rgba(236,72,153,0.12)); background: rgba(255,255,255,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-  .nvpro-home .nv-bottom-nav a.active { color: var(--accent,#ec4899); }
-  .nvpro-home .nv-notif-strip { border-radius: var(--nvpro-radius,16px); background: linear-gradient(135deg, rgba(236,72,153,0.06), rgba(244,114,182,0.1)); border: 1px solid rgba(236,72,153,0.15); padding: 10px 14px; }
-  .nvpro-home .nv-story { flex-shrink: 0; }
-  .nvpro-home .nv-story .nv-story-ring { width: 60px; height: 60px; border-radius: 50%; padding: 3px; background: linear-gradient(135deg, var(--accent,#ec4899), var(--accent2,#f472b6)); display: flex; align-items: center; justify-content: center; }
-  .nvpro-home .nv-story .nv-story-ring img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--panel,#fff); }
-  .nvpro-home .nv-story.create .nv-story-avatar { width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, rgba(236,72,153,0.1), rgba(244,114,182,0.15)); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 300; color: var(--accent,#ec4899); border: 2px dashed var(--accent,#ec4899); }
-  .nvpro-home .nv-shimmer { background: linear-gradient(90deg, var(--bg-alt,#ffe4ec) 25%, rgba(236,72,153,0.06) 50%, var(--bg-alt,#ffe4ec) 75%); background-size: 200% 100%; animation: nv-shimmer-kf 1.5s infinite; border-radius: 8px; }
-  @keyframes nv-shimmer-kf { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-  .nvpro-home .nvpro-content-fade-in { animation: nvproFadeIn .4s ease forwards; }
-  @keyframes nvproFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-</style>
 {% endblock %}
+
+{% set viewer_name = (profile.display_name or profile.full_name or profile.username or 'friend') if profile else 'friend' %}
+{% set viewer_handle = ('@' ~ profile.username) if profile and profile.username else '@namvibe' %}
+{% set stories_count = (stories or [])|length %}
+{% set feed_count = (feed_items or [])|length %}
+{% set reels_count = (reels or [])|length %}
+{% set live_count = (live_rooms or [])|length %}
+{% set suggestions_count = (suggested_people or suggested_creators or [])|length %}
+
 {% block content %}
-<div class="nvpro-shell nv-app">
-  <!-- LEFT SIDEBAR (desktop) -->
-  <aside class="nv-sidebar">
-    <div class="nv-logo">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      <strong>NamVibe</strong>
-    </div>
-    <nav class="nv-menu">
-      <a href="{{ home_route or '/' }}" class="active">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        Home
-      </a>
-      <a href="{{ discover_route or '/discover/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Discover
-      </a>
-      <a href="{{ reel_route or '/reels/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-        Reels
-      </a>
-      <a href="{{ stories_route or '/stories/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Stories
-      </a>
-      <a href="{{ dating_route or '/discover/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        {{ dating_label or 'Connecting You' }}
-      </a>
-      <a href="{{ drawer_messages or '/messages/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Messages
-      </a>
-      <a href="{{ drawer_calls or '/calls/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        Calls
-      </a>
-      <a href="{{ drawer_wallet or '/wallet/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-        Wallet
-      </a>
-      <a href="{{ drawer_notifications or '/notifications/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        Notifications
-      </a>
-      <a href="{{ drawer_profile or '/profile/' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        Profile
-      </a>
-      <a href="{{ drawer_settings or '/profile/settings' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Settings
-      </a>
-      <a href="{{ support_route or '/support' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
-        Support
-      </a>
-      <a href="{{ terms_route or '/terms' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        Terms
-      </a>
-      <a href="{{ privacy_route or '/privacy' }}">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Privacy
-      </a>
-    </nav>
-    <button class="nv-create-btn" type="button" data-action="open-create" data-nv-open-create aria-label="Open create menu">+ Create</button>
-  </aside>
-
-  <!-- MAIN -->
-  <main class="nvpro-center nv-main">
-
-    <!-- TOP BAR -->
-    <header class="nvpro-header nv-topbar">
-      <div class="nvpro-header-inner">
-        {{ hamburger_button('home-menu-toggle', 'social-drawer', 'Open menu') }}
-        <div class="nvpro-search-wrap nv-search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--muted);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input class="nvpro-search-input" type="search" aria-label="Search NamVibe, friends, reels, hashtags" data-action="search" />
-        </div>
-        <div class="nvpro-header-actions">
-          <button class="nvpro-header-icon nv-notif-btn" data-action="open-notifications" title="Notifications">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            {% if notifications and notifications|length > 0 %}<span class="nvpro-badge"></span>{% endif %}
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- ONLINE & LIVE STATS BAR -->
-    <section class="nv-stats-bar" id="nvStatsBar">
-      <a class="nv-stat-item" href="/discover/?online=1" title="Online users">
-        <div class="nv-stat-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        </div>
-        <div class="nv-stat-body">
-          <strong class="nv-stat-number" id="nvStatOnline">{{ (online_stats or {}).get('online_count', 0) }}</strong>
-          <span class="nv-stat-label">Online</span>
-        </div>
-      </a>
-      <div class="nv-stat-divider"></div>
-      <a class="nv-stat-item" href="/live/" title="Live sessions">
-        <div class="nv-stat-icon nv-stat-icon-live">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-        </div>
-        <div class="nv-stat-body">
-          <strong class="nv-stat-number" id="nvStatLive">{{ (online_stats or {}).get('live_count', 0) }}</strong>
-          <span class="nv-stat-label">Live</span>
-        </div>
-      </a>
-      <button class="nv-stat-action" data-action="go-live" title="Go Live">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-        <span>Go Live</span>
-      </button>
-      <div class="nv-stat-avatars" id="nvStatAvatars">
-        {% set os = online_stats or {} %}
-        {% set ou = os.get('online_users', []) %}
-        {% for u in ou[:5] %}
-        <a href="/profile/{{ u.id }}" class="nv-stat-avatar-wrap" title="Message {{ u.display_name or u.username }}">
-          <img src="{{ u.avatar_url or u.thumbnail_url or '/static/img/default-avatar.png' }}" alt="{{ u.display_name or u.username }}" class="nv-stat-avatar" width="30" height="30" loading="lazy">
-          <span class="nv-stat-online-dot"></span>
-        </a>
-        {% endfor %}
-        {% if ou|length > 5 %}
-        <a href="/discover/?online=1" class="nv-stat-more" title="View all online users">+{{ ou|length - 5 }}</a>
-        {% endif %}
-      </div>
-      <button class="nv-stat-say-hi" data-action="say-hi" title="Say Hi to someone">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Say Hi</span>
-      </button>
-    </section>
-
-    <!-- STORIES / STATUS -->
-    <section class="nvpro-stories-tray nv-stories">
-      <div class="nvpro-stories-scroll">
-      <button class="nvpro-story-item nv-story create" data-action="create-story">
-        <div class="nvpro-story-create-ring">
-          <div class="nvpro-story-avatar nv-story-avatar">+</div>
-        </div>
-        <span class="nvpro-story-label">Your Story</span>
-      </button>
-      {% for story in (stories or []) %}
-      <button class="nvpro-story-item nv-story" data-story-id="{{ story.id }}">
-        <div class="nvpro-story-ring {% if not story.is_viewed %}is-unseen{% endif %}">
-          <span class="nv-avatar-wrap">
-            {% if story.avatar_url or story.thumbnail_url %}
-            <img class="nvpro-story-avatar" src="{{ story.avatar_url or story.thumbnail_url }}" alt="" width="48" height="48">
+<div class="nv-homepage">
+  <div class="nv-homepage__grid">
+    <aside class="nv-home-rail nv-home-rail--left">
+      <section class="nv-rail-card nv-rail-profile">
+        <div class="nv-rail-profile__head">
+          <span class="nv-rail-profile__avatar">
+            {% if profile and (profile.avatar_url or profile.thumbnail_url or profile.profile_photo) %}
+            <img src="{{ profile.avatar_url or profile.thumbnail_url or profile.profile_photo }}" alt="{{ viewer_name }}" width="56" height="56">
             {% else %}
-            <span class="nvpro-avatar-initials gen-avatar">{{ (story.display_name or story.username or 'User')[:1] }}</span>
+            <span class="nv-rail-profile__initials">{{ viewer_name[:1] }}</span>
             {% endif %}
-            {% if story.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
           </span>
+          <div class="nv-rail-profile__copy">
+            <strong>{{ viewer_name }}</strong>
+            <span>{{ viewer_handle }}</span>
+          </div>
         </div>
-        <span class="nvpro-story-label">{{ story.display_name or story.username or 'User' }}</span>
-      </button>
-      {% endfor %}
-      </div>
-    </section>
+        <div class="nv-rail-profile__meta">
+          <span>{{ stories_count }} stories</span>
+          <span>{{ feed_count }} posts</span>
+          <span>{{ live_count }} live</span>
+        </div>
+        <div class="nv-rail-profile__actions">
+          <a class="nv-rail-primary" href="{{ drawer_profile or '/profile/' }}">View profile</a>
+          <button class="nv-rail-secondary" type="button" data-action="open-create">Create</button>
+        </div>
+      </section>
 
-    <!-- NOTIFICATIONS STRIP -->
-    {% set notif = (notifications or [])[:1] %}
-    {% if notif %}
-    {% set n = notif[0] %}
-    <div class="nvpro-notif-strip nv-notif-strip" data-action="open-notifications">
-      <span class="nvpro-notif-icon nv-notif-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      </span>
-      <span class="nvpro-notif-body nv-notif-body"><strong>{{ n.actor_name or 'Someone' }}</strong> {{ n.body or n.text or 'interacted with your post' }}</span>
-      <span class="nvpro-notif-time nv-notif-time">{{ n.time_ago or n.created_at or 'just now' }}</span>
-      <button class="nvpro-notif-dismiss nv-notif-dismiss" data-action="dismiss-notif">✕</button>
-    </div>
-    {% endif %}
+      <section class="nv-rail-card">
+        <div class="nv-rail-card__title">Navigate</div>
+        <nav class="nv-rail-nav">
+          <a href="{{ home_route or '/' }}" class="is-active">Home</a>
+          <a href="{{ discover_route or '/discover/' }}">Discover</a>
+          <a href="{{ reel_route or '/reels/' }}">Reels</a>
+          <a href="{{ stories_route or '/stories/' }}">Stories</a>
+          <a href="{{ live_route or '/live/' }}">Live</a>
+          <a href="{{ drawer_messages or '/messages/' }}">Messages</a>
+          <a href="{{ drawer_calls or '/calls/' }}">Calls</a>
+          <a href="{{ drawer_notifications or '/notifications/' }}">Notifications</a>
+          <a href="{{ dating_route or '/discover/' }}">{{ dating_label or 'Connecting You' }}</a>
+          <a href="{{ drawer_wallet or '/wallet/' }}">Wallet</a>
+          <a href="{{ drawer_marketplace or '/marketplace/' }}">Marketplace</a>
+          <a href="{{ support_route or '/support' }}">Support</a>
+        </nav>
+      </section>
 
-    <!-- FEED TABS -->
-    <section class="nvpro-tabs nv-tabs">
-      <button class="nvpro-tab nv-tab is-active" data-tab="for_you">For You</button>
-      <button class="nvpro-tab nv-tab" data-tab="following">Following</button>
-      <button class="nvpro-tab nv-tab" data-tab="trending">Trending</button>
-      <button class="nvpro-tab nv-tab" data-tab="nearby">Nearby</button>
-      <button class="nvpro-tab nv-tab" data-tab="live">Live</button>
-    </section>
+      <section class="nv-rail-card">
+        <div class="nv-rail-card__title">Quick create</div>
+        <div class="nv-rail-create">
+          <button type="button" data-action="open-create" class="nv-rail-prompt">Post</button>
+          <button type="button" data-action="open-create" class="nv-rail-prompt">Story</button>
+          <button type="button" data-action="open-create" class="nv-rail-prompt">Reel</button>
+          <button type="button" data-action="open-create" class="nv-rail-prompt">Go Live</button>
+        </div>
+      </section>
+    </aside>
 
-    <!-- FEED -->
-    <section class="nvpro-feed nv-feed" id="nvpro-feed">
-      {% for item in (feed_items or []) %}
-      <article class="nvpro-post-card nv-post nvpro-content-fade-in"
-               data-post-id="{{ item.id }}"
-               data-type="{{ item.type or 'post' }}"
-               data-video-id="{{ item.id }}"
-               data-video-url="{{ item.video_url or '' }}"
-               data-thumbnail-url="{{ item.thumbnail_url or item.image_url or item.media_url or '' }}"
-               data-caption="{{ item.caption or item.text or '' }}"
-               data-creator-name="{{ item.display_name or item.username or 'User' }}"
-               data-creator-username="{{ item.username or '' }}"
-               data-creator-avatar="{{ item.avatar_url or '/static/img/default-avatar.png' }}"
-               data-creator-profile-id="{{ item.profile_id or item.id }}"
-               data-following="{% if item.viewer_is_following %}true{% else %}false{% endif %}"
-               data-likes-count="{{ item.likes_count or 0 }}"
-               data-comments-count="{{ item.comments_count or 0 }}"
-               data-shares-count="{{ item.shares_count or 0 }}"
-               data-sound-label="{{ item.music_title or item.title or '' }}"
-               style="animation-delay:{{ loop.index0 * 0.05 }}s">
-        <div class="nvpro-post-head nv-post-head">
-          <a class="nvpro-post-avatar nv-user" href="/profile/" data-nav-url="/profile/{{ item.username or item.id }}" data-profile-preview="{{ item.username or '' }}">
-            <span class="nv-avatar-wrap">
-              {% if item.avatar_url %}
-              <img src="{{ item.avatar_url }}" alt="" width="38" height="38" loading="lazy">
+    <main class="nv-home-main nvpro-center nv-main">
+      <header class="nv-home-header nvpro-header">
+        <div class="nv-home-header__inner nvpro-header-inner">
+          {{ hamburger_button('home-menu-toggle', 'social-drawer', 'Open menu', extra_classes='nv-home-menu-toggle social-icon-btn', theme='dark') }}
+          <div class="nv-home-header__copy">
+            <span class="nv-home-kicker">NamVibe Today</span>
+            <h1>Welcome back, {{ viewer_name }}</h1>
+            <p>Real people, real conversations, and fresh content across your network.</p>
+          </div>
+          <div class="nv-home-header__actions">
+            <a class="nv-home-icon-button" href="{{ discover_route or '/discover/' }}" aria-label="Open Discover">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </a>
+            <a class="nv-home-icon-button" href="{{ drawer_notifications or '/notifications/' }}" aria-label="Open Notifications">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              {% if notifications and notifications|length > 0 %}<span class="nv-home-badge" aria-hidden="true"></span>{% endif %}
+            </a>
+          <button type="button" class="nv-home-create-button" data-action="open-create" data-nv-open-create aria-label="Open create menu">Create</button>
+          </div>
+        </div>
+      </header>
+
+      <section class="nv-home-metrics" aria-label="Homepage metrics">
+        <article class="nv-home-metric">
+          <span class="nv-home-metric__value">{{ (online_stats or {}).get('online_count', 0) }}</span>
+          <span class="nv-home-metric__label">Online now</span>
+        </article>
+        <article class="nv-home-metric">
+          <span class="nv-home-metric__value">{{ (online_stats or {}).get('live_count', 0) }}</span>
+          <span class="nv-home-metric__label">Live rooms</span>
+        </article>
+        <article class="nv-home-metric">
+          <span class="nv-home-metric__value">{{ stories_count }}</span>
+          <span class="nv-home-metric__label">Stories</span>
+        </article>
+        <article class="nv-home-metric">
+          <span class="nv-home-metric__value">{{ feed_count }}</span>
+          <span class="nv-home-metric__label">Feed items</span>
+        </article>
+        <article class="nv-home-metric">
+          <span class="nv-home-metric__value">{{ suggestions_count }}</span>
+          <span class="nv-home-metric__label">People to meet</span>
+        </article>
+      </section>
+
+      <section class="nv-home-stories nvpro-stories-tray nv-stories" aria-labelledby="stories-heading">
+        <div class="nv-home-section-head">
+          <div>
+            <span class="nv-home-section-head__eyebrow">Stories</span>
+            <h2 id="stories-heading">Fresh updates from your circle</h2>
+          </div>
+          <a href="{{ stories_route or '/stories/' }}">Open stories</a>
+        </div>
+        <div class="nvpro-stories-scroll nv-home-story-strip">
+          <button class="nv-home-story-create nvpro-story-item nv-story" type="button" data-action="open-create" aria-label="Add story">
+            <span class="nv-home-story-create__ring nvpro-story-create-ring">
+              {% if profile and (profile.avatar_url or profile.thumbnail_url or profile.profile_photo) %}
+              <img src="{{ profile.avatar_url or profile.thumbnail_url or profile.profile_photo }}" alt="" width="52" height="52">
               {% else %}
-              <span class="nvpro-avatar-initials gen-avatar">{{ (item.display_name or item.username or 'User')[:1] }}</span>
+              <span class="nvpro-avatar-initials gen-avatar">+</span>
               {% endif %}
-              {% if item.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
             </span>
-            <div class="nvpro-post-meta">
-              <strong class="nvpro-post-author">
-                {{ item.display_name or item.username or 'User' }}
-                {% if item.verified or item.is_verified %}
-                {% set ivl = item.get('verification_level', 2) %}
-                {% if ivl >= 5 %}
-                <span class="nvpro-verified" style="color:#10b981;" title="Government Verified">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                </span>
-                {% elif ivl >= 4 %}
-                <span class="nvpro-verified" style="color:#f59e0b;" title="Business Verified">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                </span>
-                {% elif ivl >= 3 %}
-                <span class="nvpro-verified" style="color:#ec4899;" title="Creator Verified">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                </span>
-                {% else %}
-                <span class="nvpro-verified" style="color:#1d9bf0;" title="Identity Verified">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                </span>
-                {% endif %}
-                {% endif %}
-                {% if item.profile_level %}<span class="nv-level-tag">{{ item.profile_level }}</span>{% endif %}
-                {% if item.profile_score and item.profile_score >= 50 %}<span class="nv-score-badge">{{ item.profile_score }}</span>{% endif %}
-              </strong>
-              <small class="nvpro-post-time">@{{ item.username or 'user' }} · {{ item.time_ago or item.created_label or 'now' }}</small>
-            </div>
+            <span class="nvpro-story-label">Add Story</span>
+          </button>
+          {% for story in (stories or []) %}
+          <a class="nv-home-story nvpro-story-item nv-story" href="/stories/{{ story.id }}" data-story-id="{{ story.id }}">
+            <span class="nv-home-story__ring nvpro-story-ring {% if not story.is_viewed %}is-unseen{% endif %}">
+              {% if story.avatar_url or story.thumbnail_url %}
+              <img class="nvpro-story-avatar" src="{{ story.avatar_url or story.thumbnail_url }}" alt="{{ story.display_name or story.username or 'Story' }}" width="52" height="52" loading="lazy">
+              {% else %}
+              <span class="nvpro-avatar-initials gen-avatar">{{ (story.display_name or story.username or 'User')[:1] }}</span>
+              {% endif %}
+              {% if story.is_online %}<span class="nv-home-story__dot nv-online-dot-sm"></span>{% endif %}
+            </span>
+            <span class="nvpro-story-label">{{ story.display_name or story.username or 'User' }}</span>
           </a>
-          <button class="nvpro-follow-pill nv-follow-btn {% if item.viewer_is_following %}following{% endif %}"
-                  type="button"
-                  data-action="follow" data-follow-id="{{ item.profile_id or item.id }}" data-following="{% if item.viewer_is_following %}true{% else %}false{% endif %}" data-id="{{ item.profile_id or item.id }}">
-            {% if item.viewer_is_following %}Following{% else %}Follow{% endif %}
-          </button>
-          <button class="nv-more" type="button" data-action="post-more" data-id="{{ item.id }}" aria-label="More actions">⋯</button>
+          {% endfor %}
         </div>
-        {% if item.caption or item.text %}
-        <div class="nvpro-post-body">
-        <p class="nv-caption">{{ item.caption or item.text }}</p>
-        </div>
-        {% endif %}
-        {% if item.type == "reel" or item.type == "reels" %}
-        <div class="nv-reel-card" data-mobile-reel-card>
-          <video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline preload="metadata"></video>
-          <div class="nvpro-video-overlay nv-heart-burst" style="display:none;">
-            <svg width="60" height="60" viewBox="0 0 24 24" fill="#ec4899"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          </div>
-          <div class="nv-reel-actions">
-            <button type="button" data-action="like" data-id="{{ item.id }}" aria-label="Like">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-              <span>{{ item.likes_count or 0 }}</span>
-            </button>
-            <button type="button" data-action="comment" data-id="{{ item.id }}" aria-label="Comment">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <span>{{ item.comments_count or 0 }}</span>
-            </button>
-            <button type="button" data-action="share" data-id="{{ item.id }}" aria-label="Share">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-              <span>{{ item.shares_count or 0 }}</span>
-            </button>
-            <button type="button" data-action="save" data-id="{{ item.id }}" aria-label="Save">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            </button>
-          </div>
-        </div>
-        {% elif item.image_url or item.media_url %}
-        <div class="nvpro-post-media nv-media"><img src="{{ item.image_url or item.media_url }}" alt="" width="100%" height="auto" loading="lazy"></div>
-        {% elif item.video_url %}
-        <div class="nvpro-post-media nv-media" data-mobile-reel-card><video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline preload="metadata"></video></div>
-        {% endif %}
-        <div class="nvpro-post-actions nv-actions">
-          <button type="button" data-action="like" data-id="{{ item.id }}"
-                  class="nvpro-action-btn {% if item.is_liked or item.user_liked %}is-liked{% endif %}" aria-label="Like">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="{% if item.is_liked or item.user_liked %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            <span>{{ item.likes_count or 0 }}</span>
-          </button>
-          <button type="button" class="nvpro-action-btn" data-action="comment" data-id="{{ item.id }}" aria-label="Comment">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <span>{{ item.comments_count or 0 }}</span>
-          </button>
-          <button type="button" class="nvpro-action-btn" data-action="share" data-id="{{ item.id }}" aria-label="Share">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-            <span>Share</span>
-          </button>
-          <button type="button" class="nvpro-action-btn" data-action="send" data-id="{{ item.id }}" aria-label="Send">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            <span>Send</span>
-          </button>
-          <button type="button" class="nvpro-action-btn" data-action="save" data-id="{{ item.id }}" aria-label="Save">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          </button>
-        </div>
-        <div class="nv-comment-box">
-          <input type="text" aria-label="Write a comment" data-comment-input="{{ item.id }}">
-          <button type="button" class="nv-emoji-btn" data-emoji-toggle="{{ item.id }}" title="Emoji" style="background:none;border:none;cursor:pointer;padding:4px;font-size:18px;line-height:1;">🙂</button>
-          <button data-action="send-comment" data-id="{{ item.id }}">Send</button>
-        </div>
-      </article>
-      {% else %}
-      <div class="nvpro-empty-card nv-empty">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        <h3>Welcome to NamVibe</h3>
-        <p>No posts yet. Follow people, create a story, or upload your first reel.</p>
-        <button class="nvpro-btn-primary" data-action="open-create">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Create Post
-        </button>
-      </div>
-      {% endfor %}
-      <div id="scroll-sentinel" class="nv-feed-sentinel" style="height:1px;"></div>
-      <div class="nv-feed-end" style="display:none;"><div class="nv-spinner"></div><span>You're all caught up</span></div>
-    </section>
-  </main>
+      </section>
 
-  <!-- RIGHT SIDEBAR (desktop) -->
-  <aside class="nvpro-sidebar nv-rightbar">
-    <div id="nv-home-widgets-root"
-         data-widgets-url="/api/homepage/widgets"
-         data-homepage-timings='{{ (homepage_timings or {})|tojson|safe }}'></div>
-    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-chats-section" {% if not chats %}hidden{% endif %}>
-      <h3 class="nvpro-sidebar-card-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Chats
-      </h3>
-      {% for chat in (chats or []) %}
-      <a class="nvpro-sidebar-row nv-chat" href="/messages/{{ chat.thread_id or chat.id }}">
-        <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
-          {% if chat.avatar_url %}
-          <img src="{{ chat.avatar_url }}" alt="" width="34" height="34">
+      <section class="nv-home-composer nv-home-panel">
+        <div class="nv-home-composer__avatar">
+          {% if profile and (profile.avatar_url or profile.thumbnail_url or profile.profile_photo) %}
+          <img src="{{ profile.avatar_url or profile.thumbnail_url or profile.profile_photo }}" alt="{{ viewer_name }}" width="56" height="56">
           {% else %}
-          <span class="nvpro-avatar-initials gen-avatar">{{ (chat.display_name or chat.name or '?')[:1] }}</span>
+          <span class="nv-home-initials">{{ viewer_name[:1] }}</span>
           {% endif %}
-          {% if chat.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
-        </span>
-        <div class="nvpro-sidebar-row-info">
-          <strong class="nvpro-sidebar-row-name">{{ chat.name or chat.display_name or 'Chat' }}</strong>
-          <small>{{ chat.last_message or 'Say hello!' }}</small>
         </div>
-        {% if chat.unread_count %}<span class="nvpro-badge">{{ chat.unread_count }}</span>{% endif %}
-      </a>
-      {% else %}
-      <div class="nvpro-sidebar-empty nv-card-empty">No conversations yet</div>
-      {% endfor %}
-    </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-live-section" {% if not live_rooms %}hidden{% endif %}>
-      <h3 class="nvpro-sidebar-card-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-        Live Now
-      </h3>
-      {% for live in (live_rooms or []) %}
-      <a class="nvpro-sidebar-row nv-live" href="{{ live.watch_url or '/live/' + (live.id|string) }}">
-        <span class="nvpro-live-dot"></span>
-        <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
-          {% if live.creator_avatar %}
-          <img src="{{ live.creator_avatar }}" alt="" width="34" height="34">
-          {% else %}
-          <span class="nvpro-avatar-initials gen-avatar">{{ (live.creator_name or live.title or 'Live')[:1] }}</span>
-          {% endif %}
-        </span>
-        <div class="nvpro-sidebar-row-info">
-          <strong class="nvpro-sidebar-row-name">{{ live.creator_name or live.title or 'Live' }}</strong>
-          <span class="nvpro-live-tag">LIVE</span>
-          <small class="nv-live-count">{{ live.viewer_count or 0 }} watching</small>
+        <div class="nv-home-composer__copy">
+          <strong>Share something real</strong>
+          <p>Post a thought, add a story, upload a reel, or go live with people who matter to you.</p>
         </div>
-      </a>
-      {% else %}
-      <div class="nvpro-sidebar-empty nv-card-empty">No live streams right now</div>
-      {% endfor %}
-    </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-hashtags-section" {% if (empty_states or {}).get('hashtags') or not (trending_hashtags or hashtags) %}hidden{% endif %}>
-      <h3 class="nvpro-sidebar-card-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
-        Trending Namibia
-      </h3>
-      {% for trend in (trending_hashtags or hashtags or []) %}
-      <a class="nvpro-sidebar-row nv-trend" href="/discover/" data-nav-url="/hashtag/{{ trend.tag or trend.hashtag }}">
-        <span class="nvpro-hashtag">#{{ trend.tag or trend.hashtag }}</span>
-        <small>{{ trend.count or trend.posts_count or 0 }} posts</small>
-      </a>
-      {% endfor %}
-    </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card" id="nv-home-suggestions-section" {% if (empty_states or {}).get('suggested') or not (suggested_creators or suggested_people) %}hidden{% endif %}>
-      <h3 class="nvpro-sidebar-card-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Suggested Creators
-      </h3>
-      {% for creator in (suggested_creators or suggested_people or []) %}
-      <a class="nvpro-sidebar-row nv-chat" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
-        <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
-          {% if creator.avatar_url or creator.profile_photo %}
-          <img src="{{ creator.avatar_url or creator.profile_photo }}" alt="" width="34" height="34">
-          {% else %}
-          <span class="nvpro-avatar-initials gen-avatar">{{ (creator.display_name or creator.username or 'Creator')[:1] }}</span>
-          {% endif %}
-          {% if creator.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
-        </span>
-        <div class="nvpro-sidebar-row-info">
-          <strong class="nvpro-sidebar-row-name">{{ creator.display_name or creator.username or 'Creator' }}
-            {% if creator.is_verified or creator.verified %}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#1d9bf0" style="vertical-align:middle;margin-left:2px;"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        <div class="nv-home-composer__actions">
+          <button type="button" class="nv-home-composer__action" data-action="open-create">Create post</button>
+          <button type="button" class="nv-home-composer__action" data-action="open-create">Photo</button>
+          <button type="button" class="nv-home-composer__action" data-action="open-create">Video</button>
+          <button type="button" class="nv-home-composer__action" data-action="open-create">Story</button>
+          <button type="button" class="nv-home-composer__action nv-home-composer__action--accent" data-action="open-create" data-nv-open-create>Go live</button>
+        </div>
+      </section>
+
+      {% if live_rooms or reels or suggested_people or suggested_creators %}
+      <section class="nv-home-module-grid" aria-label="Homepage highlights">
+        {% if live_rooms %}
+        <article class="nv-home-module-card">
+          <div class="nv-home-section-head">
+            <div>
+              <span class="nv-home-section-head__eyebrow">Live now</span>
+              <h2>People streaming right now</h2>
+            </div>
+            <a href="{{ live_route or '/live/' }}">Browse live</a>
+          </div>
+          <div class="nv-home-module-list">
+            {% for live in (live_rooms or [])[:3] %}
+            <a class="nv-home-module-row" href="{{ live.watch_url or '/live/' + (live.id|string) }}">
+              <span class="nv-home-module-row__avatar">
+                {% if live.creator_avatar %}
+                <img src="{{ live.creator_avatar }}" alt="" width="40" height="40">
+                {% else %}
+                <span>{{ (live.creator_name or live.title or 'Live')[:1] }}</span>
+                {% endif %}
+              </span>
+              <span class="nv-home-module-row__copy">
+                <strong>{{ live.creator_name or live.title or 'Live' }}</strong>
+                <small>{{ live.viewer_count or 0 }} watching</small>
+              </span>
+              <span class="nv-home-live-pill">LIVE</span>
+            </a>
+            {% endfor %}
+          </div>
+        </article>
+        {% endif %}
+
+        {% set trends = trending_hashtags or hashtags or [] %}
+        <article class="nv-home-module-card" id="nv-home-hashtags-section" {% if (empty_states or {}).get('hashtags') or not trends %}hidden{% endif %}>
+          <div class="nv-home-section-head">
+            <div>
+              <span class="nv-home-section-head__eyebrow">Trending</span>
+              <h2>What Namibia is talking about</h2>
+            </div>
+            <a href="{{ discover_route or '/discover/' }}">Explore</a>
+          </div>
+          <div class="nv-home-tag-cloud">
+            {% for trend in trends[:8] %}
+            <a class="nv-home-tag" href="/discover/" data-nav-url="/hashtag/{{ trend.tag or trend.hashtag }}">#{{ trend.tag or trend.hashtag }} <small>{{ trend.count or trend.posts_count or 0 }}</small></a>
+            {% endfor %}
+          </div>
+        </article>
+
+        {% set people = suggested_people or suggested_creators or [] %}
+        {% if people %}
+        <article class="nv-home-module-card">
+          <div class="nv-home-section-head">
+            <div>
+              <span class="nv-home-section-head__eyebrow">People</span>
+              <h2>Suggested people</h2>
+            </div>
+            <a href="{{ discover_route or '/discover/' }}">Find more</a>
+          </div>
+          <div class="nv-home-suggestions">
+            {% for creator in people[:3] %}
+            <a class="nv-home-suggestion" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
+              <span class="nv-home-suggestion__avatar">
+                {% if creator.avatar_url or creator.profile_photo %}
+                <img src="{{ creator.avatar_url or creator.profile_photo }}" alt="" width="44" height="44">
+                {% else %}
+                <span>{{ (creator.display_name or creator.username or 'Creator')[:1] }}</span>
+                {% endif %}
+              </span>
+              <span class="nv-home-suggestion__copy">
+                <strong>{{ creator.display_name or creator.username or 'Creator' }}</strong>
+                <small>{{ creator.followers_count or 0 }} followers</small>
+              </span>
+            </a>
+            {% endfor %}
+          </div>
+        </article>
+        {% endif %}
+
+        {% if reels %}
+        <article class="nv-home-module-card nv-home-module-card--full">
+          <div class="nv-home-section-head">
+            <div>
+              <span class="nv-home-section-head__eyebrow">Reels</span>
+              <h2>Short-form moments worth watching</h2>
+            </div>
+            <a href="{{ reel_route or '/reels/' }}">Open reels</a>
+          </div>
+          <div class="nv-home-reels-strip">
+            {% for reel in reels[:5] %}
+            <a class="nv-home-reel-card" href="{{ reel.href or reel.watch_url or reel.url or '/reels/' + (reel.id|string) }}">
+              <span class="nv-home-reel-card__media">
+                {% if reel.thumbnail_url or reel.image_url or reel.media_url %}
+                <img src="{{ reel.thumbnail_url or reel.image_url or reel.media_url }}" alt="{{ reel.caption or reel.title or 'Reel' }}" loading="lazy">
+                {% else %}
+                <span class="nv-home-reel-card__fallback">{{ (reel.creator_name or reel.username or 'Reel')[:1] }}</span>
+                {% endif %}
+              </span>
+              <span class="nv-home-reel-card__copy">
+                <strong>{{ reel.creator_name or reel.display_name or reel.username or 'Creator' }}</strong>
+                <small>{{ reel.views_count or reel.viewer_count or 0 }} views</small>
+              </span>
+            </a>
+            {% endfor %}
+          </div>
+        </article>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <section class="nv-home-feed">
+        <div class="nv-home-section-head nv-home-section-head--feed">
+          <div>
+            <span class="nv-home-section-head__eyebrow">Feed</span>
+            <h2>Real posts from your network</h2>
+          </div>
+          <div class="nv-home-feed-tabs nvpro-tabs nv-tabs">
+            <button class="nvpro-tab nv-tab is-active" data-tab="for_you">For You</button>
+            <button class="nvpro-tab nv-tab" data-tab="following">Following</button>
+            <button class="nvpro-tab nv-tab" data-tab="trending">Trending</button>
+            <button class="nvpro-tab nv-tab" data-tab="nearby">Nearby</button>
+            <button class="nvpro-tab nv-tab" data-tab="live">Live</button>
+          </div>
+        </div>
+
+        <section class="nvpro-feed nv-feed" id="nvpro-feed">
+          {% for item in (feed_items or []) %}
+          <article class="nvpro-post-card nv-feed-card nvpro-content-fade-in"
+                   data-post-id="{{ item.id }}"
+                   data-type="{{ item.type or 'post' }}"
+                   data-video-id="{{ item.id }}"
+                   data-video-url="{{ item.video_url or '' }}"
+                   data-thumbnail-url="{{ item.thumbnail_url or item.image_url or item.media_url or '' }}"
+                   data-caption="{{ item.caption or item.text or '' }}"
+                   data-creator-name="{{ item.display_name or item.username or 'User' }}"
+                   data-creator-username="{{ item.username or '' }}"
+                   data-creator-avatar="{{ item.avatar_url or '/static/img/default-avatar.png' }}"
+                   data-creator-profile-id="{{ item.profile_id or item.id }}"
+                   data-following="{% if item.viewer_is_following %}true{% else %}false{% endif %}"
+                   data-likes-count="{{ item.likes_count or 0 }}"
+                   data-comments-count="{{ item.comments_count or 0 }}"
+                   data-shares-count="{{ item.shares_count or 0 }}"
+                   data-sound-label="{{ item.music_title or item.title or '' }}"
+                   style="animation-delay:{{ loop.index0 * 0.03 }}s">
+            <div class="nvpro-post-head nv-feed-card__head">
+              <a class="nvpro-post-avatar nv-user" href="/profile/" data-nav-url="/profile/{{ item.username or item.id }}" data-profile-preview="{{ item.username or '' }}">
+                <span class="nv-avatar-wrap">
+                  {% if item.avatar_url %}
+                  <img src="{{ item.avatar_url }}" alt="" width="44" height="44" loading="lazy">
+                  {% else %}
+                  <span class="nvpro-avatar-initials gen-avatar">{{ (item.display_name or item.username or 'User')[:1] }}</span>
+                  {% endif %}
+                  {% if item.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
+                </span>
+                <span class="nv-feed-card__author">
+                  <strong class="nvpro-post-author">
+                    {{ item.display_name or item.username or 'User' }}
+                    {% if item.verified or item.is_verified %}
+                      {% set ivl = item.get('verification_level', 2) %}
+                      {% if ivl >= 5 %}
+                      <span class="nvpro-verified" title="Government Verified"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
+                      {% elif ivl >= 4 %}
+                      <span class="nvpro-verified" title="Business Verified"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
+                      {% elif ivl >= 3 %}
+                      <span class="nvpro-verified" title="Creator Verified"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
+                      {% else %}
+                      <span class="nvpro-verified" title="Identity Verified"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
+                      {% endif %}
+                    {% endif %}
+                    {% if item.profile_level %}<span class="nv-level-tag">{{ item.profile_level }}</span>{% endif %}
+                    {% if item.profile_score and item.profile_score >= 50 %}<span class="nv-score-badge">{{ item.profile_score }}</span>{% endif %}
+                  </strong>
+                  <small class="nvpro-post-time">@{{ item.username or 'user' }} · {{ item.time_ago or item.created_label or 'now' }}</small>
+                </span>
+              </a>
+              <div class="nv-feed-card__controls">
+                <button class="nvpro-follow-pill nv-follow-btn {% if item.viewer_is_following %}following{% endif %}"
+                        type="button"
+                        data-action="follow" data-follow-id="{{ item.profile_id or item.id }}" data-following="{% if item.viewer_is_following %}true{% else %}false{% endif %}" data-id="{{ item.profile_id or item.id }}">
+                  {% if item.viewer_is_following %}Following{% else %}Follow{% endif %}
+                </button>
+                <button class="nv-more" type="button" data-action="post-more" data-id="{{ item.id }}" aria-label="More actions">⋯</button>
+              </div>
+            </div>
+            {% if item.caption or item.text %}
+            <div class="nvpro-post-body nv-feed-card__body">
+              <p class="nv-caption">{{ item.caption or item.text }}</p>
+            </div>
             {% endif %}
-            {% if creator.profile_level %}<span class="nv-level-tag nv-level-alt">{{ creator.profile_level }}</span>{% endif %}
-          </strong>
-          <small>{{ creator.followers_count or 0 }} followers{% if creator.profile_score and creator.profile_score >= 50 %} · Score {{ creator.profile_score }}{% endif %}</small>
-        </div>
-      </a>
-      {% endfor %}
-    </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card">
-      <h3 class="nvpro-sidebar-card-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Friend Activity
-      </h3>
-      {% for activity in (friend_activity or [])[:5] %}
-      <a class="nvpro-sidebar-row nv-chat" href="{{ activity.action_url or '#' }}">
-        <span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">
-          {% if activity.actor_avatar or activity.p_avatar_url %}
-          <img src="{{ activity.actor_avatar or activity.p_avatar_url }}" alt="" width="34" height="34">
+            {% if item.type == "reel" or item.type == "reels" %}
+            <div class="nv-reel-card" data-mobile-reel-card>
+              <video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline preload="metadata"></video>
+              <div class="nvpro-video-overlay nv-heart-burst" style="display:none;">
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="#7dd3fc"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              </div>
+              <div class="nv-reel-actions">
+                <button type="button" class="nvpro-action-btn" data-action="like" data-id="{{ item.id }}" aria-label="Like">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                  <span>{{ item.likes_count or 0 }}</span>
+                </button>
+                <button type="button" class="nvpro-action-btn" data-action="comment" data-id="{{ item.id }}" aria-label="Comment">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span>{{ item.comments_count or 0 }}</span>
+                </button>
+                <button type="button" class="nvpro-action-btn" data-action="share" data-id="{{ item.id }}" aria-label="Share">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                  <span>{{ item.shares_count or 0 }}</span>
+                </button>
+                <button type="button" class="nvpro-action-btn" data-action="save" data-id="{{ item.id }}" aria-label="Save">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                </button>
+              </div>
+            </div>
+            {% elif item.image_url or item.media_url %}
+            <div class="nvpro-post-media nv-media"><img src="{{ item.image_url or item.media_url }}" alt="" width="100%" height="auto" loading="lazy"></div>
+            {% elif item.video_url %}
+            <div class="nvpro-post-media nv-media" data-mobile-reel-card><video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline preload="metadata"></video></div>
+            {% endif %}
+            <div class="nvpro-post-actions nv-actions">
+              <button type="button" data-action="like" data-id="{{ item.id }}"
+                      class="nvpro-action-btn {% if item.is_liked or item.user_liked %}is-liked{% endif %}" aria-label="Like">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="{% if item.is_liked or item.user_liked %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <span>{{ item.likes_count or 0 }}</span>
+              </button>
+              <button type="button" class="nvpro-action-btn" data-action="comment" data-id="{{ item.id }}" aria-label="Comment">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>{{ item.comments_count or 0 }}</span>
+              </button>
+              <button type="button" class="nvpro-action-btn" data-action="share" data-id="{{ item.id }}" aria-label="Share">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                <span>Share</span>
+              </button>
+              <button type="button" class="nvpro-action-btn" data-action="send" data-id="{{ item.id }}" aria-label="Send">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                <span>Send</span>
+              </button>
+              <button type="button" class="nvpro-action-btn" data-action="save" data-id="{{ item.id }}" aria-label="Save">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              </button>
+            </div>
+            <div class="nv-comment-box">
+              <input type="text" aria-label="Write a comment" data-comment-input="{{ item.id }}">
+              <button type="button" class="nv-emoji-btn" data-emoji-toggle="{{ item.id }}" title="Emoji" style="background:none;border:none;cursor:pointer;padding:4px;font-size:18px;line-height:1;">🙂</button>
+              <button class="nv-primary" data-action="send-comment" data-id="{{ item.id }}" type="button">Send</button>
+            </div>
+          </article>
           {% else %}
-          <span class="nvpro-avatar-initials gen-avatar">{{ (activity.actor_name or activity.p_username or 'Someone')[:1] }}</span>
-          {% endif %}
-        </span>
-        <div class="nvpro-sidebar-row-info">
-          <small>{{ activity.text or activity.p_username or 'Someone' }} did something</small>
-        </div>
-      </a>
-      {% else %}
-      <div class="nvpro-sidebar-empty nv-card-empty">No recent activity from friends</div>
-      {% endfor %}
-    </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card">
-      <h3 class="nvpro-sidebar-card-head">Quick Links</h3>
-      <a class="nvpro-sidebar-row nv-chat" href="{{ discover_route or '/discover/' }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Discover</a>
-      <a class="nvpro-sidebar-row nv-chat" href="{{ reel_route or '/reels/' }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> Reels</a>
-      <a class="nvpro-sidebar-row nv-chat" href="{{ stories_route or '/stories/' }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Stories</a>
-      <a class="nvpro-sidebar-row nv-chat" href="{{ live_route or '/live/' }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Live</a>
-      <a class="nvpro-sidebar-row nv-chat" href="{{ dating_route or '/discover/' }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> {{ dating_label or 'Connecting You' }}</a>
-      <a class="nvpro-sidebar-row nv-chat" href="/marketplace/"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> Marketplace</a>
-      <a class="nvpro-sidebar-row nv-chat" href="{{ terms_route or '/terms' }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Terms</a>
-      <a class="nvpro-sidebar-row nv-chat" href="{{ privacy_route or '/privacy' }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Privacy</a>
-    </section>
-    <section class="nvpro-sidebar-card nv-card nv-side-card">
-      <h3 class="nvpro-sidebar-card-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-        Marketplace
-      </h3>
-      {% for item in (marketplace_items or []) %}
-      <a class="nvpro-sidebar-row nv-chat" href="/marketplace/" data-nav-url="/marketplace/item/{{ item.id }}">
-        {% if item.image_url %}
-        <img src="{{ item.image_url }}" alt="" class="nv-market-img" width="36" height="36" style="border-radius:8px;object-fit:cover;">
-        {% endif %}
-        <div class="nvpro-sidebar-row-info">
-          <strong class="nvpro-sidebar-row-name">{{ item.title or 'Marketplace Item' }}</strong>
-          <small>{{ item.price or '' }} {{ item.currency or '' }}</small>
-        </div>
-      </a>
-      {% else %}
-      <div class="nvpro-sidebar-empty nv-card-empty">
-        Buy, sell & trade on NamVibe
-        <br><br>
-        <a href="/marketplace/" class="nv-card-link">Browse Marketplace →</a>
-      </div>
-      {% endfor %}
-    </section>
-  </aside>
+          <div class="nvpro-empty-card nv-empty nv-home-empty">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <h3>Welcome to NamVibe</h3>
+            <p>No posts yet. Follow people, create a story, or upload your first reel.</p>
+            <button class="nvpro-btn-primary" data-action="open-create">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Create Post
+            </button>
+          </div>
+          {% endfor %}
+          <div id="scroll-sentinel" class="nv-feed-sentinel" style="height:1px;"></div>
+          <div class="nv-feed-end" style="display:none;"><div class="nv-spinner"></div><span>You're all caught up</span></div>
+        </section>
+      </section>
+    </main>
 
-  <!-- MOBILE BOTTOM NAV -->
-  <nav class="nvpro-bottom-nav nv-bottom-nav">
-    <a href="/" class="nvpro-nav-item active">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    </a>
-    <a href="/discover/" class="nvpro-nav-item">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    </a>
-    <button class="nvpro-nav-item nv-create-nav" data-action="open-create">
-      <span class="nvpro-create-icon-wrap">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </span>
+    <aside class="nv-home-rail nv-home-rail--right">
+      <div id="nv-home-widgets-root"
+           class="nv-rail-card"
+           {% if profile %}data-widgets-url="/api/homepage/widgets"{% endif %}
+           data-homepage-timings='{{ (homepage_timings or {})|tojson|safe }}'></div>
+
+      <section class="nv-rail-card" id="nv-home-chats-section" {% if not chats %}hidden{% endif %}>
+        <div class="nv-rail-card__title">Chats</div>
+        <div class="nv-rail-list">
+          {% for chat in (chats or []) %}
+          <a class="nv-rail-row" href="/messages/{{ chat.thread_id or chat.id }}">
+            <span class="nv-rail-row__avatar">
+              {% if chat.avatar_url %}
+              <img src="{{ chat.avatar_url }}" alt="" width="40" height="40">
+              {% else %}
+              <span>{{ (chat.display_name or chat.name or '?')[:1] }}</span>
+              {% endif %}
+              {% if chat.is_online %}<span class="nv-online-dot-sm"></span>{% endif %}
+            </span>
+            <span class="nv-rail-row__copy">
+              <strong>{{ chat.name or chat.display_name or 'Chat' }}</strong>
+              <small>{{ chat.last_message or 'Say hello!' }}</small>
+            </span>
+            {% if chat.unread_count %}<span class="nv-home-badge nv-home-badge--small">{{ chat.unread_count }}</span>{% endif %}
+          </a>
+          {% else %}
+          <div class="nv-rail-empty">No conversations yet</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="nv-rail-card" id="nv-home-live-section" {% if not live_rooms %}hidden{% endif %}>
+        <div class="nv-rail-card__title">Live now</div>
+        <div class="nv-rail-list">
+          {% for live in (live_rooms or [])[:3] %}
+          <a class="nv-rail-row" href="{{ live.watch_url or '/live/' + (live.id|string) }}">
+            <span class="nv-rail-row__avatar">
+              {% if live.creator_avatar %}
+              <img src="{{ live.creator_avatar }}" alt="" width="40" height="40">
+              {% else %}
+              <span>{{ (live.creator_name or live.title or 'Live')[:1] }}</span>
+              {% endif %}
+            </span>
+            <span class="nv-rail-row__copy">
+              <strong>{{ live.creator_name or live.title or 'Live' }}</strong>
+              <small>{{ live.viewer_count or 0 }} watching</small>
+            </span>
+            <span class="nv-home-live-pill">LIVE</span>
+          </a>
+          {% else %}
+          <div class="nv-rail-empty">No live streams right now</div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="nv-rail-card" id="nv-home-suggestions-section" {% if (empty_states or {}).get('suggested') or not (suggested_creators or suggested_people) %}hidden{% endif %}>
+        <div class="nv-rail-card__title">Suggested people</div>
+        <div class="nv-rail-list">
+          {% for creator in (suggested_creators or suggested_people or [])[:4] %}
+          <a class="nv-rail-row" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
+            <span class="nv-rail-row__avatar">
+              {% if creator.avatar_url or creator.profile_photo %}
+              <img src="{{ creator.avatar_url or creator.profile_photo }}" alt="" width="40" height="40">
+              {% else %}
+              <span>{{ (creator.display_name or creator.username or 'Creator')[:1] }}</span>
+              {% endif %}
+            </span>
+            <span class="nv-rail-row__copy">
+              <strong>{{ creator.display_name or creator.username or 'Creator' }}</strong>
+              <small>{{ creator.followers_count or 0 }} followers</small>
+            </span>
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="nv-rail-card" {% if (empty_states or {}).get('hashtags') or not (trending_hashtags or hashtags) %}hidden{% endif %}>
+        <div class="nv-rail-card__title">Trending Namibia</div>
+        <div class="nv-home-tag-cloud nv-home-tag-cloud--rail">
+          {% for trend in (trending_hashtags or hashtags or [])[:6] %}
+          <a class="nv-home-tag" href="/discover/" data-nav-url="/hashtag/{{ trend.tag or trend.hashtag }}">#{{ trend.tag or trend.hashtag }} <small>{{ trend.count or trend.posts_count or 0 }}</small></a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="nv-rail-card">
+        <div class="nv-rail-card__title">Marketplace</div>
+        <div class="nv-rail-list">
+          {% for item in (marketplace_items or [])[:3] %}
+          <a class="nv-rail-row" href="/marketplace/" data-nav-url="/marketplace/item/{{ item.id }}">
+            {% if item.image_url %}
+            <img src="{{ item.image_url }}" alt="" class="nv-market-img" width="40" height="40">
+            {% endif %}
+            <span class="nv-rail-row__copy">
+              <strong>{{ item.title or 'Marketplace Item' }}</strong>
+              <small>{{ item.price or '' }} {{ item.currency or '' }}</small>
+            </span>
+          </a>
+          {% else %}
+          <div class="nv-rail-empty">
+            Buy, sell, and trade on NamVibe
+            <br><br>
+            <a href="/marketplace/" class="nv-card-link">Browse Marketplace →</a>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <nav class="nv-home-bottom-nav nvpro-bottom-nav nv-bottom-nav" aria-label="Quick actions">
+    <a href="/" class="nvpro-nav-item active" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></a>
+    <a href="{{ discover_route or '/discover/' }}" class="nvpro-nav-item" aria-label="Discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></a>
+    <button class="nvpro-nav-item nv-create-nav" data-action="open-create" aria-label="Create">
+      <span class="nvpro-create-icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
     </button>
-    <a href="/reels/" class="nvpro-nav-item">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-    </a>
-    <a href="/messages/" class="nvpro-nav-item">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    </a>
-    <a href="/support" class="nvpro-nav-item">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
-    </a>
+    <a href="{{ reel_route or '/reels/' }}" class="nvpro-nav-item" aria-label="Reels"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></a>
+    <a href="{{ drawer_messages or '/messages/' }}" class="nvpro-nav-item" aria-label="Messages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></a>
   </nav>
 </div>
 
 <!-- CREATE MODAL -->
 <div class="nv-modal nv-create-modal" id="nv-create-modal" hidden>
   <div class="nv-modal-card">
-    <button class="nv-close" data-action="close-create">×</button>
+    <button class="nv-close" data-action="close-create" type="button">×</button>
     <h2>Create</h2>
     <div class="nv-create-grid">
-      <button class="nv-primary" data-create="post" data-nv-create-type="post">
+      <button class="nv-primary" data-create="post" data-nv-create-type="post" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Post
       </button>
-      <button class="nv-primary" data-create="reel" data-nv-create-type="reel">
+      <button class="nv-primary" data-create="reel" data-nv-create-type="reel" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
         Reel
       </button>
-      <button class="nv-primary" data-create="story" data-nv-create-type="story">
+      <button class="nv-primary" data-create="story" data-nv-create-type="story" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Story
       </button>
-      <button class="nv-primary" data-create="live">
+      <button class="nv-primary" data-create="live" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         Go Live
       </button>
-      <button class="nv-primary" data-create="photo">
+      <button class="nv-primary" data-create="photo" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         Photo
       </button>
-      <button class="nv-primary" data-create="voice">
+      <button class="nv-primary" data-create="voice" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         Voice Note
       </button>
-      <button class="nv-primary" data-action="open-studio">
+      <button class="nv-primary" data-action="open-studio" type="button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         Studio
       </button>
@@ -632,13 +611,12 @@
   </div>
 </div>
 
-<!-- TOAST -->
 <div id="nv-toast" class="nv-toast" role="alert" aria-hidden="true" style="display:none;"></div>
 
 <!-- COMMENTS DRAWER -->
 <div class="nv-drawer" id="commentsDrawer" hidden>
   <div class="nv-drawer-card">
-    <button class="nv-close" data-action="close-comments">×</button>
+    <button class="nv-close" data-action="close-comments" type="button">×</button>
     <h2>Comments</h2>
     <div id="commentsList"></div>
     <div class="nv-drawer-input">
@@ -647,25 +625,31 @@
     </div>
   </div>
 </div>
+
 <div class="nv-video-overlay nvpro-mobile-reels-viewer" id="nvVideoOverlayShell" hidden aria-hidden="true">
-  <button class="nv-vo-close nvpro-mobile-reels-close" id="nvMobileReelsClose" aria-label="Close video">✕</button>
+  <button class="nv-vo-close nvpro-mobile-reels-close nv-close" id="nvMobileReelsClose" aria-label="Close video">✕</button>
   <div class="nvpro-mobile-reels-feed" id="nvMobileReelsFeed"></div>
   <div class="nvpro-mobile-comments-drawer" id="nvMobileCommentsDrawer" aria-hidden="true">
     <div class="nvpro-mobile-comments-sheet">
       <div class="nvpro-mobile-comments-head">
         <strong>Comments</strong>
-        <button type="button" data-mobile-comments-close aria-label="Close comments">✕</button>
+        <button type="button" class="nv-close" data-mobile-comments-close aria-label="Close comments">✕</button>
       </div>
       <div class="nvpro-mobile-comments-list" id="nvMobileCommentsList"></div>
       <div class="nvpro-mobile-comments-input">
         <input type="text" id="nvMobileCommentsInput" aria-label="Add a comment" />
-        <button type="button" id="nvMobileCommentsSend">Send</button>
+        <button type="button" class="nv-primary" id="nvMobileCommentsSend">Send</button>
       </div>
     </div>
   </div>
 </div>
 {% endblock %}
+
 {% block extra_js %}
+<script>
+window.NAMVIBE_HOME = window.NAMVIBE_HOME || {};
+window.NAMVIBE_HOME.viewer_authenticated = {{ 'true' if profile else 'false' }};
+</script>
 <script src="/static/js/namvibe_emoji_picker.js"></script>
 <script src="/static/js/namvibe_creative_studio.js"></script>
 <script src="/static/js/namvibe_home_pro.js"></script>
