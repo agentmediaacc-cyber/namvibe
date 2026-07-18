@@ -68,7 +68,10 @@ body.nv-homepage-v3 a {
 
 .nv-homepage__grid {
   display: grid;
-  grid-template-columns: minmax(240px, 272px) minmax(0, 1fr) minmax(296px, 340px);
+  grid-template-columns:
+    minmax(var(--nv-home-left-min, 240px), var(--nv-home-left-max, 272px))
+    minmax(0, 1fr)
+    minmax(var(--nv-home-right-min, 296px), var(--nv-home-right-max, 340px));
   gap: 24px;
   width: min(var(--nv-home-max), calc(100vw - 32px));
   margin: 0 auto;
@@ -901,23 +904,21 @@ body.nv-homepage-v3 a {
 }
 
 @media (max-width: 1240px) {
-  .nv-homepage__grid {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 320px);
-  }
   .nv-home-rail--left {
     display: none;
   }
   .nv-home-module-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  :root {
+    --nv-home-left-min: 0px;
+    --nv-home-left-max: 0px;
+    --nv-home-right-min: 300px;
+    --nv-home-right-max: 320px;
+  }
 }
 
 @media (max-width: 980px) {
-  .nv-homepage__grid {
-    grid-template-columns: minmax(0, 1fr);
-    width: min(100vw, calc(100vw - 20px));
-    padding: 10px 10px 96px;
-  }
   .nv-home-rail--right {
     display: none;
   }
@@ -940,10 +941,18 @@ body.nv-homepage-v3 a {
   .nv-home-module-grid {
     grid-template-columns: 1fr;
   }
+  :root {
+    --nv-home-left-min: 0px;
+    --nv-home-left-max: 0px;
+    --nv-home-right-min: 0px;
+    --nv-home-right-max: 0px;
+    --nv-home-max: 100vw;
+  }
 }
 
 @media (max-width: 640px) {
-  .nv-homepage__grid {
+  .nv-homepage {
+    width: 100%;
     gap: 16px;
   }
   .nv-home-header__copy h1 {

@@ -1397,6 +1397,32 @@ def _dedupe_homepage_items(items):
     return deduped
 
 
+def _content_identity(item):
+    if not isinstance(item, dict):
+        return ("unknown", "")
+    item_id = str(item.get("id") or "")
+    item_type = str(
+        item.get("type")
+        or ("live_room" if item.get("_section") == "live_rooms" else "")
+        or ("reel" if "reel" in str(item.get("_section") or "") else "")
+        or ("story" if "story" in str(item.get("_section") or "") else "")
+        or ("post" if "post" in str(item.get("_section") or "") else "")
+        or ("profile" if "profile" in str(item.get("_section") or "") else "")
+        or ""
+    )
+    return (item_type, item_id)
+
+
+def _creator_identity(item):
+    if not isinstance(item, dict):
+        return ""
+    for key in ("profile_id", "creator_id", "id"):
+        value = item.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
 def _avoid_back_to_back_creators(items):
     pending = list(items or [])
     arranged = []
@@ -1412,6 +1438,48 @@ def _avoid_back_to_back_creators(items):
         if not placed:
             arranged.append(pending.pop(0))
     return arranged
+
+
+def _enforce_homepage_uniqueness(payload, max_creator_occurrences=2):
+    payload = dict(payload or {})
+    seen_ids = set()
+    creator_counts = {}
+
+    def _allow(item, allow_repeat=False):
+        if not isinstance(item, dict):
+            return False
+        key = _content_identity(item)
+        if not key[1] or key in seen_ids:
+            return False
+        creator_id = _creator_identity(item)
+        if creator_id:
+            count = creator_counts.get(creator_id, 0)
+            if count >= max_creator_occurrences and not allow_repeat:
+                return False
+        seen_ids.add(key)
+        if creator_id:
+            creator_counts[creator_id] = creator_counts.get(creator_id, 0) + 1
+        return True
+
+    def _filter_list(items, allow_repeat=False):
+        filtered = []
+        for item in items or []:
+            if _allow(item, allow_repeat=allow_repeat):
+                filtered.append(item)
+        return filtered
+
+    payload["stories"] = _filter_list(payload.get("stories"))
+    payload["live_rooms"] = _filter_list(payload.get("live_rooms"))
+    payload["reels"] = _filter_list(payload.get("reels"))
+    payload["trending_posts"] = _filter_list(payload.get("trending_posts"))
+    payload["creator_product_cards"] = _filter_list(payload.get("creator_product_cards"))
+    payload["recommended_profiles"] = _filter_list(payload.get("recommended_profiles"))
+    payload["dating_matches"] = _filter_list(payload.get("dating_matches"))
+    payload["suggested_creators"] = _filter_list(payload.get("suggested_creators"))
+    payload["suggested_users"] = _filter_list(payload.get("suggested_users"))
+    payload["nearby_users"] = _filter_list(payload.get("nearby_users"))
+    payload["feed_items"] = _filter_list(payload.get("feed_items"), allow_repeat=True)
+    return payload
 
 
 def _prefer_latest_public_reel(reels):
@@ -2046,6 +2114,7 @@ def build_homepage_payload(async_warm=False):
     payload["reels"] = filter_feed_posts(payload["reels"], profile_map)
     payload["creator_product_cards"] = filter_feed_posts(payload["creator_product_cards"], profile_map)
     payload = rank_homepage_sections(payload, viewer_id=None, feed_limit=_HOMEPAGE_LIMITS["trending_posts"])
+    payload = _enforce_homepage_uniqueness(payload)
     _cap_homepage_sections(payload)
 
     # Final check: if circuit is open or we have no data due to slowness
@@ -3540,6 +3609,7 @@ def get_homepage_payload(profile_id=None, tab="for_you", limit=20):
         payload["trending_hashtags"] = _trending_hashtags(all_posts, limit=8)
 
         payload = rank_homepage_sections(payload, viewer_id=pid, feed_limit=limit)
+        payload = _enforce_homepage_uniqueness(payload)
 
         if not payload["trending_hashtags"]:
             payload["empty_states"]["hashtags"] = True

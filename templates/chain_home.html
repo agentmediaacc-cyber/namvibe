@@ -179,7 +179,7 @@
         </div>
       </section>
 
-      {% if live_rooms or reels or suggested_people or suggested_creators %}
+      {% if live_rooms or reels %}
       <section class="nv-home-module-grid" aria-label="Homepage highlights">
         {% if live_rooms %}
         <article class="nv-home-module-card">
@@ -205,52 +205,6 @@
                 <small>{{ live.viewer_count or 0 }} watching</small>
               </span>
               <span class="nv-home-live-pill">LIVE</span>
-            </a>
-            {% endfor %}
-          </div>
-        </article>
-        {% endif %}
-
-        {% set trends = trending_hashtags or hashtags or [] %}
-        <article class="nv-home-module-card" id="nv-home-hashtags-section" {% if (empty_states or {}).get('hashtags') or not trends %}hidden{% endif %}>
-          <div class="nv-home-section-head">
-            <div>
-              <span class="nv-home-section-head__eyebrow">Trending</span>
-              <h2>What Namibia is talking about</h2>
-            </div>
-            <a href="{{ discover_route or '/discover/' }}">Explore</a>
-          </div>
-          <div class="nv-home-tag-cloud">
-            {% for trend in trends[:8] %}
-            <a class="nv-home-tag" href="/discover/" data-nav-url="/hashtag/{{ trend.tag or trend.hashtag }}">#{{ trend.tag or trend.hashtag }} <small>{{ trend.count or trend.posts_count or 0 }}</small></a>
-            {% endfor %}
-          </div>
-        </article>
-
-        {% set people = suggested_people or suggested_creators or [] %}
-        {% if people %}
-        <article class="nv-home-module-card">
-          <div class="nv-home-section-head">
-            <div>
-              <span class="nv-home-section-head__eyebrow">People</span>
-              <h2>Suggested people</h2>
-            </div>
-            <a href="{{ discover_route or '/discover/' }}">Find more</a>
-          </div>
-          <div class="nv-home-suggestions">
-            {% for creator in people[:3] %}
-            <a class="nv-home-suggestion" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
-              <span class="nv-home-suggestion__avatar">
-                {% if creator.avatar_url or creator.profile_photo %}
-                <img src="{{ creator.avatar_url or creator.profile_photo }}" alt="" width="44" height="44">
-                {% else %}
-                <span>{{ (creator.display_name or creator.username or 'Creator')[:1] }}</span>
-                {% endif %}
-              </span>
-              <span class="nv-home-suggestion__copy">
-                <strong>{{ creator.display_name or creator.username or 'Creator' }}</strong>
-                <small>{{ creator.followers_count or 0 }} followers</small>
-              </span>
             </a>
             {% endfor %}
           </div>
@@ -468,30 +422,6 @@
           </a>
           {% else %}
           <div class="nv-rail-empty">No conversations yet</div>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="nv-rail-card" id="nv-home-live-section" {% if not live_rooms %}hidden{% endif %}>
-        <div class="nv-rail-card__title">Live now</div>
-        <div class="nv-rail-list">
-          {% for live in (live_rooms or [])[:3] %}
-          <a class="nv-rail-row" href="{{ live.watch_url or '/live/' + (live.id|string) }}">
-            <span class="nv-rail-row__avatar">
-              {% if live.creator_avatar %}
-              <img src="{{ live.creator_avatar }}" alt="" width="40" height="40">
-              {% else %}
-              <span>{{ (live.creator_name or live.title or 'Live')[:1] }}</span>
-              {% endif %}
-            </span>
-            <span class="nv-rail-row__copy">
-              <strong>{{ live.creator_name or live.title or 'Live' }}</strong>
-              <small>{{ live.viewer_count or 0 }} watching</small>
-            </span>
-            <span class="nv-home-live-pill">LIVE</span>
-          </a>
-          {% else %}
-          <div class="nv-rail-empty">No live streams right now</div>
           {% endfor %}
         </div>
       </section>
