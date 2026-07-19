@@ -83,6 +83,9 @@ body.nv-homepage-v3 a {
 
 .nv-home-main {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .nv-home-rail {
@@ -342,12 +345,6 @@ body.nv-homepage-v3 a {
 .nv-home-module-row__copy strong {
   font-size: 14px;
   line-height: 1.2;
-}
-
-.nv-home-main {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 
 .nv-home-header {
