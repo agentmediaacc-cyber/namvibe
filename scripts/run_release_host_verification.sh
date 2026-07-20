@@ -117,6 +117,8 @@ main() {
   log "repo_state"
   log "run_dir=$RUN_DIR"
   export RUN_DIR RUNTIME_REPO REPO
+  export BROWSER_SMOKE_ARTIFACT_DIR="$RUN_DIR/repo/artifacts/browser_smoke"
+  mkdir -p "$BROWSER_SMOKE_ARTIFACT_DIR"
   git -C "$REPO" status --short >"$RUN_DIR/git_status.txt"
   git -C "$REPO" rev-parse HEAD >"$RUN_DIR/head.txt"
   git -C "$REPO" branch --show-current >"$RUN_DIR/branch.txt"
