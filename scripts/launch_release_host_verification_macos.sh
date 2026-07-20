@@ -114,15 +114,9 @@ runtime_repo=$RUNTIME_REPO
 venv=$VENV
 EOF
 
-launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
-set +e
-launchctl bootstrap "$DOMAIN" "$PLIST_FILE"
-bootstrap_status=$?
-set -e
-
-if [[ "$bootstrap_status" -ne 0 || "$DIRECT_FALLBACK" -eq 1 ]]; then
+if [[ "$DIRECT_FALLBACK" -eq 1 ]]; then
   {
-    printf 'bootstrap_status=%s\n' "$bootstrap_status"
+    printf 'bootstrap_status=%s\n' "SKIPPED_DUE_TO_DIRECT_FALLBACK"
     printf 'kickstart_status=%s\n' "SKIPPED_DUE_TO_DIRECT_FALLBACK"
     printf 'launchctl_print_status=%s\n' "SKIPPED_DUE_TO_DIRECT_FALLBACK"
     printf 'launcher_mode=%s\n' "direct_fallback"
@@ -150,6 +144,53 @@ if [[ "$bootstrap_status" -ne 0 || "$DIRECT_FALLBACK" -eq 1 ]]; then
         echo "launchd_print_exists=$( [[ -f "$RUN_DIR/launchctl-print.txt" ]] && echo yes || echo no )"
         echo "launchd_stdout_exists=$( [[ -f "$RUN_DIR/launchd-stdout.log" ]] && echo yes || echo no )"
         echo "launchd_stderr_exists=$( [[ -f "$RUN_DIR/launchd-stderr.log" ]] && echo yes || echo no )"
+      } >>"$RUN_DIR/launcher-status.txt"
+      exit 1
+    fi
+    cat "$STATUS_FILE"
+  else
+    printf 'result_file=%s\n' "$RUN_DIR/host-output.log"
+    printf 'status_file=%s\n' "$RUN_DIR/host-status.txt"
+  fi
+  exit "$direct_status"
+fi
+
+launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+set +e
+launchctl bootstrap "$DOMAIN" "$PLIST_FILE"
+bootstrap_status=$?
+set -e
+
+if [[ "$bootstrap_status" -ne 0 ]]; then
+  {
+    printf 'bootstrap_status=%s\n' "$bootstrap_status"
+    printf 'kickstart_status=%s\n' "SKIPPED_DUE_TO_BOOTSTRAP_FAILURE"
+    printf 'launchctl_print_status=%s\n' "SKIPPED_DUE_TO_BOOTSTRAP_FAILURE"
+    printf 'launcher_mode=%s\n' "direct_fallback"
+  } >>"$RUN_DIR/launcher-status.txt"
+  set +e
+  RUN_DIR="$RUN_DIR" bash "$JOB_WRAPPER" "$RUN_DIR" "$REPO" "$RUNTIME_REPO" "$VENV" "$WRAPPER_COPY" >>"$RUN_DIR/host-output.log" 2>>"$RUN_DIR/host-error.log"
+  direct_status=$?
+  set -e
+  printf 'direct_status=%s\n' "$direct_status" >>"$RUN_DIR/launcher-status.txt"
+  if [[ "$WAIT" -eq 1 ]]; then
+    STATUS_FILE="$RUN_DIR/host-status.txt"
+    max_tries=$((WAIT_TIMEOUT_SECONDS / 2))
+    if (( max_tries < 1 )); then
+      max_tries=1
+    fi
+    for _ in $(seq 1 "$max_tries"); do
+      if [[ -f "$STATUS_FILE" ]]; then
+        break
+      fi
+      sleep 2
+    done
+    if [[ ! -f "$STATUS_FILE" ]]; then
+      {
+        echo "launcher_wait=timeout"
+        echo "launchd_print_exists=$( [[ -f \"$RUN_DIR/launchctl-print.txt\" ]] && echo yes || echo no )"
+        echo "launchd_stdout_exists=$( [[ -f \"$RUN_DIR/launchd-stdout.log\" ]] && echo yes || echo no )"
+        echo "launchd_stderr_exists=$( [[ -f \"$RUN_DIR/launchd-stderr.log\" ]] && echo yes || echo no )"
       } >>"$RUN_DIR/launcher-status.txt"
       exit 1
     fi

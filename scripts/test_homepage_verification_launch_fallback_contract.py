@@ -13,6 +13,7 @@ def main() -> int:
     required = [
         "DIRECT_FALLBACK",
         "direct_fallback",
+        "if [[ \"$DIRECT_FALLBACK\" -eq 1 ]]; then",
         "bootstrap_status",
         "RUN_DIR=\"$RUN_DIR\" bash \"$JOB_WRAPPER\"",
         "SOURCE_ENV_REPO",
