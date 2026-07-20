@@ -39,6 +39,11 @@ def cancel_follow_request(request_id, requester_profile_id):
             "DELETE FROM chain_follow_requests WHERE id = %s AND requester_profile_id = %s AND status = 'pending'",
             (request_id, requester_profile_id)
         )
+        try:
+            from services.smart_suggestion_service import invalidate_suggestion_caches
+            invalidate_suggestion_caches(requester_profile_id)
+        except Exception:
+            pass
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -77,6 +82,11 @@ def send_follow_request(requester_id, target_id, message=None):
         # Direct follow
         from services.engagement_service import follow_profile
         follow_profile(requester_id, target_id)
+        try:
+            from services.smart_suggestion_service import invalidate_suggestion_caches
+            invalidate_suggestion_caches(requester_id, target_id)
+        except Exception:
+            pass
         return {"ok": True, "status": "following"}
         
     # Private profile -> Request
@@ -108,7 +118,12 @@ def send_follow_request(requester_id, target_id, message=None):
             "requester_name": requester_name,
             "request_id": req_id
         })
-        
+        try:
+            from services.smart_suggestion_service import invalidate_suggestion_caches
+            invalidate_suggestion_caches(requester_id, target_id)
+        except Exception:
+            pass
+
         return {"ok": True, "status": "request_pending"}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -156,6 +171,11 @@ def approve_follow_request(request_id, target_profile_id):
             "target_id": target_profile_id,
             "target_name": target_name
         })
+        try:
+            from services.smart_suggestion_service import invalidate_suggestion_caches
+            invalidate_suggestion_caches(requester_id, target_profile_id)
+        except Exception:
+            pass
         
         return {"ok": True, "status": "following"}
     except Exception as e:
@@ -169,6 +189,11 @@ def decline_follow_request(request_id, target_profile_id):
             "WHERE id = %s AND target_profile_id = %s",
             (request_id, target_profile_id)
         )
+        try:
+            from services.smart_suggestion_service import invalidate_suggestion_caches
+            invalidate_suggestion_caches(target_profile_id)
+        except Exception:
+            pass
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}

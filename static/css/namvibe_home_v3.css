@@ -719,6 +719,50 @@ body.nv-homepage-v3 a {
   border-radius: 18px;
 }
 
+.nv-home-suggestion {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.nv-home-suggestion__profile {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.nv-home-suggestion__copy small {
+  line-height: 1.35;
+  color: var(--nv-home-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nv-home-suggestion__action {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--nv-home-border);
+  background: rgba(255,255,255,.05);
+  color: var(--nv-home-text);
+  font-weight: 800;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.nv-home-suggestion__action--friend {
+  background: linear-gradient(135deg, rgba(110,168,255,.18), rgba(154,124,255,.14));
+  border-color: rgba(110,168,255,.2);
+}
+
+.nv-home-suggestion__action--follow {
+  background: rgba(255,255,255,.06);
+}
+
+.nv-home-suggestion__action--status {
+  opacity: .78;
+}
+
 .nv-home-live-pill {
   margin-left: auto;
   display: inline-flex;

@@ -12,9 +12,32 @@ from services.production_content_guard import is_fake_content
 from services.relationship_cache_service import get_many_relationship_states
 from services.relationship_privacy_service import is_blocked_any
 from services.social_action_policy import get_account_kind, get_primary_action
+from services.redis_service import invalidate_pattern
 
 
 _SUGGESTION_TTL_SECONDS = 60
+
+_ACTION_LABELS = {
+    "friend_request": ("friend", "Add Friend", False),
+    "request_sent": ("status", "Requested", True),
+    "requested": ("status", "Requested", True),
+    "accept_request": ("friend", "Accept", False),
+    "follow": ("follow", "Follow", False),
+    "request_follow": ("follow", "Request Follow", False),
+    "following": ("follow", "Following", False),
+    "approve_follow": ("follow", "Follow Back", False),
+}
+
+_LEGACY_ACTION_TYPES = {
+    "friend_request": "add_friend",
+    "accept_request": "add_friend",
+    "request_sent": "request_follow",
+    "requested": "request_follow",
+    "follow": "follow",
+    "request_follow": "request_follow",
+    "following": "follow",
+    "approve_follow": "follow",
+}
 
 
 def _profile_id(profile_or_id):
@@ -167,6 +190,66 @@ def _reason(row: Dict, viewer: Dict, mutual_count: int) -> str:
     return "Popular in Namibia"
 
 
+def _decorate_suggestion(row: Dict, viewer_profile_id: Optional[str], viewer: Dict, mutual_count: int) -> Optional[Dict]:
+    pid = str(row.get("id") or "")
+    if not pid:
+        return None
+    if is_fake_content(row):
+        return None
+    if viewer_profile_id and is_blocked_any(viewer_profile_id, pid):
+        return None
+
+    state = get_many_relationship_states(viewer_profile_id, [pid]).get(pid, {}) if viewer_profile_id else {}
+    if state.get("is_friend") or state.get("relationship") == "friend":
+        return None
+
+    action_type = get_primary_action(viewer_profile_id, row)
+    if action_type in {"none", "message", "blocked", "self"}:
+        return None
+
+    action_kind, action_label, action_disabled = _ACTION_LABELS.get(action_type, ("follow", "View profile", False))
+    if action_type == "message":
+        return None
+
+    if action_label == "View profile":
+        return None
+
+    score = float(row.get("base_score") or 0) + (mutual_count * 12)
+    return {
+        "profile_id": pid,
+        "id": pid,
+        "username": row.get("username") or "",
+        "display_name": row.get("display_name") or row.get("full_name") or row.get("username") or "NamVibe member",
+        "avatar_url": row.get("avatar_url") or row.get("thumbnail_url") or "",
+        "account_kind": get_account_kind(row),
+        "reason": _reason(row, viewer, mutual_count),
+        "mutual_count": mutual_count,
+        "primary_action": action_type,
+        "action_type": _LEGACY_ACTION_TYPES.get(action_type, "follow"),
+        "action_kind": action_kind,
+        "action_label": action_label,
+        "action_disabled": action_disabled,
+        "score": round(score, 2),
+        "relationship_state": state.get("relationship", "none"),
+    }
+
+
+def invalidate_suggestion_caches(viewer_profile_id: Optional[str] = None, target_profile_id: Optional[str] = None) -> int:
+    deleted = 0
+    if viewer_profile_id:
+        deleted += invalidate_pattern("cache", "smart_suggestions_v1", viewer_profile_id, "*")
+        deleted += invalidate_pattern("cache", "smart_suggestions_v1", "*", viewer_profile_id)
+        deleted += invalidate_pattern("cache", "suggested_people", str(viewer_profile_id))
+    if target_profile_id:
+        deleted += invalidate_pattern("cache", "smart_suggestions_v1", "*", target_profile_id)
+        deleted += invalidate_pattern("cache", "smart_suggestions_v1", target_profile_id, "*")
+        deleted += invalidate_pattern("cache", "suggested_people", str(target_profile_id))
+    if not viewer_profile_id and not target_profile_id:
+        deleted += invalidate_pattern("cache", "smart_suggestions_v1", "*")
+        deleted += invalidate_pattern("cache", "suggested_people", "*")
+    return deleted
+
+
 def get_smart_suggestions(viewer_profile_id=None, limit: int = 10) -> List[Dict]:
     """Return real-data suggestions with privacy, relationship, and fake-content filters."""
     viewer_profile_id = _profile_id(viewer_profile_id)
@@ -183,39 +266,15 @@ def get_smart_suggestions(viewer_profile_id=None, limit: int = 10) -> List[Dict]
     suggestions = []
     seen = set()
 
-    # Batch relationship states
-    candidate_ids = [str(row.get("id") or "") for row in candidates]
-    rel_states = get_many_relationship_states(viewer_profile_id, candidate_ids) if viewer_profile_id else {}
-
     for row in candidates:
         pid = str(row.get("id") or "")
         if not pid or pid in seen or pid in excluded:
             continue
-        if is_fake_content(row):
-            continue
-        if viewer_profile_id and is_blocked_any(viewer_profile_id, pid):
-            continue
-        account_kind = get_account_kind(row)
-        state = rel_states.get(pid, {})
-        action_type = get_primary_action(viewer_profile_id, row)
-        if action_type in {"self", "message", "request_sent", "requested", "following", "none", "blocked"}:
-            continue
-        if action_type == "friend_request":
-            action_type = "add_friend"
         mutual_count = mutuals.get(pid, 0)
-        score = float(row.get("base_score") or 0) + (mutual_count * 12)
-        suggestions.append({
-            "profile_id": pid,
-            "id": pid,
-            "username": row.get("username") or "",
-            "display_name": row.get("display_name") or row.get("full_name") or row.get("username") or "NamVibe member",
-            "avatar_url": row.get("avatar_url") or row.get("thumbnail_url") or "",
-            "account_kind": account_kind,
-            "reason": _reason(row, viewer, mutual_count),
-            "mutual_count": mutual_count,
-            "action_type": action_type if action_type in {"follow", "request_follow"} else "add_friend",
-            "score": round(score, 2),
-        })
+        suggestion = _decorate_suggestion(row, viewer_profile_id, viewer, mutual_count)
+        if not suggestion:
+            continue
+        suggestions.append(suggestion)
         seen.add(pid)
         if len(suggestions) >= limit:
             break

@@ -576,6 +576,11 @@ def follow_profile(follower_id, following_id, toggle=True):
 
     from services.relationship_cache_service import invalidate_relationship_state
     invalidate_relationship_state(follower_id, following_id)
+    try:
+        from services.smart_suggestion_service import invalidate_suggestion_caches
+        invalidate_suggestion_caches(follower_id, following_id)
+    except Exception:
+        pass
 
     return {"success": True, "following": following, "followers_count": followers_count, "following_count": following_count}
 
@@ -597,6 +602,11 @@ def unfollow_profile(follower_id, following_id):
 
     from services.relationship_cache_service import invalidate_relationship_state
     invalidate_relationship_state(follower_id, following_id)
+    try:
+        from services.smart_suggestion_service import invalidate_suggestion_caches
+        invalidate_suggestion_caches(follower_id, following_id)
+    except Exception:
+        pass
 
     return {"success": True, "following": False, "followers_count": followers_count, "following_count": following_count}
 

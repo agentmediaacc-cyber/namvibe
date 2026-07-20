@@ -3207,6 +3207,10 @@ def get_homepage_live_rooms_section(limit=5):
 def get_homepage_suggested_users_section(current_user=None, limit=5):
     try:
         from services.homepage_real_data_guard import filter_profiles
+        if current_user and current_user.get("id"):
+            from services.smart_suggestion_service import get_smart_suggestions
+            suggestions = get_smart_suggestions(current_user["id"], limit=limit) or []
+            return filter_profiles(suggestions)
         return filter_profiles(_suggested_people(current_user=current_user, limit=limit) or [])
     except Exception:
         return []

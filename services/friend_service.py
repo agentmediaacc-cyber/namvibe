@@ -119,6 +119,11 @@ def _invalidate_friend_cache(p1, p2):
     from services.relationship_cache_service import invalidate_relationship_state
     invalidate_relationship_state(p1, p2)
     invalidate_relationship_state(p2, p1)
+    try:
+        from services.smart_suggestion_service import invalidate_suggestion_caches
+        invalidate_suggestion_caches(p1, p2)
+    except Exception:
+        pass
     for pid in [p1, p2]:
         cache_delete(f"friends_list:{pid}:20:first")
         cache_delete(f"friends:{pid}")

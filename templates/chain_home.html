@@ -453,19 +453,52 @@
         <div class="nv-rail-card__title">Suggested people</div>
         <div class="nv-rail-list">
           {% for creator in (suggested_creators or suggested_people or [])[:4] %}
-          <a class="nv-rail-row" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
-            <span class="nv-rail-row__avatar">
-              {% if creator.avatar_url or creator.profile_photo %}
-              <img src="{{ creator.avatar_url or creator.profile_photo }}" alt="" width="40" height="40">
-              {% else %}
-              <span>{{ (creator.display_name or creator.username or 'Creator')[:1] }}</span>
-              {% endif %}
-            </span>
-            <span class="nv-rail-row__copy">
-              <strong>{{ creator.display_name or creator.username or 'Creator' }}</strong>
-              <small>{{ creator.followers_count or 0 }} followers</small>
-            </span>
-          </a>
+          <div class="nv-home-suggestion" data-profile-id="{{ creator.id or creator.profile_id }}">
+            <a class="nv-rail-row nv-home-suggestion__profile" href="/profile/" data-nav-url="/profile/{{ creator.username or creator.id }}">
+              <span class="nv-rail-row__avatar nv-home-suggestion__avatar">
+                {% if creator.avatar_url or creator.profile_photo %}
+                <img src="{{ creator.avatar_url or creator.profile_photo }}" alt="" width="40" height="40">
+                {% else %}
+                <span>{{ (creator.display_name or creator.username or 'Creator')[:1] }}</span>
+                {% endif %}
+              </span>
+              <span class="nv-rail-row__copy nv-home-suggestion__copy">
+                <strong>{{ creator.display_name or creator.username or 'Creator' }}</strong>
+                <small>{% if creator.reason %}{{ creator.reason }}{% else %}{{ creator.mutual_count or creator.followers_count or 0 }} followers{% endif %}</small>
+              </span>
+            </a>
+            {% set suggestion_action = creator.action_kind or creator.primary_action or 'follow' %}
+            {% if creator.action_label %}
+            {% if suggestion_action == 'friend' %}
+            <button type="button"
+                    class="nv-home-suggestion__action nv-home-suggestion__action--friend"
+                    data-friend-action
+                    data-target-id="{{ creator.id or creator.profile_id }}"
+                    data-profile-id="{{ creator.id or creator.profile_id }}"
+                    data-friend-status="{{ creator.relationship_state or 'none' }}"
+                    aria-label="{{ creator.action_label }} {{ creator.display_name or creator.username or 'Creator' }}">
+              {{ creator.action_label }}
+            </button>
+            {% elif suggestion_action == 'status' %}
+            <button type="button"
+                    class="nv-home-suggestion__action nv-home-suggestion__action--status"
+                    disabled
+                    aria-label="{{ creator.action_label }} {{ creator.display_name or creator.username or 'Creator' }}">
+              {{ creator.action_label }}
+            </button>
+            {% else %}
+            <button type="button"
+                    class="nv-home-suggestion__action nv-home-suggestion__action--follow"
+                    data-profile-follow
+                    data-follow-profile="{{ creator.id or creator.profile_id }}"
+                    data-profile-id="{{ creator.id or creator.profile_id }}"
+                    data-social-state="{% if creator.primary_action == 'following' %}following{% elif creator.primary_action in ['requested', 'request_sent'] %}requested{% else %}none{% endif %}"
+                    aria-label="{{ creator.action_label }} {{ creator.display_name or creator.username or 'Creator' }}">
+              {{ creator.action_label }}
+            </button>
+            {% endif %}
+            {% endif %}
+          </div>
           {% endfor %}
         </div>
       </section>

@@ -129,6 +129,11 @@ def block_user(blocker_id: str, blocked_id: str) -> dict:
         from services.relationship_cache_service import invalidate_relationship_state
         invalidate_relationship_state(blocker_id, blocked_id)
         invalidate_relationship_state(blocked_id, blocker_id)
+        try:
+            from services.smart_suggestion_service import invalidate_suggestion_caches
+            invalidate_suggestion_caches(blocker_id, blocked_id)
+        except Exception:
+            pass
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -155,6 +160,11 @@ def unblock_user(blocker_id: str, blocked_id: str) -> dict:
         from services.relationship_cache_service import invalidate_relationship_state
         invalidate_relationship_state(blocker_id, blocked_id)
         invalidate_relationship_state(blocked_id, blocker_id)
+        try:
+            from services.smart_suggestion_service import invalidate_suggestion_caches
+            invalidate_suggestion_caches(blocker_id, blocked_id)
+        except Exception:
+            pass
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}

@@ -1992,13 +1992,28 @@
         suggestionsSection.hidden = true;
       } else {
         suggestionsSection.hidden = false;
-        suggestionsSection.querySelectorAll(".nvpro-sidebar-row").forEach(function (node) { node.remove(); });
+        suggestionsSection.querySelectorAll(".nv-home-suggestion").forEach(function (node) { node.remove(); });
         suggestions.forEach(function (creator) {
           var creatorInitial = (creator.creator_name || creator.display_name || creator.username || "Creator").charAt(0).toUpperCase();
+          var label = creator.action_label || "";
+          var actionKind = creator.action_kind || creator.primary_action || "";
+          var profileUrl = "/profile/" + encodeURIComponent(creator.creator_username || creator.username || creator.id || "");
+          var reason = creator.reason || String(creator.mutual_count || creator.followers_count || 0) + " followers";
+          var actionHtml = "";
+          if (label && actionKind === "friend") {
+            actionHtml = '<button type="button" class="nv-home-suggestion__action nv-home-suggestion__action--friend" data-friend-action data-target-id="' + escapeHtml(creator.id || creator.profile_id || "") + '" data-profile-id="' + escapeHtml(creator.id || creator.profile_id || "") + '" data-friend-status="' + escapeHtml(creator.relationship_state || "none") + '" aria-label="' + escapeHtml(label + " " + (creator.creator_name || creator.display_name || creator.username || "Creator")) + '">' + escapeHtml(label) + '</button>';
+          } else if (label && actionKind === "status") {
+            actionHtml = '<button type="button" class="nv-home-suggestion__action nv-home-suggestion__action--status" disabled aria-label="' + escapeHtml(label + " " + (creator.creator_name || creator.display_name || creator.username || "Creator")) + '">' + escapeHtml(label) + '</button>';
+          } else if (label) {
+            actionHtml = '<button type="button" class="nv-home-suggestion__action nv-home-suggestion__action--follow" data-profile-follow data-follow-profile="' + escapeHtml(creator.id || creator.profile_id || "") + '" data-profile-id="' + escapeHtml(creator.id || creator.profile_id || "") + '" data-social-state="' + escapeHtml(creator.primary_action === "following" ? "following" : ((creator.primary_action === "requested" || creator.primary_action === "request_sent") ? "requested" : "none")) + '" aria-label="' + escapeHtml(label + " " + (creator.creator_name || creator.display_name || creator.username || "Creator")) + '">' + escapeHtml(label) + '</button>';
+          }
           suggestionsSection.insertAdjacentHTML("beforeend",
-            '<a class="nvpro-sidebar-row nv-chat" href="/profile/" data-nav-url="/profile/' + escapeHtml(creator.creator_username || creator.username || creator.id || "") + '">' +
-            '<span class="nvpro-sidebar-avatar-sm nv-avatar-wrap">' + ((creator.creator_avatar || creator.avatar_url || "") ? '<img src="' + escapeHtml(creator.creator_avatar || creator.avatar_url) + '" alt="" width="34" height="34">' : '<span class="nvpro-avatar-initials gen-avatar">' + escapeHtml(creatorInitial) + '</span>') + '</span>' +
-            '<div class="nvpro-sidebar-row-info"><strong class="nvpro-sidebar-row-name">' + escapeHtml(creator.creator_name || creator.display_name || creator.username || "Creator") + '</strong><small>' + escapeHtml(String(creator.followers_count || 0)) + ' followers</small></div></a>');
+            '<div class="nv-home-suggestion" data-profile-id="' + escapeHtml(creator.id || creator.profile_id || "") + '">' +
+            '<a class="nv-rail-row nv-home-suggestion__profile" href="' + escapeHtml(profileUrl) + '" data-nav-url="' + escapeHtml(profileUrl) + '">' +
+            '<span class="nv-rail-row__avatar nv-home-suggestion__avatar">' + ((creator.creator_avatar || creator.avatar_url || "") ? '<img src="' + escapeHtml(creator.creator_avatar || creator.avatar_url) + '" alt="" width="40" height="40">' : '<span>' + escapeHtml(creatorInitial) + '</span>') + '</span>' +
+            '<span class="nv-rail-row__copy nv-home-suggestion__copy"><strong>' + escapeHtml(creator.creator_name || creator.display_name || creator.username || "Creator") + '</strong><small>' + escapeHtml(reason) + '</small></span></a>' +
+            actionHtml +
+            '</div>');
         });
       }
     }
