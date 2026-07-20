@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Iterable
+from pathlib import Path
 
 BROWSER_CANDIDATES = [
     os.getenv("PLAYWRIGHT_CHROME_PATH"),
@@ -11,6 +12,8 @@ BROWSER_CANDIDATES = [
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
     None,
 ]
+
+ARTIFACT_DIR = Path(os.getenv("BROWSER_SMOKE_ARTIFACT_DIR", "artifacts/browser_smoke"))
 
 
 def _browser_name(path):
@@ -69,7 +72,7 @@ def exercise_routes(page, base: str, routes: Iterable[str]):
     return failures
 
 
-def run_smoke(routes, extra_assert=None):
+def run_smoke(routes, extra_assert=None, viewports=None):
     try:
         from playwright.sync_api import sync_playwright
     except Exception as exc:
@@ -77,10 +80,13 @@ def run_smoke(routes, extra_assert=None):
         return 3
 
     base = "http://127.0.0.1:8080"
-    pages = [
-        ("desktop", {"width": 1440, "height": 1200}),
+    pages = viewports or [
+        ("desktop", {"width": 1440, "height": 900}),
+        ("tablet", {"width": 768, "height": 1024, "is_mobile": True, "has_touch": True}),
         ("mobile", {"width": 390, "height": 844, "is_mobile": True, "has_touch": True}),
+        ("small_mobile", {"width": 320, "height": 568, "is_mobile": True, "has_touch": True}),
     ]
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser, tried, selected = choose_browser(p)
         if not browser:
@@ -92,19 +98,56 @@ def run_smoke(routes, extra_assert=None):
                 context = None
                 page = None
                 try:
-                    context = browser.new_context(viewport={k: v for k, v in vp.items() if k in {"width", "height"}})
+                    viewport = {k: v for k, v in vp.items() if k in {"width", "height"}}
+                    context = browser.new_context(viewport=viewport, is_mobile=vp.get("is_mobile", False), has_touch=vp.get("has_touch", False))
                     page = context.new_page()
                     page.set_default_timeout(20000)
                     errors = []
+                    page_errors = []
+                    failed_requests = []
                     page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" and all(code not in msg.text for code in ("429", "401", "404", "[NV Stories] feed error")) else None)
+                    page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+                    page.on("requestfailed", lambda req: failed_requests.append({"url": req.url, "error": getattr(req.failure, "error_text", None) if getattr(req, "failure", None) else None}))
                     failures = exercise_routes(page, base, routes)
                     if extra_assert:
                         extra_assert(page, label)
+                    screenshot_path = ARTIFACT_DIR / f"{label}.png"
+                    page.screenshot(path=str(screenshot_path), full_page=True)
+                    overflow = page.evaluate("Math.max(document.documentElement.scrollWidth - window.innerWidth, 0)")
+                    video_count = page.evaluate("""() => Array.from(document.querySelectorAll('video')).filter(v => !v.paused && !v.ended && v.currentTime > 0).length""")
+                    duplicate_ids = page.evaluate("""() => {
+                      const seen = new Set(); let dup = 0;
+                      document.querySelectorAll('[data-feed-item-id]').forEach((node) => {
+                        const id = node.getAttribute('data-feed-item-id');
+                        if (!id) return;
+                        if (seen.has(id)) dup += 1;
+                        else seen.add(id);
+                      });
+                      return dup;
+                    }""")
                     if errors:
                         raise AssertionError(f"console_errors={errors[:3]}")
+                    if page_errors:
+                        raise AssertionError(f"page_errors={page_errors[:3]}")
+                    filtered_failed = [
+                        item for item in failed_requests
+                        if not any(token in item["url"] for token in ("/favicon.ico", "cdn.tailwindcss.com", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"))
+                        and item.get("error") not in {None, "net::ERR_ABORTED"}
+                    ]
                     if failures:
                         raise AssertionError(f"route_failures={failures[:3]}")
-                    print(json.dumps({"result": "PASS", "stage": f"browser_{label}"}))
+                    print(json.dumps({
+                        "result": "PASS",
+                        "stage": f"browser_{label}",
+                        "viewport": viewport,
+                        "screenshot_path": str(screenshot_path),
+                        "console_error_count": len(errors),
+                        "page_error_count": len(page_errors),
+                        "failed_first_party_request_count": len(filtered_failed),
+                        "horizontal_overflow": int(overflow > 1),
+                        "duplicate_feed_card_count": int(duplicate_ids),
+                        "playing_video_count": int(video_count),
+                    }))
                 finally:
                     try:
                         if page is not None and not page.is_closed():
