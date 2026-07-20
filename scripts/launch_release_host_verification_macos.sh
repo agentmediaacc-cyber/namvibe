@@ -28,7 +28,13 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 SOURCE_RUNTIME_REPO="${SOURCE_RUNTIME_REPO:-$SOURCE_REPO}"
-SOURCE_VENV="${SOURCE_VENV:-$SOURCE_REPO/venv}"
+if [[ -z "$SOURCE_VENV" ]]; then
+  if [[ -x "$SOURCE_REPO/venv/bin/python3" ]]; then
+    SOURCE_VENV="$SOURCE_REPO/venv"
+  else
+    SOURCE_VENV="$HOME/Desktop/chain_app/venv"
+  fi
+fi
 SOURCE_ENV_REPO="${SOURCE_ENV_REPO:-$SOURCE_REPO}"
 WAIT="${WAIT:-0}"
 WAIT_TIMEOUT_SECONDS="${WAIT_TIMEOUT_SECONDS:-3600}"
