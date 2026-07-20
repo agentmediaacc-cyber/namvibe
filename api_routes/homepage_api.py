@@ -100,6 +100,9 @@ _HOMEPAGE_WIDGET_CACHE_TTL = 45
 
 
 def _cached_public_homepage_snapshot():
+    full = get_full("public")
+    if full:
+        return full
     full, _ = get_full_with_stale("public")
     if full:
         return full

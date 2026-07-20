@@ -59,6 +59,18 @@ def warm_homepage_cache():
     ok = True
     error = None
 
+    def _has_content(payload):
+        return bool(
+            payload
+            and (
+                payload.get("feed_items")
+                or payload.get("posts")
+                or payload.get("reels")
+                or payload.get("stories")
+                or payload.get("live_rooms")
+            )
+        )
+
     # ── Fast path: cache already exists, just refresh meta ──
     info = homepage_cache_info()
     if info.get("homepage_cached"):
@@ -87,13 +99,8 @@ def warm_homepage_cache():
             include_widgets=False,
             cold_start=True,
         ) or {}
-        has_content = bool(
-            payload.get("feed_items")
-            or payload.get("posts")
-            or payload.get("reels")
-            or payload.get("stories")
-            or payload.get("live_rooms")
-        )
+        has_content = _has_content(payload)
+
         if not has_content:
             raise RuntimeError("homepage refresh produced no public content")
 
