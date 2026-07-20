@@ -51,6 +51,9 @@ run_stage() {
   local stderr="$RUN_DIR/${stage}.stderr.log"
   local status_file="$RUN_DIR/${stage}.status"
   local result_file="$RUN_DIR/${stage}.json"
+  if [[ "$stage" == "homepage_report" ]]; then
+    result_file="$RUN_DIR/${stage}_stage.json"
+  fi
   local timeout_s="${STAGE_TIMEOUT_SECONDS:-300}"
   local started finished status result
   started="$(date +%s)"
