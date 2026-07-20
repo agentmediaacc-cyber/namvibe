@@ -122,7 +122,7 @@ if [[ "$DIRECT_FALLBACK" -eq 1 ]]; then
     printf 'launcher_mode=%s\n' "direct_fallback"
   } >>"$RUN_DIR/launcher-status.txt"
   set +e
-  RUN_DIR="$RUN_DIR" bash "$JOB_WRAPPER" "$RUN_DIR" "$REPO" "$RUNTIME_REPO" "$VENV" "$WRAPPER_COPY" >>"$RUN_DIR/host-output.log" 2>>"$RUN_DIR/host-error.log"
+  env -u CODEX_SANDBOX_NETWORK_DISABLED RUN_DIR="$RUN_DIR" bash "$JOB_WRAPPER" "$RUN_DIR" "$REPO" "$RUNTIME_REPO" "$VENV" "$WRAPPER_COPY" >>"$RUN_DIR/host-output.log" 2>>"$RUN_DIR/host-error.log"
   direct_status=$?
   set -e
   printf 'direct_status=%s\n' "$direct_status" >>"$RUN_DIR/launcher-status.txt"
@@ -169,7 +169,7 @@ if [[ "$bootstrap_status" -ne 0 ]]; then
     printf 'launcher_mode=%s\n' "direct_fallback"
   } >>"$RUN_DIR/launcher-status.txt"
   set +e
-  RUN_DIR="$RUN_DIR" bash "$JOB_WRAPPER" "$RUN_DIR" "$REPO" "$RUNTIME_REPO" "$VENV" "$WRAPPER_COPY" >>"$RUN_DIR/host-output.log" 2>>"$RUN_DIR/host-error.log"
+  env -u CODEX_SANDBOX_NETWORK_DISABLED RUN_DIR="$RUN_DIR" bash "$JOB_WRAPPER" "$RUN_DIR" "$REPO" "$RUNTIME_REPO" "$VENV" "$WRAPPER_COPY" >>"$RUN_DIR/host-output.log" 2>>"$RUN_DIR/host-error.log"
   direct_status=$?
   set -e
   printf 'direct_status=%s\n' "$direct_status" >>"$RUN_DIR/launcher-status.txt"
