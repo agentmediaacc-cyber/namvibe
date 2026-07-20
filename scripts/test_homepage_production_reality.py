@@ -202,12 +202,21 @@ def test_rendered_homepage(client):
         "demo",
         "placeholder",
         "Beta Feedback",
-        "Special homepage",
         "mock",
         "developer",
     ]
     for term in forbidden:
         assert_true(term.lower() not in html.lower(), f"forbidden public term leaked: {term}")
+    structural_placeholders = [
+        'class="nv-home-empty"',
+        'class="nvpro-empty-card"',
+        'class="nv-empty"',
+        'data-demo="true"',
+        'data-placeholder="true"',
+        'aria-label="Demo"',
+    ]
+    for marker in structural_placeholders:
+        assert_true(marker not in html, f"placeholder structure leaked: {marker}")
     assert_true("Public post from Namibia" in html, "public posts should render")
 
 

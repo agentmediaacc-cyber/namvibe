@@ -69,6 +69,7 @@ def main() -> int:
         warmup_module._refresh_worker()
         assert warmup_module.is_homepage_refresh_in_flight() is False
         assert warmup_module.wait_for_homepage_refresh(timeout_seconds=0.01) is False
+        assert warmup_module.wait_for_homepage_refresh(timeout_seconds=0.0) is False
 
     stale_payload = {
         "feed_items": [{"id": "post-1"}],
@@ -156,6 +157,17 @@ def main() -> int:
         result = warmup_module.warm_homepage_cache()
         assert result["ok"] is False
         assert "no public content" in result["error"]
+
+    with patch.object(warmup_module, "homepage_cache_info", return_value={"homepage_cached": True, "homepage_age_seconds": 5, "cache_backend": {"backend": "memory", "redis_connected": False, "fallback": True, "latency_ms": 0}}), \
+         patch.object(warmup_module, "mark_homepage_cached") as mark_mock, \
+         patch.object(warmup_module, "set_full") as set_full_mock, \
+         patch.object(warmup_module, "set_cache") as set_cache_mock:
+        result = warmup_module.warm_homepage_cache()
+        assert result["ok"] is True
+        assert result.get("skipped") is True
+        assert mark_mock.call_count == 1
+        assert set_full_mock.call_count == 0
+        assert set_cache_mock.call_count == 0
 
     print("TEST_OK homepage warmup/request coordination")
     return 0
