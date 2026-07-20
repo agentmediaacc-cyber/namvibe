@@ -199,16 +199,16 @@
           </div>
           <div class="nv-home-module-list">
             {% for live in (live_rooms or [])[:3] %}
-            <a class="nv-home-module-row" href="{{ live.watch_url or '/live/' + (live.id|string) }}">
+            <a class="nv-home-module-row" href="{{ live.watch_url or '/live/' + (live.id|string) }}" aria-label="{{ live.creator_name or live.title or 'Live room' }}{% if live.viewer_count is not none %}, {{ live.viewer_count }} watching{% endif %}" title="{{ live.creator_name or live.title or 'Live room' }}">
               <span class="nv-home-module-row__avatar">
                 {% if live.creator_avatar %}
-                <img src="{{ live.creator_avatar }}" alt="" width="40" height="40">
+                <img src="{{ live.creator_avatar }}" alt="{{ live.creator_name or live.title or 'Live room' }}" width="40" height="40">
                 {% else %}
                 <span>{{ (live.creator_name or live.title or 'Live')[:1] }}</span>
                 {% endif %}
               </span>
               <span class="nv-home-module-row__copy">
-                <strong>{{ live.creator_name or live.title or 'Live' }}</strong>
+                <strong title="{{ live.creator_name or live.title or 'Live' }}">{{ live.creator_name or live.title or 'Live' }}</strong>
                 <small>{{ live.viewer_count or 0 }} watching</small>
               </span>
               <span class="nv-home-live-pill">LIVE</span>

@@ -345,6 +345,15 @@ body.nv-homepage-v3 a {
 .nv-home-module-row__copy strong {
   font-size: 14px;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nv-home-module-row__copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nv-home-header {
