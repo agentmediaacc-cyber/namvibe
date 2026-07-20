@@ -426,7 +426,11 @@ summary = {
     "browser_viewports": browser_viewports,
 }
 
-(root / "homepage_verification_results.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+results_path = root / "homepage_verification_results.json"
+summary_path = root / "homepage_verification_summary.txt"
+results_path.write_text(json.dumps(summary, indent=2, sort_keys=True))
+if not results_path.exists() or results_path.stat().st_size == 0:
+    raise SystemExit(f"homepage_verification_results_missing:{results_path}")
 lines = [
     f"verified_commit={summary['verified_commit']}",
     f"gunicorn_pids={' | '.join(gunicorn_pids) if gunicorn_pids else 'none'}",
@@ -447,8 +451,10 @@ for label, data in (("browser_desktop", browser_desktop), ("browser_tablet", bro
         lines.append(f"{label}_overflow={data.get('horizontal_overflow', 0)}")
         lines.append(f"{label}_duplicate_cards={data.get('duplicate_feed_card_count', 0)}")
         lines.append(f"{label}_playing_videos={data.get('playing_video_count', 0)}")
-(root / "homepage_verification_summary.txt").write_text("\n".join(lines) + "\n")
-print(json.dumps({"summary_file": str(root / "homepage_verification_summary.txt"), "results_file": str(root / "homepage_verification_results.json")}))
+summary_path.write_text("\n".join(lines) + "\n")
+if not summary_path.exists() or summary_path.stat().st_size == 0:
+    raise SystemExit(f"homepage_verification_summary_missing:{summary_path}")
+print(json.dumps({"summary_file": str(summary_path), "results_file": str(results_path)}))
 PY
 
   {
