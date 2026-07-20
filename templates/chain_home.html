@@ -323,7 +323,15 @@
             {% endif %}
             {% if item.type == "reel" or item.type == "reels" %}
             <div class="nv-reel-card" data-mobile-reel-card>
+              {% if item.video_url %}
               <video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline preload="metadata"></video>
+              {% else %}
+              <div class="nv-video-fallback" role="img" aria-label="Media unavailable">
+                <i class="fas fa-film" aria-hidden="true"></i>
+                <strong>Media unavailable</strong>
+                <span>This reel could not be loaded right now.</span>
+              </div>
+              {% endif %}
               <div class="nvpro-video-overlay nv-heart-burst" style="display:none;">
                 <svg width="60" height="60" viewBox="0 0 24 24" fill="#7dd3fc"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
               </div>
@@ -349,6 +357,14 @@
             <div class="nvpro-post-media nv-media"><img src="{{ item.image_url or item.media_url }}" alt="" width="100%" height="auto" loading="lazy"></div>
             {% elif item.video_url %}
             <div class="nvpro-post-media nv-media" data-mobile-reel-card><video src="{{ item.video_url }}" poster="{{ item.thumbnail_url }}" controls playsinline preload="metadata"></video></div>
+            {% elif item.type == "video" or item.type == "videos" %}
+            <div class="nvpro-post-media nv-media" data-mobile-reel-card>
+              <div class="nv-video-fallback" role="img" aria-label="Media unavailable">
+                <i class="fas fa-film" aria-hidden="true"></i>
+                <strong>Media unavailable</strong>
+                <span>This video could not be loaded right now.</span>
+              </div>
+            </div>
             {% endif %}
             <div class="nvpro-post-actions nv-actions">
               <button type="button" data-action="like" data-id="{{ item.id }}"
