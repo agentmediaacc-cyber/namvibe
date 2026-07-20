@@ -58,8 +58,9 @@ def choose_browser(p, retries: int = 3):
     return None, tried, type(last_error).__name__ if last_error else 'browser_launch_failed'
 
 
-def exercise_routes(page, base: str, routes: Iterable[str]):
+def exercise_routes(page, base: str, routes: Iterable[str], page_errors: list[str] | None = None):
     failures = []
+    seen_page_errors = len(page_errors) if page_errors is not None else 0
     for route in routes:
         try:
             resp = page.goto(f"{base}{route}", wait_until="domcontentloaded")
@@ -67,6 +68,9 @@ def exercise_routes(page, base: str, routes: Iterable[str]):
                 failures.append((route, f"http_{resp.status}"))
                 continue
             page.wait_for_timeout(2500 if route == "/" else 800)
+            if page_errors is not None and len(page_errors) > seen_page_errors:
+                failures.append((route, f"page_errors={page_errors[seen_page_errors:seen_page_errors + 3]}"))
+                seen_page_errors = len(page_errors)
         except Exception as exc:
             failures.append((route, type(exc).__name__))
     return failures
@@ -108,7 +112,12 @@ def run_smoke(routes, extra_assert=None, viewports=None):
                     page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" and all(code not in msg.text for code in ("429", "401", "404", "[NV Stories] feed error")) else None)
                     page.on("pageerror", lambda exc: page_errors.append(str(exc)))
                     page.on("requestfailed", lambda req: failed_requests.append({"url": req.url, "error": getattr(req.failure, "error_text", None) if getattr(req, "failure", None) else None}))
-                    failures = exercise_routes(page, base, routes)
+                    failures = exercise_routes(page, base, routes, page_errors)
+                    try:
+                        page.goto(f"{base}/", wait_until="domcontentloaded")
+                        page.wait_for_timeout(1500)
+                    except Exception as exc:
+                        failures.append(("/", type(exc).__name__))
                     if extra_assert:
                         extra_assert(page, label)
                     screenshot_path = ARTIFACT_DIR / f"{label}.png"
