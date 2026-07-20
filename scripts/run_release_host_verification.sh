@@ -307,204 +307,13 @@ PY
 
   run_stage log_secret_scan "$PYTHON_BIN" "$REPO/scripts/test_startup_logs_no_secrets.py"
 
-  run_stage homepage_report "$PYTHON_BIN" - <<'PY'
-import json
-import os
-import pathlib
-import re
-import subprocess
-from statistics import median
+  run_stage homepage_report "$PYTHON_BIN" "$REPO/scripts/generate_homepage_verification_report.py" --run-dir "$RUN_DIR" --repo-root "$REPO" --runtime-repo "$RUNTIME_REPO"
+  run_stage homepage_report_validation "$PYTHON_BIN" "$REPO/scripts/validate_homepage_verification_report.py" "$RUN_DIR/homepage_verification_results.json" --run-dir "$RUN_DIR" --legacy-json "$RUN_DIR/homepage_report.json" --legacy-summary "$RUN_DIR/homepage_report.txt" --canonical-summary "$RUN_DIR/homepage_verification_summary.txt"
 
-root = pathlib.Path(os.environ["RUN_DIR"])
-runtime_root = pathlib.Path(os.environ["RUNTIME_REPO"])
-
-def curl_sample(url: str, count: int = 5):
-    samples = []
-    for _ in range(count):
-        cp = subprocess.run(
-            ["curl", "--ipv4", "--connect-timeout", "5", "--max-time", "20", "-sS", "-o", "/dev/null", "-w", "%{http_code} %{time_total}", url],
-            capture_output=True,
-            text=True,
-        )
-        code, timing = ("", "0")
-        if cp.returncode == 0 and cp.stdout.strip():
-            parts = cp.stdout.strip().split()
-            if len(parts) >= 2:
-                code, timing = parts[0], parts[1]
-        samples.append({"http_code": code, "time_total": float(timing or 0)})
-    return samples
-
-def sample_stats(samples):
-    times = [s["time_total"] for s in samples if s["time_total"] >= 0]
-    if not times:
-        return {"samples": samples, "min": None, "median": None, "p95": None, "max": None}
-    ordered = sorted(times)
-    p95_idx = min(len(ordered) - 1, max(0, int(round(len(ordered) * 0.95)) - 1))
-    return {
-        "samples": samples,
-        "min": min(times),
-        "median": median(times),
-        "p95": ordered[p95_idx],
-        "max": max(times),
-    }
-
-def read_json_lines(path):
-    if not path.exists():
-        return []
-    items = []
-    for line in path.read_text().splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            items.append(json.loads(line))
-        except Exception:
-            continue
-    return items
-
-def latest_json(path):
-    items = read_json_lines(path)
-    return items[-1] if items else {}
-
-def viewport_summary(label, path):
-    if not path.exists():
-        return {"stage": label, "result": "MISSING_ARTIFACT", "status": "MISSING_ARTIFACT"}
-    data = viewport_result_map(path).get(label) or latest_json(path)
-    if not data:
-        return {"stage": label, "result": "NOT_RUN", "status": "NOT_RUN"}
-    data.setdefault("stage", label)
-    data.setdefault("result", "NOT_RUN")
-    data.setdefault("status", data["result"])
-    return data
-
-def viewport_result_map(path):
-    results = {}
-    for item in read_json_lines(path):
-        stage = item.get("stage")
-        if stage in {"browser_desktop", "browser_tablet", "browser_mobile", "browser_small_mobile"}:
-            results[stage] = item
-    return results
-
-browser_desktop = viewport_summary("browser_desktop", root / "browser_desktop.stdout.log")
-browser_tablet = viewport_summary("browser_tablet", root / "browser_tablet.stdout.log")
-browser_mobile = viewport_summary("browser_mobile", root / "browser_mobile.stdout.log")
-browser_small_mobile = viewport_summary("browser_small_mobile", root / "browser_small_mobile.stdout.log")
-browser_viewports = {}
-browser_viewports.update(viewport_result_map(root / "browser_desktop.stdout.log"))
-browser_viewports.update(viewport_result_map(root / "browser_tablet.stdout.log"))
-browser_viewports.update(viewport_result_map(root / "browser_mobile.stdout.log"))
-browser_viewports.update(viewport_result_map(root / "browser_small_mobile.stdout.log"))
-local_health = curl_sample("http://127.0.0.1:8080/healthz", 5)
-local_home = curl_sample("http://127.0.0.1:8080/", 5)
-local_feed = curl_sample("http://127.0.0.1:8080/api/homepage/feed", 5)
-public_health = curl_sample("https://namvibe.com/healthz", 5)
-public_home = curl_sample("https://namvibe.com/", 5)
-
-try:
-    gunicorn_pids = subprocess.check_output(["pgrep", "-af", "gunicorn.*app:app"], text=True).splitlines()
-except Exception:
-    gunicorn_pids = []
-try:
-    cloudflared_pids = subprocess.check_output(["pgrep", "-af", "cloudflared.*namvibe"], text=True).splitlines()
-except Exception:
-    cloudflared_pids = []
-
-summary = {
-    "run_dir": str(root),
-    "verified_commit": subprocess.check_output(["git", "-C", str(runtime_root), "rev-parse", "HEAD"], text=True).strip(),
-    "local_health": sample_stats(local_health),
-    "local_home": sample_stats(local_home),
-    "local_feed": sample_stats(local_feed),
-    "public_health": sample_stats(public_health),
-    "public_home": sample_stats(public_home),
-    "gunicorn_pids": gunicorn_pids,
-    "cloudflared_pids": cloudflared_pids,
-    "browser_desktop": browser_desktop,
-    "browser_tablet": browser_tablet,
-    "browser_mobile": browser_mobile,
-    "browser_small_mobile": browser_small_mobile,
-    "browser_viewports": browser_viewports,
-}
-
-results_path = root / "homepage_verification_results.json"
-summary_path = root / "homepage_verification_summary.txt"
-legacy_results_path = root / "homepage_report.json"
-legacy_summary_path = root / "homepage_report.txt"
-results_payload = json.dumps(summary, indent=2, sort_keys=True)
-results_path.write_text(results_payload)
-legacy_results_path.write_text(results_payload)
-if not results_path.exists() or results_path.stat().st_size == 0:
-    raise SystemExit(f"homepage_verification_results_missing:{results_path}")
-lines = [
-    f"verified_commit={summary['verified_commit']}",
-    f"gunicorn_pids={' | '.join(gunicorn_pids) if gunicorn_pids else 'none'}",
-    f"cloudflared_pids={' | '.join(cloudflared_pids) if cloudflared_pids else 'none'}",
-]
-for label, key in (("local_health", "local_health"), ("local_home", "local_home"), ("local_feed", "local_feed"), ("public_health", "public_health"), ("public_home", "public_home")):
-    stat = summary[key]
-    lines.append(f"{label}_median={stat['median']}")
-    lines.append(f"{label}_p95={stat['p95']}")
-    lines.append(f"{label}_worst={stat['max']}")
-for label, data in (("browser_desktop", browser_desktop), ("browser_tablet", browser_tablet), ("browser_mobile", browser_mobile), ("browser_small_mobile", browser_small_mobile)):
-    if data:
-        lines.append(f"{label}_result={data.get('result', 'NOT_RUN')}")
-        lines.append(f"{label}_screenshot={data.get('screenshot_path', '')}")
-        lines.append(f"{label}_console_errors={data.get('console_error_count', 0)}")
-        lines.append(f"{label}_page_errors={data.get('page_error_count', 0)}")
-        lines.append(f"{label}_failed_requests={data.get('failed_first_party_request_count', 0)}")
-        lines.append(f"{label}_overflow={data.get('horizontal_overflow', 0)}")
-        lines.append(f"{label}_duplicate_cards={data.get('duplicate_feed_card_count', 0)}")
-        lines.append(f"{label}_playing_videos={data.get('playing_video_count', 0)}")
-summary_payload = "\n".join(lines) + "\n"
-summary_path.write_text(summary_payload)
-legacy_summary_path.write_text(summary_payload)
-if not summary_path.exists() or summary_path.stat().st_size == 0:
-    raise SystemExit(f"homepage_verification_summary_missing:{summary_path}")
-print(json.dumps({"summary_file": str(summary_path), "results_file": str(results_path), "legacy_summary_file": str(legacy_summary_path), "legacy_results_file": str(legacy_results_path)}))
-PY
-
-  if [[ ! -s "$RUN_DIR/homepage_verification_results.json" && -s "$RUN_DIR/homepage_report.json" ]]; then
-    cp "$RUN_DIR/homepage_report.json" "$RUN_DIR/homepage_verification_results.json"
+  if [[ "$(cat "$RUN_DIR/homepage_report_validation.status" 2>/dev/null || echo FAIL)" != "PASS" ]]; then
+    printf 'FAIL\n' >"$RUN_DIR/homepage_report.status"
   fi
-  if [[ ! -s "$RUN_DIR/homepage_report.json" && -s "$RUN_DIR/homepage_verification_results.json" ]]; then
-    cp "$RUN_DIR/homepage_verification_results.json" "$RUN_DIR/homepage_report.json"
-  fi
-  if [[ ! -s "$RUN_DIR/homepage_verification_summary.txt" || ! -s "$RUN_DIR/homepage_report.txt" ]]; then
-    "$PYTHON_BIN" - "$RUN_DIR/homepage_verification_results.json" "$RUN_DIR/homepage_verification_summary.txt" "$RUN_DIR/homepage_report.txt" <<'PY'
-import json
-import sys
-from pathlib import Path
 
-results_path = Path(sys.argv[1])
-summary_path = Path(sys.argv[2])
-legacy_summary_path = Path(sys.argv[3])
-data = json.loads(results_path.read_text())
-
-lines = [
-    f"verified_commit={data.get('verified_commit', '')}",
-    f"gunicorn_pids={' | '.join(data.get('gunicorn_pids', [])) if data.get('gunicorn_pids') else 'none'}",
-    f"cloudflared_pids={' | '.join(data.get('cloudflared_pids', [])) if data.get('cloudflared_pids') else 'none'}",
-]
-for label in ("local_health", "local_home", "local_feed", "public_health", "public_home"):
-    stat = data.get(label, {})
-    lines.append(f"{label}_median={stat.get('median')}")
-    lines.append(f"{label}_p95={stat.get('p95')}")
-    lines.append(f"{label}_worst={stat.get('max')}")
-for label in ("browser_desktop", "browser_tablet", "browser_mobile", "browser_small_mobile"):
-    vp = data.get(label, {})
-    lines.append(f"{label}_result={vp.get('result', 'NOT_RUN')}")
-    lines.append(f"{label}_screenshot={vp.get('screenshot_path', '')}")
-    lines.append(f"{label}_console_errors={vp.get('console_error_count', 0)}")
-    lines.append(f"{label}_page_errors={vp.get('page_error_count', 0)}")
-    lines.append(f"{label}_failed_requests={vp.get('failed_first_party_request_count', 0)}")
-    lines.append(f"{label}_overflow={vp.get('horizontal_overflow', 0)}")
-    lines.append(f"{label}_duplicate_cards={vp.get('duplicate_feed_card_count', 0)}")
-    lines.append(f"{label}_playing_videos={vp.get('playing_video_count', 0)}")
-summary_payload = "\n".join(lines) + "\n"
-summary_path.write_text(summary_payload)
-legacy_summary_path.write_text(summary_payload)
-PY
-  fi
   if [[ ! -s "$RUN_DIR/homepage_verification_results.json" || ! -s "$RUN_DIR/homepage_verification_summary.txt" || ! -s "$RUN_DIR/homepage_report.json" || ! -s "$RUN_DIR/homepage_report.txt" ]]; then
     echo "homepage_report_artifacts_missing=1" >>"$RUN_DIR/homepage_report.stderr.log"
     printf 'FAIL\n' >"$RUN_DIR/homepage_report.status"
@@ -548,10 +357,11 @@ PY
     echo "runtime_log_scan=$(cat "$RUN_DIR/runtime_log_scan.status" 2>/dev/null || echo SKIPPED_DUE_TO_PREVIOUS_FAILURE)"
     echo "log_secret_scan=$(cat "$RUN_DIR/log_secret_scan.status" 2>/dev/null || echo SKIPPED_DUE_TO_PREVIOUS_FAILURE)"
     echo "homepage_report=$(cat "$RUN_DIR/homepage_report.status" 2>/dev/null || echo SKIPPED_DUE_TO_PREVIOUS_FAILURE)"
+    echo "homepage_report_validation=$(cat "$RUN_DIR/homepage_report_validation.status" 2>/dev/null || echo SKIPPED_DUE_TO_PREVIOUS_FAILURE)"
   } >"$RUN_DIR/final_summary.txt"
 
   local failure=0
-  for stage in tracked_secret_scan dependency_check compile_check database_path_selection neon_dns neon_connection call_security_integration gunicorn_restart gunicorn_listener gunicorn_sequential_health gunicorn_sequential_homepage gunicorn_concurrent_health local_routes cloudflare_process cloudflare_connection public_dns public_tls public_routes socketio_handshake browser_desktop browser_tablet browser_mobile browser_small_mobile runtime_log_scan log_secret_scan homepage_report; do
+  for stage in tracked_secret_scan dependency_check compile_check database_path_selection neon_dns neon_connection call_security_integration gunicorn_restart gunicorn_listener gunicorn_sequential_health gunicorn_sequential_homepage gunicorn_concurrent_health local_routes cloudflare_process cloudflare_connection public_dns public_tls public_routes socketio_handshake browser_desktop browser_tablet browser_mobile browser_small_mobile runtime_log_scan log_secret_scan homepage_report homepage_report_validation; do
     if [[ -f "$RUN_DIR/${stage}.status" ]]; then
       if [[ "$(cat "$RUN_DIR/${stage}.status")" != "PASS" ]]; then
         failure=1
