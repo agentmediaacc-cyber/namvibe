@@ -838,9 +838,24 @@ body.nv-homepage-v3 a {
   border-radius: 20px;
 }
 
+.nv-homepage .nv-reel-card,
+.nv-homepage .nvpro-post-media[data-mobile-reel-card] {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #050b16;
+  aspect-ratio: 9 / 16;
+}
+
+.nv-homepage .nv-reel-card .nv-video-fallback,
+.nv-homepage .nvpro-post-media[data-mobile-reel-card] .nv-video-fallback {
+  min-height: 100%;
+}
+
 .nv-homepage .nv-reel-card video {
   aspect-ratio: 9 / 16;
   object-fit: cover;
+  max-height: min(76vh, 760px);
 }
 
 .nv-homepage .nv-stats-bar {
