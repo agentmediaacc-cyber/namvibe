@@ -369,7 +369,7 @@ def latest_json(path):
 def viewport_summary(label, path):
     if not path.exists():
         return {"stage": label, "result": "MISSING_ARTIFACT", "status": "MISSING_ARTIFACT"}
-    data = latest_json(path)
+    data = viewport_result_map(path).get(label) or latest_json(path)
     if not data:
         return {"stage": label, "result": "NOT_RUN", "status": "NOT_RUN"}
     data.setdefault("stage", label)
