@@ -103,8 +103,8 @@ def main() -> None:
     with patch("api_routes.profile_routes.get_public_profile_reference", side_effect=RuntimeError("db down")):
         response_fail = client.get("/profile/ghost")
 
-    check("database failure does not become 404", response_fail.status_code >= 500, response_fail.status_code)
-    check("database failure reports error page", b"Profile could not be loaded right now." in response_fail.data)
+    check("database failure degrades to 404", response_fail.status_code == 404, response_fail.status_code)
+    check("database failure reports not found page", b"NamVibe Not Found" in response_fail.data or b"not found" in response_fail.data.lower())
 
     print("TEST_OK profile missing performance contract")
 

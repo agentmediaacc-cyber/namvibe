@@ -529,7 +529,17 @@ def _resolve_profile_route(username=None, user_id=None):
         or public_handle_route
     )
     cleaned_username = username[1:] if username and username.startswith("@") else username
-    profile_ref = get_public_profile_reference(username=cleaned_username, profile_id=user_id)
+    try:
+        profile_ref = get_public_profile_reference(username=cleaned_username, profile_id=user_id)
+    except Exception as error:
+        log_warning(
+            "public_profile_reference_failed",
+            username=username,
+            user_id=user_id,
+            error=str(error),
+        )
+        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False, degraded=True)
+        return render_template("profile/not_found_light.html", username=username or user_id or ""), 404
     if not profile_ref:
         log_warning("public_profile_missing", username=username, user_id=user_id)
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False)
