@@ -20,6 +20,7 @@ def main() -> int:
         'git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel',
         'if [[ -x "$SOURCE_REPO/venv/bin/python3" ]]; then',
         'SOURCE_VENV="$HOME/Desktop/chain_app/venv"',
+        'if [[ ! -f "$SOURCE_ENV_REPO/.env" && -f "$HOME/Desktop/chain_app/.env" ]]; then',
     ]
     missing = [needle for needle in required if needle not in text]
     if missing:

@@ -36,6 +36,9 @@ if [[ -z "$SOURCE_VENV" ]]; then
   fi
 fi
 SOURCE_ENV_REPO="${SOURCE_ENV_REPO:-$SOURCE_REPO}"
+if [[ ! -f "$SOURCE_ENV_REPO/.env" && -f "$HOME/Desktop/chain_app/.env" ]]; then
+  SOURCE_ENV_REPO="$HOME/Desktop/chain_app"
+fi
 WAIT="${WAIT:-0}"
 WAIT_TIMEOUT_SECONDS="${WAIT_TIMEOUT_SECONDS:-3600}"
 DIRECT_FALLBACK="${DIRECT_FALLBACK:-0}"
