@@ -86,6 +86,13 @@
             <span class="nv-home-kicker">NamVibe Today</span>
             <h1>Welcome back, {{ viewer_name }}</h1>
             <p>Real people, real conversations, and fresh content across your network.</p>
+            <form class="nv-home-search" action="/search" method="get" autocomplete="off" role="search">
+              <label class="sr-only" for="nv-home-search-input">Search NamVibe</label>
+              <span class="nv-home-search__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+              <input id="nv-home-search-input" type="search" name="q" aria-label="Search NamVibe" value="{{ request.args.get('q', '') }}">
+            </form>
           </div>
           <div class="nv-home-header__actions">
             <a class="nv-home-icon-button" href="{{ discover_route or '/discover/' }}" aria-label="Open Discover">
@@ -608,13 +615,46 @@ window.reportHomepageError=function(scope,error){console.error('[namvibe-home:'+
 window.safeHandler=function(scope,fn){return function(event){try{return fn ? fn(event) : undefined;}catch(error){window.reportHomepageError(scope,error);}};};
 U.nvDebounce=function(fn,ms){var t;return function(){clearTimeout(t);t=setTimeout(fn,ms||300);};};
 var socket=window.io&&window.io();
-if(socket){socket.on('story:new',function(){if(window.loadStories)window.loadStories();});
+if(socket){
+socket.on('story:new',function(){if(window.loadStories)window.loadStories();});
 socket.on('live:started',function(){if(window.refreshLiveRooms)window.refreshLiveRooms();});
-socket.on('homepage:stats',function(d){if(d&&typeof d.online_count!=='undefined'){var e=document.getElementById('nvStatOnline');if(e)e.textContent=d.online_count;}
+socket.on('homepage:stats',function(d){
+if(d&&typeof d.online_count!=='undefined'){var e=document.getElementById('nvStatOnline');if(e)e.textContent=d.online_count;}
 if(d&&typeof d.live_count!=='undefined'){var e2=document.getElementById('nvStatLive');if(e2)e2.textContent=d.live_count;}
-if(d&&d.online_users&&Array.isArray(d.online_users)){var wrap=document.getElementById('nvStatAvatars');if(wrap){wrap.innerHTML='';d.online_users.slice(0,5).forEach(function(u){var a=document.createElement('a');a.href='/profile/'+u.id;a.className='nv-stat-avatar-wrap';a.title='Message '+(u.display_name||u.username);var img=document.createElement('img');img.src=u.avatar_url||u.thumbnail_url||'/static/img/default-avatar.png';img.alt=u.display_name||u.username;img.className='nv-stat-avatar';img.loading='lazy';a.appendChild(img);var dot=document.createElement('span');dot.className='nv-stat-online-dot';a.appendChild(dot);wrap.appendChild(a);});if(d.online_users.length>5){var more=document.createElement('a');more.href='/discover/?online=1';more.className='nv-stat-more';more.title='View all online users';more.textContent='+'+(d.online_users.length-5);wrap.appendChild(more);}}}});}
+if(d&&d.online_users&&Array.isArray(d.online_users)){
+var wrap=document.getElementById('nvStatAvatars');
+if(wrap){
+wrap.innerHTML='';
+d.online_users.slice(0,5).forEach(function(u){
+var a=document.createElement('a');
+a.href='/profile/'+u.id;
+a.className='nv-stat-avatar-wrap';
+a.title='Message '+(u.display_name||u.username);
+var img=document.createElement('img');
+img.src=u.avatar_url||u.thumbnail_url||'/static/img/default-avatar.png';
+img.alt=u.display_name||u.username;
+img.className='nv-stat-avatar';
+img.loading='lazy';
+a.appendChild(img);
+var dot=document.createElement('span');
+dot.className='nv-stat-online-dot';
+a.appendChild(dot);
+wrap.appendChild(a);
+});
+if(d.online_users.length>5){
+var more=document.createElement('a');
+more.href='/discover/?online=1';
+more.className='nv-stat-more';
+more.title='View all online users';
+more.textContent='+'+(d.online_users.length-5);
+wrap.appendChild(more);
+}
+}
+}
+});
 socket.emit('homepage:get_stats');
-setInterval(function(){try{socket.emit('homepage:get_stats');}catch(e){}},30000);}
+setInterval(function(){try{socket.emit('homepage:get_stats');}catch(e){}},30000);
+}
 window.openBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='block';s.setAttribute('aria-hidden','false');document.body.classList.add('nv-overlay-open');}};
 window.closeBottomSheet=function(){var s=document.getElementById('bottomSheetOverlay');if(s){s.style.display='none';s.setAttribute('aria-hidden','true');document.body.classList.remove('nv-overlay-open');}};
 window.nvShareAction=function(url){if(navigator.share){navigator.share({url:url||window.location.href});}else if(navigator.clipboard){navigator.clipboard.writeText(url||window.location.href);U.toast&&U.toast('Link copied');}};
