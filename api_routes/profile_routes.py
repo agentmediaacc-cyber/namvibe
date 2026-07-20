@@ -4,7 +4,7 @@ import traceback
 from datetime import datetime, timezone
 from functools import wraps
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for, jsonify, make_response
 from werkzeug.utils import secure_filename
 
 from services.auth_service import refresh_chain_session, set_current_user_password
@@ -96,6 +96,28 @@ UPLOAD_MAP = {
     "cover": "static/uploads/profile/covers",
     "verification": "static/uploads/profile/verifications",
 }
+
+
+def _profile_not_found_light_response(username: str | None = ""):
+    handle = (username or "").lstrip("@")
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile Not Found | NamVibe</title>
+</head>
+<body>
+  <main role="main">
+    <h1>@{handle} not found</h1>
+    <p>The profile you were looking for does not exist or is unavailable right now.</p>
+    <p><a href="/">Return Home</a> <a href="/discover/">Discover People</a></p>
+  </main>
+</body>
+</html>"""
+    response = make_response(html, 404)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def _is_production_env():
@@ -539,17 +561,17 @@ def _resolve_profile_route(username=None, user_id=None):
             error=str(error),
         )
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False, degraded=True)
-        return render_template("profile/not_found_light.html", username=username or user_id or ""), 404
+        return _profile_not_found_light_response(username or user_id or "")
     if not profile_ref:
         log_warning("public_profile_missing", username=username, user_id=user_id)
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False)
-        return render_template("profile/not_found_light.html", username=username or user_id or ""), 404
+        return _profile_not_found_light_response(username or user_id or "")
 
     visibility = str(profile_ref.get("visibility") or "public").strip().lower()
     if profile_ref.get("is_public") is False or visibility in {"private", "friends", "followers"}:
         log_warning("public_profile_hidden", username=username, user_id=user_id, visibility=visibility)
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=True, visibility=visibility, hidden=True)
-        return render_template("profile/not_found_light.html", username=username or user_id or ""), 404
+        return _profile_not_found_light_response(username or user_id or "")
 
     profile = profile_ref
     viewer = None if fast_profile_shell else (get_current_profile() if is_logged_in() else None)
@@ -565,8 +587,18 @@ def _resolve_profile_route(username=None, user_id=None):
             "is_verified": bool(profile.get("verified") or profile.get("is_verified")),
             "full_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
         }
-        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public", shell=True)
-        return render_template("profile/public.html", profile=shell_profile, viewer=None, content={"posts": [], "reels": [], "rooms": []}), 200
+        try:
+            log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public", shell=True)
+            return render_template("profile/public.html", profile=shell_profile, viewer=None, content={"posts": [], "reels": [], "rooms": []}), 200
+        except Exception as error:
+            log_warning(
+                "public_profile_shell_render_failed",
+                username=username,
+                user_id=user_id,
+                error=str(error),
+            )
+            log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False, degraded=True, shell=True)
+            return _profile_not_found_light_response(username or user_id or "")
 
     if viewer and viewer.get("id") != profile.get("id"):
         record_profile_view(profile.get("id"), viewer.get("id"))

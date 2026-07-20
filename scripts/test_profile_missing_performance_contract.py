@@ -106,6 +106,13 @@ def main() -> None:
     check("database failure degrades to 404", response_fail.status_code == 404, response_fail.status_code)
     check("database failure reports not found page", b"NamVibe Not Found" in response_fail.data or b"not found" in response_fail.data.lower())
 
+    with patch("api_routes.profile_routes.get_public_profile_reference", return_value=profile), \
+         patch("api_routes.profile_routes.render_template", side_effect=RuntimeError("template crash")):
+        response_render_fail = client.get("/profile/publiccreator")
+
+    check("public profile render failure degrades to 404", response_render_fail.status_code == 404, response_render_fail.status_code)
+    check("public profile render failure reports not found page", b"NamVibe Not Found" in response_render_fail.data or b"not found" in response_render_fail.data.lower())
+
     print("TEST_OK profile missing performance contract")
 
 
