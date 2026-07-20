@@ -466,8 +466,44 @@ PY
   if [[ ! -s "$RUN_DIR/homepage_verification_results.json" && -s "$RUN_DIR/homepage_report.json" ]]; then
     cp "$RUN_DIR/homepage_report.json" "$RUN_DIR/homepage_verification_results.json"
   fi
-  if [[ ! -s "$RUN_DIR/homepage_verification_summary.txt" && -s "$RUN_DIR/homepage_report.txt" ]]; then
-    cp "$RUN_DIR/homepage_report.txt" "$RUN_DIR/homepage_verification_summary.txt"
+  if [[ ! -s "$RUN_DIR/homepage_report.json" && -s "$RUN_DIR/homepage_verification_results.json" ]]; then
+    cp "$RUN_DIR/homepage_verification_results.json" "$RUN_DIR/homepage_report.json"
+  fi
+  if [[ ! -s "$RUN_DIR/homepage_verification_summary.txt" || ! -s "$RUN_DIR/homepage_report.txt" ]]; then
+    "$PYTHON_BIN" - "$RUN_DIR/homepage_verification_results.json" "$RUN_DIR/homepage_verification_summary.txt" "$RUN_DIR/homepage_report.txt" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+results_path = Path(sys.argv[1])
+summary_path = Path(sys.argv[2])
+legacy_summary_path = Path(sys.argv[3])
+data = json.loads(results_path.read_text())
+
+lines = [
+    f"verified_commit={data.get('verified_commit', '')}",
+    f"gunicorn_pids={' | '.join(data.get('gunicorn_pids', [])) if data.get('gunicorn_pids') else 'none'}",
+    f"cloudflared_pids={' | '.join(data.get('cloudflared_pids', [])) if data.get('cloudflared_pids') else 'none'}",
+]
+for label in ("local_health", "local_home", "local_feed", "public_health", "public_home"):
+    stat = data.get(label, {})
+    lines.append(f"{label}_median={stat.get('median')}")
+    lines.append(f"{label}_p95={stat.get('p95')}")
+    lines.append(f"{label}_worst={stat.get('max')}")
+for label in ("browser_desktop", "browser_tablet", "browser_mobile", "browser_small_mobile"):
+    vp = data.get(label, {})
+    lines.append(f"{label}_result={vp.get('result', 'NOT_RUN')}")
+    lines.append(f"{label}_screenshot={vp.get('screenshot_path', '')}")
+    lines.append(f"{label}_console_errors={vp.get('console_error_count', 0)}")
+    lines.append(f"{label}_page_errors={vp.get('page_error_count', 0)}")
+    lines.append(f"{label}_failed_requests={vp.get('failed_first_party_request_count', 0)}")
+    lines.append(f"{label}_overflow={vp.get('horizontal_overflow', 0)}")
+    lines.append(f"{label}_duplicate_cards={vp.get('duplicate_feed_card_count', 0)}")
+    lines.append(f"{label}_playing_videos={vp.get('playing_video_count', 0)}")
+summary_payload = "\n".join(lines) + "\n"
+summary_path.write_text(summary_payload)
+legacy_summary_path.write_text(summary_payload)
+PY
   fi
   if [[ ! -s "$RUN_DIR/homepage_verification_results.json" || ! -s "$RUN_DIR/homepage_verification_summary.txt" || ! -s "$RUN_DIR/homepage_report.json" || ! -s "$RUN_DIR/homepage_report.txt" ]]; then
     echo "homepage_report_artifacts_missing=1" >>"$RUN_DIR/homepage_report.stderr.log"
