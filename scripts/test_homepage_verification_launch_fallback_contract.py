@@ -17,10 +17,13 @@ def main() -> int:
         "bootstrap_status",
         "RUN_DIR=\"$RUN_DIR\" bash \"$JOB_WRAPPER\"",
         "SOURCE_ENV_REPO",
+        'git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel',
     ]
     missing = [needle for needle in required if needle not in text]
     if missing:
         raise SystemExit(f"missing_contract_tokens: {missing}")
+    if "$HOME/Desktop/chain_app" in text:
+        raise SystemExit("launcher still hardcodes Desktop checkout")
     print("TEST_OK homepage launch fallback contract")
     return 0
 

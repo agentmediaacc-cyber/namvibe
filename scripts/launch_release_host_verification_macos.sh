@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SOURCE_REPO="${REPO:-$HOME/Desktop/chain_app}"
-SOURCE_RUNTIME_REPO="${RUNTIME_REPO:-$SOURCE_REPO}"
-SOURCE_VENV="${VENV:-$SOURCE_REPO/venv}"
-SOURCE_ENV_REPO="${ENV_REPO:-$SOURCE_REPO}"
+SOURCE_REPO="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel)"
+SOURCE_RUNTIME_REPO=""
+SOURCE_VENV=""
+SOURCE_ENV_REPO=""
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 LABEL="com.namvibe.release-verification.$RUN_ID"
 DOMAIN="gui/$(id -u)"
@@ -26,6 +26,9 @@ while [[ $# -gt 0 ]]; do
       exit 2 ;;
   esac
 done
+SOURCE_RUNTIME_REPO="${SOURCE_RUNTIME_REPO:-$SOURCE_REPO}"
+SOURCE_VENV="${SOURCE_VENV:-$SOURCE_REPO/venv}"
+SOURCE_ENV_REPO="${SOURCE_ENV_REPO:-$SOURCE_REPO}"
 WAIT="${WAIT:-0}"
 WAIT_TIMEOUT_SECONDS="${WAIT_TIMEOUT_SECONDS:-3600}"
 DIRECT_FALLBACK="${DIRECT_FALLBACK:-0}"
