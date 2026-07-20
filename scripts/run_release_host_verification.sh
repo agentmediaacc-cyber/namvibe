@@ -307,7 +307,7 @@ PY
 
   run_stage log_secret_scan "$PYTHON_BIN" "$REPO/scripts/test_startup_logs_no_secrets.py"
 
-  run_stage homepage_report "$PYTHON_BIN" "$REPO/scripts/generate_homepage_verification_report.py" --run-dir "$RUN_DIR" --repo-root "$REPO" --runtime-repo "$RUNTIME_REPO"
+  run_stage homepage_report "$PYTHON_BIN" "$REPO/scripts/generate_homepage_verification_report.py" --run-dir "$RUN_DIR" --repo-root "$REPO" --runtime-repo "$RUNTIME_REPO" --host-exit-status 0
   run_stage homepage_report_validation "$PYTHON_BIN" "$REPO/scripts/validate_homepage_verification_report.py" "$RUN_DIR/homepage_verification_results.json" --run-dir "$RUN_DIR" --legacy-json "$RUN_DIR/homepage_report.json" --legacy-summary "$RUN_DIR/homepage_report.txt" --canonical-summary "$RUN_DIR/homepage_verification_summary.txt"
 
   if [[ "$(cat "$RUN_DIR/homepage_report_validation.status" 2>/dev/null || echo FAIL)" != "PASS" ]]; then

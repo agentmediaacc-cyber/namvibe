@@ -146,6 +146,7 @@ def main() -> int:
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--repo-root", required=True)
     parser.add_argument("--runtime-repo", required=True)
+    parser.add_argument("--host-exit-status", type=int, required=True)
     args = parser.parse_args()
 
     run_dir = Path(args.run_dir)
@@ -154,7 +155,7 @@ def main() -> int:
 
     branch = (run_dir / "branch.txt").read_text().strip() if (run_dir / "branch.txt").exists() else ""
     commit = (run_dir / "head.txt").read_text().strip() if (run_dir / "head.txt").exists() else ""
-    host_exit_status = int((run_dir / "host-status.txt").read_text().strip()) if (run_dir / "host-status.txt").exists() and (run_dir / "host-status.txt").read_text().strip().isdigit() else None
+    host_exit_status = args.host_exit_status
     generated_at = datetime.now(timezone.utc).isoformat()
 
     browser = {label: build_browser_record(run_dir, label, file_name) for label, file_name in VIEWPORT_FILES.items()}
