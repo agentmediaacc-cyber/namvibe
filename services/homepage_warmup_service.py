@@ -102,7 +102,18 @@ def warm_homepage_cache():
         has_content = _has_content(payload)
 
         if not has_content:
-            raise RuntimeError("homepage refresh produced no public content")
+            log_warning(
+                "homepage_cache_warmup_empty",
+                reason="no_public_content",
+                duration_ms=round((time.perf_counter() - started) * 1000, 2),
+            )
+            return {
+                "ok": False,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                "cache": homepage_cache_info(),
+                "error": "homepage refresh produced no public content",
+                "warning": "empty_cold_start",
+            }
 
         # Store a minimal full context from the payload (avoids duplicate
         # expensive calls to get_homepage_data on cold start)

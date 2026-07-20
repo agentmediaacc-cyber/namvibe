@@ -153,10 +153,14 @@ def main() -> int:
          patch.object(warmup_module, "set_full", side_effect=AssertionError("empty refresh should not write cache")), \
          patch.object(warmup_module, "set_cache", side_effect=AssertionError("empty refresh should not write cache")), \
          patch.object(warmup_module, "cache_key", side_effect=lambda *parts: "diag:" + "::".join(str(p) for p in parts)), \
-         patch("api_routes.homepage_api._build_homepage_contract", return_value={"feed_items": [], "posts": [], "reels": [], "stories": [], "live_rooms": []}):
+         patch("api_routes.homepage_api._build_homepage_contract", return_value={"feed_items": [], "posts": [], "reels": [], "stories": [], "live_rooms": []}), \
+         patch.object(warmup_module, "log_warning") as log_warning_mock:
         result = warmup_module.warm_homepage_cache()
         assert result["ok"] is False
         assert "no public content" in result["error"]
+        assert result.get("warning") == "empty_cold_start"
+        assert log_warning_mock.call_count == 1
+        assert log_warning_mock.call_args.args[0] == "homepage_cache_warmup_empty"
 
     with patch.object(warmup_module, "homepage_cache_info", return_value={"homepage_cached": True, "homepage_age_seconds": 5, "cache_backend": {"backend": "memory", "redis_connected": False, "fallback": True, "latency_ms": 0}}), \
          patch.object(warmup_module, "mark_homepage_cached") as mark_mock, \

@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+from html.parser import HTMLParser
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -49,15 +50,56 @@ def _safe_print(payload):
     print(json.dumps(payload, sort_keys=True))
 
 
+class _TextFinder(HTMLParser):
+    def __init__(self, phrase: str):
+        super().__init__()
+        self.phrase = phrase.lower()
+        self.match = None
+        self.stack = []
+
+    def handle_starttag(self, tag, attrs):
+        attr_map = dict(attrs)
+        self.stack.append(
+            {
+                "tag": tag,
+                "id": attr_map.get("id"),
+                "class": attr_map.get("class", ""),
+                "attrs": attr_map,
+            }
+        )
+
+    def handle_endtag(self, tag):
+        while self.stack:
+            item = self.stack.pop()
+            if item["tag"] == tag:
+                break
+
+    def handle_data(self, data):
+        if self.match or self.phrase not in data.lower():
+            return
+        current = self.stack[-1] if self.stack else {}
+        parent = self.stack[-2] if len(self.stack) >= 2 else {}
+        self.match = {
+            "tag": current.get("tag"),
+            "element_id": current.get("id"),
+            "element_classes": current.get("class", "").split(),
+            "parent_tag": parent.get("tag"),
+            "parent_classes": parent.get("class", "").split(),
+            "excerpt": data.strip()[:200],
+        }
+
+
 def classify_html(html: str, phrase: str):
     low = html.lower()
     if phrase.lower() not in low:
         return None
     excerpt = _excerpt(html, phrase)
-    tag = None
-    element_id = None
-    element_classes = []
-    parent_classes = []
+    parser = _TextFinder(phrase)
+    try:
+        parser.feed(html)
+    except Exception:
+        parser.match = None
+    match = parser.match or {}
     if "data-placeholder" in low or "demo" in low or "fixture" in low or "system" in low:
         classification = CLASSIFICATION["placeholder"]
     elif "<script" in low and phrase.lower() in low:
@@ -67,10 +109,11 @@ def classify_html(html: str, phrase: str):
     return {
         "classification": classification,
         "source": "html",
-        "tag": tag,
-        "element_id": element_id,
-        "element_classes": element_classes,
-        "parent_classes": parent_classes,
+        "tag": match.get("tag"),
+        "element_id": match.get("element_id"),
+        "element_classes": match.get("element_classes", []),
+        "parent_tag": match.get("parent_tag"),
+        "parent_classes": match.get("parent_classes", []),
         "content_type": "text/html",
         "safe_identifier": None,
         "creator_handle": None,
@@ -80,7 +123,7 @@ def classify_html(html: str, phrase: str):
             "is_fixture": "fixture" in low,
             "is_system": "system" in low,
         },
-        "excerpt": excerpt,
+        "excerpt": match.get("excerpt") or excerpt,
         "visibility": "visible_text",
     }
 
