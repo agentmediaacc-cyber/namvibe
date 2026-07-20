@@ -428,7 +428,11 @@ summary = {
 
 results_path = root / "homepage_verification_results.json"
 summary_path = root / "homepage_verification_summary.txt"
-results_path.write_text(json.dumps(summary, indent=2, sort_keys=True))
+legacy_results_path = root / "homepage_report.json"
+legacy_summary_path = root / "homepage_report.txt"
+results_payload = json.dumps(summary, indent=2, sort_keys=True)
+results_path.write_text(results_payload)
+legacy_results_path.write_text(results_payload)
 if not results_path.exists() or results_path.stat().st_size == 0:
     raise SystemExit(f"homepage_verification_results_missing:{results_path}")
 lines = [
@@ -451,11 +455,31 @@ for label, data in (("browser_desktop", browser_desktop), ("browser_tablet", bro
         lines.append(f"{label}_overflow={data.get('horizontal_overflow', 0)}")
         lines.append(f"{label}_duplicate_cards={data.get('duplicate_feed_card_count', 0)}")
         lines.append(f"{label}_playing_videos={data.get('playing_video_count', 0)}")
-summary_path.write_text("\n".join(lines) + "\n")
+summary_payload = "\n".join(lines) + "\n"
+summary_path.write_text(summary_payload)
+legacy_summary_path.write_text(summary_payload)
 if not summary_path.exists() or summary_path.stat().st_size == 0:
     raise SystemExit(f"homepage_verification_summary_missing:{summary_path}")
-print(json.dumps({"summary_file": str(summary_path), "results_file": str(results_path)}))
+print(json.dumps({"summary_file": str(summary_path), "results_file": str(results_path), "legacy_summary_file": str(legacy_summary_path), "legacy_results_file": str(legacy_results_path)}))
 PY
+
+  if [[ ! -s "$RUN_DIR/homepage_verification_results.json" && -s "$RUN_DIR/homepage_report.json" ]]; then
+    cp "$RUN_DIR/homepage_report.json" "$RUN_DIR/homepage_verification_results.json"
+  fi
+  if [[ ! -s "$RUN_DIR/homepage_verification_summary.txt" && -s "$RUN_DIR/homepage_report.txt" ]]; then
+    cp "$RUN_DIR/homepage_report.txt" "$RUN_DIR/homepage_verification_summary.txt"
+  fi
+  if [[ ! -s "$RUN_DIR/homepage_verification_results.json" || ! -s "$RUN_DIR/homepage_verification_summary.txt" || ! -s "$RUN_DIR/homepage_report.json" || ! -s "$RUN_DIR/homepage_report.txt" ]]; then
+    echo "homepage_report_artifacts_missing=1" >>"$RUN_DIR/homepage_report.stderr.log"
+    printf 'FAIL\n' >"$RUN_DIR/homepage_report.status"
+    {
+      echo "run_dir=$RUN_DIR"
+      echo "repo_root=$REPO"
+      echo "python=$PYTHON_BIN"
+      echo "homepage_report=MISSING_ARTIFACT"
+    } >"$RUN_DIR/final_summary.txt"
+    exit 1
+  fi
 
   {
     echo "run_dir=$RUN_DIR"
