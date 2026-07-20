@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_REPO="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel)"
 SOURCE_RUNTIME_REPO=""
 SOURCE_VENV=""
