@@ -159,7 +159,7 @@
               {% endif %}
               {% if story.is_online %}<span class="nv-home-story__dot nv-online-dot-sm"></span>{% endif %}
             </span>
-            <span class="nvpro-story-label">{{ story.display_name or story.username or 'User' }}</span>
+            <span class="nvpro-story-label" title="{{ story.display_name or story.username or 'User' }}">{{ story.display_name or story.username or 'User' }}</span>
           </a>
           {% endfor %}
         </div>

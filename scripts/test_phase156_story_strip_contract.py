@@ -21,6 +21,7 @@ def check_template(filepath):
     results = {"pass": 0, "fail": 0, "details": []}
     with open(filepath) as f:
         content = f.read()
+    base = os.path.dirname(os.path.dirname(__file__))
 
     # 1. Stories tray section exists
     if 'nvpro-stories-tray' in content:
@@ -31,7 +32,7 @@ def check_template(filepath):
         results["fail"] += 1
 
     # 2. Create story button exists (first in scroll)
-    if 'nvpro-story-create' in content and 'data-open-upload="story"' in content:
+    if 'nvpro-story-create' in content and 'data-action="open-create"' in content:
         results["details"].append(("Create story button exists", True))
         results["pass"] += 1
     else:
@@ -54,7 +55,15 @@ def check_template(filepath):
         results["details"].append(("Story ring missing", False))
         results["fail"] += 1
 
-    # 5. Empty state compact (not huge card)
+    # 5. Story labels support safe wrapping/truncation
+    if 'nvpro-story-label' in content and ('-webkit-line-clamp: 2' in open(os.path.join(base, "static/css/namvibe_home_pro.css")).read()):
+        results["details"].append(("Story labels support two-line wrapping", True))
+        results["pass"] += 1
+    else:
+        results["details"].append(("Story labels missing wrapping support", False))
+        results["fail"] += 1
+
+    # 6. Empty state compact (not huge card)
     empty_card = content[content.index('No stories yet'):content.index('No stories yet') + 300] if 'No stories yet' in content else ""
     if 'nvpro-story-empty-card' in content or 'No stories yet' in content:
         if 'nvpro-btn-sm' in empty_card or len(re.findall(r'<p', empty_card)) <= 3:
@@ -74,7 +83,7 @@ def check_js(filepath):
     with open(filepath) as f:
         content = f.read()
 
-    # 6. hydrateHomepage always runs
+    # 7. hydrateHomepage always runs
     if 'hydrateHomepage()' in content:
         results["details"].append(("hydrateHomepage() called on DOMContentLoaded", True))
         results["pass"] += 1
@@ -82,7 +91,7 @@ def check_js(filepath):
         results["details"].append(("hydrateHomepage() not called", False))
         results["fail"] += 1
 
-    # 7. Stories hydration renders from API
+    # 8. Stories hydration renders from API
     if 'p.stories' in content and 'nvpro-story-ring' in content:
         results["details"].append(("JS hydrates stories from API", True))
         results["pass"] += 1
@@ -90,7 +99,7 @@ def check_js(filepath):
         results["details"].append(("JS does not hydrate stories", False))
         results["fail"] += 1
 
-    # 8. Stories fetched from /api/homepage/feed
+    # 9. Stories fetched from /api/homepage/feed
     if '/api/homepage/feed' in content:
         results["details"].append(("JS fetches from /api/homepage/feed", True))
         results["pass"] += 1
@@ -98,7 +107,7 @@ def check_js(filepath):
         results["details"].append(("JS fetches from wrong endpoint", False))
         results["fail"] += 1
 
-    # 9. Video detection considers is_video, media_type, mime_type
+    # 10. Video detection considers is_video, media_type, mime_type
     if 'item.is_video' in content or 'is_video' in content:
         results["details"].append(("JS detects video from is_video flag", True))
         results["pass"] += 1
