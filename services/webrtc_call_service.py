@@ -103,6 +103,25 @@ def _is_call_participant(call_id, profile_id):
         return False
 
 
+def _ensure_call_participant(call_id, profile_id, role=None, status="ringing"):
+    """Guarantee the participant row exists before state transitions.
+
+    The start-call path already tries to write both participant rows, but the
+    write can be skipped when the database connection drops mid-request.  The
+    follow-up accept/reject/end transitions should still be able to repair the
+    missing row instead of silently operating on partial state.
+    """
+    try:
+        write_query(
+            """INSERT INTO chain_call_participants (call_session_id, call_id, profile_id, role, status)
+               VALUES (NULL, %s, %s, %s, %s)
+               ON CONFLICT DO NOTHING""",
+            (call_id, profile_id, role or "participant", status),
+        )
+    except Exception:
+        pass
+
+
 def _db_available():
     if os.getenv("FLASK_TESTING") == "1" or os.getenv("CHAIN_FAST_LOCAL") == "1":
         return False
@@ -284,6 +303,7 @@ def accept_call(call_id, profile_id):
         return {"ok": False, "error": "unauthorized"}
 
     try:
+        _ensure_call_participant(call_id, profile_id, role="receiver", status="ringing")
         write_query(
             "UPDATE chain_calls SET status = 'accepted', accepted_at = now(), updated_at = now() WHERE id = %s",
             (call_id,),
