@@ -4,6 +4,7 @@ set -Eeuo pipefail
 SOURCE_REPO="${REPO:-$HOME/Desktop/chain_app}"
 SOURCE_RUNTIME_REPO="${RUNTIME_REPO:-$SOURCE_REPO}"
 SOURCE_VENV="${VENV:-$SOURCE_REPO/venv}"
+SOURCE_ENV_REPO="${ENV_REPO:-$SOURCE_REPO}"
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 LABEL="com.namvibe.release-verification.$RUN_ID"
 DOMAIN="gui/$(id -u)"
@@ -16,10 +17,12 @@ while [[ $# -gt 0 ]]; do
       SOURCE_RUNTIME_REPO="${2:?missing runtime repo}"; shift 2 ;;
     --venv)
       SOURCE_VENV="${2:?missing venv}"; shift 2 ;;
+    --env-repo)
+      SOURCE_ENV_REPO="${2:?missing env repo}"; shift 2 ;;
     --wait)
       WAIT=1; shift ;;
     *)
-      echo "usage: $0 [--repo PATH] [--runtime-repo PATH] [--venv PATH] [--wait]" >&2
+      echo "usage: $0 [--repo PATH] [--runtime-repo PATH] [--venv PATH] [--env-repo PATH] [--wait]" >&2
       exit 2 ;;
   esac
 done
@@ -42,8 +45,8 @@ mkdir -p "$VERIFY_ROOT"
 rm -rf "$REPO"
 git clone --no-hardlinks --branch "$(git -C "$SOURCE_REPO" branch --show-current)" "$SOURCE_REPO" "$REPO"
 git -C "$REPO" remote remove origin 2>/dev/null || true
-if [[ -f "$SOURCE_REPO/.env" ]]; then
-  install -m 600 "$SOURCE_REPO/.env" "$REPO/.env"
+if [[ -f "$SOURCE_ENV_REPO/.env" ]]; then
+  install -m 600 "$SOURCE_ENV_REPO/.env" "$REPO/.env"
 fi
 mkdir -p "$RUN_DIR"
 rm -rf "$VENV"
@@ -105,6 +108,7 @@ domain=$DOMAIN
 source_repo=$SOURCE_REPO
 source_runtime_repo=$SOURCE_RUNTIME_REPO
 source_venv=$SOURCE_VENV
+source_env_repo=$SOURCE_ENV_REPO
 repo=$REPO
 runtime_repo=$RUNTIME_REPO
 venv=$VENV

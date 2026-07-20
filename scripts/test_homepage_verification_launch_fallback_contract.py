@@ -15,6 +15,7 @@ def main() -> int:
         "direct_fallback",
         "bootstrap_status",
         "RUN_DIR=\"$RUN_DIR\" bash \"$JOB_WRAPPER\"",
+        "SOURCE_ENV_REPO",
     ]
     missing = [needle for needle in required if needle not in text]
     if missing:
