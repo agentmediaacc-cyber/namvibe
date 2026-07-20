@@ -55,6 +55,9 @@ run_stage() {
     result_file="$RUN_DIR/${stage}_stage.json"
   fi
   local timeout_s="${STAGE_TIMEOUT_SECONDS:-300}"
+  if [[ "$stage" == "homepage_report" || "$stage" == "homepage_report_validation" ]]; then
+    timeout_s="${HOMEPAGE_REPORT_TIMEOUT_SECONDS:-900}"
+  fi
   local started finished status result
   started="$(date +%s)"
   log "stage=$stage start"
@@ -88,7 +91,7 @@ with open(stdout_path, 'wb') as out, open(stderr_path, 'wb') as err:
     try:
         cp = subprocess.run(cmd, stdout=out, stderr=err, timeout=timeout_s)
     except subprocess.TimeoutExpired:
-        print(f'timeout_after_seconds={timeout_s}', file=err)
+        err.write(f'timeout_after_seconds={timeout_s}\n'.encode())
         raise SystemExit(124)
 raise SystemExit(cp.returncode)
 PY

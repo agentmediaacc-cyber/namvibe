@@ -5,12 +5,14 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "launch_release_host_verification_macos.sh"
+LAUNCH_SCRIPT = ROOT / "scripts" / "launch_release_host_verification_macos.sh"
+RUN_SCRIPT = ROOT / "scripts" / "run_release_host_verification.sh"
 
 
 def main() -> int:
-    text = SCRIPT.read_text(encoding="utf-8")
-    required = [
+    launch_text = LAUNCH_SCRIPT.read_text(encoding="utf-8")
+    run_text = RUN_SCRIPT.read_text(encoding="utf-8")
+    launch_required = [
         "DIRECT_FALLBACK",
         "direct_fallback",
         "if [[ \"$DIRECT_FALLBACK\" -eq 1 ]]; then",
@@ -22,11 +24,17 @@ def main() -> int:
         'SOURCE_VENV="$HOME/Desktop/chain_app/venv"',
         'if [[ ! -f "$SOURCE_ENV_REPO/.env" && -f "$HOME/Desktop/chain_app/.env" ]]; then',
     ]
-    missing = [needle for needle in required if needle not in text]
+    run_required = [
+        "HOMEPAGE_REPORT_TIMEOUT_SECONDS",
+        "timeout_after_seconds=",
+        "err.write(f'timeout_after_seconds={timeout_s}\\n'.encode())",
+    ]
+    missing = [needle for needle in launch_required if needle not in launch_text]
+    missing += [needle for needle in run_required if needle not in run_text]
     if missing:
         raise SystemExit(f"missing_contract_tokens: {missing}")
     forbidden = 'SOURCE_REPO="${REPO:-$HOME/Desktop/chain_app}"'
-    if forbidden in text:
+    if forbidden in launch_text:
         raise SystemExit("launcher still defaults source repo to Desktop checkout")
     print("TEST_OK homepage launch fallback contract")
     return 0
