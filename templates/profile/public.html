@@ -1,6 +1,10 @@
 {% extends "profile/base_profile.html" %}
+{% from "components/avatar.html" import avatar %}
+
+{% block title %}{{ (pv.display_name if pv else profile.display_name if profile else 'Profile') or 'Profile' }} | NamVibe Premium{% endblock %}
 
 {% block profile_body %}
+{% set p = pv|default(profile)|default({}) %}
 
 <div class="profile-tabs-container">
     <nav class="profile-tabs">
@@ -23,7 +27,7 @@
             <div class="vertical-grid">
                 {% for post in content.posts %}
                 <article class="grid-card glass-card">
-                    {% if post.media_url %}<img src="{{ post.media_url }}" alt="Post media">{% endif %}
+                {% if post.media_url %}<img src="{{ post.media_url }}" alt="Post media" loading="lazy">{% endif %}
                     <div class="card-info">
                         <p>{{ post.caption or post.body }}</p>
                     </div>
@@ -43,7 +47,7 @@
             <div class="vertical-grid vertical-grid--reels">
                 {% for reel in content.reels %}
                 <article class="reel-thumbnail glass-card"{% if reel.id %} onclick="window.location.href='/reels/{{ reel.id }}'"{% endif %}>
-                    <img src="{{ reel.thumbnail_url or reel.media_url }}" alt="Reel">
+                    {% if reel.thumbnail_url or reel.media_url %}<img src="{{ reel.thumbnail_url or reel.media_url }}" alt="Reel" loading="lazy">{% endif %}
                     <div class="reel-stats">
                         <span><i class="fas fa-play"></i> {{ reel.views_count or 0 }}</span>
                     </div>
@@ -82,12 +86,12 @@
     <div class="tab-content" id="about-content" style="display: none;">
         <div class="glass-panel">
             <div class="metric-stack">
-                {% if profile.preferred_language %}<div><span>Preferred language</span><strong>{{ profile.preferred_language }}</strong></div>{% endif %}
-                {% if profile.interests %}<div><span>Interests</span><strong>{{ profile.interests|join(', ') }}</strong></div>{% endif %}
-                {% if profile.activities %}<div><span>Hobbies / activities</span><strong>{{ profile.activities|join(', ') }}</strong></div>{% endif %}
-                {% if profile.looking_for %}<div><span>Looking for</span><strong>{{ profile.looking_for|join(', ') }}</strong></div>{% endif %}
-                {% if profile.relationship_status %}<div><span>Relationship status</span><strong>{{ profile.relationship_status }}</strong></div>{% endif %}
-                {% if profile.creator_category %}<div><span>Creator category</span><strong>{{ profile.creator_category }}</strong></div>{% endif %}
+                {% if p.preferred_language %}<div><span>Preferred language</span><strong>{{ p.preferred_language }}</strong></div>{% endif %}
+                {% if p.interests %}<div><span>Interests</span><strong>{{ p.interests|join(', ') }}</strong></div>{% endif %}
+                {% if p.activities %}<div><span>Hobbies / activities</span><strong>{{ p.activities|join(', ') }}</strong></div>{% endif %}
+                {% if p.looking_for %}<div><span>Looking for</span><strong>{{ p.looking_for|join(', ') }}</strong></div>{% endif %}
+                {% if p.relationship_status %}<div><span>Relationship status</span><strong>{{ p.relationship_status }}</strong></div>{% endif %}
+                {% if p.creator_category %}<div><span>Creator category</span><strong>{{ p.creator_category }}</strong></div>{% endif %}
             </div>
         </div>
     </div>

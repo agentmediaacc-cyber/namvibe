@@ -29,15 +29,12 @@
 
     <div class="nvpro-profile-card">
       <div class="nvpro-profile-avatar">
-        {% if profile.avatar_url %}
-        <img src="{{ profile.avatar_url }}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
-        {% else %}
-        <i class="fas fa-user"></i>
-        {% endif %}
+        {% from "components/avatar.html" import avatar %}
+        {{ avatar(profile, size='lg', loading='eager', ring=False, class_name='nvpro-settings-avatar') }}
       </div>
       <div class="nvpro-profile-info">
-        <h2>{{ profile.full_name or profile.display_name or profile.username }}</h2>
-        <span>@{{ profile.username }} &middot; {{ profile.email or '' }}</span>
+        <h2>{{ profile.full_name or profile.display_name or profile.username or 'Profile' }}</h2>
+        <span>{% if profile.username %}@{{ profile.username }}{% endif %}{% if profile.email %}{% if profile.username %} &middot; {% endif %}{{ profile.email }}{% endif %}</span>
       </div>
       <a href="/profile/" class="nvpro-profile-edit-btn"><i class="fas fa-external-link-alt"></i> View Profile</a>
     </div>
@@ -53,11 +50,11 @@
           <div class="nvpro-form-grid">
             <div class="nvpro-field">
               <label for="full_name">Display name</label>
-              <input class="nvpro-input" id="full_name" type="text" name="full_name" value="{{ profile.full_name or profile.display_name or profile.username }}" required>
+              <input class="nvpro-input" id="full_name" type="text" name="full_name" value="{{ profile.full_name or profile.display_name or '' }}" required>
             </div>
             <div class="nvpro-field">
               <label for="username">Username</label>
-              <input class="nvpro-input" id="username" type="text" name="username" value="{{ profile.username }}" minlength="3" maxlength="30" required>
+              <input class="nvpro-input" id="username" type="text" name="username" value="{{ profile.username or '' }}" minlength="3" maxlength="30" required>
             </div>
             <div class="nvpro-field full">
               <label for="bio">Bio</label>

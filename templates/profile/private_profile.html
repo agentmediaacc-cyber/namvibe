@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}{{ profile.display_name or profile.full_name or profile.username }} | NamVibe{% endblock %}
+{% from "components/avatar.html" import avatar %}
+{% block title %}{{ profile.display_name or profile.full_name or profile.username or 'Profile' }} | NamVibe{% endblock %}
 {% block extra_css %}
 {{ super() }}
 <link rel="stylesheet" href="/static/css/profile_command_center.css">
@@ -22,21 +23,17 @@
         <div class="profile-hero-body">
             <div class="profile-avatar-wrap">
                 <div class="profile-avatar">
-                    {% if profile.avatar_url %}
-                    <img src="{{ profile.avatar_url }}" alt="{{ display_name }}">
-                    {% else %}
-                    <span>{{ (profile.display_name or profile.full_name or profile.username or 'C')[0]|upper }}</span>
-                    {% endif %}
+                    {{ avatar(profile, size='lg', loading='eager', ring=(profile.is_verified or profile.verified)) }}
                 </div>
             </div>
             <div class="profile-identity">
                 <div class="profile-name-row">
-                    <h1>{{ profile.display_name or profile.full_name or profile.username }}</h1>
+                    <h1>{{ profile.display_name or profile.full_name or profile.username or 'Profile' }}</h1>
                     {% if profile.is_verified or profile.verified %}
                     <span class="profile-badge verified"><i class="fas fa-circle-check"></i>Verified</span>
                     {% endif %}
                 </div>
-                <p class="profile-handle">@{{ profile.username }}</p>
+                {% if profile.username %}<p class="profile-handle">@{{ profile.username }}</p>{% endif %}
                 {% if profile.bio %}<p class="profile-bio">{{ profile.bio }}</p>{% endif %}
                 <div class="profile-meta">
                     {% if profile.current_location or profile.location or profile.town %}

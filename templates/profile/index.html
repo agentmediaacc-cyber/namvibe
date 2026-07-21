@@ -89,7 +89,7 @@
 
     <div class="nv-pp-info" style="position:relative;z-index:2">
       <div class="nv-pp-avatar-wrap">
-        {{ avatar(p, size='profile', loading='eager', ring=bool(p.is_gold_verified or p.verified), class_name='nv-pp-avatar') }}
+        {{ avatar(p, size='profile', loading='eager', ring=(p.is_gold_verified or p.verified), class_name='nv-pp-avatar') }}
         {% if p.is_gold_verified %}<span class="nv-pp-verify" style="z-index:3;background:linear-gradient(135deg,#ffd700,#f0c000);color:#7c5c00;border-color:#e6b800;">★</span>{% elif p.verified %}<span class="nv-pp-verify" style="z-index:3">✓</span>{% endif %}
         {% if p.profile_score %}
         <div class="nv-pp-score-ring" style="--score:{{ p.profile_score }}">
@@ -103,7 +103,7 @@
       </div>
 
       <div class="nv-pp-meta">
-        <h1 class="nv-pp-name">{{ p.display_name }}
+        <h1 class="nv-pp-name nv-display-name">{{ p.display_name }}
           {% if p.is_gold_verified %}<span class="nv-pp-gold-badge">★ Gold Verified</span>{% elif p.verified %}<span class="nv-badge" style="display:inline-flex;width:18px;height:18px;font-size:10px;">✓</span>{% endif %}
           {% if p.premium_tier and p.premium_tier != 'free' %}<span class="nv-pp-tier-tag" style="background:{% if p.premium_tier == 'plus' %}linear-gradient(135deg,#6366f1,#8b5cf6){% elif p.premium_tier == 'pro' %}linear-gradient(135deg,#f59e0b,#d97706){% elif p.premium_tier == 'premium' %}linear-gradient(135deg,#ec4899,#db2777){% elif p.premium_tier == 'creator_elite' %}linear-gradient(135deg,#8b5cf6,#6d28d9){% elif p.premium_tier == 'business' %}linear-gradient(135deg,#0ea5e9,#0284c7){% elif p.premium_tier == 'enterprise' %}linear-gradient(135deg,#10b981,#059669){% else %}linear-gradient(135deg,#6b7280,#4b5563){% endif %};color:#fff;">{{ p.premium_tier|replace('_',' ')|title }}</span>{% endif %}
         </h1>

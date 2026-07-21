@@ -546,14 +546,12 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
 
 def _resolve_profile_route(username=None, user_id=None):
     start = time.perf_counter()
-    public_handle_route = bool(username and not user_id)
     fast_profile_shell = (
         request.args.get("shell") == "1"
         or
         os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on")
         or os.getenv("CHAIN_FAST_LOCAL", "").lower() in ("1", "true", "yes", "on")
         or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on")
-        or public_handle_route
     )
     cleaned_username = username[1:] if username and username.startswith("@") else username
     try:
@@ -569,6 +567,25 @@ def _resolve_profile_route(username=None, user_id=None):
         return _profile_not_found_light_response(username or user_id or "")
     if not profile_ref:
         log_warning("public_profile_missing", username=username, user_id=user_id)
+        if request.args.get("shell") == "1" or os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on") or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on"):
+            shell_profile = _with_profile_defaults({
+                "username": cleaned_username or (username or "").lstrip("@") or "profile",
+                "display_name": cleaned_username or (username or "").lstrip("@") or "profile",
+                "bio": "",
+            })
+            shell_view = build_profile_view_model(
+                shell_profile,
+                viewer=None,
+                stats={"posts": 0, "reels": 0, "followers": 0, "following": 0, "likes": 0, "views": 0},
+                content={"posts": [], "reels": [], "rooms": [], "stories": []},
+                wallet={},
+                creator={},
+                marketplace={},
+                presence={"status": "offline", "last_seen": None},
+                action_policy={},
+            )
+            log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False, shell=True)
+            return render_template("profile/public.html", profile=shell_profile, pv=shell_view, viewer=None, content={"posts": [], "reels": [], "rooms": [], "stories": []}), 200
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False)
         return _profile_not_found_light_response(username or user_id or "")
 
@@ -578,23 +595,44 @@ def _resolve_profile_route(username=None, user_id=None):
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=True, visibility=visibility, hidden=True)
         return _profile_not_found_light_response(username or user_id or "")
 
+    public_handle_route = bool(username and not user_id)
     profile = profile_ref
+    if public_handle_route and not fast_profile_shell:
+        shell_profile = _with_profile_defaults(dict(profile_ref))
+        profile_view = build_profile_view_model(
+            shell_profile,
+            viewer=None,
+            stats={"posts": 0, "reels": 0, "followers": 0, "following": 0, "likes": 0, "views": 0},
+            content={"posts": [], "reels": [], "rooms": [], "stories": []},
+            wallet={},
+            creator={},
+            marketplace={},
+            presence={"status": "offline", "last_seen": None},
+            action_policy={},
+        )
+        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public", shell=True)
+        return render_template("profile/public.html", profile=shell_profile, pv=profile_view, viewer=None, content={"posts": [], "reels": [], "rooms": [], "stories": []}), 200
+
     viewer = None if fast_profile_shell else (get_current_profile() if is_logged_in() else None)
 
     if fast_profile_shell:
-        shell_profile = {
-            "id": profile.get("id"),
-            "username": profile.get("username"),
-            "display_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
-            "avatar_url": profile.get("avatar_url"),
-            "bio": profile.get("bio") or "",
-            "verified": bool(profile.get("verified") or profile.get("is_verified")),
-            "is_verified": bool(profile.get("verified") or profile.get("is_verified")),
-            "full_name": profile.get("display_name") or profile.get("full_name") or profile.get("username"),
-        }
+        shell_profile = dict(profile)
+        shell_profile.setdefault("bio", "")
         try:
+            bundle = get_profile_bundle(profile_id=profile.get("id"), viewer=None) if profile.get("id") else {}
+            profile_view = build_profile_view_model(
+                shell_profile,
+                viewer=None,
+                stats=bundle.get("stats") or {"posts": 0, "reels": 0, "followers": 0, "following": 0, "likes": 0, "views": 0},
+                content=bundle.get("content") or {"posts": [], "reels": [], "rooms": [], "stories": []},
+                wallet=bundle.get("wallet") or {},
+                creator=bundle.get("creator_tools") or {},
+                marketplace=bundle.get("marketplace") or {},
+                presence=bundle.get("presence") or {"status": "offline", "last_seen": None},
+                action_policy={},
+            )
             log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public", shell=True)
-            return render_template("profile/public.html", profile=shell_profile, viewer=None, content={"posts": [], "reels": [], "rooms": []}), 200
+            return render_template("profile/public.html", profile=shell_profile, pv=profile_view, viewer=None, content=bundle.get("content") or {"posts": [], "reels": [], "rooms": []}), 200
         except Exception as error:
             log_warning(
                 "public_profile_shell_render_failed",
@@ -671,6 +709,18 @@ def my_profile():
                     context["stats"] = get_profile_stats(viewer.get("id"))
                 except Exception:
                     pass
+                context["profile_view"] = build_profile_view_model(
+                    context["profile"],
+                    viewer=context.get("viewer"),
+                    stats=context.get("stats"),
+                    content=context.get("content"),
+                    wallet=context.get("wallet"),
+                    creator=context.get("creator") or context.get("creator_tools"),
+                    marketplace=context.get("marketplace"),
+                    presence=context.get("presence"),
+                    action_policy=context.get("action_policy"),
+                )
+                context["pv"] = context["profile_view"]
                 return render_template("profile/index.html", **context)
             session[K_PROFILE_WARNING] = True
             log_warning(
@@ -692,6 +742,18 @@ def my_profile():
                 context["stats"] = get_profile_stats(viewer.get("id"))
             except Exception:
                 pass
+            context["profile_view"] = build_profile_view_model(
+                context["profile"],
+                viewer=context.get("viewer"),
+                stats=context.get("stats"),
+                content=context.get("content"),
+                wallet=context.get("wallet"),
+                creator=context.get("creator") or context.get("creator_tools"),
+                marketplace=context.get("marketplace"),
+                presence=context.get("presence"),
+                action_policy=context.get("action_policy"),
+            )
+            context["pv"] = context["profile_view"]
             return render_template("profile/index.html", **context)
 
         session.pop(K_PROFILE_WARNING, None)

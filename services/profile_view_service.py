@@ -195,24 +195,37 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
 
     completion_profile = {**profile, "posts_count": posts_count, "reels_count": reels_count, "stories_count": _as_int(stats.get("stories") or len(content.get("stories") or []))}
     active = _relative_active(profile, presence)
+    display_name = profile.get("display_name") or profile.get("full_name") or profile.get("username") or ""
+    username = profile.get("username") or ""
+    bio = profile.get("bio") or ""
+    website = profile.get("website") or ""
+    privacy = profile.get("profile_visibility") or profile.get("visibility") or "public"
+    cover_url = profile.get("cover_url") or profile.get("banner_url") or ""
+    location = _location(profile)
+    joined = _joined(profile)
+    member_badge = "Creator" if is_creator else ("Verified" if profile.get("is_verified") or profile.get("verified") else "Member")
     return {
         "own_profile": own_profile,
-        "display_name": profile.get("display_name") or profile.get("full_name") or profile.get("username") or "NamVibe Member",
-        "username": profile.get("username") or "member",
+        "display_name": display_name,
+        "has_display_name": bool(display_name),
+        "username": username,
+        "has_username": bool(username),
         "initials": _initials(profile),
-        "location": _location(profile),
-        "joined": _joined(profile),
+        "location": location,
+        "has_location": bool(location),
+        "joined": joined,
         "active": active,
         **avatar,
         "avatar_url": avatar["avatar_url"],
-        "cover_url": profile.get("cover_url") or profile.get("banner_url"),
+        "cover_url": cover_url,
+        "has_cover": bool(cover_url),
         "gallery_preview": gallery_preview,
         "mutual_friends_count": int(mutual_friends.get("count") or 0),
         "mutual_friends_items": mutual_friends.get("items") or [],
         "profile_strength": profile_strength,
         "recently_active_friends": recently_active_friends,
-        "member_badge": "Creator" if is_creator else ("Verified" if profile.get("is_verified") or profile.get("verified") else "Member"),
-        "privacy": profile.get("profile_visibility") or profile.get("visibility") or "public",
+        "member_badge": member_badge,
+        "privacy": privacy,
         "completion": calculate_profile_completion(completion_profile),
         "tabs": _tabs(own_profile, is_creator, has_shop),
         "has_shop": has_shop,
@@ -244,8 +257,10 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "verified": bool(profile.get("verified") or profile.get("is_verified")),
         "badge_type": "creator" if is_creator else ("blue" if profile.get("is_verified") or profile.get("verified") else ""),
         "badge_label": "Creator" if is_creator else "Verified",
-        "bio": profile.get("bio") or "",
-        "website": profile.get("website") or "",
+        "bio": bio,
+        "has_bio": bool(bio),
+        "website": website,
+        "has_website": bool(website),
         "category": profile.get("category") or profile.get("profile_type") or "",
         "is_friend": action_policy.get("relationship") == "friend",
         "is_following": action_policy.get("relationship") in ("following", "friend"),

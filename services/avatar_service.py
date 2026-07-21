@@ -16,12 +16,24 @@ def avatar_initials(profile: dict | None) -> str:
 
 def avatar_meta(profile: dict | None) -> dict:
     profile = profile or {}
+    raw_avatar = any(
+        profile.get(key)
+        for key in (
+            "avatar_url",
+            "profile_photo",
+            "photo_url",
+            "profile_picture",
+            "creator_avatar",
+            "profile_image",
+            "thumbnail_url",
+        )
+    )
     avatar_url = select_avatar_url(profile)
-    has_image = bool(avatar_url)
-    alt = str(profile.get("display_name") or profile.get("full_name") or profile.get("username") or "Profile").strip()
+    has_image = bool(raw_avatar)
+    alt = str(profile.get("display_name") or profile.get("full_name") or profile.get("username") or "").strip()
     return {
         "avatar_url": avatar_url,
-        "avatar_alt": f"{alt} profile picture",
+        "avatar_alt": f"{alt} profile picture" if alt else "Profile picture",
         "avatar_initials": avatar_initials(profile),
         "avatar_has_image": has_image,
     }

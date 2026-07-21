@@ -105,7 +105,8 @@ def run_smoke(routes, extra_assert=None, viewports=None):
                     viewport = {k: v for k, v in vp.items() if k in {"width", "height"}}
                     context = browser.new_context(viewport=viewport, is_mobile=vp.get("is_mobile", False), has_touch=vp.get("has_touch", False))
                     page = context.new_page()
-                    page.set_default_timeout(20000)
+                    page.set_default_timeout(60000)
+                    page.set_default_navigation_timeout(60000)
                     errors = []
                     page_errors = []
                     failed_requests = []

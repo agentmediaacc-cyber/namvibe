@@ -71,7 +71,7 @@
     <div class="hero-content">
         <div class="hero-avatar-area">
             <div class="avatar-container {% if presence and presence.status == 'online' %}is-online{% endif %}">
-                {{ avatar(profile, size='profile', loading='eager', ring=bool(profile.is_verified or profile.verified), class_name='avatar-img avatar-shared') }}
+                {{ avatar(profile, size='profile', loading='eager', ring=(profile.is_verified or profile.verified), class_name='avatar-img avatar-shared') }}
                 
                 {% if own_profile %}
                 <button class="avatar-edit-overlay" type="button" data-file-trigger="avatar-input-header">

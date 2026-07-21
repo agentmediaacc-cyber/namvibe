@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from services.neon_service import fast_query, get_pool_status
+from services.supabase_safe import table_exists
 
 
 def _iso(value):
@@ -39,6 +40,8 @@ def _active(row):
 
 
 def _first_active_subscription(profile_id):
+    if not (table_exists("chain_premium_subscriptions") or table_exists("chain_subscriptions")):
+        return {}
     candidates = [
         (
             "chain_premium_subscriptions",
