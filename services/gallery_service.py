@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from services.neon_service import fast_query, write_query, get_table_columns
 from services.content_service import save_media_file, _insert, _LOCAL_STORE, _insert_media_metadata as _media_meta_insert
+from services.media_selection_service import select_photo_url, select_poster_url
 from services.logging_service import log_info, log_error, log_warning
 from services.supabase_storage_service import get_supabase_admin
 
@@ -324,9 +325,9 @@ def get_profile_gallery(profile_id, viewer_id=None, album_id=None, media_type=No
         normalized_items = []
         for item in (items or []):
             row = dict(item)
-            row["media_url"] = row.get("media_url") or row.get("public_url") or ""
-            row["image_url"] = row.get("image_url") or row.get("public_url") or row.get("media_url") or ""
-            row["thumbnail_url"] = row.get("thumbnail_url") or row.get("media_url") or row.get("public_url") or ""
+            row["media_url"] = select_photo_url(row) or row.get("media_url") or row.get("public_url") or ""
+            row["image_url"] = select_photo_url(row) or row.get("image_url") or row.get("public_url") or row.get("media_url") or ""
+            row["thumbnail_url"] = select_poster_url(row) or row.get("thumbnail_url") or row.get("media_url") or row.get("public_url") or ""
             normalized_items.append(row)
 
         return (normalized_items, total)

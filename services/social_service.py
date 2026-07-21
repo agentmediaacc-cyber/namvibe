@@ -53,7 +53,7 @@ def list_followers(profile_id, limit=20, cursor=None):
         query += " AND cf.created_at < %s"
         params.append(cursor)
         
-    query += " ORDER BY cf.created_at DESC LIMIT %s"
+    query += " ORDER BY cf.created_at DESC, cp.id DESC LIMIT %s"
     params.append(limit + 1)
     
     rows = fast_query(query, params)
@@ -62,11 +62,15 @@ def list_followers(profile_id, limit=20, cursor=None):
     
     next_cursor = items[-1]['created_at'].isoformat() if has_more and items else None
     
-    result = {
-        "followers": items,
-        "has_more": has_more,
-        "next_cursor": next_cursor
-    }
+    seen = set()
+    unique_items = []
+    for item in items:
+        pid = str(item.get("id") or "")
+        if not pid or pid in seen:
+            continue
+        seen.add(pid)
+        unique_items.append(item)
+    result = {"followers": unique_items, "has_more": has_more, "next_cursor": next_cursor}
     cache_set(cache_key, result, ttl=300)
     return result
 
@@ -89,7 +93,7 @@ def list_following(profile_id, limit=20, cursor=None):
         query += " AND cf.created_at < %s"
         params.append(cursor)
         
-    query += " ORDER BY cf.created_at DESC LIMIT %s"
+    query += " ORDER BY cf.created_at DESC, cp.id DESC LIMIT %s"
     params.append(limit + 1)
     
     rows = fast_query(query, params)
@@ -98,10 +102,14 @@ def list_following(profile_id, limit=20, cursor=None):
     
     next_cursor = items[-1]['created_at'].isoformat() if has_more and items else None
     
-    result = {
-        "following": items,
-        "has_more": has_more,
-        "next_cursor": next_cursor
-    }
+    seen = set()
+    unique_items = []
+    for item in items:
+        pid = str(item.get("id") or "")
+        if not pid or pid in seen:
+            continue
+        seen.add(pid)
+        unique_items.append(item)
+    result = {"following": unique_items, "has_more": has_more, "next_cursor": next_cursor}
     cache_set(cache_key, result, ttl=300)
     return result

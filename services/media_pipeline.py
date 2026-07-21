@@ -139,15 +139,23 @@ def normalize_public_media_url(media_url):
         return ""
     if "/static/uploads/" in value:
         idx = value.index("/static/uploads/")
-        return value[idx:]
+        candidate = value[idx:]
+        local_path = resolve_local_media_path(candidate)
+        if local_path is not None and not Path(local_path).exists():
+            return ""
+        return candidate
     if value.startswith("static/uploads/"):
-        return "/" + value.lstrip("/")
+        candidate = "/" + value.lstrip("/")
+        local_path = resolve_local_media_path(candidate)
+        if local_path is not None and not Path(local_path).exists():
+            return ""
+        return candidate
     local_path = resolve_local_media_path(value)
     if local_path:
+        if not local_path.exists():
+            return ""
         public = "/" + local_path.as_posix().lstrip("/")
-        if public.startswith("/static/uploads/"):
-            return public
-        return ""
+        return public if public.startswith("/static/uploads/") else ""
     return value
 
 

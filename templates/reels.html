@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/avatar.html" import avatar %}
 {% block title %}Reels | NamVibe{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reels.css') }}?v=20260714-1">
@@ -9,7 +10,7 @@
     {% if reels %}
       {% for reel in reels %}
       <section class="reel-slide" data-reel-id="{{ reel.id if reel.id else '' }}" data-index="{{ loop.index0 }}" data-creator-id="{{ reel.creator_id or reel.profile_id }}">
-        <div class="reel-media-shell">
+        <div class="reel-media-shell nv-media-shell nv-media-shell--portrait nv-media-shell--cover">
           {% if reel.thumbnail_url %}
           <img class="reel-poster" src="{{ reel.thumbnail_url }}" alt="" aria-hidden="true" decoding="async" {% if loop.index0 == 0 %}fetchpriority="high" loading="eager"{% else %}loading="lazy"{% endif %}>
           {% else %}
@@ -50,11 +51,7 @@
         <div class="reel-footer">
           <div class="reel-creator-row">
             <a href="{{ reel.creator_url or '/profile/' }}" class="reel-creator-avatar">
-              {% if reel.creator_avatar_url or reel.avatar_url %}
-              <img src="{{ reel.creator_avatar_url or reel.avatar_url }}" alt="">
-              {% else %}
-              <div class="reel-avatar-placeholder">{{ (reel.creator_username or reel.username or 'C')[0]|upper }}</div>
-              {% endif %}
+              {{ avatar(reel, size='md', loading='lazy', ring=True, class_name='reel-avatar') }}
             </a>
             <div class="reel-creator-info">
               <a href="{{ reel.creator_url or '/profile/' }}" class="reel-creator-name">

@@ -389,6 +389,9 @@ def register_post():
         date_of_birth = (request.form.get("date_of_birth") or "").strip()
         gender = (request.form.get("gender") or "").strip()
         csrf_valid = bool(request.environ.get("namvibe_csrf_valid", True))
+        apk_token = (request.form.get("apk_csrf_token") or request.headers.get("X-NamVibe-Apk-CSRF") or "").strip()
+        if not apk_token or not csrf_valid:
+            return _no_cache_headers(render_template("auth/register.html", error="Your session expired. Please refresh and try again.", form=request.form, **_provider_template_flags()))
         log_warning(
             "auth_register_apk_route_input",
             user_agent=request.headers.get("User-Agent", ""),

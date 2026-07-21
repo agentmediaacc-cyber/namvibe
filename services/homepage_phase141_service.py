@@ -18,6 +18,7 @@ from services.feed_ranking_service import rank_feed
 from services.ads_service import get_ads_for_feed
 from services.homepage_real_data_guard import public_profile_sql
 from services.id_validation import normalize_uuid, filter_valid_uuids
+from services.media_pipeline import normalize_public_media_url
 
 def _format_relative(value):
     """Format relative time - duplicated to avoid circular import."""
@@ -203,11 +204,13 @@ def normalize_post_v2(row, profile_map):
     image_url = row.get("image_url") or ""
     video_url = row.get("video_url") or ""
     thumbnail_url = row.get("thumbnail_url") or ""
-    media_url = row.get("media_url") or public_url or image_url or thumbnail_url or video_url or ""
+    media_url = normalize_public_media_url(row.get("media_url") or public_url or image_url or thumbnail_url or video_url or "")
     mime_type = row.get("mime_type") or ""
     media_type = row.get("media_type") or ""
     if not media_type and mime_type:
         media_type = "video" if mime_type.startswith("video/") else "image" if mime_type.startswith("image/") else ""
+    video_url = normalize_public_media_url(video_url)
+    thumbnail_url = normalize_public_media_url(thumbnail_url or media_url or video_url)
     is_video = bool(video_url) or media_type in ("video", "reel") or mime_type.startswith("video/")
     
     is_online = bool(profile.get("is_online"))
@@ -229,7 +232,7 @@ def normalize_post_v2(row, profile_map):
         "public_url": public_url or media_url,
         "image_url": image_url or media_url,
         "video_url": video_url,
-        "thumbnail_url": thumbnail_url or media_url or video_url,
+        "thumbnail_url": thumbnail_url,
         "link_url": row.get("link_url") or "",
         "town_tag": row.get("town_tag") or "",
         "visibility": row.get("visibility") or "public",

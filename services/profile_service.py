@@ -14,6 +14,7 @@ from engines.performance_engine import normalize_username, profile_completion_sc
 from services.neon_service import execute, fetch_one, write_query, fast_query, get_cached_table_columns, table_exists as neon_table_exists, get_connection, release_connection
 from services.supabase_safe import column_safe_payload, safe_count, safe_insert, safe_update, table_exists
 from services.logging_service import log_error, log_info, log_warning
+from services.avatar_service import avatar_meta
 
 _CHAIN_PROFILE_COLUMNS_CACHE = None
 _NEON_PROFILES_ENABLED_CACHE = None
@@ -626,7 +627,11 @@ def normalize_profile(profile):
     normalized["display_name"] = display_name
     normalized["full_name"] = normalized.get("full_name") or display_name
     normalized["bio"] = normalized.get("bio") or ""
-    normalized["avatar_url"] = normalized.get("avatar_url") or normalized.get("profile_photo")
+    avatar = avatar_meta(normalized)
+    normalized["avatar_url"] = avatar["avatar_url"]
+    normalized["avatar_alt"] = avatar["avatar_alt"]
+    normalized["avatar_initials"] = avatar["avatar_initials"]
+    normalized["avatar_has_image"] = avatar["avatar_has_image"]
     normalized["cover_url"] = normalized.get("cover_url") or normalized.get("cover_photo")
     normalized["profile_video_url"] = normalized.get("profile_video_url") or normalized.get("video_intro_url")
     parts = [normalized.get("town"), normalized.get("region"), normalized.get("country_origin")]
@@ -639,10 +644,10 @@ def normalize_profile(profile):
     normalized["last_login_at"] = normalized.get("last_login_at") or normalized.get("last_active") or normalized.get("updated_at") or created_at
     normalized["profile_type"] = normalized.get("profile_type") or ("creator" if normalized.get("is_creator") else "member")
     normalized["creator_category"] = normalized.get("creator_category") or normalized.get("profile_type")
-    normalized["premium_tier"] = normalized.get("premium_tier") or ("premium" if normalized.get("is_premium") else "free")
-    normalized["is_premium"] = bool(normalized.get("is_premium") or normalized.get("premium_tier") not in {None, "", "free"})
+    normalized["premium_tier"] = normalized.get("premium_tier") or "free"
+    normalized["is_premium"] = bool(normalized.get("is_premium") and normalized["premium_tier"] not in {None, "", "free"})
     normalized["email_verified"] = _bool_value(normalized.get("email_verified"))
-    normalized["is_verified"] = _bool_value(normalized.get("is_verified") or normalized.get("verified") or normalized.get("email_verified"))
+    normalized["is_verified"] = _bool_value(normalized.get("is_verified") or normalized.get("verified"))
     normalized["verified"] = _bool_value(normalized.get("verified") or normalized.get("is_verified"))
     normalized["wallet_balance"] = normalized.get("wallet_balance") or 0
     normalized["followers_count"] = safe_int(normalized.get("followers_count"), 0)
@@ -1514,33 +1519,38 @@ def get_profile_stats(profile_id):
         return {}
 
 
-def search_profiles(query, limit=20):
+def search_profiles(query, limit=20, offset=0, exclude_ids=None):
     """Search profiles by username or full_name."""
     if not query or len(query) < 2:
         return []
 
-    cache_key_str = cache_key("profile_search", query, 60, 0)
+    exclude_ids = list(dict.fromkeys(str(pid) for pid in (exclude_ids or []) if pid))
+    cache_key_str = cache_key("profile_search", query, limit, offset, ",".join(exclude_ids[:10]))
     cached = get_cache(cache_key_str)
     if cached is not None:
-        return cached[:limit] if len(cached) > limit else cached
+        return cached
 
     try:
+        params = [f"%{query}%", f"%{query}%", query, f"{query}%"]
         results = fast_query(
             """
-            SELECT id, username, full_name, avatar_url, is_verified
+            SELECT id, username, full_name, avatar_url, is_verified, created_at
             FROM chain_profiles
             WHERE (username ILIKE %s OR full_name ILIKE %s)
               AND deleted_at IS NULL
+              AND COALESCE(is_public, TRUE) = TRUE
             ORDER BY
                 CASE
                     WHEN username = %s THEN 1
                     WHEN username ILIKE %s THEN 2
                     ELSE 3
                 END,
-                followers_count DESC
-            LIMIT %s
+                followers_count DESC,
+                created_at DESC,
+                id DESC
+            LIMIT %s OFFSET %s
             """,
-            (f"%{query}%", f"%{query}%", query, f"{query}%", limit),
+            (*params, limit, offset),
             timeout_ms=2000,
             default=[]
         )
@@ -1715,7 +1725,7 @@ def get_recently_active_friends(profile_id, limit=6):
 
 def get_public_profiles(limit=20, offset=0, exclude_ids=None):
     """Get public profiles for matching/discovery."""
-    exclude_ids = exclude_ids or []
+    exclude_ids = list(dict.fromkeys(str(pid) for pid in (exclude_ids or []) if pid))
     cache_key_str = cache_key("public_profiles", limit, offset, ",".join(exclude_ids[:10]))
     cached = get_cache(cache_key_str)
     if cached is not None:
@@ -1732,7 +1742,7 @@ def get_public_profiles(limit=20, offset=0, exclude_ids=None):
             placeholders = ",".join("%s" for _ in exclude_ids)
             sql += f" AND id NOT IN ({placeholders})"
             params.extend(exclude_ids)
-        sql += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+        sql += " ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s"
         params.extend([limit, offset])
 
         results = fast_query(sql, params, timeout_ms=2000, default=[])

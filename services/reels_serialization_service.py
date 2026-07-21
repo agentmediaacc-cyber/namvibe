@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from services.neon_service import fast_query
 from services.media_pipeline import normalize_public_media_url
+from services.media_selection_service import select_avatar_url, select_video_url, select_poster_url
 
 
 MAX_FEED_LIMIT = 20
@@ -123,9 +124,9 @@ def serialize_reel(row: Optional[Mapping[str, Any]], *, viewer_id: Any = None, c
     profile_id = row.get("profile_id") or row.get("creator_id")
     username = creator.get("username") or row.get("username") or ""
     display_name = creator.get("display_name") or creator.get("full_name") or row.get("display_name") or username
-    avatar_url = creator.get("avatar_url") or creator.get("profile_photo") or row.get("avatar_url") or ""
-    video_url = normalize_public_media_url(row.get("video_url") or row.get("media_url") or "")
-    thumbnail_url = normalize_public_media_url(row.get("thumbnail_url") or row.get("poster_url") or "")
+    avatar_url = select_avatar_url(creator or row)
+    video_url = select_video_url(row)
+    thumbnail_url = select_poster_url(row)
     duration = row.get("duration_seconds")
     width = row.get("width")
     height = row.get("height")

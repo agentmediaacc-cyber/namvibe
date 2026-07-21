@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/avatar.html" import avatar %}
 
 {% block title %}Dating Discovery | NamVibe{% endblock %}
 {% block body_class %}chain-dating-page{% endblock %}
@@ -35,6 +36,14 @@
         background-size: cover;
         background-position: center;
         position: relative;
+        overflow: hidden;
+    }
+    .card-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
     }
     .compat-badge {
         position: absolute;
@@ -94,7 +103,8 @@
     <div class="swipe-card-container" id="card-container">
         {% for profile in items %}
         <div class="swipe-card" style="z-index: {{ loop.revindex }}">
-            <div class="card-photo" style="background-image: url('{{ profile.avatar_url or '/static/img/default_avatar.png' }}')">
+            <div class="card-photo">
+                {{ avatar(profile, size='profile', loading='eager', ring=False, class_name='dating-avatar') }}
                 <div class="compat-badge">{{ profile.compatibility_score }}% Match</div>
             </div>
             <div class="card-info">

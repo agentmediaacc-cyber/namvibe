@@ -252,24 +252,39 @@ button, [role="button"], .clickable, a, input, select, textarea {
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
-  background: linear-gradient(135deg, var(--nv-color-accent), #6366f1);
-  color: #fff;
+  aspect-ratio: 1 / 1;
+  width: var(--nv-avatar-size-md);
+  height: var(--nv-avatar-size-md);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.14), transparent 35%),
+    linear-gradient(135deg, var(--nv-color-bg-elevated), var(--nv-color-bg-card));
+  color: var(--nv-color-text-primary);
   font-weight: var(--nv-font-weight-bold);
   text-transform: uppercase;
   -webkit-user-select: none;
   user-select: none;
+  border: 1px solid var(--nv-color-border);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
 }
 
 .nv-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
-.nv-avatar-sm { width: var(--nv-avatar-size-sm); height: var(--nv-avatar-size-sm); font-size: var(--nv-font-size-sm); }
+.nv-avatar--xs,
+.nv-avatar-sm { width: 24px; height: 24px; font-size: 10px; }
+.nv-avatar--sm { width: var(--nv-avatar-size-sm); height: var(--nv-avatar-size-sm); font-size: var(--nv-font-size-sm); }
+.nv-avatar--md,
 .nv-avatar-md { width: var(--nv-avatar-size-md); height: var(--nv-avatar-size-md); font-size: var(--nv-font-size-base); }
+.nv-avatar--lg,
 .nv-avatar-lg { width: var(--nv-avatar-size-lg); height: var(--nv-avatar-size-lg); font-size: var(--nv-font-size-lg); }
+.nv-avatar--xl,
 .nv-avatar-xl { width: var(--nv-avatar-size-xl); height: var(--nv-avatar-size-xl); font-size: var(--nv-font-size-2xl); }
+.nv-avatar--profile { width: 96px; height: 96px; font-size: 30px; border-width: 2px; box-shadow: 0 0 0 4px rgba(255,255,255,.03), inset 0 0 0 1px rgba(255,255,255,.05); }
+.nv-avatar--ring { box-shadow: 0 0 0 3px rgba(37,99,235,.22), inset 0 0 0 1px rgba(255,255,255,.05); }
 
 .nv-avatar-initials {
   width: 100%;
@@ -277,7 +292,65 @@ button, [role="button"], .clickable, a, input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
+
+.nv-avatar__fallback,
+.nv-avatar__icon {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: inherit;
+}
+
+.nv-avatar__icon svg,
+.nv-avatar__fallback svg {
+  width: 60%;
+  height: 60%;
+}
+
+.nv-avatar.is-broken img,
+.nv-avatar[data-avatar-broken="true"] img {
+  display: none;
+}
+
+.nv-avatar.is-broken .nv-avatar__fallback,
+.nv-avatar[data-avatar-broken="true"] .nv-avatar__fallback {
+  display: grid;
+}
+
+.nv-media-shell {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+.nv-media-shell > img,
+.nv-media-shell > video {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+}
+
+.nv-media-shell--contain > img,
+.nv-media-shell--contain > video {
+  object-fit: contain;
+}
+
+.nv-media-shell--cover > img,
+.nv-media-shell--cover > video {
+  object-fit: cover;
+}
+
+.nv-media-shell--portrait { aspect-ratio: 9 / 16; }
+.nv-media-shell--square { aspect-ratio: 1 / 1; }
+.nv-media-shell--landscape { aspect-ratio: 16 / 9; }
 
 /* ── STORY RING ── */
 .nv-story-ring {

@@ -222,6 +222,13 @@
         .chain-shell--social .content-body {
             padding: 0;
         }
+        .nv-avatar__fallback { display: none; }
+        .nv-avatar[data-avatar-has-image="false"] .nv-avatar__fallback { display: grid; }
+        .nv-media-shell,
+        .nv-media-shell > img,
+        .nv-media-shell > video {
+            max-width: 100%;
+        }
         .social-drawer-backdrop {
             position: fixed;
             inset: 0;
@@ -387,6 +394,26 @@
             input, textarea, select { font-size: 16px !important; }
         }
     </style>
+    <script>
+      window.NVAvatar = window.NVAvatar || {
+        bind: function (img) {
+          if (!img || img.dataset.nvAvatarBound === "true") return;
+          img.dataset.nvAvatarBound = "true";
+          img.addEventListener("error", function () {
+            var wrap = img.closest(".nv-avatar");
+            if (!wrap || wrap.dataset.avatarBroken === "true") return;
+            wrap.dataset.avatarBroken = "true";
+            img.style.display = "none";
+          }, { once: true });
+        },
+        scan: function (root) {
+          (root || document).querySelectorAll(".nv-avatar img").forEach(function (img) {
+            window.NVAvatar.bind(img);
+          });
+        }
+      };
+      document.addEventListener("DOMContentLoaded", function () { window.NVAvatar.scan(document); });
+    </script>
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}" data-authenticated="{{ 'true' if g_current else 'false' }}">

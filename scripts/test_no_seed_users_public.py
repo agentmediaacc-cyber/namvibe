@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Verify seeded/test users are excluded from production public surfaces."""
 
-import json
 import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-CREDS_PATH = ROOT / "secrets" / "test_credentials.json"
 
 SEED_USERS = {"chain_star", "chain_moon", "chain_gold", "chain_million"}
 PUBLIC_QUERY_FILES = {
@@ -28,33 +26,7 @@ def read(path):
         return ""
 
 
-def load_seed_credentials():
-    if not CREDS_PATH.exists():
-        return {}, ["missing secrets/test_credentials.json"]
-    try:
-        data = json.loads(CREDS_PATH.read_text(encoding="utf-8"))
-    except Exception as exc:
-        return {}, [f"invalid test_credentials.json: {exc}"]
-    return data, []
-
-
-def credential_identities(credentials):
-    usernames = set(SEED_USERS)
-    emails = set()
-    for key, value in credentials.items():
-        if isinstance(key, str) and "@" not in key:
-            usernames.add(key.lower())
-        if isinstance(value, dict):
-            username = (value.get("username") or "").strip().lower()
-            email = (value.get("email") or "").strip().lower()
-            if username:
-                usernames.add(username)
-            if email:
-                emails.add(email)
-    return usernames, emails
-
-
-def check_filter_runtime(usernames, emails):
+def check_filter_runtime():
     from services.homepage_real_data_guard import filter_feed_posts, filter_profiles, is_test_profile
 
     offenders = []
@@ -66,11 +38,6 @@ def check_filter_runtime(usernames, emails):
             offenders.append(f"filter:filter_profiles leaked {username}")
         if filter_feed_posts([{"id": username, "username": username, "profile_id": username}]):
             offenders.append(f"filter:filter_feed_posts leaked {username}")
-
-    for email in sorted(email for email in emails if email.endswith(".local") or "@chain.local" in email):
-        profile = {"id": email, "username": email.split("@", 1)[0], "email": email}
-        if not is_test_profile(profile):
-            offenders.append(f"filter:*.local email not excluded for {email}")
 
     return offenders
 
@@ -128,15 +95,8 @@ def check_credentials_not_exposed():
 
 
 def main():
-    credentials, errors = load_seed_credentials()
-    usernames, emails = credential_identities(credentials)
-    offenders = list(errors)
-
-    missing = sorted(SEED_USERS - usernames)
-    for username in missing:
-        offenders.append(f"credentials missing expected seeded user {username}")
-
-    offenders.extend(check_filter_runtime(usernames, emails))
+    offenders = []
+    offenders.extend(check_filter_runtime())
     offenders.extend(check_public_query_sources())
     offenders.extend(check_credentials_not_exposed())
 

@@ -379,8 +379,10 @@ def api_mutual_friends(other_id):
 @login_required
 def api_friend_suggestions():
     profile = get_current_profile()
-    suggestions = suggest_friends(profile["id"])
-    return jsonify({"suggestions": suggestions})
+    limit = min(max(request.args.get("limit", 20, type=int), 1), 50)
+    offset = max(request.args.get("offset", 0, type=int), 0)
+    suggestions = suggest_friends(profile["id"], limit=limit, offset=offset)
+    return jsonify({"suggestions": suggestions, "limit": limit, "offset": offset, "has_more": len(suggestions) == limit})
 
 @social_bp.route("/api/status/<target_id>")
 @login_required

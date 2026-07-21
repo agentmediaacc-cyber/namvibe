@@ -76,6 +76,7 @@ from services.profile_service import (
     upload_profile_cover,
     verify_profile_age,
 )
+from services.avatar_service import avatar_meta
 from services.profile_dashboard_service import build_profile_dashboard
 from services.profile_view_service import build_profile_view_model
 from services.storage_service import upload_avatar, upload_cover, upload_verification_file
@@ -242,14 +243,18 @@ def _with_profile_defaults(profile):
     profile["display_name"] = display_name
     profile["full_name"] = profile.get("full_name") or display_name
     profile["bio"] = profile.get("bio") or ""
-    profile["avatar_url"] = profile.get("avatar_url") or profile.get("profile_photo")
+    avatar = avatar_meta(profile)
+    profile["avatar_url"] = avatar["avatar_url"]
+    profile["avatar_alt"] = avatar["avatar_alt"]
+    profile["avatar_initials"] = avatar["avatar_initials"]
+    profile["avatar_has_image"] = avatar["avatar_has_image"]
     profile["cover_url"] = profile.get("cover_url")
     profile["location"] = profile.get("location") or profile.get("current_location") or profile.get("town") or profile.get("region") or profile.get("country_origin") or ""
     profile["current_location"] = profile.get("current_location") or profile["location"]
     profile["website"] = profile.get("website") or profile.get("portfolio_url") or ""
-    profile["is_verified"] = bool(profile.get("is_verified") or profile.get("verified") or profile.get("email_verified"))
+    profile["is_verified"] = bool(profile.get("is_verified") or profile.get("verified"))
     profile["verified"] = bool(profile.get("verified") or profile["is_verified"])
-    profile["email_verified"] = bool(profile.get("email_verified") or profile["is_verified"])
+    profile["email_verified"] = bool(profile.get("email_verified"))
     profile["rank"] = profile.get("rank") or "New Member"
     profile["created_at"] = created_at
     profile["last_login_at"] = profile.get("last_login_at") or profile.get("last_active") or profile.get("updated_at") or created_at

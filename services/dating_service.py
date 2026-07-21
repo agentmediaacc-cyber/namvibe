@@ -195,7 +195,7 @@ def _prefetch_candidate_ids(viewer_id):
           AND dp.profile_id != %s
           AND COALESCE(p.deleted_at, NULL) IS NULL
         ORDER BY dp.updated_at DESC, dp.created_at DESC, dp.profile_id DESC
-        LIMIT 200
+        LIMIT 500
         """,
         (_uuid(viewer_id),),
     )
@@ -336,11 +336,13 @@ def get_discover_profiles(viewer_id, limit=30, offset=0):
         (candidate_ids,),
     )
 
+    seen = set()
     results = []
     for r in rows:
         pid = str(r["profile_id"])
-        if pid in excluded:
+        if pid in excluded or pid in seen:
             continue
+        seen.add(pid)
         profile = _row_to_dict(r)
         if not _eligible_for_discovery(viewer, profile, preferences, blocked, blocked_by, dating_profile):
             continue
@@ -352,7 +354,8 @@ def get_discover_profiles(viewer_id, limit=30, offset=0):
         profile["compatibility_confidence"] = compatibility["confidence"]
         results.append(profile)
     results.sort(key=lambda x: (-int(x.get("compatibility_score") or 0), str(x.get("updated_at") or ""), str(x.get("profile_id") or "")))
-    return _rows_to_list(results[offset:offset + limit]) if results else []
+    page = results[offset:offset + limit] if results else []
+    return _rows_to_list(page)
 
 
 # ─── LIKES / PASS / SUPER LIKE ───────────────────────────────

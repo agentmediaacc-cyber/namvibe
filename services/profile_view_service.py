@@ -3,6 +3,8 @@
 from datetime import datetime, timezone
 
 from services.profile_completion_service import calculate_profile_completion
+from services.avatar_service import avatar_meta
+from services.subscription_entitlement_service import get_entitlement
 
 
 def _as_int(value):
@@ -162,6 +164,8 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
     products = marketplace.get("items") or marketplace.get("featured_products") or content.get("marketplace") or []
     has_shop = bool(products or marketplace.get("shop_enabled") or profile.get("shop_enabled") or profile.get("has_shop"))
     is_creator = bool(profile.get("is_creator") or creator.get("studio_enabled") or creator.get("monetization_enabled") or profile.get("profile_type") == "creator")
+    avatar = avatar_meta(profile)
+    entitlement = get_entitlement(profile.get("id"), profile=profile) if profile.get("id") else {"effective_plan": "free", "subscription_status": "free", "is_premium": False}
     posts_count = _as_int(stats.get("posts") or stats.get("posts_count") or profile.get("posts_count"))
     reels_count = _as_int(stats.get("reels") or stats.get("reels_count") or profile.get("reels_count"))
     views_count = _as_int(stats.get("views") or stats.get("views_count") or profile.get("profile_views"))
@@ -199,7 +203,8 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "location": _location(profile),
         "joined": _joined(profile),
         "active": active,
-        "avatar_url": profile.get("avatar_url") or profile.get("photo_url") or profile.get("thumbnail_url"),
+        **avatar,
+        "avatar_url": avatar["avatar_url"],
         "cover_url": profile.get("cover_url") or profile.get("banner_url"),
         "gallery_preview": gallery_preview,
         "mutual_friends_count": int(mutual_friends.get("count") or 0),
@@ -263,7 +268,10 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
         "company": profile.get("company"),
         "school": profile.get("school"),
         "university": profile.get("university"),
-        "premium_tier": profile.get("premium_tier") or "free",
+        "premium_tier": entitlement["effective_plan"],
+        "subscription_status": entitlement["subscription_status"],
+        "is_premium": entitlement["is_premium"],
+        "subscription_entitlement": entitlement,
         "verification_type": profile.get("verification_type") or ("gold" if profile.get("verified") and (profile.get("identity_verified") or profile.get("professional_membership")) else ("blue" if profile.get("verified") or profile.get("is_verified") else "none")),
         "is_gold_verified": bool(profile.get("verification_type") == "gold" or (bool(profile.get("verified")) and (bool(profile.get("identity_verified")) or bool(profile.get("professional_membership"))))),
         "gold_badge": bool(profile.get("gold_badge") or (profile.get("verification_type") == "gold")),

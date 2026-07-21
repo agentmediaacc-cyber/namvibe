@@ -6,6 +6,7 @@ from services.neon_service import fast_query, write_query
 from services.reels_engine import list_reels, get_reel, create_reel, record_reel_view, like_reel, share_reel, delete_reel
 from services.reels_serialization_service import serialize_reels, serialize_reel, encode_feed_cursor, decode_feed_cursor, DEFAULT_FEED_LIMIT, MAX_FEED_LIMIT
 from services.content_service import get_reels_content_version
+from services.media_pipeline import normalize_public_media_url
 from engines.cache_engine import cache_key
 from services.logging_service import log_info, log_warning
 from services.id_validation import normalize_uuid, filter_valid_uuids
@@ -41,6 +42,47 @@ def normalize_public_reels_cursor(cursor):
     if not cursor or str(cursor).strip().lower() in {"first", "none", ""}:
         return "first"
     return str(cursor)
+
+
+def _sanitize_reel_media_item(item):
+    if not isinstance(item, dict):
+        return item
+    sanitized = dict(item)
+    for key in ("video_url", "media_url", "thumbnail_url", "poster_url"):
+        if key in sanitized:
+            sanitized[key] = normalize_public_media_url(sanitized.get(key) or "")
+    if sanitized.get("poster_url") and not sanitized.get("thumbnail_url"):
+        sanitized["thumbnail_url"] = sanitized["poster_url"]
+    if sanitized.get("thumbnail_url") and not sanitized.get("poster_url"):
+        sanitized["poster_url"] = sanitized["thumbnail_url"]
+    return sanitized
+
+
+def _sanitize_reel_feed_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+    sanitized = dict(payload)
+    items = sanitized.get("items")
+    if items is None and "reels" in sanitized:
+        items = sanitized.get("reels")
+    if isinstance(items, list):
+        sanitized_items = [_sanitize_reel_media_item(item) for item in items]
+        sanitized["items"] = sanitized_items
+        if "reels" in sanitized:
+            sanitized["reels"] = sanitized_items
+    return sanitized
+
+
+def _prioritize_playable_reels(items):
+    playable = []
+    fallback = []
+    for item in items or []:
+        sanitized = _sanitize_reel_media_item(item)
+        if sanitized.get("video_url") or sanitized.get("media_url"):
+            playable.append(sanitized)
+        else:
+            fallback.append(sanitized)
+    return playable + fallback
 
 
 def build_public_reels_feed_cache_key(*, content_version, limit, cursor, feed_type="public", namespace=None):
@@ -115,6 +157,11 @@ def get_reel_feed(limit=20, cursor=None, viewer_id=None):
             local_cache_key = f"local:{cache_key_str}"
             cached = get_cache(local_cache_key)
             if cached is not None:
+                cached = _sanitize_reel_feed_payload(cached)
+                cached_items = _prioritize_playable_reels(cached.get("items") or cached.get("reels") or [])
+                cached["items"] = cached_items
+                if "reels" in cached:
+                    cached["reels"] = cached_items
                 if _CHAIN_REELS_PERF:
                     log_info("reels_feed_timing", cache_hit=True, cache_backend="memory", cache_shared=False, cache_persistent=False, total_ms=round((time.perf_counter() - started) * 1000, 2), viewer=bool(profile_id_param), cursor=bool(cursor_data), limit=limit)
                 return cached
@@ -122,12 +169,17 @@ def get_reel_feed(limit=20, cursor=None, viewer_id=None):
             cached = cached_result.get("value")
             if cached is not None:
                 if isinstance(cached, dict):
+                    cached = _sanitize_reel_feed_payload(cached)
+                    cached_items = _prioritize_playable_reels(cached.get("items") or cached.get("reels") or [])
+                    cached["items"] = cached_items
+                    if "reels" in cached:
+                        cached["reels"] = cached_items
                     set_cache(local_cache_key, cached, ttl=_LOCAL_REELS_FEED_TTL_SECONDS)
                     if _CHAIN_REELS_PERF:
                         log_info("reels_feed_timing", cache_hit=True, cache_backend=cached_result.get("backend"), cache_shared=True, cache_persistent=True, total_ms=round((time.perf_counter() - started) * 1000, 2), viewer=bool(profile_id_param), cursor=bool(cursor_data), limit=limit)
                     return cached
                 if isinstance(cached, list):
-                    payload = {"items": cached, "next_cursor": None, "has_more": False}
+                    payload = {"items": _prioritize_playable_reels(cached), "next_cursor": None, "has_more": False}
                     set_cache(local_cache_key, payload, ttl=_LOCAL_REELS_FEED_TTL_SECONDS)
                     if _CHAIN_REELS_PERF:
                         log_info("reels_feed_timing", cache_hit=True, cache_backend=cached_result.get("backend"), cache_shared=True, cache_persistent=True, total_ms=round((time.perf_counter() - started) * 1000, 2), viewer=bool(profile_id_param), cursor=bool(cursor_data), limit=limit)
@@ -149,11 +201,16 @@ def get_reel_feed(limit=20, cursor=None, viewer_id=None):
             cached = cached_result.get("value")
             if cached is not None:
                 if isinstance(cached, dict):
+                    cached = _sanitize_reel_feed_payload(cached)
+                    cached_items = _prioritize_playable_reels(cached.get("items") or cached.get("reels") or [])
+                    cached["items"] = cached_items
+                    if "reels" in cached:
+                        cached["reels"] = cached_items
                     if _CHAIN_REELS_PERF:
                         log_info("reels_feed_timing", cache_hit=True, cache_backend=cached_result.get("backend"), cache_shared=True, cache_persistent=True, total_ms=round((time.perf_counter() - started) * 1000, 2), viewer=bool(profile_id_param), cursor=bool(cursor_data), limit=limit)
                     return cached
                 if isinstance(cached, list):
-                    payload = {"items": cached, "next_cursor": None, "has_more": False}
+                    payload = {"items": _prioritize_playable_reels(cached), "next_cursor": None, "has_more": False}
                     if _CHAIN_REELS_PERF:
                         log_info("reels_feed_timing", cache_hit=True, cache_backend=cached_result.get("backend"), cache_shared=True, cache_persistent=True, total_ms=round((time.perf_counter() - started) * 1000, 2), viewer=bool(profile_id_param), cursor=bool(cursor_data), limit=limit)
                     return payload
@@ -209,7 +266,7 @@ def get_reel_feed(limit=20, cursor=None, viewer_id=None):
     if has_more:
         result = result[:limit]
     serialize_started = time.perf_counter()
-    serialized = serialize_reels(result, viewer_id=viewer_id)
+    serialized = _prioritize_playable_reels(serialize_reels(result, viewer_id=viewer_id))
     serialize_ms = round((time.perf_counter() - serialize_started) * 1000, 2)
     next_cursor = encode_feed_cursor(result[-1].get("created_at"), result[-1].get("id")) if has_more and result else None
 

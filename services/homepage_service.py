@@ -2797,10 +2797,10 @@ def _feed_following(profile_id=None, limit=20, offset=0):
         return []
     try:
         following = fast_query(
-            "SELECT following_id FROM chain_follows WHERE follower_id = %s LIMIT 200",
-            (profile_id,), timeout_ms=300, default=[]
+            "SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s AND deleted_at IS NULL ORDER BY created_at DESC, following_profile_id DESC LIMIT %s OFFSET %s",
+            (profile_id, max(limit, 1) + 1, offset), timeout_ms=300, default=[]
         )
-        fids = [str(r["following_id"]) for r in following if r.get("following_id")]
+        fids = [str(r["following_profile_id"]) for r in following if r.get("following_profile_id")]
     except Exception:
         fids = []
     if not fids:
@@ -2871,8 +2871,8 @@ def _feed_nearby(profile_id=None, limit=20, offset=0):
             return []
         rows = fast_query(
             "SELECT " + ", ".join(cols) + " "
-            "FROM chain_profiles WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT "
-            + str(limit + offset),
+            "FROM chain_profiles WHERE deleted_at IS NULL AND COALESCE(is_public, TRUE) = TRUE ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s",
+            (limit, offset),
             timeout_ms=500, default=[]
         )
     except Exception:
@@ -3077,11 +3077,6 @@ def _suggested_people(current_user=None, limit=5):
 
         from services.homepage_real_data_guard import filter_profiles
         result = filter_profiles(result)
-
-        if not result:
-            recent, _ = _fetch_profiles(limit=limit)
-            result = [_normalize_profile(r) for r in recent if r.get("id")]
-            result = filter_profiles(result)
 
         result = result[:limit]
         set_cache(cache_key_str, result, ttl=300)

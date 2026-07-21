@@ -319,12 +319,11 @@ def get_mutual_friends(profile_id_1, profile_id_2, limit=20, offset=0):
         cache_set(cache_key, res or [], ttl=600)
     return res
 
-def suggest_friends(profile_id, limit=20):
-    """Suggests friends based on mutual friends of friends (simplified)."""
-    # Exclude current friends, blocked profiles, and pending requests.
+def suggest_friends(profile_id, limit=20, offset=0):
+    """Suggests friends based on bounded, deterministic discovery results."""
     public_sql = public_profile_sql("chain_profiles")
     query = """
-        SELECT id, username, display_name, avatar_url, is_verified, followers_count
+        SELECT id, username, display_name, avatar_url, is_verified, followers_count, created_at
         FROM chain_profiles
         WHERE deleted_at IS NULL
           AND COALESCE(is_public, TRUE) = TRUE
@@ -347,11 +346,19 @@ def suggest_friends(profile_id, limit=20):
               UNION
               SELECT following_profile_id FROM chain_follows WHERE follower_profile_id = %s AND deleted_at IS NULL
           )
-        ORDER BY COALESCE(followers_count, 0) DESC, created_at DESC
-        LIMIT %s
+        ORDER BY COALESCE(followers_count, 0) DESC, created_at DESC, id DESC
+        LIMIT %s OFFSET %s
     """.format(public_sql=public_sql)
-    res = fast_query(query, [profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, limit])
-    return res
+    res = fast_query(query, [profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, profile_id, limit, offset])
+    seen = set()
+    ordered = []
+    for row in res or []:
+        pid = str(row.get("id") or "")
+        if not pid or pid in seen:
+            continue
+        seen.add(pid)
+        ordered.append(row)
+    return ordered
 
 def set_friend_status(profile_id, friend_id, status):
     """Sets friend status (friend, close_friend, best_friend)."""

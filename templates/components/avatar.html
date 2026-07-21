@@ -1,0 +1,25 @@
+{% macro avatar(profile=None, size='md', loading='lazy', ring=False, class_name='') -%}
+  {% set meta = profile if profile is mapping else {} %}
+  {% set avatar_url = meta.get('avatar_url') or '' %}
+  {% set avatar_alt = meta.get('avatar_alt') or ((meta.get('display_name') or meta.get('full_name') or meta.get('username') or 'Profile') ~ ' profile picture') %}
+  {% set initials = meta.get('avatar_initials') or ((meta.get('display_name') or meta.get('full_name') or meta.get('username') or 'NV')[:2]|upper) %}
+  {% set has_image = meta.get('avatar_has_image') %}
+  {% if has_image is none %}
+    {% set has_image = avatar_url|length > 0 %}
+  {% endif %}
+  {% set classes = 'nv-avatar nv-avatar--' ~ size ~ (' nv-avatar--ring' if ring else '') ~ (' ' ~ class_name if class_name else '') %}
+  <span class="{{ classes|trim }}" data-avatar-has-image="{{ 'true' if has_image else 'false' }}">
+    {% if avatar_url %}
+    <img src="{{ avatar_url|e }}" alt="{{ avatar_alt|e }}" loading="{{ loading }}" decoding="async">
+    {% endif %}
+    <span class="nv-avatar__fallback" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21a8 8 0 0 0-16 0"/>
+        <circle cx="12" cy="8" r="4"/>
+      </svg>
+    </span>
+    {% if not avatar_url %}
+    <span class="nv-avatar-initials">{{ initials|e }}</span>
+    {% endif %}
+  </span>
+{%- endmacro %}

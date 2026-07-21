@@ -1,3 +1,4 @@
+{% from "components/avatar.html" import avatar %}
 {% set public_stats = public_stats|default({}) %}
 {% set own_profile = viewer and profile and viewer.id == profile.id %}
 {% set pa = action_policy or profile.action_policy or {} %}
@@ -30,7 +31,7 @@
 
 <div class="profile-mini-header" data-mini-profile>
     <div class="mini-avatar">
-        {% if profile.avatar_url %}<img src="{{ profile.avatar_url }}" alt="{{ display_name }}">{% else %}{{ (display_name or 'C')[0]|upper }}{% endif %}
+        {{ avatar(profile, size='sm', loading='eager', ring=False, class_name='mini-avatar-shared') }}
     </div>
     <div class="mini-info">
         <strong>{{ display_name }}</strong>
@@ -70,11 +71,7 @@
     <div class="hero-content">
         <div class="hero-avatar-area">
             <div class="avatar-container {% if presence and presence.status == 'online' %}is-online{% endif %}">
-                {% if profile.avatar_url %}
-                <img src="{{ profile.avatar_url }}" alt="{{ display_name }}" class="avatar-img">
-                {% else %}
-                <div class="avatar-placeholder">{{ (display_name or 'C')[0]|upper }}</div>
-                {% endif %}
+                {{ avatar(profile, size='profile', loading='eager', ring=bool(profile.is_verified or profile.verified), class_name='avatar-img avatar-shared') }}
                 
                 {% if own_profile %}
                 <button class="avatar-edit-overlay" type="button" data-file-trigger="avatar-input-header">

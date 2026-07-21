@@ -59,7 +59,14 @@
     const uploaded = story.uploaded_label || timeAgo(story.created_at);
     const expires = story.expires_in_label || '';
     if (timeLabel) timeLabel.textContent = expires ? `${uploaded} · ${expires}` : uploaded;
-    if (userAvatar) userAvatar.src = story.avatar_url || '';
+    if (userAvatar) {
+      userAvatar.alt = story.display_name ? `${story.display_name} profile picture` : 'Profile picture';
+      userAvatar.src = story.avatar_url || '';
+      userAvatar.onerror = function () {
+        userAvatar.removeAttribute('src');
+        userAvatar.dataset.avatarBroken = 'true';
+      };
+    }
     if (storyText) {
       storyText.textContent = story.text_content || story.caption || '';
       storyText.style.background = story.background_color || 'transparent';
@@ -80,6 +87,7 @@
       storyImg.style.display = 'none';
       storyVideo.style.display = 'block';
       storyVideo.src = story.media_url;
+      storyVideo.playsInline = true;
       storyVideo.play().catch(() => {});
     } else if (story.media_url) {
       storyVideo.style.display = 'none';

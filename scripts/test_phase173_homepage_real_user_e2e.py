@@ -13,14 +13,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app import app as flask_app
-from services.profile_service import get_profile_by_id
+from scripts.safe_test_auth import SafeAuthenticatedSession
 from services.neon_service import fast_query, write_query
 from services.social_relationship_service import send_friend_request, accept_friend_request
 from flask import session as flask_session
 from flask_wtf.csrf import generate_csrf
 import requests
 
-CREDS_PATH = ROOT / "secrets" / "test_credentials.json"
 LOCAL_BASE = os.environ.get("NAMVIBE_LOCAL_BASE_URL", "http://127.0.0.1:8080").rstrip("/")
 PUBLIC_BASE = os.environ.get("NAMVIBE_PUBLIC_BASE_URL", "https://namvibe.com").rstrip("/")
 TEST_PREFIX = "PHASE173_E2E_"
@@ -126,53 +125,6 @@ class HomeParser(HTMLParser):
                 self.static_assets.append(href)
 
 
-def load_credentials():
-    if not CREDS_PATH.exists():
-        raise SystemExit("Missing secrets/test_credentials.json")
-    data = json.loads(CREDS_PATH.read_text())
-    def resolve(*keys):
-        merged = {}
-        for key in keys:
-            value = data.get(key)
-            if isinstance(value, dict):
-                merged.update({k: v for k, v in value.items() if v not in (None, "")})
-        return merged
-
-    alpha = resolve("alpha@namvibe.com", "alpha_user", "user_a")
-    beta = resolve("beta@namvibe.com", "beta_user", "user_b")
-    if not alpha or not beta:
-        raise SystemExit("Missing alpha/beta credentials in secrets/test_credentials.json")
-    for label, cred in (("alpha", alpha), ("beta", beta)):
-        if not cred.get("password"):
-            raise SystemExit(
-                f"Missing plaintext password for {label} in secrets/test_credentials.json "
-                f"(checked email, username, and user alias entries)"
-            )
-        profile = None
-        if cred.get("profile_id"):
-            profile = get_profile_by_id(cred.get("profile_id"))
-        if not profile and cred.get("email"):
-            rows = fast_query(
-                "SELECT id, auth_user_id, email, username, full_name, display_name FROM chain_profiles WHERE email = %s AND deleted_at IS NULL LIMIT 1",
-                (cred.get("email"),),
-                default=[],
-            )
-            if rows:
-                profile = rows[0]
-        if profile and profile.get("username"):
-            cred["profile_id"] = profile.get("id")
-            cred["auth_user_id"] = profile.get("auth_user_id")
-            cred["email"] = profile.get("email") or cred.get("email")
-            cred["full_name"] = profile.get("full_name") or profile.get("display_name") or cred.get("full_name")
-            cred["canonical_username"] = profile.get("username")
-        else:
-            if cred.get("profile_id") and cred.get("auth_user_id"):
-                cred["canonical_username"] = cred.get("canonical_username") or cred.get("username")
-            else:
-                raise SystemExit(f"Could not resolve live profile row for {label}")
-    return alpha, beta
-
-
 def make_session():
     session = requests.Session()
     session.headers.update({"User-Agent": "NamVibe Phase173 Real User E2E"})
@@ -205,6 +157,27 @@ def inject_session(client, identity):
         sess["full_name"] = identity.get("full_name") or identity.get("username")
         sess["logged_in"] = True
         sess["profile_completed"] = True
+
+
+def cleanup_temp_profile(identity):
+    if not identity:
+        return
+    pid = identity.get("profile_id")
+    email = identity.get("email")
+    username = identity.get("username")
+    for sql, params in [
+        ("DELETE FROM chain_notifications WHERE recipient_profile_id = %s OR actor_profile_id = %s", (pid, pid)),
+        ("DELETE FROM chain_friend_requests WHERE sender_profile_id = %s OR recipient_profile_id = %s", (pid, pid)),
+        ("DELETE FROM chain_friends WHERE profile_id_1 = %s OR profile_id_2 = %s", (pid, pid)),
+        ("DELETE FROM chain_messages WHERE sender_profile_id = %s OR recipient_profile_id = %s", (pid, pid)),
+        ("DELETE FROM chain_thread_members WHERE profile_id = %s", (pid,)),
+        ("DELETE FROM chain_message_threads WHERE created_by_profile_id = %s", (pid,)),
+        ("DELETE FROM chain_profiles WHERE id = %s OR email = %s OR username = %s", (pid, email, username)),
+    ]:
+        try:
+            write_query(sql, params, timeout_ms=5000)
+        except Exception:
+            pass
 
 
 def cleanup_friend_state(alpha_id, beta_id):
@@ -273,6 +246,10 @@ def full_url(base, path_or_url):
 
 
 def login(base, session, cred):
+    if cred.get("session_cookie"):
+        host = urlparse(base).hostname or "127.0.0.1"
+        session.cookies.set("session", cred["session_cookie"], domain=host, path="/")
+        return type("Response", (), {"status_code": 200, "text": "", "headers": {}})()
     page = session.get(full_url(base, "/auth/login"), timeout=30)
     csrf = csrf_from_html(page.text)
     payload = {
@@ -675,10 +652,36 @@ def run_public(results):
 
 def main():
     results = Results()
-    alpha, beta = load_credentials()
-    run_local(results, alpha, beta)
-    run_public(results)
-    results.summary()
+    auth_fixture = SafeAuthenticatedSession(flask_app, prefix="__phase173__")
+    alpha = beta = None
+    try:
+        alpha_user = auth_fixture.create(role="alpha", is_public=True)
+        beta_user = auth_fixture.create(role="beta", is_public=True)
+        alpha = {
+            "profile_id": alpha_user.profile_id,
+            "auth_user_id": alpha_user.auth_user_id,
+            "username": alpha_user.username,
+            "canonical_username": alpha_user.username,
+            "email": alpha_user.email,
+            "full_name": alpha_user.full_name,
+            "session_cookie": alpha_user.session_cookie,
+        }
+        beta = {
+            "profile_id": beta_user.profile_id,
+            "auth_user_id": beta_user.auth_user_id,
+            "username": beta_user.username,
+            "canonical_username": beta_user.username,
+            "email": beta_user.email,
+            "full_name": beta_user.full_name,
+            "session_cookie": beta_user.session_cookie,
+        }
+        run_local(results, alpha, beta)
+        run_public(results)
+    finally:
+        auth_fixture.cleanup()
+        cleanup_temp_profile(beta)
+        cleanup_temp_profile(alpha)
+        results.summary()
     raise SystemExit(1 if results.fail_count else 0)
 
 

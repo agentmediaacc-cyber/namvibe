@@ -84,6 +84,9 @@
   display: flex;
   flex-direction: column;
   color: #fff;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  overflow: hidden;
 }
 .story-progress-bar {
   position: absolute;
@@ -129,6 +132,8 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  min-width: 0;
+  overflow: hidden;
 }
 .story-user-info {
   position: absolute;
@@ -155,9 +160,13 @@
   opacity: .7;
 }
 .story-image, .story-video {
+  display: block;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  object-position: center;
 }
 .story-text-overlay {
   position: absolute;
@@ -186,6 +195,7 @@
   gap: 8px;
   padding: 12px 16px 24px;
   background: rgba(0,0,0,.8);
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
 .story-react-btn {
   background: none;

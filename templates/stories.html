@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/avatar.html" import avatar %}
 {% block title %}Stories | NamVibe{% endblock %}
 {% block body_class %}nvpro-home{% endblock %}
 
@@ -36,11 +37,7 @@
   <div class="stories-tray" style="display:none">
     <a href="/status/create" class="story-avatar my-story">
       <div class="story-ring">
-        {% if profile and profile.avatar_url %}
-        <img src="{{ profile.avatar_url }}" alt="">
-        {% else %}
-        <div class="story-avatar-placeholder"><i class="fas fa-user"></i></div>
-        {% endif %}
+        {{ avatar(profile, size='md', loading='eager', ring=False, class_name='story-avatar-portrait') }}
         <span class="story-add-badge"><i class="fas fa-plus"></i></span>
       </div>
       <span class="story-username">Your Story</span>
@@ -49,11 +46,7 @@
       {% for story in stories %}
       <a href="/stories/{{ story.id }}" class="story-avatar" data-story-id="{{ story.id }}">
         <div class="story-ring {% if story.viewer_count and story.viewer_count > 0 %}viewed{% endif %}">
-          {% if story.avatar_url %}
-          <img src="{{ story.avatar_url }}" alt="">
-          {% else %}
-          <div class="story-avatar-placeholder">{{ (story.username or 'S')[0]|upper }}</div>
-          {% endif %}
+          {{ avatar(story, size='md', loading='lazy', ring=False, class_name='story-avatar-portrait') }}
         </div>
         <span class="story-username">{{ story.username }}</span>
       </a>

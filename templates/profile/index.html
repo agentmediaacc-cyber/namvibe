@@ -1,4 +1,5 @@
 {% extends "profile/base_profile.html" %}
+{% from "components/avatar.html" import avatar %}
 {% block title %}{{ (pv or {}).get('display_name', 'Profile') }} | NamVibe Premium{% endblock %}
 {% block body_class %}nv-profile-premium{% endblock %}
 
@@ -88,11 +89,7 @@
 
     <div class="nv-pp-info" style="position:relative;z-index:2">
       <div class="nv-pp-avatar-wrap">
-        {% if p.avatar_url %}
-        <img src="{{ p.avatar_url }}" alt="" class="nv-pp-avatar {% if p.is_gold_verified %}nv-pp-gold-ring{% elif p.verified %}nv-pp-verify-glow{% endif %}">
-        {% else %}
-        <div class="nv-pp-avatar nv-pp-avatar-init {% if p.is_gold_verified %}nv-pp-gold-ring{% elif p.verified %}nv-pp-verify-glow{% endif %}">{{ p.initials or '?' }}</div>
-        {% endif %}
+        {{ avatar(p, size='profile', loading='eager', ring=bool(p.is_gold_verified or p.verified), class_name='nv-pp-avatar') }}
         {% if p.is_gold_verified %}<span class="nv-pp-verify" style="z-index:3;background:linear-gradient(135deg,#ffd700,#f0c000);color:#7c5c00;border-color:#e6b800;">★</span>{% elif p.verified %}<span class="nv-pp-verify" style="z-index:3">✓</span>{% endif %}
         {% if p.profile_score %}
         <div class="nv-pp-score-ring" style="--score:{{ p.profile_score }}">
