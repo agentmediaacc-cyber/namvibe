@@ -67,7 +67,7 @@
 {% set p_status = p.activity_status or 'online' %}
 {% set p_live_label = status_map.get(p_status, '🟢 Online' if p.is_online else '⚫ Offline') %}
 
-<div class="nv-pp" data-profile-id="{{ p.id }}" data-username="{{ p.username }}">
+<div class="nv-pp" data-profile-id="{{ p.id }}" data-username="{{ p.username }}"{% if profile_shell %} data-owner-profile-shell="1" data-public-profile-shell="1"{% endif %}>
 
   <!-- ════════════════════════════════════════════════
        1. PREMIUM HERO HEADER

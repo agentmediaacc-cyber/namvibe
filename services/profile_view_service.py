@@ -150,7 +150,7 @@ def _tabs(own_profile, is_creator, has_shop):
     return tabs
 
 
-def build_profile_view_model(profile, viewer=None, stats=None, content=None, wallet=None, creator=None, marketplace=None, presence=None, action_policy=None):
+def build_profile_view_model(profile, viewer=None, stats=None, content=None, wallet=None, creator=None, marketplace=None, presence=None, action_policy=None, load_entitlement=True):
     profile = profile or {}
     viewer = viewer or {}
     stats = stats or {}
@@ -165,7 +165,11 @@ def build_profile_view_model(profile, viewer=None, stats=None, content=None, wal
     has_shop = bool(products or marketplace.get("shop_enabled") or profile.get("shop_enabled") or profile.get("has_shop"))
     is_creator = bool(profile.get("is_creator") or creator.get("studio_enabled") or creator.get("monetization_enabled") or profile.get("profile_type") == "creator")
     avatar = avatar_meta(profile)
-    entitlement = get_entitlement(profile.get("id"), profile=profile) if profile.get("id") else {"effective_plan": "free", "subscription_status": "free", "is_premium": False}
+    entitlement = (
+        get_entitlement(profile.get("id"), profile=profile)
+        if load_entitlement and profile.get("id")
+        else {"effective_plan": "free", "subscription_status": "free", "is_premium": False}
+    )
     posts_count = _as_int(stats.get("posts") or stats.get("posts_count") or profile.get("posts_count"))
     reels_count = _as_int(stats.get("reels") or stats.get("reels_count") or profile.get("reels_count"))
     views_count = _as_int(stats.get("views") or stats.get("views_count") or profile.get("profile_views"))

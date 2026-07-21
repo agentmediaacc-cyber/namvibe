@@ -544,6 +544,90 @@ def _render_profile_index(profile, viewer=None, status_code=200, unread_count=0,
     return render_template("profile/index.html", **context), status_code
 
 
+def _render_owner_profile_shell(viewer, unread_count=0, setup_warning=False):
+    shell_content = {"posts": [], "reels": [], "rooms": [], "stories": [], "gallery": [], "saved": [], "albums": [], "favorites": [], "friends": [], "gallery_preview": [], "mutual_friends": {"count": 0, "items": []}, "profile_strength": {"score": 0, "level": "Fresh", "checks": []}}
+    action_policy = {"relationship": "self"}
+    context = {
+        "unread_count": unread_count,
+        "viewer": viewer,
+        "profile": viewer,
+        "setup_warning": setup_warning,
+        "stats": {},
+        "content": shell_content,
+        "wallet": {},
+        "creator": {},
+        "creator_tools": {},
+        "marketplace": {"items": [], "featured_products": []},
+        "presence": {"status": "offline", "last_seen": None},
+        "action_policy": {"relationship": "self"},
+        "completion": viewer.get("profile_completion", 0) if viewer else 0,
+        "level": {"title": "New Member", "score": 0, "next_target": 10, "progress_pct": 0},
+        "permissions": {"can_message": False, "can_call": False, "can_contact_email": bool(viewer.get("email") if viewer else False)},
+        "contact": {"message": False, "call": False, "email": bool(viewer.get("email") if viewer else False), "whatsapp": False},
+        "dating": {},
+        "portfolio": {"skills": []},
+        "ai": {},
+        "live": {"go_live_url": "/live/studio"},
+        "calls": {},
+        "reputation": {},
+        "achievements": [],
+        "theme_options": ["Namibia Gold", "Ocean Blue", "Emerald Green", "Royal Purple", "Dark Premium"],
+        "pinned": {"posts": [], "reels": [], "products": []},
+        "profile_shell": True,
+    }
+    context["profile_view"] = build_profile_view_model(
+        viewer,
+        viewer=viewer,
+        stats={},
+        content=shell_content,
+        wallet={},
+        creator={},
+        marketplace={},
+        presence={"status": "offline", "last_seen": None},
+        action_policy=action_policy,
+        load_entitlement=False,
+    )
+    context["pv"] = context["profile_view"]
+    return render_template("profile/index.html", **context)
+
+
+def _render_public_profile_shell(profile_ref, viewer=None, username=None, user_id=None, shell_reason="public"):
+    shell_profile = _with_profile_defaults(dict(profile_ref or {}))
+    shell_content = {"posts": [], "reels": [], "rooms": [], "stories": [], "gallery": [], "gallery_preview": [], "friends": [], "mutual_friends": {"count": 0, "items": []}}
+    profile_view = build_profile_view_model(
+        shell_profile,
+        viewer=viewer,
+        stats={"posts": shell_profile.get("posts_count", 0), "reels": shell_profile.get("reels_count", 0), "followers": shell_profile.get("followers_count", 0), "following": shell_profile.get("following_count", 0), "likes": shell_profile.get("total_likes", 0), "views": shell_profile.get("profile_views", 0)},
+        content=shell_content,
+        wallet={},
+        creator={},
+        marketplace={},
+        presence={"status": "offline", "last_seen": None},
+        action_policy={"relationship": "discover"},
+        load_entitlement=False,
+    )
+    profile_view["show_owner_dashboard"] = False
+    profile_view["show_dashboard_tab"] = False
+    profile_view["profile_shell"] = True
+    context = {
+        "profile": shell_profile,
+        "pv": profile_view,
+        "viewer": viewer,
+        "content": shell_content,
+        "action_policy": {"relationship": "discover"},
+        "privacy_message": "",
+        "profile_shell": True,
+    }
+    log_info(
+        "public_profile_shell",
+        profile_id=shell_profile.get("id"),
+        username=shell_profile.get("username"),
+        shell_reason=shell_reason,
+        stats_cached=False,
+    )
+    return render_template("profile/public.html", **context), 200
+
+
 def _resolve_profile_route(username=None, user_id=None):
     start = time.perf_counter()
     fast_profile_shell = (
@@ -568,24 +652,13 @@ def _resolve_profile_route(username=None, user_id=None):
     if not profile_ref:
         log_warning("public_profile_missing", username=username, user_id=user_id)
         if request.args.get("shell") == "1" or os.getenv("CHAIN_FORCE_FAST_HOME", "").lower() in ("1", "true", "yes", "on") or os.getenv("CHAIN_TUNNEL_TESTING", "").lower() in ("1", "true", "yes", "on"):
-            shell_profile = _with_profile_defaults({
+            log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False, shell=True)
+            shell_profile = {
                 "username": cleaned_username or (username or "").lstrip("@") or "profile",
                 "display_name": cleaned_username or (username or "").lstrip("@") or "profile",
                 "bio": "",
-            })
-            shell_view = build_profile_view_model(
-                shell_profile,
-                viewer=None,
-                stats={"posts": 0, "reels": 0, "followers": 0, "following": 0, "likes": 0, "views": 0},
-                content={"posts": [], "reels": [], "rooms": [], "stories": []},
-                wallet={},
-                creator={},
-                marketplace={},
-                presence={"status": "offline", "last_seen": None},
-                action_policy={},
-            )
-            log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False, shell=True)
-            return render_template("profile/public.html", profile=shell_profile, pv=shell_view, viewer=None, content={"posts": [], "reels": [], "rooms": [], "stories": []}), 200
+            }
+            return _render_public_profile_shell(shell_profile, viewer=None, username=username, user_id=user_id, shell_reason="missing")
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False)
         return _profile_not_found_light_response(username or user_id or "")
 
@@ -595,53 +668,19 @@ def _resolve_profile_route(username=None, user_id=None):
         log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=True, visibility=visibility, hidden=True)
         return _profile_not_found_light_response(username or user_id or "")
 
-    public_handle_route = bool(username and not user_id)
     profile = profile_ref
-    if public_handle_route and not fast_profile_shell:
-        shell_profile = _with_profile_defaults(dict(profile_ref))
-        profile_view = build_profile_view_model(
-            shell_profile,
-            viewer=None,
-            stats={"posts": 0, "reels": 0, "followers": 0, "following": 0, "likes": 0, "views": 0},
-            content={"posts": [], "reels": [], "rooms": [], "stories": []},
-            wallet={},
-            creator={},
-            marketplace={},
-            presence={"status": "offline", "last_seen": None},
-            action_policy={},
+
+    if request.args.get("shell") == "1" or fast_profile_shell or username or user_id:
+        log_info(
+            "profile_page_total",
+            duration_ms=round((time.perf_counter() - start) * 1000, 2),
+            profile_id=profile.get("id"),
+            privacy="public",
+            shell=True,
         )
-        log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public", shell=True)
-        return render_template("profile/public.html", profile=shell_profile, pv=profile_view, viewer=None, content={"posts": [], "reels": [], "rooms": [], "stories": []}), 200
+        return _render_public_profile_shell(profile, viewer=None, username=username, user_id=user_id, shell_reason="canonical")
 
-    viewer = None if fast_profile_shell else (get_current_profile() if is_logged_in() else None)
-
-    if fast_profile_shell:
-        shell_profile = dict(profile)
-        shell_profile.setdefault("bio", "")
-        try:
-            bundle = get_profile_bundle(profile_id=profile.get("id"), viewer=None) if profile.get("id") else {}
-            profile_view = build_profile_view_model(
-                shell_profile,
-                viewer=None,
-                stats=bundle.get("stats") or {"posts": 0, "reels": 0, "followers": 0, "following": 0, "likes": 0, "views": 0},
-                content=bundle.get("content") or {"posts": [], "reels": [], "rooms": [], "stories": []},
-                wallet=bundle.get("wallet") or {},
-                creator=bundle.get("creator_tools") or {},
-                marketplace=bundle.get("marketplace") or {},
-                presence=bundle.get("presence") or {"status": "offline", "last_seen": None},
-                action_policy={},
-            )
-            log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_id=profile.get("id"), privacy="public", shell=True)
-            return render_template("profile/public.html", profile=shell_profile, pv=profile_view, viewer=None, content=bundle.get("content") or {"posts": [], "reels": [], "rooms": []}), 200
-        except Exception as error:
-            log_warning(
-                "public_profile_shell_render_failed",
-                username=username,
-                user_id=user_id,
-                error=str(error),
-            )
-            log_info("profile_page_total", duration_ms=round((time.perf_counter() - start) * 1000, 2), profile_found=False, degraded=True, shell=True)
-            return _profile_not_found_light_response(username or user_id or "")
+    viewer = get_current_profile() if is_logged_in() else None
 
     if viewer and viewer.get("id") != profile.get("id"):
         record_profile_view(profile.get("id"), viewer.get("id"))
@@ -775,52 +814,29 @@ def my_profile():
 
         incomplete_profile = not is_profile_complete(viewer)
 
-        try:
-            bundle = get_profile_bundle(profile_id=viewer["id"], viewer=viewer)
-        except Exception as error:
-            log_warning("profile_bundle_current_failed", profile_id=viewer.get("id"), error=str(error))
-            bundle = None
-        if not bundle:
-            session[K_PROFILE_WARNING] = True
-            log_warning("profile_bundle_missing_for_current_user", profile_id=viewer.get("id"))
-            context = _profile_fallback_context()
-            context["profile"] = viewer
-            context["viewer"] = viewer
-            from services.social_action_policy import get_action_policy
-            context["action_policy"] = get_action_policy(viewer.get("id"), viewer)
+        session[K_PROFILE_WARNING] = False
+        if viewer.get("id"):
             try:
-                context["content"] = get_profile_content(viewer.get("id"))
-                context["stats"] = get_profile_stats(viewer.get("id"))
-            except Exception:
-                pass
-            context["profile_view"] = build_profile_view_model(
-                context["profile"],
-                viewer=context.get("viewer"),
-                stats=context.get("stats"),
-                content=context.get("content"),
-                wallet=context.get("wallet"),
-                creator=context.get("creator") or context.get("creator_tools"),
-                marketplace=context.get("marketplace"),
-                presence=context.get("presence"),
-                action_policy=context.get("action_policy"),
+                fresh_viewer = get_profile_by_id(viewer.get("id")) or viewer
+                if fresh_viewer:
+                    viewer = fresh_viewer
+            except Exception as error:
+                log_warning("profile_owner_refresh_failed", profile_id=viewer.get("id"), error=str(error))
+            log_info(
+                "owner_profile_shell",
+                profile_id=viewer.get("id"),
+                shell=True,
+                stats_cached=False,
             )
-            context["pv"] = context["profile_view"]
-            return render_template("profile/index.html", **context)
+            return _render_owner_profile_shell(viewer, unread_count=0, setup_warning=False)
 
-        unread_count = 0
-        try:
-            if is_owner:
-                _, _, unread_count = get_my_notifications()
-        except Exception as error:
-            log_warning("profile_notifications_failed", profile_id=viewer.get("id"), error=str(error))
-            unread_count = 0
         setup_warning = session.get(K_PROFILE_WARNING)
         return _render_profile_index(
             viewer,
             viewer=viewer,
-            unread_count=unread_count,
+            unread_count=0,
             setup_warning=setup_warning or incomplete_profile,
-            bundle=bundle,
+            bundle=None,
         )
     except Exception as error:
         log_error("profile_route_failed", route="/profile/", error=str(error))
